@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "purpose": "Persistent configuration for theme exposure limits",
+  "settings": {
+    "ENABLE_THEME_RISK": true,
+    "MAX_THEME_NOTIONAL_USD": 150000
+  },
+  "theme_limits": {
+    "Tech_Growth": {
+      "max_notional_usd": 150000,
+      "description": "FAANG + tech ETFs",
+      "symbols": ["AAPL", "MSFT", "GOOGL", "NVDA", "TSLA", "AMD", "META", "NFLX", "INTC", "SPY", "QQQ", "XLK"]
+    },
+    "default": {
+      "max_notional_usd": 100000,
+      "description": "Default limit for other themes"
+    }
+  },
+  "operator_controls": {
+    "last_updated": "2025-11-18T20:57:00Z",
+    "updated_by": "config_deployment",
+    "reason": "Enable multiple concurrent Tech_Growth positions while maintaining theme diversification"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "strategies": [
+    {
+      "name": "limit_offset",
+      "offset_bps": {
+        "quiet": 10,
+        "mixed": 20,
+        "high": 30
+      }
+    },
+    {
+      "name": "peg_mid",
+      "spread_max_bps": 15,
+      "queue_priority": "medium"
+    },
+    {
+      "name": "twap_slice",
+      "slice_pct": 2,
+      "window_min": 15
+    },
+    {
+      "name": "vwap_adaptive",
+      "toxicity_block": true
+    }
+  ],
+  "selection_rules": {
+    "quiet": "peg_mid",
+    "mixed": "limit_offset",
+    "high": "limit_offset",
+    "high_spread_or_toxicity": "twap_slice"
+  },
+  "tca_feedback": {
+    "adjust_offsets_bps": {
+      "improve": -5,
+      "worsen": 5
+    },
+    "switch_on_failures": 3
+  }
+}

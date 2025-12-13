@@ -1,0 +1,272 @@
+{
+  "startup_safety_suite_v2": {
+    "version": "2.0",
+    "purpose": "Fix silent startup crashes with preflight config validation, guarded imports, safe defaults, automatic remediation, and clear audit trails. No code edits required—bot consumes this JSON to run the fixes.",
+    "paths": {
+      "audit": "data/cycle_errors.jsonl",
+      "progress": "state/v4_cycle_progress.json",
+      "promotion_flag": "state/v2_promoted.json",
+      "metrics_rollup": "state/v2_metrics.json",
+      "safe_config_dir": "state/safe_configs/",
+      "backup_config_dir": "state/config_backups/",
+      "theme_risk_src": "config/theme_risk.json",
+      "theme_risk_safe": "state/safe_configs/theme_risk.safe.json",
+      "global_settings_src": "config/global_settings.json",
+      "global_settings_safe": "state/safe_configs/global_settings.safe.json"
+    },
+    "runtime": {
+      "paper_mode": true,
+      "strict_validation": true,
+      "guard_imports": true,
+      "max_startup_time_sec": 15,
+      "retry_on_failure": {
+        "enabled": true,
+        "attempts": 3,
+        "backoff_sec": 3
+      }
+    },
+    "import_guards": {
+      "modules": [
+        "uw_enrichment_v2",
+        "uw_composite_v2",
+        "v4_orchestrator",
+        "feature_attribution_v2",
+        "sector_rotation_v2",
+        "canary_router_v2",
+        "cross_asset_confirmation",
+        "main_strategies",
+        "alpaca_executor"
+      ],
+      "on_error": {
+        "log_event": "IMPORT_GUARD_FAIL",
+        "behavior": "fallback_to_minimal_mode",
+        "minimal_mode_flags": {
+          "disable_execution": true,
+          "enable_intelligence_only": true
+        }
+      }
+    },
+    "files_to_validate": [
+      {
+        "label": "theme_risk.json",
+        "source": "config/theme_risk.json",
+        "safe_copy": "state/safe_configs/theme_risk.safe.json",
+        "backup_dir": "state/config_backups/",
+        "schema": {
+          "type": "object",
+          "required": ["risk_profiles", "defaults", "limits"],
+          "properties": {
+            "risk_profiles": {
+              "type": "object",
+              "minProperties": 1,
+              "patternProperties": {
+                ".*": {
+                  "type": "object",
+                  "required": ["max_positions", "base_notional_usd", "stop_loss_pct", "take_profit_pct"],
+                  "properties": {
+                    "max_positions": { "type": "integer", "minimum": 1, "maximum": 50 },
+                    "base_notional_usd": { "type": "number", "minimum": 100, "maximum": 50000 },
+                    "stop_loss_pct": { "type": "number", "minimum": 0.005, "maximum": 0.15 },
+                    "take_profit_pct": { "type": "number", "minimum": 0.01, "maximum": 0.5 }
+                  }
+                }
+              }
+            },
+            "defaults": {
+              "type": "object",
+              "required": ["profile", "cooldown_min", "slippage_budget_pct"],
+              "properties": {
+                "profile": { "type": "string" },
+                "cooldown_min": { "type": "integer", "minimum": 0, "maximum": 120 },
+                "slippage_budget_pct": { "type": "number", "minimum": 0.0, "maximum": 0.05 }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "required": ["daily_notional_cap_usd", "max_concurrent_orders"],
+              "properties": {
+                "daily_notional_cap_usd": { "type": "number", "minimum": 1000, "maximum": 500000 },
+                "max_concurrent_orders": { "type": "integer", "minimum": 1, "maximum": 100 }
+              }
+            }
+          }
+        },
+        "safe_defaults": {
+          "risk_profiles": {
+            "paper_safe": {
+              "max_positions": 10,
+              "base_notional_usd": 500,
+              "stop_loss_pct": 0.03,
+              "take_profit_pct": 0.06
+            }
+          },
+          "defaults": {
+            "profile": "paper_safe",
+            "cooldown_min": 20,
+            "slippage_budget_pct": 0.01
+          },
+          "limits": {
+            "daily_notional_cap_usd": 100000,
+            "max_concurrent_orders": 15
+          }
+        },
+        "on_failure": {
+          "log_event": "CONFIG_VALIDATION_FAIL",
+          "behavior": "use_safe_defaults_and_continue",
+          "backup_original": true,
+          "write_safe_copy": true
+        }
+      },
+      {
+        "label": "global_settings.json",
+        "source": "config/global_settings.json",
+        "safe_copy": "state/safe_configs/global_settings.safe.json",
+        "backup_dir": "state/config_backups/",
+        "schema": {
+          "type": "object",
+          "required": ["execution", "telemetry", "governance"],
+          "properties": {
+            "execution": {
+              "type": "object",
+              "required": ["broker", "paper_mode", "retry_policy"],
+              "properties": {
+                "broker": { "type": "string" },
+                "paper_mode": { "type": "boolean" },
+                "retry_policy": {
+                  "type": "object",
+                  "required": ["attempts", "backoff_sec"],
+                  "properties": {
+                    "attempts": { "type": "integer", "minimum": 0, "maximum": 10 },
+                    "backoff_sec": { "type": "integer", "minimum": 0, "maximum": 60 }
+                  }
+                }
+              }
+            },
+            "telemetry": {
+              "type": "object",
+              "required": ["email_reports", "audit_paths"],
+              "properties": {
+                "email_reports": { "type": "boolean" },
+                "audit_paths": {
+                  "type": "object",
+                  "required": ["errors", "progress"],
+                  "properties": {
+                    "errors": { "type": "string" },
+                    "progress": { "type": "string" }
+                  }
+                }
+              }
+            },
+            "governance": {
+              "type": "object",
+              "required": ["canary_quota", "promotion_thresholds"],
+              "properties": {
+                "canary_quota": { "type": "number", "minimum": 0.0, "maximum": 0.5 },
+                "promotion_thresholds": {
+                  "type": "object",
+                  "required": ["expectancy_delta_min", "drawdown_max", "consecutive_nights_min"],
+                  "properties": {
+                    "expectancy_delta_min": { "type": "number", "minimum": 0.01, "maximum": 0.5 },
+                    "drawdown_max": { "type": "number", "minimum": 0.02, "maximum": 0.2 },
+                    "consecutive_nights_min": { "type": "integer", "minimum": 1, "maximum": 10 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "safe_defaults": {
+          "execution": { "broker": "alpaca", "paper_mode": true, "retry_policy": { "attempts": 3, "backoff_sec": 2 } },
+          "telemetry": { "email_reports": true, "audit_paths": { "errors": "data/cycle_errors.jsonl", "progress": "state/v4_cycle_progress.json" } },
+          "governance": { "canary_quota": 0.15, "promotion_thresholds": { "expectancy_delta_min": 0.10, "drawdown_max": 0.08, "consecutive_nights_min": 3 } }
+        },
+        "on_failure": {
+          "log_event": "CONFIG_VALIDATION_FAIL",
+          "behavior": "use_safe_defaults_and_continue",
+          "backup_original": true,
+          "write_safe_copy": true
+        }
+      }
+    ],
+    "startup_checks": {
+      "order": [
+        "validate_files",
+        "guard_imports",
+        "load_configs",
+        "init_services",
+        "start_daemons"
+      ],
+      "validate_files": {
+        "log_event": "STARTUP_VALIDATE_FILES",
+        "fail_fast": true
+      },
+      "load_configs": {
+        "log_event": "STARTUP_LOAD_CONFIGS",
+        "fail_behavior": "use_safe_copies_then_continue"
+      },
+      "init_services": {
+        "log_event": "STARTUP_INIT_SERVICES",
+        "services": ["telemetry", "executor", "uw_intelligence", "orchestrator"]
+      },
+      "start_daemons": {
+        "log_event": "STARTUP_START_DAEMONS",
+        "daemons": ["trading_bot", "v4_research_daemon"]
+      }
+    },
+    "remediation": {
+      "on_startup_failure": [
+        "backup_faulty_configs",
+        "write_safe_copies",
+        "flip_to_minimal_mode",
+        "retry_with_backoff",
+        "emit_terminal_status"
+      ],
+      "backup_faulty_configs": { "enabled": true },
+      "write_safe_copies": { "enabled": true },
+      "flip_to_minimal_mode": {
+        "flags": { "disable_execution": true, "enable_intelligence_only": true, "paper_mode": true }
+      },
+      "retry_with_backoff": {
+        "enabled": true,
+        "attempts": 3,
+        "backoff_sec": 3
+      },
+      "emit_terminal_status": {
+        "progress_file": "state/v4_cycle_progress.json",
+        "fields": ["completed", "email_sent", "last_checkpoint", "error_summary"]
+      }
+    },
+    "promotion_governance": {
+      "sources": {
+        "alpha_attribution": "data/alpha_attribution_v2.jsonl",
+        "orders_log": "data/orders_log.jsonl"
+      },
+      "criteria": {
+        "expectancy_delta_min": 0.10,
+        "drawdown_max": 0.08,
+        "consecutive_nights_min": 3,
+        "demote_on_fail_nights": 2
+      },
+      "actions": {
+        "promote": { "set_flag": { "path": "state/v2_promoted.json", "value": { "enabled": true, "ts": "$now", "reason": "promotion_criteria_met" } } },
+        "demote": { "set_flag": { "path": "state/v2_promoted.json", "value": { "enabled": false, "ts": "$now", "reason": "demotion_fail_streak" } } }
+      },
+      "nightly_rollup": {
+        "write_metrics": "state/v2_metrics.json",
+        "audit_event": "NIGHTLY_METRICS_UPDATE"
+      }
+    },
+    "integration": {
+      "hybrid_weekend_mode": [
+        "run_v2_intelligence_in_main_loop",
+        "run_execution_modules_nightly_only",
+        "auto_promotion_daemon_evaluates_metrics_and_flips_flag"
+      ],
+      "main_cycle_gate": {
+        "read_flag": "state/v2_promoted.json",
+        "behavior_if_true": "enable_direct_v2_execution_in_trading_loop",
+        "behavior_if_false": "keep_hybrid_mode_and_nightly_execution"
+      }
+    }
+  }
+}

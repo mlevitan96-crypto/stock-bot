@@ -1,0 +1,118 @@
+version: "0.5"
+
+log_level: info
+log_location: logs/process-compose.log
+
+processes:
+  uw-daemon:
+    command: python uw_integration_full.py
+    availability:
+      restart: always
+      backoff_seconds: 10
+      max_restarts: 0
+    readiness_probe:
+      initial_delay_seconds: 10
+      period_seconds: 60
+      timeout_seconds: 10
+      exec:
+        command: "pgrep -f 'python uw_integration_full.py' > /dev/null"
+    liveness_probe:
+      initial_delay_seconds: 60
+      period_seconds: 120
+      timeout_seconds: 10
+      failure_threshold: 3
+      exec:
+        command: "pgrep -f 'python uw_integration_full.py' > /dev/null"
+    log_location: logs/uw-daemon-pc.log
+
+  trading-bot:
+    command: python main.py
+    environment:
+      - API_PORT=8081
+    availability:
+      restart: always
+      backoff_seconds: 15
+      max_restarts: 0
+    depends_on:
+      uw-daemon:
+        condition: process_started
+    readiness_probe:
+      initial_delay_seconds: 20
+      period_seconds: 60
+      timeout_seconds: 10
+      http_get:
+        host: 127.0.0.1
+        port: 8081
+        path: /health
+    liveness_probe:
+      initial_delay_seconds: 30
+      period_seconds: 60
+      timeout_seconds: 10
+      failure_threshold: 3
+      exec:
+        command: "pgrep -f 'python main.py' > /dev/null"
+    log_location: logs/trading-bot-pc.log
+
+  dashboard:
+    command: python dashboard.py
+    availability:
+      restart: always
+      backoff_seconds: 5
+      max_restarts: 0
+    readiness_probe:
+      initial_delay_seconds: 10
+      period_seconds: 30
+      timeout_seconds: 5
+      http_get:
+        host: 127.0.0.1
+        port: 5000
+        path: /
+    liveness_probe:
+      initial_delay_seconds: 15
+      period_seconds: 60
+      timeout_seconds: 5
+      failure_threshold: 3
+      http_get:
+        host: 127.0.0.1
+        port: 5000
+        path: /
+    log_location: logs/dashboard-pc.log
+
+  v4-research:
+    command: python v4_orchestrator.py
+    availability:
+      restart: always
+      backoff_seconds: 30
+      max_restarts: 0
+    depends_on:
+      uw-daemon:
+        condition: process_started
+    liveness_probe:
+      initial_delay_seconds: 120
+      period_seconds: 300
+      timeout_seconds: 30
+      failure_threshold: 2
+      exec:
+        command: "pgrep -f 'python v4_orchestrator.py' > /dev/null"
+    log_location: logs/v4-research-pc.log
+
+  heartbeat-keeper:
+    command: python heartbeat_keeper.py
+    availability:
+      restart: always
+      backoff_seconds: 5
+      max_restarts: 0
+    readiness_probe:
+      initial_delay_seconds: 5
+      period_seconds: 30
+      timeout_seconds: 5
+      exec:
+        command: "test -f state/system_heartbeat.json"
+    liveness_probe:
+      initial_delay_seconds: 10
+      period_seconds: 60
+      timeout_seconds: 5
+      failure_threshold: 2
+      exec:
+        command: "test -f state/system_heartbeat.json && find state/system_heartbeat.json -mmin -2 | grep -q ."
+    log_location: logs/heartbeat-keeper-pc.log
