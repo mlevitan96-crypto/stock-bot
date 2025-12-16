@@ -27,8 +27,8 @@ def _env_flag(name: str, default: bool = False) -> bool:
         return default
     return str(val).strip().lower() in ("1", "true", "yes", "y", "on")
 
-# Optional services are disabled by default (they are either one-shot utilities or experimental).
-ENABLE_UW_DAEMON = _env_flag("ENABLE_UW_DAEMON", False)
+# UW cache daemon should run by default in production (health checks expect a fresh cache).
+ENABLE_UW_DAEMON = _env_flag("ENABLE_UW_DAEMON", True)
 ENABLE_V4_RESEARCH = _env_flag("ENABLE_V4_RESEARCH", False)
 ENABLE_HEARTBEAT_KEEPER = _env_flag("ENABLE_HEARTBEAT_KEEPER", False)
 
@@ -53,13 +53,12 @@ SERVICES = [
 if ENABLE_UW_DAEMON:
     SERVICES.append({
         "name": "uw-daemon",
-        # NOTE: `uw_integration_full.py` is currently a one-shot scoring demo.
-        # Enable only if you replace it with a real daemon loop.
-        "cmd": [PYTHON, "-u", "uw_integration_full.py"],
+        # Central cache producer (writes data/uw_flow_cache.json continuously)
+        "cmd": [PYTHON, "-u", "uw_daemon.py"],
         "delay": 0,
         "critical": False,
         "requires_secrets": True,
-        "restart_on_exit": False,
+        "restart_on_exit": True,
     })
 
 if ENABLE_V4_RESEARCH:
