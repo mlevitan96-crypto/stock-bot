@@ -1,0 +1,1203 @@
+#!/usr/bin/env python3
+"""
+UW Composite Scoring V3.1
+Full Intelligence Pipeline with Adaptive Signal Weight Optimization
+
+V3.1 Enhancements:
+- Adaptive weight multipliers (0.25x-2.5x) learned from trade outcomes
+- Directional conviction engine for unified long/short scoring
+- Continuous weight tuning instead of binary signal activation
+- Exit signal optimization with separate adaptive weights
+
+V3 Features (retained):
+- Congress/Politician trading signals
+- Short interest & squeeze detection
+- Institutional flow alignment
+- Market tide sentiment
+- Economic/FDA/Earnings calendar awareness
+"""
+
+import json
+import time
+import math
+from pathlib import Path
+from typing import Dict, List, Any, Optional, Tuple
+
+MOTIF_STATE = Path("state/uw_motifs.json")
+THRESHOLD_STATE = Path("state/uw_thresholds_hierarchical.json")
+AUDIT_LOG = Path("data/audit_uw_upgrade.jsonl")
+EXPANDED_INTEL_CACHE = Path("data/uw_expanded_intel.json")
+
+_adaptive_optimizer = None
+
+def _get_adaptive_optimizer():
+    """Lazy-load adaptive optimizer to avoid circular imports"""
+    global _adaptive_optimizer
+    if _adaptive_optimizer is None:
+        try:
+            from adaptive_signal_optimizer import get_optimizer
+            _adaptive_optimizer = get_optimizer()
+        except ImportError:
+            _adaptive_optimizer = None
+    return _adaptive_optimizer
+
+def get_adaptive_weights() -> Dict[str, float]:
+    """Get current adaptive weights from optimizer, falls back to static"""
+    optimizer = _get_adaptive_optimizer()
+    if optimizer:
+        return optimizer.get_weights_for_composite()
+    return None
+
+_cached_weights: Dict[str, float] = {}
+_weights_cache_ts: float = 0.0
+
+def get_weight(component: str) -> float:
+    """
+    UNIFIED WEIGHT ACCESSOR - All scoring must use this function.
+    
+    Returns the current weight for a component, using adaptive weights
+    when available, falling back to WEIGHTS_V3 defaults.
+    
+    This ensures every decision point uses learned weights.
+    """
+    global _cached_weights, _weights_cache_ts
+    
+    now = time.time()
+    if now - _weights_cache_ts > 60:
+        adaptive = get_adaptive_weights()
+        if adaptive:
+            _cached_weights = {**WEIGHTS_V3, **adaptive}
+        else:
+            _cached_weights = WEIGHTS_V3.copy()
+        _weights_cache_ts = now
+    
+    return _cached_weights.get(component, WEIGHTS_V3.get(component, 0.0))
+
+def get_all_current_weights() -> Dict[str, float]:
+    """Get all current weights (adaptive merged with defaults)"""
+    global _cached_weights, _weights_cache_ts
+    
+    now = time.time()
+    if now - _weights_cache_ts > 60:
+        adaptive = get_adaptive_weights()
+        if adaptive:
+            _cached_weights = {**WEIGHTS_V3, **adaptive}
+        else:
+            _cached_weights = WEIGHTS_V3.copy()
+        _weights_cache_ts = now
+    
+    return _cached_weights.copy()
+
+_cached_multipliers: Dict[str, float] = {}
+_multipliers_cache_ts: float = 0.0
+
+def get_multiplier(component: str) -> float:
+    """
+    Get ONLY the adaptive multiplier (0.25x-2.5x) for a component.
+    Use this for downstream modules (sizing, gating) that need to scale
+    their own calculations without double-counting base weights.
+    
+    Returns 1.0 if no adaptive learning has occurred for this component.
+    """
+    global _cached_multipliers, _multipliers_cache_ts
+    
+    now = time.time()
+    if now - _multipliers_cache_ts > 60:
+        optimizer = _get_adaptive_optimizer()
+        if optimizer:
+            try:
+                _cached_multipliers = optimizer.get_multipliers_only()
+            except (AttributeError, Exception):
+                _cached_multipliers = {}
+        else:
+            _cached_multipliers = {}
+        _multipliers_cache_ts = now
+    
+    return _cached_multipliers.get(component, 1.0)
+
+# V3 Weights - Full Intelligence Integration (V2 Pipeline)
+WEIGHTS_V3 = {
+    # Core flow signals (original)
+    "options_flow": 2.4,           # Slightly reduced to make room for new signals
+    "dark_pool": 1.3,
+    "insider": 0.5,
+    
+    # V2 features (retained)
+    "iv_term_skew": 0.6,
+    "smile_slope": 0.35,
+    "whale_persistence": 0.7,
+    "event_alignment": 0.4,
+    "toxicity_penalty": -0.9,
+    "temporal_motif": 0.5,
+    "regime_modifier": 0.3,
+    
+    # V3 NEW: Expanded Intelligence Signals
+    "congress": 0.9,               # Politician trading (user says "very valuable")
+    "shorts_squeeze": 0.7,         # Short interest & squeeze potential
+    "institutional": 0.5,          # 13F filings & institutional activity
+    "market_tide": 0.4,            # Options market sentiment
+    "calendar_catalyst": 0.45,     # Earnings/FDA/Economic events
+    "etf_flow": 0.3,               # ETF in/outflows
+    
+    # V2 NEW: Full Intelligence Pipeline (must match SIGNAL_COMPONENTS in main.py)
+    "greeks_gamma": 0.4,           # Gamma/delta exposure for squeeze detection
+    "ftd_pressure": 0.3,           # Fails-to-deliver for squeeze signals
+    "iv_rank": 0.2,                # IV rank for options timing (can be negative)
+    "oi_change": 0.35,             # Open interest changes - institutional positioning
+    "squeeze_score": 0.2,          # Combined squeeze indicator bonus
+}
+
+# Legacy V2 weights for backward compatibility
+WEIGHTS_V2 = {
+    "options_flow": 2.6,
+    "dark_pool": 1.4,
+    "insider": 0.6,
+    "iv_term_skew": 0.7,
+    "smile_slope": 0.4,
+    "whale_persistence": 0.8,
+    "event_alignment": 0.5,
+    "toxicity_penalty": -0.9,
+    "temporal_motif": 0.6,
+    "regime_modifier": 0.35
+}
+
+# V2 Thresholds
+ENTRY_THRESHOLDS = {
+    "base": 2.7,
+    "canary": 2.9,
+    "champion": 3.2
+}
+
+# Sizing Overlays
+SIZING_OVERLAYS = {
+    "iv_skew_align_boost": 0.25,
+    "whale_persistence_boost": 0.20,
+    "skew_conflict_penalty": -0.30,
+    "toxicity_penalty": -0.25
+}
+
+def _to_num(x, default=0.0):
+    try:
+        return float(x)
+    except:
+        return default
+
+def _sign_from_sentiment(sent: str) -> int:
+    if sent == "BULLISH": return +1
+    if sent == "BEARISH": return -1
+    return 0
+
+def _load_expanded_intel() -> Dict:
+    """Load expanded intelligence from central cache"""
+    try:
+        if EXPANDED_INTEL_CACHE.exists():
+            with EXPANDED_INTEL_CACHE.open("r") as f:
+                return json.load(f)
+    except:
+        pass
+    return {}
+
+def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
+    """
+    Calculate congress/politician trading component
+    
+    Congress data format from cache:
+    {
+        "recent_count": int,
+        "buys": int,
+        "sells": int,
+        "net_sentiment": "BULLISH" | "BEARISH" | "NEUTRAL",
+        "conviction_boost": float
+    }
+    
+    Returns: (component_score, notes)
+    """
+    if not congress_data:
+        return 0.0, ""
+    
+    recent_count = congress_data.get("recent_count", 0)
+    buys = congress_data.get("buys", 0)
+    sells = congress_data.get("sells", 0)
+    conviction_boost = _to_num(congress_data.get("conviction_boost", 0.0))
+    
+    if recent_count == 0:
+        return 0.0, ""
+    
+    # Calculate net direction
+    net_trades = buys - sells
+    congress_sign = 1 if net_trades > 0 else (-1 if net_trades < 0 else 0)
+    
+    # Base strength from activity level
+    activity_strength = min(1.0, recent_count / 10.0)  # Cap at 10 recent trades
+    
+    # Alignment bonus: congress trading same direction as flow = confirmation
+    aligned = (congress_sign == flow_sign) and congress_sign != 0
+    opposing = (congress_sign != 0 and flow_sign != 0 and congress_sign != flow_sign)
+    
+    w = get_weight("congress")
+    if aligned:
+        component = w * (0.6 + activity_strength * 0.4) * (1.0 + conviction_boost)
+        notes = f"congress_confirm({buys}B/{sells}S)"
+    elif opposing:
+        component = -w * 0.4 * activity_strength
+        notes = f"congress_oppose({buys}B/{sells}S)"
+    else:
+        component = w * 0.2 * activity_strength
+        notes = f"congress_neutral({buys}B/{sells}S)"
+    
+    return round(component, 4), notes
+
+def compute_shorts_component(shorts_data: Dict, flow_sign: int) -> tuple:
+    """
+    Calculate short interest & squeeze potential component
+    
+    Shorts data format from cache:
+    {
+        "interest_pct": float (0-100),
+        "days_to_cover": float,
+        "ftd_count": int,
+        "squeeze_risk": bool
+    }
+    
+    Returns: (component_score, notes)
+    """
+    if not shorts_data:
+        return 0.0, ""
+    
+    interest_pct = _to_num(shorts_data.get("interest_pct", 0))
+    days_to_cover = _to_num(shorts_data.get("days_to_cover", 0))
+    ftd_count = shorts_data.get("ftd_count", 0)
+    squeeze_risk = shorts_data.get("squeeze_risk", False)
+    
+    if interest_pct == 0:
+        return 0.0, ""
+    
+    notes_parts = []
+    component = 0.0
+    
+    w = get_weight("shorts_squeeze")
+    
+    # High short interest (>15%) with bullish flow = squeeze potential
+    if interest_pct > 15 and flow_sign == 1:
+        squeeze_strength = min(1.0, (interest_pct - 15) / 25)  # Scale 15-40%
+        component += w * 0.5 * squeeze_strength
+        notes_parts.append(f"high_SI({interest_pct:.1f}%)")
+    
+    # Days to cover > 5 with bullish flow = trapped shorts
+    if days_to_cover > 5 and flow_sign == 1:
+        cover_strength = min(1.0, (days_to_cover - 5) / 10)  # Scale 5-15 days
+        component += w * 0.3 * cover_strength
+        notes_parts.append(f"DTC({days_to_cover:.1f})")
+    
+    # FTD count high = delivery pressure
+    if ftd_count > 100000:
+        ftd_strength = min(1.0, math.log10(ftd_count) / 7)
+        component += w * 0.2 * ftd_strength
+        notes_parts.append(f"FTDs({ftd_count:,})")
+    
+    # Explicit squeeze risk flag
+    if squeeze_risk:
+        component += w * 0.3
+        notes_parts.append("SQUEEZE_ALERT")
+    
+    # Bearish flow with high short interest = crowded trade warning
+    if interest_pct > 20 and flow_sign == -1:
+        component -= w * 0.2
+        notes_parts.append("crowded_short")
+    
+    return round(component, 4), "; ".join(notes_parts)
+
+def compute_institutional_component(insider_data: Dict, flow_sign: int) -> tuple:
+    """
+    Calculate institutional activity component from insider/institutional data
+    
+    Insider data format from cache:
+    {
+        "sentiment": str,
+        "conviction_modifier": float,
+        "net_buys": int,
+        "net_sells": int,
+        "total_usd": float
+    }
+    
+    Returns: (component_score, notes)
+    """
+    if not insider_data:
+        return 0.0, ""
+    
+    net_buys = insider_data.get("net_buys", 0)
+    net_sells = insider_data.get("net_sells", 0)
+    total_usd = _to_num(insider_data.get("total_usd", 0))
+    sentiment = insider_data.get("sentiment", "NEUTRAL")
+    
+    if net_buys == 0 and net_sells == 0:
+        return 0.0, ""
+    
+    # Institutional direction
+    inst_sign = 1 if net_buys > net_sells else (-1 if net_sells > net_buys else 0)
+    
+    # Activity magnitude
+    total_trades = net_buys + net_sells
+    activity_strength = min(1.0, total_trades / 20)  # Cap at 20 trades
+    
+    # USD magnitude bonus
+    usd_bonus = 0.0
+    if total_usd > 1_000_000:
+        usd_bonus = min(0.3, math.log10(total_usd / 1_000_000) * 0.15)
+    
+    # Alignment with flow
+    aligned = (inst_sign == flow_sign) and inst_sign != 0
+    w = get_weight("institutional")
+    
+    if aligned:
+        component = w * (0.5 + activity_strength * 0.5 + usd_bonus)
+        notes = f"inst_confirm({net_buys}B/{net_sells}S,${total_usd/1e6:.1f}M)"
+    elif inst_sign != 0 and flow_sign != 0 and inst_sign != flow_sign:
+        component = -w * 0.3 * activity_strength
+        notes = f"inst_oppose({net_buys}B/{net_sells}S)"
+    else:
+        component = w * 0.15 * activity_strength
+        notes = f"inst_neutral({net_buys}B/{net_sells}S)"
+    
+    return round(component, 4), notes
+
+def compute_market_tide_component(tide_data: Dict, flow_sign: int) -> tuple:
+    """
+    Calculate market tide (options sentiment) component
+    
+    Tide data format from UW daemon (via enrich_signal_with_intel):
+    {
+        "data": [
+            {"net_call_premium": str, "net_put_premium": str, "net_volume": int, ...},
+            ...
+        ],
+        "has_data": bool
+    }
+    
+    Or aggregated format:
+    {
+        "call_premium": float,
+        "put_premium": float,
+        "net_delta": float,
+        "sentiment": str
+    }
+    
+    Returns: (component_score, notes)
+    """
+    if not tide_data:
+        return 0.0, ""
+    
+    call_prem = 0.0
+    put_prem = 0.0
+    
+    if "data" in tide_data and isinstance(tide_data["data"], list) and tide_data.get("has_data"):
+        entries = tide_data["data"][:5]
+        for entry in entries:
+            call_prem += _to_num(entry.get("net_call_premium", 0))
+            put_prem += abs(_to_num(entry.get("net_put_premium", 0)))
+    else:
+        call_prem = _to_num(tide_data.get("call_premium", 0) or tide_data.get("net_call_premium", 0))
+        put_prem = abs(_to_num(tide_data.get("put_premium", 0) or tide_data.get("net_put_premium", 0)))
+    
+    net_delta = call_prem - put_prem
+    
+    total_prem = call_prem + put_prem
+    if total_prem == 0:
+        return 0.0, ""
+    
+    call_ratio = call_prem / total_prem
+    tide_sign = 1 if call_ratio > 0.55 else (-1 if call_ratio < 0.45 else 0)
+    
+    imbalance = abs(call_ratio - 0.5) * 2
+    
+    aligned = (tide_sign == flow_sign) and tide_sign != 0
+    w = get_weight("market_tide")
+    
+    if aligned:
+        component = w * (0.4 + imbalance * 0.6)
+        notes = f"tide_confirm({call_ratio:.0%}C)"
+    elif tide_sign != 0 and flow_sign != 0 and tide_sign != flow_sign:
+        component = -w * 0.25 * imbalance
+        notes = f"tide_oppose({call_ratio:.0%}C)"
+    else:
+        component = w * 0.1 if imbalance > 0.3 else 0.0
+        notes = f"tide_active({call_ratio:.0%}C)" if imbalance > 0.3 else ""
+    
+    return round(component, 4), notes
+
+def compute_calendar_component(calendar_data: Optional[Dict], symbol: str) -> tuple:
+    """
+    Calculate calendar catalyst component (earnings, FDA, economic events)
+    
+    Calendar data from expanded intel cache:
+    {
+        "has_earnings": bool,
+        "earnings_date": str,
+        "days_to_earnings": int,
+        "has_fda": bool,
+        "fda_catalyst": str,
+        "economic_events": list
+    }
+    
+    Returns: (component_score, notes)
+    """
+    if not calendar_data:
+        return 0.0, ""
+    
+    notes_parts = []
+    component = 0.0
+    w = get_weight("calendar_catalyst")
+    
+    # Earnings proximity bonus
+    if calendar_data.get("has_earnings"):
+        days_to = calendar_data.get("days_to_earnings", 999)
+        if days_to <= 7:
+            component += w * 0.4 * (1 - days_to / 7)
+            notes_parts.append(f"earnings_in_{days_to}d")
+    
+    # FDA catalyst (biotech)
+    if calendar_data.get("has_fda"):
+        catalyst = calendar_data.get("fda_catalyst", "event")
+        component += w * 0.5
+        notes_parts.append(f"FDA:{catalyst}")
+    
+    # Economic events (macro awareness)
+    econ_events = calendar_data.get("economic_events", [])
+    if econ_events:
+        event_count = len(econ_events) if isinstance(econ_events, (list, tuple)) else int(econ_events)
+        if event_count > 0:
+            component += w * 0.2 * min(1.0, event_count / 3)
+            notes_parts.append(f"econ_events:{event_count}")
+    
+    return round(component, 4), "; ".join(notes_parts)
+
+def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL", 
+                                expanded_intel: Dict = None,
+                                use_adaptive_weights: bool = True) -> Dict[str, Any]:
+    """
+    V3.1 FULL INTELLIGENCE Composite scoring with Adaptive Weights
+    
+    Incorporates ALL expanded endpoints:
+    - Congress/politician trading
+    - Short interest & squeeze potential
+    - Institutional activity
+    - Market tide
+    - Calendar catalysts
+    - ETF flows
+    
+    V3.1: Uses adaptive weight multipliers (0.25x-2.5x) learned from trade outcomes.
+    Weights are continuously tuned based on which signals prove most predictive.
+    
+    Returns comprehensive result with all components for learning
+    """
+    
+    # V3.1: Get adaptive weights if available
+    weights = WEIGHTS_V3.copy()
+    adaptive_active = False
+    if use_adaptive_weights:
+        adaptive_weights = get_adaptive_weights()
+        if adaptive_weights:
+            weights.update(adaptive_weights)
+            adaptive_active = True
+    
+    # Load expanded intel if not provided
+    if expanded_intel is None:
+        expanded_intel = _load_expanded_intel()
+    
+    symbol_intel = expanded_intel.get(symbol, {})
+    
+    # Base flow components (from enriched_data / cache)
+    flow_sent = enriched_data.get("sentiment", "NEUTRAL")
+    flow_conv = _to_num(enriched_data.get("conviction", 0.0))
+    flow_sign = _sign_from_sentiment(flow_sent)
+    
+    # Dark pool
+    dp = enriched_data.get("dark_pool", {}) or {}
+    dp_sent = dp.get("sentiment", "NEUTRAL")
+    dp_prem = _to_num(dp.get("total_premium", 0.0))
+    
+    # Insider (also used for institutional)
+    ins = enriched_data.get("insider", {}) or {}
+    
+    # V2 features
+    iv_skew = _to_num(enriched_data.get("iv_term_skew", 0.0))
+    smile_slope = _to_num(enriched_data.get("smile_slope", 0.0))
+    toxicity = _to_num(enriched_data.get("toxicity", 0.0))
+    event_align = _to_num(enriched_data.get("event_alignment", 0.0))
+    freshness = _to_num(enriched_data.get("freshness", 1.0))
+    
+    # V3 NEW: Expanded intelligence from cache
+    congress_data = enriched_data.get("congress", {}) or symbol_intel.get("congress", {})
+    shorts_data = enriched_data.get("shorts", {}) or symbol_intel.get("shorts", {})
+    tide_data = symbol_intel.get("market_tide", {})
+    calendar_data = symbol_intel.get("calendar", {})
+    
+    # Motif data
+    motif_staircase = enriched_data.get("motif_staircase", {})
+    motif_sweep = enriched_data.get("motif_sweep_block", {})
+    motif_burst = enriched_data.get("motif_burst", {})
+    motif_whale = enriched_data.get("motif_whale", {})
+    
+    # ============ COMPONENT CALCULATIONS (using adaptive weights) ============
+    all_notes = []
+    if adaptive_active:
+        all_notes.append("adaptive_weights_active")
+    
+    # 1. Options flow (primary)
+    flow_component = weights.get("options_flow", 2.4) * flow_conv
+    
+    # 2. Dark pool
+    dp_strength = 0.0
+    if dp_sent in ("BULLISH", "BEARISH"):
+        mag = max(1.0, dp_prem)
+        log_factor = min(0.8, math.log10(mag) / 7.5)
+        dp_strength = 0.5 + log_factor
+    else:
+        dp_strength = 0.2
+    dp_component = weights.get("dark_pool", 1.3) * dp_strength
+    
+    # 3. Insider (baseline V2)
+    ins_sent = ins.get("sentiment", "NEUTRAL")
+    ins_mod = _to_num(ins.get("conviction_modifier", 0.0))
+    if ins_sent == "BULLISH":
+        insider_component = weights.get("insider", 0.5) * (0.50 + ins_mod)
+    elif ins_sent == "BEARISH":
+        insider_component = weights.get("insider", 0.5) * (0.50 - abs(ins_mod))
+    else:
+        insider_component = weights.get("insider", 0.5) * 0.25
+    
+    # 4. IV term skew
+    iv_aligned = (iv_skew > 0 and flow_sign == +1) or (iv_skew < 0 and flow_sign == -1)
+    iv_component = weights.get("iv_term_skew", 0.6) * abs(iv_skew) * (1.3 if iv_aligned else 0.7)
+    
+    # 5. Smile slope
+    smile_component = weights.get("smile_slope", 0.35) * abs(smile_slope)
+    
+    # 6. Whale persistence
+    whale_detected = motif_whale.get("detected", False)
+    whale_score = 0.0
+    if whale_detected:
+        avg_conv = motif_whale.get("avg_conviction", 0.0)
+        whale_score = weights.get("whale_persistence", 0.7) * avg_conv
+    
+    # 7. Event alignment
+    event_component = weights.get("event_alignment", 0.4) * event_align
+    
+    # 8. Temporal motif bonus
+    motif_bonus = 0.0
+    if motif_staircase.get("detected"):
+        motif_bonus += weights.get("temporal_motif", 0.5) * motif_staircase.get("slope", 0.0) * 3.0
+        all_notes.append(f"staircase({motif_staircase.get('steps', 0)} steps)")
+    if motif_burst.get("detected"):
+        intensity = motif_burst.get("intensity", 0.0)
+        motif_bonus += weights.get("temporal_motif", 0.5) * min(1.0, intensity / 2.0)
+        all_notes.append(f"burst({motif_burst.get('count', 0)} updates)")
+    
+    # 9. Toxicity penalty - FIXED: Apply penalty starting at 0.5 (was 0.85)
+    # CRITICAL: Ensure toxicity weight is NEGATIVE (it's a penalty, not a boost)
+    raw_tox_weight = weights.get("toxicity_penalty", -0.9)
+    tox_weight = raw_tox_weight if raw_tox_weight < 0 else -abs(raw_tox_weight)  # Force negative
+    toxicity_component = 0.0
+    if toxicity > 0.5:
+        toxicity_component = tox_weight * (toxicity - 0.5) * 1.5
+        all_notes.append(f"toxicity_penalty({toxicity:.2f})")
+    elif toxicity > 0.3:
+        toxicity_component = tox_weight * (toxicity - 0.3) * 0.5
+        all_notes.append(f"mild_toxicity({toxicity:.2f})")
+    
+    # 10. Regime modifier
+    aligned_regime = (regime == "RISK_ON" and flow_sign == +1) or (regime == "RISK_OFF" and flow_sign == -1)
+    opposite_regime = (regime == "RISK_ON" and flow_sign == -1) or (regime == "RISK_OFF" and flow_sign == +1)
+    regime_factor = 1.0
+    if regime == "RISK_ON":
+        regime_factor = 1.15 if aligned_regime else 0.95
+    elif regime == "RISK_OFF":
+        regime_factor = 1.10 if opposite_regime else 0.90
+    regime_component = weights.get("regime_modifier", 0.3) * (regime_factor - 1.0) * 2.0
+    
+    # ============ V3 NEW COMPONENTS ============
+    
+    # 11. Congress/Politician trading
+    congress_component, congress_notes = compute_congress_component(congress_data, flow_sign)
+    if congress_notes:
+        all_notes.append(congress_notes)
+    
+    # 12. Short interest & squeeze
+    shorts_component, shorts_notes = compute_shorts_component(shorts_data, flow_sign)
+    if shorts_notes:
+        all_notes.append(shorts_notes)
+    
+    # 13. Institutional activity (enhanced from insider)
+    inst_component, inst_notes = compute_institutional_component(ins, flow_sign)
+    if inst_notes:
+        all_notes.append(inst_notes)
+    
+    # 14. Market tide
+    tide_component, tide_notes = compute_market_tide_component(tide_data, flow_sign)
+    if tide_notes:
+        all_notes.append(tide_notes)
+    
+    # 15. Calendar catalysts
+    calendar_component, calendar_notes = compute_calendar_component(calendar_data, symbol)
+    if calendar_notes:
+        all_notes.append(calendar_notes)
+    
+    # ============ V2 NEW COMPONENTS (Full Intelligence Pipeline) ============
+    
+    # 16. Greeks/Gamma (squeeze detection)
+    greeks_data = enriched_data.get("greeks", {})
+    gamma_exposure = _to_num(greeks_data.get("gamma_exposure", 0))
+    gamma_squeeze = greeks_data.get("gamma_squeeze_setup", False)
+    if gamma_squeeze:
+        greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 1.0
+        all_notes.append("gamma_squeeze_setup")
+    elif abs(gamma_exposure) > 500000:
+        greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 0.5
+    elif abs(gamma_exposure) > 100000:
+        greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 0.25
+    else:
+        greeks_gamma_component = 0.0
+    
+    # 17. FTD Pressure (squeeze signals)
+    ftd_data = enriched_data.get("ftd", {})
+    ftd_count = _to_num(ftd_data.get("ftd_count", 0))
+    ftd_squeeze = ftd_data.get("squeeze_pressure", False)
+    if ftd_squeeze or ftd_count > 200000:
+        ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 1.0
+        all_notes.append("high_ftd_pressure")
+    elif ftd_count > 100000:
+        ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 0.67
+    elif ftd_count > 50000:
+        ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 0.33
+    else:
+        ftd_pressure_component = 0.0
+    
+    # 18. IV Rank (volatility regime)
+    iv_data = enriched_data.get("iv", {})
+    iv_rank_val = _to_num(iv_data.get("iv_rank", 50))
+    if iv_rank_val < 20:  # Low IV = opportunity
+        iv_rank_component = weights.get("iv_rank", 0.2) * 1.0
+        all_notes.append("low_iv_opportunity")
+    elif iv_rank_val < 30:
+        iv_rank_component = weights.get("iv_rank", 0.2) * 0.5
+    elif iv_rank_val > 80:  # High IV = caution
+        iv_rank_component = -weights.get("iv_rank", 0.2) * 1.0
+        all_notes.append("high_iv_caution")
+    elif iv_rank_val > 70:
+        iv_rank_component = -weights.get("iv_rank", 0.2) * 0.5
+    else:
+        iv_rank_component = 0.0
+    
+    # 19. OI Change (institutional positioning)
+    oi_data = enriched_data.get("oi", {})
+    net_oi = _to_num(oi_data.get("net_oi_change", 0))
+    oi_sentiment = oi_data.get("oi_sentiment", "NEUTRAL")
+    if net_oi > 50000 and oi_sentiment == "BULLISH" and flow_sign > 0:
+        oi_change_component = weights.get("oi_change", 0.35) * 1.0
+        all_notes.append("strong_call_positioning")
+    elif net_oi > 20000 and oi_sentiment == "BULLISH":
+        oi_change_component = weights.get("oi_change", 0.35) * 0.57
+    elif abs(net_oi) > 10000:
+        oi_change_component = weights.get("oi_change", 0.35) * 0.29
+    else:
+        oi_change_component = 0.0
+    
+    # 20. ETF Flow (market sentiment) - REDUCED weight due to negative contribution in analysis
+    etf_data = enriched_data.get("etf_flow", {})
+    etf_sentiment = etf_data.get("overall_sentiment", "NEUTRAL")
+    risk_on = etf_data.get("market_risk_on", False)
+    if etf_sentiment == "BULLISH" and risk_on:
+        etf_flow_component = weights.get("etf_flow", 0.05) * 1.0  # Reduced from 0.2 to 0.05
+        all_notes.append("risk_on_environment")
+    elif etf_sentiment == "BULLISH":
+        etf_flow_component = weights.get("etf_flow", 0.05) * 0.5
+    elif etf_sentiment == "BEARISH":
+        etf_flow_component = -weights.get("etf_flow", 0.05) * 0.3  # Reduced negative impact too
+    else:
+        etf_flow_component = 0.0
+    
+    # 21. Squeeze Score (combined FTD + SI + gamma)
+    squeeze_data = enriched_data.get("squeeze_score", {})
+    squeeze_signals = _to_num(squeeze_data.get("signals", 0))
+    high_squeeze = squeeze_data.get("high_squeeze_potential", False)
+    if high_squeeze:
+        squeeze_score_component = weights.get("squeeze_score", 0.2) * 1.0
+        all_notes.append("high_squeeze_potential")
+    elif squeeze_signals >= 1:
+        squeeze_score_component = weights.get("squeeze_score", 0.2) * 0.5
+    else:
+        squeeze_score_component = 0.0
+    
+    # ============ FINAL SCORE ============
+    
+    # Sum all components (including V2)
+    composite_raw = (
+        flow_component +
+        dp_component +
+        insider_component +
+        iv_component +
+        smile_component +
+        whale_score +
+        event_component +
+        motif_bonus +
+        toxicity_component +
+        regime_component +
+        # V3 new components
+        congress_component +
+        shorts_component +
+        inst_component +
+        tide_component +
+        calendar_component +
+        # V2 new components
+        greeks_gamma_component +
+        ftd_pressure_component +
+        iv_rank_component +
+        oi_change_component +
+        etf_flow_component +
+        squeeze_score_component
+    )
+    
+    # Apply freshness decay
+    composite_score = composite_raw * freshness
+    
+    # Clamp to 0-8 (higher max due to new components)
+    composite_score = max(0.0, min(8.0, composite_score))
+    
+    # ============ SIZING OVERLAY ============
+    sizing_overlay = 0.0
+    
+    # IV skew alignment boost
+    if iv_aligned and abs(iv_skew) > 0.08:
+        sizing_overlay += SIZING_OVERLAYS["iv_skew_align_boost"]
+    
+    # Whale persistence boost
+    if whale_detected:
+        sizing_overlay += SIZING_OVERLAYS["whale_persistence_boost"]
+    
+    # V3: Congress confirmation boost
+    if congress_component > 0.3:
+        sizing_overlay += 0.15
+    
+    # V3: Squeeze setup boost
+    if shorts_component > 0.3:
+        sizing_overlay += 0.20
+    
+    # Skew conflict penalty
+    if not iv_aligned and abs(iv_skew) > 0.08:
+        sizing_overlay += SIZING_OVERLAYS["skew_conflict_penalty"]
+    
+    # Toxicity penalty
+    if toxicity > 0.85:
+        sizing_overlay += SIZING_OVERLAYS["toxicity_penalty"]
+    
+    # ============ ENTRY DELAY ============
+    entry_delay_sec = 0
+    if motif_staircase.get("detected") and motif_staircase.get("steps", 0) < 4:
+        entry_delay_sec = 120
+    if motif_sweep.get("detected") and motif_sweep.get("immediate"):
+        entry_delay_sec = 0
+    if motif_burst.get("detected") and motif_burst.get("intensity", 0) > 2.0:
+        entry_delay_sec = 180
+    
+    # ============ BUILD RESULT ============
+    return {
+        "symbol": symbol,
+        "score": round(composite_score, 3),
+        "version": "V3.1" if adaptive_active else "V3",
+        "adaptive_weights_active": adaptive_active,
+        "components": {
+            # Core
+            "flow": round(flow_component, 3),
+            "dark_pool": round(dp_component, 3),
+            "insider": round(insider_component, 3),
+            # V2
+            "iv_skew": round(iv_component, 3),
+            "smile": round(smile_component, 3),
+            "whale": round(whale_score, 3),
+            "event": round(event_component, 3),
+            "motif_bonus": round(motif_bonus, 3),
+            "toxicity_penalty": round(toxicity_component, 3),
+            "regime": round(regime_component, 3),
+            # V3 NEW
+            "congress": round(congress_component, 3),
+            "shorts_squeeze": round(shorts_component, 3),
+            "institutional": round(inst_component, 3),
+            "market_tide": round(tide_component, 3),
+            "calendar": round(calendar_component, 3),
+            # V2 NEW (Full Intelligence Pipeline) - must match SIGNAL_COMPONENTS in main.py
+            "greeks_gamma": round(greeks_gamma_component, 3),
+            "ftd_pressure": round(ftd_pressure_component, 3),
+            "iv_rank": round(iv_rank_component, 3),
+            "oi_change": round(oi_change_component, 3),
+            "etf_flow": round(etf_flow_component, 3),
+            "squeeze_score": round(squeeze_score_component, 3),
+            # Meta
+            "freshness_factor": round(freshness, 3)
+        },
+        "motifs": {
+            "staircase": motif_staircase.get("detected", False),
+            "sweep_block": motif_sweep.get("detected", False),
+            "burst": motif_burst.get("detected", False),
+            "whale_persistence": whale_detected
+        },
+        "expanded_intel": {
+            # V1 intelligence
+            "congress_active": bool(congress_data),
+            "shorts_active": bool(shorts_data),
+            "tide_active": bool(tide_data),
+            "calendar_active": bool(calendar_data),
+            # V2 NEW intelligence
+            "greeks_active": bool(enriched_data.get("greeks", {}).get("gamma_exposure", 0)),
+            "ftd_active": bool(enriched_data.get("ftd", {}).get("ftd_count", 0)),
+            "iv_active": bool(enriched_data.get("iv", {}).get("iv_rank", 0)),
+            "oi_active": bool(enriched_data.get("oi", {}).get("net_oi_change", 0)),
+            "etf_active": bool(enriched_data.get("etf_flow", {}).get("overall_sentiment")),
+            "squeeze_active": bool(enriched_data.get("squeeze_score", {}).get("signals", 0))
+        },
+        "sizing_overlay": round(sizing_overlay, 3),
+        "entry_delay_sec": entry_delay_sec,
+        "toxicity": round(toxicity, 3),
+        "freshness": round(freshness, 3),
+        "notes": "; ".join(all_notes) if all_notes else "clean",
+        # For learning - all raw inputs (V2 Full Intelligence Pipeline)
+        "features_for_learning": {
+            # Original features
+            "flow_conviction": flow_conv,
+            "flow_sign": flow_sign,
+            "dp_premium": dp_prem,
+            "iv_skew": iv_skew,
+            "smile_slope": smile_slope,
+            "toxicity": toxicity,
+            "congress_buys": congress_data.get("buys", 0) if congress_data else 0,
+            "congress_sells": congress_data.get("sells", 0) if congress_data else 0,
+            "short_interest_pct": shorts_data.get("interest_pct", 0) if shorts_data else 0,
+            "days_to_cover": shorts_data.get("days_to_cover", 0) if shorts_data else 0,
+            "squeeze_risk": shorts_data.get("squeeze_risk", False) if shorts_data else False,
+            "regime": regime,
+            # V2 NEW: Full intelligence pipeline features
+            "greeks_gamma": _to_num(enriched_data.get("greeks", {}).get("gamma_exposure", 0)),
+            "greeks_delta": _to_num(enriched_data.get("greeks", {}).get("delta_exposure", 0)),
+            "gamma_squeeze_setup": enriched_data.get("greeks", {}).get("gamma_squeeze_setup", False),
+            "ftd_count": _to_num(enriched_data.get("ftd", {}).get("ftd_count", 0)),
+            "ftd_pressure": enriched_data.get("ftd", {}).get("squeeze_pressure", False),
+            "iv_rank": _to_num(enriched_data.get("iv", {}).get("iv_rank", 0)),
+            "iv_percentile": _to_num(enriched_data.get("iv", {}).get("iv_percentile", 0)),
+            "high_iv_caution": enriched_data.get("iv", {}).get("high_iv_caution", False),
+            "low_iv_opportunity": enriched_data.get("iv", {}).get("low_iv_opportunity", False),
+            "oi_net_change": _to_num(enriched_data.get("oi", {}).get("net_oi_change", 0)),
+            "oi_sentiment": enriched_data.get("oi", {}).get("oi_sentiment", "NEUTRAL"),
+            "etf_overall_sentiment": enriched_data.get("etf_flow", {}).get("overall_sentiment", "NEUTRAL"),
+            "market_risk_on": enriched_data.get("etf_flow", {}).get("market_risk_on", False),
+            "squeeze_signals": _to_num(enriched_data.get("squeeze_score", {}).get("signals", 0)),
+            "high_squeeze_potential": enriched_data.get("squeeze_score", {}).get("high_squeeze_potential", False),
+            "squeeze_setup_type": enriched_data.get("squeeze_score", {}).get("setup", "NONE"),
+            "max_pain": _to_num(enriched_data.get("max_pain", {}).get("max_pain", 0))
+        }
+    }
+
+def compute_composite_score_v2(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL") -> Dict[str, Any]:
+    """
+    V2 Composite scoring with expanded features and motif awareness
+    
+    Returns:
+    {
+      "symbol": str,
+      "score": float (0-6.0, higher max due to new components),
+      "components": {...breakdown...},
+      "motifs": {...detected patterns...},
+      "sizing_overlay": float (multiplier),
+      "entry_delay_sec": int,
+      "notes": str
+    }
+    """
+    
+    # Base flow components
+    flow_sent = enriched_data.get("sentiment", "NEUTRAL")
+    flow_conv = _to_num(enriched_data.get("conviction", 0.0))
+    
+    dp = enriched_data.get("dark_pool", {}) or {}
+    dp_sent = dp.get("sentiment", "NEUTRAL")
+    dp_prem = _to_num(dp.get("total_premium", 0.0))
+    
+    ins = enriched_data.get("insider", {}) or {}
+    ins_sent = ins.get("sentiment", "NEUTRAL")
+    ins_mod = _to_num(ins.get("conviction_modifier", 0.0))
+    
+    # New V2 features
+    iv_skew = _to_num(enriched_data.get("iv_term_skew", 0.0))
+    smile_slope = _to_num(enriched_data.get("smile_slope", 0.0))
+    toxicity = _to_num(enriched_data.get("toxicity", 0.0))
+    event_align = _to_num(enriched_data.get("event_alignment", 0.0))
+    freshness = _to_num(enriched_data.get("freshness", 1.0))
+    
+    # Motif data
+    motif_staircase = enriched_data.get("motif_staircase", {})
+    motif_sweep = enriched_data.get("motif_sweep_block", {})
+    motif_burst = enriched_data.get("motif_burst", {})
+    motif_whale = enriched_data.get("motif_whale", {})
+    
+    # Component calculations
+    
+    # 1. Options flow (primary)
+    flow_component = WEIGHTS_V2["options_flow"] * flow_conv
+    
+    # 2. Dark pool (enhanced)
+    dp_strength = 0.0
+    if dp_sent in ("BULLISH", "BEARISH"):
+        # Notional scaling with log
+        import math
+        mag = max(1.0, dp_prem)
+        log_factor = min(0.8, math.log10(mag) / 7.5)
+        dp_strength = 0.5 + log_factor
+    else:
+        dp_strength = 0.2
+    dp_component = WEIGHTS_V2["dark_pool"] * dp_strength
+    
+    # 3. Insider (baseline)
+    if ins_sent == "BULLISH":
+        insider_component = WEIGHTS_V2["insider"] * (0.50 + ins_mod)
+    elif ins_sent == "BEARISH":
+        insider_component = WEIGHTS_V2["insider"] * (0.50 - abs(ins_mod))
+    else:
+        insider_component = WEIGHTS_V2["insider"] * 0.25
+    
+    # 4. IV term skew (new)
+    # Positive skew in aligned direction = boost
+    flow_sign = _sign_from_sentiment(flow_sent)
+    iv_aligned = (iv_skew > 0 and flow_sign == +1) or (iv_skew < 0 and flow_sign == -1)
+    iv_component = WEIGHTS_V2["iv_term_skew"] * abs(iv_skew) * (1.3 if iv_aligned else 0.7)
+    
+    # 5. Smile slope (new)
+    smile_component = WEIGHTS_V2["smile_slope"] * abs(smile_slope)
+    
+    # 6. Whale persistence (new)
+    whale_detected = motif_whale.get("detected", False)
+    whale_score = 0.0
+    if whale_detected:
+        avg_conv = motif_whale.get("avg_conviction", 0.0)
+        whale_score = WEIGHTS_V2["whale_persistence"] * avg_conv
+    
+    # 7. Event alignment (new)
+    event_component = WEIGHTS_V2["event_alignment"] * event_align
+    
+    # 8. Temporal motif bonus (new)
+    motif_bonus = 0.0
+    motif_notes = []
+    
+    if motif_staircase.get("detected"):
+        motif_bonus += WEIGHTS_V2["temporal_motif"] * motif_staircase.get("slope", 0.0) * 3.0
+        motif_notes.append(f"staircase({motif_staircase['steps']} steps)")
+    
+    if motif_burst.get("detected"):
+        intensity = motif_burst.get("intensity", 0.0)
+        motif_bonus += WEIGHTS_V2["temporal_motif"] * min(1.0, intensity / 2.0)
+        motif_notes.append(f"burst({motif_burst['count']} updates)")
+    
+    # 9. Toxicity penalty - FIXED: Apply penalty starting at 0.5 (was 0.85)
+    # CRITICAL: Ensure toxicity weight is NEGATIVE (it's a penalty, not a boost)
+    raw_tox_weight_v2 = WEIGHTS_V2.get("toxicity_penalty", -0.9)
+    tox_weight_v2 = raw_tox_weight_v2 if raw_tox_weight_v2 < 0 else -abs(raw_tox_weight_v2)  # Force negative
+    toxicity_component = 0.0
+    if toxicity > 0.5:
+        toxicity_component = tox_weight_v2 * (toxicity - 0.5) * 1.5
+        motif_notes.append(f"toxicity_penalty({toxicity:.2f})")
+    elif toxicity > 0.3:
+        toxicity_component = tox_weight_v2 * (toxicity - 0.3) * 0.5
+        motif_notes.append(f"mild_toxicity({toxicity:.2f})")
+    
+    # 10. Regime modifier
+    flow_sign = _sign_from_sentiment(flow_sent)
+    aligned_regime = (regime == "RISK_ON" and flow_sign == +1) or (regime == "RISK_OFF" and flow_sign == -1)
+    opposite_regime = (regime == "RISK_ON" and flow_sign == -1) or (regime == "RISK_OFF" and flow_sign == +1)
+    
+    regime_factor = 1.0
+    if regime == "RISK_ON":
+        regime_factor = 1.15 if aligned_regime else 0.95
+    elif regime == "RISK_OFF":
+        regime_factor = 1.10 if opposite_regime else 0.90
+    
+    regime_component = WEIGHTS_V2["regime_modifier"] * (regime_factor - 1.0) * 2.0
+    
+    # Sum all components
+    composite_raw = (
+        flow_component +
+        dp_component +
+        insider_component +
+        iv_component +
+        smile_component +
+        whale_score +
+        event_component +
+        motif_bonus +
+        toxicity_component +  # Negative penalty
+        regime_component
+    )
+    
+    # Apply freshness decay
+    composite_score = composite_raw * freshness
+    
+    # Clamp to 0-6 (higher max due to new components)
+    composite_score = max(0.0, min(6.0, composite_score))
+    
+    # Sizing overlay calculation
+    sizing_overlay = 0.0
+    
+    # IV skew alignment boost
+    if iv_aligned and abs(iv_skew) > 0.08:
+        sizing_overlay += SIZING_OVERLAYS["iv_skew_align_boost"]
+    
+    # Whale persistence boost
+    if whale_detected:
+        sizing_overlay += SIZING_OVERLAYS["whale_persistence_boost"]
+    
+    # Skew conflict penalty
+    if not iv_aligned and abs(iv_skew) > 0.08:
+        sizing_overlay += SIZING_OVERLAYS["skew_conflict_penalty"]
+    
+    # Toxicity penalty
+    if toxicity > 0.85:
+        sizing_overlay += SIZING_OVERLAYS["toxicity_penalty"]
+    
+    # Entry delay (for motif-aware execution)
+    entry_delay_sec = 0
+    
+    # Staircase: wait for pattern confirmation
+    if motif_staircase.get("detected") and motif_staircase.get("steps", 0) < 4:
+        entry_delay_sec = 120  # Wait 2 min for more steps
+    
+    # Sweep/block immediate
+    if motif_sweep.get("detected") and motif_sweep.get("immediate"):
+        entry_delay_sec = 0  # Enter immediately on sweep
+    
+    # Burst: wait for intensity to settle
+    if motif_burst.get("detected") and motif_burst.get("intensity", 0) > 2.0:
+        entry_delay_sec = 180  # Wait 3 min for burst to settle
+    
+    # Build result
+    return {
+        "symbol": symbol,
+        "score": round(composite_score, 3),
+        "components": {
+            "flow": round(flow_component, 3),
+            "dark_pool": round(dp_component, 3),
+            "insider": round(insider_component, 3),
+            "iv_skew": round(iv_component, 3),
+            "smile": round(smile_component, 3),
+            "whale": round(whale_score, 3),
+            "event": round(event_component, 3),
+            "motif_bonus": round(motif_bonus, 3),
+            "toxicity_penalty": round(toxicity_component, 3),
+            "regime": round(regime_component, 3),
+            "freshness_factor": round(freshness, 3)
+        },
+        "motifs": {
+            "staircase": motif_staircase.get("detected", False),
+            "sweep_block": motif_sweep.get("detected", False),
+            "burst": motif_burst.get("detected", False),
+            "whale_persistence": whale_detected
+        },
+        "sizing_overlay": round(sizing_overlay, 3),
+        "entry_delay_sec": entry_delay_sec,
+        "toxicity": round(toxicity, 3),
+        "freshness": round(freshness, 3),
+        "notes": "; ".join(motif_notes) if motif_notes else "clean"
+    }
+
+def get_threshold(symbol: str, mode: str = "base") -> float:
+    """
+    Get hierarchical threshold for symbol
+    Falls back to mode-based threshold if no hierarchical data
+    """
+    if THRESHOLD_STATE.exists():
+        try:
+            with THRESHOLD_STATE.open("r") as f:
+                thresholds = json.load(f)
+                return thresholds.get(symbol, ENTRY_THRESHOLDS[mode])
+        except:
+            pass
+    
+    return ENTRY_THRESHOLDS[mode]
+
+def should_enter_v2(composite: Dict, symbol: str, mode: str = "base") -> bool:
+    """
+    V2 entry decision with hierarchical thresholds
+    """
+    if not composite:
+        return False
+    
+    score = composite.get("score", 0.0)
+    threshold = get_threshold(symbol, mode)
+    
+    # Additional gating: don't enter if toxicity too high
+    toxicity = composite.get("toxicity", 0.0)
+    if toxicity > 0.90:
+        return False
+    
+    # Don't enter if freshness too low (stale data)
+    freshness = composite.get("freshness", 1.0)
+    if freshness < 0.3:
+        return False
+    
+    return score >= threshold
+
+def apply_sizing_overlay(base_qty: int, composite: Dict) -> int:
+    """
+    Apply sizing overlay from motif/feature analysis
+    """
+    overlay = composite.get("sizing_overlay", 0.0)
+    adjusted_qty = base_qty * (1.0 + overlay)
+    
+    # Clamp to reasonable bounds (±40%)
+    min_qty = int(base_qty * 0.6)
+    max_qty = int(base_qty * 1.4)
+    
+    return max(min_qty, min(max_qty, int(adjusted_qty)))
+
+if __name__ == "__main__":
+    # Test V3 FULL INTELLIGENCE scoring
+    test_data_v3 = {
+        "sentiment": "BULLISH",
+        "conviction": 0.85,
+        "dark_pool": {"sentiment": "BULLISH", "total_premium": 45000000},
+        "insider": {"sentiment": "BULLISH", "conviction_modifier": 0.05, "net_buys": 5, "net_sells": 1, "total_usd": 2500000},
+        "iv_term_skew": 0.12,
+        "smile_slope": 0.08,
+        "toxicity": 0.65,
+        "event_alignment": 0.85,
+        "freshness": 0.95,
+        "motif_staircase": {"detected": True, "steps": 4, "slope": 0.05},
+        "motif_sweep_block": {"detected": False},
+        "motif_burst": {"detected": False},
+        "motif_whale": {"detected": True, "avg_conviction": 0.82},
+        # V3 NEW: Expanded Intelligence
+        "congress": {"recent_count": 3, "buys": 2, "sells": 0, "net_sentiment": "BULLISH", "conviction_boost": 0.1},
+        "shorts": {"interest_pct": 22.5, "days_to_cover": 6.2, "ftd_count": 250000, "squeeze_risk": True}
+    }
+    
+    # Test expanded intel cache
+    test_expanded_intel = {
+        "AAPL": {
+            "market_tide": {"call_premium": 120000000, "put_premium": 80000000, "net_delta": 40000000, "sentiment": "BULLISH"},
+            "calendar": {"has_earnings": True, "earnings_date": "2025-01-30", "days_to_earnings": 5, "has_fda": False, "economic_events": ["FOMC", "CPI"]}
+        }
+    }
+    
+    print("=" * 60)
+    print("V3 FULL INTELLIGENCE COMPOSITE SCORING TEST")
+    print("=" * 60)
+    
+    result_v3 = compute_composite_score_v3("AAPL", test_data_v3, "RISK_ON", test_expanded_intel)
+    print(json.dumps(result_v3, indent=2))
+    print(f"\nV3 Score: {result_v3['score']:.3f}")
+    print(f"Should enter: {should_enter_v2(result_v3, 'AAPL', 'base')}")
+    print(f"Sizing overlay: {result_v3['sizing_overlay']:.2%}")
+    print(f"\nExpanded Intel Active: {result_v3['expanded_intel']}")
+    print(f"Notes: {result_v3['notes']}")
+    print(f"\nFeatures for Learning: {json.dumps(result_v3['features_for_learning'], indent=2)}")
+    
+    print("\n" + "=" * 60)
+    print("V2 LEGACY SCORING (for comparison)")
+    print("=" * 60)
+    
+    result_v2 = compute_composite_score_v2("AAPL", test_data_v3, "RISK_ON")
+    print(f"V2 Score: {result_v2['score']:.3f}")
+    print(f"Score difference (V3-V2): {result_v3['score'] - result_v2['score']:.3f}")
