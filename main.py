@@ -3938,6 +3938,7 @@ def run_once():
         
         uw = UWClient()
         engine = StrategyEngine()
+        degraded_mode = False  # Reduce-only when broker is unreachable
 
         all_trades = []
         gex_map = {}
@@ -3968,6 +3969,7 @@ def run_once():
             status = reconcile_result['reconciliation_status']
             total_diffs = reconcile_result.get('total_diffs', 0)
             degraded = reconcile_result.get('degraded_mode', False)
+            degraded_mode = bool(degraded)
             
             print(f"DEBUG: Reconciliation V2 - Alpaca: {reconcile_result['alpaca_positions_count']} positions, "
                   f"Status: {status}, Diffs: {total_diffs}, Degraded: {degraded}", flush=True)
@@ -4195,11 +4197,17 @@ def run_once():
         
         print(f"DEBUG: About to call decide_and_execute with {len(clusters)} clusters, regime={market_regime}", flush=True)
         audit_seg("run_once", "before_decide_execute", {"cluster_count": len(clusters)})
-        if Config.ENABLE_PER_TICKER_LEARNING:
-            decisions_map = build_symbol_decisions(clusters, gex_map, dp_map, net_map, vol_map, ovl_map)
-            orders = engine.decide_and_execute(clusters, confirm_map, gex_map, decisions_map, market_regime)
+        if degraded_mode:
+            # Reduce-only safety: do not open new positions when broker connectivity is degraded.
+            # Still allow exit logic and monitoring to run.
+            log_event("run_once", "reduce_only_broker_degraded", action="skip_entries")
+            orders = []
         else:
-            orders = engine.decide_and_execute(clusters, confirm_map, gex_map, None, market_regime)
+            if Config.ENABLE_PER_TICKER_LEARNING:
+                decisions_map = build_symbol_decisions(clusters, gex_map, dp_map, net_map, vol_map, ovl_map)
+                orders = engine.decide_and_execute(clusters, confirm_map, gex_map, decisions_map, market_regime)
+            else:
+                orders = engine.decide_and_execute(clusters, confirm_map, gex_map, None, market_regime)
         print(f"DEBUG: decide_and_execute returned {len(orders)} orders", flush=True)
         audit_seg("run_once", "after_decide_execute", {"order_count": len(orders)})
         print("DEBUG: Calling evaluate_exits", flush=True)

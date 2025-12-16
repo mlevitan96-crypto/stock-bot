@@ -48,10 +48,13 @@ def _get_alpaca():
     """Lazy-load Alpaca API client"""
     global _alpaca_client
     if _alpaca_client is None:
+        # Respect environment-configured Alpaca endpoint.
+        # Default remains paper trading for safety.
+        base_url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
         _alpaca_client = tradeapi.REST(
             os.getenv("ALPACA_KEY"),
             os.getenv("ALPACA_SECRET"),
-            base_url="https://paper-api.alpaca.markets"
+            base_url=base_url
         )
     return _alpaca_client
 
