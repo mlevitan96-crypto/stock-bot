@@ -20,4 +20,7 @@ git pull
 
 sudo ./scripts/install_systemd.sh "$REPO_DIR" "$SERVICE"
 
+# Install/enable the self-healing doctor timer
+sudo ./scripts/install_doctor_systemd.sh "$REPO_DIR" "$SERVICE"
+
 echo "[update] OK"
