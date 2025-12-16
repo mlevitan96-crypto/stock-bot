@@ -17,12 +17,14 @@ processes = {}
 shutdown_flag = threading.Event()
 start_time = time.time()
 
+PYTHON = sys.executable  # ensures we always use the venv interpreter under systemd_start.sh
+
 REQUIRED_DIRS = ["logs", "state", "data", "config", "state/heartbeats"]
 
 SERVICES = [
     {
         "name": "dashboard",
-        "cmd": ["python", "-u", "dashboard.py"],
+        "cmd": [PYTHON, "-u", "dashboard.py"],
         "delay": 0,
         "critical": False,  # Dashboard failure should NOT kill trading bot
         "port": 5000,
@@ -30,28 +32,28 @@ SERVICES = [
     },
     {
         "name": "uw-daemon",
-        "cmd": ["python", "uw_integration_full.py"],
+        "cmd": [PYTHON, "-u", "uw_integration_full.py"],
         "delay": 0,
         "critical": True,
         "requires_secrets": True,  # Needs UW_API_KEY
     },
     {
         "name": "trading-bot",
-        "cmd": ["python", "main.py"],
+        "cmd": [PYTHON, "-u", "main.py"],
         "delay": 0,
         "critical": True,
         "requires_secrets": True,  # Needs ALPACA_KEY, ALPACA_SECRET
     },
     {
         "name": "v4-research",
-        "cmd": ["python", "v4_orchestrator.py"],
+        "cmd": [PYTHON, "-u", "v4_orchestrator.py"],
         "delay": 0,
         "critical": False,
         "requires_secrets": True,
     },
     {
         "name": "heartbeat-keeper",
-        "cmd": ["python", "heartbeat_keeper.py"],
+        "cmd": [PYTHON, "-u", "heartbeat_keeper.py"],
         "delay": 0,
         "critical": False,
         "requires_secrets": False,
