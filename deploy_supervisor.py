@@ -21,6 +21,17 @@ PYTHON = sys.executable  # ensures we always use the venv interpreter under syst
 
 REQUIRED_DIRS = ["logs", "state", "data", "config", "state/heartbeats"]
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    val = os.getenv(name)
+    if val is None:
+        return default
+    return str(val).strip().lower() in ("1", "true", "yes", "y", "on")
+
+# Optional services are disabled by default (they are either one-shot utilities or experimental).
+ENABLE_UW_DAEMON = _env_flag("ENABLE_UW_DAEMON", False)
+ENABLE_V4_RESEARCH = _env_flag("ENABLE_V4_RESEARCH", False)
+ENABLE_HEARTBEAT_KEEPER = _env_flag("ENABLE_HEARTBEAT_KEEPER", False)
+
 SERVICES = [
     {
         "name": "dashboard",
@@ -31,34 +42,46 @@ SERVICES = [
         "requires_secrets": False,  # Dashboard works without API keys
     },
     {
-        "name": "uw-daemon",
-        "cmd": [PYTHON, "-u", "uw_integration_full.py"],
-        "delay": 0,
-        "critical": True,
-        "requires_secrets": True,  # Needs UW_API_KEY
-    },
-    {
         "name": "trading-bot",
         "cmd": [PYTHON, "-u", "main.py"],
         "delay": 0,
         "critical": True,
         "requires_secrets": True,  # Needs ALPACA_KEY, ALPACA_SECRET
     },
-    {
+]
+
+if ENABLE_UW_DAEMON:
+    SERVICES.append({
+        "name": "uw-daemon",
+        # NOTE: `uw_integration_full.py` is currently a one-shot scoring demo.
+        # Enable only if you replace it with a real daemon loop.
+        "cmd": [PYTHON, "-u", "uw_integration_full.py"],
+        "delay": 0,
+        "critical": False,
+        "requires_secrets": True,
+        "restart_on_exit": False,
+    })
+
+if ENABLE_V4_RESEARCH:
+    SERVICES.append({
         "name": "v4-research",
         "cmd": [PYTHON, "-u", "v4_orchestrator.py"],
         "delay": 0,
         "critical": False,
         "requires_secrets": True,
-    },
-    {
+        "restart_on_exit": False,
+    })
+
+if ENABLE_HEARTBEAT_KEEPER:
+    SERVICES.append({
         "name": "heartbeat-keeper",
+        # NOTE: `heartbeat_keeper.py` is a library (no main loop). Enable only if replaced by a daemon.
         "cmd": [PYTHON, "-u", "heartbeat_keeper.py"],
         "delay": 0,
         "critical": False,
         "requires_secrets": False,
-    },
-]
+        "restart_on_exit": False,
+    })
 
 def utc_now():
     return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -136,8 +159,8 @@ def start_service(service):
     try:
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"  # Ensure logs flush immediately for crash debugging
-        if name == "trading-bot":
-            env["API_PORT"] = "8081"
+        # Do not force API_PORT here; let it be controlled via .env / environment.
+        # This avoids port conflicts across restarts and keeps behavior consistent with README (default 8080).
         
         proc = subprocess.Popen(
             cmd,
@@ -333,6 +356,9 @@ def main():
             name = service["name"]
             # Skip services that require secrets if not available
             if service.get("requires_secrets", False) and not secrets_available:
+                continue
+            # Skip services that are explicitly one-shot / non-daemon.
+            if service.get("restart_on_exit") is False:
                 continue
             proc = processes.get(name)
             if proc:
