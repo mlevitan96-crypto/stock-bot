@@ -12,7 +12,11 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any
 import requests
 import alpaca_trade_api as tradeapi
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:
+    def load_dotenv(*args, **kwargs):  # type: ignore
+        return False
 
 load_dotenv()
 

@@ -21,7 +21,13 @@ import requests
 import alpaca_trade_api as tradeapi
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
+try:
+    # Optional: only needed when running locally with a .env file.
+    # In production under systemd, secrets come from EnvironmentFile.
+    from dotenv import load_dotenv  # type: ignore
+except Exception:
+    def load_dotenv(*args, **kwargs):  # type: ignore
+        return False
 from typing import Optional, Dict
 from flask import Flask, jsonify, Response, send_from_directory
 from position_reconciliation_loop import run_position_reconciliation_loop
