@@ -3835,6 +3835,13 @@ class StrategyEngine:
                     else:
                         Config.ENTRY_MODE = "MARKET_FALLBACK"
                 
+                # Capture expected price for basic TCA logging (best-effort).
+                expected_entry_price = None
+                try:
+                    expected_entry_price = self.executor.compute_entry_price(symbol, side)
+                except Exception:
+                    expected_entry_price = None
+
                 # Long-only safety: do not open shorts in LONG_ONLY mode.
                 if Config.LONG_ONLY and side == "sell":
                     log_event("gate", "long_only_blocked_short_entry", symbol=symbol, score=score)
@@ -3906,8 +3913,8 @@ class StrategyEngine:
                 
                 # V3.2 CHECKPOINT: POST_TRADE - TCA Feedback & Champion-Challenger
                 # Log execution quality for TCA feedback
-                if limit_price and price:
-                    slippage_pct = abs(price - limit_price) / limit_price if limit_price > 0 else 0
+                if expected_entry_price and exec_price:
+                    slippage_pct = abs(exec_price - expected_entry_price) / expected_entry_price if expected_entry_price > 0 else 0
                     v32.log_jsonl(v32.TCA_SUMMARY_LOG, {
                         "timestamp": datetime.utcnow().isoformat(),
                         "symbol": symbol,
@@ -4334,10 +4341,29 @@ def run_once():
         
         print(f"DEBUG: About to call decide_and_execute with {len(clusters)} clusters, regime={market_regime}", flush=True)
         audit_seg("run_once", "before_decide_execute", {"cluster_count": len(clusters)})
+        # Live-safety gates before placing NEW entries:
+        # - Broker degraded => reduce-only
+        # - Not armed / endpoint mismatch => skip entries
+        # - Executor not reconciled => skip entries (until it can sync positions cleanly)
+        armed = trading_is_armed()
+        reconciled_ok = False
+        try:
+            reconciled_ok = bool(engine.executor.ensure_reconciled())
+        except Exception:
+            reconciled_ok = False
+
         if degraded_mode:
             # Reduce-only safety: do not open new positions when broker connectivity is degraded.
             # Still allow exit logic and monitoring to run.
             log_event("run_once", "reduce_only_broker_degraded", action="skip_entries")
+            orders = []
+        elif not armed:
+            log_event("run_once", "not_armed_skip_entries",
+                      trading_mode=Config.TRADING_MODE, base_url=Config.ALPACA_BASE_URL,
+                      require_live_ack=Config.REQUIRE_LIVE_ACK)
+            orders = []
+        elif not reconciled_ok:
+            log_event("run_once", "not_reconciled_skip_entries", action="skip_entries")
             orders = []
         else:
             if Config.ENABLE_PER_TICKER_LEARNING:

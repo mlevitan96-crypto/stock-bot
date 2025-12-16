@@ -21,4 +21,4 @@ export PYTHONUNBUFFERED=1
 
 # Start the supervisor which manages all services
 echo "Starting deploy_supervisor.py..."
-python deploy_supervisor.py
+python3 deploy_supervisor.py
