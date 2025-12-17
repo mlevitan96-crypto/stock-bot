@@ -40,11 +40,19 @@ def check_signals_computed() -> Dict[str, Any]:
     
     try:
         cache = json.loads(cache_file.read_text())
-        symbols = [k for k in cache.keys() if not k.startswith("_")][:5]
+        all_symbols = [k for k in cache.keys() if not k.startswith("_")]
+        symbols = all_symbols[:5] if len(all_symbols) >= 5 else all_symbols
+        
+        if not symbols:
+            result["status"] = "error"
+            result["error"] = "No symbols found in cache"
+            return result
         
         for symbol in symbols:
             data = cache.get(symbol, {})
             if not isinstance(data, dict):
+                result["debug"] = result.get("debug", [])
+                result["debug"].append(f"{symbol}: not a dict (type: {type(data)})")
                 continue
             
             result["signals_checked"] += 1
@@ -70,8 +78,17 @@ def check_signals_computed() -> Dict[str, Any]:
                     else:
                         result["signals_missing"].append(f"{symbol}:{signal}")
         
-        if result["signals_missing"]:
-            result["status"] = "degraded"
+        # Only mark as degraded if we actually checked symbols and found missing signals
+        if result["signals_checked"] > 0 and result["signals_missing"]:
+            # Check if we have at least some signals present
+            if len(result["signals_present"]) == 0:
+                result["status"] = "degraded"
+            else:
+                # Some signals present, but not all - still degraded but less critical
+                result["status"] = "degraded"
+        elif result["signals_checked"] == 0:
+            result["status"] = "error"
+            result["error"] = "No valid symbols checked"
         
     except Exception as e:
         result["status"] = "error"
