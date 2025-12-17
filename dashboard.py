@@ -117,6 +117,39 @@ DASHBOARD_HTML = """
         .loading { text-align: center; padding: 40px; color: #666; }
         .no-positions { text-align: center; padding: 40px; color: #666; }
         .health-ok { color: #10b981; }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: #6b7280;
+            transition: all 0.2s;
+            margin-bottom: -2px;
+        }
+        .tab:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 2px solid white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -124,9 +157,15 @@ DASHBOARD_HTML = """
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
-            <p class="update-info">Auto-refresh: 10 seconds | Last update: <span id="last-update">-</span> | <a href="/sre" style="color: #667eea; text-decoration: none; font-weight: bold;">🔍 SRE Monitoring Dashboard</a></p>
+            <p class="update-info">Auto-refresh: 10 seconds | Last update: <span id="last-update">-</span></p>
         </div>
         
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('positions')">📊 Positions</button>
+            <button class="tab" onclick="switchTab('sre')">🔍 SRE Monitoring</button>
+        </div>
+        
+        <div id="positions-tab" class="tab-content active">
         <div class="stats" id="stats-container">
             <div class="stat-card">
                 <div class="stat-label">Total Positions</div>
@@ -160,9 +199,163 @@ DASHBOARD_HTML = """
                 <p class="loading">Loading positions...</p>
             </div>
         </div>
+        </div>
+        
+        <div id="sre-tab" class="tab-content">
+            <div id="sre-content">
+                <div class="loading">Loading SRE monitoring data...</div>
+            </div>
+        </div>
     </div>
     
     <script>
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Load SRE content if switching to SRE tab
+            if (tabName === 'sre') {
+                loadSREContent();
+            }
+        }
+        
+        function loadSREContent() {
+            const sreContent = document.getElementById('sre-content');
+            if (sreContent.innerHTML.includes('Loading') || !sreContent.dataset.loaded) {
+                fetch('/api/sre/health')
+                    .then(response => response.json())
+                    .then(data => {
+                        sreContent.dataset.loaded = 'true';
+                        renderSREContent(data, sreContent);
+                    })
+                    .catch(error => {
+                        sreContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading SRE data: ${error.message}</div>`;
+                    });
+            }
+        }
+        
+        function renderSREContent(data, container) {
+            const overallHealth = data.overall_health || 'unknown';
+            const healthClass = overallHealth === 'healthy' ? 'healthy' : 
+                              overallHealth === 'degraded' ? 'degraded' : 'critical';
+            
+            let html = `
+                <div class="stat-card" style="border: 3px solid ${healthClass === 'healthy' ? '#10b981' : healthClass === 'degraded' ? '#f59e0b' : '#ef4444'}; margin-bottom: 20px;">
+                    <h2 style="color: ${healthClass === 'healthy' ? '#10b981' : healthClass === 'degraded' ? '#f59e0b' : '#ef4444'}; margin-bottom: 10px;">
+                        Overall Health: ${overallHealth.toUpperCase()}
+                    </h2>
+                    <p>Market: <span style="padding: 4px 8px; background: ${data.market_open ? '#10b981' : '#64748b'}; color: white; border-radius: 4px;">
+                        ${data.market_status || 'unknown'}
+                    </span></p>
+                    ${data.critical_issues ? '<p style="color: #ef4444; margin-top: 10px;"><strong>Critical:</strong> ' + data.critical_issues.join(', ') + '</p>' : ''}
+                    ${data.warnings ? '<p style="color: #f59e0b; margin-top: 10px;"><strong>Warnings:</strong> ' + data.warnings.join(', ') + '</p>' : ''}
+                </div>
+                
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">📊 Signal Components</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+            `;
+            
+            const signals = data.signal_components || {};
+            Object.entries(signals).forEach(([name, health]) => {
+                const status = health.status || 'unknown';
+                const statusColor = status === 'healthy' ? '#10b981' : 
+                                  status === 'degraded' ? '#f59e0b' : 
+                                  status === 'critical' ? '#ef4444' : '#64748b';
+                html += `
+                    <div class="stat-card" style="border-left: 4px solid ${statusColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong>${name}</strong>
+                            <span style="padding: 2px 8px; background: ${statusColor}; color: white; border-radius: 4px; font-size: 0.85em;">
+                                ${status}
+                            </span>
+                        </div>
+                        <div style="font-size: 0.9em; color: #666;">
+                            <div>Last Update: ${formatTimeAgo(health.last_update_age_sec)}</div>
+                            ${health.data_freshness_sec !== null && health.data_freshness_sec !== undefined ? 
+                                `<div>Freshness: ${formatTimeAgo(health.data_freshness_sec)}</div>` : ''}
+                            ${health.error_rate_1h !== undefined ? 
+                                `<div>Error Rate: ${(health.error_rate_1h * 100).toFixed(1)}%</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `</div></div>
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">🌐 UW API Endpoints</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+            `;
+            
+            const apis = data.uw_api_endpoints || {};
+            Object.entries(apis).forEach(([name, health]) => {
+                const status = health.status || 'unknown';
+                const statusColor = status === 'healthy' ? '#10b981' : 
+                                  status === 'degraded' ? '#f59e0b' : 
+                                  status === 'critical' || status === 'no_api_key' ? '#ef4444' : '#64748b';
+                html += `
+                    <div class="stat-card" style="border-left: 4px solid ${statusColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong>${name}</strong>
+                            <span style="padding: 2px 8px; background: ${statusColor}; color: white; border-radius: 4px; font-size: 0.85em;">
+                                ${status}
+                            </span>
+                        </div>
+                        <div style="font-size: 0.9em; color: #666;">
+                            ${health.avg_latency_ms !== null && health.avg_latency_ms !== undefined ? 
+                                `<div>Latency: ${health.avg_latency_ms.toFixed(0)}ms</div>` : ''}
+                            ${health.error_rate_1h !== undefined ? 
+                                `<div>Error Rate: ${(health.error_rate_1h * 100).toFixed(1)}%</div>` : ''}
+                            ${health.last_error ? 
+                                `<div style="color: #ef4444; margin-top: 5px;">${health.last_error.substring(0, 50)}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `</div></div>
+                <div class="positions-table">
+                    <h2 style="margin-bottom: 15px;">⚙️ Trade Engine & Execution</h2>
+                    <div class="stat-card">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            ${data.order_execution ? `
+                                <div><strong>Status:</strong> <span style="color: ${healthClass === 'healthy' ? '#10b981' : healthClass === 'degraded' ? '#f59e0b' : '#ef4444'}">${data.order_execution.status || 'unknown'}</span></div>
+                                ${data.order_execution.last_order_age_sec !== null && data.order_execution.last_order_age_sec !== undefined ? 
+                                    `<div><strong>Last Order:</strong> ${formatTimeAgo(data.order_execution.last_order_age_sec)}</div>` : 
+                                    '<div><strong>Last Order:</strong> N/A</div>'}
+                                <div><strong>Orders (1h):</strong> ${data.order_execution.orders_1h || 0}</div>
+                                <div><strong>Orders (3h):</strong> ${data.order_execution.orders_3h || 0}</div>
+                                <div><strong>Orders (24h):</strong> ${data.order_execution.orders_24h || 0}</div>
+                                ${data.order_execution.fill_rate !== undefined ? 
+                                    `<div><strong>Fill Rate:</strong> ${(data.order_execution.fill_rate * 100).toFixed(1)}%</div>` : ''}
+                                ${data.order_execution.errors_1h !== undefined ? 
+                                    `<div><strong>Errors (1h):</strong> ${data.order_execution.errors_1h}</div>` : ''}
+                            ` : '<div>No execution data available</div>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        // Auto-refresh SRE content if on SRE tab
+        setInterval(() => {
+            if (document.getElementById('sre-tab').classList.contains('active')) {
+                loadSREContent();
+            }
+        }, 10000);
+        
+        function formatCurrency(value) {
         function formatCurrency(value) {
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
         }
