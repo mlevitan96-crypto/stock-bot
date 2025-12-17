@@ -16,7 +16,8 @@ DATA_DIR = Path("data")
 STATE_DIR = Path("state")
 LOGS_DIR = Path("logs")
 
-ATTRIBUTION_FILE = DATA_DIR / "attribution.jsonl"
+# Attribution file is written to logs/ by main.py jsonl_write function
+ATTRIBUTION_FILE = LOGS_DIR / "attribution.jsonl"
 COMPREHENSIVE_LEARNING_FILE = DATA_DIR / "comprehensive_learning.jsonl"
 COUNTERFACTUAL_RESULTS = DATA_DIR / "counterfactual_results.jsonl"
 WEIGHTS_STATE_FILE = STATE_DIR / "signal_weights.json"
