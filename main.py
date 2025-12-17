@@ -4818,6 +4818,47 @@ if __name__ == "__main__":
     
     cache_enrichment_thread = threading.Thread(target=run_cache_enrichment_periodic, daemon=True, name="CacheEnrichmentService")
     cache_enrichment_thread.start()
+    
+    # Start comprehensive learning orchestrator
+    def run_comprehensive_learning_periodic():
+        """Periodically run comprehensive learning (counterfactuals, weight variations, timing, sizing)."""
+        # Run immediately on startup
+        try:
+            from comprehensive_learning_orchestrator import get_learning_orchestrator
+            orchestrator = get_learning_orchestrator()
+            orchestrator.run_learning_cycle()
+            log_event("comprehensive_learning", "startup_cycle_complete")
+        except ImportError:
+            # Service not available, skip
+            pass
+        except Exception as e:
+            log_event("comprehensive_learning", "startup_error", error=str(e))
+        
+        # Then run every 60 minutes (hourly)
+        while True:
+            try:
+                time.sleep(3600)  # Check every hour
+                try:
+                    from comprehensive_learning_orchestrator import get_learning_orchestrator
+                    orchestrator = get_learning_orchestrator()
+                    results = orchestrator.run_learning_cycle()
+                    log_event("comprehensive_learning", "cycle_complete",
+                             counterfactual=results.get("counterfactual", {}).get("status"),
+                             weight_variations=results.get("weight_variations", {}).get("status"),
+                             timing=results.get("timing", {}).get("status"),
+                             sizing=results.get("sizing", {}).get("status"),
+                             errors=len(results.get("errors", [])))
+                except ImportError:
+                    # Service not available, skip
+                    pass
+                except Exception as e:
+                    log_event("comprehensive_learning", "error", error=str(e))
+            except Exception as e:
+                log_event("comprehensive_learning", "thread_error", error=str(e))
+                time.sleep(3600)
+    
+    comprehensive_learning_thread = threading.Thread(target=run_comprehensive_learning_periodic, daemon=True, name="ComprehensiveLearning")
+    comprehensive_learning_thread.start()
 
 @app.route("/", methods=["GET"])
 def root():
@@ -4855,6 +4896,15 @@ def health():
         }
     except Exception as e:
         status["sre_health_error"] = str(e)
+    
+    # Add comprehensive learning health
+    try:
+        from comprehensive_learning_orchestrator import get_learning_orchestrator
+        orchestrator = get_learning_orchestrator()
+        learning_health = orchestrator.get_health()
+        status["comprehensive_learning"] = learning_health
+    except Exception as e:
+        status["comprehensive_learning_error"] = str(e)
     
     return jsonify(status), 200
 
