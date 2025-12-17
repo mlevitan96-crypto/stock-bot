@@ -447,6 +447,24 @@ class SREMonitoringEngine:
         # Check order execution
         result["order_execution"] = self.check_order_execution_pipeline()
         
+        # Check comprehensive learning system
+        try:
+            from comprehensive_learning_orchestrator import get_learning_orchestrator
+            orchestrator = get_learning_orchestrator()
+            learning_health = orchestrator.get_health()
+            result["comprehensive_learning"] = {
+                "running": learning_health.get("running", False),
+                "last_run_age_sec": learning_health.get("last_run_age_sec"),
+                "error_count": learning_health.get("error_count", 0),
+                "success_count": learning_health.get("success_count", 0),
+                "components_available": learning_health.get("components_available", {})
+            }
+        except Exception as e:
+            result["comprehensive_learning"] = {
+                "status": "error",
+                "error": str(e)
+            }
+        
         # Determine overall health
         critical_issues = []
         warnings = []
