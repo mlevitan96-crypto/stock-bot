@@ -157,7 +157,7 @@ DASHBOARD_HTML = """
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
-            <p class="update-info">Auto-refresh: 10 seconds | Last update: <span id="last-update">-</span></p>
+            <p class="update-info">Auto-refresh: 60 seconds | Last update: <span id="last-update">-</span></p>
         </div>
         
         <div class="tabs">
@@ -259,12 +259,22 @@ DASHBOARD_HTML = """
         
         function loadSREContent() {
             const sreContent = document.getElementById('sre-content');
+            // Save scroll position before update
+            const scrollTop = sreContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
+            
             if (sreContent.innerHTML.includes('Loading') || !sreContent.dataset.loaded) {
                 fetch('/api/sre/health')
                     .then(response => response.json())
                     .then(data => {
                         sreContent.dataset.loaded = 'true';
                         renderSREContent(data, sreContent);
+                        // Restore scroll position after render
+                        if (scrollTop > 0) {
+                            requestAnimationFrame(() => {
+                                sreContent.scrollTop = scrollTop;
+                                window.scrollTo(0, scrollTop);
+                            });
+                        }
                     })
                     .catch(error => {
                         sreContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading SRE data: ${error.message}</div>`;
@@ -377,12 +387,12 @@ DASHBOARD_HTML = """
             container.innerHTML = html;
         }
         
-        // Auto-refresh SRE content if on SRE tab
+        // Auto-refresh SRE content if on SRE tab (less frequent)
         setInterval(() => {
             if (document.getElementById('sre-tab').classList.contains('active')) {
                 loadSREContent();
             }
-        }, 10000);
+        }, 60000);  // Refresh every 60 seconds (reduced from 10s)
         
         // Auto-refresh Executive Summary if on executive tab
         setInterval(() => {
@@ -390,12 +400,16 @@ DASHBOARD_HTML = """
             if (executiveTab && executiveTab.classList.contains('active')) {
                 loadExecutiveSummary();
             }
-        }, 30000);  // Refresh every 30 seconds
+        }, 60000);  // Refresh every 60 seconds (reduced from 30s)
         
         function loadExecutiveSummary() {
             const executiveContent = document.getElementById('executive-content');
-            // Always load (don't check dataset.loaded to allow refreshing)
-            executiveContent.innerHTML = '<div class="loading">Loading executive summary...</div>';
+            // Save scroll position before update
+            const scrollTop = executiveContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
+            // Only show loading if not already loaded
+            if (!executiveContent.dataset.loaded) {
+                executiveContent.innerHTML = '<div class="loading">Loading executive summary...</div>';
+            }
             fetch('/api/executive_summary')
                 .then(response => {
                     if (!response.ok) {
@@ -406,6 +420,13 @@ DASHBOARD_HTML = """
                 .then(data => {
                     executiveContent.dataset.loaded = 'true';
                     renderExecutiveSummary(data, executiveContent);
+                    // Restore scroll position after render
+                    if (scrollTop > 0) {
+                        requestAnimationFrame(() => {
+                            executiveContent.scrollTop = scrollTop;
+                            window.scrollTo(0, scrollTop);
+                        });
+                    }
                 })
                 .catch(error => {
                     console.error('Executive summary error:', error);
@@ -633,6 +654,10 @@ DASHBOARD_HTML = """
                 return;
             }
             
+            // Save scroll position before update
+            const positionsContent = document.getElementById('positions-content');
+            const scrollTop = positionsContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
+            
             // Fetch positions
             fetch('/api/positions')
                 .then(response => response.json())
@@ -645,6 +670,7 @@ DASHBOARD_HTML = """
                         return;
                     }
                     
+                    // Update stats (these don't cause flicker)
                     document.getElementById('total-positions').textContent = data.positions.length;
                     document.getElementById('total-value').textContent = formatCurrency(data.total_value || 0);
                     
@@ -664,26 +690,67 @@ DASHBOARD_HTML = """
                         return;
                     }
                     
-                    let html = '<table><thead><tr>';
-                    html += '<th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
-                    html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th></tr></thead><tbody>';
+                    // Update table with minimal DOM manipulation
+                    const container = document.getElementById('positions-content');
+                    const existingTable = container.querySelector('table');
                     
-                    data.positions.forEach(pos => {
-                        const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
-                        html += '<tr>';
-                        html += '<td class="symbol">' + pos.symbol + '</td>';
-                        html += '<td><span class="side ' + pos.side + '">' + pos.side.toUpperCase() + '</span></td>';
-                        html += '<td>' + pos.qty + '</td>';
-                        html += '<td>' + formatCurrency(pos.avg_entry_price) + '</td>';
-                        html += '<td>' + formatCurrency(pos.current_price) + '</td>';
-                        html += '<td>' + formatCurrency(pos.market_value) + '</td>';
-                        html += '<td class="' + pnlClass + '">' + formatCurrency(pos.unrealized_pnl) + '</td>';
-                        html += '<td class="' + pnlClass + '">' + formatPercent(pos.unrealized_pnl_pct) + '</td>';
-                        html += '</tr>';
-                    });
+                    // Check if table structure changed (number of positions)
+                    const existingRows = existingTable ? existingTable.querySelectorAll('tbody tr').length : 0;
+                    const needsFullRebuild = !existingTable || existingRows !== data.positions.length;
                     
-                    html += '</tbody></table>';
-                    document.getElementById('positions-content').innerHTML = html;
+                    if (needsFullRebuild) {
+                        // Full rebuild only when structure changes
+                        let html = '<table><thead><tr>';
+                        html += '<th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
+                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th></tr></thead><tbody>';
+                        
+                        data.positions.forEach(pos => {
+                            const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
+                            html += '<tr data-symbol="' + pos.symbol + '">';
+                            html += '<td class="symbol">' + pos.symbol + '</td>';
+                            html += '<td><span class="side ' + pos.side + '">' + pos.side.toUpperCase() + '</span></td>';
+                            html += '<td>' + pos.qty + '</td>';
+                            html += '<td>' + formatCurrency(pos.avg_entry_price) + '</td>';
+                            html += '<td>' + formatCurrency(pos.current_price) + '</td>';
+                            html += '<td>' + formatCurrency(pos.market_value) + '</td>';
+                            html += '<td class="' + pnlClass + '">' + formatCurrency(pos.unrealized_pnl) + '</td>';
+                            html += '<td class="' + pnlClass + '">' + formatPercent(pos.unrealized_pnl_pct) + '</td>';
+                            html += '</tr>';
+                        });
+                        
+                        html += '</tbody></table>';
+                        container.innerHTML = html;
+                    } else {
+                        // Update existing rows in place (no flicker)
+                        const tbody = existingTable.querySelector('tbody');
+                        data.positions.forEach((pos, index) => {
+                            const row = tbody.children[index];
+                            if (!row) return;
+                            
+                            const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
+                            const cells = row.querySelectorAll('td');
+                            
+                            // Only update cells that changed (skip symbol, side as they don't change)
+                            if (cells.length >= 8) {
+                                cells[2].textContent = pos.qty;
+                                cells[3].textContent = formatCurrency(pos.avg_entry_price);
+                                cells[4].textContent = formatCurrency(pos.current_price);
+                                cells[5].textContent = formatCurrency(pos.market_value);
+                                cells[6].textContent = formatCurrency(pos.unrealized_pnl);
+                                cells[6].className = pnlClass;
+                                cells[7].textContent = formatPercent(pos.unrealized_pnl_pct);
+                                cells[7].className = pnlClass;
+                            }
+                        });
+                    }
+                    
+                    // Restore scroll position
+                    if (scrollTop > 0) {
+                        requestAnimationFrame(() => {
+                            positionsContent.scrollTop = scrollTop;
+                            window.scrollTo(0, scrollTop);
+                        });
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching positions:', error);
@@ -776,7 +843,8 @@ DASHBOARD_HTML = """
         }
         
         updateDashboard();
-        setInterval(updateDashboard, 10000);
+        // Refresh less frequently to reduce flicker and improve UX
+        setInterval(updateDashboard, 60000);  // 60 seconds instead of 10
     </script>
 </body>
 </html>
