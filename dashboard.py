@@ -163,6 +163,7 @@ DASHBOARD_HTML = """
         <div class="tabs">
             <button class="tab active" onclick="switchTab('positions', event)">📊 Positions</button>
             <button class="tab" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
+            <button class="tab" onclick="switchTab('executive', event)">📈 Executive Summary</button>
         </div>
         
         <div id="positions-tab" class="tab-content active">
@@ -206,6 +207,12 @@ DASHBOARD_HTML = """
                 <div class="loading">Loading SRE monitoring data...</div>
             </div>
         </div>
+        
+        <div id="executive-tab" class="tab-content">
+            <div id="executive-content">
+                <div class="loading">Loading executive summary...</div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -234,9 +241,11 @@ DASHBOARD_HTML = """
                 targetTab.classList.add('active');
             }
             
-            // Load SRE content if switching to SRE tab
+            // Load content based on tab
             if (tabName === 'sre') {
                 loadSREContent();
+            } else if (tabName === 'executive') {
+                loadExecutiveSummary();
             } else if (tabName === 'positions') {
                 // Refresh positions when switching back
                 updateDashboard();
@@ -369,6 +378,224 @@ DASHBOARD_HTML = """
                 loadSREContent();
             }
         }, 10000);
+        
+        // Auto-refresh Executive Summary if on executive tab
+        setInterval(() => {
+            if (document.getElementById('executive-tab').classList.contains('active')) {
+                loadExecutiveSummary();
+            }
+        }, 30000);  // Refresh every 30 seconds
+        
+        function loadExecutiveSummary() {
+            const executiveContent = document.getElementById('executive-content');
+            if (executiveContent.innerHTML.includes('Loading') || !executiveContent.dataset.loaded) {
+                fetch('/api/executive_summary')
+                    .then(response => response.json())
+                    .then(data => {
+                        executiveContent.dataset.loaded = 'true';
+                        renderExecutiveSummary(data, executiveContent);
+                    })
+                    .catch(error => {
+                        executiveContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading executive summary: ${error.message}</div>`;
+                    });
+            }
+        }
+        
+        function renderExecutiveSummary(data, container) {
+            const pnl2d = data.pnl_metrics?.pnl_2d || 0;
+            const pnl5d = data.pnl_metrics?.pnl_5d || 0;
+            const pnl2dClass = pnl2d >= 0 ? 'positive' : 'negative';
+            const pnl5dClass = pnl5d >= 0 ? 'positive' : 'negative';
+            
+            let html = `
+                <div class="stat-card" style="margin-bottom: 20px; border: 3px solid #667eea;">
+                    <h2 style="color: #667eea; margin-bottom: 15px;">📊 Performance Metrics</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <div class="stat-label">Total Trades</div>
+                            <div class="stat-value">${data.total_trades || 0}</div>
+                        </div>
+                        <div>
+                            <div class="stat-label">2-Day P&L</div>
+                            <div class="stat-value ${pnl2dClass}">${formatCurrency(pnl2d)}</div>
+                            <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
+                                ${data.pnl_metrics?.trades_2d || 0} trades, ${data.pnl_metrics?.win_rate_2d || 0}% win rate
+                            </div>
+                        </div>
+                        <div>
+                            <div class="stat-label">5-Day P&L</div>
+                            <div class="stat-value ${pnl5dClass}">${formatCurrency(pnl5d)}</div>
+                            <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
+                                ${data.pnl_metrics?.trades_5d || 0} trades, ${data.pnl_metrics?.win_rate_5d || 0}% win rate
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">📋 Recent Trades</h2>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>P&L (USD)</th>
+                                    <th>P&L (%)</th>
+                                    <th>Hold Time</th>
+                                    <th>Entry Score</th>
+                                    <th>Close Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            const trades = data.trades || [];
+            if (trades.length === 0) {
+                html += '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No trades found</td></tr>';
+            } else {
+                trades.forEach(trade => {
+                    const pnlClass = trade.pnl_usd >= 0 ? 'positive' : 'negative';
+                    const timeStr = trade.timestamp ? new Date(trade.timestamp).toLocaleString() : 'N/A';
+                    html += `
+                        <tr>
+                            <td>${timeStr}</td>
+                            <td class="symbol">${trade.symbol}</td>
+                            <td class="${pnlClass}">${formatCurrency(trade.pnl_usd)}</td>
+                            <td class="${pnlClass}">${trade.pnl_pct >= 0 ? '+' : ''}${trade.pnl_pct.toFixed(2)}%</td>
+                            <td>${Math.round(trade.hold_minutes)}m</td>
+                            <td>${trade.entry_score.toFixed(2)}</td>
+                            <td>${trade.close_reason}</td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">🎯 Signal Performance Analysis</h2>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <h3 style="color: #10b981; margin-bottom: 10px;">Top Performing Signals</h3>
+            `;
+            
+            const topSignals = data.signal_analysis?.top_signals || {};
+            if (Object.keys(topSignals).length === 0) {
+                html += '<p style="color: #666;">No signal data available</p>';
+            } else {
+                Object.entries(topSignals).forEach(([signal, info]) => {
+                    html += `
+                        <div class="stat-card" style="margin-bottom: 10px; padding: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong>${signal}</strong>
+                                <span class="${info.avg_pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(info.total_pnl)}</span>
+                            </div>
+                            <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                Avg: ${formatCurrency(info.avg_pnl)} | Win Rate: ${info.win_rate}% | Trades: ${info.count}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                        </div>
+                        <div>
+                            <h3 style="color: #ef4444; margin-bottom: 10px;">Underperforming Signals</h3>
+            `;
+            
+            const bottomSignals = data.signal_analysis?.bottom_signals || {};
+            if (Object.keys(bottomSignals).length === 0) {
+                html += '<p style="color: #666;">No signal data available</p>';
+            } else {
+                Object.entries(bottomSignals).forEach(([signal, info]) => {
+                    html += `
+                        <div class="stat-card" style="margin-bottom: 10px; padding: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong>${signal}</strong>
+                                <span class="${info.avg_pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(info.total_pnl)}</span>
+                            </div>
+                            <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                Avg: ${formatCurrency(info.avg_pnl)} | Win Rate: ${info.win_rate}% | Trades: ${info.count}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">🧠 Learning Analysis</h2>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <h3 style="color: #667eea; margin-bottom: 10px;">Weight Adjustments</h3>
+            `;
+            
+            const weightAdjustments = data.learning_insights?.weight_adjustments || {};
+            if (Object.keys(weightAdjustments).length === 0) {
+                html += '<p style="color: #666;">No weight adjustments yet</p>';
+            } else {
+                Object.entries(weightAdjustments).forEach(([component, adj]) => {
+                    const mult = adj.current_multiplier;
+                    const direction = mult > 1.0 ? '↑' : mult < 1.0 ? '↓' : '→';
+                    const color = mult > 1.0 ? '#10b981' : mult < 1.0 ? '#ef4444' : '#666';
+                    html += `
+                        <div class="stat-card" style="margin-bottom: 10px; padding: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong>${component}</strong>
+                                <span style="color: ${color}; font-weight: bold;">${direction} ${mult.toFixed(2)}x</span>
+                            </div>
+                            <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                ${adj.sample_count} samples, ${adj.win_rate}% win rate
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                        </div>
+                        <div>
+                            <h3 style="color: #667eea; margin-bottom: 10px;">Counterfactual Insights</h3>
+            `;
+            
+            const counterfactual = data.learning_insights?.counterfactual_insights || {};
+            if (counterfactual.missed_opportunities !== undefined) {
+                html += `
+                    <div class="stat-card" style="margin-bottom: 10px; padding: 15px;">
+                        <div><strong>Missed Opportunities:</strong> ${counterfactual.missed_opportunities}</div>
+                        <div style="margin-top: 5px;"><strong>Avoided Losses:</strong> ${counterfactual.avoided_losses || 0}</div>
+                        <div style="margin-top: 5px;"><strong>Theoretical P&L:</strong> ${formatCurrency(counterfactual.theoretical_pnl || 0)}</div>
+                    </div>
+                `;
+            } else {
+                html += '<p style="color: #666;">No counterfactual data available</p>';
+            }
+            
+            html += `
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="positions-table">
+                    <h2 style="margin-bottom: 15px;">📝 Executive Summary</h2>
+                    <div style="background: #f9fafb; padding: 20px; border-radius: 8px; white-space: pre-wrap; font-family: 'Courier New', monospace; line-height: 1.6;">
+                        ${data.written_summary || 'No summary available'}
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
         
         function formatCurrency(value) {
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
@@ -945,6 +1172,16 @@ def api_sre_health():
             return jsonify({"error": f"Failed to load SRE health: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/executive_summary", methods=["GET"])
+def api_executive_summary():
+    """Get executive summary with trades, P&L, and learning analysis"""
+    try:
+        from executive_summary_generator import generate_executive_summary
+        summary = generate_executive_summary()
+        return jsonify(summary), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to generate executive summary: {str(e)}"}), 500
 
 @app.route("/api/health_status", methods=["GET"])
 def api_health_status():
