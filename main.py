@@ -151,6 +151,12 @@ class Config:
 
     # Runtime
     TRADING_MODE = get_env("TRADING_MODE", "PAPER")  # PAPER or LIVE - v3.1.1
+    # Live-trading arming gate (prevents accidental real-money trading)
+    # In LIVE mode, bot will refuse to place new entry orders unless explicitly acknowledged.
+    LIVE_TRADING_ACK = get_env("LIVE_TRADING_ACK", "")
+    REQUIRE_LIVE_ACK = get_env("REQUIRE_LIVE_ACK", "true").lower() == "true"
+    # Optional safety mode: block opening short positions (bearish entries).
+    LONG_ONLY = get_env("LONG_ONLY", "false").lower() == "true"
     RUN_INTERVAL_SEC = get_env("RUN_INTERVAL_SEC", 60, int)
     LOG_LEVEL = get_env("LOG_LEVEL", "INFO")
     API_PORT = get_env("API_PORT", 8080, int)
@@ -420,6 +426,51 @@ def jsonl_write(name, record):
 
 def log_event(kind, msg, **kw):
     jsonl_write(kind, {"msg": msg, **kw})
+
+def _is_live_endpoint(url: str) -> bool:
+    try:
+        return "api.alpaca.markets" in (url or "") and "paper-api" not in (url or "")
+    except Exception:
+        return False
+
+def _is_paper_endpoint(url: str) -> bool:
+    try:
+        return "paper-api.alpaca.markets" in (url or "")
+    except Exception:
+        return False
+
+def trading_is_armed() -> bool:
+    """
+    Returns True if the bot is allowed to place NEW entry orders.
+    Exits and monitoring may still run when unarmed.
+    """
+    mode = (Config.TRADING_MODE or "PAPER").upper()
+    base_url = Config.ALPACA_BASE_URL or ""
+
+    # If LIVE but pointed at paper, refuse entries (misconfiguration).
+    if mode == "LIVE" and _is_paper_endpoint(base_url):
+        return False
+
+    # If PAPER but pointed at live, refuse entries (misconfiguration).
+    if mode == "PAPER" and _is_live_endpoint(base_url):
+        return False
+
+    if mode == "LIVE" and Config.REQUIRE_LIVE_ACK:
+        return (Config.LIVE_TRADING_ACK or "").strip() == "YES_I_UNDERSTAND"
+
+    return True
+
+def build_client_order_id(symbol: str, side: str, cluster: dict, suffix: str = "") -> str:
+    """
+    Build a deterministic-ish client_order_id for idempotency.
+    Uniqueness is scoped by (symbol, side, cluster start_ts) plus a suffix for retries.
+    """
+    try:
+        start_ts = cluster.get("start_ts") or cluster.get("ts") or int(time.time())
+    except Exception:
+        start_ts = int(time.time())
+    base = f"uwbot-{symbol}-{side}-{int(start_ts)}"
+    return f"{base}-{suffix}" if suffix else base
 
 def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = None, 
                       direction: str = None, decision_price: float = None, 
@@ -2564,7 +2615,13 @@ class AlpacaExecutor:
             return round(mid, 4)
         return None
 
-    def submit_entry(self, symbol: str, qty: int, side: str, regime: str = "unknown"):
+    def _get_order_by_client_order_id(self, client_order_id: str):
+        fn = getattr(self.api, "get_order_by_client_order_id", None)
+        if callable(fn):
+            return fn(client_order_id)
+        return None
+
+    def submit_entry(self, symbol: str, qty: int, side: str, regime: str = "unknown", client_order_id_base: str = None):
         """
         Submit entry order with spread watchdog and regime-aware execution.
         
@@ -2575,7 +2632,7 @@ class AlpacaExecutor:
         ref_price = self.get_last_trade(symbol)
         if ref_price <= 0:
             log_event("submit_entry", "bad_ref_price", symbol=symbol, ref_price=ref_price)
-            return None, None, "error"
+            return None, None, "error", 0, "bad_ref_price"
         
         # === SPREAD WATCHDOG (Audit Recommendation) ===
         if Config.ENABLE_SPREAD_WATCHDOG:
@@ -2588,14 +2645,14 @@ class AlpacaExecutor:
                              symbol=symbol, spread_bps=round(spread_bps, 1),
                              max_spread_bps=Config.MAX_SPREAD_BPS,
                              bid=bid, ask=ask)
-                    return None, None, "spread_too_wide"
+                    return None, None, "spread_too_wide", 0, "spread_too_wide"
         
         notional = qty * ref_price
         if notional < Config.MIN_NOTIONAL_USD:
             log_event("submit_entry", "min_notional_blocked", 
                      symbol=symbol, qty=qty, ref_price=ref_price, 
                      notional=notional, min_required=Config.MIN_NOTIONAL_USD)
-            return None, None, "min_notional_blocked"
+            return None, None, "min_notional_blocked", 0, "min_notional_blocked"
         
         try:
             acct = self.api.get_account()
@@ -2612,7 +2669,7 @@ class AlpacaExecutor:
                          required_margin=round(required_margin, 2),
                          available_dtbp=round(dtbp, 2),
                          available_bp=round(bp, 2))
-                return None, None, "insufficient_buying_power"
+                return None, None, "insufficient_buying_power", 0, "insufficient_buying_power"
         except Exception as e:
             log_event("submit_entry", "margin_check_failed", symbol=symbol, error=str(e))
         
@@ -2637,6 +2694,9 @@ class AlpacaExecutor:
         if limit_price is not None and Config.ENTRY_POST_ONLY:
             for attempt in range(1, Config.ENTRY_MAX_RETRIES + 1):
                 try:
+                    client_order_id = None
+                    if client_order_id_base:
+                        client_order_id = f"{client_order_id_base}-lpo-a{attempt}"
                     o = self.api.submit_order(
                         symbol=symbol,
                         qty=qty,
@@ -2644,19 +2704,26 @@ class AlpacaExecutor:
                         type="limit",
                         time_in_force="day",
                         limit_price=str(limit_price),
-                        extended_hours=False
+                        extended_hours=False,
+                        client_order_id=client_order_id
                     )
                     order_id = getattr(o, "id", None)
                     if order_id:
                         filled, filled_qty, filled_price = self.check_order_filled(order_id)
-                        if filled:
+                        if filled and filled_qty > 0:
+                            # If partial fill, cancel remainder and proceed with filled_qty only.
+                            if filled_qty < qty:
+                                try:
+                                    self.api.cancel_order(order_id)
+                                except Exception:
+                                    pass
                             log_order({"action": "submit_limit_filled", "symbol": symbol, "side": side,
                                        "limit_price": limit_price, "filled_price": filled_price, "attempt": attempt})
                             telemetry.log_order_event(
                                 event_type="LIMIT_FILLED",
                                 symbol=symbol,
                                 side=side,
-                                qty=qty,
+                                qty=filled_qty,
                                 order_type="limit",
                                 limit_price=limit_price,
                                 fill_price=filled_price,
@@ -2664,7 +2731,7 @@ class AlpacaExecutor:
                                 attempt=attempt,
                                 status="filled"
                             )
-                            return o, filled_price, "limit"
+                            return o, filled_price, "limit", filled_qty, "filled"
                         try:
                             self.api.cancel_order(order_id)
                         except Exception:
@@ -2672,6 +2739,18 @@ class AlpacaExecutor:
                     log_order({"action": "limit_not_filled", "symbol": symbol, "side": side,
                                "limit_price": limit_price, "attempt": attempt})
                 except Exception as e:
+                    # Idempotency: if the client_order_id already exists, fetch the existing order.
+                    if client_order_id_base:
+                        try:
+                            existing = self._get_order_by_client_order_id(f"{client_order_id_base}-lpo-a{attempt}")
+                            if existing is not None:
+                                existing_id = getattr(existing, "id", None)
+                                if existing_id:
+                                    filled, filled_qty, filled_price = self.check_order_filled(existing_id)
+                                    if filled and filled_qty > 0:
+                                        return existing, filled_price, "limit", filled_qty, "filled"
+                        except Exception:
+                            pass
                     log_order({"action": "limit_retry_failed", "symbol": symbol, "side": side,
                                "limit_price": limit_price, "attempt": attempt, "error": str(e)})
                 
@@ -2688,6 +2767,9 @@ class AlpacaExecutor:
 
         if limit_price is not None:
             try:
+                client_order_id = None
+                if client_order_id_base:
+                    client_order_id = f"{client_order_id_base}-lpfinal"
                 o = self.api.submit_order(
                     symbol=symbol,
                     qty=qty,
@@ -2695,19 +2777,25 @@ class AlpacaExecutor:
                     type="limit",
                     time_in_force="day",
                     limit_price=str(limit_price),
-                    extended_hours=False
+                    extended_hours=False,
+                    client_order_id=client_order_id
                 )
                 order_id = getattr(o, "id", None)
                 if order_id:
                     filled, filled_qty, filled_price = self.check_order_filled(order_id)
-                    if filled:
+                    if filled and filled_qty > 0:
+                        if filled_qty < qty:
+                            try:
+                                self.api.cancel_order(order_id)
+                            except Exception:
+                                pass
                         log_order({"action": "submit_limit_final_filled", "symbol": symbol, "side": side,
                                    "limit_price": limit_price, "filled_price": filled_price})
                         telemetry.log_order_event(
                             event_type="LIMIT_FINAL_FILLED",
                             symbol=symbol,
                             side=side,
-                            qty=qty,
+                            qty=filled_qty,
                             order_type="limit",
                             limit_price=limit_price,
                             fill_price=filled_price,
@@ -2715,7 +2803,7 @@ class AlpacaExecutor:
                             attempt="final",
                             status="filled"
                         )
-                        return o, filled_price, "limit"
+                        return o, filled_price, "limit", filled_qty, "filled"
                     try:
                         self.api.cancel_order(order_id)
                     except Exception:
@@ -2723,28 +2811,43 @@ class AlpacaExecutor:
                 log_order({"action": "limit_final_not_filled", "symbol": symbol, "side": side,
                            "limit_price": limit_price})
             except Exception as e:
+                if client_order_id_base:
+                    try:
+                        existing = self._get_order_by_client_order_id(f"{client_order_id_base}-lpfinal")
+                        if existing is not None:
+                            existing_id = getattr(existing, "id", None)
+                            if existing_id:
+                                filled, filled_qty, filled_price = self.check_order_filled(existing_id)
+                                if filled and filled_qty > 0:
+                                    return existing, filled_price, "limit", filled_qty, "filled"
+                    except Exception:
+                        pass
                 log_order({"action": "limit_final_failed", "symbol": symbol, "side": side,
                            "limit_price": limit_price, "error": str(e)})
 
         try:
+            client_order_id = None
+            if client_order_id_base:
+                client_order_id = f"{client_order_id_base}-mkt"
             o = self.api.submit_order(
                 symbol=symbol,
                 qty=qty,
                 side=side,
                 type="market",
                 time_in_force="day",
-                extended_hours=False
+                extended_hours=False,
+                client_order_id=client_order_id
             )
             log_order({"action": "submit_market_fallback", "symbol": symbol, "side": side})
             order_id = getattr(o, "id", None)
             if order_id:
                 filled, filled_qty, filled_price = self.check_order_filled(order_id, max_wait_sec=1.0)
-                if filled:
+                if filled and filled_qty > 0:
                     telemetry.log_order_event(
                         event_type="MARKET_FILLED",
                         symbol=symbol,
                         side=side,
-                        qty=qty,
+                        qty=filled_qty,
                         order_type="market",
                         limit_price=None,
                         fill_price=filled_price,
@@ -2752,11 +2855,23 @@ class AlpacaExecutor:
                         attempt="market_fallback",
                         status="filled"
                     )
-                    return o, filled_price, "market"
-            return o, None, "market"
+                    return o, filled_price, "market", filled_qty, "filled"
+            # Live-safety: if not confirmed filled, do NOT mark position open. Reconciliation will pick it up.
+            return o, None, "market", 0, "submitted_unfilled"
         except Exception as e:
+            if client_order_id_base:
+                try:
+                    existing = self._get_order_by_client_order_id(f"{client_order_id_base}-mkt")
+                    if existing is not None:
+                        existing_id = getattr(existing, "id", None)
+                        if existing_id:
+                            filled, filled_qty, filled_price = self.check_order_filled(existing_id, max_wait_sec=1.0)
+                            if filled and filled_qty > 0:
+                                return existing, filled_price, "market", filled_qty, "filled"
+                except Exception:
+                    pass
             log_order({"action": "market_fail", "symbol": symbol, "side": side, "error": str(e)})
-            return None, None, "error"
+            return None, None, "error", 0, "error"
 
     def can_open_new_position(self) -> bool:
         positions = self.api.list_positions()
@@ -3720,21 +3835,50 @@ class StrategyEngine:
                     else:
                         Config.ENTRY_MODE = "MARKET_FALLBACK"
                 
-                res, limit_price, order_type = self.executor.submit_entry(symbol, qty, side, regime=market_regime)
+                # Capture expected price for basic TCA logging (best-effort).
+                expected_entry_price = None
+                try:
+                    expected_entry_price = self.executor.compute_entry_price(symbol, side)
+                except Exception:
+                    expected_entry_price = None
+
+                # Long-only safety: do not open shorts in LONG_ONLY mode.
+                if Config.LONG_ONLY and side == "sell":
+                    log_event("gate", "long_only_blocked_short_entry", symbol=symbol, score=score)
+                    log_blocked_trade(symbol, "long_only_blocked_short_entry", score,
+                                      direction=c.get("direction"),
+                                      decision_price=ref_price_check,
+                                      components=comps)
+                    continue
+
+                client_order_id_base = build_client_order_id(symbol, side, c)
+                res, fill_price, order_type, filled_qty, entry_status = self.executor.submit_entry(
+                    symbol, qty, side, regime=market_regime, client_order_id_base=client_order_id_base
+                )
                 Config.ENTRY_MODE = old_mode
                 
                 if res is None:
                     log_order({"symbol": symbol, "qty": qty, "side": side, "error": "submit_entry_failed", "order_type": order_type})
                     continue
-                price = limit_price if limit_price is not None else self.executor.get_quote_price(symbol)
-                self.executor.mark_open(symbol, price, atr_mult, side, qty, entry_score=score, components=comps, market_regime=market_regime, direction=c["direction"])
+
+                if entry_status != "filled" or filled_qty <= 0:
+                    # Safety: do not assume a position exists unless we confirmed a fill.
+                    # Reconciliation will pick up any eventual fills and sync state next cycle.
+                    log_event("order", "entry_not_confirmed_filled", symbol=symbol, side=side, status=entry_status,
+                              client_order_id=client_order_id_base, requested_qty=qty)
+                    continue
+
+                exec_qty = int(filled_qty)
+                exec_price = float(fill_price) if fill_price is not None else self.executor.get_quote_price(symbol)
+                self.executor.mark_open(symbol, exec_price, atr_mult, side, exec_qty, entry_score=score,
+                                        components=comps, market_regime=market_regime, direction=c["direction"])
                 
                 telemetry.log_portfolio_event(
                     event_type="POSITION_OPENED",
                     symbol=symbol,
                     side=side,
-                    qty=qty,
-                    entry_price=price,
+                    qty=exec_qty,
+                    entry_price=exec_price,
                     exit_price=None,
                     realized_pnl=0.0,
                     unrealized_pnl=0.0,
@@ -3762,15 +3906,15 @@ class StrategyEngine:
                 else:
                     context["confirm_score"] = confirm_map.get(symbol, 0.0)
                 
-                orders.append({"symbol": symbol, "qty": qty, "side": side, "score": score, "order_type": order_type})
+                orders.append({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, "order_type": order_type})
                 new_positions_this_cycle += 1  # V3.2.1: Track new positions per cycle
-                log_order({"symbol": symbol, "qty": qty, "side": side, "score": score, "price": price, "order_type": order_type})
+                log_order({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, "price": exec_price, "order_type": order_type})
                 log_attribution(trade_id=f"open_{symbol}_{now_iso()}", symbol=symbol, pnl_usd=0.0, context=context)
                 
                 # V3.2 CHECKPOINT: POST_TRADE - TCA Feedback & Champion-Challenger
                 # Log execution quality for TCA feedback
-                if limit_price and price:
-                    slippage_pct = abs(price - limit_price) / limit_price if limit_price > 0 else 0
+                if expected_entry_price and exec_price:
+                    slippage_pct = abs(exec_price - expected_entry_price) / expected_entry_price if expected_entry_price > 0 else 0
                     v32.log_jsonl(v32.TCA_SUMMARY_LOG, {
                         "timestamp": datetime.utcnow().isoformat(),
                         "symbol": symbol,
@@ -4197,10 +4341,29 @@ def run_once():
         
         print(f"DEBUG: About to call decide_and_execute with {len(clusters)} clusters, regime={market_regime}", flush=True)
         audit_seg("run_once", "before_decide_execute", {"cluster_count": len(clusters)})
+        # Live-safety gates before placing NEW entries:
+        # - Broker degraded => reduce-only
+        # - Not armed / endpoint mismatch => skip entries
+        # - Executor not reconciled => skip entries (until it can sync positions cleanly)
+        armed = trading_is_armed()
+        reconciled_ok = False
+        try:
+            reconciled_ok = bool(engine.executor.ensure_reconciled())
+        except Exception:
+            reconciled_ok = False
+
         if degraded_mode:
             # Reduce-only safety: do not open new positions when broker connectivity is degraded.
             # Still allow exit logic and monitoring to run.
             log_event("run_once", "reduce_only_broker_degraded", action="skip_entries")
+            orders = []
+        elif not armed:
+            log_event("run_once", "not_armed_skip_entries",
+                      trading_mode=Config.TRADING_MODE, base_url=Config.ALPACA_BASE_URL,
+                      require_live_ack=Config.REQUIRE_LIVE_ACK)
+            orders = []
+        elif not reconciled_ok:
+            log_event("run_once", "not_reconciled_skip_entries", action="skip_entries")
             orders = []
         else:
             if Config.ENABLE_PER_TICKER_LEARNING:
@@ -4560,6 +4723,23 @@ def health():
         status["health_checks"] = supervisor_status
     except Exception as e:
         status["health_checks_error"] = str(e)
+    
+    # Add SRE monitoring data
+    try:
+        from sre_monitoring import get_sre_health
+        sre_health = get_sre_health()
+        status["sre_health"] = {
+            "market_open": sre_health.get("market_open", False),
+            "market_status": sre_health.get("market_status", "unknown"),
+            "last_order": sre_health.get("last_order", {}),
+            "overall_health": sre_health.get("overall_health", "unknown"),
+            "uw_api_healthy_count": sum(1 for h in sre_health.get("uw_api_endpoints", {}).values() if h.get("status") == "healthy"),
+            "uw_api_total_count": len(sre_health.get("uw_api_endpoints", {})),
+            "signal_components_healthy": sum(1 for s in sre_health.get("signal_components", {}).values() if s.get("status") == "healthy"),
+            "signal_components_total": len(sre_health.get("signal_components", {}))
+        }
+    except Exception as e:
+        status["sre_health_error"] = str(e)
     
     return jsonify(status), 200
 
@@ -4927,12 +5107,29 @@ def api_cockpit():
         except Exception:
             pass
         
+        # Get accurate last order timestamp
+        last_order_ts = None
+        last_order_age_sec = None
+        try:
+            from sre_monitoring import SREMonitoringEngine
+            engine = SREMonitoringEngine()
+            last_order_ts = engine.get_last_order_timestamp()
+            if last_order_ts:
+                last_order_age_sec = time.time() - last_order_ts
+        except Exception:
+            pass
+        
         return jsonify({
             "mode": trading_mode.get("mode", "PAPER"),
             "capital_ramp": capital_ramp,
             "kpis": {"win_rate": win_rate, "total_trades": total_trades, "status": "ok"},
             "positions": positions,
             "uw": {"primary_watchlist": Config.TICKERS, "flow": uw_cache},
+            "last_order": {
+                "timestamp": last_order_ts,
+                "age_sec": last_order_age_sec,
+                "age_hours": last_order_age_sec / 3600 if last_order_age_sec else None
+            },
             "last_update": int(time.time())
         }), 200
     except Exception as e:
@@ -5007,6 +5204,60 @@ def dashboard_incidents():
         "manual_reset_required": incidents_today >= Config.MAX_INCIDENTS_PER_DAY,
         "health_check": health_check_passes()
     }), 200
+
+@app.route("/api/sre/health", methods=["GET"])
+def api_sre_health():
+    """SRE-style comprehensive health monitoring endpoint"""
+    try:
+        from sre_monitoring import get_sre_health
+        health = get_sre_health()
+        return jsonify(health), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/sre/signals", methods=["GET"])
+def api_sre_signals():
+    """Get detailed signal component health"""
+    try:
+        from sre_monitoring import SREMonitoringEngine
+        engine = SREMonitoringEngine()
+        signals = engine.check_signal_generation_health()
+        return jsonify({
+            "signals": {
+                name: {
+                    "status": s.status,
+                    "last_update_age_sec": s.last_update_age_sec,
+                    "data_freshness_sec": s.data_freshness_sec,
+                    "error_rate_1h": s.error_rate_1h,
+                    "details": s.details
+                }
+                for name, s in signals.items()
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/sre/uw_endpoints", methods=["GET"])
+def api_sre_uw_endpoints():
+    """Get UW API endpoint health"""
+    try:
+        from sre_monitoring import SREMonitoringEngine
+        engine = SREMonitoringEngine()
+        endpoints = engine.check_uw_api_health()
+        return jsonify({
+            "endpoints": {
+                name: {
+                    "status": h.status,
+                    "error_rate_1h": h.error_rate_1h,
+                    "avg_latency_ms": h.avg_latency_ms,
+                    "rate_limit_remaining": h.rate_limit_remaining,
+                    "last_error": h.last_error
+                }
+                for name, h in endpoints.items()
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/debug/threads", methods=["GET"])
 def debug_threads():
