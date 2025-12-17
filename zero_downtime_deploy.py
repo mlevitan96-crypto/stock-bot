@@ -545,8 +545,25 @@ class ZeroDowntimeDeployer:
                     self._check_health(old_staging_port, "ROLLBACK")
             return False
         
-        # Step 8: Stop old instance (optional - can keep running for quick rollback)
-        print("\n[STEP 8] Deployment complete!")
+        # Step 8: Enrich cache immediately after deployment
+        print("\n[STEP 8] Enriching cache with computed signals...")
+        try:
+            result = subprocess.run(
+                ["python3", str(BASE_DIR / "cache_enrichment_service.py")],
+                cwd=str(BASE_DIR),
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                print("[DEPLOY] Cache enrichment completed successfully")
+            else:
+                print(f"[DEPLOY] Cache enrichment warning: {result.stderr[:200]}")
+        except Exception as e:
+            print(f"[DEPLOY] Cache enrichment error (non-critical): {e}")
+        
+        # Step 9: Deployment complete
+        print("\n[STEP 9] Deployment complete!")
         print(f"[DEPLOY] Active instance: {new_instance}")
         print(f"[DEPLOY] Old instance kept running for quick rollback")
         
