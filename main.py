@@ -5324,6 +5324,15 @@ def dashboard_incidents():
 def api_sre_health():
     """SRE-style comprehensive health monitoring endpoint"""
     try:
+        # Trigger cache enrichment before checking to ensure signals are present
+        try:
+            from cache_enrichment_service import CacheEnrichmentService
+            service = CacheEnrichmentService()
+            service.run_once()
+        except Exception:
+            # Continue even if enrichment fails
+            pass
+        
         from sre_monitoring import get_sre_health
         health = get_sre_health()
         return jsonify(health), 200
