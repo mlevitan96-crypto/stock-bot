@@ -169,7 +169,8 @@ class ComprehensiveLearningOrchestrator:
                 return {"status": "skipped", "reason": "optimizer_not_available"}
             
             # Read all trades (cumulative, not just recent)
-            attribution_file = DATA_DIR / "attribution.jsonl"
+            # Attribution is written to logs/ by main.py jsonl_write function
+            attribution_file = LOGS_DIR / "attribution.jsonl"
             if not attribution_file.exists():
                 return {"status": "skipped", "reason": "no_trades"}
             
