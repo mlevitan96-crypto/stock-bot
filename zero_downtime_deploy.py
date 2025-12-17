@@ -245,17 +245,39 @@ class ZeroDowntimeDeployer:
     def _ensure_proxy_running(self) -> bool:
         """Ensure dashboard proxy is running on port 5000."""
         import socket
+        
+        # Check if port 5000 is in use
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         result = sock.connect_ex(('127.0.0.1', PROXY_PORT))
         sock.close()
         
         if result == 0:
-            # Port is in use - check if it's our proxy
+            # Port is in use - check if it's our proxy or old dashboard
             try:
-                response = requests.get(f"http://localhost:{PROXY_PORT}/health", timeout=2)
-                if response.status_code == 200:
-                    print(f"[DEPLOY] Proxy already running on port {PROXY_PORT}")
-                    return True
+                # Try to identify what's running
+                result = subprocess.run(
+                    ["lsof", "-ti", f":{PROXY_PORT}"],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    pid = result.stdout.strip()
+                    # Check if it's dashboard.py (old) or dashboard_proxy.py (new)
+                    result2 = subprocess.run(
+                        ["ps", "-p", pid, "-o", "args="],
+                        capture_output=True,
+                        text=True
+                    )
+                    if result2.returncode == 0:
+                        cmd = result2.stdout
+                        if "dashboard_proxy.py" in cmd:
+                            print(f"[DEPLOY] Proxy already running on port {PROXY_PORT}")
+                            return True
+                        elif "dashboard.py" in cmd and "instance" not in cmd:
+                            # Old dashboard from supervisor - kill it
+                            print(f"[DEPLOY] Stopping old dashboard on port {PROXY_PORT} (PID: {pid})")
+                            subprocess.run(["kill", "-9", pid], timeout=5)
+                            time.sleep(2)
             except:
                 pass
         
@@ -281,12 +303,27 @@ class ZeroDowntimeDeployer:
                 stderr=subprocess.PIPE,
                 start_new_session=True
             )
-            time.sleep(2)
+            time.sleep(3)
             if proxy_process.poll() is None:
                 print(f"[DEPLOY] Proxy started (PID: {proxy_process.pid})")
+                # Verify it's responding
+                time.sleep(2)
+                try:
+                    response = requests.get(f"http://localhost:{PROXY_PORT}/health", timeout=5)
+                    if response.status_code == 200:
+                        print(f"[DEPLOY] Proxy verified and responding")
+                        return True
+                except:
+                    print(f"[DEPLOY] Warning: Proxy started but not responding yet")
                 return True
+            else:
+                stdout, stderr = proxy_process.communicate()
+                print(f"[DEPLOY] Proxy failed to start")
+                print(f"[DEPLOY] stderr: {stderr.decode()[:500]}")
         except Exception as e:
             print(f"[DEPLOY] Warning: Could not start proxy: {e}")
+            import traceback
+            traceback.print_exc()
         
         return False
     
