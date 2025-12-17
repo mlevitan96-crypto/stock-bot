@@ -3910,8 +3910,8 @@ class StrategyEngine:
                 except ImportError:
                     # Fallback to existing method
                     client_order_id_base = build_client_order_id(symbol, side, c)
-                    
-                    # V3.2 CHECKPOINT: ROUTE_ORDERS - Execution Router
+                
+                # V3.2 CHECKPOINT: ROUTE_ORDERS - Execution Router
                 router_config = v32.ExecutionRouter.load_config()
                 bid, ask = self.executor.get_nbbo(symbol)
                 spread_bps = ((ask - bid) / bid * 10000) if bid > 0 else 100
