@@ -161,8 +161,8 @@ DASHBOARD_HTML = """
         </div>
         
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('positions')">📊 Positions</button>
-            <button class="tab" onclick="switchTab('sre')">🔍 SRE Monitoring</button>
+            <button class="tab active" onclick="switchTab('positions', event)">📊 Positions</button>
+            <button class="tab" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
         </div>
         
         <div id="positions-tab" class="tab-content active">
@@ -209,22 +209,37 @@ DASHBOARD_HTML = """
     </div>
     
     <script>
-        function switchTab(tabName) {
+        function switchTab(tabName, event) {
             // Update tab buttons
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // Fallback: find button by tab name
+                document.querySelectorAll('.tab').forEach(tab => {
+                    if (tab.textContent.includes(tabName === 'positions' ? 'Positions' : 'SRE')) {
+                        tab.classList.add('active');
+                    }
+                });
+            }
             
             // Update tab content
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
             });
-            document.getElementById(tabName + '-tab').classList.add('active');
+            const targetTab = document.getElementById(tabName + '-tab');
+            if (targetTab) {
+                targetTab.classList.add('active');
+            }
             
             // Load SRE content if switching to SRE tab
             if (tabName === 'sre') {
                 loadSREContent();
+            } else if (tabName === 'positions') {
+                // Refresh positions when switching back
+                updateDashboard();
             }
         }
         
@@ -356,7 +371,6 @@ DASHBOARD_HTML = """
         }, 10000);
         
         function formatCurrency(value) {
-        function formatCurrency(value) {
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
         }
         
@@ -374,6 +388,12 @@ DASHBOARD_HTML = """
         }
         
         function updateDashboard() {
+            // Only update if positions tab is active
+            const positionsTab = document.getElementById('positions-tab');
+            if (!positionsTab || !positionsTab.classList.contains('active')) {
+                return;
+            }
+            
             // Fetch positions
             fetch('/api/positions')
                 .then(response => response.json())
