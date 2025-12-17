@@ -2654,6 +2654,7 @@ class AlpacaExecutor:
                      notional=notional, min_required=Config.MIN_NOTIONAL_USD)
             return None, None, "min_notional_blocked", 0, "min_notional_blocked"
         
+        # RISK MANAGEMENT: Order size validation (enhanced version of existing check)
         try:
             acct = self.api.get_account()
             dtbp = float(acct.daytrading_buying_power)
@@ -2663,6 +2664,20 @@ class AlpacaExecutor:
             # Use regular buying_power for paper trading (dtbp is unreliable in paper accounts)
             available_bp = bp
             
+            # Enhanced validation using risk management module
+            try:
+                from risk_management import validate_order_size
+                order_valid, order_error = validate_order_size(symbol, qty, side, ref_price, available_bp)
+                if not order_valid:
+                    log_event("submit_entry", "risk_validation_blocked",
+                             symbol=symbol, side=side, qty=qty, notional=notional,
+                             error=order_error)
+                    return None, None, "risk_validation_failed", 0, order_error
+            except ImportError:
+                # Risk management not available - use existing check
+                pass
+            
+            # Existing buying power check (keep for backward compatibility)
             if required_margin > available_bp:
                 log_event("submit_entry", "insufficient_buying_power",
                          symbol=symbol, side=side, qty=qty, notional=notional,
@@ -2694,9 +2709,17 @@ class AlpacaExecutor:
         if limit_price is not None and Config.ENTRY_POST_ONLY:
             for attempt in range(1, Config.ENTRY_MAX_RETRIES + 1):
                 try:
-                    client_order_id = None
-                    if client_order_id_base:
+                    # Use idempotency key from risk management if available
+                    if client_order_id_base and len(client_order_id_base) > 0:
                         client_order_id = f"{client_order_id_base}-lpo-a{attempt}"
+                    else:
+                        # Fallback: generate new idempotency key
+                        try:
+                            from risk_management import generate_idempotency_key
+                            client_order_id = generate_idempotency_key(symbol, side, qty)
+                        except ImportError:
+                            client_order_id = None
+                    
                     o = self.api.submit_order(
                         symbol=symbol,
                         qty=qty,
@@ -2767,9 +2790,17 @@ class AlpacaExecutor:
 
         if limit_price is not None:
             try:
-                client_order_id = None
-                if client_order_id_base:
+                # Use idempotency key from risk management if available
+                if client_order_id_base and len(client_order_id_base) > 0:
                     client_order_id = f"{client_order_id_base}-lpfinal"
+                else:
+                    # Fallback: generate new idempotency key
+                    try:
+                        from risk_management import generate_idempotency_key
+                        client_order_id = generate_idempotency_key(symbol, side, qty)
+                    except ImportError:
+                        client_order_id = None
+                
                 o = self.api.submit_order(
                     symbol=symbol,
                     qty=qty,
@@ -2826,9 +2857,17 @@ class AlpacaExecutor:
                            "limit_price": limit_price, "error": str(e)})
 
         try:
-            client_order_id = None
-            if client_order_id_base:
+            # Use idempotency key from risk management if available
+            if client_order_id_base and len(client_order_id_base) > 0:
                 client_order_id = f"{client_order_id_base}-mkt"
+            else:
+                # Fallback: generate new idempotency key
+                try:
+                    from risk_management import generate_idempotency_key
+                    client_order_id = generate_idempotency_key(symbol, side, qty)
+                except ImportError:
+                    client_order_id = None
+            
             o = self.api.submit_order(
                 symbol=symbol,
                 qty=qty,
@@ -3789,14 +3828,92 @@ class StrategyEngine:
                                   decision_price=ref_price_check,
                                   components=comps)
                 continue
+            
+            # RISK MANAGEMENT: Check exposure limits before placing order
+            try:
+                from risk_management import check_symbol_exposure, check_sector_exposure, get_risk_limits
+                
+                # Check symbol exposure
+                positions_list = list(self.executor.opens.values())
+                # Convert executor.opens dict to position-like objects for risk checks
+                current_positions = []
+                try:
+                    alpaca_positions = self.executor.api.list_positions()
+                    for ap in alpaca_positions:
+                        current_positions.append(ap)
+                except Exception:
+                    pass
+                
+                if current_positions:
+                    account = self.executor.api.get_account()
+                    account_equity = float(account.equity)
+                    
+                    symbol_safe, symbol_reason = check_symbol_exposure(symbol, current_positions, account_equity)
+                    if not symbol_safe:
+                        print(f"DEBUG {symbol}: BLOCKED by symbol_exposure_limit", flush=True)
+                        log_event("risk_management", "symbol_exposure_blocked", symbol=symbol, reason=symbol_reason)
+                        log_blocked_trade(symbol, "symbol_exposure_limit", score,
+                                         direction=c.get("direction"),
+                                         decision_price=ref_price_check,
+                                         components=comps, reason=symbol_reason)
+                        continue
+                    
+                    sector_safe, sector_reason = check_sector_exposure(current_positions, account_equity)
+                    if not sector_safe:
+                        print(f"DEBUG {symbol}: BLOCKED by sector_exposure_limit", flush=True)
+                        log_event("risk_management", "sector_exposure_blocked", symbol=symbol, reason=sector_reason)
+                        log_blocked_trade(symbol, "sector_exposure_limit", score,
+                                         direction=c.get("direction"),
+                                         decision_price=ref_price_check,
+                                         components=comps, reason=sector_reason)
+                        continue
+            except ImportError:
+                # Risk management not available - continue without exposure checks
+                pass
+            except Exception as exp_error:
+                log_event("risk_management", "exposure_check_error", symbol=symbol, error=str(exp_error))
+                # Continue on error - don't block trading if exposure checks fail
 
             print(f"DEBUG {symbol}: PASSED ALL GATES! Calling submit_entry...", flush=True)
             
-            side = "buy" if c["direction"] == "bullish" else "sell"
-            try:
-                old_mode = Config.ENTRY_MODE
+                side = "buy" if c["direction"] == "bullish" else "sell"
                 
-                # V3.2 CHECKPOINT: ROUTE_ORDERS - Execution Router
+                # RISK MANAGEMENT: Validate order size before submission
+                try:
+                    from risk_management import validate_order_size, generate_idempotency_key
+                    account = self.executor.api.get_account()
+                    buying_power = float(account.buying_power)
+                    current_price = ref_price_check
+                    
+                    order_valid, order_error = validate_order_size(symbol, exec_qty, side, current_price, buying_power)
+                    if not order_valid:
+                        print(f"DEBUG {symbol}: BLOCKED by order_validation: {order_error}", flush=True)
+                        log_event("risk_management", "order_validation_failed", 
+                                 symbol=symbol, qty=exec_qty, side=side, error=order_error)
+                        log_blocked_trade(symbol, "order_validation_failed", score,
+                                         direction=c.get("direction"),
+                                         decision_price=ref_price_check,
+                                         components=comps, validation_error=order_error)
+                        continue
+                except ImportError:
+                    # Risk management not available - continue without validation
+                    pass
+                except Exception as val_error:
+                    log_event("risk_management", "order_validation_error", symbol=symbol, error=str(val_error))
+                    # Continue on error
+                
+                try:
+                    old_mode = Config.ENTRY_MODE
+                    
+                    # Generate idempotency key using risk management function
+                    try:
+                        from risk_management import generate_idempotency_key
+                        client_order_id_base = generate_idempotency_key(symbol, side, exec_qty)
+                    except ImportError:
+                        # Fallback to existing method
+                        client_order_id_base = build_client_order_id(symbol, side, c)
+                    
+                    # V3.2 CHECKPOINT: ROUTE_ORDERS - Execution Router
                 router_config = v32.ExecutionRouter.load_config()
                 bid, ask = self.executor.get_nbbo(symbol)
                 spread_bps = ((ask - bid) / bid * 10000) if bid > 0 else 100
@@ -3910,6 +4027,16 @@ class StrategyEngine:
                 new_positions_this_cycle += 1  # V3.2.1: Track new positions per cycle
                 log_order({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, "price": exec_price, "order_type": order_type})
                 log_attribution(trade_id=f"open_{symbol}_{now_iso()}", symbol=symbol, pnl_usd=0.0, context=context)
+                
+                # RISK MANAGEMENT: Update daily start equity if this is first trade of day
+                try:
+                    from risk_management import get_daily_start_equity, set_daily_start_equity
+                    if get_daily_start_equity() is None:
+                        # First trade today - set baseline
+                        account = self.executor.api.get_account()
+                        set_daily_start_equity(float(account.equity))
+                except Exception:
+                    pass  # Non-critical
                 
                 # V3.2 CHECKPOINT: POST_TRADE - TCA Feedback & Champion-Challenger
                 # Log execution quality for TCA feedback
@@ -4145,6 +4272,35 @@ def run_once():
         except Exception as reconcile_error:
             print(f"⚠️  Position reconciliation V2 error: {reconcile_error}", flush=True)
             log_event("position_reconciliation_v2", "error", error=str(reconcile_error))
+        
+        # RISK MANAGEMENT CHECKS: Account-level risk limits (after position reconciliation)
+        try:
+            from risk_management import run_risk_checks
+            account = engine.executor.api.get_account()
+            current_equity = float(account.equity)
+            positions = engine.executor.api.list_positions()
+            
+            risk_results = run_risk_checks(engine.executor.api, current_equity, positions)
+            
+            if not risk_results["safe_to_trade"]:
+                freeze_reason = risk_results.get("freeze_reason", "unknown_risk_check")
+                alerts_this_cycle.append(f"risk_limit_breach_{freeze_reason}")
+                print(f"🛑 RISK LIMIT BREACH: {freeze_reason} - Trading halted", flush=True)
+                log_event("risk_management", "freeze_activated", 
+                         reason=freeze_reason, 
+                         checks=risk_results.get("checks", {}))
+                # Return early - freeze will be caught by freeze check next cycle
+                return {"clusters": 0, "orders": 0, "risk_freeze": freeze_reason}
+            else:
+                log_event("risk_management", "checks_passed", 
+                         daily_pnl=risk_results["checks"].get("daily_loss", {}).get("daily_pnl", 0),
+                         drawdown_pct=risk_results["checks"].get("drawdown", {}).get("drawdown_pct", 0))
+        except ImportError:
+            # Risk management module not available - log but continue (for backward compatibility)
+            log_event("risk_management", "module_not_available", warning=True)
+        except Exception as risk_error:
+            log_event("risk_management", "check_error", error=str(risk_error))
+            # On error, continue but log - don't block trading if risk checks fail
         
         # MONITORING GUARD 2: Check heartbeat staleness (v3.1.1: 30m threshold, PAPER mode)
         if not check_heartbeat_staleness(REQUIRED_HEARTBEAT_MODULES, max_age_minutes=30, trading_mode=Config.TRADING_MODE):
@@ -4424,6 +4580,27 @@ def run_once():
         metrics = compute_daily_metrics()
         metrics["market_regime"] = market_regime
         metrics["composite_enabled"] = use_composite
+        
+        # RISK MANAGEMENT: Add risk metrics to cycle metrics
+        try:
+            from risk_management import calculate_daily_pnl, load_peak_equity, get_risk_limits
+            account = engine.executor.api.get_account()
+            current_equity = float(account.equity)
+            daily_pnl = calculate_daily_pnl(current_equity)
+            peak_equity = load_peak_equity()
+            drawdown_pct = (peak_equity - current_equity) / peak_equity if peak_equity > 0 else 0
+            
+            metrics["risk_metrics"] = {
+                "current_equity": current_equity,
+                "peak_equity": peak_equity,
+                "daily_pnl": daily_pnl,
+                "drawdown_pct": drawdown_pct,
+                "daily_loss_limit": get_risk_limits()["daily_loss_dollar"],
+                "drawdown_limit_pct": get_risk_limits()["max_drawdown_pct"],
+                "mode": "PAPER" if Config.TRADING_MODE == "PAPER" else "LIVE"
+            }
+        except Exception:
+            pass  # Non-critical
         
         print("DEBUG: About to log telemetry", flush=True)
         audit_seg("run_once", "before_telemetry")
