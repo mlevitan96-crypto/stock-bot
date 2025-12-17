@@ -16,7 +16,7 @@ Checks:
 import json
 import time
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 
 DATA_DIR = Path("data")
