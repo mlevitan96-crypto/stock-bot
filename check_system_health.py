@@ -110,12 +110,14 @@ def check_recent_orders() -> Dict[str, Any]:
 
 def check_heartbeat() -> Dict[str, Any]:
     """Check heartbeat/Doctor status."""
-    # Check multiple possible locations
+    # Check multiple possible locations - including doctor_state.json which appears to be the "Doctor" indicator
     heartbeat_files = [
+        STATE_DIR / "doctor_state.json",  # This is likely the "Doctor" indicator
         STATE_DIR / "heartbeat.json",
         STATE_DIR / "system_heartbeat.json",
         STATE_DIR / "bot_heartbeat.json",
         STATE_DIR / "heartbeats" / "system_heartbeat.json",
+        Path("state/doctor_state.json"),
         Path("state/heartbeat.json"),
         Path("state/system_heartbeat.json"),
         Path("state/bot_heartbeat.json"),
