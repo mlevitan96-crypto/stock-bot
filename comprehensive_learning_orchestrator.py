@@ -151,10 +151,16 @@ class ComprehensiveLearningOrchestrator:
             logger.error(f"Counterfactual analysis error: {e}")
             return {"status": "error", "error": str(e)}
     
+    def _exponential_decay_weight(self, trade_age_days: float, halflife_days: float = 30.0) -> float:
+        """Calculate exponential decay weight for a trade based on age."""
+        import math
+        return math.exp(-trade_age_days / (halflife_days / math.log(2)))
+    
     def analyze_weight_variations(self) -> Dict[str, Any]:
         """
         Analyze how different weight variations perform.
         Tests percentage-based variations, not just on/off.
+        Uses cumulative learning with exponential decay weighting.
         """
         try:
             from adaptive_signal_optimizer import get_optimizer
@@ -162,19 +168,22 @@ class ComprehensiveLearningOrchestrator:
             if not optimizer:
                 return {"status": "skipped", "reason": "optimizer_not_available"}
             
-            # Read recent trades
+            # Read all trades (cumulative, not just recent)
             attribution_file = DATA_DIR / "attribution.jsonl"
             if not attribution_file.exists():
                 return {"status": "skipped", "reason": "no_trades"}
             
-            # Analyze each weight variation
+            now = datetime.now(timezone.utc)
+            max_age_days = 90  # Look back 90 days max
+            
+            # Analyze each weight variation with exponential decay
             variation_results = {}
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
             
             with attribution_file.open("r") as f:
                 lines = f.readlines()
             
-            for line in lines[-500:]:  # Last 500 trades
+            # Process ALL trades with exponential decay weighting
+            for line in lines:
                 try:
                     trade = json.loads(line.strip())
                     if trade.get("type") != "attribution":
@@ -185,11 +194,21 @@ class ComprehensiveLearningOrchestrator:
                         continue
                     
                     trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                    if trade_time < cutoff_time:
+                    if trade_time.tzinfo is None:
+                        trade_time = trade_time.replace(tzinfo=timezone.utc)
+                    else:
+                        trade_time = trade_time.astimezone(timezone.utc)
+                    
+                    # Calculate trade age and decay weight
+                    trade_age_days = (now - trade_time).total_seconds() / 86400.0
+                    if trade_age_days > max_age_days:
                         continue
                     
+                    # Exponential decay: recent trades weighted more, but all count
+                    decay_weight = self._exponential_decay_weight(trade_age_days, halflife_days=30.0)
+                    
                     components = trade.get("context", {}).get("components", {})
-                    pnl = trade.get("pnl_usd", 0.0)
+                    pnl = float(trade.get("pnl_usd", 0.0))
                     
                     # For each component, test how different weight variations would have performed
                     for component, value in components.items():
@@ -199,13 +218,15 @@ class ComprehensiveLearningOrchestrator:
                         if component not in variation_results:
                             variation_results[component] = {}
                         
-                        # Test each variation
+                        # Test each variation with cumulative, time-weighted learning
                         for variation in self.weight_variations[component]:
                             var_key = f"{variation.variation_pct}%"
                             if var_key not in variation_results[component]:
                                 variation_results[component][var_key] = {
                                     "test_count": 0,
                                     "total_pnl": 0.0,
+                                    "weighted_pnl": 0.0,  # Cumulative with decay
+                                    "total_weight": 0.0,
                                     "wins": 0,
                                     "losses": 0
                                 }
@@ -217,6 +238,11 @@ class ComprehensiveLearningOrchestrator:
                             var_result = variation_results[component][var_key]
                             var_result["test_count"] += 1
                             var_result["total_pnl"] += simulated_pnl
+                            
+                            # Apply exponential decay weight for cumulative learning
+                            var_result["weighted_pnl"] += simulated_pnl * decay_weight
+                            var_result["total_weight"] += decay_weight
+                            
                             if simulated_pnl > 0:
                                 var_result["wins"] += 1
                             else:
@@ -226,19 +252,24 @@ class ComprehensiveLearningOrchestrator:
                     logger.debug(f"Error analyzing trade: {e}")
                     continue
             
-            # Find best variations and update optimizer
+            # Find best variations using weighted P&L (cumulative with decay)
             best_variations = {}
             for component, variations in variation_results.items():
                 best_var = None
-                best_avg_pnl = float('-inf')
+                best_weighted_avg_pnl = float('-inf')
                 
                 for var_key, result in variations.items():
-                    if result["test_count"] < 5:  # Need minimum samples
+                    if result["test_count"] < 30:  # Minimum 30 samples for statistical significance
                         continue
                     
-                    avg_pnl = result["total_pnl"] / result["test_count"]
-                    if avg_pnl > best_avg_pnl:
-                        best_avg_pnl = avg_pnl
+                    # Use weighted average (recent trades matter more, but all count)
+                    if result["total_weight"] > 0:
+                        weighted_avg_pnl = result["weighted_pnl"] / result["total_weight"]
+                    else:
+                        weighted_avg_pnl = result["total_pnl"] / result["test_count"]
+                    
+                    if weighted_avg_pnl > best_weighted_avg_pnl:
+                        best_weighted_avg_pnl = weighted_avg_pnl
                         best_var = var_key
                 
                 if best_var:
@@ -288,27 +319,45 @@ class ComprehensiveLearningOrchestrator:
             logger.warning(f"Error applying weight variations: {e}")
     
     def analyze_timing_scenarios(self) -> Dict[str, Any]:
-        """Analyze optimal entry/exit timing."""
+        """Analyze optimal entry/exit timing with cumulative, time-weighted learning."""
         try:
             attribution_file = DATA_DIR / "attribution.jsonl"
             if not attribution_file.exists():
                 return {"status": "skipped", "reason": "no_trades"}
             
             scenario_results = {}
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
+            now = datetime.now(timezone.utc)
+            max_age_days = 60  # Look back 60 days for timing analysis
             
             with attribution_file.open("r") as f:
                 lines = f.readlines()
             
-            for line in lines[-500:]:
+            # Process ALL trades with exponential decay
+            for line in lines:
                 try:
                     trade = json.loads(line.strip())
                     if trade.get("type") != "attribution":
                         continue
                     
+                    ts_str = trade.get("ts", "")
+                    if not ts_str:
+                        continue
+                    
+                    trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                    if trade_time.tzinfo is None:
+                        trade_time = trade_time.replace(tzinfo=timezone.utc)
+                    else:
+                        trade_time = trade_time.astimezone(timezone.utc)
+                    
+                    trade_age_days = (now - trade_time).total_seconds() / 86400.0
+                    if trade_age_days > max_age_days:
+                        continue
+                    
+                    decay_weight = self._exponential_decay_weight(trade_age_days, halflife_days=30.0)
+                    
                     context = trade.get("context", {})
                     hold_minutes = context.get("hold_minutes", 0)
-                    pnl = trade.get("pnl_usd", 0.0)
+                    pnl = float(trade.get("pnl_usd", 0.0))
                     
                     # Match to closest timing scenario
                     for scenario in self.timing_scenarios:
@@ -319,6 +368,8 @@ class ComprehensiveLearningOrchestrator:
                                 scenario_results[scenario_key] = {
                                     "test_count": 0,
                                     "total_pnl": 0.0,
+                                    "weighted_pnl": 0.0,
+                                    "total_weight": 0.0,
                                     "wins": 0,
                                     "losses": 0
                                 }
@@ -326,6 +377,8 @@ class ComprehensiveLearningOrchestrator:
                             result = scenario_results[scenario_key]
                             result["test_count"] += 1
                             result["total_pnl"] += pnl
+                            result["weighted_pnl"] += pnl * decay_weight
+                            result["total_weight"] += decay_weight
                             if pnl > 0:
                                 result["wins"] += 1
                             else:
@@ -335,24 +388,29 @@ class ComprehensiveLearningOrchestrator:
                     logger.debug(f"Error analyzing timing: {e}")
                     continue
             
-            # Find best timing scenario
+            # Find best timing scenario using weighted average
             best_scenario = None
-            best_avg_pnl = float('-inf')
+            best_weighted_avg_pnl = float('-inf')
             
             for scenario_key, result in scenario_results.items():
-                if result["test_count"] < 5:
+                if result["test_count"] < 20:  # Minimum 20 samples
                     continue
                 
-                avg_pnl = result["total_pnl"] / result["test_count"]
-                if avg_pnl > best_avg_pnl:
-                    best_avg_pnl = avg_pnl
+                # Use weighted average (cumulative with decay)
+                if result["total_weight"] > 0:
+                    weighted_avg_pnl = result["weighted_pnl"] / result["total_weight"]
+                else:
+                    weighted_avg_pnl = result["total_pnl"] / result["test_count"]
+                
+                if weighted_avg_pnl > best_weighted_avg_pnl:
+                    best_weighted_avg_pnl = weighted_avg_pnl
                     best_scenario = scenario_key
             
             return {
                 "status": "success",
                 "scenarios_tested": len(scenario_results),
                 "best_scenario": best_scenario,
-                "best_avg_pnl": best_avg_pnl
+                "best_weighted_avg_pnl": round(best_weighted_avg_pnl, 2) if best_weighted_avg_pnl != float('-inf') else None
             }
             
         except Exception as e:
@@ -360,27 +418,45 @@ class ComprehensiveLearningOrchestrator:
             return {"status": "error", "error": str(e)}
     
     def analyze_sizing_scenarios(self) -> Dict[str, Any]:
-        """Analyze optimal position sizing."""
+        """Analyze optimal position sizing with cumulative, time-weighted learning."""
         try:
             attribution_file = DATA_DIR / "attribution.jsonl"
             if not attribution_file.exists():
                 return {"status": "skipped", "reason": "no_trades"}
             
             scenario_results = {}
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
+            now = datetime.now(timezone.utc)
+            max_age_days = 60  # Look back 60 days for sizing analysis
             
             with attribution_file.open("r") as f:
                 lines = f.readlines()
             
-            for line in lines[-500:]:
+            # Process ALL trades with exponential decay
+            for line in lines:
                 try:
                     trade = json.loads(line.strip())
                     if trade.get("type") != "attribution":
                         continue
                     
+                    ts_str = trade.get("ts", "")
+                    if not ts_str:
+                        continue
+                    
+                    trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                    if trade_time.tzinfo is None:
+                        trade_time = trade_time.replace(tzinfo=timezone.utc)
+                    else:
+                        trade_time = trade_time.astimezone(timezone.utc)
+                    
+                    trade_age_days = (now - trade_time).total_seconds() / 86400.0
+                    if trade_age_days > max_age_days:
+                        continue
+                    
+                    decay_weight = self._exponential_decay_weight(trade_age_days, halflife_days=30.0)
+                    
                     context = trade.get("context", {})
                     entry_score = context.get("entry_score", 0.0)
-                    pnl = trade.get("pnl_usd", 0.0)
+                    pnl = float(trade.get("pnl_usd", 0.0))
                     qty = context.get("qty", 1)
                     
                     # Match to sizing scenario based on confidence (entry_score)
@@ -392,6 +468,8 @@ class ComprehensiveLearningOrchestrator:
                                 scenario_results[scenario_key] = {
                                     "test_count": 0,
                                     "total_pnl": 0.0,
+                                    "weighted_pnl": 0.0,
+                                    "total_weight": 0.0,
                                     "total_shares": 0,
                                     "pnl_per_share": 0.0
                                 }
@@ -399,32 +477,35 @@ class ComprehensiveLearningOrchestrator:
                             result = scenario_results[scenario_key]
                             result["test_count"] += 1
                             result["total_pnl"] += pnl
+                            result["weighted_pnl"] += pnl * decay_weight
+                            result["total_weight"] += decay_weight
                             result["total_shares"] += qty
                             
-                            if result["total_shares"] > 0:
-                                result["pnl_per_share"] = result["total_pnl"] / result["total_shares"]
+                            # Calculate weighted pnl per share
+                            if result["total_weight"] > 0 and result["total_shares"] > 0:
+                                result["pnl_per_share"] = result["weighted_pnl"] / result["total_weight"] / result["total_shares"]
                 
                 except Exception as e:
                     logger.debug(f"Error analyzing sizing: {e}")
                     continue
             
-            # Find best sizing scenario
+            # Find best sizing scenario using weighted metrics
             best_scenario = None
-            best_pnl_per_share = float('-inf')
+            best_weighted_pnl_per_share = float('-inf')
             
             for scenario_key, result in scenario_results.items():
-                if result["test_count"] < 5:
+                if result["test_count"] < 15:  # Minimum 15 samples
                     continue
                 
-                if result["pnl_per_share"] > best_pnl_per_share:
-                    best_pnl_per_share = result["pnl_per_share"]
+                if result["pnl_per_share"] > best_weighted_pnl_per_share:
+                    best_weighted_pnl_per_share = result["pnl_per_share"]
                     best_scenario = scenario_key
             
             return {
                 "status": "success",
                 "scenarios_tested": len(scenario_results),
                 "best_scenario": best_scenario,
-                "best_pnl_per_share": best_pnl_per_share
+                "best_weighted_pnl_per_share": round(best_weighted_pnl_per_share, 2) if best_weighted_pnl_per_share != float('-inf') else None
             }
             
         except Exception as e:
