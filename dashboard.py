@@ -1034,7 +1034,8 @@ def api_health_status():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
-    print(f"[Dashboard] Binding to 0.0.0.0:{port}...", flush=True)
+    print(f"[Dashboard] Starting on port {port}...", flush=True)
+    print(f"[Dashboard] Instance: {os.getenv('INSTANCE', 'UNKNOWN')}", flush=True)
     
     loader_thread = threading.Thread(target=lazy_load_dependencies, daemon=True)
     loader_thread.start()
