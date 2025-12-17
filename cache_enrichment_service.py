@@ -80,11 +80,27 @@ class CacheEnrichmentService:
                     
                     # Update cache with computed signals
                     needs_update = False
-                    for feature in ["iv_term_skew", "smile_slope"]:
-                        if feature in enriched and enriched[feature] is not None:
-                            if cache_data[symbol].get(feature) != enriched[feature]:
-                                cache_data[symbol][feature] = enriched[feature]
-                                needs_update = True
+                    
+                    # Always compute and set iv_term_skew and smile_slope if missing
+                    if "iv_term_skew" not in cache_data[symbol] or cache_data[symbol].get("iv_term_skew") is None:
+                        if "iv_term_skew" in enriched and enriched["iv_term_skew"] is not None:
+                            cache_data[symbol]["iv_term_skew"] = enriched["iv_term_skew"]
+                            needs_update = True
+                        else:
+                            # Compute directly if not in enriched
+                            computed_skew = enricher.compute_iv_term_skew(symbol, data)
+                            cache_data[symbol]["iv_term_skew"] = computed_skew
+                            needs_update = True
+                    
+                    if "smile_slope" not in cache_data[symbol] or cache_data[symbol].get("smile_slope") is None:
+                        if "smile_slope" in enriched and enriched["smile_slope"] is not None:
+                            cache_data[symbol]["smile_slope"] = enriched["smile_slope"]
+                            needs_update = True
+                        else:
+                            # Compute directly if not in enriched
+                            computed_slope = enricher.compute_smile_slope(symbol, data)
+                            cache_data[symbol]["smile_slope"] = computed_slope
+                            needs_update = True
                     
                     # Ensure insider exists (even if empty/default)
                     if "insider" not in cache_data[symbol] or not cache_data[symbol]["insider"]:
