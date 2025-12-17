@@ -4240,6 +4240,26 @@ def run_once():
                 
                 # V3: Enrichment → Composite V3 FULL INTELLIGENCE → Gate
                 enriched = uw_enrich.enrich_signal(ticker, uw_cache, market_regime)
+                
+                # Ensure computed signals are in enriched data (fallback if not in cache)
+                if not enriched.get("iv_term_skew") and uw_cache.get(ticker, {}).get("iv_term_skew") is None:
+                    # Compute on-the-fly if missing
+                    enricher = uw_enrich.UWEnricher()
+                    symbol_data = uw_cache.get(ticker, {})
+                    if isinstance(symbol_data, dict):
+                        enriched["iv_term_skew"] = enricher.compute_iv_term_skew(ticker, symbol_data)
+                        enriched["smile_slope"] = enricher.compute_smile_slope(ticker, symbol_data)
+                
+                # Ensure insider exists
+                if not enriched.get("insider"):
+                    enriched["insider"] = uw_cache.get(ticker, {}).get("insider", {
+                        "sentiment": "NEUTRAL",
+                        "net_buys": 0,
+                        "net_sells": 0,
+                        "total_usd": 0.0,
+                        "conviction_modifier": 0.0
+                    })
+                
                 # Use V3 scoring with all expanded intelligence (congress, shorts, institutional, etc.)
                 composite = uw_v2.compute_composite_score_v3(ticker, enriched, market_regime)
                 if composite is None:
@@ -4739,6 +4759,29 @@ def run_self_healing_periodic():
 if __name__ == "__main__":
     healing_thread = threading.Thread(target=run_self_healing_periodic, daemon=True, name="SelfHealingMonitor")
     healing_thread.start()
+    
+    # Start cache enrichment service
+    def run_cache_enrichment_periodic():
+        """Periodically enrich cache with computed signals."""
+        while True:
+            try:
+                time.sleep(60)  # Check every minute
+                try:
+                    from cache_enrichment_service import CacheEnrichmentService
+                    service = CacheEnrichmentService()
+                    service.run_once()
+                    log_event("cache_enrichment", "cycle_complete")
+                except ImportError:
+                    # Service not available, skip
+                    pass
+                except Exception as e:
+                    log_event("cache_enrichment", "error", error=str(e))
+            except Exception as e:
+                log_event("cache_enrichment", "thread_error", error=str(e))
+                time.sleep(60)
+    
+    cache_enrichment_thread = threading.Thread(target=run_cache_enrichment_periodic, daemon=True, name="CacheEnrichmentService")
+    cache_enrichment_thread.start()
 
 @app.route("/", methods=["GET"])
 def root():

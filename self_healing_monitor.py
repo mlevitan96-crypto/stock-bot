@@ -181,9 +181,11 @@ class SelfHealingMonitor:
                     logger.warning(f"Error enriching {sym} for {signal_name}: {e}")
                     continue
             
-            # Save updated cache
+            # Save updated cache (atomic write)
             if enriched_count > 0:
-                cache_file.write_text(json.dumps(cache_data, indent=2))
+                temp_file = cache_file.with_suffix(".json.tmp")
+                temp_file.write_text(json.dumps(cache_data, indent=2))
+                temp_file.replace(cache_file)
                 result["success"] = True
                 result["enriched_symbols"] = enriched_count
                 logger.info(f"Healed {signal_name}: enriched {enriched_count} symbols")
