@@ -4786,6 +4786,19 @@ if __name__ == "__main__":
     # Start cache enrichment service
     def run_cache_enrichment_periodic():
         """Periodically enrich cache with computed signals."""
+        # Run immediately on startup
+        try:
+            from cache_enrichment_service import CacheEnrichmentService
+            service = CacheEnrichmentService()
+            service.run_once()
+            log_event("cache_enrichment", "startup_enrichment_complete")
+        except ImportError:
+            # Service not available, skip
+            pass
+        except Exception as e:
+            log_event("cache_enrichment", "startup_error", error=str(e))
+        
+        # Then run every 60 seconds
         while True:
             try:
                 time.sleep(60)  # Check every minute
