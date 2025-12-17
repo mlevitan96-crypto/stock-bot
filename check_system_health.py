@@ -159,7 +159,19 @@ def check_heartbeat() -> Dict[str, Any]:
         result["heartbeat_data"] = data
         
         # Try different possible timestamp fields
-        heartbeat_ts = data.get("timestamp") or data.get("_ts") or data.get("last_heartbeat")
+        # doctor_state.json might have different field names
+        heartbeat_ts = (data.get("timestamp") or data.get("_ts") or 
+                       data.get("last_heartbeat") or data.get("last_update") or
+                       data.get("updated_at") or data.get("time"))
+        
+        # If still no timestamp, try to get file modification time as fallback
+        if not heartbeat_ts and heartbeat_file.exists():
+            try:
+                file_mtime = heartbeat_file.stat().st_mtime
+                heartbeat_ts = file_mtime
+                result["note"] = "Using file modification time as timestamp"
+            except:
+                pass
         
         if heartbeat_ts:
             age_sec = now - float(heartbeat_ts)
