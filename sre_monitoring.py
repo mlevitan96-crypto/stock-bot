@@ -211,7 +211,19 @@ class SREMonitoringEngine:
                                 last_update_age_sec=cache_age
                             )
                         
-                        if comp_data and comp_data != {}:
+                        # Check if signal has data (handle both dict and numeric values)
+                        has_data = False
+                        if comp_name == "insider":
+                            # Insider is a dict - check if it exists and is not empty
+                            has_data = isinstance(comp_data, dict) and len(comp_data) > 0
+                        elif comp_name in ["iv_term_skew", "smile_slope"]:
+                            # Numeric signals - check if not None (0.0 is valid!)
+                            has_data = comp_data is not None
+                        else:
+                            # Other signals - check if truthy and not empty dict
+                            has_data = comp_data and comp_data != {}
+                        
+                        if has_data:
                             signals[comp_name].status = "healthy"
                             signals[comp_name].data_freshness_sec = cache_age
                         else:
