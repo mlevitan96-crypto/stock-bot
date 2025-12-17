@@ -43,6 +43,10 @@ def check_signals_computed() -> Dict[str, Any]:
         all_symbols = [k for k in cache.keys() if not k.startswith("_")]
         symbols = all_symbols[:5] if len(all_symbols) >= 5 else all_symbols
         
+        result["debug"] = result.get("debug", [])
+        result["debug"].append(f"Total symbols in cache: {len(all_symbols)}")
+        result["debug"].append(f"Checking symbols: {symbols}")
+        
         if not symbols:
             result["status"] = "error"
             result["error"] = "No symbols found in cache"
@@ -51,7 +55,6 @@ def check_signals_computed() -> Dict[str, Any]:
         for symbol in symbols:
             data = cache.get(symbol, {})
             if not isinstance(data, dict):
-                result["debug"] = result.get("debug", [])
                 result["debug"].append(f"{symbol}: not a dict (type: {type(data)})")
                 continue
             
@@ -64,6 +67,7 @@ def check_signals_computed() -> Dict[str, Any]:
                     insider_data = data.get("insider")
                     has_insider = isinstance(insider_data, dict) and len(insider_data) > 0
                     symbol_status[signal] = has_insider
+                    result["debug"].append(f"{symbol}:{signal} = {insider_data} (has_data: {has_insider})")
                     if has_insider:
                         result["signals_present"].append(f"{symbol}:{signal}")
                     else:
@@ -73,6 +77,7 @@ def check_signals_computed() -> Dict[str, Any]:
                     # For numeric signals, 0.0 is valid - only None means missing
                     has_signal = value is not None
                     symbol_status[signal] = has_signal
+                    result["debug"].append(f"{symbol}:{signal} = {value} (has_data: {has_signal})")
                     if has_signal:
                         result["signals_present"].append(f"{symbol}:{signal}")
                     else:
@@ -321,7 +326,7 @@ def main():
     print("=" * 80)
     print("ECOSYSTEM HEALTH CHECK")
     print("=" * 80)
-    print(f"Timestamp: {datetime.utcnow().isoformat()}Z\n")
+    print(f"Timestamp: {datetime.now(datetime.UTC).isoformat()}Z\n")
     
     # Run all checks
     checks = {
@@ -350,6 +355,11 @@ def main():
         # Print key metrics
         if "signals_present" in result:
             print(f"   Signals present: {len(result['signals_present'])}")
+            if result.get("signals_missing"):
+                print(f"   Signals missing: {len(result['signals_missing'])}")
+        if "debug" in result:
+            for msg in result["debug"][:10]:  # Show first 10 debug messages
+                print(f"   Debug: {msg}")
         if "recent_trades" in result:
             print(f"   Recent trades: {result['recent_trades']}")
         if "learning_samples" in result:
