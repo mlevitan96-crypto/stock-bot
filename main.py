@@ -4821,43 +4821,22 @@ if __name__ == "__main__":
     
     # Start comprehensive learning orchestrator (runs daily after market close)
     def run_comprehensive_learning_periodic():
-        """Run comprehensive learning daily after market close (4:45 PM ET = 9:45 PM UTC)."""
-        def is_market_closed() -> bool:
-            """Check if market is closed (after 4:00 PM ET = 9:00 PM UTC)."""
-            now_utc = datetime.now(timezone.utc)
-            # Market close is 4:00 PM ET = 9:00 PM UTC (approximately, ignoring DST for simplicity)
-            market_close_utc = now_utc.replace(hour=21, minute=0, second=0, microsecond=0)
-            return now_utc >= market_close_utc
-        
-        def time_until_market_close() -> float:
-            """Calculate seconds until market close."""
-            now_utc = datetime.now(timezone.utc)
-            market_close_utc = now_utc.replace(hour=21, minute=45, second=0, microsecond=0)
-            if now_utc >= market_close_utc:
-                # Already past today's close, schedule for tomorrow
-                market_close_utc = market_close_utc + timedelta(days=1)
-            return (market_close_utc - now_utc).total_seconds()
-        
-        def time_until_next_day_start() -> float:
-            """Calculate seconds until start of next day (midnight UTC)."""
-            now_utc = datetime.now(timezone.utc)
-            next_day = (now_utc + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-            return (next_day - now_utc).total_seconds()
-        
+        """Run comprehensive learning daily after market close."""
         last_run_date = None
         
         while True:
             try:
                 # Check if we should run today (after market close, once per day)
                 today = datetime.now(timezone.utc).date()
-                now_utc = datetime.now(timezone.utc)
-                market_close_utc = now_utc.replace(hour=21, minute=45, second=0, microsecond=0)
+                
+                # Use existing market close detection (handles DST properly)
+                market_closed = is_after_close_now()
                 
                 # Run if: (1) market is closed, (2) we haven't run today yet
                 should_run = False
-                if is_market_closed() and last_run_date != today:
+                if market_closed and last_run_date != today:
                     should_run = True
-                    log_event("comprehensive_learning", "scheduled_run_triggered", reason="market_closed")
+                    log_event("comprehensive_learning", "scheduled_run_triggered", reason="market_closed", date=str(today))
                 
                 if should_run:
                     try:
@@ -4877,15 +4856,9 @@ if __name__ == "__main__":
                     except Exception as e:
                         log_event("comprehensive_learning", "error", error=str(e))
                 
-                # Sleep until market close (if before close) or until next day (if after close)
-                if now_utc < market_close_utc:
-                    sleep_seconds = time_until_market_close()
-                else:
-                    sleep_seconds = time_until_next_day_start()
-                
-                # Cap sleep at 24 hours for safety
-                sleep_seconds = min(sleep_seconds, 86400)
-                time.sleep(sleep_seconds)
+                # Sleep for 1 hour, then check again
+                # This is safe because we only run once per day (checked by last_run_date)
+                time.sleep(3600)
                 
             except Exception as e:
                 log_event("comprehensive_learning", "thread_error", error=str(e))
