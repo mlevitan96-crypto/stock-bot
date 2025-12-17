@@ -186,13 +186,21 @@ class SREMonitoringEngine:
                 cache = json.loads(uw_cache_file.read_text())
                 cache_age = time.time() - uw_cache_file.stat().st_mtime
                 
-                for symbol in self.watchlist:
+                # Get all symbols from cache (not just watchlist) to ensure we check everything
+                all_cache_symbols = [k for k in cache.keys() if not k.startswith("_")]
+                # Check watchlist first, then any other symbols in cache
+                symbols_to_check = list(set(self.watchlist + all_cache_symbols[:10]))  # Check up to 10 additional symbols
+                
+                for symbol in symbols_to_check:
                     symbol_data = cache.get(symbol, {})
                     if isinstance(symbol_data, str):
                         try:
                             symbol_data = json.loads(symbol_data)
                         except:
                             symbol_data = {}
+                    
+                    if not isinstance(symbol_data, dict):
+                        continue
                     
                     # Check each signal component
                     components = {
@@ -211,6 +219,10 @@ class SREMonitoringEngine:
                                 last_update_age_sec=cache_age
                             )
                         
+                        # Only update if status is still unknown or no_data (don't overwrite healthy)
+                        if signals[comp_name].status == "healthy":
+                            continue
+                        
                         # Check if signal has data (handle both dict and numeric values)
                         has_data = False
                         if comp_name == "insider":
@@ -226,11 +238,23 @@ class SREMonitoringEngine:
                         if has_data:
                             signals[comp_name].status = "healthy"
                             signals[comp_name].data_freshness_sec = cache_age
+                            # Mark that we found data in at least one symbol
+                            if "found_in_symbols" not in signals[comp_name].details:
+                                signals[comp_name].details["found_in_symbols"] = []
+                            if symbol not in signals[comp_name].details["found_in_symbols"]:
+                                signals[comp_name].details["found_in_symbols"].append(symbol)
                         else:
                             if signals[comp_name].status == "unknown":
                                 signals[comp_name].status = "no_data"
             except Exception as e:
-                pass
+                import traceback
+                # Log error but don't fail
+                signals["_error"] = SignalHealth(
+                    name="_error",
+                    status="error",
+                    last_update_age_sec=0,
+                    details={"error": str(e), "traceback": traceback.format_exc()}
+                )
         
         # Check signal generation from logs
         signals_log = LOGS_DIR / "signals.jsonl"
