@@ -11,6 +11,7 @@ import threading
 import base64
 import functools
 import time
+from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template_string, jsonify, Response, request
 
@@ -49,6 +50,67 @@ def require_auth(fn):
             return fn(*args, **kwargs)
         return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="dashboard"'})
     return wrapper
+
+def _read_jsonl_tail(path: Path, max_lines: int = 200) -> list:
+    if not path.exists():
+        return []
+    try:
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except Exception:
+        return []
+    lines = [l for l in lines if l.strip()]
+    if max_lines and len(lines) > max_lines:
+        lines = lines[-max_lines:]
+    out = []
+    for l in lines:
+        try:
+            out.append(json.loads(l))
+        except Exception:
+            continue
+    return out
+
+def _last_event_age_sec(path: Path) -> float | None:
+    rows = _read_jsonl_tail(path, max_lines=50)
+    if not rows:
+        return None
+    rec = rows[-1]
+    now = time.time()
+    v = rec.get("_ts")
+    if isinstance(v, (int, float)):
+        return max(0.0, now - float(v))
+    ts = rec.get("ts") or rec.get("timestamp")
+    if isinstance(ts, str):
+        try:
+            s = ts.strip()
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.now().astimezone().tzinfo)
+            return max(0.0, now - dt.timestamp())
+        except Exception:
+            return None
+    return None
+
+def _file_age_sec(path: Path) -> float | None:
+    try:
+        if not path.exists():
+            return None
+        return max(0.0, time.time() - path.stat().st_mtime)
+    except Exception:
+        return None
+
+def _fetch_local_json(url: str, timeout: int = 5) -> tuple[bool, dict | None, str]:
+    import urllib.request
+    import urllib.error
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8", "ignore")
+            return True, json.loads(raw), ""
+    except urllib.error.URLError as e:
+        return False, None, f"url_error:{e}"
+    except Exception as e:
+        return False, None, f"error:{e}"
 
 def lazy_load_dependencies():
     """Load heavy dependencies in background after server starts."""
@@ -152,6 +214,11 @@ DASHBOARD_HTML = """
         .tab { display: none; }
         .tab.active { display: block; }
         pre { white-space: pre-wrap; }
+        .status-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+        .pill { padding: 6px 10px; border-radius: 999px; font-size: 0.85em; border: 1px solid #e5e7eb; background: #fff; }
+        .pill.ok { border-color: #10b981; color: #065f46; background: #d1fae5; }
+        .pill.warn { border-color: #f59e0b; color: #92400e; background: #fef3c7; }
+        .pill.bad { border-color: #ef4444; color: #991b1b; background: #fee2e2; }
     </style>
 </head>
 <body>
@@ -163,6 +230,10 @@ DASHBOARD_HTML = """
             <div class="tabs">
                 <button class="tab-btn active" onclick="showTab('positions-tab')">Positions</button>
                 <button class="tab-btn" onclick="showTab('performance-tab')">Performance</button>
+                <button class="tab-btn" onclick="showTab('health-tab')">Health</button>
+            </div>
+            <div class="status-row" id="status-row">
+                <span class="pill warn">Loading health…</span>
             </div>
         </div>
         
@@ -200,6 +271,13 @@ DASHBOARD_HTML = """
                 <div id="perf-content"><p class="loading">Loading performance...</p></div>
             </div>
         </div>
+
+        <div class="tab" id="health-tab">
+            <div class="positions-table" style="margin-top: 20px;">
+                <h2 style="margin-bottom: 15px;">Operational health</h2>
+                <div id="health-content"><p class="loading">Loading health...</p></div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -210,6 +288,7 @@ DASHBOARD_HTML = """
             const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(id));
             if (btn) btn.classList.add('active');
             if (id === 'performance-tab') updatePerformance();
+            if (id === 'health-tab') updateHealth();
         }
 
         function formatCurrency(value) {
@@ -314,9 +393,53 @@ DASHBOARD_HTML = """
                 document.getElementById('perf-content').innerHTML = '<p class="no-positions">Error loading performance</p>';
               });
         }
+
+        function pill(text, cls) {
+            return `<span class="pill ${cls}">${text}</span>`;
+        }
+
+        function secsToAge(s) {
+            if (s == null) return '—';
+            if (s < 60) return Math.round(s) + 's';
+            if (s < 3600) return Math.round(s/60) + 'm';
+            return Math.round(s/3600) + 'h';
+        }
+
+        function updateHealth() {
+            fetch('/api/system_health')
+              .then(r => r.json())
+              .then(data => {
+                const row = document.getElementById('status-row');
+                if (data.error) {
+                  row.innerHTML = pill('Health: error', 'bad');
+                  document.getElementById('health-content').innerHTML = `<p class="no-positions">Error: ${data.error}</p>`;
+                  return;
+                }
+
+                const overall = data.overall_status || 'UNKNOWN';
+                const cls = overall === 'HEALTHY' ? 'ok' : (overall === 'DEGRADED' ? 'warn' : 'bad');
+                row.innerHTML = [
+                  pill(`Overall: ${overall}`, cls),
+                  pill(`Bot API: ${data.bot_api_ok ? 'OK' : 'DOWN'}`, data.bot_api_ok ? 'ok' : 'bad'),
+                  pill(`UW cache age: ${secsToAge(data.uw_cache_age_sec)}`, (data.uw_cache_age_sec!=null && data.uw_cache_age_sec < 180) ? 'ok' : 'warn'),
+                  pill(`Last signal: ${secsToAge(data.last_signal_age_sec)}`, (data.last_signal_age_sec!=null && data.last_signal_age_sec < 600) ? 'ok' : 'warn'),
+                  pill(`Last order: ${secsToAge(data.last_order_age_sec)}`, (data.last_order_age_sec!=null && data.last_order_age_sec < 3600) ? 'ok' : 'warn'),
+                  pill(`Last exit: ${secsToAge(data.last_exit_age_sec)}`, (data.last_exit_age_sec!=null && data.last_exit_age_sec < 86400) ? 'ok' : 'warn'),
+                  pill(`Doctor: ${secsToAge(data.doctor_last_action_age_sec)}`, (data.doctor_last_action_age_sec!=null && data.doctor_last_action_age_sec < 180) ? 'ok' : 'warn'),
+                ].join(' ');
+
+                document.getElementById('health-content').innerHTML =
+                  `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+              })
+              .catch(() => {
+                document.getElementById('status-row').innerHTML = pill('Health: fetch failed', 'bad');
+              });
+        }
         
         updateDashboard();
         setInterval(updateDashboard, 10000);
+        updateHealth();
+        setInterval(updateHealth, 30000);
     </script>
 </body>
 </html>
@@ -411,6 +534,58 @@ def api_rollups():
         return jsonify({"rollups": {"2": r2, "5": r5}})
     except Exception as e:
         return jsonify({"error": str(e), "rollups": {}})
+
+@app.route("/api/system_health")
+@require_auth
+def api_system_health():
+    """
+    Dashboard-friendly operational health summary (green/red).
+    """
+    try:
+        bot_health_url = os.getenv("BOT_HEALTH_URL", "http://127.0.0.1:8080/health")
+        ok, payload, err = _fetch_local_json(bot_health_url, timeout=5)
+
+        uw_cache_age = _file_age_sec(Path("data/uw_flow_cache.json"))
+        last_signal_age = _last_event_age_sec(Path("logs/signals.jsonl"))
+        last_order_age = _last_event_age_sec(Path("logs/orders.jsonl"))
+        last_exit_age = _last_event_age_sec(Path("logs/exit.jsonl"))
+        doctor_age = _last_event_age_sec(Path("data/doctor_actions.jsonl"))
+
+        overall = "UNKNOWN"
+        if ok and payload and isinstance(payload, dict):
+            hc = payload.get("health_checks") or {}
+            if hc.get("overall_healthy") is True:
+                overall = "HEALTHY"
+            elif hc.get("overall_healthy") is False:
+                overall = "DEGRADED"
+            else:
+                overall = "UNKNOWN"
+        elif not ok:
+            overall = "DOWN"
+
+        return jsonify({
+            "overall_status": overall,
+            "bot_api_ok": ok,
+            "bot_api_error": err if not ok else "",
+            "bot_health_url": bot_health_url,
+            "bot_health": payload or {},
+            "uw_cache_age_sec": uw_cache_age,
+            "last_signal_age_sec": last_signal_age,
+            "last_order_age_sec": last_order_age,
+            "last_exit_age_sec": last_exit_age,
+            "doctor_last_action_age_sec": doctor_age,
+            "recent": {
+                "signals": _read_jsonl_tail(Path("logs/signals.jsonl"), max_lines=25)[-10:],
+                "orders": _read_jsonl_tail(Path("logs/orders.jsonl"), max_lines=25)[-10:],
+                "exits": _read_jsonl_tail(Path("logs/exit.jsonl"), max_lines=25)[-10:],
+            },
+            "dashboard": {
+                "dependencies_loaded": _registry_loaded,
+                "alpaca_connected": _alpaca_api is not None,
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
