@@ -47,8 +47,9 @@ HEALTH_CHECK_RETRIES = 3
 ROLLBACK_ON_FAILURE = True
 
 # Ports for A/B instances
-PORT_A = 5000
-PORT_B = 5001
+PORT_A = 5000  # Instance A port (internal)
+PORT_B = 5001  # Instance B port (internal)
+PROXY_PORT = 5000  # Public-facing port (always 5000)
 
 print(f"[DEPLOY] Detected root directory: {BASE_DIR}")
 
@@ -241,6 +242,54 @@ class ZeroDowntimeDeployer:
         
         return False
     
+    def _ensure_proxy_running(self) -> bool:
+        """Ensure dashboard proxy is running on port 5000."""
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = sock.connect_ex(('127.0.0.1', PROXY_PORT))
+        sock.close()
+        
+        if result == 0:
+            # Port is in use - check if it's our proxy
+            try:
+                response = requests.get(f"http://localhost:{PROXY_PORT}/health", timeout=2)
+                if response.status_code == 200:
+                    print(f"[DEPLOY] Proxy already running on port {PROXY_PORT}")
+                    return True
+            except:
+                pass
+        
+        # Start proxy
+        print(f"[DEPLOY] Starting dashboard proxy on port {PROXY_PORT}")
+        proxy_script = BASE_DIR / "dashboard_proxy.py"
+        if not proxy_script.exists():
+            print(f"[DEPLOY] Warning: dashboard_proxy.py not found, skipping proxy")
+            return False
+        
+        venv_python = BASE_DIR / "venv" / "bin" / "python3"
+        if not venv_python.exists():
+            venv_python = Path("/usr/bin/python3")
+        
+        try:
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+            proxy_process = subprocess.Popen(
+                [str(venv_python), str(proxy_script)],
+                cwd=str(BASE_DIR),
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True
+            )
+            time.sleep(2)
+            if proxy_process.poll() is None:
+                print(f"[DEPLOY] Proxy started (PID: {proxy_process.pid})")
+                return True
+        except Exception as e:
+            print(f"[DEPLOY] Warning: Could not start proxy: {e}")
+        
+        return False
+    
     def _start_instance(self, instance_dir: Path, port: int, instance_name: str) -> Optional[subprocess.Popen]:
         """Start instance in background."""
         print(f"[DEPLOY] Starting {instance_name} on port {port}")
@@ -383,6 +432,10 @@ class ZeroDowntimeDeployer:
         print(f"Time: {datetime.now().isoformat()}")
         print("=" * 60)
         
+        # Step 0: Ensure proxy is running
+        print("\n[STEP 0] Ensuring dashboard proxy is running...")
+        self._ensure_proxy_running()
+        
         # Step 1: Ensure instance directories exist
         print("\n[STEP 1] Preparing instance directories...")
         self._ensure_instance_dirs()
@@ -408,8 +461,9 @@ class ZeroDowntimeDeployer:
             print("[DEPLOY] Failed to update staging instance")
             return False
         
-        # Step 4: Start staging instance
+        # Step 4: Start staging instance (on internal port, not 5000)
         print("\n[STEP 4] Starting staging instance...")
+        # Use internal ports - proxy will route from 5000
         staging_process = self._start_instance(staging_dir, staging_port, "STAGING")
         if not staging_process:
             print("[DEPLOY] Failed to start staging instance")
