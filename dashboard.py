@@ -85,6 +85,10 @@ DASHBOARD_HTML = """
         .stat-value { font-size: 1.8em; font-weight: bold; color: #333; }
         .stat-value.positive { color: #10b981; }
         .stat-value.negative { color: #ef4444; }
+        .stat-value.warning { color: #f59e0b; }
+        .stat-value.healthy { color: #10b981; }
+        .stat-value.degraded { color: #f59e0b; }
+        .stat-value.critical { color: #ef4444; }
         .positions-table {
             background: white;
             border-radius: 10px;
@@ -140,6 +144,14 @@ DASHBOARD_HTML = """
                 <div class="stat-label">Day P&L</div>
                 <div class="stat-value" id="day-pnl">-</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-label">Last Order</div>
+                <div class="stat-value" id="last-order">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Doctor</div>
+                <div class="stat-value" id="doctor">-</div>
+            </div>
         </div>
         
         <div class="positions-table">
@@ -159,7 +171,17 @@ DASHBOARD_HTML = """
             return (value >= 0 ? '+' : '') + value.toFixed(2) + '%';
         }
         
+        function formatTimeAgo(seconds) {
+            if (!seconds) return 'N/A';
+            if (seconds < 60) return Math.floor(seconds) + 's';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return hours + 'h ' + minutes + 'm';
+        }
+        
         function updateDashboard() {
+            // Fetch positions
             fetch('/api/positions')
                 .then(response => response.json())
                 .then(data => {
@@ -213,6 +235,58 @@ DASHBOARD_HTML = """
                 })
                 .catch(error => {
                     console.error('Error fetching positions:', error);
+                });
+            
+            // Fetch health status for Last Order and Doctor
+            fetch('http://localhost:8081/api/cockpit')
+                .then(response => response.json())
+                .then(data => {
+                    // Last Order
+                    const lastOrder = data.last_order || {};
+                    const lastOrderAgeSec = lastOrder.age_sec;
+                    const lastOrderEl = document.getElementById('last-order');
+                    if (lastOrderAgeSec !== null && lastOrderAgeSec !== undefined) {
+                        lastOrderEl.textContent = formatTimeAgo(lastOrderAgeSec);
+                        // Color coding: < 1h = green, 1-3h = yellow, > 3h = red
+                        if (lastOrderAgeSec < 3600) {
+                            lastOrderEl.className = 'stat-value healthy';
+                        } else if (lastOrderAgeSec < 10800) {
+                            lastOrderEl.className = 'stat-value warning';
+                        } else {
+                            lastOrderEl.className = 'stat-value critical';
+                        }
+                    } else {
+                        lastOrderEl.textContent = 'N/A';
+                        lastOrderEl.className = 'stat-value';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching cockpit data:', error);
+                });
+            
+            // Fetch Doctor/Heartbeat status
+            fetch('http://localhost:8081/health')
+                .then(response => response.json())
+                .then(data => {
+                    const doctorEl = document.getElementById('doctor');
+                    const heartbeatAge = data.last_heartbeat_age_sec;
+                    if (heartbeatAge !== null && heartbeatAge !== undefined) {
+                        doctorEl.textContent = formatTimeAgo(heartbeatAge);
+                        // Color coding: < 5m = green, 5-30m = yellow, > 30m = red
+                        if (heartbeatAge < 300) {
+                            doctorEl.className = 'stat-value healthy';
+                        } else if (heartbeatAge < 1800) {
+                            doctorEl.className = 'stat-value warning';
+                        } else {
+                            doctorEl.className = 'stat-value critical';
+                        }
+                    } else {
+                        doctorEl.textContent = 'N/A';
+                        doctorEl.className = 'stat-value';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching health:', error);
                 });
         }
         
@@ -295,6 +369,57 @@ def api_closed_positions():
         return jsonify({"closed_positions": closed[-50:]})
     except Exception as e:
         return jsonify({"closed_positions": [], "error": str(e)})
+
+@app.route("/api/health_status", methods=["GET"])
+def api_health_status():
+    """Health status endpoint for dashboard - provides Last Order and Doctor status"""
+    try:
+        from sre_monitoring import SREMonitoringEngine
+        engine = SREMonitoringEngine()
+        
+        # Get last order
+        last_order_ts = engine.get_last_order_timestamp()
+        last_order_age_sec = time.time() - last_order_ts if last_order_ts else None
+        
+        # Get Doctor/heartbeat from main health endpoint
+        try:
+            import requests
+            health_response = requests.get("http://localhost:8081/health", timeout=2)
+            if health_response.status_code == 200:
+                health_data = health_response.json()
+                heartbeat_age_sec = health_data.get("last_heartbeat_age_sec")
+            else:
+                heartbeat_age_sec = None
+        except:
+            heartbeat_age_sec = None
+        
+        # Market status
+        market_open, market_status = engine.is_market_open()
+        
+        return jsonify({
+            "last_order": {
+                "timestamp": last_order_ts,
+                "age_sec": last_order_age_sec,
+                "age_hours": last_order_age_sec / 3600 if last_order_age_sec else None,
+                "status": "healthy" if last_order_age_sec and last_order_age_sec < 3600 else 
+                         "warning" if last_order_age_sec and last_order_age_sec < 10800 else
+                         "stale" if last_order_age_sec else "unknown"
+            },
+            "doctor": {
+                "age_sec": heartbeat_age_sec,
+                "age_minutes": heartbeat_age_sec / 60 if heartbeat_age_sec else None,
+                "status": "healthy" if heartbeat_age_sec and heartbeat_age_sec < 300 else
+                         "warning" if heartbeat_age_sec and heartbeat_age_sec < 1800 else
+                         "stale" if heartbeat_age_sec else "unknown"
+            },
+            "market": {
+                "open": market_open,
+                "status": market_status
+            },
+            "timestamp": time.time()
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
