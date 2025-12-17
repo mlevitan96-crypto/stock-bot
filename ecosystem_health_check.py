@@ -53,7 +53,8 @@ def check_signals_computed() -> Dict[str, Any]:
             # Check required signals
             for signal in ["iv_term_skew", "smile_slope", "insider"]:
                 if signal == "insider":
-                    has_insider = bool(data.get("insider"))
+                    insider_data = data.get("insider")
+                    has_insider = isinstance(insider_data, dict) and len(insider_data) > 0
                     symbol_status[signal] = has_insider
                     if has_insider:
                         result["signals_present"].append(f"{symbol}:{signal}")
@@ -61,6 +62,7 @@ def check_signals_computed() -> Dict[str, Any]:
                         result["signals_missing"].append(f"{symbol}:{signal}")
                 else:
                     value = data.get(signal)
+                    # For numeric signals, 0.0 is valid - only None means missing
                     has_signal = value is not None
                     symbol_status[signal] = has_signal
                     if has_signal:
