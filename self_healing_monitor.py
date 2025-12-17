@@ -168,27 +168,14 @@ class SelfHealingMonitor:
                     if not symbol_data:
                         continue
                     
-                    # Enrich the signal
+                    # Enrich the signal - this will compute iv_term_skew and smile_slope
                     enriched = enricher.enrich_signal(sym, cache_data, "NEUTRAL")
                     
-                    # Check if signal is now present
-                    if signal_name == "iv_term_skew" and enriched.get("iv_term_skew") is not None:
+                    # Update cache with enriched data if we got the signal we need
+                    if enriched and enriched.get(signal_name) is not None:
+                        cache_data[sym][signal_name] = enriched[signal_name]
                         enriched_count += 1
-                    elif signal_name == "smile_slope" and enriched.get("smile_slope") is not None:
-                        enriched_count += 1
-                    
-                    # Update cache with enriched data
-                    if enriched:
-                        # Only update if we got the specific signal we're looking for
-                        if signal_name == "iv_term_skew" and enriched.get("iv_term_skew") is not None:
-                            cache_data[sym]["iv_term_skew"] = enriched["iv_term_skew"]
-                            enriched_count += 1
-                        elif signal_name == "smile_slope" and enriched.get("smile_slope") is not None:
-                            cache_data[sym]["smile_slope"] = enriched["smile_slope"]
-                            enriched_count += 1
-                        else:
-                            # Update all enriched fields
-                            cache_data[sym].update(enriched)
+                        logger.debug(f"Computed {signal_name} for {sym}: {enriched[signal_name]}")
                 
                 except Exception as e:
                     logger.warning(f"Error enriching {sym} for {signal_name}: {e}")
