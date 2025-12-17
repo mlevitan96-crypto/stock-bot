@@ -17,9 +17,9 @@ from threading import Thread
 
 BASE_DIR = Path(__file__).parent
 STATE_FILE = BASE_DIR / "state" / "deployment_state.json"
-PORT_A = 5000
-PORT_B = 5001
-PROXY_PORT = 5000
+PORT_A = 5001  # Instance A internal port
+PORT_B = 5002  # Instance B internal port
+PROXY_PORT = 5000  # Public port (always 5000)
 
 def get_active_port() -> int:
     """Get the port of the currently active instance."""

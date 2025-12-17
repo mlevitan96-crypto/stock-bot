@@ -47,9 +47,9 @@ HEALTH_CHECK_RETRIES = 3
 ROLLBACK_ON_FAILURE = True
 
 # Ports for A/B instances
-PORT_A = 5000  # Instance A port (internal)
-PORT_B = 5001  # Instance B port (internal)
-PROXY_PORT = 5000  # Public-facing port (always 5000)
+PORT_A = 5001  # Instance A port (internal)
+PORT_B = 5002  # Instance B port (internal)
+PROXY_PORT = 5000  # Public-facing port (always 5000 - routes to active instance)
 
 print(f"[DEPLOY] Detected root directory: {BASE_DIR}")
 
@@ -483,10 +483,11 @@ class ZeroDowntimeDeployer:
         new_instance = "B" if self.current_state["active_instance"] == "A" else "A"
         self._switch_traffic(new_instance)
         
-        # Step 7: Verify active instance health
-        print("\n[STEP 7] Verifying active instance health...")
+        # Step 7: Verify active instance health via proxy
+        print("\n[STEP 7] Verifying active instance health via proxy...")
         time.sleep(5)  # Give it a moment to stabilize
-        if not self._check_health(active_port, "ACTIVE"):
+        # Check via proxy (port 5000) which routes to active instance
+        if not self._check_health(PROXY_PORT, "ACTIVE (via proxy)"):
             print("[DEPLOY] Active instance failed health check after switch")
             if ROLLBACK_ON_FAILURE:
                 self._rollback("Active instance health check failed after switch")
