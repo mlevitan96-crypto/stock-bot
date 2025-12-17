@@ -216,7 +216,31 @@ class TelemetryLogger:
     
     # UW Flow Cache
     def update_uw_flow_cache(self, cache: Dict[str, Any]):
-        """Update the Unusual Whales flow cache."""
+        """Update the Unusual Whales flow cache, preserving computed signals."""
+        # Preserve computed signals when updating cache
+        if UW_FLOW_CACHE.exists():
+            try:
+                existing_cache = read_json(UW_FLOW_CACHE, default={})
+                # For each symbol, preserve computed signals if they exist
+                for symbol, new_data in cache.items():
+                    if symbol.startswith("_"):
+                        continue  # Skip metadata
+                    if symbol in existing_cache and isinstance(existing_cache[symbol], dict):
+                        existing_symbol_data = existing_cache[symbol]
+                        # Preserve computed signals
+                        for computed_signal in ["iv_term_skew", "smile_slope"]:
+                            if computed_signal in existing_symbol_data and existing_symbol_data[computed_signal] is not None:
+                                if symbol not in cache or not isinstance(cache[symbol], dict):
+                                    cache[symbol] = {}
+                                cache[symbol][computed_signal] = existing_symbol_data[computed_signal]
+                        # Preserve insider if it exists
+                        if "insider" in existing_symbol_data and existing_symbol_data["insider"]:
+                            if symbol not in cache or not isinstance(cache[symbol], dict):
+                                cache[symbol] = {}
+                            cache[symbol]["insider"] = existing_symbol_data["insider"]
+            except Exception:
+                pass  # If merge fails, just write the new cache
+        
         write_json(UW_FLOW_CACHE, cache)
     
     def get_uw_flow_cache(self) -> Dict[str, Any]:

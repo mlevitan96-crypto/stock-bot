@@ -122,14 +122,18 @@ class CacheEnrichmentService:
                     logger.warning(f"Error enriching {symbol}: {e}")
                     continue
             
-            # Write enriched cache back
-            if updated_count > 0:
+            # Write enriched cache back (always write to ensure signals are persisted)
+            # Even if no updates, we should ensure all signals are present
+            if updated_count > 0 or enriched_count > 0:
                 # Atomic write
                 temp_file = self.cache_file.with_suffix(".json.tmp")
                 with temp_file.open("w") as f:
                     json.dump(cache_data, f, indent=2)
                 temp_file.replace(self.cache_file)
                 logger.info(f"Enriched {enriched_count} symbols, updated {updated_count} with computed signals")
+            else:
+                # No updates needed, but log that we checked
+                logger.debug(f"Checked {enriched_count} symbols, all signals already present")
             
             return cache_data
             
