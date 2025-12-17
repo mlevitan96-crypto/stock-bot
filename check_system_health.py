@@ -114,9 +114,20 @@ def check_heartbeat() -> Dict[str, Any]:
     heartbeat_files = [
         STATE_DIR / "heartbeat.json",
         STATE_DIR / "system_heartbeat.json",
+        STATE_DIR / "bot_heartbeat.json",
+        STATE_DIR / "heartbeats" / "system_heartbeat.json",
         Path("state/heartbeat.json"),
-        Path("state/system_heartbeat.json")
+        Path("state/system_heartbeat.json"),
+        Path("state/bot_heartbeat.json"),
+        Path("state/heartbeats/system_heartbeat.json")
     ]
+    
+    # Also search for any .json files in state/heartbeats directory
+    heartbeats_dir = STATE_DIR / "heartbeats"
+    if heartbeats_dir.exists():
+        for hb_file in heartbeats_dir.glob("*.json"):
+            if hb_file not in heartbeat_files:
+                heartbeat_files.append(hb_file)
     
     result = {
         "status": "unknown",
@@ -181,7 +192,13 @@ def check_alpaca_connectivity() -> Dict[str, Any]:
     }
     
     try:
-        import alpaca_trade_api as tradeapi
+        # Try to import - if it fails, suggest venv activation
+        try:
+            import alpaca_trade_api as tradeapi
+        except ImportError:
+            result["status"] = "module_missing"
+            result["message"] = "alpaca_trade_api module not found. Try: source venv/bin/activate (if using venv) or pip3 install alpaca-trade-api"
+            return result
         
         api_key = os.getenv("ALPACA_API_KEY") or os.getenv("ALPACA_KEY")
         api_secret = os.getenv("ALPACA_API_SECRET") or os.getenv("ALPACA_SECRET")
@@ -268,7 +285,13 @@ def check_recent_trades() -> Dict[str, Any]:
     }
     
     try:
-        import alpaca_trade_api as tradeapi
+        # Try to import - if it fails, suggest venv activation
+        try:
+            import alpaca_trade_api as tradeapi
+        except ImportError:
+            result["status"] = "module_missing"
+            result["message"] = "alpaca_trade_api module not found. Try: source venv/bin/activate (if using venv) or pip3 install alpaca-trade-api"
+            return result
         
         api_key = os.getenv("ALPACA_API_KEY") or os.getenv("ALPACA_KEY")
         api_secret = os.getenv("ALPACA_API_SECRET") or os.getenv("ALPACA_SECRET")
