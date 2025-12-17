@@ -3834,8 +3834,6 @@ class StrategyEngine:
                 from risk_management import check_symbol_exposure, check_sector_exposure, get_risk_limits
                 
                 # Check symbol exposure
-                positions_list = list(self.executor.opens.values())
-                # Convert executor.opens dict to position-like objects for risk checks
                 current_positions = []
                 try:
                     alpaca_positions = self.executor.api.list_positions()
@@ -3876,42 +3874,44 @@ class StrategyEngine:
 
             print(f"DEBUG {symbol}: PASSED ALL GATES! Calling submit_entry...", flush=True)
             
-                side = "buy" if c["direction"] == "bullish" else "sell"
+            side = "buy" if c["direction"] == "bullish" else "sell"
+            
+            # RISK MANAGEMENT: Validate order size before submission (calculate qty first)
+            exec_qty = calculate_position_size(symbol, score, ref_price_check, Config.SIZE_BASE_USD)
+            
+            try:
+                from risk_management import validate_order_size
+                account = self.executor.api.get_account()
+                buying_power = float(account.buying_power)
+                current_price = ref_price_check
                 
-                # RISK MANAGEMENT: Validate order size before submission
+                order_valid, order_error = validate_order_size(symbol, exec_qty, side, current_price, buying_power)
+                if not order_valid:
+                    print(f"DEBUG {symbol}: BLOCKED by order_validation: {order_error}", flush=True)
+                    log_event("risk_management", "order_validation_failed", 
+                             symbol=symbol, qty=exec_qty, side=side, error=order_error)
+                    log_blocked_trade(symbol, "order_validation_failed", score,
+                                     direction=c.get("direction"),
+                                     decision_price=ref_price_check,
+                                     components=comps, validation_error=order_error)
+                    continue
+            except ImportError:
+                # Risk management not available - continue without validation
+                pass
+            except Exception as val_error:
+                log_event("risk_management", "order_validation_error", symbol=symbol, error=str(val_error))
+                # Continue on error
+            
+            try:
+                old_mode = Config.ENTRY_MODE
+                
+                # Generate idempotency key using risk management function
                 try:
-                    from risk_management import validate_order_size, generate_idempotency_key
-                    account = self.executor.api.get_account()
-                    buying_power = float(account.buying_power)
-                    current_price = ref_price_check
-                    
-                    order_valid, order_error = validate_order_size(symbol, exec_qty, side, current_price, buying_power)
-                    if not order_valid:
-                        print(f"DEBUG {symbol}: BLOCKED by order_validation: {order_error}", flush=True)
-                        log_event("risk_management", "order_validation_failed", 
-                                 symbol=symbol, qty=exec_qty, side=side, error=order_error)
-                        log_blocked_trade(symbol, "order_validation_failed", score,
-                                         direction=c.get("direction"),
-                                         decision_price=ref_price_check,
-                                         components=comps, validation_error=order_error)
-                        continue
+                    from risk_management import generate_idempotency_key
+                    client_order_id_base = generate_idempotency_key(symbol, side, exec_qty)
                 except ImportError:
-                    # Risk management not available - continue without validation
-                    pass
-                except Exception as val_error:
-                    log_event("risk_management", "order_validation_error", symbol=symbol, error=str(val_error))
-                    # Continue on error
-                
-                try:
-                    old_mode = Config.ENTRY_MODE
-                    
-                    # Generate idempotency key using risk management function
-                    try:
-                        from risk_management import generate_idempotency_key
-                        client_order_id_base = generate_idempotency_key(symbol, side, exec_qty)
-                    except ImportError:
-                        # Fallback to existing method
-                        client_order_id_base = build_client_order_id(symbol, side, c)
+                    # Fallback to existing method
+                    client_order_id_base = build_client_order_id(symbol, side, c)
                     
                     # V3.2 CHECKPOINT: ROUTE_ORDERS - Execution Router
                 router_config = v32.ExecutionRouter.load_config()
