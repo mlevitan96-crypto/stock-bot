@@ -3876,20 +3876,18 @@ class StrategyEngine:
             
             side = "buy" if c["direction"] == "bullish" else "sell"
             
-            # RISK MANAGEMENT: Validate order size before submission (calculate qty first)
-            exec_qty = calculate_position_size(symbol, score, ref_price_check, Config.SIZE_BASE_USD)
-            
+            # RISK MANAGEMENT: Validate order size before submission (qty already calculated above)
             try:
                 from risk_management import validate_order_size
                 account = self.executor.api.get_account()
                 buying_power = float(account.buying_power)
                 current_price = ref_price_check
                 
-                order_valid, order_error = validate_order_size(symbol, exec_qty, side, current_price, buying_power)
+                order_valid, order_error = validate_order_size(symbol, qty, side, current_price, buying_power)
                 if not order_valid:
                     print(f"DEBUG {symbol}: BLOCKED by order_validation: {order_error}", flush=True)
                     log_event("risk_management", "order_validation_failed", 
-                             symbol=symbol, qty=exec_qty, side=side, error=order_error)
+                             symbol=symbol, qty=qty, side=side, error=order_error)
                     log_blocked_trade(symbol, "order_validation_failed", score,
                                      direction=c.get("direction"),
                                      decision_price=ref_price_check,
@@ -3908,7 +3906,7 @@ class StrategyEngine:
                 # Generate idempotency key using risk management function
                 try:
                     from risk_management import generate_idempotency_key
-                    client_order_id_base = generate_idempotency_key(symbol, side, exec_qty)
+                    client_order_id_base = generate_idempotency_key(symbol, side, qty)
                 except ImportError:
                     # Fallback to existing method
                     client_order_id_base = build_client_order_id(symbol, side, c)
