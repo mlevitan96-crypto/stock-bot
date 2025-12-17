@@ -124,7 +124,7 @@ DASHBOARD_HTML = """
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
-            <p class="update-info">Auto-refresh: 10 seconds | Last update: <span id="last-update">-</span></p>
+            <p class="update-info">Auto-refresh: 10 seconds | Last update: <span id="last-update">-</span> | <a href="/sre" style="color: #667eea; text-decoration: none; font-weight: bold;">🔍 SRE Monitoring Dashboard</a></p>
         </div>
         
         <div class="stats" id="stats-container">
@@ -330,6 +330,308 @@ DASHBOARD_HTML = """
 </html>
 """
 
+SRE_DASHBOARD_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRE Monitoring Dashboard - Trading Bot</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        .header {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 2px solid #334155;
+        }
+        h1 { color: #60a5fa; font-size: 2em; margin-bottom: 10px; }
+        .overall-health {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 3px solid;
+        }
+        .overall-health.healthy { border-color: #10b981; background: #064e3b; }
+        .overall-health.degraded { border-color: #f59e0b; background: #78350f; }
+        .overall-health.critical { border-color: #ef4444; background: #7f1d1d; }
+        .overall-health h2 { font-size: 2.5em; margin-bottom: 10px; }
+        .overall-health.healthy h2 { color: #10b981; }
+        .overall-health.degraded h2 { color: #f59e0b; }
+        .overall-health.critical h2 { color: #ef4444; }
+        .section {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+        .section h2 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .health-card {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid;
+            transition: transform 0.2s;
+        }
+        .health-card:hover { transform: translateY(-2px); }
+        .health-card.healthy { border-color: #10b981; }
+        .health-card.degraded { border-color: #f59e0b; }
+        .health-card.critical { border-color: #ef4444; }
+        .health-card.no_data { border-color: #64748b; }
+        .health-card.unknown { border-color: #64748b; }
+        .health-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .health-card-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #e2e8f0;
+        }
+        .health-status {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .health-status.healthy { background: #10b981; color: white; }
+        .health-status.degraded { background: #f59e0b; color: white; }
+        .health-status.critical { background: #ef4444; color: white; }
+        .health-status.no_data { background: #64748b; color: white; }
+        .health-status.unknown { background: #64748b; color: white; }
+        .health-details {
+            font-size: 0.9em;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .health-details strong { color: #e2e8f0; }
+        .update-info {
+            font-size: 0.85em;
+            color: #94a3b8;
+            margin-top: 10px;
+        }
+        .loading { text-align: center; padding: 40px; color: #94a3b8; }
+        .nav-link {
+            color: #60a5fa;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .nav-link:hover { text-decoration: underline; }
+        .market-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .market-status.open { background: #10b981; color: white; }
+        .market-status.closed { background: #64748b; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 SRE Monitoring Dashboard</h1>
+            <p>Comprehensive system health monitoring for all signals, APIs, and trade engine</p>
+            <p class="update-info">
+                Auto-refresh: 10 seconds | Last update: <span id="last-update">-</span> | 
+                <a href="/" class="nav-link">← Back to Positions Dashboard</a>
+            </p>
+        </div>
+        
+        <div id="overall-health" class="overall-health unknown">
+            <h2>Loading...</h2>
+            <p>Checking system health...</p>
+        </div>
+        
+        <div class="section">
+            <h2>📊 Signal Components Health</h2>
+            <div id="signals-container" class="grid">
+                <div class="loading">Loading signal components...</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🌐 UW API Endpoints Health</h2>
+            <div id="api-container" class="grid">
+                <div class="loading">Loading API endpoints...</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>⚙️ Trade Engine & Execution Pipeline</h2>
+            <div id="engine-container" class="grid">
+                <div class="loading">Loading trade engine status...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function formatTimeAgo(seconds) {
+            if (!seconds && seconds !== 0) return 'N/A';
+            if (seconds < 60) return Math.floor(seconds) + 's';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return hours + 'h ' + minutes + 'm';
+        }
+        
+        function getStatusClass(status) {
+            if (!status) return 'unknown';
+            status = status.toLowerCase();
+            if (status === 'healthy' || status === 'ok') return 'healthy';
+            if (status === 'degraded' || status === 'warning') return 'degraded';
+            if (status === 'critical' || status === 'down' || status === 'error') return 'critical';
+            if (status === 'no_data' || status === 'no_api_key') return 'no_data';
+            return 'unknown';
+        }
+        
+        function updateSREDashboard() {
+            fetch('/api/sre/health')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+                    
+                    // Update overall health
+                    const overallHealth = data.overall_health || 'unknown';
+                    const overallEl = document.getElementById('overall-health');
+                    overallEl.className = 'overall-health ' + getStatusClass(overallHealth);
+                    overallEl.innerHTML = `
+                        <h2>${overallHealth.toUpperCase()}</h2>
+                        <p>Market: <span class="market-status ${data.market_open ? 'open' : 'closed'}">${data.market_status || 'unknown'}</span></p>
+                        ${data.critical_issues ? '<p style="color: #ef4444; margin-top: 10px;"><strong>Critical Issues:</strong> ' + data.critical_issues.join(', ') + '</p>' : ''}
+                        ${data.warnings ? '<p style="color: #f59e0b; margin-top: 10px;"><strong>Warnings:</strong> ' + data.warnings.join(', ') + '</p>' : ''}
+                    `;
+                    
+                    // Update signal components
+                    const signals = data.signal_components || {};
+                    const signalsContainer = document.getElementById('signals-container');
+                    if (Object.keys(signals).length === 0) {
+                        signalsContainer.innerHTML = '<div class="loading">No signal components found</div>';
+                    } else {
+                        signalsContainer.innerHTML = Object.entries(signals).map(([name, health]) => {
+                            const status = health.status || 'unknown';
+                            const statusClass = getStatusClass(status);
+                            return `
+                                <div class="health-card ${statusClass}">
+                                    <div class="health-card-header">
+                                        <span class="health-card-name">${name}</span>
+                                        <span class="health-status ${statusClass}">${status}</span>
+                                    </div>
+                                    <div class="health-details">
+                                        <div><strong>Last Update:</strong> ${formatTimeAgo(health.last_update_age_sec)}</div>
+                                        ${health.data_freshness_sec !== null && health.data_freshness_sec !== undefined ? 
+                                            `<div><strong>Data Freshness:</strong> ${formatTimeAgo(health.data_freshness_sec)}</div>` : ''}
+                                        ${health.error_rate_1h !== undefined ? 
+                                            `<div><strong>Error Rate (1h):</strong> ${(health.error_rate_1h * 100).toFixed(1)}%</div>` : ''}
+                                        ${health.last_error ? 
+                                            `<div style="color: #ef4444; margin-top: 5px;"><strong>Error:</strong> ${health.last_error}</div>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                    
+                    // Update API endpoints
+                    const apis = data.uw_api_endpoints || {};
+                    const apiContainer = document.getElementById('api-container');
+                    if (Object.keys(apis).length === 0) {
+                        apiContainer.innerHTML = '<div class="loading">No API endpoints found</div>';
+                    } else {
+                        apiContainer.innerHTML = Object.entries(apis).map(([name, health]) => {
+                            const status = health.status || 'unknown';
+                            const statusClass = getStatusClass(status);
+                            return `
+                                <div class="health-card ${statusClass}">
+                                    <div class="health-card-header">
+                                        <span class="health-card-name">${name}</span>
+                                        <span class="health-status ${statusClass}">${status}</span>
+                                    </div>
+                                    <div class="health-details">
+                                        ${health.avg_latency_ms !== null && health.avg_latency_ms !== undefined ? 
+                                            `<div><strong>Avg Latency:</strong> ${health.avg_latency_ms.toFixed(0)}ms</div>` : ''}
+                                        ${health.error_rate_1h !== undefined ? 
+                                            `<div><strong>Error Rate (1h):</strong> ${(health.error_rate_1h * 100).toFixed(1)}%</div>` : ''}
+                                        ${health.rate_limit_remaining !== null && health.rate_limit_remaining !== undefined ? 
+                                            `<div><strong>Rate Limit:</strong> ${health.rate_limit_remaining} remaining</div>` : ''}
+                                        ${health.last_error ? 
+                                            `<div style="color: #ef4444; margin-top: 5px;"><strong>Error:</strong> ${health.last_error}</div>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                    
+                    // Update trade engine
+                    const engine = data.order_execution || {};
+                    const engineStatus = engine.status || 'unknown';
+                    const engineClass = getStatusClass(engineStatus);
+                    const engineContainer = document.getElementById('engine-container');
+                    engineContainer.innerHTML = `
+                        <div class="health-card ${engineClass}" style="grid-column: 1 / -1;">
+                            <div class="health-card-header">
+                                <span class="health-card-name">Order Execution Pipeline</span>
+                                <span class="health-status ${engineClass}">${engineStatus}</span>
+                            </div>
+                            <div class="health-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                ${engine.last_order_age_sec !== null && engine.last_order_age_sec !== undefined ? 
+                                    `<div><strong>Last Order:</strong> ${formatTimeAgo(engine.last_order_age_sec)}</div>` : 
+                                    '<div><strong>Last Order:</strong> N/A</div>'}
+                                <div><strong>Orders (1h):</strong> ${engine.orders_1h || 0}</div>
+                                <div><strong>Orders (3h):</strong> ${engine.orders_3h || 0}</div>
+                                <div><strong>Orders (24h):</strong> ${engine.orders_24h || 0}</div>
+                                ${engine.fill_rate !== undefined ? 
+                                    `<div><strong>Fill Rate:</strong> ${(engine.fill_rate * 100).toFixed(1)}%</div>` : ''}
+                                ${engine.avg_fill_time_sec !== null && engine.avg_fill_time_sec !== undefined ? 
+                                    `<div><strong>Avg Fill Time:</strong> ${formatTimeAgo(engine.avg_fill_time_sec)}</div>` : ''}
+                                ${engine.errors_1h !== undefined ? 
+                                    `<div><strong>Errors (1h):</strong> ${engine.errors_1h}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error fetching SRE health:', error);
+                    document.getElementById('overall-health').innerHTML = `
+                        <h2 style="color: #ef4444;">ERROR</h2>
+                        <p>Failed to load health data: ${error.message}</p>
+                    `;
+                });
+        }
+        
+        updateSREDashboard();
+        setInterval(updateSREDashboard, 10000);
+    </script>
+</body>
+</html>
+"""
+
 @app.route("/")
 def index():
     return render_template_string(DASHBOARD_HTML)
@@ -402,6 +704,34 @@ def api_closed_positions():
         return jsonify({"closed_positions": closed[-50:]})
     except Exception as e:
         return jsonify({"closed_positions": [], "error": str(e)})
+
+@app.route("/sre")
+def sre_dashboard():
+    """Comprehensive SRE monitoring dashboard"""
+    return render_template_string(SRE_DASHBOARD_HTML)
+
+@app.route("/api/sre/health", methods=["GET"])
+def api_sre_health():
+    """Get comprehensive SRE health data"""
+    try:
+        import requests
+        # Try to get from main bot API first
+        try:
+            resp = requests.get("http://localhost:8081/api/sre/health", timeout=2)
+            if resp.status_code == 200:
+                return jsonify(resp.json()), 200
+        except:
+            pass
+        
+        # Fallback to local sre_monitoring
+        try:
+            from sre_monitoring import get_sre_health
+            health = get_sre_health()
+            return jsonify(health), 200
+        except Exception as e:
+            return jsonify({"error": f"Failed to load SRE health: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/health_status", methods=["GET"])
 def api_health_status():
