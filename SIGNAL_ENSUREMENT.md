@@ -81,6 +81,69 @@ After deployment:
 - SRE monitoring will show signals as "healthy"
 - Trade decisions will use all signals in composite scoring
 
+## Complete Ecosystem: The Feedback Loop
+
+The system operates as a continuous learning cycle:
+
+```
+┌─────────────────┐
+│ 1. SIGNALS      │ → Computed (iv_term_skew, smile_slope, insider)
+│   Computed      │   Stored in cache
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 2. TRADING      │ → Signals used in composite scoring
+│   Decisions     │   Adaptive weights applied
+│   Execution     │   Trades executed
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 3. LEARNING     │ → Trade outcomes logged
+│   Outcomes      │   P&L attribution tracked
+│   Analysis      │   Component performance measured
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 4. WEIGHTS      │ → Adaptive weights updated
+│   Updated       │   Bayesian learning applied
+│   Applied       │   Multipliers adjusted (0.25x-2.5x)
+└────────┬────────┘
+         │
+         └──────────┐
+                    │
+         ┌──────────▼──────────┐
+         │ Back to Step 1      │
+         │ (Improved Signals)  │
+         └─────────────────────┘
+```
+
+### Ecosystem Health Check
+
+Run the comprehensive health check to verify all stages:
+
+```bash
+cd /root/stock-bot && source venv/bin/activate && python3 ecosystem_health_check.py
+```
+
+This checks:
+1. ✅ Signals are computed and stored
+2. ✅ Signals are used in trade decisions
+3. ✅ Trades are logged for learning
+4. ✅ Learning system processes outcomes
+5. ✅ Adaptive weights are updated
+6. ✅ Updated weights affect future scoring
+
+### Key Files in the Ecosystem
+
+- **Signals**: `data/uw_flow_cache.json` (computed signals)
+- **Trading**: `data/live_orders.jsonl` (executed trades)
+- **Learning**: `data/attribution.jsonl`, `data/feature_store.jsonl` (trade outcomes)
+- **Weights**: `state/signal_weights.json` (adaptive weights)
+- **Profiles**: `profiles.json` (per-ticker learning)
+
 ## Troubleshooting
 
 If signals still show "no_data":
@@ -88,3 +151,10 @@ If signals still show "no_data":
 2. Check logs: `tail -f logs/cache_enrichment.log`
 3. Manually run enrichment: `python3 cache_enrichment_service.py`
 4. Check cache file: `cat data/uw_flow_cache.json | python3 -m json.tool | head -50`
+
+If ecosystem health check shows issues:
+1. Run full health check: `python3 ecosystem_health_check.py`
+2. Check each stage individually
+3. Verify learning is active: Check `state/signal_weights.json` exists
+4. Verify trades are being logged: Check `data/attribution.jsonl` has recent entries
+5. Verify adaptive weights are loaded: Check logs for "adaptive_weights_active"
