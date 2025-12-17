@@ -252,9 +252,20 @@ class ZeroDowntimeDeployer:
         sock.close()
         
         if result == 0:
-            # Port is in use - check if it's our proxy or old dashboard
+            # Port is in use - check if it's our proxy
             try:
-                # Try to identify what's running
+                # Check if it's the proxy by hitting its health endpoint
+                response = requests.get(f"http://localhost:{PROXY_PORT}/proxy/health", timeout=2)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("proxy"):
+                        print(f"[DEPLOY] Proxy already running on port {PROXY_PORT}")
+                        return True
+            except:
+                pass
+            
+            # If not proxy, try to identify and stop what's running
+            try:
                 result = subprocess.run(
                     ["lsof", "-ti", f":{PROXY_PORT}"],
                     capture_output=True,
@@ -262,7 +273,7 @@ class ZeroDowntimeDeployer:
                 )
                 if result.returncode == 0:
                     pid = result.stdout.strip()
-                    # Check if it's dashboard.py (old) or dashboard_proxy.py (new)
+                    # Check if it's dashboard.py (old) - kill it to make room for proxy
                     result2 = subprocess.run(
                         ["ps", "-p", pid, "-o", "args="],
                         capture_output=True,
@@ -270,10 +281,7 @@ class ZeroDowntimeDeployer:
                     )
                     if result2.returncode == 0:
                         cmd = result2.stdout
-                        if "dashboard_proxy.py" in cmd:
-                            print(f"[DEPLOY] Proxy already running on port {PROXY_PORT}")
-                            return True
-                        elif "dashboard.py" in cmd and "instance" not in cmd:
+                        if "dashboard.py" in cmd and "instance" not in cmd and "dashboard_proxy" not in cmd:
                             # Old dashboard from supervisor - kill it
                             print(f"[DEPLOY] Stopping old dashboard on port {PROXY_PORT} (PID: {pid})")
                             subprocess.run(["kill", "-9", pid], timeout=5)
@@ -309,10 +317,12 @@ class ZeroDowntimeDeployer:
                 # Verify it's responding
                 time.sleep(2)
                 try:
-                    response = requests.get(f"http://localhost:{PROXY_PORT}/health", timeout=5)
+                    response = requests.get(f"http://localhost:{PROXY_PORT}/proxy/health", timeout=5)
                     if response.status_code == 200:
-                        print(f"[DEPLOY] Proxy verified and responding")
-                        return True
+                        data = response.json()
+                        if data.get("proxy"):
+                            print(f"[DEPLOY] Proxy verified and responding")
+                            return True
                 except:
                     print(f"[DEPLOY] Warning: Proxy started but not responding yet")
                 return True

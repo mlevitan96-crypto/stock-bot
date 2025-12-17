@@ -57,6 +57,21 @@ class ProxyHandler(BaseHTTPRequestHandler):
     
     def _proxy_request(self):
         """Proxy request to active instance."""
+        # Handle proxy's own health endpoint
+        if self.path == "/proxy/health":
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            active_port = get_active_port()
+            response = json.dumps({
+                "status": "healthy",
+                "proxy": True,
+                "active_instance_port": active_port,
+                "active_instance": "B" if active_port == PORT_B else "A"
+            })
+            self.wfile.write(response.encode())
+            return
+        
         try:
             # Get active instance port
             target_port = get_active_port()
