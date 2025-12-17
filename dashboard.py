@@ -407,27 +407,62 @@ def api_closed_positions():
 def api_health_status():
     """Health status endpoint for dashboard - provides Last Order and Doctor status"""
     try:
-        from sre_monitoring import SREMonitoringEngine
-        engine = SREMonitoringEngine()
+        import time
+        from pathlib import Path
         
-        # Get last order
-        last_order_ts = engine.get_last_order_timestamp()
-        last_order_age_sec = time.time() - last_order_ts if last_order_ts else None
+        # Get last order directly from file
+        last_order_ts = None
+        last_order_age_sec = None
+        orders_file = Path("data/live_orders.jsonl")
+        if orders_file.exists():
+            try:
+                with orders_file.open("r") as f:
+                    lines = f.readlines()
+                    for line in lines[-500:]:
+                        try:
+                            event = json.loads(line.strip())
+                            event_ts = event.get("_ts", 0)
+                            event_type = event.get("event", "")
+                            if event_ts > (last_order_ts or 0) and event_type in ["MARKET_FILLED", "LIMIT_FILLED", "ORDER_SUBMITTED"]:
+                                last_order_ts = event_ts
+                        except:
+                            pass
+                if last_order_ts:
+                    last_order_age_sec = time.time() - last_order_ts
+            except:
+                pass
         
-        # Get Doctor/heartbeat from main health endpoint
-        try:
-            import requests
-            health_response = requests.get("http://localhost:8081/health", timeout=2)
-            if health_response.status_code == 200:
-                health_data = health_response.json()
-                heartbeat_age_sec = health_data.get("last_heartbeat_age_sec")
-            else:
-                heartbeat_age_sec = None
-        except:
-            heartbeat_age_sec = None
+        # Get Doctor/heartbeat from file
+        heartbeat_age_sec = None
+        heartbeat_files = [
+            Path("state/doctor_state.json"),
+            Path("state/system_heartbeat.json"),
+            Path("state/heartbeat.json"),
+            Path("state/bot_heartbeat.json")
+        ]
+        
+        for hb_file in heartbeat_files:
+            if hb_file.exists():
+                try:
+                    data = json.loads(hb_file.read_text())
+                    heartbeat_ts = data.get("timestamp") or data.get("_ts") or data.get("last_heartbeat") or data.get("last_update")
+                    if heartbeat_ts:
+                        heartbeat_age_sec = time.time() - float(heartbeat_ts)
+                        break
+                    else:
+                        # Use file modification time as fallback
+                        heartbeat_age_sec = time.time() - hb_file.stat().st_mtime
+                        break
+                except:
+                    continue
         
         # Market status
-        market_open, market_status = engine.is_market_open()
+        from datetime import datetime, timezone, timedelta
+        now_utc = datetime.now(timezone.utc)
+        now_et = now_utc.astimezone(timezone(timedelta(hours=-5)))
+        market_open = (now_et.weekday() < 5 and 
+                      now_et.replace(hour=9, minute=30) <= now_et <= now_et.replace(hour=16, minute=0))
+        market_status = "market_open" if market_open else "market_closed"
         
         return jsonify({
             "last_order": {
