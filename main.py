@@ -4242,23 +4242,46 @@ def run_once():
                 enriched = uw_enrich.enrich_signal(ticker, uw_cache, market_regime)
                 
                 # Ensure computed signals are in enriched data (fallback if not in cache)
-                if not enriched.get("iv_term_skew") and uw_cache.get(ticker, {}).get("iv_term_skew") is None:
-                    # Compute on-the-fly if missing
-                    enricher = uw_enrich.UWEnricher()
-                    symbol_data = uw_cache.get(ticker, {})
-                    if isinstance(symbol_data, dict):
-                        enriched["iv_term_skew"] = enricher.compute_iv_term_skew(ticker, symbol_data)
-                        enriched["smile_slope"] = enricher.compute_smile_slope(ticker, symbol_data)
+                enricher = uw_enrich.UWEnricher()
+                symbol_data = uw_cache.get(ticker, {})
+                cache_updated = False
                 
-                # Ensure insider exists
-                if not enriched.get("insider"):
-                    enriched["insider"] = uw_cache.get(ticker, {}).get("insider", {
+                if isinstance(symbol_data, dict):
+                    # Compute missing signals on-the-fly
+                    if not enriched.get("iv_term_skew") and symbol_data.get("iv_term_skew") is None:
+                        computed_skew = enricher.compute_iv_term_skew(ticker, symbol_data)
+                        enriched["iv_term_skew"] = computed_skew
+                        if ticker in uw_cache:
+                            uw_cache[ticker]["iv_term_skew"] = computed_skew
+                            cache_updated = True
+                    
+                    if not enriched.get("smile_slope") and symbol_data.get("smile_slope") is None:
+                        computed_slope = enricher.compute_smile_slope(ticker, symbol_data)
+                        enriched["smile_slope"] = computed_slope
+                        if ticker in uw_cache:
+                            uw_cache[ticker]["smile_slope"] = computed_slope
+                            cache_updated = True
+                
+                # Ensure insider exists (with default structure)
+                if not enriched.get("insider") or not isinstance(enriched.get("insider"), dict):
+                    default_insider = {
                         "sentiment": "NEUTRAL",
                         "net_buys": 0,
                         "net_sells": 0,
                         "total_usd": 0.0,
                         "conviction_modifier": 0.0
-                    })
+                    }
+                    enriched["insider"] = symbol_data.get("insider", default_insider) if isinstance(symbol_data, dict) else default_insider
+                    if ticker in uw_cache and not uw_cache[ticker].get("insider"):
+                        uw_cache[ticker]["insider"] = enriched["insider"]
+                        cache_updated = True
+                
+                # Persist cache updates if any were made
+                if cache_updated:
+                    try:
+                        atomic_write_json(CacheFiles.UW_FLOW_CACHE, uw_cache)
+                    except Exception as e:
+                        log_event("cache_update", "error", error=str(e))
                 
                 # Use V3 scoring with all expanded intelligence (congress, shorts, institutional, etc.)
                 composite = uw_v2.compute_composite_score_v3(ticker, enriched, market_regime)
