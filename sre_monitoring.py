@@ -477,6 +477,15 @@ class SREMonitoringEngine:
 
 def get_sre_health() -> Dict[str, Any]:
     """Get SRE health status - main entry point."""
+    # Trigger cache enrichment before checking to ensure signals are present
+    try:
+        from cache_enrichment_service import CacheEnrichmentService
+        service = CacheEnrichmentService()
+        service.run_once()
+    except Exception:
+        # Continue even if enrichment fails
+        pass
+    
     engine = SREMonitoringEngine()
     health = engine.get_comprehensive_health()
     
