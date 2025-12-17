@@ -500,10 +500,43 @@ def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = No
         "outcome_tracked": False,  # Flag for counterfactual tracker
         **kw
     }
-    blocked_path = os.path.join("state", "blocked_trades.jsonl")
-    os.makedirs(os.path.dirname(blocked_path), exist_ok=True)
-    with open(blocked_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record) + "\n")
+
+    # Canonical write location (single source of truth)
+    try:
+        append_jsonl(StateFiles.BLOCKED_TRADES, record)
+    except Exception:
+        # Backward-compatible fallback (older deployments / partial checkouts)
+        blocked_path = os.path.join("state", "blocked_trades.jsonl")
+        os.makedirs(os.path.dirname(blocked_path), exist_ok=True)
+        with open(blocked_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+
+    # Decision journal + shadow intent (sidecar only; never blocks trading)
+    try:
+        from shadow_lab import decision_blocked as _dj_blocked, enqueue_shadow_intent as _enqueue
+        cycle_ts = int(time.time())
+        _dj_blocked(
+            symbol=symbol,
+            cycle_ts=cycle_ts,
+            reason=reason,
+            direction=direction or "",
+            score=score,
+            decision_price=decision_price,
+            components=components or {},
+            extra={"signals": signals or {}, **kw},
+        )
+        if decision_price and decision_price > 0:
+            _enqueue(
+                symbol=symbol,
+                entry_ts=cycle_ts,
+                entry_price=float(decision_price),
+                direction=direction or "",
+                kind="blocked",
+                score=score,
+                reason=reason,
+            )
+    except Exception:
+        pass
 
 def log_postmortem(event: dict):
     """Write diagnostic bundle after incident"""
@@ -3496,6 +3529,11 @@ class StrategyEngine:
 
     def decide_and_execute(self, clusters: list, confirm_map: dict, gex_map: dict, decisions_map: dict = None, market_regime: str = "mixed"):
         orders = []
+        cycle_ts = int(time.time())
+        try:
+            decision_top_n = int(os.getenv("DECISION_JOURNAL_TOP_N", "25"))
+        except Exception:
+            decision_top_n = 25
         
         open_positions = []
         try:
@@ -3516,7 +3554,7 @@ class StrategyEngine:
         
         print(f"DEBUG decide_and_execute: Processing {len(clusters_sorted)} clusters (sorted by strength), stage={system_stage}", flush=True)
         
-        for c in clusters_sorted:
+        for idx, c in enumerate(clusters_sorted):
             log_signal(c)
             symbol = c["ticker"]
             gex = gex_map.get(symbol, {"gamma_regime": "unknown"})
@@ -3596,6 +3634,28 @@ class StrategyEngine:
                                                         dp_map.get(symbol, []), net_map,
                                                         vol_map.get(symbol, {}), ovl_map.get(symbol, []))
                     comps = component_scores(c, conf_data)
+
+            # Decision journal: capture top-N candidates per cycle (does not affect trading)
+            if idx < decision_top_n:
+                try:
+                    from shadow_lab import decision_candidate as _dj_candidate
+                    _dj_candidate(
+                        symbol=symbol,
+                        cycle_ts=cycle_ts,
+                        rank=idx + 1,
+                        direction=str(c.get("direction") or ""),
+                        source=str(c.get("source") or ""),
+                        score=float(score),
+                        regime=str(market_regime or ""),
+                        components=comps or {},
+                        extra={
+                            "qty": int(qty),
+                            "ref_price": float(ref_price),
+                            "gamma_regime": gex.get("gamma_regime", "unknown"),
+                        },
+                    )
+                except Exception:
+                    pass
             
             # UW entry gate (institutional quality filter) - graceful if cache empty
             # DISABLED for composite-sourced clusters (they have count=1, premium=0 by design)
@@ -3878,6 +3938,31 @@ class StrategyEngine:
                 exec_price = float(fill_price) if fill_price is not None else self.executor.get_quote_price(symbol)
                 self.executor.mark_open(symbol, exec_price, atr_mult, side, exec_qty, entry_score=score,
                                         components=comps, market_regime=market_regime, direction=c["direction"])
+
+                # Decision journal + shadow lab baseline for TAKEN trades (sidecar only)
+                try:
+                    from shadow_lab import decision_taken as _dj_taken, enqueue_shadow_intent as _enqueue
+                    _dj_taken(
+                        symbol=symbol,
+                        cycle_ts=cycle_ts,
+                        side=side,
+                        qty=exec_qty,
+                        score=score,
+                        entry_price=exec_price,
+                        order_type=str(order_type or ""),
+                        extra={"client_order_id": client_order_id_base, "expected_entry_price": expected_entry_price},
+                    )
+                    _enqueue(
+                        symbol=symbol,
+                        entry_ts=int(time.time()),
+                        entry_price=float(exec_price),
+                        direction=str(c.get("direction") or ""),
+                        kind="taken",
+                        score=score,
+                        reason="taken",
+                    )
+                except Exception:
+                    pass
                 
                 telemetry.log_portfolio_event(
                     event_type="POSITION_OPENED",
@@ -4382,6 +4467,14 @@ def run_once():
         print("DEBUG: Calling evaluate_exits", flush=True)
         engine.executor.evaluate_exits()
         audit_seg("run_once", "after_exits")
+
+        # Shadow lab: evaluate pending counterfactuals (non-blocking)
+        try:
+            from shadow_lab import process_shadow_pending
+            _shadow_summary = process_shadow_pending(engine.executor)
+            log_event("shadow", "processed", **_shadow_summary)
+        except Exception as e:
+            log_event("shadow", "error", error=str(e))
 
         print("DEBUG: Computing metrics", flush=True)
         metrics = compute_daily_metrics()

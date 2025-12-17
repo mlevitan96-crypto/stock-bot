@@ -21,6 +21,36 @@ def run_startup_contract_check() -> bool:
     errors = []
     warnings = []
     
+    # File/path contract checks (prevents "wrong location" drift between modules)
+    try:
+        from config.registry import LogFiles, StateFiles
+        if str(LogFiles.EXITS).replace("\\\\", "/") != "logs/exit.jsonl":
+            errors.append(f"Registry mismatch: LogFiles.EXITS should be logs/exit.jsonl, got {LogFiles.EXITS}")
+        if str(LogFiles.ORDERS).replace("\\\\", "/") != "logs/orders.jsonl":
+            errors.append(f"Registry mismatch: LogFiles.ORDERS should be logs/orders.jsonl, got {LogFiles.ORDERS}")
+        if str(StateFiles.BLOCKED_TRADES).replace("\\\\", "/") != "state/blocked_trades.jsonl":
+            errors.append(f"Registry mismatch: StateFiles.BLOCKED_TRADES should be state/blocked_trades.jsonl, got {StateFiles.BLOCKED_TRADES}")
+        # New what-if layer outputs (should exist as canonical paths)
+        _ = LogFiles.DECISIONS
+        _ = LogFiles.SHADOW_OUTCOMES
+        _ = StateFiles.SHADOW_PENDING
+        print("✅ Path contracts OK (registry)")
+    except Exception as e:
+        warnings.append(f"Path contract checks skipped: {e}")
+
+    # Event contract checks (terminology + required fields)
+    try:
+        from event_contracts import EventType, validate_event, make_event
+        # Minimal smoke checks for new schema
+        validate_event(make_event(EventType.DECISION_CANDIDATE, "TEST", run_id="x", cycle_ts=0, rank=1))
+        validate_event(make_event(EventType.DECISION_BLOCKED, "TEST", run_id="x", cycle_ts=0, reason="test"))
+        validate_event(make_event(EventType.DECISION_TAKEN, "TEST", run_id="x", cycle_ts=0, side="buy", qty=1))
+        validate_event(make_event(EventType.SHADOW_INTENT, "TEST", run_id="x", intent_id="i", entry_ts=0, entry_price=1.0))
+        validate_event(make_event(EventType.SHADOW_OUTCOME, "TEST", run_id="x", intent_id="i", horizon_min=60, ret_pct=0.1))
+        print("✅ Event contracts OK (decision/shadow)")
+    except Exception as e:
+        warnings.append(f"Event contract checks skipped: {e}")
+    
     try:
         from internal_contract_validator import run_preflight_validation, validate_enriched_signal
         passed, report = run_preflight_validation()

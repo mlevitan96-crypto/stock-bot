@@ -83,13 +83,24 @@ def compute_rollup(
     state_dir = repo_dir / "state"
     data_dir = repo_dir / "data"
 
-    attribution_path = logs_dir / "attribution.jsonl"
-    blocked_path = state_dir / "blocked_trades.jsonl"
-    monitoring_path = data_dir / "monitoring_summary.jsonl"
+    # Prefer canonical registry paths when available (prevents filename drift)
+    try:
+        from config.registry import LogFiles as _LogFiles, StateFiles as _StateFiles
+        # main.py writes attribution to logs/attribution.jsonl via jsonl_write("attribution", ...)
+        attribution_path = repo_dir / "logs" / "attribution.jsonl"
+        blocked_path = repo_dir / _StateFiles.BLOCKED_TRADES
+        monitoring_path = data_dir / "monitoring_summary.jsonl"
+        shadow_path = repo_dir / _LogFiles.SHADOW_OUTCOMES
+    except Exception:
+        attribution_path = logs_dir / "attribution.jsonl"
+        blocked_path = state_dir / "blocked_trades.jsonl"
+        monitoring_path = data_dir / "monitoring_summary.jsonl"
+        shadow_path = logs_dir / "shadow_outcomes.jsonl"
 
     attributions = _read_jsonl(attribution_path)
     blocks = _read_jsonl(blocked_path)
     monitoring = _read_jsonl(monitoring_path)
+    shadow = _read_jsonl(shadow_path)
 
     # Filter by window
     win_attr = []
@@ -113,6 +124,67 @@ def compute_rollup(
         if ts is None or ts < cutoff:
             continue
         win_monitoring.append(r)
+
+    # Shadow outcomes (counterfactuals)
+    win_shadow = []
+    for r in shadow:
+        ts = _parse_ts(r)
+        if ts is None or ts < cutoff:
+            continue
+        if r.get("event") == "SHADOW_OUTCOME":
+            win_shadow.append(r)
+
+    shadow_by_kind: Dict[str, Dict[str, Dict[str, float]]] = {}
+    # kind -> horizon -> {count, avg_ret_pct, win_rate}
+    shadow_by_variant: Dict[str, Dict[str, Dict[str, float]]] = {}
+    # kind -> variant -> {count, avg_ret_pct, win_rate}
+    for r in win_shadow:
+        kind = str(r.get("kind") or "unknown")
+        h = str(r.get("horizon_min") or "0")
+        variant = str(r.get("variant") or "end")
+        ret = float(r.get("ret_pct") or 0.0)
+        bucket = shadow_by_kind.setdefault(kind, {}).setdefault(h, {"count": 0.0, "sum_ret": 0.0, "wins": 0.0})
+        bucket["count"] += 1.0
+        bucket["sum_ret"] += ret
+        if ret > 0:
+            bucket["wins"] += 1.0
+
+        vb = shadow_by_variant.setdefault(kind, {}).setdefault(variant, {"count": 0.0, "sum_ret": 0.0, "wins": 0.0})
+        vb["count"] += 1.0
+        vb["sum_ret"] += ret
+        if ret > 0:
+            vb["wins"] += 1.0
+
+    def _top_variants(kind: str, top_n: int = 8) -> List[Dict[str, Any]]:
+        rows = []
+        for v, b in (shadow_by_variant.get(kind) or {}).items():
+            c = int(b["count"])
+            if c <= 0:
+                continue
+            avg = (b["sum_ret"] / b["count"]) if b["count"] else 0.0
+            wr = (b["wins"] / b["count"]) if b["count"] else None
+            rows.append({
+                "variant": v,
+                "count": c,
+                "avg_ret_pct": round(float(avg), 4),
+                "win_rate": round(float(wr), 4) if wr is not None else None,
+            })
+        rows.sort(key=lambda x: (x["avg_ret_pct"], x["count"]), reverse=True)
+        return rows[:top_n]
+
+    shadow_summary: Dict[str, Any] = {"total": len(win_shadow), "by_kind_horizon": {}, "top_variants": {}}
+    for kind, horizons in shadow_by_kind.items():
+        shadow_summary["by_kind_horizon"][kind] = {}
+        for h, b in horizons.items():
+            c = int(b["count"])
+            avg = (b["sum_ret"] / b["count"]) if b["count"] else 0.0
+            wr = (b["wins"] / b["count"]) if b["count"] else None
+            shadow_summary["by_kind_horizon"][kind][h] = {
+                "count": c,
+                "avg_ret_pct": round(float(avg), 4),
+                "win_rate": round(float(wr), 4) if wr is not None else None,
+            }
+        shadow_summary["top_variants"][kind] = _top_variants(kind)
 
     # PnL metrics
     pnls = []
@@ -209,6 +281,7 @@ def compute_rollup(
             "top_reasons": top_block_reasons,
             "top_symbols": top_block_symbols,
         },
+        "shadow": shadow_summary,
         "executive_review": review,
     }
 

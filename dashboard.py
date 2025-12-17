@@ -359,6 +359,10 @@ DASHBOARD_HTML = """
         function renderRollup(title, r) {
             const pnl = r.pnl || {};
             const blocks = r.blocks || {};
+            const shadow = r.shadow || {};
+            const shBy = (shadow.by_kind_horizon || {});
+            const shBlocked60 = (shBy.blocked && shBy.blocked["60"]) ? shBy.blocked["60"] : null;
+            const shTaken60 = (shBy.taken && shBy.taken["60"]) ? shBy.taken["60"] : null;
             const review = (r.executive_review || []).join('\\n- ');
             const topSyms = (r.top_symbols || []).map(s => `${s.symbol}: ${formatCurrency(s.pnl_usd)} (${s.trades})`).join('<br>');
             const topReasons = (blocks.top_reasons || []).map(x => `${x.reason}: ${x.count}`).join('<br>');
@@ -369,6 +373,13 @@ DASHBOARD_HTML = """
                 <div style="margin-top:8px;"><b>Top symbols</b><br>${topSyms || '—'}</div>
                 <div style="margin-top:8px;"><b>Blocked trades</b>: ${blocks.total || 0}</div>
                 <div style="margin-top:8px;"><b>Top block reasons</b><br>${topReasons || '—'}</div>
+                <div style="margin-top:8px;"><b>What-if (shadow)</b>: ${shadow.total || 0} outcomes
+                  <div style="margin-top:6px; color:#555;">
+                    ${shBlocked60 ? `Blocked @60m avg: ${shBlocked60.avg_ret_pct.toFixed(2)}% (win ${(shBlocked60.win_rate==null?'—':(shBlocked60.win_rate*100).toFixed(1)+'%')})` : 'Blocked @60m: —'}
+                    <br>
+                    ${shTaken60 ? `Taken @60m avg: ${shTaken60.avg_ret_pct.toFixed(2)}% (win ${(shTaken60.win_rate==null?'—':(shTaken60.win_rate*100).toFixed(1)+'%')})` : 'Taken @60m: —'}
+                  </div>
+                </div>
                 <div style="margin-top:8px;"><b>Executive review</b><pre>- ${review || '—'}</pre></div>
               </div>
             `;
@@ -542,14 +553,27 @@ def api_system_health():
     Dashboard-friendly operational health summary (green/red).
     """
     try:
+        # Prefer canonical paths from config.registry (prevents filename drift).
+        try:
+            from config.registry import CacheFiles, LogFiles
+        except Exception:
+            CacheFiles = None  # type: ignore
+            LogFiles = None  # type: ignore
+
         bot_health_url = os.getenv("BOT_HEALTH_URL", "http://127.0.0.1:8080/health")
         ok, payload, err = _fetch_local_json(bot_health_url, timeout=5)
 
-        uw_cache_age = _file_age_sec(Path("data/uw_flow_cache.json"))
-        last_signal_age = _last_event_age_sec(Path("logs/signals.jsonl"))
-        last_order_age = _last_event_age_sec(Path("logs/orders.jsonl"))
-        last_exit_age = _last_event_age_sec(Path("logs/exit.jsonl"))
-        doctor_age = _last_event_age_sec(Path("data/doctor_actions.jsonl"))
+        uw_cache_path = (CacheFiles.UW_FLOW_CACHE if CacheFiles else Path("data/uw_flow_cache.json"))
+        signals_path = Path("logs/signals.jsonl")  # main.py writes via jsonl_write("signals", ...)
+        orders_path = (LogFiles.ORDERS if LogFiles else Path("logs/orders.jsonl"))
+        exits_path = (LogFiles.EXITS if LogFiles else Path("logs/exit.jsonl"))
+        doctor_path = Path("data/doctor_actions.jsonl")
+
+        uw_cache_age = _file_age_sec(Path(uw_cache_path))
+        last_signal_age = _last_event_age_sec(Path(signals_path))
+        last_order_age = _last_event_age_sec(Path(orders_path))
+        last_exit_age = _last_event_age_sec(Path(exits_path))
+        doctor_age = _last_event_age_sec(Path(doctor_path))
 
         overall = "UNKNOWN"
         if ok and payload and isinstance(payload, dict):
@@ -575,9 +599,9 @@ def api_system_health():
             "last_exit_age_sec": last_exit_age,
             "doctor_last_action_age_sec": doctor_age,
             "recent": {
-                "signals": _read_jsonl_tail(Path("logs/signals.jsonl"), max_lines=25)[-10:],
-                "orders": _read_jsonl_tail(Path("logs/orders.jsonl"), max_lines=25)[-10:],
-                "exits": _read_jsonl_tail(Path("logs/exit.jsonl"), max_lines=25)[-10:],
+                "signals": _read_jsonl_tail(Path(signals_path), max_lines=25)[-10:],
+                "orders": _read_jsonl_tail(Path(orders_path), max_lines=25)[-10:],
+                "exits": _read_jsonl_tail(Path(exits_path), max_lines=25)[-10:],
             },
             "dashboard": {
                 "dependencies_loaded": _registry_loaded,

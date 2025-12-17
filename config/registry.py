@@ -111,6 +111,8 @@ class StateFiles:
     FAIL_COUNTER = Directories.STATE / "fail_counter.json"
     CHAMPIONS = Directories.STATE / "champions.json"
     PRE_MARKET_FREEZE = Directories.STATE / "pre_market_freeze.flag"
+    BLOCKED_TRADES = Directories.STATE / "blocked_trades.jsonl"
+    SHADOW_PENDING = Directories.STATE / "shadow_pending.json"
 
 
 class LogFiles:
@@ -119,7 +121,8 @@ class LogFiles:
     TRADING = Directories.LOGS / "trading.jsonl"
     ORDERS = Directories.LOGS / "orders.jsonl"
     POSITIONS = Directories.LOGS / "positions.jsonl"
-    EXITS = Directories.LOGS / "exits.jsonl"
+    # NOTE: main.py writes exit events to logs/exit.jsonl via log_event("exit", ...)
+    EXITS = Directories.LOGS / "exit.jsonl"
     TELEMETRY = Directories.LOGS / "telemetry.jsonl"
     COMPOSITE_ATTRIBUTION = Directories.LOGS / "composite_attribution.jsonl"
     ALERT_ERROR = Directories.LOGS / "alert_error.jsonl"
@@ -131,6 +134,10 @@ class LogFiles:
     UW_DAEMON = Directories.LOGS / "uw_daemon.jsonl"
     UW_ERRORS = Directories.LOGS / "uw_errors.jsonl"
     RECONCILE = Directories.LOGS / "reconcile.jsonl"
+
+    # Decision journal + counterfactual shadow lab
+    DECISIONS = Directories.LOGS / "decisions.jsonl"
+    SHADOW_OUTCOMES = Directories.LOGS / "shadow_outcomes.jsonl"
 
 
 class ConfigFiles:
