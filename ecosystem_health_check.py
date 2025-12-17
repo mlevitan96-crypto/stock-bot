@@ -326,7 +326,7 @@ def main():
     print("=" * 80)
     print("ECOSYSTEM HEALTH CHECK")
     print("=" * 80)
-    print(f"Timestamp: {datetime.now(datetime.UTC).isoformat()}Z\n")
+    print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}\n")
     
     # Run all checks
     checks = {
