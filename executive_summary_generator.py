@@ -345,16 +345,19 @@ def generate_executive_summary() -> Dict[str, Any]:
     # Format trades for display (last 50)
     formatted_trades = []
     for trade in trades[:50]:
-        context = trade.get("context", {})
-        formatted_trades.append({
-            "timestamp": trade.get("ts", ""),
-            "symbol": trade.get("symbol", ""),
-            "pnl_usd": round(float(trade.get("pnl_usd", 0.0)), 2),
-            "pnl_pct": round(float(trade.get("context", {}).get("pnl_pct", 0.0)), 2),
-            "hold_minutes": round(float(context.get("hold_minutes", 0.0)), 1),
-            "entry_score": round(float(context.get("entry_score", 0.0)), 2),
-            "close_reason": context.get("close_reason", "unknown")
-        })
+        try:
+            context = trade.get("context", {})
+            formatted_trades.append({
+                "timestamp": trade.get("ts", ""),
+                "symbol": trade.get("symbol", ""),
+                "pnl_usd": round(float(trade.get("pnl_usd", 0.0)), 2),
+                "pnl_pct": round(float(context.get("pnl_pct", 0.0)), 2),
+                "hold_minutes": round(float(context.get("hold_minutes", 0.0)), 1),
+                "entry_score": round(float(context.get("entry_score", 0.0)), 2),
+                "close_reason": context.get("close_reason", "unknown")
+            })
+        except Exception:
+            continue  # Skip malformed trades
     
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
