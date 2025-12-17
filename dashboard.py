@@ -226,7 +226,12 @@ DASHBOARD_HTML = """
             } else {
                 // Fallback: find button by tab name
                 document.querySelectorAll('.tab').forEach(tab => {
-                    if (tab.textContent.includes(tabName === 'positions' ? 'Positions' : 'SRE')) {
+                    const tabText = tab.textContent.toLowerCase();
+                    if (tabName === 'positions' && tabText.includes('positions')) {
+                        tab.classList.add('active');
+                    } else if (tabName === 'sre' && tabText.includes('sre')) {
+                        tab.classList.add('active');
+                    } else if (tabName === 'executive' && tabText.includes('executive')) {
                         tab.classList.add('active');
                     }
                 });
@@ -381,24 +386,31 @@ DASHBOARD_HTML = """
         
         // Auto-refresh Executive Summary if on executive tab
         setInterval(() => {
-            if (document.getElementById('executive-tab').classList.contains('active')) {
+            const executiveTab = document.getElementById('executive-tab');
+            if (executiveTab && executiveTab.classList.contains('active')) {
                 loadExecutiveSummary();
             }
         }, 30000);  // Refresh every 30 seconds
         
         function loadExecutiveSummary() {
             const executiveContent = document.getElementById('executive-content');
-            if (executiveContent.innerHTML.includes('Loading') || !executiveContent.dataset.loaded) {
-                fetch('/api/executive_summary')
-                    .then(response => response.json())
-                    .then(data => {
-                        executiveContent.dataset.loaded = 'true';
-                        renderExecutiveSummary(data, executiveContent);
-                    })
-                    .catch(error => {
-                        executiveContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading executive summary: ${error.message}</div>`;
-                    });
-            }
+            // Always load (don't check dataset.loaded to allow refreshing)
+            executiveContent.innerHTML = '<div class="loading">Loading executive summary...</div>';
+            fetch('/api/executive_summary')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    executiveContent.dataset.loaded = 'true';
+                    renderExecutiveSummary(data, executiveContent);
+                })
+                .catch(error => {
+                    console.error('Executive summary error:', error);
+                    executiveContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading executive summary: ${error.message}<br/>Check browser console for details.</div>`;
+                });
         }
         
         function renderExecutiveSummary(data, container) {
@@ -1180,8 +1192,21 @@ def api_executive_summary():
         from executive_summary_generator import generate_executive_summary
         summary = generate_executive_summary()
         return jsonify(summary), 200
+    except ImportError as e:
+        return jsonify({"error": f"Module import error: {str(e)}", "trades": [], "total_trades": 0, "pnl_metrics": {}, "signal_analysis": {}, "learning_insights": {}, "written_summary": "Executive summary generator not available."}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to generate executive summary: {str(e)}"}), 500
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"[Dashboard] Executive summary error: {error_details}", flush=True)
+        return jsonify({
+            "error": f"Failed to generate executive summary: {str(e)}",
+            "trades": [],
+            "total_trades": 0,
+            "pnl_metrics": {"pnl_2d": 0, "pnl_5d": 0, "trades_2d": 0, "trades_5d": 0, "win_rate_2d": 0, "win_rate_5d": 0},
+            "signal_analysis": {"top_signals": {}, "bottom_signals": {}},
+            "learning_insights": {},
+            "written_summary": f"Error generating summary: {str(e)}"
+        }), 200  # Return 200 so frontend can display error
 
 @app.route("/api/health_status", methods=["GET"])
 def api_health_status():
