@@ -38,6 +38,16 @@ def check_signals_computed() -> Dict[str, Any]:
         result["error"] = "Cache file not found"
         return result
     
+    # Trigger enrichment before checking to ensure signals are present
+    try:
+        from cache_enrichment_service import CacheEnrichmentService
+        service = CacheEnrichmentService()
+        service.run_once()
+        result["enrichment_triggered"] = True
+    except Exception as e:
+        result["enrichment_error"] = str(e)
+        # Continue with check even if enrichment fails
+    
     try:
         cache = json.loads(cache_file.read_text())
         all_symbols = [k for k in cache.keys() if not k.startswith("_")]
