@@ -4704,6 +4704,42 @@ class Watchdog:
 app = Flask(__name__)
 watchdog = Watchdog()
 
+# Self-healing monitor thread
+_self_healing_last_run = 0
+_self_healing_interval = 300  # Run every 5 minutes
+
+def run_self_healing_periodic():
+    """Periodically run self-healing monitor."""
+    global _self_healing_last_run
+    while True:
+        try:
+            time.sleep(60)  # Check every minute
+            now = time.time()
+            
+            # Run healing every 5 minutes
+            if now - _self_healing_last_run >= _self_healing_interval:
+                try:
+                    from self_healing_monitor import SelfHealingMonitor
+                    monitor = SelfHealingMonitor()
+                    result = monitor.run_healing_cycle()
+                    _self_healing_last_run = now
+                    log_event("self_healing", "cycle_complete", 
+                             issues_detected=result.get("issues_detected", 0),
+                             issues_healed=result.get("issues_healed", 0))
+                except ImportError:
+                    # Self-healing not available, skip
+                    pass
+                except Exception as e:
+                    log_event("self_healing", "error", error=str(e))
+        except Exception as e:
+            log_event("self_healing", "thread_error", error=str(e))
+            time.sleep(60)
+
+# Start self-healing thread
+if __name__ == "__main__":
+    healing_thread = threading.Thread(target=run_self_healing_periodic, daemon=True, name="SelfHealingMonitor")
+    healing_thread.start()
+
 @app.route("/", methods=["GET"])
 def root():
     return jsonify({"status": "ok", "service": "trading-bot"}), 200

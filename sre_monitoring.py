@@ -442,7 +442,46 @@ class SREMonitoringEngine:
 def get_sre_health() -> Dict[str, Any]:
     """Get SRE health status - main entry point."""
     engine = SREMonitoringEngine()
-    return engine.get_comprehensive_health()
+    health = engine.get_comprehensive_health()
+    
+    # Trigger self-healing if issues detected
+    try:
+        from self_healing_monitor import SelfHealingMonitor
+        monitor = SelfHealingMonitor()
+        
+        # Check if we should run healing (only if degraded/critical)
+        if health.get("overall_health") in ["degraded", "critical"]:
+            # Run healing in background (non-blocking)
+            import threading
+            def run_healing():
+                try:
+                    result = monitor.run_healing_cycle()
+                    health["self_healing"] = {
+                        "last_run": result.get("timestamp"),
+                        "issues_healed": result.get("issues_healed", 0),
+                        "issues_skipped": result.get("issues_skipped", 0),
+                        "status": "completed"
+                    }
+                except Exception as e:
+                    health["self_healing"] = {
+                        "status": "error",
+                        "error": str(e)
+                    }
+            
+            # Run healing in background thread
+            healing_thread = threading.Thread(target=run_healing, daemon=True)
+            healing_thread.start()
+            
+            # Add pending status
+            health["self_healing"] = {
+                "status": "running",
+                "message": "Healing cycle in progress"
+            }
+    except Exception as e:
+        # Don't fail if self-healing isn't available
+        pass
+    
+    return health
 
 if __name__ == "__main__":
     engine = SREMonitoringEngine()
