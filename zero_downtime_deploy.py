@@ -25,8 +25,20 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
 
-# Configuration
-BASE_DIR = Path("/root/stock-bot")
+def find_root_directory() -> Path:
+    """Auto-detect root directory (git root or script location)."""
+    # Try to find git root from current directory
+    current = Path.cwd()
+    for path in [current] + list(current.parents):
+        if (path / ".git").exists():
+            return path
+    
+    # Fallback: use script location
+    script_path = Path(__file__).resolve()
+    return script_path.parent
+
+# Auto-detect root directory
+BASE_DIR = find_root_directory()
 INSTANCE_A_DIR = BASE_DIR / "instance_a"
 INSTANCE_B_DIR = BASE_DIR / "instance_b"
 STATE_FILE = BASE_DIR / "state" / "deployment_state.json"
@@ -37,6 +49,8 @@ ROLLBACK_ON_FAILURE = True
 # Ports for A/B instances
 PORT_A = 5000
 PORT_B = 5001
+
+print(f"[DEPLOY] Detected root directory: {BASE_DIR}")
 
 class ZeroDowntimeDeployer:
     """Zero-downtime A/B deployment system."""
@@ -78,15 +92,36 @@ class ZeroDowntimeDeployer:
             return INSTANCE_A_DIR, PORT_A
     
     def _ensure_instance_dirs(self):
-        """Ensure both instance directories exist."""
+        """Ensure both instance directories exist and shared resources are linked."""
         for instance_dir in [INSTANCE_A_DIR, INSTANCE_B_DIR]:
             instance_dir.mkdir(parents=True, exist_ok=True)
-            # Create symlinks for shared resources
+            # Create symlinks for shared resources (relative paths for portability)
             for shared_dir in ["data", "state", "logs", "config"]:
                 shared_path = BASE_DIR / shared_dir
                 instance_link = instance_dir / shared_dir
-                if not instance_link.exists() and shared_path.exists():
-                    instance_link.symlink_to(shared_path)
+                
+                # Remove if it's a broken symlink or wrong type
+                if instance_link.exists():
+                    if instance_link.is_symlink():
+                        try:
+                            instance_link.resolve()  # Check if symlink is valid
+                        except:
+                            instance_link.unlink()  # Remove broken symlink
+                    elif instance_link.is_dir() and not instance_link.is_symlink():
+                        # If it's a real directory, remove it (should be symlink)
+                        shutil.rmtree(instance_link)
+                    elif instance_link.is_file():
+                        instance_link.unlink()
+                
+                # Create symlink to shared resource
+                if shared_path.exists() and not instance_link.exists():
+                    try:
+                        # Use relative path for symlink (more portable)
+                        rel_path = os.path.relpath(shared_path, instance_dir)
+                        instance_link.symlink_to(rel_path)
+                        print(f"[DEPLOY] Created symlink: {instance_link} -> {shared_path}")
+                    except Exception as e:
+                        print(f"[DEPLOY] Warning: Could not create symlink for {shared_dir}: {e}")
     
     def _clone_to_staging(self) -> bool:
         """Clone current codebase to staging instance."""
@@ -95,55 +130,74 @@ class ZeroDowntimeDeployer:
         print(f"[DEPLOY] Cloning to staging instance: {staging_dir}")
         
         try:
-            # Remove old staging if exists
+            # Remove old staging if exists (preserve symlinks)
             if staging_dir.exists():
-                # Don't remove shared symlinks
                 for item in staging_dir.iterdir():
                     if item.is_symlink():
-                        continue
+                        continue  # Preserve symlinks to shared resources
                     if item.is_dir():
-                        shutil.rmtree(item)
+                        shutil.rmtree(item, ignore_errors=True)
                     else:
-                        item.unlink()
+                        try:
+                            item.unlink()
+                        except:
+                            pass
             
             # Copy all files except instance directories and shared dirs
-            exclude_dirs = {"instance_a", "instance_b", ".git", "__pycache__", "*.pyc"}
-            exclude_patterns = {".git", "__pycache__"}
+            exclude_patterns = {".git", "__pycache__", "instance_a", "instance_b", "venv"}
+            shared_dirs = {"data", "state", "logs", "config"}  # These are symlinked
             
             for item in BASE_DIR.iterdir():
                 if item.name in exclude_patterns or item.name.startswith("instance_"):
                     continue
-                if item.is_dir() and item.name in ["data", "state", "logs"]:
-                    continue  # These are symlinked
+                if item.is_dir() and item.name in shared_dirs:
+                    continue  # These are symlinked, don't copy
                 
                 dest = staging_dir / item.name
-                if item.is_dir():
-                    shutil.copytree(item, dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
-                else:
-                    shutil.copy2(item, dest)
+                if dest.exists():
+                    continue  # Skip if already exists
+                
+                try:
+                    if item.is_dir():
+                        shutil.copytree(
+                            item, dest, 
+                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git", "*.pyc"),
+                            dirs_exist_ok=True
+                        )
+                    else:
+                        shutil.copy2(item, dest)
+                except Exception as e:
+                    print(f"[DEPLOY] Warning: Could not copy {item.name}: {e}")
+                    continue
             
-            # Ensure venv exists or create symlink
+            # Ensure venv is symlinked (don't copy, use shared venv)
             venv_source = BASE_DIR / "venv"
             venv_staging = staging_dir / "venv"
-            if venv_source.exists() and not venv_staging.exists():
-                venv_staging.symlink_to(venv_source)
+            if venv_source.exists():
+                if venv_staging.exists() and not venv_staging.is_symlink():
+                    shutil.rmtree(venv_staging)
+                if not venv_staging.exists():
+                    rel_venv = os.path.relpath(venv_source, staging_dir)
+                    venv_staging.symlink_to(rel_venv)
             
             print(f"[DEPLOY] Staging instance prepared at {staging_dir}")
             return True
             
         except Exception as e:
             print(f"[DEPLOY] Error cloning to staging: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
-    def _pull_latest_code(self, instance_dir: Path) -> bool:
-        """Pull latest code from git in staging instance."""
-        print(f"[DEPLOY] Pulling latest code in {instance_dir}")
+    def _pull_latest_code(self) -> bool:
+        """Pull latest code from git in base directory, then sync to staging."""
+        print(f"[DEPLOY] Pulling latest code from git")
         
         try:
-            # Change to instance directory
+            # Pull in base directory (where git repo is)
             result = subprocess.run(
                 ["git", "pull", "origin", "main", "--no-rebase"],
-                cwd=instance_dir,
+                cwd=BASE_DIR,
                 capture_output=True,
                 text=True,
                 timeout=60
@@ -153,7 +207,7 @@ class ZeroDowntimeDeployer:
                 print(f"[DEPLOY] Git pull failed: {result.stderr}")
                 return False
             
-            print(f"[DEPLOY] Code updated successfully")
+            print(f"[DEPLOY] Code updated successfully in base directory")
             return True
             
         except Exception as e:
@@ -192,43 +246,82 @@ class ZeroDowntimeDeployer:
         print(f"[DEPLOY] Starting {instance_name} on port {port}")
         
         try:
+            # Check if port is already in use
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            result = sock.connect_ex(('127.0.0.1', port))
+            sock.close()
+            if result == 0:
+                print(f"[DEPLOY] Warning: Port {port} is already in use")
+                # Try to find and kill existing process
+                try:
+                    result = subprocess.run(
+                        ["lsof", "-ti", f":{port}"],
+                        capture_output=True,
+                        text=True
+                    )
+                    if result.returncode == 0:
+                        pid = result.stdout.strip()
+                        print(f"[DEPLOY] Killing existing process on port {port} (PID: {pid})")
+                        subprocess.run(["kill", "-9", pid], timeout=5)
+                        time.sleep(2)
+                except:
+                    pass
+            
             # Activate venv and start dashboard
             venv_python = instance_dir / "venv" / "bin" / "python3"
-            if not venv_python.exists():
-                venv_python = Path("/usr/bin/python3")
+            if not venv_python.exists() or not venv_python.is_file():
+                # Try base directory venv
+                base_venv = BASE_DIR / "venv" / "bin" / "python3"
+                if base_venv.exists():
+                    venv_python = base_venv
+                else:
+                    venv_python = Path("/usr/bin/python3")
             
             dashboard_script = instance_dir / "dashboard.py"
             if not dashboard_script.exists():
                 print(f"[DEPLOY] Dashboard script not found in {instance_dir}")
                 return None
             
-            # Set environment
+            # Set environment - ensure we use correct working directory
             env = os.environ.copy()
             env["PORT"] = str(port)
             env["PYTHONUNBUFFERED"] = "1"
+            env["INSTANCE"] = instance_name
+            # Ensure Python path includes instance directory
+            pythonpath = str(instance_dir)
+            if "PYTHONPATH" in env:
+                pythonpath = f"{instance_dir}:{env['PYTHONPATH']}"
+            env["PYTHONPATH"] = pythonpath
             
-            # Start process
+            # Start process with proper working directory
             process = subprocess.Popen(
                 [str(venv_python), str(dashboard_script)],
-                cwd=str(instance_dir),
+                cwd=str(instance_dir),  # Critical: run from instance directory
                 env=env,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
+                start_new_session=True  # Detach from parent
             )
             
             # Wait a moment for startup
-            time.sleep(3)
+            time.sleep(5)
             
             # Check if process is still running
             if process.poll() is None:
                 print(f"[DEPLOY] {instance_name} started (PID: {process.pid})")
                 return process
             else:
+                stdout, stderr = process.communicate()
                 print(f"[DEPLOY] {instance_name} failed to start")
+                print(f"[DEPLOY] stdout: {stdout.decode()[:500]}")
+                print(f"[DEPLOY] stderr: {stderr.decode()[:500]}")
                 return None
                 
         except Exception as e:
             print(f"[DEPLOY] Error starting {instance_name}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def _stop_instance(self, process: Optional[subprocess.Popen], instance_name: str):
@@ -303,10 +396,16 @@ class ZeroDowntimeDeployer:
         staging_dir, staging_port = self._get_staging_instance()
         active_dir, active_port = self._get_active_instance()
         
-        # Step 3: Pull latest code in staging
-        print("\n[STEP 3] Pulling latest code...")
-        if not self._pull_latest_code(staging_dir):
+        # Step 3: Pull latest code in base directory
+        print("\n[STEP 3] Pulling latest code from git...")
+        if not self._pull_latest_code():
             print("[DEPLOY] Failed to pull latest code")
+            return False
+        
+        # Step 3b: Re-clone to staging with latest code
+        print("\n[STEP 3b] Updating staging instance with latest code...")
+        if not self._clone_to_staging():
+            print("[DEPLOY] Failed to update staging instance")
             return False
         
         # Step 4: Start staging instance
