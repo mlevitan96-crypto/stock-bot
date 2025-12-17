@@ -32,10 +32,11 @@ from typing import Dict, Any, Optional, List
 
 import requests
 
-DATA_DIR = Path("data")
-CACHE_FILE = DATA_DIR / "uw_flow_cache.json"
-WEIGHTS_FILE = DATA_DIR / "uw_weights.json"
-LOG_FILE = DATA_DIR / "uw_macro.log.jsonl"
+from config.registry import CacheFiles, append_jsonl as registry_append_jsonl, atomic_write_json as registry_atomic_write_json, read_json as registry_read_json
+
+CACHE_FILE = CacheFiles.UW_FLOW_CACHE
+WEIGHTS_FILE = CacheFiles.UW_WEIGHTS
+LOG_FILE = CacheFiles.UW_FLOW_CACHE_LOG  # reuse UW cache log sink for macro events
 
 PRIMARY_WATCHLIST = ["AAPL", "MSFT", "NVDA", "QQQ", "SPY", "TSLA"]
 DEFAULT_SECTORS = ["Technology", "Healthcare", "Financials", "Energy", "Consumer Discretionary", "Industrials"]
@@ -63,28 +64,16 @@ def now_ts() -> int:
 
 
 def append_jsonl(path: Path, obj: Dict[str, Any]) -> None:
-    path.parent.mkdir(exist_ok=True)
-    obj["_ts"] = now_ts()
-    obj["_dt"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-    with path.open("a") as f:
-        f.write(json.dumps(obj) + "\n")
+    # Delegate to registry for consistent timestamps/format
+    registry_append_jsonl(path, obj)
 
 
 def atomic_write_json(path: Path, obj: Dict[str, Any]) -> None:
-    path.parent.mkdir(exist_ok=True)
-    tmp = path.with_suffix(".json.tmp")
-    with tmp.open("w") as f:
-        json.dump(obj, f, indent=2)
-    tmp.replace(path)
+    registry_atomic_write_json(path, obj)
 
 
 def read_json(path: Path, default=None):
-    if not path.exists():
-        return default
-    try:
-        return json.loads(path.read_text())
-    except Exception:
-        return default
+    return registry_read_json(path, default=default)
 
 
 def clamp(x: float, lo: float, hi: float) -> float:

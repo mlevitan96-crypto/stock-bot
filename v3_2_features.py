@@ -13,18 +13,21 @@ from pathlib import Path
 from datetime import datetime, date
 from typing import Dict, List, Tuple, Optional
 
+# Canonical paths + IO helpers
+from config.registry import CacheFiles, StateFiles, ConfigFiles, append_jsonl
+
 # ============================================================================
 # CONFIGURATION PATHS (v3.2.1)
 # ============================================================================
-EXPECTANCY_TRACE_LOG = Path("data/expectancy_trace.jsonl")
-ROUTER_TRACE_LOG = Path("data/router_trace.jsonl")
-OPTIMIZATIONS_LOG = Path("data/optimizations.jsonl")
-TCA_SUMMARY_LOG = Path("data/tca_summary.jsonl")
-CHAMPION_EVENTS_LOG = Path("data/champion_events.jsonl")
-BAYES_PROFILES_PATH = Path("state/bayes_profiles.json")
-CHAMPIONS_PATH = Path("state/champions.json")
-ROUTER_CONFIG_PATH = Path("config/execution_router.json")
-SYSTEM_STAGE_PATH = Path("state/system_stage.json")
+EXPECTANCY_TRACE_LOG = CacheFiles.EXPECTANCY_TRACE
+ROUTER_TRACE_LOG = CacheFiles.ROUTER_TRACE
+OPTIMIZATIONS_LOG = CacheFiles.OPTIMIZATIONS
+TCA_SUMMARY_LOG = CacheFiles.TCA_SUMMARY
+CHAMPION_EVENTS_LOG = CacheFiles.CHAMPION_EVENTS
+BAYES_PROFILES_PATH = StateFiles.PORTFOLIO_GOVERNOR.parent / "bayes_profiles.json"
+CHAMPIONS_PATH = StateFiles.CHAMPIONS
+ROUTER_CONFIG_PATH = ConfigFiles.EXECUTION_ROUTER
+SYSTEM_STAGE_PATH = StateFiles.PORTFOLIO_GOVERNOR.parent / "system_stage.json"
 
 # ============================================================================
 # SAFETY CAPS (v3.2.1)
@@ -75,9 +78,7 @@ STAGE_CONFIGS = {
 # ============================================================================
 def log_jsonl(path: Path, event: dict):
     """Append JSON line to log file"""
-    path.parent.mkdir(exist_ok=True, parents=True)
-    with path.open("a") as f:
-        f.write(json.dumps(event) + "\n")
+    append_jsonl(path, event)
 
 def load_system_stage() -> dict:
     """Load system stage tracker"""

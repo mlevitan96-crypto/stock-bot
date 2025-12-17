@@ -10,8 +10,10 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-ORDERS_LOG = Path("data/orders_log.jsonl")
-AUDIT_LOG = Path("data/audit_v2_execution.jsonl")
+from config.registry import CacheFiles, append_jsonl
+
+ORDERS_LOG = CacheFiles.V2_ORDERS_LOG
+AUDIT_LOG = CacheFiles.AUDIT_V2_EXECUTION
 
 # Motif delay rules (seconds)
 MOTIF_DELAY_RULES = {
@@ -37,11 +39,9 @@ PAPER_MODE = True
 
 def audit(event: str, **kwargs):
     """Audit log"""
-    AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
-    with AUDIT_LOG.open("a") as f:
-        rec = {"event": event, "ts": int(time.time()), "dt": datetime.utcnow().isoformat() + "Z"}
-        rec.update(kwargs)
-        f.write(json.dumps(rec) + "\n")
+    rec = {"event": event, "ts": int(time.time()), "dt": datetime.utcnow().isoformat() + "Z"}
+    rec.update(kwargs)
+    append_jsonl(AUDIT_LOG, rec)
 
 def compute_entry_delay(motif: Dict[str, Any]) -> int:
     """
@@ -124,9 +124,7 @@ def route_order(symbol: str, side: str, base_notional: float, delay_sec: int,
     }
     
     # Log order
-    ORDERS_LOG.parent.mkdir(parents=True, exist_ok=True)
-    with ORDERS_LOG.open("a") as f:
-        f.write(json.dumps(order) + "\n")
+    append_jsonl(ORDERS_LOG, order)
     
     audit("order_routed", symbol=symbol, notional=notional, delay=delay_sec, paper=paper_mode)
     

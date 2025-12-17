@@ -18,15 +18,18 @@ import json
 import os
 from datetime import datetime, timedelta
 
-# -------------------- Paths --------------------
+from config.registry import CacheFiles, StateFiles, append_jsonl, atomic_write_json, read_json
+
+# -------------------- Paths (canonical) --------------------
+# Keep the same “concepts”, but remove hardcoded strings to prevent drift.
 PATHS = {
-    "alpha_attribution_v2": "data/alpha_attribution_v2.jsonl",   # live or simulated per-fill attribution events (feature vectors + pnl)
-    "orders_log": "data/orders_log.jsonl",                        # live or simulated orders routed by motif-aware execution
-    "sector_profiles": "state/sector_profiles.json",              # produced by sector_rotation_v2
-    "canary_registry": "state/canary_registry.json",              # produced by canary_router_v2
-    "metrics_rollup": "state/v2_metrics.json",                    # rolling metrics: expectancy delta, sharpe, drawdown, consecutive nights
-    "promotion_flag": "state/v2_promoted.json",                   # {"enabled": true/false, "ts": "..."}
-    "audit": "data/audit_v2_promotion.jsonl"                      # audit trail for promotion/demotion decisions
+    "alpha_attribution_v2": CacheFiles.ALPHA_ATTRIBUTION_V2,
+    "orders_log": CacheFiles.V2_ORDERS_LOG,
+    "sector_profiles": StateFiles.SECTOR_PROFILES,
+    "canary_registry": StateFiles.CANARY_REGISTRY,
+    "metrics_rollup": StateFiles.V2_METRICS,
+    "promotion_flag": StateFiles.V2_PROMOTED,
+    "audit": CacheFiles.AUDIT_V2_PROMOTION,
 }
 
 # -------------------- Promotion Criteria --------------------
@@ -41,35 +44,28 @@ CRITERIA = {
 def _now():
     return datetime.utcnow().isoformat() + "Z"
 
-def _append_jsonl(path, obj):
-    try:
-        with open(path, "a") as f:
-            f.write(json.dumps(obj) + "\n")
-    except Exception:
-        pass
-
 def _read_json(path, default=None):
     try:
-        with open(path, "r") as f:
-            return json.load(f)
+        return read_json(path, default=default)
     except Exception:
         return default
 
 def _write_json(path, obj):
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w") as f:
-            json.dump(obj, f, indent=2)
+        atomic_write_json(path, obj)
     except Exception:
-        pass
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(obj, indent=2))
+        except Exception:
+            pass
 
 def _read_jsonl(path, max_lines=None):
     try:
-        with open(path, "r") as f:
-            lines = f.readlines()
-            if max_lines is not None:
-                lines = lines[-max_lines:]
-            return [json.loads(l) for l in lines if l.strip()]
+        lines = path.read_text().splitlines()
+        if max_lines is not None:
+            lines = lines[-max_lines:]
+        return [json.loads(l) for l in lines if l.strip()]
     except Exception:
         return []
 
@@ -78,11 +74,11 @@ def run_sector_rotation_v2():
     try:
         from sector_rotation_v2 import rebalance_sectors
         profiles = rebalance_sectors()
-        _append_jsonl(PATHS["audit"], {"ts": _now(), "event": "sector_rotation_rebalance", "profiles": profiles})
+        append_jsonl(PATHS["audit"], {"ts": _now(), "event": "sector_rotation_rebalance", "profiles": profiles})
         return profiles
     except Exception as e:
         profiles = {"error": str(e)}
-        _append_jsonl(PATHS["audit"], {"ts": _now(), "event": "sector_rotation_error", "error": str(e)})
+        append_jsonl(PATHS["audit"], {"ts": _now(), "event": "sector_rotation_error", "error": str(e)})
         return profiles
 
 def run_canary_router_v2():
@@ -92,22 +88,22 @@ def run_canary_router_v2():
         promote_results = promote_canaries()
         registry = {"eval": eval_results, "promote": promote_results, "ts": _now()}
         _write_json(PATHS["canary_registry"], registry)
-        _append_jsonl(PATHS["audit"], {"ts": _now(), "event": "canary_update", "registry": registry})
+        append_jsonl(PATHS["audit"], {"ts": _now(), "event": "canary_update", "registry": registry})
         return registry
     except Exception as e:
         registry = {"error": str(e), "ts": _now()}
-        _append_jsonl(PATHS["audit"], {"ts": _now(), "event": "canary_error", "error": str(e)})
+        append_jsonl(PATHS["audit"], {"ts": _now(), "event": "canary_error", "error": str(e)})
         return registry
 
 def run_feature_rollup_v2():
     try:
         from feature_attribution_v2 import rollup_feature_pnl
         metrics = rollup_feature_pnl()
-        _append_jsonl(PATHS["audit"], {"ts": _now(), "event": "feature_pnl_rollup", "metrics": metrics})
+        append_jsonl(PATHS["audit"], {"ts": _now(), "event": "feature_pnl_rollup", "metrics": metrics})
         return metrics
     except Exception as e:
         metrics = {"error": str(e)}
-        _append_jsonl(PATHS["audit"], {"ts": _now(), "event": "feature_rollup_error", "error": str(e)})
+        append_jsonl(PATHS["audit"], {"ts": _now(), "event": "feature_rollup_error", "error": str(e)})
         return metrics
 
 # -------------------- Metrics & Promotion Logic --------------------
@@ -189,16 +185,16 @@ def update_metrics_and_flag():
     if metrics_state["consecutive_nights"] >= CRITERIA["consecutive_nights_min"]:
         promoted = True
         flag = {"enabled": True, "ts": _now(), "reason": "promotion_criteria_met"}
-        _append_jsonl(PATHS["audit"], {"ts": _now(), "event": "promotion", "metrics": tonight, "state": metrics_state})
+        append_jsonl(PATHS["audit"], {"ts": _now(), "event": "promotion", "metrics": tonight, "state": metrics_state})
 
     if metrics_state["fail_streak"] >= CRITERIA["demote_on_fail_nights"]:
         promoted = False
         flag = {"enabled": False, "ts": _now(), "reason": "demotion_fail_streak"}
-        _append_jsonl(PATHS["audit"], {"ts": _now(), "event": "demotion", "metrics": tonight, "state": metrics_state})
+        append_jsonl(PATHS["audit"], {"ts": _now(), "event": "demotion", "metrics": tonight, "state": metrics_state})
 
     _write_json(PATHS["promotion_flag"], flag)
 
-    _append_jsonl(PATHS["audit"], {
+    append_jsonl(PATHS["audit"], {
         "ts": _now(),
         "event": "nightly_metrics_update",
         "tonight": tonight,
@@ -221,7 +217,7 @@ def nightly_orchestrate():
     run_canary_router_v2()
     _ = run_feature_rollup_v2()
     tonight, flag = update_metrics_and_flag()
-    _append_jsonl(PATHS["audit"], {"ts": _now(), "event": "nightly_orchestrate_complete", "tonight": tonight, "promotion_flag": flag})
+    append_jsonl(PATHS["audit"], {"ts": _now(), "event": "nightly_orchestrate_complete", "tonight": tonight, "promotion_flag": flag})
     return {"metrics": tonight, "flag": flag}
 
 # -------------------- Main-cycle gate --------------------

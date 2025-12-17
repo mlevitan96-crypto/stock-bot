@@ -93,6 +93,16 @@ class CacheFiles:
     PORTFOLIO_EVENTS = Directories.DATA / "portfolio_events.jsonl"
     RISK_DASHBOARD = Directories.DATA / "risk_dashboard.jsonl"
 
+    # V2/V4 research-orchestration logs (kept explicit to avoid semantic drift)
+    ALPHA_ATTRIBUTION_V2 = Directories.DATA / "alpha_attribution_v2.jsonl"
+    V2_ORDERS_LOG = Directories.DATA / "orders_log.jsonl"
+    AUDIT_V2_EXECUTION = Directories.DATA / "audit_v2_execution.jsonl"
+    AUDIT_V2_PROMOTION = Directories.DATA / "audit_v2_promotion.jsonl"
+    EXPECTANCY_TRACE = Directories.DATA / "expectancy_trace.jsonl"
+    ROUTER_TRACE = Directories.DATA / "router_trace.jsonl"
+    TCA_SUMMARY = Directories.DATA / "tca_summary.jsonl"
+    CHAMPION_EVENTS = Directories.DATA / "champion_events.jsonl"
+
 
 class StateFiles:
     """All state files - single source of truth."""
@@ -143,6 +153,12 @@ class StateFiles:
     TRADING_MODE = Directories.STATE / "trading_mode.json"
     CAPITAL_RAMP = Directories.STATE / "capital_ramp.json"
     PEAK_EQUITY = Directories.STATE / "peak_equity.json"
+
+    # V2/V4 research-orchestration state
+    SECTOR_PROFILES = Directories.STATE / "sector_profiles.json"
+    CANARY_REGISTRY = Directories.STATE / "canary_registry.json"
+    V2_METRICS = Directories.STATE / "v2_metrics.json"
+    V2_PROMOTED = Directories.STATE / "v2_promoted.json"
 
 
 class LogFiles:
