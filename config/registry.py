@@ -81,6 +81,17 @@ class CacheFiles:
     FEATURE_STORE = Directories.DATA / "feature_store.jsonl"
     PNL_ATTRIBUTION = Directories.DATA / "pnl_attribution.jsonl"
     EXECUTION_QUALITY = Directories.DATA / "execution_quality.jsonl"
+    HEARTBEAT_AUDIT = Directories.DATA / "heartbeat_audit.jsonl"
+    ROLLBACK_EVENTS = Directories.DATA / "rollback_events.jsonl"
+    MONITORING_SUMMARY = Directories.DATA / "monitoring_summary.jsonl"
+    FIX_ACTIONS = Directories.DATA / "fix_actions.jsonl"
+    OPTIMIZATIONS = Directories.DATA / "optimizations.jsonl"
+    AUDIT_POSITIONS_AUTOFIX = Directories.DATA / "audit_positions_autofix.jsonl"
+
+    OPS_ERRORS = Directories.DATA / "ops_errors.jsonl"
+    LEARNING_EVENTS = Directories.DATA / "learning_events.jsonl"
+    PORTFOLIO_EVENTS = Directories.DATA / "portfolio_events.jsonl"
+    RISK_DASHBOARD = Directories.DATA / "risk_dashboard.jsonl"
 
 
 class StateFiles:
@@ -111,8 +122,27 @@ class StateFiles:
     FAIL_COUNTER = Directories.STATE / "fail_counter.json"
     CHAMPIONS = Directories.STATE / "champions.json"
     PRE_MARKET_FREEZE = Directories.STATE / "pre_market_freeze.flag"
+    GOVERNOR_FREEZES = Directories.STATE / "governor_freezes.json"
     BLOCKED_TRADES = Directories.STATE / "blocked_trades.jsonl"
     SHADOW_PENDING = Directories.STATE / "shadow_pending.json"
+
+    # Operational state
+    LAST_RESTART_MARKER = Directories.STATE / "last_restart.txt"
+    DEGRADED_MODE = Directories.STATE / "degraded_mode.json"
+
+    # Reconciliation snapshots
+    ALPACA_POSITIONS = Directories.STATE / "alpaca_positions.json"
+    EXECUTOR_STATE = Directories.STATE / "executor_state.json"
+    PORTFOLIO_STATE = Directories.STATE / "portfolio_state.jsonl"
+
+    # Execution overrides
+    EXECUTION_SIZE_OVERRIDE = Directories.STATE / "execution_size_override.json"
+    ORDER_TYPE_OVERRIDE = Directories.STATE / "order_type_override.json"
+
+    # Telemetry state
+    TRADING_MODE = Directories.STATE / "trading_mode.json"
+    CAPITAL_RAMP = Directories.STATE / "capital_ramp.json"
+    PEAK_EQUITY = Directories.STATE / "peak_equity.json"
 
 
 class LogFiles:

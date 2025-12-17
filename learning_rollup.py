@@ -85,11 +85,11 @@ def compute_rollup(
 
     # Prefer canonical registry paths when available (prevents filename drift)
     try:
-        from config.registry import LogFiles as _LogFiles, StateFiles as _StateFiles
+        from config.registry import LogFiles as _LogFiles, StateFiles as _StateFiles, CacheFiles as _CacheFiles
         # main.py writes attribution to logs/attribution.jsonl via jsonl_write("attribution", ...)
         attribution_path = repo_dir / "logs" / "attribution.jsonl"
         blocked_path = repo_dir / _StateFiles.BLOCKED_TRADES
-        monitoring_path = data_dir / "monitoring_summary.jsonl"
+        monitoring_path = repo_dir / _CacheFiles.MONITORING_SUMMARY
         shadow_path = repo_dir / _LogFiles.SHADOW_OUTCOMES
     except Exception:
         attribution_path = logs_dir / "attribution.jsonl"

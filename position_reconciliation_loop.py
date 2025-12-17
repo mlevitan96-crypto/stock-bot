@@ -8,9 +8,10 @@ Investigates, fixes, and resumes trading without human review.
 import json
 import requests
 import time
-from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
+
+from config.registry import CacheFiles, StateFiles, atomic_write_json, append_jsonl
 
 
 class PositionReconcilerV2:
@@ -38,13 +39,13 @@ class PositionReconcilerV2:
             "prefer_broker_truth": True
         }
         
-        # State paths
-        self.alpaca_positions_path = Path("state/alpaca_positions.json")
-        self.internal_positions_path = Path("state/internal_positions.json")
-        self.executor_state_path = Path("state/executor_state.json")
-        self.portfolio_state_path = Path("state/portfolio_state.jsonl")
-        self.remediation_log_path = Path("data/audit_positions_autofix.jsonl")
-        self.degraded_state_path = Path("state/degraded_mode.json")
+        # State paths (canonical registry)
+        self.alpaca_positions_path = StateFiles.ALPACA_POSITIONS
+        self.internal_positions_path = StateFiles.INTERNAL_POSITIONS
+        self.executor_state_path = StateFiles.EXECUTOR_STATE
+        self.portfolio_state_path = StateFiles.PORTFOLIO_STATE
+        self.remediation_log_path = CacheFiles.AUDIT_POSITIONS_AUTOFIX
+        self.degraded_state_path = StateFiles.DEGRADED_MODE
         
         # Ensure directories exist
         self.alpaca_positions_path.parent.mkdir(exist_ok=True, parents=True)
@@ -117,7 +118,10 @@ class PositionReconcilerV2:
             "since": datetime.utcnow().isoformat() + "Z",
             "reason": reason
         }
-        self.degraded_state_path.write_text(json.dumps(degraded_state, indent=2))
+        try:
+            atomic_write_json(self.degraded_state_path, degraded_state)
+        except Exception:
+            self.degraded_state_path.write_text(json.dumps(degraded_state, indent=2))
         
         # Load last known Alpaca snapshot
         last_snapshot = {}
@@ -140,7 +144,10 @@ class PositionReconcilerV2:
             "mode": "NORMAL",
             "since": datetime.utcnow().isoformat() + "Z"
         }
-        self.degraded_state_path.write_text(json.dumps(normal_state, indent=2))
+        try:
+            atomic_write_json(self.degraded_state_path, normal_state)
+        except Exception:
+            self.degraded_state_path.write_text(json.dumps(normal_state, indent=2))
         self.audit_log("degraded_mode_exited", {})
     
     def load_internal_positions(self) -> Dict:
@@ -241,13 +248,12 @@ class PositionReconcilerV2:
     
     def audit_log(self, event: str, details: Dict):
         """Append remediation audit event."""
-        event_data = {
-            "event": event,
-            "ts": datetime.utcnow().isoformat() + "Z",
-            "details": details
-        }
-        with self.remediation_log_path.open("a") as f:
-            f.write(json.dumps(event_data) + "\n")
+        event_data = {"event": event, "ts": datetime.utcnow().isoformat() + "Z", "details": details}
+        try:
+            append_jsonl(self.remediation_log_path, event_data)
+        except Exception:
+            with self.remediation_log_path.open("a") as f:
+                f.write(json.dumps(event_data) + "\n")
     
     def reconcile(self, executor_opens: Optional[Dict] = None) -> Dict:
         """
@@ -306,8 +312,14 @@ class PositionReconcilerV2:
             })
         
         # Step 5: Save reconciled state
-        self.internal_positions_path.write_text(json.dumps(internal_fixed, indent=2))
-        self.alpaca_positions_path.write_text(json.dumps(alpaca_data, indent=2))
+        try:
+            atomic_write_json(self.internal_positions_path, internal_fixed)
+        except Exception:
+            self.internal_positions_path.write_text(json.dumps(internal_fixed, indent=2))
+        try:
+            atomic_write_json(self.alpaca_positions_path, alpaca_data)
+        except Exception:
+            self.alpaca_positions_path.write_text(json.dumps(alpaca_data, indent=2))
         
         # Sync executor.opens if provided
         if executor_opens is not None:
@@ -329,7 +341,10 @@ class PositionReconcilerV2:
             "opens": {k: {**v, "ts": v["ts"].isoformat() + "Z"} 
                      for k, v in (executor_opens or {}).items()}
         }
-        self.executor_state_path.write_text(json.dumps(executor_state, indent=2))
+        try:
+            atomic_write_json(self.executor_state_path, executor_state)
+        except Exception:
+            self.executor_state_path.write_text(json.dumps(executor_state, indent=2))
         
         # Append portfolio state history
         portfolio_event = {

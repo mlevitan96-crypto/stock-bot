@@ -13,6 +13,8 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
+from config.registry import LogFiles, append_jsonl
+
 processes = {}
 shutdown_flag = threading.Event()
 start_time = time.time()
@@ -89,13 +91,17 @@ def log(msg):
     print(f"[SUPERVISOR] [{utc_now()}] {msg}", flush=True)
 
 def log_event(event, **kwargs):
-    import json
-    entry = {"ts": utc_now(), "event": event, **kwargs}
     try:
-        with open("logs/supervisor.jsonl", "a") as f:
-            f.write(json.dumps(entry) + "\n")
-    except Exception as e:
-        log(f"Log write error: {e}")
+        entry = {"ts": utc_now(), "event": event, **kwargs}
+        append_jsonl(LogFiles.DEPLOYMENT_SUPERVISOR, entry)
+    except Exception:
+        # Backward-compatible fallback
+        try:
+            import json
+            with open("logs/supervisor.jsonl", "a") as f:
+                f.write(json.dumps({"ts": utc_now(), "event": event, **kwargs}) + "\n")
+        except Exception as e:
+            log(f"Log write error: {e}")
 
 def create_directories():
     log("Creating required directories...")

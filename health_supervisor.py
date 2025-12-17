@@ -21,9 +21,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Callable
 
-DATA_DIR = Path("data")
-STATE_DIR = Path("state")
-LOGS_DIR = Path("logs")
+from config.registry import CacheFiles, StateFiles, append_jsonl
 
 class HealthCheck:
     """Individual health check with severity and remediation."""
@@ -140,7 +138,7 @@ class HealthSupervisor:
     
     def _check_uw_daemon_alive(self) -> Dict[str, Any]:
         """Check if UW flow daemon is updating cache."""
-        cache_file = DATA_DIR / "uw_flow_cache.json"
+        cache_file = CacheFiles.UW_FLOW_CACHE
         if not cache_file.exists():
             return {"healthy": False, "reason": "cache_file_missing"}
         
@@ -161,8 +159,8 @@ class HealthSupervisor:
     def _restart_uw_daemon(self) -> bool:
         """Attempt to restart UW daemon process."""
         try:
-            # Kill existing daemon processes first
-            subprocess.run(["pkill", "-f", "uw_flow_daemon"], 
+            # Kill existing daemon processes first (correct target: uw_daemon.py)
+            subprocess.run(["pkill", "-f", "uw_daemon.py"],
                          stdout=subprocess.DEVNULL, 
                          stderr=subprocess.DEVNULL)
             time.sleep(2)
@@ -175,7 +173,7 @@ class HealthSupervisor:
     
     def _check_uw_cache_fresh(self) -> Dict[str, Any]:
         """Check if UW cache has recent data for watchlist symbols."""
-        cache_file = DATA_DIR / "uw_flow_cache.json"
+        cache_file = CacheFiles.UW_FLOW_CACHE
         if not cache_file.exists():
             return {"healthy": False, "reason": "cache_missing"}
         
@@ -194,7 +192,7 @@ class HealthSupervisor:
     def _rebuild_uw_cache(self) -> bool:
         """Trigger UW cache rebuild."""
         try:
-            cache_file = DATA_DIR / "uw_flow_cache.json"
+            cache_file = CacheFiles.UW_FLOW_CACHE
             if cache_file.exists():
                 cache_file.rename(cache_file.with_suffix(".json.backup"))
             return True
@@ -203,7 +201,7 @@ class HealthSupervisor:
     
     def _check_position_tracking(self) -> Dict[str, Any]:
         """Verify position metadata is being tracked correctly."""
-        metadata_file = STATE_DIR / "position_metadata.json"
+        metadata_file = StateFiles.POSITION_METADATA
         
         try:
             import alpaca_trade_api as tradeapi
@@ -262,7 +260,7 @@ class HealthSupervisor:
     
     def _check_trade_cadence(self) -> Dict[str, Any]:
         """Check if trades are being executed regularly during market hours."""
-        orders_file = DATA_DIR / "live_orders.jsonl"
+        orders_file = CacheFiles.LIVE_ORDERS
         if not orders_file.exists():
             return {"healthy": True, "reason": "no_orders_file_yet"}
         
@@ -293,7 +291,7 @@ class HealthSupervisor:
     
     def _check_performance(self) -> Dict[str, Any]:
         """Monitor performance metrics for degradation."""
-        postmortem_file = DATA_DIR / "daily_postmortem.jsonl"
+        postmortem_file = CacheFiles.DAILY_POSTMORTEM
         if not postmortem_file.exists():
             return {"healthy": True, "reason": "no_postmortem_data_yet"}
         
@@ -347,7 +345,7 @@ class HealthSupervisor:
     def _trigger_circuit_breaker(self) -> bool:
         """Halt new entries when performance degrades."""
         try:
-            breaker_file = STATE_DIR / "circuit_breaker.json"
+            breaker_file = StateFiles.PORTFOLIO_GOVERNOR.parent / "circuit_breaker.json"
             breaker_file.parent.mkdir(exist_ok=True)
             breaker_file.write_text(json.dumps({
                 "engaged": True,
@@ -390,13 +388,8 @@ class HealthSupervisor:
     
     def _log_check_result(self, result: Dict[str, Any]):
         """Log health check result to telemetry."""
-        log_file = DATA_DIR / "health_checks.jsonl"
         try:
-            log_file.parent.mkdir(exist_ok=True)
-            result["_ts"] = time.time()
-            result["_dt"] = datetime.utcnow().isoformat()
-            with log_file.open("a") as f:
-                f.write(json.dumps(result) + "\n")
+            append_jsonl(CacheFiles.HEALTH_CHECKS, result)
         except Exception:
             pass
     

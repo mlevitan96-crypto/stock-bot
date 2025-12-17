@@ -14,49 +14,42 @@ Provides structured logging for:
 
 import json
 import time
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 
+from config.registry import CacheFiles, StateFiles, append_jsonl as registry_append_jsonl, read_json as registry_read_json, atomic_write_json
 
-# Directory structure
-BASE_DIR = Path(__file__).parent.parent
-DATA_DIR = BASE_DIR / "data"
-STATE_DIR = BASE_DIR / "state"
 
-# Telemetry files
-OPERATOR_DASHBOARD = DATA_DIR / "operator_dashboard.json"
-DAILY_POSTMORTEM = DATA_DIR / "daily_postmortem.jsonl"
-LIVE_ORDERS = DATA_DIR / "live_orders.jsonl"
-OPS_ERRORS = DATA_DIR / "ops_errors.jsonl"
-LEARNING_EVENTS = DATA_DIR / "learning_events.jsonl"
-PORTFOLIO_EVENTS = DATA_DIR / "portfolio_events.jsonl"
-RISK_DASHBOARD = DATA_DIR / "risk_dashboard.jsonl"
-GOV_EVENTS = DATA_DIR / "governance_events.jsonl"
-UW_FLOW_CACHE = DATA_DIR / "uw_flow_cache.json"
+# Canonical file locations (single source of truth)
+OPERATOR_DASHBOARD = CacheFiles.OPERATOR_DASHBOARD
+DAILY_POSTMORTEM = CacheFiles.DAILY_POSTMORTEM
+LIVE_ORDERS = CacheFiles.LIVE_ORDERS
+OPS_ERRORS = CacheFiles.OPS_ERRORS
+LEARNING_EVENTS = CacheFiles.LEARNING_EVENTS
+PORTFOLIO_EVENTS = CacheFiles.PORTFOLIO_EVENTS
+RISK_DASHBOARD = CacheFiles.RISK_DASHBOARD
+GOV_EVENTS = CacheFiles.GOVERNANCE_EVENTS
+UW_FLOW_CACHE = CacheFiles.UW_FLOW_CACHE
 
-# State files
-TRADING_MODE = STATE_DIR / "trading_mode.json"
-CAPITAL_RAMP = STATE_DIR / "capital_ramp.json"
-PEAK_EQUITY = STATE_DIR / "peak_equity.json"
+TRADING_MODE = StateFiles.TRADING_MODE
+CAPITAL_RAMP = StateFiles.CAPITAL_RAMP
+PEAK_EQUITY = StateFiles.PEAK_EQUITY
 
 
 def append_jsonl(file: Path, rec: Dict):
-    """Append a record to a JSONL file with automatic timestamp."""
+    """
+    Append a record to a JSONL file with automatic timestamp.
+    Delegates to config.registry.append_jsonl for consistency across codebase.
+    """
     file.parent.mkdir(exist_ok=True, parents=True)
-    rec["_ts"] = int(time.time())
-    rec["_dt"] = time.strftime("%Y-%m-%d %H:%M:%S")
-    with file.open("a") as f:
-        f.write(json.dumps(rec) + "\n")
+    registry_append_jsonl(file, rec)
 
 
 def read_json(path: Path, default=None):
     """Read a JSON file, returning default if not found or invalid."""
-    if not path.exists():
-        return default
     try:
-        with path.open() as f:
-            return json.load(f)
+        return registry_read_json(path, default=default)
     except Exception:
         return default
 
@@ -80,9 +73,12 @@ def read_jsonl_tail(path: Path, max_lines: int = 500) -> List[Dict[str, Any]]:
 
 def write_json(path: Path, data: Dict):
     """Write a JSON file atomically."""
-    path.parent.mkdir(exist_ok=True, parents=True)
-    with path.open("w") as f:
-        json.dump(data, f, indent=2)
+    try:
+        atomic_write_json(path, data)
+    except Exception:
+        path.parent.mkdir(exist_ok=True, parents=True)
+        with path.open("w") as f:
+            json.dump(data, f, indent=2)
 
 
 def safe_float(val, default=0.0):
@@ -120,8 +116,8 @@ class TelemetryLogger:
     def __init__(self):
         """Initialize telemetry logger with lazy file handles."""
         # Ensure directories exist
-        DATA_DIR.mkdir(exist_ok=True, parents=True)
-        STATE_DIR.mkdir(exist_ok=True, parents=True)
+        OPERATOR_DASHBOARD.parent.mkdir(exist_ok=True, parents=True)
+        TRADING_MODE.parent.mkdir(exist_ok=True, parents=True)
     
     # Daily Postmortem
     def log_daily_postmortem(self, pnl_total: float, trades: int, win_rate: float, 

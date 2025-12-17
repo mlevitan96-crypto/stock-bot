@@ -11,12 +11,17 @@ from datetime import datetime, timezone
 import json
 from typing import Dict, List, Any, Optional, Callable
 
+from config.registry import CacheFiles, StateFiles, append_jsonl as registry_append_jsonl
 
-def append_jsonl(path: str, obj: dict):
-    """Append JSON line to file."""
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "a") as f:
-        f.write(json.dumps(obj) + "\n")
+
+def append_jsonl(path: str | Path, obj: dict):
+    """
+    Append JSON line to file.
+    Delegates to config.registry.append_jsonl to ensure consistent timestamps.
+    """
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    registry_append_jsonl(p, obj)
 
 
 def now_iso() -> str:
@@ -46,10 +51,10 @@ def log_alert(alert_type: str, details: Dict[str, Any], severity: str = "HIGH"):
             "alert_id": f"{alert_type}_{int(datetime.utcnow().timestamp())}"
         }
     }
-    append_jsonl("data/alerts.jsonl", alert)
+    append_jsonl(CacheFiles.ALERTS, alert)
     
     # Also log to governance for immediate visibility
-    append_jsonl("data/governance_events.jsonl", {
+    append_jsonl(CacheFiles.GOVERNANCE_EVENTS, {
         "ts": now_iso(),
         "event": "ALERT_TRIGGERED",
         "alert_type": alert_type,
@@ -112,8 +117,8 @@ def check_freeze_state() -> bool:
     # - `state/governor_freezes.json` (operator/system-level freezes)
     # - `state/pre_market_freeze.flag` (watchdog crash-loop safety freeze)
     # Treat either as a hard stop for new entries.
-    freeze_path = Path("state/governor_freezes.json")
-    pre_market_freeze_path = Path("state/pre_market_freeze.flag")
+    freeze_path = StateFiles.GOVERNOR_FREEZES
+    pre_market_freeze_path = StateFiles.PRE_MARKET_FREEZE
 
     if pre_market_freeze_path.exists():
         try:
@@ -273,7 +278,7 @@ def log_execution_quality(
         "latency_ms": round(latency_ms, 1) if latency_ms else 0.0
     }
     
-    append_jsonl("data/execution_quality.jsonl", metrics)
+    append_jsonl(CacheFiles.EXECUTION_QUALITY, metrics)
     
     # Alert on poor execution
     if slippage_bps > 50:  # >0.5% slippage
@@ -304,7 +309,7 @@ def auto_refresh_stale_heartbeats(max_age_minutes: int = 30) -> Dict[str, Any]:
     Returns:
         Remediation report with count of refreshed files
     """
-    heartbeat_dir = Path("state/heartbeats")
+    heartbeat_dir = StateFiles.PRE_MARKET_FREEZE.parent / "heartbeats"
     
     if not heartbeat_dir.exists():
         return {"refreshed": 0, "error": "heartbeat_dir_missing"}
@@ -343,7 +348,7 @@ def auto_refresh_stale_heartbeats(max_age_minutes: int = 30) -> Dict[str, Any]:
     
     # Log auto-fix
     if refreshed:
-        audit_file = Path("data/audit_heartbeat_autofix.jsonl")
+        audit_file = CacheFiles.HEARTBEAT_AUDIT
         audit_file.parent.mkdir(exist_ok=True, parents=True)
         with audit_file.open("a") as f:
             event = {
@@ -402,7 +407,7 @@ def check_heartbeat_staleness(required_modules: List[str], max_age_minutes: int 
     stale = []
     
     # V3.1.1: Check if we're in grace period
-    startup_marker = Path("state/last_restart.txt")
+    startup_marker = StateFiles.LAST_RESTART_MARKER
     in_grace_period = False
     if startup_marker.exists():
         try:
@@ -463,7 +468,7 @@ def check_heartbeat_staleness(required_modules: List[str], max_age_minutes: int 
             "action": "ALERT_ONLY" if (trading_mode == "PAPER" and not missing) else "FAIL"
         }, severity="HIGH" if missing else "MEDIUM")
         
-        append_jsonl("data/heartbeat_audit.jsonl", {
+        append_jsonl(CacheFiles.HEARTBEAT_AUDIT, {
             "ts": now_iso(),
             "missing": missing,
             "stale": stale,
@@ -536,7 +541,7 @@ def check_rollback_conditions(
         }
         
         log_alert("rollback_triggered", rollback, severity="CRITICAL" if trading_mode == "LIVE" else "HIGH")
-        append_jsonl("data/rollback_events.jsonl", rollback)
+        append_jsonl(CacheFiles.ROLLBACK_EVENTS, rollback)
         
         # V3.1.1: Only set freeze if LIVE mode OR if trigger is NOT just heartbeat_stale
         should_freeze = False
@@ -549,7 +554,7 @@ def check_rollback_conditions(
             should_freeze = True  # PAPER mode + other triggers = freeze
         
         if should_freeze:
-            freeze_path = Path("state/governor_freezes.json")
+            freeze_path = StateFiles.GOVERNOR_FREEZES
             if freeze_path.exists():
                 freezes = json.loads(freeze_path.read_text())
                 freezes["production_freeze"] = True
@@ -609,7 +614,7 @@ def generate_cycle_monitoring_summary(
         "health_status": "HEALTHY" if len(alerts_triggered) == 0 else "DEGRADED"
     }
     
-    append_jsonl("data/monitoring_summary.jsonl", summary)
+    append_jsonl(CacheFiles.MONITORING_SUMMARY, summary)
     return summary
 
 
@@ -667,8 +672,8 @@ def log_fix_action(fix_type: str, details: Dict[str, Any], success: bool = True)
         "success": success,
         "details": details
     }
-    append_jsonl("data/fix_actions.jsonl", fix_event)
-    append_jsonl("data/governance_events.jsonl", {
+    append_jsonl(CacheFiles.FIX_ACTIONS, fix_event)
+    append_jsonl(CacheFiles.GOVERNANCE_EVENTS, {
         "ts": now_iso(),
         "event": "FIX_APPLIED",
         "fix_type": fix_type,
@@ -794,7 +799,7 @@ def reduce_position_sizes_by_pct(reduction_pct: int = 50) -> bool:
     """
     try:
         # Write size reduction to state for next cycle
-        size_config_path = Path("state/execution_size_override.json")
+        size_config_path = StateFiles.EXECUTION_SIZE_OVERRIDE
         size_config = {
             "ts": now_iso(),
             "size_multiplier": (100 - reduction_pct) / 100.0,
@@ -828,7 +833,7 @@ def switch_to_limit_orders() -> bool:
         True if order type switched
     """
     try:
-        order_config_path = Path("state/order_type_override.json")
+        order_config_path = StateFiles.ORDER_TYPE_OVERRIDE
         order_config = {
             "ts": now_iso(),
             "order_type": "limit",
@@ -1001,7 +1006,7 @@ _optimization_state = {
 
 def log_optimization_action(opt_type: str, details: Dict[str, Any], success: bool = True):
     """Log optimization actions to data/optimizations.jsonl"""
-    opt_log = Path("data/optimizations.jsonl")
+    opt_log = CacheFiles.OPTIMIZATIONS
     opt_log.parent.mkdir(exist_ok=True)
     
     event = {
@@ -1011,8 +1016,8 @@ def log_optimization_action(opt_type: str, details: Dict[str, Any], success: boo
         **details
     }
     
-    with opt_log.open("a") as f:
-        f.write(json.dumps(event) + "\n")
+    # Use registry-backed append for consistent timestamps/format
+    append_jsonl(opt_log, event)
 
 
 def check_optimization_safety_precedence(alerts_triggered: List[str]) -> bool:
