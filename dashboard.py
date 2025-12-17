@@ -238,56 +238,89 @@ DASHBOARD_HTML = """
                 });
             
             // Fetch health status for Last Order and Doctor
-            fetch('http://localhost:8081/api/cockpit')
-                .then(response => response.json())
-                .then(data => {
-                    // Last Order
-                    const lastOrder = data.last_order || {};
-                    const lastOrderAgeSec = lastOrder.age_sec;
-                    const lastOrderEl = document.getElementById('last-order');
-                    if (lastOrderAgeSec !== null && lastOrderAgeSec !== undefined) {
-                        lastOrderEl.textContent = formatTimeAgo(lastOrderAgeSec);
-                        // Color coding: < 1h = green, 1-3h = yellow, > 3h = red
-                        if (lastOrderAgeSec < 3600) {
-                            lastOrderEl.className = 'stat-value healthy';
-                        } else if (lastOrderAgeSec < 10800) {
-                            lastOrderEl.className = 'stat-value warning';
+            // Try main bot API first, fallback to health_status endpoint
+            Promise.all([
+                fetch('/api/health_status').catch(() => null),
+                fetch('http://localhost:8081/api/cockpit').catch(() => null),
+                fetch('http://localhost:8081/health').catch(() => null)
+            ]).then(([healthStatusRes, cockpitRes, healthRes]) => {
+                // Try health_status endpoint first (most accurate)
+                if (healthStatusRes && healthStatusRes.ok) {
+                    healthStatusRes.json().then(data => {
+                        // Last Order
+                        const lastOrder = data.last_order || {};
+                        const lastOrderAgeSec = lastOrder.age_sec;
+                        const lastOrderEl = document.getElementById('last-order');
+                        if (lastOrderAgeSec !== null && lastOrderAgeSec !== undefined) {
+                            lastOrderEl.textContent = formatTimeAgo(lastOrderAgeSec);
+                            // Color coding: < 1h = green, 1-3h = yellow, > 3h = red
+                            if (lastOrderAgeSec < 3600) {
+                                lastOrderEl.className = 'stat-value healthy';
+                            } else if (lastOrderAgeSec < 10800) {
+                                lastOrderEl.className = 'stat-value warning';
+                            } else {
+                                lastOrderEl.className = 'stat-value critical';
+                            }
                         } else {
-                            lastOrderEl.className = 'stat-value critical';
+                            lastOrderEl.textContent = 'N/A';
+                            lastOrderEl.className = 'stat-value';
                         }
-                    } else {
-                        lastOrderEl.textContent = 'N/A';
-                        lastOrderEl.className = 'stat-value';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching cockpit data:', error);
-                });
-            
-            // Fetch Doctor/Heartbeat status
-            fetch('http://localhost:8081/health')
-                .then(response => response.json())
-                .then(data => {
-                    const doctorEl = document.getElementById('doctor');
-                    const heartbeatAge = data.last_heartbeat_age_sec;
-                    if (heartbeatAge !== null && heartbeatAge !== undefined) {
-                        doctorEl.textContent = formatTimeAgo(heartbeatAge);
-                        // Color coding: < 5m = green, 5-30m = yellow, > 30m = red
-                        if (heartbeatAge < 300) {
-                            doctorEl.className = 'stat-value healthy';
-                        } else if (heartbeatAge < 1800) {
-                            doctorEl.className = 'stat-value warning';
+                        
+                        // Doctor
+                        const doctor = data.doctor || {};
+                        const doctorAgeSec = doctor.age_sec;
+                        const doctorEl = document.getElementById('doctor');
+                        if (doctorAgeSec !== null && doctorAgeSec !== undefined) {
+                            doctorEl.textContent = formatTimeAgo(doctorAgeSec);
+                            // Color coding: < 5m = green, 5-30m = yellow, > 30m = red
+                            if (doctorAgeSec < 300) {
+                                doctorEl.className = 'stat-value healthy';
+                            } else if (doctorAgeSec < 1800) {
+                                doctorEl.className = 'stat-value warning';
+                            } else {
+                                doctorEl.className = 'stat-value critical';
+                            }
                         } else {
-                            doctorEl.className = 'stat-value critical';
+                            doctorEl.textContent = 'N/A';
+                            doctorEl.className = 'stat-value';
                         }
-                    } else {
-                        doctorEl.textContent = 'N/A';
-                        doctorEl.className = 'stat-value';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching health:', error);
-                });
+                    });
+                } else if (cockpitRes && cockpitRes.ok && healthRes && healthRes.ok) {
+                    // Fallback to separate endpoints
+                    cockpitRes.json().then(cockpitData => {
+                        const lastOrder = cockpitData.last_order || {};
+                        const lastOrderAgeSec = lastOrder.age_sec;
+                        const lastOrderEl = document.getElementById('last-order');
+                        if (lastOrderAgeSec !== null && lastOrderAgeSec !== undefined) {
+                            lastOrderEl.textContent = formatTimeAgo(lastOrderAgeSec);
+                            if (lastOrderAgeSec < 3600) {
+                                lastOrderEl.className = 'stat-value healthy';
+                            } else if (lastOrderAgeSec < 10800) {
+                                lastOrderEl.className = 'stat-value warning';
+                            } else {
+                                lastOrderEl.className = 'stat-value critical';
+                            }
+                        }
+                    });
+                    
+                    healthRes.json().then(healthData => {
+                        const heartbeatAge = healthData.last_heartbeat_age_sec;
+                        const doctorEl = document.getElementById('doctor');
+                        if (heartbeatAge !== null && heartbeatAge !== undefined) {
+                            doctorEl.textContent = formatTimeAgo(heartbeatAge);
+                            if (heartbeatAge < 300) {
+                                doctorEl.className = 'stat-value healthy';
+                            } else if (heartbeatAge < 1800) {
+                                doctorEl.className = 'stat-value warning';
+                            } else {
+                                doctorEl.className = 'stat-value critical';
+                            }
+                        }
+                    });
+                }
+            }).catch(error => {
+                console.error('Error fetching health status:', error);
+            });
         }
         
         updateDashboard();
