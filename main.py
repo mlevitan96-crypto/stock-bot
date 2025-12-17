@@ -4545,6 +4545,15 @@ def daily_and_weekly_tasks_if_needed():
         if Config.ENABLE_PER_TICKER_LEARNING:
             learn_from_outcomes()
 
+        # Daily learning rollups (2d/5d) for dashboard + learning engine
+        try:
+            from pathlib import Path
+            from learning_rollup import write_rollups
+            write_rollups(Path("."), windows=[2, 5])
+            log_event("daily", "learning_rollups_written", windows=[2, 5])
+        except Exception as e:
+            log_event("daily", "learning_rollups_failed", error=str(e))
+
     if is_friday() and is_after_close_now():
         if _last_weekly_adjust_day != day:
             # Shadow lab: seed profiles from history (first time)

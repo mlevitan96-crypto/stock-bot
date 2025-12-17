@@ -8,14 +8,47 @@ import os
 import sys
 import json
 import threading
+import base64
+import functools
+import time
 from datetime import datetime
-from flask import Flask, render_template_string, jsonify, Response
+from flask import Flask, render_template_string, jsonify, Response, request
 
 print("[Dashboard] Starting Flask app...", flush=True)
 app = Flask(__name__)
 
 _alpaca_api = None
 _registry_loaded = False
+
+def _auth_enabled() -> bool:
+    # Enable auth when DASHBOARD_PASSWORD is set (recommended).
+    return bool(os.getenv("DASHBOARD_PASSWORD", "").strip())
+
+def _check_basic_auth(auth_header: str) -> bool:
+    try:
+        if not auth_header or not auth_header.lower().startswith("basic "):
+            return False
+        encoded = auth_header.split(" ", 1)[1].strip()
+        decoded = base64.b64decode(encoded).decode("utf-8", "ignore")
+        user, pwd = decoded.split(":", 1)
+        expected_user = os.getenv("DASHBOARD_USER", "admin")
+        expected_pwd = os.getenv("DASHBOARD_PASSWORD", "")
+        return user == expected_user and pwd == expected_pwd
+    except Exception:
+        return False
+
+def require_auth(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        # Allow unauthenticated health ping
+        if request.path == "/health":
+            return fn(*args, **kwargs)
+        if not _auth_enabled():
+            return fn(*args, **kwargs)
+        if _check_basic_auth(request.headers.get("Authorization", "")):
+            return fn(*args, **kwargs)
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="dashboard"'})
+    return wrapper
 
 def lazy_load_dependencies():
     """Load heavy dependencies in background after server starts."""
@@ -113,6 +146,12 @@ DASHBOARD_HTML = """
         .loading { text-align: center; padding: 40px; color: #666; }
         .no-positions { text-align: center; padding: 40px; color: #666; }
         .health-ok { color: #10b981; }
+        .tabs { display: flex; gap: 10px; margin-top: 15px; }
+        .tab-btn { border: 1px solid #e5e7eb; background: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+        .tab-btn.active { background: #667eea; color: #fff; border-color: #667eea; }
+        .tab { display: none; }
+        .tab.active { display: block; }
+        pre { white-space: pre-wrap; }
     </style>
 </head>
 <body>
@@ -121,8 +160,13 @@ DASHBOARD_HTML = """
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
             <p class="update-info">Auto-refresh: 10 seconds | Last update: <span id="last-update">-</span></p>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('positions-tab')">Positions</button>
+                <button class="tab-btn" onclick="showTab('performance-tab')">Performance</button>
+            </div>
         </div>
         
+        <div class="tab active" id="positions-tab">
         <div class="stats" id="stats-container">
             <div class="stat-card">
                 <div class="stat-label">Total Positions</div>
@@ -148,9 +192,26 @@ DASHBOARD_HTML = """
                 <p class="loading">Loading positions...</p>
             </div>
         </div>
+        </div>
+
+        <div class="tab" id="performance-tab">
+            <div class="positions-table" style="margin-top: 20px;">
+                <h2 style="margin-bottom: 15px;">Rolling performance (2d / 5d)</h2>
+                <div id="perf-content"><p class="loading">Loading performance...</p></div>
+            </div>
+        </div>
     </div>
     
     <script>
+        function showTab(id) {
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(id));
+            if (btn) btn.classList.add('active');
+            if (id === 'performance-tab') updatePerformance();
+        }
+
         function formatCurrency(value) {
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
         }
@@ -215,6 +276,44 @@ DASHBOARD_HTML = """
                     console.error('Error fetching positions:', error);
                 });
         }
+
+        function renderRollup(title, r) {
+            const pnl = r.pnl || {};
+            const blocks = r.blocks || {};
+            const review = (r.executive_review || []).join('\\n- ');
+            const topSyms = (r.top_symbols || []).map(s => `${s.symbol}: ${formatCurrency(s.pnl_usd)} (${s.trades})`).join('<br>');
+            const topReasons = (blocks.top_reasons || []).map(x => `${x.reason}: ${x.count}`).join('<br>');
+            return `
+              <div style="margin-bottom: 20px;">
+                <h3 style="margin-bottom:8px;">${title}</h3>
+                <div><b>PnL</b>: ${formatCurrency(pnl.total_pnl_usd || 0)} | <b>Trades</b>: ${pnl.trades_closed || 0} | <b>Win rate</b>: ${(pnl.win_rate==null?'—':(pnl.win_rate*100).toFixed(1)+'%')}</div>
+                <div style="margin-top:8px;"><b>Top symbols</b><br>${topSyms || '—'}</div>
+                <div style="margin-top:8px;"><b>Blocked trades</b>: ${blocks.total || 0}</div>
+                <div style="margin-top:8px;"><b>Top block reasons</b><br>${topReasons || '—'}</div>
+                <div style="margin-top:8px;"><b>Executive review</b><pre>- ${review || '—'}</pre></div>
+              </div>
+            `;
+        }
+
+        function updatePerformance() {
+            fetch('/api/rollups')
+              .then(r => r.json())
+              .then(data => {
+                if (data.error) {
+                  document.getElementById('perf-content').innerHTML = '<p class="no-positions">Error: ' + data.error + '</p>';
+                  return;
+                }
+                const r2 = data.rollups && data.rollups["2"];
+                const r5 = data.rollups && data.rollups["5"];
+                let html = '';
+                if (r2) html += renderRollup('Last 2 days', r2);
+                if (r5) html += renderRollup('Last 5 days', r5);
+                document.getElementById('perf-content').innerHTML = html || '<p class="no-positions">No rollup data yet</p>';
+              })
+              .catch(err => {
+                document.getElementById('perf-content').innerHTML = '<p class="no-positions">Error loading performance</p>';
+              });
+        }
         
         updateDashboard();
         setInterval(updateDashboard, 10000);
@@ -224,6 +323,7 @@ DASHBOARD_HTML = """
 """
 
 @app.route("/")
+@require_auth
 def index():
     return render_template_string(DASHBOARD_HTML)
 
@@ -237,6 +337,7 @@ def health():
     })
 
 @app.route("/api/positions")
+@require_auth
 def api_positions():
     try:
         if _alpaca_api is None:
@@ -280,6 +381,7 @@ def api_positions():
         })
 
 @app.route("/api/closed_positions")
+@require_auth
 def api_closed_positions():
     try:
         from pathlib import Path
@@ -295,6 +397,20 @@ def api_closed_positions():
         return jsonify({"closed_positions": closed[-50:]})
     except Exception as e:
         return jsonify({"closed_positions": [], "error": str(e)})
+
+@app.route("/api/rollups")
+@require_auth
+def api_rollups():
+    try:
+        from pathlib import Path
+        from learning_rollup import compute_rollup
+        repo = Path(".").resolve()
+        now_ts = int(time.time())
+        r2 = compute_rollup(repo, 2, now_ts=now_ts)
+        r5 = compute_rollup(repo, 5, now_ts=now_ts)
+        return jsonify({"rollups": {"2": r2, "5": r5}})
+    except Exception as e:
+        return jsonify({"error": str(e), "rollups": {}})
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
