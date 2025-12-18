@@ -433,3 +433,15 @@ def get_supervisor() -> HealthSupervisor:
     if _global_supervisor is None:
         _global_supervisor = HealthSupervisor()
     return _global_supervisor
+
+if __name__ == "__main__":
+    """Run heartbeat keeper as standalone daemon."""
+    supervisor = HealthSupervisor()
+    supervisor.start()
+    print("[HEARTBEAT-KEEPER] Started health monitoring daemon", flush=True)
+    try:
+        while True:
+            time.sleep(60)
+    except KeyboardInterrupt:
+        print("\n[HEARTBEAT-KEEPER] Shutting down...", flush=True)
+        supervisor.stop()

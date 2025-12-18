@@ -279,13 +279,25 @@ class UWFlowDaemon:
                 flow_data = self.client.get_option_flow(ticker, limit=100)
                 flow_normalized = self._normalize_flow_data(flow_data, ticker)
                 if flow_normalized:
-                    self._update_cache(ticker, {"flow": flow_normalized})
+                    # Write at top level (not nested in "flow") to match main.py expectations
+                    # main.py expects: cache[ticker]["sentiment"] and cache[ticker]["conviction"]
+                    self._update_cache(ticker, {
+                        "sentiment": flow_normalized.get("sentiment", "NEUTRAL"),
+                        "conviction": flow_normalized.get("conviction", 0.0),
+                        "total_premium": flow_normalized.get("total_premium", 0.0),
+                        "call_premium": flow_normalized.get("call_premium", 0.0),
+                        "put_premium": flow_normalized.get("put_premium", 0.0),
+                        "net_premium": flow_normalized.get("net_premium", 0.0),
+                        "trade_count": flow_normalized.get("trade_count", 0),
+                        "flow": flow_normalized  # Also keep nested for compatibility
+                    })
             
             # Poll dark pool
             if self.poller.should_poll("dark_pool_levels"):
                 dp_data = self.client.get_dark_pool_levels(ticker)
                 dp_normalized = self._normalize_dark_pool(dp_data)
                 if dp_normalized:
+                    # Write dark_pool data (nested is fine - main.py reads it as cache_data.get("dark_pool", {}))
                     self._update_cache(ticker, {"dark_pool": dp_normalized})
             
             # Poll greeks (less frequently)

@@ -48,6 +48,7 @@ SERVICES = [
         "delay": 0,
         "critical": False,
         "requires_secrets": True,
+        "one_shot": True,  # This script runs once and exits - don't restart
     },
     {
         "name": "heartbeat-keeper",
@@ -136,6 +137,18 @@ def start_service(service):
         env["PYTHONUNBUFFERED"] = "1"  # Ensure logs flush immediately for crash debugging
         if name == "trading-bot":
             env["API_PORT"] = "8081"
+        elif name == "dashboard":
+            # Check if port 5000 is already in use (proxy might be running)
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            port_5000_in_use = sock.connect_ex(('127.0.0.1', 5000)) == 0
+            sock.close()
+            if port_5000_in_use:
+                # Port 5000 is in use - likely proxy is running
+                # Dashboard should use 5001 (instance A) or check deployment state
+                env["PORT"] = "5001"
+                log(f"Port 5000 in use - dashboard will use port 5001")
+            # If port 5000 is free, dashboard can use it directly
         
         proc = subprocess.Popen(
             cmd,
@@ -331,6 +344,9 @@ def main():
             name = service["name"]
             # Skip services that require secrets if not available
             if service.get("requires_secrets", False) and not secrets_available:
+                continue
+            # Skip one-shot services (they exit intentionally)
+            if service.get("one_shot", False):
                 continue
             proc = processes.get(name)
             if proc:
