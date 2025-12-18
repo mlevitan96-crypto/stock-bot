@@ -4333,11 +4333,21 @@ def run_once():
             # CACHE MODE: Read all data from uw-daemon cache - NO API CALLS
             print(f"DEBUG: Using centralized UW cache ({len(uw_cache)} symbols)", flush=True)
             
-            # Build maps from cache data
+            # Build maps from cache data AND extract flow trades for clustering
             for ticker in Config.TICKERS:
                 cache_data = uw_cache.get(ticker, {})
                 if not cache_data or cache_data.get("simulated"):
                     continue
+                
+                # CRITICAL: Extract raw flow trades from cache for clustering
+                # Daemon stores raw trades in cache_data["flow_trades"]
+                flow_trades = cache_data.get("flow_trades", [])
+                if flow_trades:
+                    # Filter and add to all_trades for clustering
+                    for trade in flow_trades:
+                        # Apply base filter (premium, expiry, etc.)
+                        if base_filter(trade):
+                            all_trades.append(trade)
                 
                 # Extract data from cache for confirmation scoring
                 dp_data = cache_data.get("dark_pool", {})

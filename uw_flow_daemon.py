@@ -279,6 +279,8 @@ class UWFlowDaemon:
                 flow_data = self.client.get_option_flow(ticker, limit=100)
                 flow_normalized = self._normalize_flow_data(flow_data, ticker)
                 if flow_normalized:
+                    # CRITICAL: Store both aggregated summary AND raw trades
+                    # main.py needs raw trades for clustering, not just sentiment
                     # Write at top level (not nested in "flow") to match main.py expectations
                     # main.py expects: cache[ticker]["sentiment"] and cache[ticker]["conviction"]
                     self._update_cache(ticker, {
@@ -289,7 +291,8 @@ class UWFlowDaemon:
                         "put_premium": flow_normalized.get("put_premium", 0.0),
                         "net_premium": flow_normalized.get("net_premium", 0.0),
                         "trade_count": flow_normalized.get("trade_count", 0),
-                        "flow": flow_normalized  # Also keep nested for compatibility
+                        "flow": flow_normalized,  # Also keep nested for compatibility
+                        "flow_trades": flow_data  # CRITICAL: Store raw trades for clustering
                     })
             
             # Poll dark pool
