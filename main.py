@@ -4358,8 +4358,12 @@ def run_once():
                 # CRITICAL: Extract raw flow trades from cache for clustering
                 # Daemon stores raw API trades in cache_data["flow_trades"]
                 # We need to normalize them (same as UWClient.get_option_flow does)
-                flow_trades_raw = cache_data.get("flow_trades", [])
-                if flow_trades_raw:
+                flow_trades_raw = cache_data.get("flow_trades", None)
+                if flow_trades_raw is None:
+                    # Key doesn't exist - daemon hasn't polled this ticker yet
+                    print(f"DEBUG: No flow_trades key in cache for {ticker} (daemon not polled yet)", flush=True)
+                elif flow_trades_raw:
+                    # Key exists and has data
                     print(f"DEBUG: Found {len(flow_trades_raw)} raw trades for {ticker}", flush=True)
                     # Normalize raw API trades to match main.py's expected format
                     uw_client = UWClient()
@@ -4381,7 +4385,8 @@ def run_once():
                     if normalized_count > 0:
                         print(f"DEBUG: {ticker}: {normalized_count} normalized, {filtered_count} passed filter", flush=True)
                 else:
-                    print(f"DEBUG: No flow_trades in cache for {ticker}", flush=True)
+                    # Key exists but is empty array - API returned no trades
+                    print(f"DEBUG: flow_trades key exists for {ticker} but is empty (API returned 0 trades)", flush=True)
                 
                 # Extract data from cache for confirmation scoring
                 dp_data = cache_data.get("dark_pool", {})
