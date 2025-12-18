@@ -358,7 +358,10 @@ class UWFlowDaemon:
                 # Check if rate limited
                 if isinstance(flow_data, dict) and flow_data.get("_rate_limited"):
                     self._rate_limited = True
-                    return
+                    # GRACEFUL DEGRADATION: Don't clear existing cache when rate limited
+                    # Preserve old flow_trades so trading bot can use stale data
+                    print(f"[UW-DAEMON] Rate limited for {ticker} - preserving existing cache data", flush=True)
+                    return  # Skip update, keep old cache data
                 
                 if flow_data:
                     print(f"[UW-DAEMON] Polling {ticker}: got {len(flow_data)} raw trades", flush=True)
@@ -369,8 +372,33 @@ class UWFlowDaemon:
                 
                 # CRITICAL: ALWAYS store flow_trades, even if empty or normalization fails
                 # main.py needs to see the data (or lack thereof) to know what's happening
+                # BUT: If we have existing cache data and API returns empty, preserve old data for graceful degradation
+                existing_cache = {}
+                if CACHE_FILE.exists():
+                    try:
+                        existing_cache = read_json(CACHE_FILE, default={})
+                        existing_ticker_data = existing_cache.get(ticker, {})
+                        existing_flow_trades = existing_ticker_data.get("flow_trades", [])
+                        existing_last_update = existing_ticker_data.get("_last_update", 0)
+                    except:
+                        existing_flow_trades = []
+                        existing_last_update = 0
+                else:
+                    existing_flow_trades = []
+                    existing_last_update = 0
+                
+                # If API returned empty but we have existing trades < 2 hours old, preserve them
+                if not flow_data and existing_flow_trades:
+                    current_time = time.time()
+                    age_sec = current_time - existing_last_update if existing_last_update else float('inf')
+                    if age_sec < 2 * 3600:  # Less than 2 hours old
+                        print(f"[UW-DAEMON] API returned empty for {ticker}, preserving existing cache ({int(age_sec/60)} min old, {len(existing_flow_trades)} trades)", flush=True)
+                        flow_data = existing_flow_trades  # Use existing data
+                        # Re-normalize existing data
+                        flow_normalized = self._normalize_flow_data(flow_data, ticker)
+                
                 cache_update = {
-                    "flow_trades": flow_data if flow_data else []  # Always store, even if empty
+                    "flow_trades": flow_data if flow_data else []  # Store new data or preserve old
                 }
                 
                 if flow_normalized:
