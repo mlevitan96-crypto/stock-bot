@@ -993,6 +993,21 @@ class UWClient:
 
     def _get(self, path_or_url: str, params: dict = None) -> dict:
         url = path_or_url if path_or_url.startswith("http") else f"{self.base}{path_or_url}"
+        
+        # QUOTA TRACKING: Log all UW API calls for monitoring
+        quota_log = CacheFiles.UW_API_QUOTA
+        quota_log.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with quota_log.open("a") as f:
+                f.write(json.dumps({
+                    "ts": int(time.time()),
+                    "url": url,
+                    "params": params or {},
+                    "source": "UWClient"
+                }) + "\n")
+        except Exception:
+            pass  # Don't fail on quota logging
+        
         try:
             r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
             r.raise_for_status()
@@ -4345,37 +4360,27 @@ def run_once():
             
             log_event("data_source", "cache_mode", cache_symbols=len(uw_cache), api_calls=0)
         else:
-            # FALLBACK: Direct API calls only when cache is empty (rare/startup)
-            print("DEBUG: Cache empty, using direct API (fallback mode)", flush=True)
+            # FALLBACK: Cache empty - DO NOT make API calls (would exhaust quota)
+            # The UW daemon should populate the cache. If cache is empty, skip trading.
+            print("⚠️  WARNING: UW cache empty - daemon may not be running", flush=True)
+            print("⚠️  Skipping API calls to preserve quota - waiting for daemon to populate cache", flush=True)
+            log_event("uw_cache", "cache_empty_quota_protection", 
+                     action="skipping_api_calls", 
+                     reason="cache_unavailable_daemon_not_running",
+                     note="UW daemon should populate cache - main bot should never make direct API calls")
             
-            poll_top_net = _smart_poller.should_poll("top_net_impact")
-            poll_flow = _smart_poller.should_poll("option_flow")
+            # Do NOT make API calls - this would exhaust daily quota
+            # Instead, initialize empty maps and skip trading this cycle
+            poll_top_net = False
+            poll_flow = False
             
-            if poll_top_net:
-                try:
-                    top_net = uw.get_top_net_impact(limit=100)
-                    net_map = {x["ticker"]: x for x in top_net}
-                    _smart_poller.record_success("top_net_impact")
-                except Exception as e:
-                    log_event("uw_error", "top_net_impact_failed", error=str(e))
-                    _smart_poller.record_error("top_net_impact")
-            
-            print("DEBUG: Starting ticker loop (fallback)", flush=True)
+            # Initialize empty maps (will result in no clusters, which is correct)
             for ticker in Config.TICKERS:
-                if poll_flow:
-                    try:
-                        flow = uw.get_option_flow(ticker, limit=100)
-                        trades = [t for t in flow if base_filter(t)]
-                        all_trades.extend(trades)
-                    except Exception as e:
-                        log_event("uw_error", "flow_fetch_failed", ticker=ticker, error=str(e))
-                
                 gex_map[ticker] = {"gamma_regime": "unknown"}
                 dp_map[ticker] = []
                 vol_map[ticker] = {"realized_vol_20d": 0}
                 ovl_map[ticker] = []
-            
-            if poll_flow: _smart_poller.record_success("option_flow")
+                net_map[ticker] = {}
 
         audit_seg("run_once", "data_fetch_complete")
         print(f"DEBUG: Fetched data, clustering {len(all_trades)} trades", flush=True)

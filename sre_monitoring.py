@@ -135,43 +135,32 @@ class SREMonitoringEngine:
             except:
                 pass
         
-        # Try a test request (with timeout to avoid blocking)
-        try:
-            url = f"{self.uw_base}{endpoint}".replace("{ticker}", test_symbol).replace("{symbol}", test_symbol)
-            headers = {"Authorization": f"Bearer {self.uw_api_key}"}
-            
-            start_time = time.time()
-            response = requests.get(url, headers=headers, timeout=5, params={"limit": 1})
-            latency_ms = (time.time() - start_time) * 1000
-            
-            health.avg_latency_ms = latency_ms
-            
-            if response.status_code == 200:
+        # QUOTA OPTIMIZATION: Do NOT make test API calls - check cache freshness instead
+        # Making test API calls wastes quota. Instead, check if cache is being updated.
+        # Only check cache file freshness and error logs - no actual API calls.
+        cache_file = DATA_DIR / "uw_flow_cache.json"
+        if cache_file.exists():
+            cache_age = time.time() - cache_file.stat().st_mtime
+            if cache_age < 300:  # Cache updated in last 5 minutes
                 health.status = "healthy"
-                health.last_success_age_sec = 0
-                health.rate_limit_remaining = int(response.headers.get("X-RateLimit-Remaining", -1))
-            elif response.status_code == 429:
-                health.status = "rate_limited"
-                health.last_error = "Rate limit exceeded"
-            elif response.status_code == 401:
-                health.status = "auth_failed"
-                health.last_error = "Authentication failed"
+                health.last_success_age_sec = cache_age
+                health.avg_latency_ms = None  # Not measured (no API call to avoid quota waste)
+            elif cache_age < 600:  # Cache updated in last 10 minutes
+                health.status = "degraded"
+                health.last_success_age_sec = cache_age
             else:
-                health.status = "error"
-                health.last_error = f"HTTP {response.status_code}"
-                
-        except requests.exceptions.Timeout:
-            health.status = "timeout"
-            health.last_error = "Request timeout"
-        except requests.exceptions.ConnectionError:
-            health.status = "connection_error"
-            health.last_error = "Connection failed"
-        except Exception as e:
-            health.status = "error"
-            health.last_error = str(e)
+                health.status = "stale"
+                health.last_success_age_sec = cache_age
+                health.last_error = f"Cache stale ({int(cache_age)}s old)"
+        else:
+            health.status = "no_cache"
+            health.last_error = "Cache file does not exist"
         
+        # Calculate error rate from logs (no API call needed)
         if requests_1h > 0:
             health.error_rate_1h = errors_1h / requests_1h
+        else:
+            health.error_rate_1h = 0.0
         
         return health
     
