@@ -4349,11 +4349,23 @@ def run_once():
             # CACHE MODE: Read all data from uw-daemon cache - NO API CALLS
             print(f"DEBUG: Using centralized UW cache ({len(uw_cache)} symbols)", flush=True)
             
+            # GRACEFUL DEGRADATION: Track if we're using stale data
+            current_time = time.time()
+            stale_threshold = 2 * 3600  # 2 hours
+            using_stale_data = False
+            fresh_data_count = 0
+            stale_data_count = 0
+            
             # Build maps from cache data AND extract flow trades for clustering
             for ticker in Config.TICKERS:
                 cache_data = uw_cache.get(ticker, {})
                 if not cache_data or cache_data.get("simulated"):
                     continue
+                
+                # Check cache age for graceful degradation
+                last_update = cache_data.get("_last_update", 0)
+                age_sec = current_time - last_update if last_update else float('inf')
+                is_stale = age_sec > stale_threshold
                 
                 # CRITICAL: Extract raw flow trades from cache for clustering
                 # Daemon stores raw API trades in cache_data["flow_trades"]
@@ -4363,8 +4375,15 @@ def run_once():
                     # Key doesn't exist - daemon hasn't polled this ticker yet
                     print(f"DEBUG: No flow_trades key in cache for {ticker} (daemon not polled yet)", flush=True)
                 elif flow_trades_raw:
-                    # Key exists and has data
-                    print(f"DEBUG: Found {len(flow_trades_raw)} raw trades for {ticker}", flush=True)
+                    # Key exists and has data - use it even if stale (graceful degradation)
+                    if is_stale:
+                        using_stale_data = True
+                        stale_data_count += 1
+                        print(f"DEBUG: Using STALE cache for {ticker} ({int(age_sec/60)} min old) - {len(flow_trades_raw)} trades", flush=True)
+                    else:
+                        fresh_data_count += 1
+                        print(f"DEBUG: Found {len(flow_trades_raw)} raw trades for {ticker}", flush=True)
+                    
                     # Normalize raw API trades to match main.py's expected format
                     uw_client = UWClient()
                     normalized_count = 0
@@ -4385,8 +4404,12 @@ def run_once():
                     if normalized_count > 0:
                         print(f"DEBUG: {ticker}: {normalized_count} normalized, {filtered_count} passed filter", flush=True)
                 else:
-                    # Key exists but is empty array - API returned no trades
-                    print(f"DEBUG: flow_trades key exists for {ticker} but is empty (API returned 0 trades)", flush=True)
+                    # Key exists but is empty array - API returned no trades (likely rate limited)
+                    # Check if we have older cache data we can use
+                    if is_stale:
+                        print(f"DEBUG: flow_trades empty for {ticker} (stale cache, {int(age_sec/60)} min old)", flush=True)
+                    else:
+                        print(f"DEBUG: flow_trades key exists for {ticker} but is empty (API returned 0 trades)", flush=True)
                 
                 # Extract data from cache for confirmation scoring
                 dp_data = cache_data.get("dark_pool", {})
@@ -4407,7 +4430,16 @@ def run_once():
                 
                 ovl_map[ticker] = []
             
-            log_event("data_source", "cache_mode", cache_symbols=len(uw_cache), api_calls=0)
+            # Log graceful degradation status
+            if using_stale_data:
+                print(f"✅ GRACEFUL DEGRADATION: Using stale cache data ({stale_data_count} stale, {fresh_data_count} fresh)", flush=True)
+                log_event("uw_cache", "graceful_degradation_active", 
+                         stale_tickers=stale_data_count,
+                         fresh_tickers=fresh_data_count,
+                         note="Trading continues with cached data < 2 hours old")
+            
+            log_event("data_source", "cache_mode", cache_symbols=len(uw_cache), api_calls=0, 
+                     stale_data_used=using_stale_data, stale_count=stale_data_count, fresh_count=fresh_data_count)
         else:
             # GRACEFUL DEGRADATION: Cache empty or daemon not running
             # Check if we have ANY cached data (even if stale) to use
