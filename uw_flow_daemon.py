@@ -283,13 +283,20 @@ class UWFlowDaemon:
                 flow_data = self.client.get_option_flow(ticker, limit=100)
                 if flow_data:
                     print(f"[UW-DAEMON] Polling {ticker}: got {len(flow_data)} raw trades", flush=True)
+                else:
+                    print(f"[UW-DAEMON] Polling {ticker}: API returned 0 trades", flush=True)
+                
                 flow_normalized = self._normalize_flow_data(flow_data, ticker)
+                
+                # CRITICAL: ALWAYS store flow_trades, even if empty or normalization fails
+                # main.py needs to see the data (or lack thereof) to know what's happening
+                cache_update = {
+                    "flow_trades": flow_data if flow_data else []  # Always store, even if empty
+                }
+                
                 if flow_normalized:
-                    # CRITICAL: Store both aggregated summary AND raw trades
-                    # main.py needs raw trades for clustering, not just sentiment
-                    # Write at top level (not nested in "flow") to match main.py expectations
-                    # main.py expects: cache[ticker]["sentiment"] and cache[ticker]["conviction"]
-                    self._update_cache(ticker, {
+                    # Add normalized summary data
+                    cache_update.update({
                         "sentiment": flow_normalized.get("sentiment", "NEUTRAL"),
                         "conviction": flow_normalized.get("conviction", 0.0),
                         "total_premium": flow_normalized.get("total_premium", 0.0),
@@ -298,14 +305,21 @@ class UWFlowDaemon:
                         "net_premium": flow_normalized.get("net_premium", 0.0),
                         "trade_count": flow_normalized.get("trade_count", 0),
                         "flow": flow_normalized,  # Also keep nested for compatibility
-                        "flow_trades": flow_data  # CRITICAL: Store raw trades for clustering
                     })
-                    if flow_data:
-                        print(f"[UW-DAEMON] Stored {len(flow_data)} raw trades in cache for {ticker}", flush=True)
-                elif flow_data:
-                    # Even if normalization fails, store raw trades
-                    print(f"[UW-DAEMON] Normalization returned empty but have {len(flow_data)} trades - storing raw", flush=True)
-                    self._update_cache(ticker, {"flow_trades": flow_data})
+                else:
+                    # Even if normalization fails, store basic info
+                    cache_update.update({
+                        "sentiment": "NEUTRAL",
+                        "conviction": 0.0,
+                        "trade_count": len(flow_data) if flow_data else 0
+                    })
+                
+                # Always update cache (even if empty - main.py needs to know)
+                self._update_cache(ticker, cache_update)
+                if flow_data:
+                    print(f"[UW-DAEMON] Stored {len(flow_data)} raw trades in cache for {ticker}", flush=True)
+                else:
+                    print(f"[UW-DAEMON] Stored empty flow_trades for {ticker} (API returned no data)", flush=True)
             
             # Poll dark pool
             if self.poller.should_poll("dark_pool_levels"):
