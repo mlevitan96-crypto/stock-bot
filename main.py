@@ -4409,27 +4409,75 @@ def run_once():
             
             log_event("data_source", "cache_mode", cache_symbols=len(uw_cache), api_calls=0)
         else:
-            # FALLBACK: Cache empty - DO NOT make API calls (would exhaust quota)
-            # The UW daemon should populate the cache. If cache is empty, skip trading.
-            print("⚠️  WARNING: UW cache empty - daemon may not be running", flush=True)
-            print("⚠️  Skipping API calls to preserve quota - waiting for daemon to populate cache", flush=True)
-            log_event("uw_cache", "cache_empty_quota_protection", 
-                     action="skipping_api_calls", 
-                     reason="cache_unavailable_daemon_not_running",
-                     note="UW daemon should populate cache - main bot should never make direct API calls")
+            # GRACEFUL DEGRADATION: Cache empty or daemon not running
+            # Check if we have ANY cached data (even if stale) to use
+            print("⚠️  WARNING: UW cache empty or unavailable", flush=True)
             
-            # Do NOT make API calls - this would exhaust daily quota
-            # Instead, initialize empty maps and skip trading this cycle
-            poll_top_net = False
-            poll_flow = False
+            # Try to use stale cache data if available (within 2 hours)
+            stale_cache_used = False
+            if uw_cache:
+                current_time = time.time()
+                stale_threshold = 2 * 3600  # 2 hours
+                
+                for ticker in Config.TICKERS:
+                    cache_data = uw_cache.get(ticker, {})
+                    if cache_data and not cache_data.get("simulated"):
+                        last_update = cache_data.get("_last_update", 0)
+                        age_sec = current_time - last_update if last_update else float('inf')
+                        
+                        # Use stale data if less than 2 hours old
+                        if age_sec < stale_threshold:
+                            stale_cache_used = True
+                            print(f"✅ Using stale cache for {ticker} (age: {int(age_sec/60)} min)", flush=True)
+                            
+                            # Extract flow trades from stale cache
+                            flow_trades_raw = cache_data.get("flow_trades", [])
+                            if flow_trades_raw:
+                                uw_client = UWClient()
+                                for raw_trade in flow_trades_raw:
+                                    try:
+                                        normalized_trade = uw_client._normalize_flow_trade(raw_trade)
+                                        if base_filter(normalized_trade):
+                                            all_trades.append(normalized_trade)
+                                    except Exception as e:
+                                        continue
+                            
+                            # Use cached sentiment/conviction data
+                            dp_data = cache_data.get("dark_pool", {})
+                            dp_map[ticker] = [{"off_lit_volume": dp_data.get("total_premium", 0)}]
+                            net_map[ticker] = {
+                                "net_premium": cache_data.get("net_premium", 0),
+                                "net_call_premium": cache_data.get("call_premium", 0)
+                            }
+                            sentiment = cache_data.get("sentiment", "NEUTRAL")
+                            gex_map[ticker] = {"gamma_regime": "negative" if sentiment == "BEARISH" else "neutral"}
+                            vol_map[ticker] = {"realized_vol_20d": 0.2}
+                            ovl_map[ticker] = []
+                
+                if stale_cache_used:
+                    print("✅ Using stale cache data (graceful degradation mode)", flush=True)
+                    log_event("uw_cache", "using_stale_cache", 
+                             action="graceful_degradation",
+                             note="Using cached data < 2 hours old due to API rate limit or daemon unavailable")
+                else:
+                    print("⚠️  No usable stale cache - skipping trading this cycle", flush=True)
+                    log_event("uw_cache", "cache_empty_no_stale", 
+                             action="skipping_trading",
+                             reason="no_cache_data_available")
             
-            # Initialize empty maps (will result in no clusters, which is correct)
-            for ticker in Config.TICKERS:
-                gex_map[ticker] = {"gamma_regime": "unknown"}
-                dp_map[ticker] = []
-                vol_map[ticker] = {"realized_vol_20d": 0}
-                ovl_map[ticker] = []
-                net_map[ticker] = {}
+            # If no stale cache available, skip trading
+            if not stale_cache_used:
+                print("⚠️  Skipping API calls to preserve quota - no usable cache data", flush=True)
+                poll_top_net = False
+                poll_flow = False
+                
+                # Initialize empty maps (will result in no clusters)
+                for ticker in Config.TICKERS:
+                    gex_map[ticker] = {"gamma_regime": "unknown"}
+                    dp_map[ticker] = []
+                    vol_map[ticker] = {"realized_vol_20d": 0}
+                    ovl_map[ticker] = []
+                    net_map[ticker] = {}
 
         audit_seg("run_once", "data_fetch_complete")
         print(f"DEBUG: Fetched data, clustering {len(all_trades)} trades", flush=True)
