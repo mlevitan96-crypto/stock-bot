@@ -13,6 +13,13 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
+# Load .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not required
+
 processes = {}
 shutdown_flag = threading.Event()
 start_time = time.time()
@@ -138,17 +145,27 @@ def start_service(service):
         if name == "trading-bot":
             env["API_PORT"] = "8081"
         elif name == "dashboard":
-            # Check if port 5000 is already in use (proxy might be running)
+            # Check if ports are in use and find an available one
             import socket
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            port_5000_in_use = sock.connect_ex(('127.0.0.1', 5000)) == 0
-            sock.close()
-            if port_5000_in_use:
-                # Port 5000 is in use - likely proxy is running
-                # Dashboard should use 5001 (instance A) or check deployment state
-                env["PORT"] = "5001"
-                log(f"Port 5000 in use - dashboard will use port 5001")
-            # If port 5000 is free, dashboard can use it directly
+            for port in [5000, 5001, 5002, 5003]:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(0.1)
+                result = sock.connect_ex(('127.0.0.1', port))
+                sock.close()
+                if result != 0:  # Port is free
+                    env["PORT"] = str(port)
+                    log(f"Dashboard will use port {port}")
+                    break
+            else:
+                # All ports in use - kill processes on 5000-5003
+                log(f"WARNING: All ports 5000-5003 in use, attempting to free port 5002")
+                import subprocess
+                try:
+                    subprocess.run(["fuser", "-k", "5002/tcp"], stderr=subprocess.DEVNULL, timeout=2)
+                    time.sleep(1)
+                except:
+                    pass
+                env["PORT"] = "5002"
         
         proc = subprocess.Popen(
             cmd,
