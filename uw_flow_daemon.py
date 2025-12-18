@@ -243,19 +243,6 @@ class UWFlowDaemon:
         print(f"\n[UW-DAEMON] Received signal {signum}, shutting down...", flush=True)
         self.running = False
     
-    def _is_market_hours(self) -> bool:
-        """Check if currently in trading hours (9:30 AM - 4:00 PM ET)."""
-        try:
-            import pytz
-            et = pytz.timezone('US/Eastern')
-            now_et = datetime.now(et)
-            hour_min = now_et.hour * 60 + now_et.minute
-            market_open = 9 * 60 + 30  # 9:30 AM
-            market_close = 16 * 60      # 4:00 PM
-            return market_open <= hour_min < market_close
-        except:
-            return True  # Default to allowing polls if timezone check fails
-    
     def _normalize_flow_data(self, flow_data: List[Dict], ticker: str) -> Dict:
         """Normalize flow data into cache format."""
         if not flow_data:
