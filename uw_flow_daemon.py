@@ -77,6 +77,7 @@ class UWClient:
             if r.status_code == 429:
                 error_data = r.json() if r.content else {}
                 print(f"[UW-DAEMON] ❌ RATE LIMITED (429): {error_data.get('message', 'Daily limit hit')}", flush=True)
+                print(f"[UW-DAEMON] ⚠️  Stopping polling until limit resets (8PM EST)", flush=True)
                 append_jsonl(CacheFiles.UW_FLOW_CACHE_LOG, {
                     "event": "UW_API_RATE_LIMITED",
                     "url": url,
@@ -86,7 +87,9 @@ class UWClient:
                     "message": error_data.get("message", ""),
                     "ts": int(time.time())
                 })
-                return {"data": []}
+                # Set a flag to stop polling for a while
+                # The daemon will continue running but won't make API calls
+                return {"data": [], "_rate_limited": True}
             
             r.raise_for_status()
             return r.json()
@@ -140,15 +143,23 @@ class SmartPoller:
     
     def __init__(self):
         self.state_file = Path("state/smart_poller.json")
-        # CRITICAL: Reduced intervals to stay under 15,000/day limit
-        # With 53 tickers, polling every 60s = 53 calls/min = 3,180 calls/hour
-        # Over 6.5 hours = ~20,000 calls (EXCEEDS LIMIT!)
-        # New strategy: Poll less frequently, prioritize active tickers
+        # OPTIMIZED: Maximize API usage while staying under 15,000/day limit
+        # Market hours: 9:30 AM - 4:00 PM ET = 6.5 hours = 390 minutes
+        # Target: Use ~14,000 calls (93% of limit) to leave buffer
+        #
+        # Calculation:
+        # - Option flow (most critical): 53 tickers × (390/2.5) = 8,268 calls
+        # - Dark pool: 53 tickers × (390/10) = 2,067 calls  
+        # - Greeks: 53 tickers × (390/30) = 689 calls
+        # - Top net impact (market-wide): 390/5 = 78 calls
+        # Total: 8,268 + 2,067 + 689 + 78 = 11,102 calls (74% of limit)
+        #
+        # We can increase frequency if needed, but this is safe
         self.intervals = {
-            "option_flow": 300,       # 5 min: Reduced from 60s to stay under limit
-            "top_net_impact": 600,    # 10 min: Reduced from 5 min
-            "greek_exposure": 1800,   # 30 min: Reduced from 15 min
-            "dark_pool_levels": 300,  # 5 min: Reduced from 2 min
+            "option_flow": 150,       # 2.5 min: Most critical data, poll frequently
+            "dark_pool_levels": 600,  # 10 min: Important but less time-sensitive
+            "greek_exposure": 1800,   # 30 min: Changes slowly, infrequent polling OK
+            "top_net_impact": 300,    # 5 min: Market-wide, poll moderately
         }
         self.last_call = self._load_state()
     
@@ -175,7 +186,15 @@ class SmartPoller:
         """Check if enough time has passed since last call."""
         now = time.time()
         last = self.last_call.get(endpoint, 0)
-        interval = self.intervals.get(endpoint, 60)
+        base_interval = self.intervals.get(endpoint, 60)
+        
+        # OPTIMIZATION: During market hours, use normal intervals
+        # Outside market hours, use longer intervals to conserve quota
+        if self._is_market_hours():
+            interval = base_interval
+        else:
+            # Outside market hours: poll 3x less frequently (conserve quota)
+            interval = base_interval * 3
         
         if now - last < interval:
             return False
@@ -184,6 +203,19 @@ class SmartPoller:
         self.last_call[endpoint] = now
         self._save_state()
         return True
+    
+    def _is_market_hours(self) -> bool:
+        """Check if currently in trading hours (9:30 AM - 4:00 PM ET)."""
+        try:
+            import pytz
+            et = pytz.timezone('US/Eastern')
+            now_et = datetime.now(et)
+            hour_min = now_et.hour * 60 + now_et.minute
+            market_open = 9 * 60 + 30  # 9:30 AM
+            market_close = 16 * 60      # 4:00 PM
+            return market_open <= hour_min < market_close
+        except:
+            return True  # Default to allowing polls if timezone check fails
 
 
 class UWFlowDaemon:
@@ -192,6 +224,7 @@ class UWFlowDaemon:
     def __init__(self):
         self.client = UWClient()
         self.poller = SmartPoller()
+        self._rate_limited = False  # Track if we've hit rate limit
         self.tickers = os.getenv("TICKERS", 
             "AAPL,MSFT,GOOGL,AMZN,META,NVDA,TSLA,AMD,NFLX,INTC,"
             "SPY,QQQ,IWM,DIA,XLF,XLE,XLK,XLV,XLI,XLP,"
@@ -314,9 +347,20 @@ class UWFlowDaemon:
     def _poll_ticker(self, ticker: str):
         """Poll all endpoints for a ticker."""
         try:
+            # Check if we're rate limited (skip polling if so)
+            # Rate limit resets at 8PM EST, so we'll resume then
+            if hasattr(self, '_rate_limited') and self._rate_limited:
+                return
+            
             # Poll option flow
             if self.poller.should_poll("option_flow"):
                 flow_data = self.client.get_option_flow(ticker, limit=100)
+                
+                # Check if rate limited
+                if isinstance(flow_data, dict) and flow_data.get("_rate_limited"):
+                    self._rate_limited = True
+                    return
+                
                 if flow_data:
                     print(f"[UW-DAEMON] Polling {ticker}: got {len(flow_data)} raw trades", flush=True)
                 else:
@@ -399,19 +443,35 @@ class UWFlowDaemon:
                     except Exception as e:
                         print(f"[UW-DAEMON] Error polling top_net_impact: {e}", flush=True)
                 
-                # Poll each ticker (with longer delay to respect rate limits)
+                # Poll each ticker (optimized delay for rate limit efficiency)
                 for ticker in self.tickers:
                     if not self.running:
                         break
                     self._poll_ticker(ticker)
-                    time.sleep(2.0)  # Increased delay: 2s between tickers to reduce rate limit pressure
+                    # 1.5s delay: balances speed with rate limit safety
+                    # With 53 tickers: ~80 seconds per full cycle at 1.5s delay
+                    time.sleep(1.5)
                 
                 # Log cycle completion
                 if cycle % 10 == 0:
                     print(f"[UW-DAEMON] Completed {cycle} cycles", flush=True)
                 
                 # Sleep before next cycle
-                time.sleep(30)  # Check every 30 seconds
+                # If rate limited, sleep longer (check every 5 minutes for reset)
+                if self._rate_limited:
+                    time.sleep(300)  # 5 minutes
+                    # Check if it's past 8PM EST (limit reset time)
+                    try:
+                        import pytz
+                        et = pytz.timezone('US/Eastern')
+                        now_et = datetime.now(et)
+                        if now_et.hour >= 20:  # 8PM or later
+                            print(f"[UW-DAEMON] Limit should have reset, resuming polling...", flush=True)
+                            self._rate_limited = False
+                    except:
+                        pass
+                else:
+                    time.sleep(30)  # Normal: Check every 30 seconds
             
             except KeyboardInterrupt:
                 break
