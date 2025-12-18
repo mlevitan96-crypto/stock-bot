@@ -30,7 +30,7 @@ SERVICES = [
     },
     {
         "name": "uw-daemon",
-        "cmd": ["python", "uw_integration_full.py"],
+        "cmd": ["python", "uw_flow_daemon.py"],
         "delay": 0,
         "critical": True,
         "requires_secrets": True,  # Needs UW_API_KEY
