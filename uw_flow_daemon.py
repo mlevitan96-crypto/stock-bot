@@ -343,9 +343,12 @@ class UWFlowDaemon:
     def _poll_ticker(self, ticker: str):
         """Poll all endpoints for a ticker."""
         try:
-            # Check if we're rate limited (skip polling if so)
-            # Rate limit resets at 8PM EST, so we'll resume then
+            # Check if we're rate limited
+            # If rate limited, we skip NEW polling but keep existing cache data
+            # This allows trading bot to use stale cache (graceful degradation)
             if hasattr(self, '_rate_limited') and self._rate_limited:
+                # Don't make new API calls, but don't clear existing cache either
+                # Trading bot can use stale data if available
                 return
             
             # Poll option flow
@@ -455,6 +458,9 @@ class UWFlowDaemon:
                 # Sleep before next cycle
                 # If rate limited, sleep longer (check every 5 minutes for reset)
                 if self._rate_limited:
+                    # Log status periodically so user knows system is still monitoring
+                    if cycle % 12 == 0:  # Every 12 cycles = every hour when rate limited
+                        print(f"[UW-DAEMON] ⏳ Rate limited - monitoring for reset (8PM EST). Cache data preserved for graceful degradation.", flush=True)
                     time.sleep(300)  # 5 minutes
                     # Check if it's past 8PM EST (limit reset time)
                     try:
@@ -462,7 +468,7 @@ class UWFlowDaemon:
                         et = pytz.timezone('US/Eastern')
                         now_et = datetime.now(et)
                         if now_et.hour >= 20:  # 8PM or later
-                            print(f"[UW-DAEMON] Limit should have reset, resuming polling...", flush=True)
+                            print(f"[UW-DAEMON] ✅ Limit should have reset, resuming polling...", flush=True)
                             self._rate_limited = False
                     except:
                         pass
