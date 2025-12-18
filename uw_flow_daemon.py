@@ -57,6 +57,37 @@ class UWClient:
         
         try:
             r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
+            
+            # Check rate limit headers
+            daily_count = r.headers.get("x-uw-daily-req-count")
+            daily_limit = r.headers.get("x-uw-token-req-limit")
+            
+            if daily_count and daily_limit:
+                count = int(daily_count)
+                limit = int(daily_limit)
+                pct = (count / limit * 100) if limit > 0 else 0
+                
+                # Log if we're getting close to limit
+                if pct > 75:
+                    print(f"[UW-DAEMON] ⚠️  Rate limit warning: {count}/{limit} ({pct:.1f}%)", flush=True)
+                elif pct > 90:
+                    print(f"[UW-DAEMON] 🚨 Rate limit critical: {count}/{limit} ({pct:.1f}%)", flush=True)
+            
+            # Check for 429 (rate limited)
+            if r.status_code == 429:
+                error_data = r.json() if r.content else {}
+                print(f"[UW-DAEMON] ❌ RATE LIMITED (429): {error_data.get('message', 'Daily limit hit')}", flush=True)
+                append_jsonl(CacheFiles.UW_FLOW_CACHE_LOG, {
+                    "event": "UW_API_RATE_LIMITED",
+                    "url": url,
+                    "status": 429,
+                    "daily_count": daily_count,
+                    "daily_limit": daily_limit,
+                    "message": error_data.get("message", ""),
+                    "ts": int(time.time())
+                })
+                return {"data": []}
+            
             r.raise_for_status()
             return r.json()
         except requests.exceptions.HTTPError as e:
@@ -64,6 +95,7 @@ class UWClient:
                 "event": "UW_API_ERROR",
                 "url": url,
                 "error": str(e),
+                "status_code": getattr(e.response, 'status_code', None),
                 "ts": int(time.time())
             })
             return {"data": []}
@@ -108,11 +140,15 @@ class SmartPoller:
     
     def __init__(self):
         self.state_file = Path("state/smart_poller.json")
+        # CRITICAL: Reduced intervals to stay under 15,000/day limit
+        # With 53 tickers, polling every 60s = 53 calls/min = 3,180 calls/hour
+        # Over 6.5 hours = ~20,000 calls (EXCEEDS LIMIT!)
+        # New strategy: Poll less frequently, prioritize active tickers
         self.intervals = {
-            "option_flow": 60,        # 1 min: Real-time institutional trades
-            "top_net_impact": 300,    # 5 min: Aggregated net premium
-            "greek_exposure": 900,    # 15 min: Gamma exposure
-            "dark_pool_levels": 120,  # 2 min: Block trades
+            "option_flow": 300,       # 5 min: Reduced from 60s to stay under limit
+            "top_net_impact": 600,    # 10 min: Reduced from 5 min
+            "greek_exposure": 1800,   # 30 min: Reduced from 15 min
+            "dark_pool_levels": 300,  # 5 min: Reduced from 2 min
         }
         self.last_call = self._load_state()
     
@@ -363,12 +399,12 @@ class UWFlowDaemon:
                     except Exception as e:
                         print(f"[UW-DAEMON] Error polling top_net_impact: {e}", flush=True)
                 
-                # Poll each ticker
+                # Poll each ticker (with longer delay to respect rate limits)
                 for ticker in self.tickers:
                     if not self.running:
                         break
                     self._poll_ticker(ticker)
-                    time.sleep(0.5)  # Small delay between tickers to avoid rate limits
+                    time.sleep(2.0)  # Increased delay: 2s between tickers to reduce rate limit pressure
                 
                 # Log cycle completion
                 if cycle % 10 == 0:
