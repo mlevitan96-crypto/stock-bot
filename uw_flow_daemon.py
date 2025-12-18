@@ -91,6 +91,15 @@ class UWClient:
                 # The daemon will continue running but won't make API calls
                 return {"data": [], "_rate_limited": True}
             
+            # Log non-200 responses for debugging
+            if r.status_code != 200:
+                print(f"[UW-DAEMON] ⚠️  API returned status {r.status_code} for {url}", flush=True)
+                try:
+                    error_text = r.text[:200] if r.text else "No response body"
+                    print(f"[UW-DAEMON] Response: {error_text}", flush=True)
+                except:
+                    pass
+            
             r.raise_for_status()
             return r.json()
         except requests.exceptions.HTTPError as e:

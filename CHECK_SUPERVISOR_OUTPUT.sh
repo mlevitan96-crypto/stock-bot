@@ -68,6 +68,11 @@ fi
 echo ""
 
 echo "5. Test API endpoint format directly..."
+# Load .env if it exists
+if [ -f ".env" ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
 if [ -n "$UW_API_KEY" ]; then
     echo "   Testing flow-alerts endpoint with symbol=AAPL..."
     response=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
