@@ -327,6 +327,26 @@ class UWFlowDaemon:
         if ticker not in cache:
             cache[ticker] = {}
         
+        # GRACEFUL DEGRADATION: Preserve existing flow_trades if new data is empty
+        # This allows trading bot to continue using stale data when API is rate limited
+        existing_flow_trades = cache[ticker].get("flow_trades", [])
+        new_flow_trades = data.get("flow_trades", [])
+        
+        # If new data is empty but we have existing trades < 2 hours old, preserve them
+        if not new_flow_trades and existing_flow_trades:
+            existing_last_update = cache[ticker].get("_last_update", 0)
+            current_time = time.time()
+            age_sec = current_time - existing_last_update if existing_last_update else float('inf')
+            
+            if age_sec < 2 * 3600:  # Less than 2 hours old
+                print(f"[UW-DAEMON] Preserving existing flow_trades for {ticker} ({int(age_sec/60)} min old, {len(existing_flow_trades)} trades)", flush=True)
+                data["flow_trades"] = existing_flow_trades  # Preserve old trades
+                # Also preserve old sentiment/conviction if new normalization failed
+                if not data.get("sentiment") and cache[ticker].get("sentiment"):
+                    data["sentiment"] = cache[ticker]["sentiment"]
+                if not data.get("conviction") and cache[ticker].get("conviction"):
+                    data["conviction"] = cache[ticker]["conviction"]
+        
         cache[ticker].update(data)
         cache[ticker]["_last_update"] = int(time.time())
         
