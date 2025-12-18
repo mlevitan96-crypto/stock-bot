@@ -5,7 +5,7 @@ log_location: logs/process-compose.log
 
 processes:
   uw-daemon:
-    command: python uw_integration_full.py
+    command: python uw_flow_daemon.py
     availability:
       restart: always
       backoff_seconds: 10
@@ -15,14 +15,14 @@ processes:
       period_seconds: 60
       timeout_seconds: 10
       exec:
-        command: "pgrep -f 'python uw_integration_full.py' > /dev/null"
+        command: "pgrep -f 'python uw_flow_daemon.py' > /dev/null"
     liveness_probe:
       initial_delay_seconds: 60
       period_seconds: 120
       timeout_seconds: 10
       failure_threshold: 3
       exec:
-        command: "pgrep -f 'python uw_integration_full.py' > /dev/null"
+        command: "pgrep -f 'python uw_flow_daemon.py' > /dev/null"
     log_location: logs/uw-daemon-pc.log
 
   trading-bot:
