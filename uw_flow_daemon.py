@@ -442,11 +442,17 @@ class UWFlowDaemon:
                     })
                 
                 # Always update cache (even if empty - main.py needs to know)
+                # _update_cache will preserve existing data if new is empty (graceful degradation)
                 self._update_cache(ticker, cache_update)
-                if flow_data:
-                    print(f"[UW-DAEMON] Stored {len(flow_data)} raw trades in cache for {ticker}", flush=True)
+                
+                # Check what was actually stored (may have preserved old data)
+                final_cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
+                final_trades = final_cache.get(ticker, {}).get("flow_trades", [])
+                
+                if final_trades:
+                    print(f"[UW-DAEMON] Cache for {ticker}: {len(final_trades)} trades stored", flush=True)
                 else:
-                    print(f"[UW-DAEMON] Stored empty flow_trades for {ticker} (API returned no data)", flush=True)
+                    print(f"[UW-DAEMON] Cache for {ticker}: empty (no data available)", flush=True)
             
             # Poll dark pool
             if self.poller.should_poll("dark_pool_levels"):
