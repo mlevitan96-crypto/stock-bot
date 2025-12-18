@@ -133,9 +133,13 @@ def main():
     
     # Save detailed results
     output_file = Path("data/uw_endpoint_discovery.json")
-    output_file.parent.mkdir(exist_ok=True)
-    with output_file.open("w") as f:
-        json.dump(results, f, indent=2)
+    output_file.parent.mkdir(parents=True, exist_ok=True)  # Create parent dirs if needed
+    try:
+        with output_file.open("w") as f:
+            json.dump(results, f, indent=2)
+    except Exception as e:
+        print(f"\n⚠️  Could not save results file: {e}")
+        print(f"   Results are displayed above")
     
     print(f"\n📄 Detailed results saved to: {output_file}")
     print()
