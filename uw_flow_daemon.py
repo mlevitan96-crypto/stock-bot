@@ -193,8 +193,9 @@ class UWFlowDaemon:
             return {}
         
         # Calculate sentiment and conviction from flow
-        total_premium = sum(float(t.get("premium", 0) or 0) for t in flow_data)
-        call_premium = sum(float(t.get("premium", 0) or 0) for t in flow_data 
+        # API may return "premium" or "total_premium" - try both
+        total_premium = sum(float(t.get("total_premium") or t.get("premium") or 0) for t in flow_data)
+        call_premium = sum(float(t.get("total_premium") or t.get("premium") or 0) for t in flow_data 
                           if t.get("type", "").upper() in ("CALL", "C"))
         put_premium = total_premium - call_premium
         
@@ -379,4 +380,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
