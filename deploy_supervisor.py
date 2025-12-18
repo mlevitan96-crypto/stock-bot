@@ -159,7 +159,6 @@ def start_service(service):
             else:
                 # All ports in use - kill processes on 5000-5003
                 log(f"WARNING: All ports 5000-5003 in use, attempting to free port 5002")
-                import subprocess
                 try:
                     subprocess.run(["fuser", "-k", "5002/tcp"], stderr=subprocess.DEVNULL, timeout=2)
                     time.sleep(1)
