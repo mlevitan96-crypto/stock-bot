@@ -76,24 +76,22 @@ fi
 echo ""
 
 echo "5. Check for missing files..."
-missing_files=()
+missing_count=0
 if [ ! -f "data/uw_flow_cache.json" ]; then
-    missing_files+=("data/uw_flow_cache.json")
+    echo "   ❌ Missing: data/uw_flow_cache.json"
+    missing_count=$((missing_count + 1))
 fi
 if [ ! -f "uw_flow_daemon.py" ]; then
-    missing_files+=("uw_flow_daemon.py")
+    echo "   ❌ Missing: uw_flow_daemon.py"
+    missing_count=$((missing_count + 1))
 fi
 if [ ! -f "test_uw_endpoints.py" ]; then
-    missing_files+=("test_uw_endpoints.py")
+    echo "   ❌ Missing: test_uw_endpoints.py"
+    missing_count=$((missing_count + 1))
 fi
 
-if [ ${#missing_files[@]} -eq 0 ]; then
+if [ $missing_count -eq 0 ]; then
     echo "   ✅ All expected files exist"
-else
-    echo "   ❌ Missing files:"
-    for f in "${missing_files[@]}"; do
-        echo "     - $f"
-    fi
 fi
 echo ""
 
