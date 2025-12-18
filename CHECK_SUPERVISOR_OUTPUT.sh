@@ -58,8 +58,8 @@ for line in sys.stdin:
 "
     
     # Check for 429s
-    rate_limited=$(tail -20 data/uw_api_quota.jsonl | grep -c "429" || echo "0")
-    if [ "$rate_limited" -gt 0 ]; then
+    rate_limited=$(tail -20 data/uw_api_quota.jsonl 2>/dev/null | grep -c "429" || echo "0")
+    if [ "$rate_limited" != "0" ] && [ "$rate_limited" -gt 0 ] 2>/dev/null; then
         echo "   ⚠️  Found rate limit (429) errors - limit resets at 8PM EST"
     fi
 else
