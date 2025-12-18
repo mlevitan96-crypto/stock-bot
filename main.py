@@ -990,6 +990,22 @@ class UWClient:
         self.api_key = api_key or Config.UW_API_KEY
         self.base = "https://api.unusualwhales.com"
         self.headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+    
+    def _to_iso(self, ts):
+        """Convert timestamp to ISO format."""
+        if ts is None:
+            from datetime import datetime
+            return datetime.utcnow().isoformat() + "Z"
+        if isinstance(ts, str):
+            return ts
+        try:
+            from datetime import datetime
+            if isinstance(ts, (int, float)):
+                return datetime.fromtimestamp(ts).isoformat() + "Z"
+        except:
+            pass
+        from datetime import datetime
+        return datetime.utcnow().isoformat() + "Z"
 
     def _get(self, path_or_url: str, params: dict = None) -> dict:
         url = path_or_url if path_or_url.startswith("http") else f"{self.base}{path_or_url}"
@@ -4340,14 +4356,32 @@ def run_once():
                     continue
                 
                 # CRITICAL: Extract raw flow trades from cache for clustering
-                # Daemon stores raw trades in cache_data["flow_trades"]
-                flow_trades = cache_data.get("flow_trades", [])
-                if flow_trades:
-                    # Filter and add to all_trades for clustering
-                    for trade in flow_trades:
-                        # Apply base filter (premium, expiry, etc.)
-                        if base_filter(trade):
-                            all_trades.append(trade)
+                # Daemon stores raw API trades in cache_data["flow_trades"]
+                # We need to normalize them (same as UWClient.get_option_flow does)
+                flow_trades_raw = cache_data.get("flow_trades", [])
+                if flow_trades_raw:
+                    print(f"DEBUG: Found {len(flow_trades_raw)} raw trades for {ticker}", flush=True)
+                    # Normalize raw API trades to match main.py's expected format
+                    uw_client = UWClient()
+                    normalized_count = 0
+                    filtered_count = 0
+                    for raw_trade in flow_trades_raw:
+                        try:
+                            # Normalize using same logic as UWClient.get_option_flow
+                            normalized_trade = uw_client._normalize_flow_trade(raw_trade)
+                            normalized_count += 1
+                            # Apply base filter (premium, expiry, etc.)
+                            if base_filter(normalized_trade):
+                                all_trades.append(normalized_trade)
+                                filtered_count += 1
+                        except Exception as e:
+                            # Log normalization errors for debugging
+                            print(f"DEBUG: Failed to normalize trade for {ticker}: {e}", flush=True)
+                            continue
+                    if normalized_count > 0:
+                        print(f"DEBUG: {ticker}: {normalized_count} normalized, {filtered_count} passed filter", flush=True)
+                else:
+                    print(f"DEBUG: No flow_trades in cache for {ticker}", flush=True)
                 
                 # Extract data from cache for confirmation scoring
                 dp_data = cache_data.get("dark_pool", {})

@@ -79,7 +79,10 @@ class UWClient:
     def get_option_flow(self, ticker: str, limit: int = 100) -> List[Dict]:
         """Get option flow for a ticker."""
         raw = self._get("/api/option-trades/flow-alerts", params={"symbol": ticker, "limit": limit})
-        return raw.get("data", [])
+        data = raw.get("data", [])
+        if data:
+            print(f"[UW-DAEMON] Retrieved {len(data)} flow trades for {ticker}", flush=True)
+        return data
     
     def get_dark_pool_levels(self, ticker: str) -> List[Dict]:
         """Get dark pool levels for a ticker."""
@@ -277,6 +280,8 @@ class UWFlowDaemon:
             # Poll option flow
             if self.poller.should_poll("option_flow"):
                 flow_data = self.client.get_option_flow(ticker, limit=100)
+                if flow_data:
+                    print(f"[UW-DAEMON] Polling {ticker}: got {len(flow_data)} raw trades", flush=True)
                 flow_normalized = self._normalize_flow_data(flow_data, ticker)
                 if flow_normalized:
                     # CRITICAL: Store both aggregated summary AND raw trades
@@ -294,6 +299,12 @@ class UWFlowDaemon:
                         "flow": flow_normalized,  # Also keep nested for compatibility
                         "flow_trades": flow_data  # CRITICAL: Store raw trades for clustering
                     })
+                    if flow_data:
+                        print(f"[UW-DAEMON] Stored {len(flow_data)} raw trades in cache for {ticker}", flush=True)
+                elif flow_data:
+                    # Even if normalization fails, store raw trades
+                    print(f"[UW-DAEMON] Normalization returned empty but have {len(flow_data)} trades - storing raw", flush=True)
+                    self._update_cache(ticker, {"flow_trades": flow_data})
             
             # Poll dark pool
             if self.poller.should_poll("dark_pool_levels"):
@@ -368,3 +379,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
