@@ -3914,6 +3914,7 @@ class StrategyEngine:
             print(f"DEBUG {symbol}: PASSED ALL GATES! Calling submit_entry...", flush=True)
             
             side = "buy" if c["direction"] == "bullish" else "sell"
+            print(f"DEBUG {symbol}: Side determined: {side}, qty={qty}, ref_price={ref_price_check}", flush=True)
             
             # RISK MANAGEMENT: Validate order size before submission (qty already calculated above)
             try:
@@ -4014,11 +4015,14 @@ class StrategyEngine:
                 expected_entry_price = None
                 try:
                     expected_entry_price = self.executor.compute_entry_price(symbol, side)
-                except Exception:
+                    print(f"DEBUG {symbol}: Expected entry price computed: {expected_entry_price}", flush=True)
+                except Exception as price_ex:
+                    print(f"DEBUG {symbol}: WARNING - compute_entry_price failed: {str(price_ex)}", flush=True)
                     expected_entry_price = None
 
                 # Long-only safety: do not open shorts in LONG_ONLY mode.
                 if Config.LONG_ONLY and side == "sell":
+                    print(f"DEBUG {symbol}: BLOCKED by LONG_ONLY mode (short entry not allowed)", flush=True)
                     log_event("gate", "long_only_blocked_short_entry", symbol=symbol, score=score)
                     log_blocked_trade(symbol, "long_only_blocked_short_entry", score,
                                       direction=c.get("direction"),
@@ -4026,7 +4030,9 @@ class StrategyEngine:
                                       components=comps)
                     continue
 
+                print(f"DEBUG {symbol}: Building client_order_id_base...", flush=True)
                 client_order_id_base = build_client_order_id(symbol, side, c)
+                print(f"DEBUG {symbol}: client_order_id_base={client_order_id_base}", flush=True)
                 
                 # CRITICAL: Add exception handling and logging around submit_entry
                 try:
