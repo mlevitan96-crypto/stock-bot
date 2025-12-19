@@ -3951,19 +3951,40 @@ class StrategyEngine:
                     client_order_id_base = build_client_order_id(symbol, side, c)
                 
                 # V3.2 CHECKPOINT: ROUTE_ORDERS - Execution Router
-                router_config = v32.ExecutionRouter.load_config()
-                bid, ask = self.executor.get_nbbo(symbol)
-                spread_bps = ((ask - bid) / bid * 10000) if bid > 0 else 100
-                toxicity_score = 0.0  # TODO: Link to toxicity sentinel
-                recent_failures = 0  # TODO: Track per-symbol execution failures
-                
-                # v3.2.1: ExecutionRouter with telemetry
-                selected_strategy, strategy_params = v32.ExecutionRouter.select_strategy(
-                    ticker=symbol,
-                    regime=market_regime,
-                    spread_bps=spread_bps,
-                    toxicity=toxicity_score
-                )
+                try:
+                    router_config = v32.ExecutionRouter.load_config()
+                    bid, ask = self.executor.get_nbbo(symbol)
+                    if bid <= 0 or ask <= 0:
+                        print(f"DEBUG {symbol}: WARNING - get_nbbo returned invalid bid/ask: bid={bid}, ask={ask}", flush=True)
+                        # Use last trade price as fallback
+                        last_price = self.executor.get_last_trade(symbol)
+                        if last_price > 0:
+                            bid, ask = last_price * 0.999, last_price * 1.001  # Small spread estimate
+                            print(f"DEBUG {symbol}: Using fallback bid/ask from last trade: bid={bid}, ask={ask}", flush=True)
+                        else:
+                            print(f"DEBUG {symbol}: ERROR - Cannot get valid price for {symbol}, skipping order", flush=True)
+                            log_order({"symbol": symbol, "qty": qty, "side": side, "error": "invalid_price_data", "bid": bid, "ask": ask})
+                            continue
+                    spread_bps = ((ask - bid) / bid * 10000) if bid > 0 else 100
+                    toxicity_score = 0.0  # TODO: Link to toxicity sentinel
+                    recent_failures = 0  # TODO: Track per-symbol execution failures
+                    
+                    # v3.2.1: ExecutionRouter with telemetry
+                    selected_strategy, strategy_params = v32.ExecutionRouter.select_strategy(
+                        ticker=symbol,
+                        regime=market_regime,
+                        spread_bps=spread_bps,
+                        toxicity=toxicity_score
+                    )
+                    print(f"DEBUG {symbol}: ExecutionRouter selected strategy={selected_strategy}, spread_bps={spread_bps:.1f}", flush=True)
+                except Exception as router_ex:
+                    import traceback
+                    print(f"DEBUG {symbol}: EXCEPTION in execution router setup: {str(router_ex)}", flush=True)
+                    print(f"DEBUG {symbol}: Traceback: {traceback.format_exc()}", flush=True)
+                    log_order({"symbol": symbol, "qty": qty, "side": side, "error": f"execution_router_exception: {str(router_ex)}"})
+                    # Use default strategy on error
+                    selected_strategy = "limit_offset"
+                    strategy_params = {}
                 
                 # Map strategy to ENTRY_MODE
                 strategy_mode_map = {
@@ -4006,9 +4027,21 @@ class StrategyEngine:
                     continue
 
                 client_order_id_base = build_client_order_id(symbol, side, c)
-                res, fill_price, order_type, filled_qty, entry_status = self.executor.submit_entry(
-                    symbol, qty, side, regime=market_regime, client_order_id_base=client_order_id_base
-                )
+                
+                # CRITICAL: Add exception handling and logging around submit_entry
+                try:
+                    print(f"DEBUG {symbol}: About to call submit_entry with qty={qty}, side={side}, regime={market_regime}", flush=True)
+                    res, fill_price, order_type, filled_qty, entry_status = self.executor.submit_entry(
+                        symbol, qty, side, regime=market_regime, client_order_id_base=client_order_id_base
+                    )
+                    print(f"DEBUG {symbol}: submit_entry completed - res={res is not None}, order_type={order_type}, entry_status={entry_status}, filled_qty={filled_qty}", flush=True)
+                except Exception as submit_ex:
+                    import traceback
+                    print(f"DEBUG {symbol}: EXCEPTION in submit_entry: {str(submit_ex)}", flush=True)
+                    print(f"DEBUG {symbol}: Traceback: {traceback.format_exc()}", flush=True)
+                    log_order({"symbol": symbol, "qty": qty, "side": side, "error": f"submit_entry_exception: {str(submit_ex)}", "traceback": traceback.format_exc()})
+                    res, fill_price, order_type, filled_qty, entry_status = None, None, "error", 0, "error"
+                
                 Config.ENTRY_MODE = old_mode
                 
                 if res is None:
