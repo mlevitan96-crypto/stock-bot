@@ -22,6 +22,7 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
+import re
 
 DATA_DIR = Path("data")
 STATE_DIR = Path("state")
@@ -89,6 +90,19 @@ class ExitThresholdScenario:
     avg_hold_minutes: float = 0.0
 
 
+@dataclass
+class ProfitTargetScenario:
+    """Represents a profit target & scale-out scenario to test"""
+    targets: List[float]  # e.g., [0.02, 0.05, 0.10] (2%, 5%, 10%)
+    scale_fractions: List[float]  # e.g., [0.3, 0.3, 0.4] (30%, 30%, 40%)
+    test_count: int = 0
+    total_pnl: float = 0.0
+    weighted_pnl: float = 0.0
+    total_weight: float = 0.0
+    targets_hit: int = 0  # How many targets were hit on average
+    avg_pnl_per_target: float = 0.0
+
+
 class ComprehensiveLearningOrchestrator:
     """Orchestrates all learning components for continuous improvement."""
     
@@ -105,6 +119,7 @@ class ComprehensiveLearningOrchestrator:
         self.timing_scenarios: List[TimingScenario] = []
         self.sizing_scenarios: List[SizingScenario] = []
         self.exit_threshold_scenarios: List[ExitThresholdScenario] = []
+        self.profit_target_scenarios: List[ProfitTargetScenario] = []
         self.exit_signal_performance: Dict[str, Dict[str, Any]] = {}  # Track exit signal performance
         
         # State
@@ -151,6 +166,14 @@ class ComprehensiveLearningOrchestrator:
             ExitThresholdScenario(trail_stop_pct=0.015, time_exit_minutes=240, stale_days=12),  # Current
             ExitThresholdScenario(trail_stop_pct=0.020, time_exit_minutes=300, stale_days=14),  # Looser, longer
             ExitThresholdScenario(trail_stop_pct=0.025, time_exit_minutes=360, stale_days=16),  # Very loose, very long
+        ]
+        
+        # Profit target scenarios: test different profit targets and scale-out fractions
+        self.profit_target_scenarios = [
+            ProfitTargetScenario(targets=[0.015, 0.04, 0.08], scale_fractions=[0.25, 0.35, 0.40]),  # More conservative
+            ProfitTargetScenario(targets=[0.02, 0.05, 0.10], scale_fractions=[0.30, 0.30, 0.40]),  # Current
+            ProfitTargetScenario(targets=[0.025, 0.06, 0.12], scale_fractions=[0.35, 0.35, 0.30]),  # More aggressive
+            ProfitTargetScenario(targets=[0.03, 0.08, 0.15], scale_fractions=[0.40, 0.30, 0.30]),  # Very aggressive
         ]
         
         # Sizing scenarios: test different size multipliers
@@ -785,6 +808,132 @@ class ComprehensiveLearningOrchestrator:
             logger.error(f"Close reason performance analysis error: {e}")
             return {"status": "error", "error": str(e)}
     
+    def analyze_profit_targets(self) -> Dict[str, Any]:
+        """Analyze optimal profit targets and scale-out fractions with cumulative learning."""
+        try:
+            attribution_file = DATA_DIR / "attribution.jsonl"
+            if not attribution_file.exists():
+                return {"status": "skipped", "reason": "no_trades"}
+            
+            scenario_results = {}
+            now = datetime.now(timezone.utc)
+            max_age_days = 60  # Look back 60 days
+            
+            with attribution_file.open("r") as f:
+                lines = f.readlines()
+            
+            # Process ALL trades with exponential decay
+            for line in lines:
+                try:
+                    trade = json.loads(line.strip())
+                    if trade.get("type") != "attribution":
+                        continue
+                    
+                    context = trade.get("context", {})
+                    close_reason = context.get("close_reason", "")
+                    
+                    # Only analyze trades that hit profit targets
+                    if "profit_target" not in close_reason:
+                        continue
+                    
+                    ts_str = trade.get("ts", "")
+                    if not ts_str:
+                        continue
+                    
+                    trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                    if trade_time.tzinfo is None:
+                        trade_time = trade_time.replace(tzinfo=timezone.utc)
+                    else:
+                        trade_time = trade_time.astimezone(timezone.utc)
+                    
+                    trade_age_days = (now - trade_time).total_seconds() / 86400.0
+                    if trade_age_days > max_age_days:
+                        continue
+                    
+                    decay_weight = self._exponential_decay_weight(trade_age_days, halflife_days=30.0)
+                    
+                    pnl = float(trade.get("pnl_usd", 0.0))
+                    pnl_pct = float(context.get("pnl_pct", 0.0))
+                    
+                    # Extract profit target from close reason
+                    # Format: "profit_target(2%)" or "profit_target(5%)"
+                    target_match = re.search(r"profit_target\((\d+)%\)", close_reason)
+                    if not target_match:
+                        continue
+                    
+                    hit_target_pct = float(target_match.group(1)) / 100.0
+                    
+                    # Simulate: "What if we used different profit targets?"
+                    # For each scenario, check if this trade would have hit targets earlier/later
+                    for scenario in self.profit_target_scenarios:
+                        scenario_key = f"targets_{'_'.join([f'{t:.3f}' for t in scenario.targets])}_scales_{'_'.join([f'{s:.2f}' for s in scenario.scale_fractions])}"
+                        
+                        if scenario_key not in scenario_results:
+                            scenario_results[scenario_key] = {
+                                "test_count": 0,
+                                "total_pnl": 0.0,
+                                "weighted_pnl": 0.0,
+                                "total_weight": 0.0,
+                                "targets_hit": 0,
+                                "total_targets_hit": 0
+                            }
+                        
+                        result = scenario_results[scenario_key]
+                        
+                        # Simulate: Would this scenario have captured more profit?
+                        # If actual P&L exceeded scenario's first target, count it as a hit
+                        simulated_pnl = pnl_pct
+                        targets_hit = 0
+                        
+                        for target_pct in scenario.targets:
+                            if simulated_pnl >= target_pct:
+                                targets_hit += 1
+                            else:
+                                break
+                        
+                        result["test_count"] += 1
+                        result["total_pnl"] += pnl
+                        result["weighted_pnl"] += pnl * decay_weight
+                        result["total_weight"] += decay_weight
+                        result["total_targets_hit"] += targets_hit
+                
+                except Exception as e:
+                    logger.debug(f"Error analyzing profit target: {e}")
+                    continue
+            
+            # Find best profit target scenario
+            best_scenario = None
+            best_weighted_avg_pnl = float('-inf')
+            
+            for scenario_key, result in scenario_results.items():
+                if result["test_count"] < 20:  # Minimum 20 samples
+                    continue
+                
+                if result["total_weight"] > 0:
+                    weighted_avg_pnl = result["weighted_pnl"] / result["total_weight"]
+                    avg_targets_hit = result["total_targets_hit"] / result["test_count"]
+                else:
+                    weighted_avg_pnl = result["total_pnl"] / result["test_count"]
+                    avg_targets_hit = result["total_targets_hit"] / result["test_count"]
+                
+                # Prefer scenarios that hit more targets AND have better P&L
+                score = weighted_avg_pnl * (1 + avg_targets_hit * 0.1)  # Bonus for hitting targets
+                
+                if score > best_weighted_avg_pnl:
+                    best_weighted_avg_pnl = score
+                    best_scenario = scenario_key
+            
+            return {
+                "status": "success",
+                "scenarios_tested": len(scenario_results),
+                "best_scenario": best_scenario,
+                "best_weighted_avg_pnl": round(best_weighted_avg_pnl, 2) if best_weighted_avg_pnl != float('-inf') else None
+            }
+            
+        except Exception as e:
+            logger.error(f"Profit target analysis error: {e}")
+            return {"status": "error", "error": str(e)}
+    
     def _parse_close_reason(self, close_reason: str) -> List[str]:
         """Parse composite close reason into individual exit signals."""
         if not close_reason or close_reason == "unknown":
@@ -820,6 +969,7 @@ class ComprehensiveLearningOrchestrator:
             "sizing": {},
             "exit_thresholds": {},
             "close_reason_performance": {},
+            "profit_targets": {},
             "errors": []
         }
         
@@ -865,6 +1015,13 @@ class ComprehensiveLearningOrchestrator:
             results["errors"].append(f"Close reason performance: {str(e)}")
             logger.error(f"Close reason performance error: {e}")
         
+        # 7. Profit target optimization
+        try:
+            results["profit_targets"] = self.analyze_profit_targets()
+        except Exception as e:
+            results["errors"].append(f"Profit targets: {str(e)}")
+            logger.error(f"Profit target error: {e}")
+        
         # Log results
         self._log_results(results)
         
@@ -877,7 +1034,7 @@ class ComprehensiveLearningOrchestrator:
         
         self._save_state()
         
-        # 7. Update exit signal weights based on close reason performance
+        # 8. Update exit signal weights based on close reason performance
         try:
             if results.get("close_reason_performance", {}).get("status") == "success":
                 self._update_exit_signal_weights(results["close_reason_performance"])
@@ -885,13 +1042,21 @@ class ComprehensiveLearningOrchestrator:
             results["errors"].append(f"Exit weight update: {str(e)}")
             logger.error(f"Exit weight update error: {e}")
         
-        # 8. Apply optimized exit thresholds
+        # 9. Apply optimized exit thresholds
         try:
             if results.get("exit_thresholds", {}).get("status") == "success":
                 self._apply_optimized_exit_thresholds(results["exit_thresholds"])
         except Exception as e:
             results["errors"].append(f"Exit threshold apply: {str(e)}")
             logger.error(f"Exit threshold apply error: {e}")
+        
+        # 10. Apply optimized profit targets
+        try:
+            if results.get("profit_targets", {}).get("status") == "success":
+                self._apply_optimized_profit_targets(results["profit_targets"])
+        except Exception as e:
+            results["errors"].append(f"Profit target apply: {str(e)}")
+            logger.error(f"Profit target apply error: {e}")
         
         logger.info(f"Learning cycle complete: {len(results['errors'])} errors")
         return results
@@ -985,6 +1150,58 @@ class ComprehensiveLearningOrchestrator:
                 
         except Exception as e:
             logger.warning(f"Error applying optimized exit thresholds: {e}")
+    
+    def _apply_optimized_profit_targets(self, profit_target_data: Dict[str, Any]):
+        """Apply optimized profit targets gradually."""
+        try:
+            best_scenario = profit_target_data.get("best_scenario")
+            if not best_scenario:
+                return
+            
+            # Parse scenario: "targets_0.020_0.050_0.100_scales_0.30_0.30_0.40"
+            targets_match = re.search(r"targets_([\d.]+)_([\d.]+)_([\d.]+)", best_scenario)
+            scales_match = re.search(r"scales_([\d.]+)_([\d.]+)_([\d.]+)", best_scenario)
+            
+            if targets_match and scales_match:
+                optimal_targets = [
+                    float(targets_match.group(1)),
+                    float(targets_match.group(2)),
+                    float(targets_match.group(3))
+                ]
+                optimal_scales = [
+                    float(scales_match.group(1)),
+                    float(scales_match.group(2)),
+                    float(scales_match.group(3))
+                ]
+                
+                # Get current values
+                from main import Config
+                current_targets = Config.PROFIT_TARGETS
+                current_scales = Config.SCALE_OUT_FRACTIONS
+                
+                # Gradual update (10% toward optimal to avoid overfitting)
+                new_targets = [
+                    current_targets[i] + (optimal_targets[i] - current_targets[i]) * 0.1
+                    if i < len(current_targets) and i < len(optimal_targets)
+                    else current_targets[i] if i < len(current_targets) else optimal_targets[i]
+                    for i in range(max(len(current_targets), len(optimal_targets)))
+                ]
+                new_scales = [
+                    current_scales[i] + (optimal_scales[i] - current_scales[i]) * 0.1
+                    if i < len(current_scales) and i < len(optimal_scales)
+                    else current_scales[i] if i < len(current_scales) else optimal_scales[i]
+                    for i in range(max(len(current_scales), len(optimal_scales)))
+                ]
+                
+                logger.info(f"Profit target optimization: targets {current_targets}->{[round(t, 3) for t in new_targets]}, "
+                          f"scales {current_scales}->{[round(s, 2) for s in new_scales]}")
+                
+                # Note: Actual threshold updates would need to be persisted to state file
+                # and loaded on startup. For now, we log the recommendations.
+                # TODO: Implement profit target state persistence
+                
+        except Exception as e:
+            logger.warning(f"Error applying optimized profit targets: {e}")
     
     def _log_results(self, results: Dict[str, Any]):
         """Log learning results."""
