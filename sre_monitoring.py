@@ -170,32 +170,6 @@ class SREMonitoringEngine:
                 return health
         
         # If we get here, cache exists but is moderately stale - continue with normal checks
-        
-        # Check error logs for this endpoint
-        error_log = DATA_DIR / "uw_error.jsonl"
-        now = time.time()
-        cutoff_1h = now - 3600
-        
-        errors_1h = 0
-        requests_1h = 0
-        last_error_msg = None
-        
-        if error_log.exists():
-            try:
-                for line in error_log.read_text().splitlines()[-100:]:
-                    try:
-                        event = json.loads(line)
-                        if endpoint in event.get("url", ""):
-                            requests_1h += 1
-                            if event.get("_ts", 0) > cutoff_1h:
-                                errors_1h += 1
-                                if not last_error_msg:
-                                    last_error_msg = event.get("error", "Unknown error")
-                    except:
-                        pass
-            except:
-                pass
-        
         # Check error logs for this endpoint
         error_log = DATA_DIR / "uw_error.jsonl"
         now = time.time()
@@ -297,27 +271,24 @@ class SREMonitoringEngine:
                     components = {**core_components, **computed_components, **enriched_components}
                     
                     for comp_name, comp_data in components.items():
+                        # Determine if this is a core, computed, or enriched signal
+                        is_core = comp_name in core_components
+                        is_computed = comp_name in computed_components
+                        is_enriched = comp_name in enriched_components
+                        signal_type = "core" if is_core else ("computed" if is_computed else "enriched")
+                        
                         if comp_name not in signals:
-                            # Determine if this is a core, computed, or enriched signal
-                            is_core = comp_name in core_components
-                            is_computed = comp_name in computed_components
-                            is_enriched = comp_name in enriched_components
-                            
                             signals[comp_name] = SignalHealth(
                                 name=comp_name,
                                 status="unknown",
                                 last_update_age_sec=cache_age
                             )
                             # Mark signal type for proper handling
-                            signals[comp_name].details["signal_type"] = "core" if is_core else ("computed" if is_computed else "enriched")
-                        
-                        # Only update if status is still unknown or no_data (don't overwrite healthy)
-                        if signals[comp_name].status == "healthy":
-                            continue
+                            signals[comp_name].details["signal_type"] = signal_type
+                            signals[comp_name].details["last_seen_ts"] = time.time()  # Track when we last saw this signal
                         
                         # Check if signal has data (handle both dict and numeric values)
                         has_data = False
-                        signal_type = signals[comp_name].details.get("signal_type", "unknown")
                         
                         if comp_name in ["insider", "dark_pool", "congress", "institutional"]:
                             # Dict signals - check if it exists and is not empty
@@ -335,14 +306,26 @@ class SREMonitoringEngine:
                             has_data = comp_data and comp_data != {}
                         
                         if has_data:
+                            # Update last seen timestamp when we find data
+                            signals[comp_name].details["last_seen_ts"] = time.time()
                             signals[comp_name].status = "healthy"
-                            signals[comp_name].data_freshness_sec = cache_age
+                            # Calculate actual freshness: time since we last saw this signal
+                            last_seen = signals[comp_name].details.get("last_seen_ts", time.time())
+                            signals[comp_name].data_freshness_sec = time.time() - last_seen
+                            signals[comp_name].last_update_age_sec = cache_age  # Cache file age
                             # Mark that we found data in at least one symbol
                             if "found_in_symbols" not in signals[comp_name].details:
                                 signals[comp_name].details["found_in_symbols"] = []
                             if symbol not in signals[comp_name].details["found_in_symbols"]:
                                 signals[comp_name].details["found_in_symbols"].append(symbol)
                         else:
+                            # Calculate age since last seen
+                            last_seen = signals[comp_name].details.get("last_seen_ts", 0)
+                            if last_seen > 0:
+                                signals[comp_name].last_update_age_sec = time.time() - last_seen
+                            else:
+                                signals[comp_name].last_update_age_sec = cache_age  # Fallback to cache age
+                            
                             # Only mark as "no_data" if it's a core signal (required)
                             # Enriched signals are optional and should be "optional" not "no_data"
                             if signals[comp_name].status == "unknown":
