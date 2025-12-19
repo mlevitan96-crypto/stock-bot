@@ -4181,7 +4181,11 @@ class StrategyEngine:
                 
             except Exception as e:
                 import traceback
-                log_order({"symbol": symbol, "qty": qty, "side": side, "error": str(e), "traceback": traceback.format_exc()})
+                error_msg = str(e)
+                error_trace = traceback.format_exc()
+                print(f"DEBUG {symbol}: EXCEPTION in decide_and_execute: {error_msg}", flush=True)
+                print(f"DEBUG {symbol}: Full traceback:\n{error_trace}", flush=True)
+                log_order({"symbol": symbol, "qty": qty, "side": side, "error": error_msg, "traceback": error_trace})
         
         if Config.ENABLE_PER_TICKER_LEARNING:
             save_profiles(self.profiles)
