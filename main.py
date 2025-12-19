@@ -3144,6 +3144,75 @@ class AlpacaExecutor:
             })
         
         if not candidates:
+            # Log why no candidates found for debugging
+            try:
+                positions = self.api.list_positions()
+                total_positions = len(positions)
+                reasons = {
+                    "too_young": 0,
+                    "pnl_too_high": 0,
+                    "score_advantage_insufficient": 0,
+                    "in_cooldown": 0
+                }
+                
+                for pos in positions:
+                    symbol = getattr(pos, "symbol", "")
+                    if not symbol or symbol == new_symbol:
+                        continue
+                    
+                    # Check cooldown
+                    cooldown_ts = displacement_cooldowns.get(symbol)
+                    if cooldown_ts:
+                        try:
+                            cooldown_dt = datetime.fromisoformat(cooldown_ts)
+                            if now < cooldown_dt + timedelta(hours=Config.DISPLACEMENT_COOLDOWN_HOURS):
+                                reasons["in_cooldown"] += 1
+                                continue
+                        except Exception:
+                            pass
+                    
+                    # Get position details
+                    entry_price = float(getattr(pos, "avg_entry_price", 0))
+                    current_price = float(getattr(pos, "current_price", 0))
+                    if entry_price <= 0 or current_price <= 0:
+                        continue
+                    
+                    pnl_pct = (current_price - entry_price) / entry_price
+                    pos_meta = metadata.get(symbol, {})
+                    entry_ts_str = pos_meta.get("entry_ts")
+                    
+                    if entry_ts_str:
+                        try:
+                            entry_ts = datetime.fromisoformat(entry_ts_str)
+                            age_hours = (now - entry_ts).total_seconds() / 3600
+                        except Exception:
+                            age_hours = 0
+                    else:
+                        if symbol in self.opens:
+                            age_hours = (now - self.opens[symbol]["ts"]).total_seconds() / 3600
+                        else:
+                            age_hours = 0
+                    
+                    original_score = pos_meta.get("entry_score", 0)
+                    score_advantage = new_signal_score - original_score
+                    
+                    if age_hours < Config.DISPLACEMENT_MIN_AGE_HOURS:
+                        reasons["too_young"] += 1
+                    elif abs(pnl_pct) > Config.DISPLACEMENT_MAX_PNL_PCT:
+                        reasons["pnl_too_high"] += 1
+                    elif score_advantage < Config.DISPLACEMENT_SCORE_ADVANTAGE:
+                        reasons["score_advantage_insufficient"] += 1
+                
+                log_event("displacement", "no_candidates_found",
+                         new_signal_score=new_signal_score,
+                         total_positions=total_positions,
+                         reasons=reasons,
+                         min_age_hours=Config.DISPLACEMENT_MIN_AGE_HOURS,
+                         max_pnl_pct=Config.DISPLACEMENT_MAX_PNL_PCT,
+                         required_score_advantage=Config.DISPLACEMENT_SCORE_ADVANTAGE)
+            except Exception as e:
+                log_event("displacement", "diagnostic_failed", error=str(e))
+            
             return None
         
         # Sort by: worst P&L first, then oldest, then lowest original score
