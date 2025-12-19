@@ -31,13 +31,23 @@ echo "STARTING BOT IN SCREEN SESSION"
 echo "=========================================="
 
 # Start in screen session
-screen -dmS trading python3 main.py
-sleep 3
+echo "Starting bot..."
+screen -dmS trading bash -c "cd ~/stock-bot && python3 main.py 2>&1 | tee -a logs/bot_startup.log"
+sleep 5
 
 # Verify it's running
 NEW_PID=$(ps aux | grep "python.*main.py" | grep -v grep | awk '{print $2}')
 if [ -z "$NEW_PID" ]; then
     echo "❌ Bot failed to start"
+    echo ""
+    echo "Checking for errors..."
+    if [ -f "logs/bot_startup.log" ]; then
+        tail -20 logs/bot_startup.log
+    else
+        echo "No startup log found. Trying to start manually to see error:"
+        echo ""
+        python3 main.py 2>&1 | head -30
+    fi
     exit 1
 else
     echo "✅ Bot started (PID: $NEW_PID)"
