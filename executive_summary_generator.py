@@ -17,7 +17,14 @@ STATE_DIR = Path("state")
 LOGS_DIR = Path("logs")
 
 # Attribution file is written to logs/ by main.py jsonl_write function
+# Check both possible locations
 ATTRIBUTION_FILE = LOGS_DIR / "attribution.jsonl"
+# Fallback: also check if it's in a different location
+if not ATTRIBUTION_FILE.exists():
+    # Try alternative location
+    alt_path = Path("logs/attribution.jsonl")
+    if alt_path.exists():
+        ATTRIBUTION_FILE = alt_path
 COMPREHENSIVE_LEARNING_FILE = DATA_DIR / "comprehensive_learning.jsonl"
 COUNTERFACTUAL_RESULTS = DATA_DIR / "counterfactual_results.jsonl"
 WEIGHTS_STATE_FILE = STATE_DIR / "signal_weights.json"
@@ -26,13 +33,28 @@ WEIGHTS_STATE_FILE = STATE_DIR / "signal_weights.json"
 def get_all_trades(lookback_days: int = 30) -> List[Dict[str, Any]]:
     """Get all trades from attribution log."""
     trades = []
-    if not ATTRIBUTION_FILE.exists():
+    
+    # Try multiple possible locations
+    attribution_files = [
+        ATTRIBUTION_FILE,
+        Path("logs/attribution.jsonl"),
+        Path("data/attribution.jsonl"),
+        LOGS_DIR / "attribution.jsonl"
+    ]
+    
+    attribution_file = None
+    for path in attribution_files:
+        if path.exists():
+            attribution_file = path
+            break
+    
+    if not attribution_file:
         return trades
     
     cutoff_time = datetime.now(timezone.utc) - timedelta(days=lookback_days)
     
     try:
-        with ATTRIBUTION_FILE.open("r") as f:
+        with attribution_file.open("r") as f:
             lines = f.readlines()
         
         for line in lines:
@@ -45,19 +67,29 @@ def get_all_trades(lookback_days: int = 30) -> List[Dict[str, Any]]:
                 if not ts_str:
                     continue
                 
-                trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                # Handle both ISO format and timestamp
+                try:
+                    if isinstance(ts_str, (int, float)):
+                        trade_time = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                    else:
+                        trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        if trade_time.tzinfo is None:
+                            trade_time = trade_time.replace(tzinfo=timezone.utc)
+                except:
+                    continue
+                
                 if trade_time < cutoff_time:
                     continue
                 
                 trades.append(trade)
-            except Exception:
+            except Exception as e:
                 continue
         
         # Sort by timestamp (newest first)
         trades.sort(key=lambda x: x.get("ts", ""), reverse=True)
         
     except Exception as e:
-        print(f"Error reading trades: {e}")
+        print(f"Error reading trades from {attribution_file}: {e}")
     
     return trades
 
@@ -348,14 +380,52 @@ def generate_executive_summary() -> Dict[str, Any]:
     for trade in trades[:50]:
         try:
             context = trade.get("context", {})
+            # Extract close_reason - handle both direct and nested
+            close_reason = context.get("close_reason", "unknown")
+            if not close_reason or close_reason == "unknown":
+                # Try to get from trade root level
+                close_reason = trade.get("close_reason", "unknown")
+            
+            # Extract hold_minutes - ensure it's calculated if missing
+            hold_minutes = context.get("hold_minutes", 0.0)
+            if hold_minutes == 0.0:
+                # Try to calculate from timestamps
+                try:
+                    ts_str = trade.get("ts", "")
+                    if ts_str:
+                        if isinstance(ts_str, (int, float)):
+                            exit_time = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                        else:
+                            exit_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                            if exit_time.tzinfo is None:
+                                exit_time = exit_time.replace(tzinfo=timezone.utc)
+                        
+                        entry_ts_str = context.get("entry_ts") or metadata.get("entry_ts", "")
+                        if entry_ts_str:
+                            if isinstance(entry_ts_str, (int, float)):
+                                entry_time = datetime.fromtimestamp(entry_ts_str, tz=timezone.utc)
+                            else:
+                                entry_time = datetime.fromisoformat(str(entry_ts_str).replace("Z", "+00:00"))
+                                if entry_time.tzinfo is None:
+                                    entry_time = entry_time.replace(tzinfo=timezone.utc)
+                            
+                            hold_minutes = (exit_time - entry_time).total_seconds() / 60.0
+                except:
+                    pass
+            
+            # Extract entry_score - ensure it's captured
+            entry_score = context.get("entry_score", 0.0)
+            if entry_score == 0.0:
+                entry_score = trade.get("entry_score", 0.0)
+            
             formatted_trades.append({
                 "timestamp": trade.get("ts", ""),
                 "symbol": trade.get("symbol", ""),
                 "pnl_usd": round(float(trade.get("pnl_usd", 0.0)), 2),
                 "pnl_pct": round(float(context.get("pnl_pct", 0.0)), 2),
-                "hold_minutes": round(float(context.get("hold_minutes", 0.0)), 1),
-                "entry_score": round(float(context.get("entry_score", 0.0)), 2),
-                "close_reason": context.get("close_reason", "unknown")
+                "hold_minutes": round(float(hold_minutes), 1),
+                "entry_score": round(float(entry_score), 2),
+                "close_reason": close_reason if close_reason and close_reason != "unknown" else "N/A"
             })
         except Exception:
             continue  # Skip malformed trades
