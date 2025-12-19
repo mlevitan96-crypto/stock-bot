@@ -1,128 +1,100 @@
-# Complete Fix Summary - All Issues Resolved
+# Complete Fix Summary - Dashboard & Trading Bot
 
-## Issues Found and Fixed
+## Issues Fixed
 
-### 1. ✅ **CRITICAL: Flow Trades Not Being Clustered**
-   - **Problem**: Daemon stored raw API data but main.py couldn't normalize it
-   - **Fix**: Added normalization logic in main.py to convert raw trades to expected format
-   - **Status**: FIXED - Added detailed logging to verify
+### 1. Dashboard Freshness Tracking ✅
+**Problem:** All signals showed "Last Update: 0s" and "Freshness: 0s" - no actual tracking
 
-### 2. ✅ **Port 5000 Conflict**
-   - **Problem**: Dashboard trying to bind to port 5000 when proxy already using it
-   - **Fix**: Supervisor now detects port conflict and uses 5001
-   - **Status**: FIXED
+**Root Cause:** 
+- Was using cache file age for all signals instead of tracking when each signal was actually seen
+- No `last_seen_ts` tracking per signal
 
-### 3. ✅ **Heartbeat Keeper Exiting**
-   - **Problem**: Script exited immediately instead of running as daemon
-   - **Fix**: Added `if __name__ == "__main__"` block to run continuously
-   - **Status**: FIXED
+**Fix:**
+- Added `last_seen_ts` tracking for each signal
+- Calculate `data_freshness_sec` from actual last seen time (not cache age)
+- Now shows real update times instead of always 0s
 
-### 4. ✅ **v4-Research Restart Loop**
-   - **Problem**: Supervisor kept restarting one-shot script
-   - **Fix**: Marked as `one_shot: True` to skip restart
-   - **Status**: FIXED
+### 2. No Execution Cycles ✅
+**Problem:** Bot process running but no execution cycles in last hour
 
-### 5. ✅ **Missing Logging**
-   - **Problem**: No visibility into why trades weren't being found
-   - **Fix**: Added detailed DEBUG logging at every step
-   - **Status**: FIXED
+**Root Cause:**
+- Worker loop only logs to `run.jsonl` when `run_once()` completes successfully
+- If market check fails or exceptions occur, cycles aren't logged
+- No visibility into why cycles aren't running
 
-## Step-by-Step Deployment (Copy/Paste Ready)
+**Fix:**
+- Always log cycles to `run.jsonl` (even when market closed)
+- Better exception logging
+- Added diagnostic scripts to check worker thread status
 
-### **STEP 1: Navigate to Directory**
-```bash
-cd /root/stock-bot
-```
+### 3. No Trades in 3 Hours ⚠️
+**Problem:** Last order was 2.7 hours ago, no new trades
 
-### **STEP 2: Pull Latest Code**
-```bash
-git pull origin main --no-rebase
-```
+**Possible Causes:**
+- Max positions reached (16 positions)
+- All signals blocked by gates (expectancy, score, etc.)
+- No clusters generated
+- Worker thread not executing
 
-### **STEP 3: Stop Old Supervisor**
-```bash
-pkill -f deploy_supervisor
-sleep 3
-```
+**Diagnosis Needed:**
+- Run `FULL_SYSTEM_AUDIT.py` to check positions
+- Run `DIAGNOSE_BOT_EXECUTION.py` to check worker status
+- Check `logs/run.jsonl` for recent cycles
+- Check `state/blocked_trades.jsonl` for block reasons
 
-### **STEP 4: Activate Virtual Environment**
-```bash
-source venv/bin/activate
-```
+## Files Changed
 
-### **STEP 5: Start Supervisor**
-```bash
-venv/bin/python deploy_supervisor.py
-```
+1. ✅ `sre_monitoring.py` - Fixed freshness tracking
+2. ✅ `main.py` - Always log cycles (even when market closed)
+3. ✅ `FULL_SYSTEM_AUDIT.py` - Comprehensive health check
+4. ✅ `DIAGNOSE_BOT_EXECUTION.py` - Worker thread diagnostics
+5. ✅ `FIX_AND_VERIFY_BOT.sh` - Complete verification script
 
-**NOTE**: This will run in foreground and show logs. If you need your terminal back:
-- Press `Ctrl+Z` to suspend
-- Type `bg` to run in background
-- Or use: `nohup venv/bin/python deploy_supervisor.py > logs/supervisor.out 2>&1 &`
-
-### **STEP 6: Wait 60 Seconds, Then Check Logs**
-
-Open a **NEW terminal** and run:
+## Deployment Steps
 
 ```bash
-cd /root/stock-bot
-tail -f logs/trading-bot-pc.log | grep -E "clustering|flow_trades|normalized|DEBUG.*trades"
+cd ~/stock-bot
+git pull origin main
+
+# Run comprehensive audit
+python3 FULL_SYSTEM_AUDIT.py
+
+# Run execution diagnosis
+python3 DIAGNOSE_BOT_EXECUTION.py
+
+# Or run complete fix script
+chmod +x FIX_AND_VERIFY_BOT.sh
+./FIX_AND_VERIFY_BOT.sh
 ```
 
-### **STEP 7: Run Diagnostic Script**
+## What to Check
 
-In another terminal:
-```bash
-cd /root/stock-bot
-chmod +x diagnose_uw_issue.sh
-./diagnose_uw_issue.sh
-```
+1. **Worker Thread Status:**
+   - Check `logs/worker.jsonl` for recent events
+   - Should see "iter_start" and "iter_end" every ~60 seconds
 
-## What to Look For
+2. **Execution Cycles:**
+   - Check `logs/run.jsonl` for recent cycles
+   - Should see cycles every ~60 seconds (even if market closed)
 
-### ✅ **SUCCESS INDICATORS:**
-- `[UW-DAEMON] Retrieved X flow trades for TICKER`
-- `[UW-DAEMON] Stored X raw trades in cache for TICKER`
-- `DEBUG: Found X raw trades for TICKER`
-- `DEBUG: TICKER: X normalized, Y passed filter`
-- `DEBUG: Fetched data, clustering X trades` (where X > 0)
+3. **Blocked Trades:**
+   - Check `state/blocked_trades.jsonl` for why trades are blocked
+   - Look for patterns: max_positions, expectancy_blocked, etc.
 
-### ❌ **PROBLEM INDICATORS:**
-- `DEBUG: Fetched data, clustering 0 trades` (still broken)
-- `DEBUG: No flow_trades in cache for TICKER` (daemon not storing)
-- `[UW-DAEMON] Retrieved 0 flow trades` (API not returning data)
+4. **Positions:**
+   - Check if at max positions (16)
+   - If so, displacement logic should kick in
 
-## If Still Seeing 0 Trades
+5. **Signals:**
+   - Check if clusters are being generated
+   - Check if signals are passing gates
 
-### Check 1: Is Market Open?
-```bash
-TZ=America/New_York date
-```
-Market hours: 9:30 AM - 4:00 PM ET
+## Next Steps
 
-### Check 2: Is API Quota Exhausted?
-```bash
-./check_uw_api_usage.sh
-```
+After running diagnostics, we'll know:
+- ✅ Is worker thread running?
+- ✅ Are cycles executing?
+- ✅ Why trades are blocked?
+- ✅ Are signals/clusters being generated?
 
-### Check 3: Is Daemon Actually Polling?
-```bash
-tail -50 logs/uw-daemon-pc.log | grep -E "Polling|Retrieved|Stored"
-```
-
-### Check 4: Does Cache Have flow_trades?
-```bash
-cat data/uw_flow_cache.json | python3 -m json.tool | grep -A 2 "flow_trades" | head -20
-```
-
-## If Cursor/Input Hangs
-
-1. **Press `Ctrl+C`** to stop current command
-2. **Press `Ctrl+Z`** to suspend if needed
-3. **Type `fg`** to resume or `bg` to background
-
-## All Fixes Are Pushed
-
-All code fixes are in git. Just pull and restart. The detailed logging will show exactly what's happening at each step.
-
-
+Then we can fix the specific issue preventing trades.
