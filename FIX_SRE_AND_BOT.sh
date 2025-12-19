@@ -1,15 +1,27 @@
 #!/bin/bash
 # Fix SRE dashboard and bot startup issues
+# Works with externally-managed Python environments
 
 echo "=========================================="
 echo "FIXING SRE DASHBOARD AND BOT"
 echo "=========================================="
 echo ""
 
+# Check if we're in a virtual environment
+if [ -z "$VIRTUAL_ENV" ]; then
+    echo "⚠️  Not in a virtual environment"
+    echo "   Using --break-system-packages flag (required for Ubuntu 22.04+)"
+    PIP_FLAG="--break-system-packages"
+else
+    echo "✅ Using virtual environment: $VIRTUAL_ENV"
+    PIP_FLAG=""
+fi
+echo ""
+
 # 1. Install missing dependencies
 echo "1. Installing missing Python packages..."
 echo "----------------------------------------"
-pip3 install alpaca-trade-api 2>&1 | tail -5
+pip3 install $PIP_FLAG alpaca-trade-api 2>&1 | tail -5
 echo ""
 
 # 2. Test SRE monitoring directly
@@ -65,7 +77,7 @@ echo "----------------------------------------"
 DASHBOARD_PID=$(ps aux | grep "python.*dashboard.py" | grep -v grep | awk '{print $2}')
 if [ -z "$DASHBOARD_PID" ]; then
     echo "⚠️  Dashboard is not running"
-    echo "   Start it with: python3 dashboard.py"
+    echo "   Start it with: screen -dmS dashboard python3 dashboard.py"
 else
     echo "✅ Dashboard is running (PID: $DASHBOARD_PID)"
     echo "   Access at: http://localhost:5000"
@@ -81,7 +93,7 @@ try:
     print('✅ alpaca_trade_api imported successfully')
 except ImportError as e:
     print(f'❌ Missing alpaca_trade_api: {e}')
-    print('   Run: pip3 install alpaca-trade-api')
+    echo '   Run: pip3 install $PIP_FLAG alpaca-trade-api'
 "
 echo ""
 
