@@ -3772,6 +3772,7 @@ class AlpacaExecutor:
                 if symbol not in exit_reasons:
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 to_close.append(symbol)
+                print(f"DEBUG EXITS: {symbol} marked for close - time_hit={time_hit}, stop_hit={stop_hit}, age={age_min:.1f}min", flush=True)
         
         if to_close:
             print(f"DEBUG EXITS: Found {len(to_close)} positions to close: {to_close}", flush=True)
