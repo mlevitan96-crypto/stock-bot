@@ -209,6 +209,7 @@ class SREMonitoringEngine:
     def check_signal_generation_health(self) -> Dict[str, SignalHealth]:
         """Check health of each signal component."""
         signals = {}
+        cache_age = None
         
         # Check UW flow cache for signal freshness
         uw_cache_file = DATA_DIR / "uw_flow_cache.json"
@@ -320,22 +321,9 @@ class SREMonitoringEngine:
                             if symbol not in signals[comp_name].details["found_in_symbols"]:
                                 signals[comp_name].details["found_in_symbols"].append(symbol)
                         else:
-                            # Calculate age since last seen
-                            last_seen = signals[comp_name].details.get("last_seen_ts", 0)
-                            if last_seen > 0:
-                                signals[comp_name].last_update_age_sec = time.time() - last_seen
-                            else:
-                                signals[comp_name].last_update_age_sec = cache_age  # Fallback to cache age
-                            
-                            # Only mark as "no_data" if it's a core signal (required)
-                            # Enriched signals are optional and should be "optional" not "no_data"
-                            if signals[comp_name].status == "unknown":
-                                if signal_type == "core":
-                                    signals[comp_name].status = "no_data"  # Core signals are required
-                                elif signal_type == "enriched":
-                                    signals[comp_name].status = "optional"  # Enriched signals are optional
-                                else:
-                                    signals[comp_name].status = "no_data"  # Computed signals should exist
+                            # No data found for this signal in this symbol
+                            # Don't update anything - we'll set freshness after checking all symbols
+                            pass
             except Exception as e:
                 import traceback
                 # Log error but don't fail
@@ -368,8 +356,31 @@ class SREMonitoringEngine:
                 if count > 0:
                     health.status = "healthy"
                     health.details["signals_generated_1h"] = count
+                    # If we found signals in logs, set freshness based on cache age
+                    if health.data_freshness_sec is None:
+                        health.data_freshness_sec = cache_age if 'cache_age' in locals() else 0
                 elif health.status == "unknown":
                     health.status = "no_recent_signals"
+        
+        # After checking all symbols, set freshness for signals that never had data
+        # Use cache_age as the freshness indicator (shows when cache was last updated)
+        if cache_age is not None:
+            for signal_name, health in signals.items():
+                if health.data_freshness_sec is None:
+                    # Never found data - use cache age to indicate when cache was last updated
+                    health.data_freshness_sec = cache_age
+                # Also ensure last_update_age_sec is set
+                if health.last_update_age_sec is None or health.last_update_age_sec == 0:
+                    health.last_update_age_sec = cache_age
+                # Set status for signals that never had data
+                if health.status == "unknown":
+                    signal_type = health.details.get("signal_type", "unknown")
+                    if signal_type == "core":
+                        health.status = "no_data"
+                    elif signal_type == "enriched":
+                        health.status = "optional"
+                    else:
+                        health.status = "no_data"
         
         return signals
     
