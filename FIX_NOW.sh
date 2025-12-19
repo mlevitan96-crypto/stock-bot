@@ -59,3 +59,4 @@ echo "  - DEBUG SYMBOL: EXCEPTION in submit_entry (if errors)"
 echo "  - DEBUG SYMBOL: Order SUBMITTED or Order IMMEDIATELY FILLED"
 echo ""
 echo "If you see exceptions, share the error message and I'll fix it immediately."
+
