@@ -281,11 +281,12 @@ class SREMonitoringEngine:
                             signals[comp_name] = SignalHealth(
                                 name=comp_name,
                                 status="unknown",
-                                last_update_age_sec=cache_age
+                                last_update_age_sec=cache_age,
+                                data_freshness_sec=None  # Will be set when we find data
                             )
                             # Mark signal type for proper handling
                             signals[comp_name].details["signal_type"] = signal_type
-                            signals[comp_name].details["last_seen_ts"] = time.time()  # Track when we last saw this signal
+                            signals[comp_name].details["last_seen_ts"] = 0  # Will be set when we find data
                         
                         # Check if signal has data (handle both dict and numeric values)
                         has_data = False
