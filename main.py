@@ -4711,6 +4711,9 @@ def run_once():
         _last_market_regime = market_regime
         
         print(f"DEBUG: About to call decide_and_execute with {len(clusters)} clusters, regime={market_regime}", flush=True)
+        if len(clusters) == 0:
+            print("⚠️  WARNING: No clusters to execute - check composite scoring logs above", flush=True)
+            log_event("execution", "no_clusters", cache_symbols=len(uw_cache) if use_composite else 0)
         audit_seg("run_once", "before_decide_execute", {"cluster_count": len(clusters)})
         # Live-safety gates before placing NEW entries:
         # - Broker degraded => reduce-only
