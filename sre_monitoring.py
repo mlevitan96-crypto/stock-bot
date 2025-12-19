@@ -306,13 +306,13 @@ class SREMonitoringEngine:
                             has_data = comp_data and comp_data != {}
                         
                         if has_data:
-                            # Update last seen timestamp when we find data
-                            signals[comp_name].details["last_seen_ts"] = time.time()
+                            # Mark as healthy - we found data for this signal
                             signals[comp_name].status = "healthy"
-                            # Calculate actual freshness: time since we last saw this signal
-                            last_seen = signals[comp_name].details.get("last_seen_ts", time.time())
-                            signals[comp_name].data_freshness_sec = time.time() - last_seen
+                            # Freshness is based on cache file age (when cache was last updated)
+                            signals[comp_name].data_freshness_sec = cache_age
                             signals[comp_name].last_update_age_sec = cache_age  # Cache file age
+                            # Update last seen timestamp for tracking
+                            signals[comp_name].details["last_seen_ts"] = time.time()
                             # Mark that we found data in at least one symbol
                             if "found_in_symbols" not in signals[comp_name].details:
                                 signals[comp_name].details["found_in_symbols"] = []
@@ -525,12 +525,15 @@ class SREMonitoringEngine:
         result["signal_components"] = {
             name: {
                 "status": s.status,
-                "last_update_age_sec": s.last_update_age_sec,
-                "data_freshness_sec": s.data_freshness_sec,
-                "error_rate_1h": s.error_rate_1h,
-                "details": s.details
+                "last_update_age_sec": s.last_update_age_sec if s.last_update_age_sec is not None else None,
+                "data_freshness_sec": s.data_freshness_sec if s.data_freshness_sec is not None else None,
+                "error_rate_1h": s.error_rate_1h if s.error_rate_1h is not None else 0.0,
+                "signals_generated_1h": s.details.get("signals_generated_1h", 0),
+                "found_in_symbols": s.details.get("found_in_symbols", []),
+                "signal_type": s.details.get("signal_type", "unknown")
             }
             for name, s in signal_health.items()
+            if not name.startswith("_")  # Exclude internal error signals from display
         }
         
         # Check order execution
@@ -557,6 +560,18 @@ class SREMonitoringEngine:
         # Determine overall health
         critical_issues = []
         warnings = []
+        
+        # Calculate signal health summary
+        healthy_signals = sum(1 for s in signal_health.values() if s.status == "healthy" and not s.name.startswith("_"))
+        total_signals = len([s for s in signal_health.values() if not s.name.startswith("_")])
+        result["signal_components_healthy"] = healthy_signals
+        result["signal_components_total"] = total_signals
+        
+        # Calculate UW API health summary
+        healthy_apis = sum(1 for h in uw_health.values() if h.status == "healthy")
+        total_apis = len(uw_health)
+        result["uw_api_healthy_count"] = healthy_apis
+        result["uw_api_total_count"] = total_apis
         
         # Check for critical issues
         # Only mark as critical if:
@@ -586,7 +601,7 @@ class SREMonitoringEngine:
         core_signals = ["options_flow", "dark_pool", "insider"]
         unhealthy_core_signals = [
             name for name, s in signal_health.items() 
-            if name in core_signals and s.status == "no_data"
+            if name in core_signals and s.status == "no_data" and not name.startswith("_")
         ]
         if unhealthy_core_signals:
             critical_issues.append(f"Core signals missing: {', '.join(unhealthy_core_signals)}")
@@ -595,7 +610,7 @@ class SREMonitoringEngine:
         computed_signals = ["iv_term_skew", "smile_slope"]
         missing_computed = [
             name for name, s in signal_health.items()
-            if name in computed_signals and s.status == "no_data"
+            if name in computed_signals and s.status == "no_data" and not name.startswith("_")
         ]
         if missing_computed:
             warnings.append(f"Computed signals missing (may be normal): {', '.join(missing_computed)}")

@@ -326,11 +326,17 @@ DASHBOARD_HTML = """
                             </span>
                         </div>
                         <div style="font-size: 0.9em; color: #666;">
-                            <div>Last Update: ${formatTimeAgo(health.last_update_age_sec)}</div>
+                            ${health.last_update_age_sec !== null && health.last_update_age_sec !== undefined ? 
+                                `<div>Last Update: ${formatTimeAgo(health.last_update_age_sec)}</div>` : 
+                                '<div>Last Update: N/A</div>'}
                             ${health.data_freshness_sec !== null && health.data_freshness_sec !== undefined ? 
                                 `<div>Freshness: ${formatTimeAgo(health.data_freshness_sec)}</div>` : ''}
-                            ${health.error_rate_1h !== undefined ? 
-                                `<div>Error Rate: ${(health.error_rate_1h * 100).toFixed(1)}%</div>` : ''}
+                            ${health.signals_generated_1h !== undefined && health.signals_generated_1h > 0 ? 
+                                `<div>Generated (1h): ${health.signals_generated_1h}</div>` : ''}
+                            ${health.found_in_symbols && health.found_in_symbols.length > 0 ? 
+                                `<div>Found in: ${health.found_in_symbols.slice(0, 3).join(', ')}${health.found_in_symbols.length > 3 ? '...' : ''}</div>` : ''}
+                            ${health.signal_type ? 
+                                `<div>Type: ${health.signal_type}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -369,7 +375,7 @@ DASHBOARD_HTML = """
             });
             
             html += `</div></div>
-                <div class="positions-table">
+                <div class="positions-table" style="margin-bottom: 20px;">
                     <h2 style="margin-bottom: 15px;">⚙️ Trade Engine & Execution</h2>
                     <div class="stat-card">
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
@@ -389,6 +395,28 @@ DASHBOARD_HTML = """
                         </div>
                     </div>
                 </div>
+                
+                ${data.comprehensive_learning ? `
+                <div class="positions-table">
+                    <h2 style="margin-bottom: 15px;">🧠 Learning Engine</h2>
+                    <div class="stat-card">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div><strong>Status:</strong> <span style="color: ${data.comprehensive_learning.running ? '#10b981' : '#64748b'}">${data.comprehensive_learning.running ? 'Running' : 'Idle'}</span></div>
+                            ${data.comprehensive_learning.last_run_age_sec !== null && data.comprehensive_learning.last_run_age_sec !== undefined ? 
+                                `<div><strong>Last Run:</strong> ${formatTimeAgo(data.comprehensive_learning.last_run_age_sec)}</div>` : 
+                                '<div><strong>Last Run:</strong> N/A</div>'}
+                            <div><strong>Success Count:</strong> ${data.comprehensive_learning.success_count || 0}</div>
+                            <div><strong>Error Count:</strong> ${data.comprehensive_learning.error_count || 0}</div>
+                            ${data.comprehensive_learning.components_available ? `
+                                <div><strong>Components:</strong> ${Object.keys(data.comprehensive_learning.components_available).filter(k => data.comprehensive_learning.components_available[k]).join(', ') || 'None'}</div>
+                            ` : ''}
+                            ${data.comprehensive_learning.error ? `
+                                <div style="color: #ef4444;"><strong>Error:</strong> ${data.comprehensive_learning.error}</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
             `;
             
             container.innerHTML = html;
