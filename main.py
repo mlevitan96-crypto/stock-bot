@@ -5915,8 +5915,26 @@ def handle_exit(signum, frame):
     finally:
         sys.exit(0)
 
-signal.signal(signal.SIGINT, handle_exit)
-signal.signal(signal.SIGTERM, handle_exit)
+# CRITICAL FIX: Only register signals in main thread when script is run directly
+# This prevents errors when main.py is imported by other modules (like risk_management.py)
+try:
+    # Check if we're in the main thread and script is run directly
+    if threading.current_thread() is threading.main_thread() and __name__ == "__main__":
+# CRITICAL FIX: Only register signals when script is run directly (not when imported)
+# This prevents "signal only works in main thread" error when risk_management.py imports main.py
+if __name__ == "__main__":
+    try:
+        signal.signal(signal.SIGINT, handle_exit)
+        signal.signal(signal.SIGTERM, handle_exit)
+    except (ValueError, AttributeError) as e:
+        # Signal registration failed (not in main thread) - safe to ignore when imported
+        pass
+    else:
+        # Being imported - don't register signals
+        pass
+except (ValueError, AttributeError):
+    # Signal registration failed (not in main thread) - safe to ignore when imported
+    pass
 
 # =========================
 # CONTINUOUS HEALTH CHECKS
