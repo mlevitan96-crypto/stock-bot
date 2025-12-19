@@ -96,6 +96,91 @@ def get_exit_urgency(position_data: dict, current_signals: dict) -> dict:
         return optimizer.compute_exit_urgency(position_data, current_signals)
     return {"action": "HOLD", "urgency": 0.0}
 
+def build_composite_close_reason(exit_signals: dict) -> str:
+    """
+    Build composite close reason from multiple exit signals (like entry uses composite signals).
+    
+    Args:
+        exit_signals: Dict with exit signal components:
+            - time_exit: bool or age_hours
+            - trail_stop: bool or pnl_pct
+            - signal_decay: float (decay ratio)
+            - flow_reversal: bool
+            - profit_target: float (pct hit)
+            - drawdown: float (pct)
+            - momentum_reversal: bool
+            - regime_protection: str
+            - displacement: str (symbol)
+            - stale_position: bool
+    
+    Returns:
+        Composite reason string like: "time_exit(72h)+signal_decay(0.65)+flow_reversal"
+    """
+    reasons = []
+    
+    # Time-based exits
+    if exit_signals.get("time_exit"):
+        age_hours = exit_signals.get("age_hours", 0)
+        if age_hours > 0:
+            reasons.append(f"time_exit({age_hours:.0f}h)")
+        else:
+            reasons.append("time_exit")
+    
+    # Trail stop
+    if exit_signals.get("trail_stop"):
+        pnl_pct = exit_signals.get("pnl_pct", 0.0)
+        if pnl_pct < 0:
+            reasons.append(f"trail_stop({pnl_pct:.1f}%)")
+        else:
+            reasons.append("trail_stop")
+    
+    # Signal decay
+    signal_decay = exit_signals.get("signal_decay")
+    if signal_decay is not None and signal_decay < 1.0:
+        reasons.append(f"signal_decay({signal_decay:.2f})")
+    
+    # Flow reversal
+    if exit_signals.get("flow_reversal"):
+        reasons.append("flow_reversal")
+    
+    # Profit target
+    profit_target = exit_signals.get("profit_target")
+    if profit_target is not None and profit_target > 0:
+        reasons.append(f"profit_target({int(profit_target*100)}%)")
+    
+    # Drawdown
+    drawdown = exit_signals.get("drawdown")
+    if drawdown is not None and drawdown > 0:
+        reasons.append(f"drawdown({drawdown:.1f}%)")
+    
+    # Momentum reversal
+    if exit_signals.get("momentum_reversal"):
+        reasons.append("momentum_reversal")
+    
+    # Regime protection
+    regime = exit_signals.get("regime_protection")
+    if regime:
+        reasons.append(f"regime_{regime}")
+    
+    # Displacement
+    displacement = exit_signals.get("displacement")
+    if displacement:
+        reasons.append(f"displaced_by_{displacement}")
+    
+    # Stale position
+    if exit_signals.get("stale_position"):
+        reasons.append("stale_position")
+    
+    # If no specific reasons, use primary reason or default
+    if not reasons:
+        primary = exit_signals.get("primary_reason", "unknown")
+        if primary and primary != "none":
+            reasons.append(primary)
+        else:
+            reasons.append("unknown")
+    
+    return "+".join(reasons) if reasons else "unknown"
+
 from v2_nightly_orchestration_with_auto_promotion import should_run_direct_v2
 from telemetry.logger import TelemetryLogger, timestamp_to_iso
 from health_supervisor import get_supervisor
@@ -3109,11 +3194,18 @@ class AlpacaExecutor:
             except:
                 symbol_metadata = {}
             
+            # Build composite close reason for displacement
+            displacement_signals = {
+                "displacement": new_symbol,
+                "age_hours": (datetime.utcnow() - info.get("ts", datetime.utcnow())).total_seconds() / 3600.0
+            }
+            close_reason = build_composite_close_reason(displacement_signals)
+            
             log_exit_attribution(
                 symbol=symbol,
                 info=info,
                 exit_price=exit_price,
-                close_reason=f"displaced_by_{new_symbol}",
+                close_reason=close_reason,
                 metadata=symbol_metadata
             )
             
@@ -3303,6 +3395,7 @@ class AlpacaExecutor:
         self.reload_positions_from_metadata()
         
         to_close = []
+        exit_reasons = {}  # Track composite exit reasons per symbol
         try:
             positions_index = {getattr(p, "symbol", ""): p for p in self.api.list_positions()}
         except Exception:
@@ -3314,8 +3407,13 @@ class AlpacaExecutor:
         except:
             all_metadata = {}
 
+        # Get current UW cache for signal evaluation
+        uw_cache = read_uw_cache()
+        current_regime_global = self._get_global_regime() or "mixed"
+
         now = datetime.utcnow()
         for symbol, info in list(self.opens.items()):
+            exit_signals = {}  # Collect all exit signals for this position
             try:
                 # FIX: Handle both offset-naive and offset-aware timestamps
                 entry_ts = info["ts"]
@@ -3324,6 +3422,8 @@ class AlpacaExecutor:
                 age_min = (now - entry_ts).total_seconds() / 60.0
                 age_days = age_min / (24 * 60)
                 age_hours = age_days * 24
+                exit_signals["age_hours"] = age_hours
+                
                 current_price = self.get_quote_price(symbol)
                 if current_price <= 0:
                     # FIX: Use entry price as fallback for after-hours exit evaluation
@@ -3338,6 +3438,26 @@ class AlpacaExecutor:
             high_water_price = info.get("high_water", current_price)
             pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
             high_water_pct = ((high_water_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+            exit_signals["pnl_pct"] = pnl_pct
+            
+            # Get current composite score for signal decay detection
+            current_composite_score = 0.0
+            flow_reversal = False
+            try:
+                enriched = uw_cache.get(symbol, {})
+                if enriched:
+                    composite = uw_v2.compute_composite_score_v3(symbol, enriched, current_regime_global)
+                    if composite:
+                        current_composite_score = composite.get("score", 0.0)
+                        # Check for flow reversal
+                        flow_sent = enriched.get("sentiment", "NEUTRAL")
+                        entry_direction = info.get("direction", "unknown")
+                        if entry_direction == "bullish" and flow_sent == "BEARISH":
+                            flow_reversal = True
+                        elif entry_direction == "bearish" and flow_sent == "BULLISH":
+                            flow_reversal = True
+            except Exception:
+                pass  # If we can't get current score, continue with defaults
             
             # V3.2: Use adaptive exit urgency from optimizer
             position_data = {
@@ -3348,10 +3468,19 @@ class AlpacaExecutor:
                 "direction": "LONG" if info.get("side", "buy") == "buy" else "SHORT"
             }
             current_signals = {
-                "composite_score": 0.0,  # Would need to fetch current score
-                "flow_reversal": False,
+                "composite_score": current_composite_score,
+                "flow_reversal": flow_reversal,
                 "momentum": 0.0
             }
+            
+            # Calculate signal decay
+            entry_score = info.get("entry_score", 3.0)
+            if entry_score > 0 and current_composite_score > 0:
+                decay_ratio = current_composite_score / entry_score
+                if decay_ratio < 1.0:
+                    exit_signals["signal_decay"] = decay_ratio
+            
+            exit_signals["flow_reversal"] = flow_reversal
             
             # --- AUDIT DEC 2025: Manual Regime Safety Override ---
             # Ensures protection even if adaptive optimizer is missing
@@ -3359,39 +3488,53 @@ class AlpacaExecutor:
             current_regime = (
                 all_metadata.get(symbol, {}).get("market_regime") or
                 info.get("market_regime") or
-                self._get_global_regime() or
+                current_regime_global or
                 "unknown"
             )
             if current_regime == "high_vol_neg_gamma":
                 if info.get("side", "buy") == "buy" and pnl_pct < -0.5:
+                    exit_signals["regime_protection"] = "neg_gamma"
+                    exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                     log_event("exit", "regime_safety_trigger", 
                              symbol=symbol, 
                              regime=current_regime,
                              pnl_pct=round(pnl_pct, 2),
-                             reason="regime_neg_gamma_protection")
+                             reason=exit_reasons[symbol])
                     to_close.append(symbol)
                     continue
             # --- END Regime Safety Override ---
             
             exit_recommendation = get_exit_urgency(position_data, current_signals)
             
+            # Collect factors from exit recommendation
+            if exit_recommendation.get("contributing_factors"):
+                for factor in exit_recommendation.get("contributing_factors", []):
+                    if "drawdown" in factor.lower():
+                        exit_signals["drawdown"] = high_water_pct - pnl_pct
+                    elif "momentum" in factor.lower():
+                        exit_signals["momentum_reversal"] = True
+            
             # V3.2: Adaptive exit can trigger immediate close
             if exit_recommendation.get("action") == "EXIT" and exit_recommendation.get("urgency", 0) >= 0.8:
+                exit_signals["primary_reason"] = exit_recommendation.get("primary_reason", "adaptive_urgency")
+                exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 log_event("exit", "adaptive_exit_urgent", 
                          symbol=symbol,
                          urgency=exit_recommendation.get("urgency"),
-                         reason=exit_recommendation.get("reason", "adaptive_urgency"))
+                         reason=exit_reasons[symbol])
                 to_close.append(symbol)
                 continue
             
             # V3.3: Time-based exit for stale low-movement positions
             if age_days >= Config.TIME_EXIT_DAYS_STALE:
                 if abs(pnl_pct / 100) < Config.TIME_EXIT_STALE_PNL_THRESH_PCT:
+                    exit_signals["stale_position"] = True
+                    exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                     log_event("exit", "time_exit_stale", 
                              symbol=symbol, 
                              age_days=round(age_days, 1),
                              pnl_pct=round(pnl_pct, 2),
-                             reason="position_stale_low_movement")
+                             reason=exit_reasons[symbol])
                     to_close.append(symbol)
                     continue
 
@@ -3404,6 +3547,11 @@ class AlpacaExecutor:
 
             stop_hit = current_price <= trail_stop
             time_hit = age_min >= Config.TIME_EXIT_MINUTES
+            
+            if stop_hit:
+                exit_signals["trail_stop"] = True
+            if time_hit:
+                exit_signals["time_exit"] = True
 
             ret_pct = _position_return_pct(info["entry_price"], current_price, info.get("side", "buy"))
             for tgt in info.get("targets", []):
@@ -3428,7 +3576,10 @@ class AlpacaExecutor:
                         symbol_metadata = all_metadata.get(symbol, {})
                         components = symbol_metadata.get("components", info.get("components", {}))
                         
-                        close_reason = f"profit_target_{int(tgt['pct']*100)}pct"
+                        # Build composite close reason for profit target
+                        scale_exit_signals = exit_signals.copy()
+                        scale_exit_signals["profit_target"] = tgt["pct"]
+                        close_reason = build_composite_close_reason(scale_exit_signals)
                         
                         jsonl_write("attribution", {
                             "type": "attribution",
@@ -3462,6 +3613,9 @@ class AlpacaExecutor:
                                   fraction=tgt["fraction"])
 
             if time_hit or stop_hit:
+                # Build composite close reason before adding to close list
+                if symbol not in exit_reasons:
+                    exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 to_close.append(symbol)
         
         for symbol in to_close:
@@ -3478,14 +3632,26 @@ class AlpacaExecutor:
                     exit_price = entry_price
                 
                 self.api.close_position(symbol)
-                log_order({"action": "close_position", "symbol": symbol, "reason": "time_or_trail"})
+                
+                # Use composite close reason if available, otherwise build one
+                close_reason = exit_reasons.get(symbol)
+                if not close_reason:
+                    # Fallback: build from basic signals
+                    basic_signals = {
+                        "time_exit": age_min >= Config.TIME_EXIT_MINUTES,
+                        "trail_stop": exit_price < entry_price * (1 - Config.TRAILING_STOP_PCT / 100),
+                        "age_hours": (datetime.utcnow() - entry_ts).total_seconds() / 3600.0
+                    }
+                    close_reason = build_composite_close_reason(basic_signals)
+                
+                log_order({"action": "close_position", "symbol": symbol, "reason": close_reason})
                 
                 symbol_metadata = all_metadata.get(symbol, {})
                 log_exit_attribution(
                     symbol=symbol,
                     info=info,
                     exit_price=exit_price,
-                    close_reason="time_or_trail",
+                    close_reason=close_reason,
                     metadata=symbol_metadata
                 )
                 
