@@ -135,6 +135,9 @@ class ComprehensiveLearningOrchestrator:
         self.exit_threshold_scenarios: List[ExitThresholdScenario] = []
         self.profit_target_scenarios: List[ProfitTargetScenario] = []
         self.risk_limit_scenarios: List[RiskLimitScenario] = []
+        self.displacement_scenarios: List[Dict[str, Any]] = []
+        self.execution_scenarios: List[Dict[str, Any]] = []
+        self.confirmation_scenarios: List[Dict[str, Any]] = []
         self.exit_signal_performance: Dict[str, Dict[str, Any]] = {}  # Track exit signal performance
         
         # State
@@ -197,6 +200,27 @@ class ComprehensiveLearningOrchestrator:
             RiskLimitScenario(daily_loss_pct=0.03, max_drawdown_pct=0.15, risk_per_trade_pct=0.01),  # Very conservative
             RiskLimitScenario(daily_loss_pct=0.04, max_drawdown_pct=0.20, risk_per_trade_pct=0.015),  # Current
             RiskLimitScenario(daily_loss_pct=0.05, max_drawdown_pct=0.25, risk_per_trade_pct=0.02),  # More aggressive (test only)
+        ]
+        
+        # Phase 3: Displacement scenarios
+        self.displacement_scenarios = [
+            {"min_age_hours": 2, "max_pnl_pct": 0.005, "score_advantage": 1.5, "cooldown_hours": 4},  # More aggressive
+            {"min_age_hours": 4, "max_pnl_pct": 0.01, "score_advantage": 2.0, "cooldown_hours": 6},  # Current
+            {"min_age_hours": 6, "max_pnl_pct": 0.015, "score_advantage": 2.5, "cooldown_hours": 8},  # More conservative
+        ]
+        
+        # Phase 3: Execution parameter scenarios
+        self.execution_scenarios = [
+            {"entry_tolerance_bps": 5, "max_spread_bps": 30, "max_retries": 2},  # Tighter
+            {"entry_tolerance_bps": 10, "max_spread_bps": 50, "max_retries": 3},  # Current
+            {"entry_tolerance_bps": 15, "max_spread_bps": 75, "max_retries": 4},  # Looser
+        ]
+        
+        # Phase 3: Confirmation threshold scenarios
+        self.confirmation_scenarios = [
+            {"darkpool_min": 500000, "net_premium_min": 50000, "rv20_max": 0.6},  # Tighter
+            {"darkpool_min": 1000000, "net_premium_min": 100000, "rv20_max": 0.8},  # Current
+            {"darkpool_min": 2000000, "net_premium_min": 200000, "rv20_max": 1.0},  # Looser
         ]
         
         # Sizing scenarios: test different size multipliers
@@ -1164,6 +1188,107 @@ class ComprehensiveLearningOrchestrator:
             logger.error(f"Execution quality analysis error: {e}")
             return {"status": "error", "error": str(e)}
     
+    def analyze_displacement_parameters(self) -> Dict[str, Any]:
+        """Analyze optimal displacement parameters."""
+        try:
+            attribution_file = DATA_DIR / "attribution.jsonl"
+            if not attribution_file.exists():
+                return {"status": "skipped", "reason": "no_trades"}
+            
+            # Analyze displacement exits to learn optimal parameters
+            displacement_trades = []
+            now = datetime.now(timezone.utc)
+            max_age_days = 60
+            
+            with attribution_file.open("r") as f:
+                lines = f.readlines()
+            
+            for line in lines:
+                try:
+                    trade = json.loads(line.strip())
+                    if trade.get("type") != "attribution":
+                        continue
+                    
+                    context = trade.get("context", {})
+                    close_reason = context.get("close_reason", "")
+                    if "displacement" not in close_reason:
+                        continue
+                    
+                    ts_str = trade.get("ts", "")
+                    if not ts_str:
+                        continue
+                    
+                    trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                    if trade_time.tzinfo is None:
+                        trade_time = trade_time.replace(tzinfo=timezone.utc)
+                    else:
+                        trade_time = trade_time.astimezone(timezone.utc)
+                    
+                    trade_age_days = (now - trade_time).total_seconds() / 86400.0
+                    if trade_age_days > max_age_days:
+                        continue
+                    
+                    displacement_trades.append(trade)
+                except Exception:
+                    continue
+            
+            if len(displacement_trades) < 10:
+                return {"status": "insufficient_data", "displacement_trades": len(displacement_trades)}
+            
+            # Analyze displacement outcomes
+            avg_pnl = sum(float(t.get("pnl_usd", 0.0)) for t in displacement_trades) / len(displacement_trades)
+            win_rate = sum(1 for t in displacement_trades if float(t.get("pnl_usd", 0.0)) > 0) / len(displacement_trades)
+            
+            return {
+                "status": "success",
+                "displacement_trades": len(displacement_trades),
+                "avg_pnl": round(avg_pnl, 2),
+                "win_rate": round(win_rate * 100, 1),
+                "note": "Current displacement parameters appear effective" if avg_pnl > 0 and win_rate > 0.5 else "Consider adjusting displacement parameters"
+            }
+            
+        except Exception as e:
+            logger.error(f"Displacement parameter analysis error: {e}")
+            return {"status": "error", "error": str(e)}
+    
+    def analyze_execution_parameters(self) -> Dict[str, Any]:
+        """Analyze optimal execution parameters (spread tolerance, entry tolerance, retries)."""
+        try:
+            orders_file = LOGS_DIR / "orders.jsonl"
+            if not orders_file.exists():
+                return {"status": "skipped", "reason": "no_order_logs"}
+            
+            # Analyze order outcomes by execution parameters
+            # This is a simplified analysis - full implementation would track parameter values per order
+            return {
+                "status": "success",
+                "note": "Execution parameter optimization requires per-order parameter tracking",
+                "recommendation": "Monitor fill rates and slippage to optimize parameters"
+            }
+            
+        except Exception as e:
+            logger.error(f"Execution parameter analysis error: {e}")
+            return {"status": "error", "error": str(e)}
+    
+    def analyze_confirmation_thresholds(self) -> Dict[str, Any]:
+        """Analyze optimal confirmation thresholds."""
+        try:
+            attribution_file = DATA_DIR / "attribution.jsonl"
+            if not attribution_file.exists():
+                return {"status": "skipped", "reason": "no_trades"}
+            
+            # Analyze trades that passed confirmation vs those that didn't
+            # This requires tracking which trades had confirmation signals
+            return {
+                "status": "success",
+                "note": "Confirmation threshold optimization requires confirmation signal tracking",
+                "recommendation": "Track confirmation signal presence in trade attribution"
+            }
+            
+        except Exception as e:
+            logger.error(f"Confirmation threshold analysis error: {e}")
+            return {"status": "error", "error": str(e)}
+    
     def _parse_close_reason(self, close_reason: str) -> List[str]:
         """Parse composite close reason into individual exit signals."""
         if not close_reason or close_reason == "unknown":
@@ -1202,6 +1327,9 @@ class ComprehensiveLearningOrchestrator:
             "profit_targets": {},
             "risk_limits": {},
             "execution_quality": {},
+            "displacement": {},
+            "execution_params": {},
+            "confirmation_thresholds": {},
             "errors": []
         }
         
@@ -1268,6 +1396,27 @@ class ComprehensiveLearningOrchestrator:
             results["errors"].append(f"Execution quality: {str(e)}")
             logger.error(f"Execution quality error: {e}")
         
+        # 10. Displacement parameter optimization (Phase 3)
+        try:
+            results["displacement"] = self.analyze_displacement_parameters()
+        except Exception as e:
+            results["errors"].append(f"Displacement: {str(e)}")
+            logger.error(f"Displacement error: {e}")
+        
+        # 11. Execution parameter optimization (Phase 3)
+        try:
+            results["execution_params"] = self.analyze_execution_parameters()
+        except Exception as e:
+            results["errors"].append(f"Execution params: {str(e)}")
+            logger.error(f"Execution params error: {e}")
+        
+        # 12. Confirmation threshold optimization (Phase 3)
+        try:
+            results["confirmation_thresholds"] = self.analyze_confirmation_thresholds()
+        except Exception as e:
+            results["errors"].append(f"Confirmation thresholds: {str(e)}")
+            logger.error(f"Confirmation thresholds error: {e}")
+        
         # Log results
         self._log_results(results)
         
@@ -1311,6 +1460,15 @@ class ComprehensiveLearningOrchestrator:
         except Exception as e:
             results["errors"].append(f"Risk limit apply: {str(e)}")
             logger.error(f"Risk limit apply error: {e}")
+        
+        # 13. Apply Phase 3 optimizations (if recommendations available)
+        # Note: Phase 3 optimizations are logged but not auto-applied (requires manual review)
+        if results.get("displacement", {}).get("status") == "success":
+            logger.info(f"Displacement analysis: {results['displacement']}")
+        if results.get("execution_params", {}).get("status") == "success":
+            logger.info(f"Execution params analysis: {results['execution_params']}")
+        if results.get("confirmation_thresholds", {}).get("status") == "success":
+            logger.info(f"Confirmation thresholds analysis: {results['confirmation_thresholds']}")
         
         logger.info(f"Learning cycle complete: {len(results['errors'])} errors")
         return results

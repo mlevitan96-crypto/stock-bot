@@ -191,13 +191,27 @@ class SREMonitoringEngine:
                     if not isinstance(symbol_data, dict):
                         continue
                     
-                    # Check each signal component
+                    # Check ALL signal components (comprehensive list)
                     components = {
-                        "flow": symbol_data.get("sentiment"),
+                        "options_flow": symbol_data.get("sentiment") or symbol_data.get("flow_sentiment"),
                         "dark_pool": symbol_data.get("dark_pool", {}),
                         "insider": symbol_data.get("insider", {}),
                         "iv_term_skew": symbol_data.get("iv_term_skew"),
                         "smile_slope": symbol_data.get("smile_slope"),
+                        "whale_persistence": symbol_data.get("whale_persistence"),
+                        "event_alignment": symbol_data.get("event_alignment"),
+                        "temporal_motif": symbol_data.get("temporal_motif"),
+                        "congress": symbol_data.get("congress", {}),
+                        "shorts_squeeze": symbol_data.get("shorts_squeeze"),
+                        "institutional": symbol_data.get("institutional", {}),
+                        "market_tide": symbol_data.get("market_tide"),
+                        "calendar_catalyst": symbol_data.get("calendar_catalyst"),
+                        "etf_flow": symbol_data.get("etf_flow"),
+                        "greeks_gamma": symbol_data.get("greeks_gamma"),
+                        "ftd_pressure": symbol_data.get("ftd_pressure"),
+                        "iv_rank": symbol_data.get("iv_rank"),
+                        "oi_change": symbol_data.get("oi_change"),
+                        "squeeze_score": symbol_data.get("squeeze_score"),
                     }
                     
                     for comp_name, comp_data in components.items():
@@ -214,12 +228,17 @@ class SREMonitoringEngine:
                         
                         # Check if signal has data (handle both dict and numeric values)
                         has_data = False
-                        if comp_name == "insider":
-                            # Insider is a dict - check if it exists and is not empty
+                        if comp_name in ["insider", "dark_pool", "congress", "institutional"]:
+                            # Dict signals - check if it exists and is not empty
                             has_data = isinstance(comp_data, dict) and len(comp_data) > 0
-                        elif comp_name in ["iv_term_skew", "smile_slope"]:
+                        elif comp_name in ["iv_term_skew", "smile_slope", "iv_rank", "squeeze_score", "whale_persistence", 
+                                          "event_alignment", "temporal_motif", "market_tide", "calendar_catalyst", 
+                                          "etf_flow", "greeks_gamma", "ftd_pressure", "oi_change", "shorts_squeeze"]:
                             # Numeric signals - check if not None (0.0 is valid!)
                             has_data = comp_data is not None
+                        elif comp_name == "options_flow":
+                            # Options flow can be string (sentiment) or dict
+                            has_data = comp_data is not None and comp_data != "" and comp_data != {}
                         else:
                             # Other signals - check if truthy and not empty dict
                             has_data = comp_data and comp_data != {}
