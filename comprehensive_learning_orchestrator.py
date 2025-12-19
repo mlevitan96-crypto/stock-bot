@@ -103,6 +103,20 @@ class ProfitTargetScenario:
     avg_pnl_per_target: float = 0.0
 
 
+@dataclass
+class RiskLimitScenario:
+    """Represents a risk limit scenario to test (conservative approach)"""
+    daily_loss_pct: float  # e.g., 0.03, 0.04, 0.05 (3%, 4%, 5%)
+    max_drawdown_pct: float  # e.g., 0.15, 0.20, 0.25 (15%, 20%, 25%)
+    risk_per_trade_pct: float  # e.g., 0.01, 0.015, 0.02 (1%, 1.5%, 2%)
+    test_count: int = 0
+    total_pnl: float = 0.0
+    weighted_pnl: float = 0.0
+    total_weight: float = 0.0
+    max_daily_loss: float = 0.0  # Worst daily loss observed
+    max_drawdown: float = 0.0  # Worst drawdown observed
+
+
 class ComprehensiveLearningOrchestrator:
     """Orchestrates all learning components for continuous improvement."""
     
@@ -120,6 +134,7 @@ class ComprehensiveLearningOrchestrator:
         self.sizing_scenarios: List[SizingScenario] = []
         self.exit_threshold_scenarios: List[ExitThresholdScenario] = []
         self.profit_target_scenarios: List[ProfitTargetScenario] = []
+        self.risk_limit_scenarios: List[RiskLimitScenario] = []
         self.exit_signal_performance: Dict[str, Dict[str, Any]] = {}  # Track exit signal performance
         
         # State
@@ -174,6 +189,14 @@ class ComprehensiveLearningOrchestrator:
             ProfitTargetScenario(targets=[0.02, 0.05, 0.10], scale_fractions=[0.30, 0.30, 0.40]),  # Current
             ProfitTargetScenario(targets=[0.025, 0.06, 0.12], scale_fractions=[0.35, 0.35, 0.30]),  # More aggressive
             ProfitTargetScenario(targets=[0.03, 0.08, 0.15], scale_fractions=[0.40, 0.30, 0.30]),  # Very aggressive
+        ]
+        
+        # Risk limit scenarios: test different risk limits (CONSERVATIVE - only tighten, never loosen)
+        # NOTE: Risk limits are critical for capital preservation - we only optimize to be MORE conservative
+        self.risk_limit_scenarios = [
+            RiskLimitScenario(daily_loss_pct=0.03, max_drawdown_pct=0.15, risk_per_trade_pct=0.01),  # Very conservative
+            RiskLimitScenario(daily_loss_pct=0.04, max_drawdown_pct=0.20, risk_per_trade_pct=0.015),  # Current
+            RiskLimitScenario(daily_loss_pct=0.05, max_drawdown_pct=0.25, risk_per_trade_pct=0.02),  # More aggressive (test only)
         ]
         
         # Sizing scenarios: test different size multipliers
@@ -934,6 +957,213 @@ class ComprehensiveLearningOrchestrator:
             logger.error(f"Profit target analysis error: {e}")
             return {"status": "error", "error": str(e)}
     
+    def analyze_risk_limits(self) -> Dict[str, Any]:
+        """Analyze optimal risk limits (CONSERVATIVE - only tighten, never loosen)."""
+        try:
+            # Risk limits are critical - we analyze but only recommend TIGHTER limits
+            # Never recommend loosening risk limits
+            
+            attribution_file = DATA_DIR / "attribution.jsonl"
+            daily_postmortem_file = DATA_DIR / "daily_postmortem.jsonl"
+            
+            if not attribution_file.exists():
+                return {"status": "skipped", "reason": "no_trades"}
+            
+            # Analyze daily P&L patterns
+            daily_pnl = {}
+            max_daily_loss = 0.0
+            max_drawdown_observed = 0.0
+            
+            # Read daily postmortem for daily P&L
+            if daily_postmortem_file.exists():
+                with daily_postmortem_file.open("r") as f:
+                    for line in f:
+                        try:
+                            day_data = json.loads(line.strip())
+                            date = day_data.get("date", "")
+                            pnl = float(day_data.get("daily_pnl_usd", 0.0))
+                            if date:
+                                daily_pnl[date] = pnl
+                                if pnl < 0:
+                                    max_daily_loss = min(max_daily_loss, pnl)
+                        except Exception:
+                            continue
+            
+            # Analyze drawdown from attribution
+            peak_equity = 0.0
+            current_equity = 0.0
+            
+            with attribution_file.open("r") as f:
+                lines = f.readlines()
+            
+            for line in lines:
+                try:
+                    trade = json.loads(line.strip())
+                    if trade.get("type") != "attribution":
+                        continue
+                    
+                    # Track equity progression (simplified)
+                    pnl = float(trade.get("pnl_usd", 0.0))
+                    current_equity += pnl
+                    if current_equity > peak_equity:
+                        peak_equity = current_equity
+                    
+                    drawdown = (peak_equity - current_equity) / peak_equity if peak_equity > 0 else 0
+                    if drawdown > max_drawdown_observed:
+                        max_drawdown_observed = drawdown
+                
+                except Exception:
+                    continue
+            
+            # Get current limits
+            try:
+                from risk_management import get_risk_limits
+                current_limits = get_risk_limits()
+            except Exception:
+                return {"status": "error", "error": "cannot_load_current_limits"}
+            
+            # Conservative recommendation: Only tighten if we've approached limits
+            # If we've hit 80% of daily loss limit, recommend tightening by 10%
+            recommended_daily_loss_pct = current_limits["daily_loss_pct"]
+            recommended_drawdown_pct = current_limits["max_drawdown_pct"]
+            
+            if max_daily_loss < 0 and abs(max_daily_loss) > current_limits["daily_loss_dollar"] * 0.8:
+                # We've approached the limit - tighten by 10%
+                recommended_daily_loss_pct = current_limits["daily_loss_pct"] * 0.9
+                logger.info(f"Risk limit recommendation: Tighten daily loss limit from {current_limits['daily_loss_pct']:.1%} to {recommended_daily_loss_pct:.1%}")
+            
+            if max_drawdown_observed > current_limits["max_drawdown_pct"] * 0.8:
+                # We've approached the drawdown limit - tighten by 10%
+                recommended_drawdown_pct = current_limits["max_drawdown_pct"] * 0.9
+                logger.info(f"Risk limit recommendation: Tighten max drawdown from {current_limits['max_drawdown_pct']:.1%} to {recommended_drawdown_pct:.1%}")
+            
+            return {
+                "status": "success",
+                "current_daily_loss_pct": current_limits["daily_loss_pct"],
+                "current_max_drawdown_pct": current_limits["max_drawdown_pct"],
+                "max_daily_loss_observed": round(max_daily_loss, 2),
+                "max_drawdown_observed": round(max_drawdown_observed, 4),
+                "recommended_daily_loss_pct": round(recommended_daily_loss_pct, 4),
+                "recommended_max_drawdown_pct": round(recommended_drawdown_pct, 4),
+                "note": "Conservative approach: Only tightens limits, never loosens"
+            }
+            
+        except Exception as e:
+            logger.error(f"Risk limit analysis error: {e}")
+            return {"status": "error", "error": str(e)}
+    
+    def analyze_execution_quality(self) -> Dict[str, Any]:
+        """Analyze order execution quality to learn optimal execution strategies."""
+        try:
+            orders_file = LOGS_DIR / "orders.jsonl"
+            if not orders_file.exists():
+                return {"status": "skipped", "reason": "no_order_logs"}
+            
+            execution_stats = {
+                "limit_orders": {"count": 0, "filled": 0, "avg_slippage": 0.0},
+                "market_orders": {"count": 0, "filled": 0, "avg_slippage": 0.0},
+                "post_only_orders": {"count": 0, "filled": 0, "avg_slippage": 0.0},
+            }
+            
+            now = datetime.now(timezone.utc)
+            max_age_days = 30  # Look back 30 days
+            
+            with orders_file.open("r") as f:
+                lines = f.readlines()
+            
+            for line in lines:
+                try:
+                    order = json.loads(line.strip())
+                    if order.get("type") != "order":
+                        continue
+                    
+                    ts_str = order.get("_ts") or order.get("ts", "")
+                    if not ts_str:
+                        continue
+                    
+                    # Handle timestamp
+                    if isinstance(ts_str, (int, float)):
+                        order_time = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                    else:
+                        order_time = datetime.fromisoformat(str(ts_str).replace("Z", "+00:00"))
+                        if order_time.tzinfo is None:
+                            order_time = order_time.replace(tzinfo=timezone.utc)
+                    
+                    order_age_days = (now - order_time).total_seconds() / 86400.0
+                    if order_age_days > max_age_days:
+                        continue
+                    
+                    order_type = order.get("order_type", "unknown").lower()
+                    filled = order.get("filled", False) or order.get("status", "").lower() == "filled"
+                    slippage = abs(float(order.get("slippage", 0.0)))
+                    
+                    # Categorize order
+                    if "limit" in order_type or order.get("time_in_force") == "day":
+                        key = "limit_orders"
+                    elif "market" in order_type:
+                        key = "market_orders"
+                    elif order.get("post_only") or "post" in order_type:
+                        key = "post_only_orders"
+                    else:
+                        continue
+                    
+                    stats = execution_stats[key]
+                    stats["count"] += 1
+                    if filled:
+                        stats["filled"] += 1
+                        if stats["filled"] > 0:
+                            # Update average slippage
+                            stats["avg_slippage"] = (stats["avg_slippage"] * (stats["filled"] - 1) + slippage) / stats["filled"]
+                
+                except Exception as e:
+                    logger.debug(f"Error analyzing order: {e}")
+                    continue
+            
+            # Calculate fill rates
+            for key, stats in execution_stats.items():
+                if stats["count"] > 0:
+                    stats["fill_rate"] = stats["filled"] / stats["count"]
+                else:
+                    stats["fill_rate"] = 0.0
+            
+            # Find best execution strategy
+            best_strategy = None
+            best_score = float('-inf')
+            
+            for key, stats in execution_stats.items():
+                if stats["count"] < 10:  # Minimum samples
+                    continue
+                
+                # Score = fill_rate * (1 - normalized_slippage)
+                # Higher fill rate and lower slippage = better
+                fill_rate = stats.get("fill_rate", 0.0)
+                avg_slippage = stats.get("avg_slippage", 0.0)
+                # Normalize slippage (assume max slippage of 0.5% = 1.0)
+                normalized_slippage = min(1.0, avg_slippage / 0.005)
+                score = fill_rate * (1 - normalized_slippage)
+                
+                if score > best_score:
+                    best_score = score
+                    best_strategy = key
+            
+            return {
+                "status": "success",
+                "execution_stats": {
+                    k: {
+                        "count": v["count"],
+                        "fill_rate": round(v.get("fill_rate", 0.0), 3),
+                        "avg_slippage": round(v.get("avg_slippage", 0.0), 4)
+                    }
+                    for k, v in execution_stats.items()
+                },
+                "best_strategy": best_strategy,
+                "best_score": round(best_score, 3) if best_score != float('-inf') else None
+            }
+            
+        except Exception as e:
+            logger.error(f"Execution quality analysis error: {e}")
+            return {"status": "error", "error": str(e)}
+    
     def _parse_close_reason(self, close_reason: str) -> List[str]:
         """Parse composite close reason into individual exit signals."""
         if not close_reason or close_reason == "unknown":
@@ -970,6 +1200,8 @@ class ComprehensiveLearningOrchestrator:
             "exit_thresholds": {},
             "close_reason_performance": {},
             "profit_targets": {},
+            "risk_limits": {},
+            "execution_quality": {},
             "errors": []
         }
         
@@ -1022,6 +1254,20 @@ class ComprehensiveLearningOrchestrator:
             results["errors"].append(f"Profit targets: {str(e)}")
             logger.error(f"Profit target error: {e}")
         
+        # 8. Risk limit optimization (CONSERVATIVE - only tighten, never loosen)
+        try:
+            results["risk_limits"] = self.analyze_risk_limits()
+        except Exception as e:
+            results["errors"].append(f"Risk limits: {str(e)}")
+            logger.error(f"Risk limit error: {e}")
+        
+        # 9. Execution quality learning
+        try:
+            results["execution_quality"] = self.analyze_execution_quality()
+        except Exception as e:
+            results["errors"].append(f"Execution quality: {str(e)}")
+            logger.error(f"Execution quality error: {e}")
+        
         # Log results
         self._log_results(results)
         
@@ -1050,13 +1296,21 @@ class ComprehensiveLearningOrchestrator:
             results["errors"].append(f"Exit threshold apply: {str(e)}")
             logger.error(f"Exit threshold apply error: {e}")
         
-        # 10. Apply optimized profit targets
+        # 11. Apply optimized profit targets
         try:
             if results.get("profit_targets", {}).get("status") == "success":
                 self._apply_optimized_profit_targets(results["profit_targets"])
         except Exception as e:
             results["errors"].append(f"Profit target apply: {str(e)}")
             logger.error(f"Profit target apply error: {e}")
+        
+        # 12. Apply optimized risk limits (CONSERVATIVE - only tighten)
+        try:
+            if results.get("risk_limits", {}).get("status") == "success":
+                self._apply_optimized_risk_limits(results["risk_limits"])
+        except Exception as e:
+            results["errors"].append(f"Risk limit apply: {str(e)}")
+            logger.error(f"Risk limit apply error: {e}")
         
         logger.info(f"Learning cycle complete: {len(results['errors'])} errors")
         return results
@@ -1202,6 +1456,39 @@ class ComprehensiveLearningOrchestrator:
                 
         except Exception as e:
             logger.warning(f"Error applying optimized profit targets: {e}")
+    
+    def _apply_optimized_risk_limits(self, risk_limit_data: Dict[str, Any]):
+        """Apply optimized risk limits (CONSERVATIVE - only tighten, never loosen)."""
+        try:
+            if risk_limit_data.get("status") != "success":
+                return
+            
+            recommended_daily_loss_pct = risk_limit_data.get("recommended_daily_loss_pct")
+            recommended_drawdown_pct = risk_limit_data.get("recommended_max_drawdown_pct")
+            
+            if not recommended_daily_loss_pct or not recommended_drawdown_pct:
+                return
+            
+            # Get current limits
+            try:
+                from risk_management import get_risk_limits
+                current_limits = get_risk_limits()
+            except Exception:
+                return
+            
+            # Only apply if recommendation is TIGHTER (more conservative)
+            if recommended_daily_loss_pct < current_limits["daily_loss_pct"]:
+                logger.info(f"Risk limit optimization: Tighten daily loss limit from {current_limits['daily_loss_pct']:.1%} to {recommended_daily_loss_pct:.1%}")
+                # Note: Actual application would need to persist to state file
+                # TODO: Implement risk limit state persistence
+            
+            if recommended_drawdown_pct < current_limits["max_drawdown_pct"]:
+                logger.info(f"Risk limit optimization: Tighten max drawdown from {current_limits['max_drawdown_pct']:.1%} to {recommended_drawdown_pct:.1%}")
+                # Note: Actual application would need to persist to state file
+                # TODO: Implement risk limit state persistence
+            
+        except Exception as e:
+            logger.warning(f"Error applying optimized risk limits: {e}")
     
     def _log_results(self, results: Dict[str, Any]):
         """Log learning results."""
