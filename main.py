@@ -3206,21 +3206,13 @@ class AlpacaExecutor:
                     "in_cooldown": 0
                 }
                 
+                # Detailed per-position breakdown
+                position_details = []
+                
                 for pos in positions:
                     symbol = getattr(pos, "symbol", "")
                     if not symbol or symbol == new_symbol:
                         continue
-                    
-                    # Check cooldown
-                    cooldown_ts = displacement_cooldowns.get(symbol)
-                    if cooldown_ts:
-                        try:
-                            cooldown_dt = datetime.fromisoformat(cooldown_ts)
-                            if now < cooldown_dt + timedelta(hours=Config.DISPLACEMENT_COOLDOWN_HOURS):
-                                reasons["in_cooldown"] += 1
-                                continue
-                        except Exception:
-                            pass
                     
                     # Get position details
                     entry_price = float(getattr(pos, "avg_entry_price", 0))
@@ -3247,22 +3239,65 @@ class AlpacaExecutor:
                     original_score = pos_meta.get("entry_score", 0)
                     score_advantage = new_signal_score - original_score
                     
-                    if age_hours < Config.DISPLACEMENT_MIN_AGE_HOURS:
+                    # Check cooldown
+                    cooldown_ts = displacement_cooldowns.get(symbol)
+                    in_cooldown = False
+                    if cooldown_ts:
+                        try:
+                            cooldown_dt = datetime.fromisoformat(cooldown_ts)
+                            if now < cooldown_dt + timedelta(hours=Config.DISPLACEMENT_COOLDOWN_HOURS):
+                                reasons["in_cooldown"] += 1
+                                in_cooldown = True
+                        except Exception:
+                            pass
+                    
+                    # Determine why this position is not eligible
+                    fail_reason = None
+                    if in_cooldown:
+                        fail_reason = "in_cooldown"
+                    elif age_hours < Config.DISPLACEMENT_MIN_AGE_HOURS:
                         reasons["too_young"] += 1
+                        fail_reason = "too_young"
                     elif abs(pnl_pct) > Config.DISPLACEMENT_MAX_PNL_PCT:
                         reasons["pnl_too_high"] += 1
+                        fail_reason = "pnl_too_high"
                     elif score_advantage < Config.DISPLACEMENT_SCORE_ADVANTAGE:
                         reasons["score_advantage_insufficient"] += 1
+                        fail_reason = "score_advantage_insufficient"
+                    
+                    # Store detailed info for logging
+                    position_details.append({
+                        "symbol": symbol,
+                        "age_hours": round(age_hours, 2),
+                        "pnl_pct": round(pnl_pct * 100, 2),
+                        "original_score": round(original_score, 2),
+                        "score_advantage": round(score_advantage, 2),
+                        "fail_reason": fail_reason
+                    })
                 
+                # Log summary with detailed breakdown
                 log_event("displacement", "no_candidates_found",
-                         new_signal_score=new_signal_score,
+                         new_signal_score=round(new_signal_score, 2),
                          total_positions=total_positions,
                          reasons=reasons,
                          min_age_hours=Config.DISPLACEMENT_MIN_AGE_HOURS,
                          max_pnl_pct=Config.DISPLACEMENT_MAX_PNL_PCT,
-                         required_score_advantage=Config.DISPLACEMENT_SCORE_ADVANTAGE)
+                         required_score_advantage=Config.DISPLACEMENT_SCORE_ADVANTAGE,
+                         position_details=position_details[:10])  # Log first 10 positions
+                
+                # Also print to console for immediate visibility
+                print(f"DEBUG DISPLACEMENT: No candidates found for score {new_signal_score:.2f}", flush=True)
+                print(f"  Total positions: {total_positions}", flush=True)
+                print(f"  Reasons: {reasons}", flush=True)
+                if position_details:
+                    print(f"  Sample positions:", flush=True)
+                    for pd in position_details[:5]:
+                        print(f"    {pd['symbol']}: age={pd['age_hours']:.1f}h, pnl={pd['pnl_pct']:.2f}%, "
+                              f"orig_score={pd['original_score']:.2f}, advantage={pd['score_advantage']:.2f}, "
+                              f"fail={pd['fail_reason']}", flush=True)
             except Exception as e:
                 log_event("displacement", "diagnostic_failed", error=str(e))
+                print(f"DEBUG DISPLACEMENT: Diagnostic failed: {e}", flush=True)
             
             return None
         
