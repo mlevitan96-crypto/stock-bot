@@ -105,10 +105,71 @@ class SREMonitoringEngine:
         """Check health of a specific UW API endpoint."""
         health = APIEndpointHealth(endpoint=endpoint, status="unknown")
         
-        if not self.uw_api_key:
-            health.status = "no_api_key"
-            health.last_error = "UW_API_KEY not set"
-            return health
+        # Check cache freshness first - if cache is fresh, API key must be working
+        # (even if we can't see it in environment variables)
+        cache_file = DATA_DIR / "uw_flow_cache.json"
+        if cache_file.exists():
+            cache_age = time.time() - cache_file.stat().st_mtime
+            if cache_age < 300:  # Cache updated in last 5 minutes
+                # Cache is fresh - API key must be working
+                health.status = "healthy"
+                health.last_success_age_sec = cache_age
+                health.avg_latency_ms = None
+                # Still check error logs for this endpoint
+                error_log = DATA_DIR / "uw_error.jsonl"
+                if error_log.exists():
+                    now = time.time()
+                    cutoff_1h = now - 3600
+                    errors_1h = 0
+                    requests_1h = 0
+                    last_error_msg = None
+                    try:
+                        for line in error_log.read_text().splitlines()[-100:]:
+                            try:
+                                event = json.loads(line)
+                                if endpoint in event.get("url", ""):
+                                    requests_1h += 1
+                                    if event.get("_ts", 0) > cutoff_1h:
+                                        errors_1h += 1
+                                        if not last_error_msg:
+                                            last_error_msg = event.get("error", "Unknown error")
+                            except:
+                                pass
+                    except:
+                        pass
+                    
+                    if requests_1h > 0:
+                        health.error_rate_1h = errors_1h / requests_1h
+                        if health.error_rate_1h > 0.5:  # More than 50% errors
+                            health.status = "degraded"
+                            health.last_error = last_error_msg
+                
+                return health
+            elif cache_age < 600:  # Cache updated in last 10 minutes
+                health.status = "degraded"
+                health.last_success_age_sec = cache_age
+            else:
+                # Cache is stale - check if API key is available
+                if not self.uw_api_key:
+                    health.status = "no_api_key"
+                    health.last_error = "UW_API_KEY not set and cache is stale"
+                else:
+                    health.status = "stale"
+                    health.last_success_age_sec = cache_age
+                    health.last_error = f"Cache stale ({int(cache_age)}s old)"
+                return health
+        else:
+            # No cache file - check if API key is available
+            if not self.uw_api_key:
+                health.status = "no_api_key"
+                health.last_error = "UW_API_KEY not set and no cache file"
+                return health
+            else:
+                health.status = "no_cache"
+                health.last_error = "Cache file does not exist"
+                return health
+        
+        # If we get here, cache exists but is moderately stale - continue with normal checks
         
         # Check error logs for this endpoint
         error_log = DATA_DIR / "uw_error.jsonl"
@@ -135,30 +196,37 @@ class SREMonitoringEngine:
             except:
                 pass
         
-        # QUOTA OPTIMIZATION: Do NOT make test API calls - check cache freshness instead
-        # Making test API calls wastes quota. Instead, check if cache is being updated.
-        # Only check cache file freshness and error logs - no actual API calls.
-        cache_file = DATA_DIR / "uw_flow_cache.json"
-        if cache_file.exists():
-            cache_age = time.time() - cache_file.stat().st_mtime
-            if cache_age < 300:  # Cache updated in last 5 minutes
-                health.status = "healthy"
-                health.last_success_age_sec = cache_age
-                health.avg_latency_ms = None  # Not measured (no API call to avoid quota waste)
-            elif cache_age < 600:  # Cache updated in last 10 minutes
-                health.status = "degraded"
-                health.last_success_age_sec = cache_age
-            else:
-                health.status = "stale"
-                health.last_success_age_sec = cache_age
-                health.last_error = f"Cache stale ({int(cache_age)}s old)"
-        else:
-            health.status = "no_cache"
-            health.last_error = "Cache file does not exist"
+        # Check error logs for this endpoint
+        error_log = DATA_DIR / "uw_error.jsonl"
+        now = time.time()
+        cutoff_1h = now - 3600
         
-        # Calculate error rate from logs (no API call needed)
+        errors_1h = 0
+        requests_1h = 0
+        last_error_msg = None
+        
+        if error_log.exists():
+            try:
+                for line in error_log.read_text().splitlines()[-100:]:
+                    try:
+                        event = json.loads(line)
+                        if endpoint in event.get("url", ""):
+                            requests_1h += 1
+                            if event.get("_ts", 0) > cutoff_1h:
+                                errors_1h += 1
+                                if not last_error_msg:
+                                    last_error_msg = event.get("error", "Unknown error")
+                    except:
+                        pass
+            except:
+                pass
+        
+        # Calculate error rate from logs
         if requests_1h > 0:
             health.error_rate_1h = errors_1h / requests_1h
+            if health.error_rate_1h > 0.5:  # More than 50% errors
+                health.status = "degraded"
+                health.last_error = last_error_msg
         else:
             health.error_rate_1h = 0.0
         
@@ -508,9 +576,24 @@ class SREMonitoringEngine:
         warnings = []
         
         # Check for critical issues
+        # Only mark as critical if:
+        # 1. Auth failed or connection error (actual API problems)
+        # 2. No API key AND cache is stale (proves API key is needed but missing)
+        # Don't mark as critical if cache is fresh (proves API key is working even if env var not visible)
         for name, health in uw_health.items():
-            if health.status in ["auth_failed", "connection_error", "no_api_key"]:
+            if health.status in ["auth_failed", "connection_error"]:
                 critical_issues.append(f"UW API {name}: {health.status}")
+            elif health.status == "no_api_key":
+                # Only critical if cache is actually stale (proves API key is needed)
+                # If cache is fresh, API key must be working (just not visible in env)
+                cache_file = DATA_DIR / "uw_flow_cache.json"
+                if cache_file.exists():
+                    cache_age = time.time() - cache_file.stat().st_mtime
+                    if cache_age > 600:  # Cache is stale (> 10 minutes)
+                        critical_issues.append(f"UW API {name}: {health.status} (cache stale)")
+                else:
+                    # No cache file - this is critical
+                    critical_issues.append(f"UW API {name}: {health.status} (no cache)")
         
         if result["order_execution"]["status"] == "degraded" and market_open:
             warnings.append("No orders in last hour during market hours")
