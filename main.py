@@ -1048,6 +1048,57 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
               pnl_pct=round(pnl_pct, 2),
               hold_min=round(hold_minutes, 1),
               reason=close_reason)
+    
+    # V4.0: Feed exit outcome to learning system for exit signal weight updates
+    try:
+        from adaptive_signal_optimizer import get_optimizer, EXIT_COMPONENTS
+        optimizer = get_optimizer()
+        if optimizer and hasattr(optimizer, 'exit_model'):
+            # Parse close reason to extract exit signals
+            exit_signals = []
+            if close_reason and close_reason != "unknown":
+                for part in close_reason.split("+"):
+                    part = part.strip()
+                    if "(" in part:
+                        signal_name = part.split("(")[0].strip()
+                    else:
+                        signal_name = part.strip()
+                    if signal_name:
+                        exit_signals.append(signal_name)
+            
+            # Map exit signals to exit model components
+            exit_components = {}
+            for signal in exit_signals:
+                if "signal_decay" in signal or "entry_decay" in signal:
+                    exit_components["entry_decay"] = 1.0
+                elif "flow_reversal" in signal or "adverse_flow" in signal:
+                    exit_components["adverse_flow"] = 1.0
+                elif "drawdown" in signal:
+                    exit_components["drawdown_velocity"] = 1.0
+                elif "time" in signal or "stale" in signal:
+                    exit_components["time_decay"] = 1.0
+                elif "momentum" in signal:
+                    exit_components["momentum_reversal"] = 1.0
+            
+            # Record exit outcome for learning (similar to entry learning)
+            if exit_components and pnl_pct != 0:
+                # Use exit model's learning orchestrator if available
+                if hasattr(optimizer, 'learner') and hasattr(optimizer.learner, 'record_trade_outcome'):
+                    optimizer.learner.record_trade_outcome(
+                        trade_data={
+                            "entry_ts": entry_ts.isoformat() if hasattr(entry_ts, 'isoformat') else str(entry_ts),
+                            "exit_ts": now_aware.isoformat(),
+                            "direction": context.get("direction", "unknown"),
+                            "close_reason": close_reason
+                        },
+                        feature_vector=exit_components,
+                        pnl=pnl_pct / 100.0,  # Convert % to decimal
+                        regime=context.get("market_regime", "unknown"),
+                        sector="unknown"  # Could extract from symbol if needed
+                    )
+    except Exception as e:
+        # Don't fail exit logging if learning fails
+        log_event("exit", "learning_feed_failed", error=str(e))
 
 def compute_daily_metrics():
     path = os.path.join(LOG_DIR, "attribution.jsonl")
