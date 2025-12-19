@@ -5402,10 +5402,14 @@ class Watchdog:
             try:
                 log_event("worker", "iter_start", iter=self.state.iter_count + 1)
                 
-                if is_market_open_now() or SIMULATE_MARKET_OPEN:
+                market_open = is_market_open_now() or SIMULATE_MARKET_OPEN
+                
+                if market_open:
                     metrics = run_once()
                 else:
-                    metrics = {"market_open": False}
+                    # Market closed - still log cycle but skip trading
+                    metrics = {"market_open": False, "clusters": 0, "orders": 0}
+                    log_event("run", "complete", clusters=0, orders=0, metrics=metrics, market_open=False)
                 
                 daily_and_weekly_tasks_if_needed()
                 self.state.iter_count += 1
@@ -5414,7 +5418,7 @@ class Watchdog:
                 self.state.backoff_sec = Config.BACKOFF_BASE_SEC
                 self.heartbeat(metrics)
                 
-                log_event("worker", "iter_end", iter=self.state.iter_count, success=True)
+                log_event("worker", "iter_end", iter=self.state.iter_count, success=True, market_open=market_open)
                 
             except Exception as e:
                 self.state.fail_count += 1
