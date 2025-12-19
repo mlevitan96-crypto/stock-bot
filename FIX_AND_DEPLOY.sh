@@ -72,16 +72,29 @@ sleep 3
 echo "✅ Processes stopped"
 echo ""
 
-# STEP 6: Start deploy_supervisor
-echo "Step 6: Starting deploy_supervisor..."
+# STEP 6: Verify .env exists and load it
+echo "Step 6: Verifying environment setup..."
 echo "----------------------------------------"
+if [ -f ".env" ]; then
+    echo "✅ .env file exists"
+    # Load .env to pass to supervisor (supervisor will load it again, but this ensures it's there)
+    export $(grep -v '^#' .env | xargs) 2>/dev/null || true
+else
+    echo "⚠️  .env file not found - secrets must be in environment variables"
+fi
+echo ""
+
+# STEP 7: Start deploy_supervisor
+echo "Step 7: Starting deploy_supervisor..."
+echo "----------------------------------------"
+# Note: deploy_supervisor.py uses load_dotenv() which will load .env file
 screen -dmS supervisor bash -c "cd ~/stock-bot && source venv/bin/activate && python deploy_supervisor.py"
 sleep 5
 echo "✅ Supervisor started"
 echo ""
 
-# STEP 7: Check status
-echo "Step 7: Final status..."
+# STEP 8: Check status
+echo "Step 8: Final status..."
 echo "----------------------------------------"
 if ps aux | grep "deploy_supervisor" | grep -v grep > /dev/null; then
     echo "✅ Supervisor running"
