@@ -45,6 +45,7 @@ from signals.uw_weight_tuner import UWWeightTuner, load_live_weights
 
 import uw_enrichment_v2 as uw_enrich
 import uw_composite_v2 as uw_v2
+from uw_composite_v2 import get_threshold
 import cross_asset_confirmation as cross_asset
 import uw_execution_v2 as uw_exec
 import feature_attribution_v2 as feat_attr
@@ -3580,9 +3581,16 @@ class StrategyEngine:
         
         print(f"DEBUG decide_and_execute: Processing {len(clusters_sorted)} clusters (sorted by strength), stage={system_stage}", flush=True)
         
+        if len(clusters_sorted) == 0:
+            print("⚠️  WARNING: decide_and_execute called with 0 clusters - no trades possible", flush=True)
+            return orders
+        
         for c in clusters_sorted:
             log_signal(c)
             symbol = c["ticker"]
+            direction = c.get("direction", "unknown")
+            score = c.get("composite_score", 0.0)
+            print(f"DEBUG {symbol}: Processing cluster - direction={direction}, score={score:.2f}, source={c.get('source', 'unknown')}", flush=True)
             gex = gex_map.get(symbol, {"gamma_regime": "unknown"})
             
             prof = get_or_init_profile(self.profiles, symbol) if Config.ENABLE_PER_TICKER_LEARNING else {}
@@ -4634,13 +4642,16 @@ def run_once():
                     symbols_with_signals += 1
                     # Create synthetic cluster from cache data
                     # V3: Get sentiment from enriched data, include expanded intel
-                    flow_sentiment = enriched.get("sentiment", "NEUTRAL")
+                    flow_sentiment_raw = enriched.get("sentiment", "NEUTRAL")
+                    # CRITICAL FIX: Convert BULLISH/BEARISH to lowercase bullish/bearish for direction field
+                    # The code expects lowercase (see line 3908: side = "buy" if c["direction"] == "bullish")
+                    flow_sentiment = flow_sentiment_raw.lower() if flow_sentiment_raw in ("BULLISH", "BEARISH") else "neutral"
                     score = composite.get("score", 0.0)
-                    print(f"DEBUG: Composite signal for {ticker}: score={score:.2f}, sentiment={flow_sentiment}", flush=True)
+                    print(f"DEBUG: Composite signal for {ticker}: score={score:.2f}, sentiment={flow_sentiment_raw}->{flow_sentiment}, threshold={get_threshold(ticker, 'base'):.2f}", flush=True)
                     cluster = {
                         "ticker": ticker,
-                        "direction": flow_sentiment,  # Required for decision mapping
-                        "sentiment": flow_sentiment,
+                        "direction": flow_sentiment,  # CRITICAL: Must be lowercase "bullish"/"bearish"
+                        "sentiment": flow_sentiment_raw,  # Keep original for display
                         "composite_score": score,
                         "composite_meta": composite,
                         "gate_passed": True,
@@ -4655,10 +4666,15 @@ def run_once():
                     filtered_clusters.append(cluster)
                 else:
                     score = composite.get("score", 0.0)
-                    print(f"DEBUG: Composite signal REJECTED for {ticker}: score={score:.2f} (below threshold)", flush=True)
+                    threshold_used = get_threshold(ticker, 'base')
+                    toxicity = composite.get("toxicity", 0.0)
+                    freshness = composite.get("freshness", 1.0)
+                    print(f"DEBUG: Composite signal REJECTED for {ticker}: score={score:.2f} < threshold={threshold_used:.2f} OR toxicity={toxicity:.2f} > 0.90 OR freshness={freshness:.2f} < 0.30", flush=True)
                     log_event("composite_gate", "rejected", symbol=ticker, 
-                             score=composite.get("score", 0.0),
-                             threshold=adaptive_gate.state.get('threshold', 2.5))
+                             score=score,
+                             threshold=threshold_used,
+                             toxicity=toxicity,
+                             freshness=freshness)
             
             clusters = filtered_clusters
             print(f"DEBUG: Composite scoring complete: {symbols_processed} symbols processed, {symbols_with_signals} passed gate, {len(clusters)} clusters generated", flush=True)
