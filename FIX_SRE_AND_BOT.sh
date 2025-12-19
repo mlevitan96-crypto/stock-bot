@@ -93,7 +93,7 @@ try:
     print('✅ alpaca_trade_api imported successfully')
 except ImportError as e:
     print(f'❌ Missing alpaca_trade_api: {e}')
-    echo '   Run: pip3 install $PIP_FLAG alpaca-trade-api'
+    print('   Run: pip3 install $PIP_FLAG alpaca-trade-api')
 "
 echo ""
 
