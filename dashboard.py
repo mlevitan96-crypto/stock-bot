@@ -96,6 +96,13 @@ DASHBOARD_HTML = """
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             overflow-x: auto;
         }
+        /* Smooth transitions to reduce flicker perception */
+        table tr {
+            transition: background-color 0.2s ease;
+        }
+        .stat-value {
+            transition: color 0.3s ease;
+        }
         table { width: 100%; border-collapse: collapse; }
         th {
             background: #f3f4f6;

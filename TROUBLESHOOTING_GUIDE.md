@@ -118,3 +118,6 @@ tail -20 logs/*.log
 # 6. Check supervisor status
 ps aux | grep deploy_supervisor
 ```
+
+
+

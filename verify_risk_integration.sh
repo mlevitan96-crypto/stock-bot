@@ -66,3 +66,6 @@ echo "  - state/governor_freezes.json (if any freezes are triggered)"
 echo ""
 echo "To see risk checks in action, wait for next bot cycle and run:"
 echo "  ./check_risk_logs.sh"
+
+
+

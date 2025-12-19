@@ -32,3 +32,6 @@ if [ -f "state/peak_equity.json" ]; then
 else
     echo "No peak equity file (will be created on first run)"
 fi
+
+
+

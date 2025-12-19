@@ -90,3 +90,4 @@ echo "1. Check supervisor output for daemon messages"
 echo "2. If API test returned 0 trades, API may be rate limited"
 echo "3. Check cache structure above to see what IS being stored"
 echo "=========================================="
+

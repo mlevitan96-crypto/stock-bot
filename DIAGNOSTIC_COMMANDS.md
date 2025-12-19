@@ -63,3 +63,6 @@ TZ=America/New_York date
 2. **API quota exhausted** - Check with `./check_uw_api_usage.sh`
 3. **Market closed** - No flow data during off-hours
 4. **Daemon not polling** - Check daemon logs for errors
+
+
+

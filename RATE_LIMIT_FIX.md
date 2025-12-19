@@ -68,3 +68,4 @@ Consider:
 2. **Reduce ticker list** - Focus on 20-30 most important tickers
 3. **Market hours only** - Skip polling when market is closed
 4. **Adaptive polling** - Increase intervals when approaching limit
+

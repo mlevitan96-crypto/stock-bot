@@ -72,3 +72,4 @@ If you need even more data:
 1. **Reduce ticker list** to 30-40 most important (allows faster polling)
 2. **Increase option_flow to 2 min** (would add ~2,000 calls)
 3. **Add adaptive polling** - increase intervals as limit approaches
+
