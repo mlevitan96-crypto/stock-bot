@@ -71,3 +71,6 @@ The Executive Summary will show meaningful data when:
 3. **Counterfactuals processed**: Blocked trades exist and counterfactual analyzer has run
 
 **Note**: Even with no data, the dashboard will load and show "No data" messages - it will not error out.
+
+
+

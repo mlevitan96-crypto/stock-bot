@@ -44,3 +44,4 @@ After running `TEST_API_DIRECTLY.sh`, check:
 - What's the response structure?
 - Are there any error messages?
 - Does it work for multiple tickers?
+

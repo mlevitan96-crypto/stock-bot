@@ -64,3 +64,4 @@ The daemon is making API calls (60/hour), so check:
 3. **Market closed?** - Even if you think it's open, API may have no recent flow
 
 The important thing: **flow_trades key will now exist in cache** so main.py can process it correctly.
+

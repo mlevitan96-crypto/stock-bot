@@ -105,3 +105,4 @@ If not, check why:
 ```bash
 tail -50 logs/uw-daemon-pc.log 2>/dev/null || echo "No daemon log - check supervisor output"
 ```
+

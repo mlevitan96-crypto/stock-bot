@@ -60,3 +60,6 @@
 2. **Exponential decay** for trade weighting in analysis
 3. **Cumulative tracking** with time-weighted importance
 4. **Improved minimum samples** requirements
+
+
+

@@ -4440,6 +4440,12 @@ def run_once():
             
             log_event("data_source", "cache_mode", cache_symbols=len(uw_cache), api_calls=0, 
                      stale_data_used=using_stale_data, stale_count=stale_data_count, fresh_count=fresh_data_count)
+            
+            # CRITICAL FIX: Even if flow_trades is empty, composite scoring can still generate trades
+            # from sentiment, conviction, dark_pool, insider data in cache
+            # This ensures trading continues even when API is rate limited or returns empty flow_trades
+            print(f"DEBUG: Cache mode active - composite scoring will run even if flow_trades empty ({len(all_trades)} trades from flow, {len(uw_cache)} symbols in cache)", flush=True)
+            print(f"DEBUG: Maps built: {len(dp_map)} dark_pool, {len(gex_map)} gamma, {len(net_map)} net_premium", flush=True)
         else:
             # GRACEFUL DEGRADATION: Cache empty or daemon not running
             # Check if we have ANY cached data (even if stale) to use
@@ -4516,10 +4522,18 @@ def run_once():
         clusters = cluster_signals(all_trades)
         
         print(f"DEBUG: Initial clusters={len(clusters)}, use_composite={use_composite}", flush=True)
-        if use_composite:
+        
+        # CRITICAL FIX: Always run composite scoring when cache exists, even if flow_trades is empty
+        # Composite scoring uses sentiment, conviction, dark_pool, insider - doesn't need flow_trades
+        if use_composite and len(uw_cache) > 0:
             # Generate synthetic signals from cache instead of waiting for live API
+            # CRITICAL: This works even when flow_trades is empty - uses sentiment, conviction, dark_pool, insider
+            print(f"DEBUG: Running composite scoring for {len(uw_cache)} symbols (flow_trades may be empty)", flush=True)
             market_regime = compute_market_regime(gex_map, net_map, vol_map)
             filtered_clusters = []
+            
+            symbols_processed = 0
+            symbols_with_signals = 0
             
             for ticker in uw_cache.keys():
                 # Skip metadata keys
@@ -4572,8 +4586,10 @@ def run_once():
                         log_event("cache_update", "error", error=str(e))
                 
                 # Use V3 scoring with all expanded intelligence (congress, shorts, institutional, etc.)
+                symbols_processed += 1
                 composite = uw_v2.compute_composite_score_v3(ticker, enriched, market_regime)
                 if composite is None:
+                    print(f"DEBUG: Composite scoring returned None for {ticker} - skipping", flush=True)
                     continue  # skip invalid data safely
                 
                 # V3: Log all expanded features for learning (congress, shorts, institutional, etc.)
@@ -4615,14 +4631,17 @@ def run_once():
                     pass  # Don't crash trading on attribution logging errors
                 
                 if gate_result:
+                    symbols_with_signals += 1
                     # Create synthetic cluster from cache data
                     # V3: Get sentiment from enriched data, include expanded intel
                     flow_sentiment = enriched.get("sentiment", "NEUTRAL")
+                    score = composite.get("score", 0.0)
+                    print(f"DEBUG: Composite signal for {ticker}: score={score:.2f}, sentiment={flow_sentiment}", flush=True)
                     cluster = {
                         "ticker": ticker,
                         "direction": flow_sentiment,  # Required for decision mapping
                         "sentiment": flow_sentiment,
-                        "composite_score": composite.get("score", 0.0),
+                        "composite_score": score,
                         "composite_meta": composite,
                         "gate_passed": True,
                         "source": "composite_v3",
@@ -4635,13 +4654,18 @@ def run_once():
                     }
                     filtered_clusters.append(cluster)
                 else:
+                    score = composite.get("score", 0.0)
+                    print(f"DEBUG: Composite signal REJECTED for {ticker}: score={score:.2f} (below threshold)", flush=True)
                     log_event("composite_gate", "rejected", symbol=ticker, 
                              score=composite.get("score", 0.0),
                              threshold=adaptive_gate.state.get('threshold', 2.5))
             
             clusters = filtered_clusters
+            print(f"DEBUG: Composite scoring complete: {symbols_processed} symbols processed, {symbols_with_signals} passed gate, {len(clusters)} clusters generated", flush=True)
             log_event("composite_filter", "applied", cache_symbols=len(uw_cache), 
-                     passed=len(clusters), rejection_rate=1.0 - (len(clusters) / max(len(uw_cache), 1)))
+                     symbols_processed=symbols_processed,
+                     symbols_with_signals=symbols_with_signals,
+                     passed=len(clusters), rejection_rate=1.0 - (len(clusters) / max(symbols_processed, 1)))
             print(f"DEBUG: Composite filter complete, {len(clusters)} clusters passed gate", flush=True)
 
         audit_seg("run_once", "clusters_filtered", {"cluster_count": len(clusters)})

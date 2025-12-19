@@ -91,3 +91,6 @@ If you're using systemd, update the service file to use venv:
 ExecStart=/root/stock-bot/venv/bin/python /root/stock-bot/deploy_supervisor.py
 EnvironmentFile=/root/stock-bot/.env
 ```
+
+
+

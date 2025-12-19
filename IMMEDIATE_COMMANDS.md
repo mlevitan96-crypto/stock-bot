@@ -78,3 +78,4 @@ The daemon logs to supervisor stdout. Look for:
 - `[UW-DAEMON] Stored X raw trades in cache for TICKER`
 
 These messages appear in the supervisor terminal window.
+

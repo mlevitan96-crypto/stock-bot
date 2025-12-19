@@ -81,3 +81,6 @@ Dashboard Executive Summary      Learning Analysis
 - **No trades yet?** Executive Summary will show "No trades found" - this is expected if no trades have executed
 - **Learning data?** Will appear after first learning cycle runs (daily after market close)
 - **File locations**: All paths are now consistent between writers and readers
+
+
+

@@ -70,3 +70,4 @@ else
     echo "✅ Daemon is working - trades should appear in next cycle"
 fi
 echo "=========================================="
+

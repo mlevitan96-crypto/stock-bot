@@ -89,3 +89,6 @@ print("VERIFICATION COMPLETE")
 print("=" * 80)
 print("\nIf signals show as 'healthy' above, they should appear healthy on the dashboard.")
 print("Refresh your dashboard and check the SRE Monitoring tab.")
+
+
+
