@@ -191,16 +191,27 @@ class SREMonitoringEngine:
                     if not isinstance(symbol_data, dict):
                         continue
                     
-                    # Check ALL signal components (comprehensive list)
-                    components = {
+                    # Check CORE signal components (always expected)
+                    # These are the signals that are actually populated in the cache
+                    core_components = {
                         "options_flow": symbol_data.get("sentiment") or symbol_data.get("flow_sentiment"),
                         "dark_pool": symbol_data.get("dark_pool", {}),
                         "insider": symbol_data.get("insider", {}),
+                    }
+                    
+                    # Check COMPUTED signal components (may be enriched)
+                    # These are computed from raw data and may not always be present
+                    computed_components = {
                         "iv_term_skew": symbol_data.get("iv_term_skew"),
                         "smile_slope": symbol_data.get("smile_slope"),
-                        "whale_persistence": symbol_data.get("whale_persistence"),
+                    }
+                    
+                    # Check ENRICHED signal components (optional, from enrichment service)
+                    # These are only present if enrichment is running
+                    enriched_components = {
+                        "whale_persistence": symbol_data.get("whale_persistence") or symbol_data.get("motif_whale"),
                         "event_alignment": symbol_data.get("event_alignment"),
-                        "temporal_motif": symbol_data.get("temporal_motif"),
+                        "temporal_motif": symbol_data.get("temporal_motif") or symbol_data.get("motif_staircase") or symbol_data.get("motif_burst"),
                         "congress": symbol_data.get("congress", {}),
                         "shorts_squeeze": symbol_data.get("shorts_squeeze"),
                         "institutional": symbol_data.get("institutional", {}),
@@ -214,13 +225,23 @@ class SREMonitoringEngine:
                         "squeeze_score": symbol_data.get("squeeze_score"),
                     }
                     
+                    # Combine all components
+                    components = {**core_components, **computed_components, **enriched_components}
+                    
                     for comp_name, comp_data in components.items():
                         if comp_name not in signals:
+                            # Determine if this is a core, computed, or enriched signal
+                            is_core = comp_name in core_components
+                            is_computed = comp_name in computed_components
+                            is_enriched = comp_name in enriched_components
+                            
                             signals[comp_name] = SignalHealth(
                                 name=comp_name,
                                 status="unknown",
                                 last_update_age_sec=cache_age
                             )
+                            # Mark signal type for proper handling
+                            signals[comp_name].details["signal_type"] = "core" if is_core else ("computed" if is_computed else "enriched")
                         
                         # Only update if status is still unknown or no_data (don't overwrite healthy)
                         if signals[comp_name].status == "healthy":
@@ -228,6 +249,8 @@ class SREMonitoringEngine:
                         
                         # Check if signal has data (handle both dict and numeric values)
                         has_data = False
+                        signal_type = signals[comp_name].details.get("signal_type", "unknown")
+                        
                         if comp_name in ["insider", "dark_pool", "congress", "institutional"]:
                             # Dict signals - check if it exists and is not empty
                             has_data = isinstance(comp_data, dict) and len(comp_data) > 0
@@ -252,8 +275,15 @@ class SREMonitoringEngine:
                             if symbol not in signals[comp_name].details["found_in_symbols"]:
                                 signals[comp_name].details["found_in_symbols"].append(symbol)
                         else:
+                            # Only mark as "no_data" if it's a core signal (required)
+                            # Enriched signals are optional and should be "optional" not "no_data"
                             if signals[comp_name].status == "unknown":
-                                signals[comp_name].status = "no_data"
+                                if signal_type == "core":
+                                    signals[comp_name].status = "no_data"  # Core signals are required
+                                elif signal_type == "enriched":
+                                    signals[comp_name].status = "optional"  # Enriched signals are optional
+                                else:
+                                    signals[comp_name].status = "no_data"  # Computed signals should exist
             except Exception as e:
                 import traceback
                 # Log error but don't fail
@@ -479,16 +509,33 @@ class SREMonitoringEngine:
         
         # Check for critical issues
         for name, health in uw_health.items():
-            if health.status in ["auth_failed", "connection_error"]:
+            if health.status in ["auth_failed", "connection_error", "no_api_key"]:
                 critical_issues.append(f"UW API {name}: {health.status}")
         
         if result["order_execution"]["status"] == "degraded" and market_open:
             warnings.append("No orders in last hour during market hours")
         
-        # Check signal health
-        unhealthy_signals = [name for name, s in signal_health.items() if s.status == "no_data"]
-        if unhealthy_signals:
-            warnings.append(f"Signals with no data: {', '.join(unhealthy_signals)}")
+        # Check signal health - only warn about CORE signals (required)
+        # Enriched signals are optional and shouldn't trigger warnings
+        core_signals = ["options_flow", "dark_pool", "insider"]
+        unhealthy_core_signals = [
+            name for name, s in signal_health.items() 
+            if name in core_signals and s.status == "no_data"
+        ]
+        if unhealthy_core_signals:
+            critical_issues.append(f"Core signals missing: {', '.join(unhealthy_core_signals)}")
+        
+        # Optional: Check computed signals (should exist but not critical)
+        computed_signals = ["iv_term_skew", "smile_slope"]
+        missing_computed = [
+            name for name, s in signal_health.items()
+            if name in computed_signals and s.status == "no_data"
+        ]
+        if missing_computed:
+            warnings.append(f"Computed signals missing (may be normal): {', '.join(missing_computed)}")
+        
+        # Enriched signals are optional - don't warn about them
+        # They're only present if enrichment service is running
         
         if critical_issues:
             result["overall_health"] = "critical"
