@@ -4012,34 +4012,74 @@ class StrategyEngine:
                 Config.ENTRY_MODE = old_mode
                 
                 if res is None:
-                    log_order({"symbol": symbol, "qty": qty, "side": side, "error": "submit_entry_failed", "order_type": order_type})
+                    print(f"DEBUG {symbol}: submit_entry returned None - order submission failed (order_type={order_type}, entry_status={entry_status})", flush=True)
+                    log_order({"symbol": symbol, "qty": qty, "side": side, "error": "submit_entry_failed", "order_type": order_type, "entry_status": entry_status})
                     continue
 
-                if entry_status != "filled" or filled_qty <= 0:
-                    # Safety: do not assume a position exists unless we confirmed a fill.
-                    # Reconciliation will pick up any eventual fills and sync state next cycle.
-                    log_event("order", "entry_not_confirmed_filled", symbol=symbol, side=side, status=entry_status,
+                print(f"DEBUG {symbol}: submit_entry returned - order_type={order_type}, entry_status={entry_status}, filled_qty={filled_qty}, fill_price={fill_price}", flush=True)
+
+                # CRITICAL FIX: Accept orders that are successfully submitted, even if not immediately filled
+                # The reconciliation loop will pick up fills later. Only reject if order submission actually failed.
+                if entry_status in ("error", "spread_too_wide", "min_notional_blocked", "risk_validation_failed", "insufficient_buying_power", "bad_ref_price"):
+                    print(f"DEBUG {symbol}: Order REJECTED - submission failed with status={entry_status}", flush=True)
+                    log_event("order", "entry_submission_failed", symbol=symbol, side=side, status=entry_status,
                               client_order_id=client_order_id_base, requested_qty=qty)
                     continue
-
-                exec_qty = int(filled_qty)
-                exec_price = float(fill_price) if fill_price is not None else self.executor.get_quote_price(symbol)
-                self.executor.mark_open(symbol, exec_price, atr_mult, side, exec_qty, entry_score=score,
-                                        components=comps, market_regime=market_regime, direction=c["direction"])
                 
-                telemetry.log_portfolio_event(
-                    event_type="POSITION_OPENED",
-                    symbol=symbol,
-                    side=side,
-                    qty=exec_qty,
-                    entry_price=exec_price,
-                    exit_price=None,
-                    realized_pnl=0.0,
-                    unrealized_pnl=0.0,
-                    holding_period_min=0,
-                    order_type=order_type,
-                    score=score
-                )
+                # Order was successfully submitted (may or may not be filled yet)
+                if entry_status == "filled" and filled_qty > 0:
+                    print(f"DEBUG {symbol}: Order IMMEDIATELY FILLED - qty={filled_qty}, price={fill_price}", flush=True)
+                else:
+                    print(f"DEBUG {symbol}: Order SUBMITTED (not yet filled) - status={entry_status}, will be tracked by reconciliation", flush=True)
+                    # For submitted but unfilled orders, reconciliation will handle them
+                    # We still process them but don't mark as open until filled
+
+                # CRITICAL FIX: Handle both filled and submitted orders
+                if entry_status == "filled" and filled_qty > 0:
+                    # Order was immediately filled - process normally
+                    exec_qty = int(filled_qty)
+                    exec_price = float(fill_price) if fill_price is not None else self.executor.get_quote_price(symbol)
+                    self.executor.mark_open(symbol, exec_price, atr_mult, side, exec_qty, entry_score=score,
+                                            components=comps, market_regime=market_regime, direction=c["direction"])
+                else:
+                    # Order was submitted but not yet filled - reconciliation will handle it
+                    # For now, we accept the order submission as successful
+                    # Reconciliation loop will pick up the fill and mark position open
+                    exec_qty = int(filled_qty) if filled_qty > 0 else qty  # Use filled qty if available, else requested
+                    exec_price = float(fill_price) if fill_price is not None else self.executor.get_quote_price(symbol)
+                    print(f"DEBUG {symbol}: Order submitted (status={entry_status}) - reconciliation will track fill", flush=True)
+                    log_event("order", "entry_submitted_pending_fill", symbol=symbol, side=side, 
+                             requested_qty=qty, filled_qty=filled_qty, order_type=order_type, 
+                             client_order_id=client_order_id_base, entry_status=entry_status)
+                    # Don't mark_open for unfilled orders - reconciliation will do that when fill occurs
+                    # But we still want to count this as a successful order submission
+                
+                # Only log POSITION_OPENED if order was actually filled
+                if entry_status == "filled" and filled_qty > 0:
+                    telemetry.log_portfolio_event(
+                        event_type="POSITION_OPENED",
+                        symbol=symbol,
+                        side=side,
+                        qty=exec_qty,
+                        entry_price=exec_price,
+                        exit_price=None,
+                        realized_pnl=0.0,
+                        unrealized_pnl=0.0,
+                        holding_period_min=0,
+                        order_type=order_type,
+                        score=score
+                    )
+                else:
+                    # Log order submission for unfilled orders
+                    telemetry.log_order_event(
+                        event_type="ORDER_SUBMITTED",
+                        symbol=symbol,
+                        side=side,
+                        qty=qty,
+                        order_type=order_type,
+                        status=entry_status,
+                        note="pending_fill_reconciliation"
+                    )
                 
                 context = {
                     "direction": c["direction"],
@@ -4060,9 +4100,19 @@ class StrategyEngine:
                 else:
                     context["confirm_score"] = confirm_map.get(symbol, 0.0)
                 
-                orders.append({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, "order_type": order_type})
-                new_positions_this_cycle += 1  # V3.2.1: Track new positions per cycle
-                log_order({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, "price": exec_price, "order_type": order_type})
+                # Append to orders list for both filled and submitted orders
+                # This ensures we track all order attempts, not just immediate fills
+                orders.append({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, 
+                              "order_type": order_type, "status": entry_status, "filled_qty": filled_qty})
+                
+                if entry_status == "filled" and filled_qty > 0:
+                    new_positions_this_cycle += 1  # V3.2.1: Track new positions per cycle
+                    log_order({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, 
+                              "price": exec_price, "order_type": order_type, "status": "filled"})
+                else:
+                    log_order({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, 
+                              "price": exec_price, "order_type": order_type, "status": entry_status, 
+                              "note": "submitted_pending_fill"})
                 log_attribution(trade_id=f"open_{symbol}_{now_iso()}", symbol=symbol, pnl_usd=0.0, context=context)
                 
                 # RISK MANAGEMENT: Update daily start equity if this is first trade of day
