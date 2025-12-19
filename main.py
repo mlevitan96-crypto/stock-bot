@@ -3773,6 +3773,10 @@ class AlpacaExecutor:
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 to_close.append(symbol)
         
+        if to_close:
+            print(f"DEBUG EXITS: Found {len(to_close)} positions to close: {to_close}", flush=True)
+            log_event("exit", "positions_to_close", symbols=to_close, count=len(to_close))
+        
         for symbol in to_close:
             try:
                 info = self.opens.get(symbol, {})
@@ -3786,7 +3790,9 @@ class AlpacaExecutor:
                 if exit_price <= 0:
                     exit_price = entry_price
                 
+                print(f"DEBUG EXITS: Closing {symbol} at {exit_price:.2f} (entry: {entry_price:.2f}, hold: {holding_period_min:.1f}min)", flush=True)
                 self.api.close_position(symbol)
+                print(f"DEBUG EXITS: Successfully closed {symbol}", flush=True)
                 
                 # Use composite close reason if available, otherwise build one
                 close_reason = exit_reasons.get(symbol)
