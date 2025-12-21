@@ -5397,6 +5397,7 @@ def daily_and_weekly_tasks_if_needed():
             log_event("daily", "uw_weight_tuner_failed", error=str(e))
         
         if Config.ENABLE_PER_TICKER_LEARNING:
+            # MEDIUM-TERM LEARNING: Daily batch processing
             learn_from_outcomes()
 
     if is_friday() and is_after_close_now():
