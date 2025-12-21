@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-21 (Overfitting Safeguards & Profitability Tracking Added)  
+**Last Updated:** 2025-12-21 (Learning Enhancements V1 Implemented - Gate, UW Blocked, Signal Pattern Learning)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ---
@@ -21,8 +21,9 @@
 4. **Deploy Supervisor** (`deploy_supervisor.py`): Process manager for all services
 5. **SRE Monitoring** (`sre_monitoring.py`): Health monitoring for signals, APIs, execution
 6. **Learning Engine** (`comprehensive_learning_orchestrator_v2.py`): Comprehensive multi-timeframe learning system
-7. **Profitability Tracker** (`profitability_tracker.py`): Daily/weekly/monthly performance tracking
-8. **Adaptive Signal Optimizer** (`adaptive_signal_optimizer.py`): Bayesian weight optimization with anti-overfitting guards
+7. **Learning Enhancements** (`learning_enhancements_v1.py`): Pattern learning (gate, UW blocked, signal patterns)
+8. **Profitability Tracker** (`profitability_tracker.py`): Daily/weekly/monthly performance tracking
+9. **Adaptive Signal Optimizer** (`adaptive_signal_optimizer.py`): Bayesian weight optimization with anti-overfitting guards
 
 ---
 
@@ -206,6 +207,9 @@ pkill -f "python.*dashboard.py"
 - `learning_processing_state.json`: Learning system state (last processed IDs, totals)
 - `profitability_tracking.json`: Daily/weekly/monthly performance metrics
 - `signal_weights.json`: Adaptive signal weights (from `adaptive_signal_optimizer.py`)
+- `gate_pattern_learning.json`: Gate pattern learning state (V1 enhancements)
+- `uw_blocked_learning.json`: UW blocked entry learning state (V1 enhancements)
+- `signal_pattern_learning.json`: Signal pattern learning state (V1 enhancements)
 
 ### Data Files (in `data/` directory)
 - `uw_flow_cache.json`: UW API cache
@@ -334,10 +338,10 @@ When `MAX_CONCURRENT_POSITIONS` (16) reached:
 1. **Actual Trades** (`logs/attribution.jsonl`): All historical trades processed
 2. **Exit Events** (`logs/exit.jsonl`): Exit signal learning
 3. **Blocked Trades** (`state/blocked_trades.jsonl`): Counterfactual learning
-4. **Gate Events** (`logs/gate.jsonl`): Gate pattern learning
-5. **UW Blocked Entries** (`data/uw_attribution.jsonl`): Missed opportunities
-6. **Signal Patterns** (`logs/signals.jsonl`): Signal generation patterns
-7. **Execution Quality** (`logs/orders.jsonl`): Order execution analysis
+4. **Gate Events** (`logs/gate.jsonl`): Gate pattern learning ✅ **IMPLEMENTED**
+5. **UW Blocked Entries** (`data/uw_attribution.jsonl`): Missed opportunities ✅ **IMPLEMENTED**
+6. **Signal Patterns** (`logs/signals.jsonl`): Signal generation patterns ✅ **IMPLEMENTED**
+7. **Execution Quality** (`logs/orders.jsonl`): Order execution analysis (tracking only, learning pending)
 
 ### Health Check
 
@@ -437,6 +441,9 @@ python manual_learning_check.py
 | `check_uw_blocked_entries.py` | Check UW attribution for blocked entries | Project root |
 | `reset_learning_state.py` | Reset learning processing state | Project root |
 | `backfill_historical_learning.py` | Process all historical data for learning | Project root |
+| `check_learning_enhancements.py` | Check status of learning enhancements (gate, UW, signal) | Project root |
+| `test_learning_enhancements.py` | Regression tests for learning enhancements | Project root |
+| `test_learning_integration.py` | Integration tests for learning enhancements | Project root |
 | `VERIFY_BOT_IS_RUNNING.sh` | Verify bot is running (handles env var confusion) | Project root |
 | `VERIFY_DEPLOYMENT.sh` | Regression testing after deployment | Project root |
 | `VERIFY_TRADE_EXECUTION_AND_LEARNING.sh` | Verify trade execution and learning engine | Project root |
@@ -491,6 +498,30 @@ tail -50 logs/supervisor.jsonl | grep -i error
 ---
 
 ## Recent Fixes & Improvements
+
+### 2025-12-21: Learning Enhancements V1 Implementation
+
+1. **Gate Pattern Learning**:
+   - Tracks which gates block which trades
+   - Analyzes gate effectiveness
+   - Learns optimal gate thresholds
+   - State: `state/gate_pattern_learning.json`
+
+2. **UW Blocked Entry Learning**:
+   - Tracks blocked UW entries (decision="rejected")
+   - Analyzes signal combinations
+   - Tracks sentiment patterns
+   - State: `state/uw_blocked_learning.json`
+
+3. **Signal Pattern Learning**:
+   - Records all signal generation events
+   - Correlates signals with trade outcomes
+   - Identifies best signal combinations
+   - State: `state/signal_pattern_learning.json`
+
+**Testing**: 24/24 unit tests passing, integration tests passing  
+**Documentation**: `LEARNING_ENHANCEMENTS_IMPLEMENTATION.md`  
+**Status**: ✅ Production ready
 
 ### 2025-12-21: Overfitting Safeguards & Profitability Tracking
 
