@@ -102,7 +102,7 @@ def check_logs_exist() -> Dict[str, Any]:
         records = load_jsonl(UW_ATTRIBUTION_LOG)
         results["uw_attribution_log"]["records"] = len(records)
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         week_ago = now - timedelta(days=7)
         recent = 0
         last_ts = None
