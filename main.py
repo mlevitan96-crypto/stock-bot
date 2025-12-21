@@ -5674,21 +5674,44 @@ if __name__ == "__main__":
                 
                 if should_run:
                     try:
-                        from comprehensive_learning_orchestrator import get_learning_orchestrator
-                        orchestrator = get_learning_orchestrator()
-                        results = orchestrator.run_learning_cycle()
+                        # Use NEW comprehensive learning orchestrator V2
+                        from comprehensive_learning_orchestrator_v2 import run_daily_learning
+                        results = run_daily_learning()
                         last_run_date = today
+                        
+                        # Log results
                         log_event("comprehensive_learning", "daily_cycle_complete",
-                                 counterfactual=results.get("counterfactual", {}).get("status"),
-                                 weight_variations=results.get("weight_variations", {}).get("status"),
-                                 timing=results.get("timing", {}).get("status"),
-                                 sizing=results.get("sizing", {}).get("status"),
-                                 errors=len(results.get("errors", [])))
+                                 attribution=results.get("attribution", 0),
+                                 exits=results.get("exits", 0),
+                                 signals=results.get("signals", 0),
+                                 orders=results.get("orders", 0),
+                                 blocked_trades=results.get("blocked_trades", 0),
+                                 gate_events=results.get("gate_events", 0),
+                                 uw_blocked=results.get("uw_blocked", 0),
+                                 weights_updated=results.get("weights_updated", 0))
+                        
+                        # Force weight cache refresh in trading engine
+                        # This ensures updated weights are immediately available
+                        try:
+                            import uw_composite_v2
+                            # Invalidate cache by setting timestamp to 0
+                            # This forces reload on next get_weight() call
+                            uw_composite_v2._weights_cache_ts = 0.0
+                            uw_composite_v2._cached_weights.clear()
+                            # Also invalidate multiplier cache
+                            uw_composite_v2._multipliers_cache_ts = 0.0
+                            uw_composite_v2._cached_multipliers.clear()
+                            log_event("comprehensive_learning", "weight_cache_refreshed")
+                        except Exception as e:
+                            log_event("comprehensive_learning", "cache_refresh_warning", error=str(e))
+                            
                     except ImportError:
                         # Service not available, skip
                         pass
                     except Exception as e:
                         log_event("comprehensive_learning", "error", error=str(e))
+                        import traceback
+                        log_event("comprehensive_learning", "error_traceback", traceback=traceback.format_exc())
                 
                 # Sleep for 1 hour, then check again
                 # This is safe because we only run once per day (checked by last_run_date)
