@@ -18,9 +18,13 @@ if learning_state_file.exists():
         print("Processing Statistics:")
         print("-" * 80)
         print(f"Total trades processed: {state.get('total_trades_processed', 0)}")
+        print(f"Total trades learned from: {state.get('total_trades_learned_from', 0)}")
         print(f"Total exits processed: {state.get('total_exits_processed', 0)}")
         print(f"Total signals processed: {state.get('total_signals_processed', 0)}")
         print(f"Total orders processed: {state.get('total_orders_processed', 0)}")
+        print(f"Total blocked trades processed: {state.get('total_blocked_processed', 0)}")
+        print(f"Total gate events processed: {state.get('total_gates_processed', 0)}")
+        print(f"Total UW blocked entries processed: {state.get('total_uw_blocked_processed', 0)}")
         print()
         
         print("Last Processed Records:")
@@ -71,10 +75,35 @@ if learning_state_file.exists():
                 processed = state.get('total_orders_processed', 0)
                 print(f"orders.jsonl: {order_count} total, {processed} processed ({processed/order_count*100:.1f}%)")
         
+        # Check blocked trades
+        blocked_log = Path("state/blocked_trades.jsonl")
+        if blocked_log.exists():
+            with open(blocked_log, 'r', encoding='utf-8') as f:
+                blocked_count = len([l for l in f if l.strip()])
+                processed = state.get('total_blocked_processed', 0)
+                print(f"blocked_trades.jsonl: {blocked_count} total, {processed} processed ({processed/blocked_count*100:.1f}%)")
+        
+        # Check gate events
+        gate_log = Path("logs/gate.jsonl")
+        if gate_log.exists():
+            with open(gate_log, 'r', encoding='utf-8') as f:
+                gate_count = len([l for l in f if l.strip()])
+                processed = state.get('total_gates_processed', 0)
+                print(f"gate.jsonl: {gate_count} total, {processed} processed ({processed/gate_count*100:.1f}%)")
+        
         print()
         print("=" * 80)
         print("STATUS: Comprehensive learning system is ACTIVE")
         print("=" * 80)
+        print()
+        print("Full Learning Cycle: Signal → Trade → Learn → Review → Update → Trade")
+        print("  ✓ Actual trades (attribution.jsonl)")
+        print("  ✓ Exit events (exit.jsonl)")
+        print("  ✓ Blocked trades (blocked_trades.jsonl)")
+        print("  ✓ Gate events (gate.jsonl)")
+        print("  ✓ UW blocked entries (uw_attribution.jsonl)")
+        print("  ✓ Signal patterns (signals.jsonl)")
+        print("  ✓ Execution quality (orders.jsonl)")
 else:
     print("[WARNING] Learning state file not found")
     print("Comprehensive learning system may not be initialized")
