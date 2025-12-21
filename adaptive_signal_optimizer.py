@@ -505,7 +505,8 @@ class LearningOrchestrator:
         win = pnl > 0
         
         # Track ALL components in feature_vector
-        # Components with 0 value are still tracked (they just contribute 0 to wins/losses)
+        # For learning, we want to track components that were present in the trade
+        # Even if value is 0, the component was evaluated and should be counted
         for component, value in feature_vector.items():
             if component not in self.component_performance:
                 # Component not in tracking system - skip (shouldn't happen if normalized correctly)
@@ -513,16 +514,21 @@ class LearningOrchestrator:
             
             perf = self.component_performance[component]
             
-            # Track component even if value is 0 (for sample counting)
+            # Track component if it was present in the trade (even if value is 0)
+            # This ensures we count samples for components that were evaluated
             # Only count as win/loss if value is non-zero (component actually contributed)
             if value != 0:
+                # Component contributed - count as win/loss
                 if win:
                     perf["wins"] += 1
                     perf["contribution_when_win"].append(value)
                 else:
                     perf["losses"] += 1
                     perf["contribution_when_loss"].append(value)
-            # If value is 0, component didn't contribute, but we still track it was present
+            # If value is 0, component was present but didn't contribute
+            # We still want to track that it was evaluated (for sample counting)
+            # So we'll count it as a "neutral" sample (no win/loss, but counted)
+            # This helps us know which components are being evaluated vs not present at all
             
             perf["total_pnl"] += pnl
             
