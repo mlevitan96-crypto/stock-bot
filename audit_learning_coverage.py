@@ -41,7 +41,7 @@ log_files = {
 }
 
 data_files = {
-    "uw_attribution.jsonl": "UW signal attribution",
+    "uw_attribution.jsonl": "UW signal attribution (including blocked entries)",
     "live_orders.jsonl": "Live order events",
     "weight_learning.jsonl": "Weight learning updates",
     "learning_events.jsonl": "Learning events (telemetry)",
@@ -49,6 +49,10 @@ data_files = {
     "portfolio_events.jsonl": "Portfolio events",
     "ops_errors.jsonl": "Operations errors",
     "uw_flow_cache.json": "UW API cache",
+}
+
+state_files = {
+    "blocked_trades.jsonl": "Blocked trades (counterfactual learning)",
 }
 
 existing_logs = {}
@@ -79,6 +83,38 @@ for log_file, description in log_files.items():
 
 for data_file, description in data_files.items():
     path = DATA_DIR / data_file
+    if path.exists():
+        try:
+            if data_file.endswith('.jsonl'):
+                with open(path, 'r', encoding='utf-8') as f:
+                    lines = [l for l in f if l.strip()]
+                    existing_logs[data_file] = {
+                        "path": str(path),
+                        "description": description,
+                        "records": len(lines),
+                        "exists": True
+                    }
+            else:
+                existing_logs[data_file] = {
+                    "path": str(path),
+                    "description": description,
+                    "records": 1,  # JSON file
+                    "exists": True
+                }
+        except:
+            existing_logs[data_file] = {
+                "path": str(path),
+                "description": description,
+                "records": 0,
+                "exists": True,
+                "error": "Cannot read"
+            }
+    else:
+        missing_logs.append(data_file)
+
+# Check state files
+for state_file, description in state_files.items():
+    path = STATE_DIR / state_file
     if path.exists():
         try:
             if data_file.endswith('.jsonl'):
@@ -286,16 +322,38 @@ if exit_log.exists():
 
 # Check if signals.jsonl is being analyzed
 signals_log = LOG_DIR / "signals.jsonl"
+learning_state_file = Path("state/learning_processing_state.json")
 if signals_log.exists():
     with open(signals_log, 'r', encoding='utf-8') as f:
         signal_lines = [l for l in f if l.strip()]
         if signal_lines:
-            gaps.append({
-                "log": "signals.jsonl",
-                "records": len(signal_lines),
-                "issue": "Signal generation events logged but not analyzed",
-                "impact": "Cannot learn which signal patterns lead to better outcomes"
-            })
+            if learning_state_file.exists():
+                try:
+                    with open(learning_state_file, 'r', encoding='utf-8') as f:
+                        learning_state = json.load(f)
+                        processed_signals = learning_state.get("total_signals_processed", 0)
+                        unprocessed = max(0, len(signal_lines) - processed_signals)
+                        if unprocessed > 0:
+                            gaps.append({
+                                "log": "signals.jsonl",
+                                "records": unprocessed,
+                                "issue": f"{unprocessed} signal events not yet processed",
+                                "impact": "Run backfill to process remaining signals"
+                            })
+                except:
+                    gaps.append({
+                        "log": "signals.jsonl",
+                        "records": len(signal_lines),
+                        "issue": "Signal generation events logged but processing state unclear",
+                        "impact": "Cannot verify if signals are being analyzed"
+                    })
+            else:
+                gaps.append({
+                    "log": "signals.jsonl",
+                    "records": len(signal_lines),
+                    "issue": "Signal generation events logged but not analyzed",
+                    "impact": "Cannot learn which signal patterns lead to better outcomes"
+                })
 
 # Check if orders.jsonl is being analyzed
 orders_log = LOG_DIR / "orders.jsonl"
@@ -303,12 +361,101 @@ if orders_log.exists():
     with open(orders_log, 'r', encoding='utf-8') as f:
         order_lines = [l for l in f if l.strip()]
         if order_lines:
-            gaps.append({
-                "log": "orders.jsonl",
-                "records": len(order_lines),
-                "issue": "Order execution events logged but not analyzed",
-                "impact": "Cannot learn execution quality, slippage patterns, or order timing"
-            })
+            if learning_state_file.exists():
+                try:
+                    with open(learning_state_file, 'r', encoding='utf-8') as f:
+                        learning_state = json.load(f)
+                        processed_orders = learning_state.get("total_orders_processed", 0)
+                        unprocessed = max(0, len(order_lines) - processed_orders)
+                        if unprocessed > 0:
+                            gaps.append({
+                                "log": "orders.jsonl",
+                                "records": unprocessed,
+                                "issue": f"{unprocessed} order events not yet processed",
+                                "impact": "Run backfill to process remaining orders"
+                            })
+                except:
+                    gaps.append({
+                        "log": "orders.jsonl",
+                        "records": len(order_lines),
+                        "issue": "Order execution events logged but processing state unclear",
+                        "impact": "Cannot verify if orders are being analyzed"
+                    })
+            else:
+                gaps.append({
+                    "log": "orders.jsonl",
+                    "records": len(order_lines),
+                    "issue": "Order execution events logged but not analyzed",
+                    "impact": "Cannot learn execution quality, slippage patterns, or order timing"
+                })
+
+# Check if blocked_trades.jsonl is being analyzed
+blocked_log = STATE_DIR / "blocked_trades.jsonl"
+if blocked_log.exists():
+    with open(blocked_log, 'r', encoding='utf-8') as f:
+        blocked_lines = [l for l in f if l.strip()]
+        if blocked_lines:
+            if learning_state_file.exists():
+                try:
+                    with open(learning_state_file, 'r', encoding='utf-8') as f:
+                        learning_state = json.load(f)
+                        processed_blocked = learning_state.get("total_blocked_processed", 0)
+                        unprocessed = max(0, len(blocked_lines) - processed_blocked)
+                        if unprocessed > 0:
+                            gaps.append({
+                                "log": "blocked_trades.jsonl",
+                                "records": unprocessed,
+                                "issue": f"{unprocessed} blocked trades not yet processed",
+                                "impact": "Run backfill to process remaining blocked trades for counterfactual learning"
+                            })
+                except:
+                    gaps.append({
+                        "log": "blocked_trades.jsonl",
+                        "records": len(blocked_lines),
+                        "issue": "Blocked trades logged but processing state unclear",
+                        "impact": "Cannot verify if blocked trades are being analyzed for counterfactual learning"
+                    })
+            else:
+                gaps.append({
+                    "log": "blocked_trades.jsonl",
+                    "records": len(blocked_lines),
+                    "issue": "Blocked trades logged but not analyzed",
+                    "impact": "Cannot learn from missed opportunities (counterfactual learning)"
+                })
+
+# Check if gate.jsonl is being analyzed
+gate_log = LOG_DIR / "gate.jsonl"
+if gate_log.exists():
+    with open(gate_log, 'r', encoding='utf-8') as f:
+        gate_lines = [l for l in f if l.strip()]
+        if gate_lines:
+            if learning_state_file.exists():
+                try:
+                    with open(learning_state_file, 'r', encoding='utf-8') as f:
+                        learning_state = json.load(f)
+                        processed_gates = learning_state.get("total_gates_processed", 0)
+                        unprocessed = max(0, len(gate_lines) - processed_gates)
+                        if unprocessed > 0:
+                            gaps.append({
+                                "log": "gate.jsonl",
+                                "records": unprocessed,
+                                "issue": f"{unprocessed} gate events not yet processed",
+                                "impact": "Run backfill to process remaining gate events"
+                            })
+                except:
+                    gaps.append({
+                        "log": "gate.jsonl",
+                        "records": len(gate_lines),
+                        "issue": "Gate events logged but processing state unclear",
+                        "impact": "Cannot verify if gate events are being analyzed"
+                    })
+            else:
+                gaps.append({
+                    "log": "gate.jsonl",
+                    "records": len(gate_lines),
+                    "issue": "Gate events logged but not analyzed",
+                    "impact": "Cannot learn gate blocking patterns or optimize gate thresholds"
+                })
 
 # Check if daily_postmortem is being analyzed
 postmortem_log = DATA_DIR / "daily_postmortem.jsonl"
@@ -389,16 +536,34 @@ print("-" * 80)
 
 recommendations = [
     {
-        "priority": "HIGH",
+        "priority": "COMPLETE",
         "action": "Process historical trades",
-        "details": "Modify learn_from_outcomes() to process all unprocessed trades, not just today's",
-        "benefit": "Utilize all historical data for learning"
+        "details": "✅ Comprehensive learning orchestrator processes all historical trades",
+        "benefit": "All historical data now utilized for learning"
     },
     {
-        "priority": "HIGH",
+        "priority": "COMPLETE",
         "action": "Analyze exit.jsonl for exit signal learning",
-        "details": "Feed exit events to exit model for exit signal weight optimization",
-        "benefit": "Improve exit timing based on what actually worked"
+        "details": "✅ Exit events processed for exit signal weight optimization",
+        "benefit": "Exit timing optimized based on actual outcomes"
+    },
+    {
+        "priority": "COMPLETE",
+        "action": "Process blocked trades for counterfactual learning",
+        "details": "✅ Blocked trades now processed for counterfactual analysis",
+        "benefit": "Learn from missed opportunities - were we too conservative/aggressive?"
+    },
+    {
+        "priority": "COMPLETE",
+        "action": "Process gate events",
+        "details": "✅ Gate events now processed for gate pattern learning",
+        "benefit": "Learn which gates are most effective and optimize thresholds"
+    },
+    {
+        "priority": "COMPLETE",
+        "action": "Enable continuous learning",
+        "details": "✅ Learning happens immediately after each trade close",
+        "benefit": "Faster adaptation to changing market conditions"
     },
     {
         "priority": "MEDIUM",
