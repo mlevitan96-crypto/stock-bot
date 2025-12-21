@@ -34,6 +34,19 @@ COMPONENT_NAME_MAP = {
     "freshness_factor": None  # Not a signal component, just metadata
 }
 
+# OLD component names from historical attribution.jsonl (legacy format)
+# Map old names to new SIGNAL_COMPONENTS
+LEGACY_COMPONENT_MAP = {
+    "flow_count": "options_flow",      # Old flow metric -> options_flow
+    "flow_premium": "options_flow",     # Old flow metric -> options_flow
+    "darkpool": "dark_pool",            # Old dark pool name -> dark_pool
+    "gamma": "greeks_gamma",            # Old gamma -> greeks_gamma
+    "net_premium": "options_flow",      # Old premium metric -> options_flow
+    "volatility": "iv_term_skew",       # Old volatility -> iv_term_skew (closest match)
+    # Note: Many old components don't map cleanly to new ones
+    # We'll aggregate them to the closest match
+}
+
 # Additional mappings for components that might appear with different names
 ADDITIONAL_NAME_MAP = {
     "whale_persistence": "whale_persistence",  # Direct match
@@ -44,22 +57,45 @@ ADDITIONAL_NAME_MAP = {
 
 def normalize_components_for_learning(components_dict: dict) -> dict:
     """
-    Normalize component names from composite_score_v3 format to SIGNAL_COMPONENTS format.
+    Normalize component names from composite_score_v3 format OR legacy format to SIGNAL_COMPONENTS format.
+    Handles both:
+    1. New format: composite_score_v3 component names
+    2. Legacy format: Old attribution.jsonl component names (flow_count, darkpool, etc.)
+    
     Ensures ALL SIGNAL_COMPONENTS are included, even if value is 0.
     
     Args:
-        components_dict: Components dict from compute_composite_score_v3
+        components_dict: Components dict from compute_composite_score_v3 OR legacy attribution.jsonl
         
     Returns:
         Normalized dict with all SIGNAL_COMPONENTS, using correct names
     """
     normalized = {}
     
-    # First, map existing components
+    # First, try new format mapping (composite_score_v3)
     for comp_name, value in components_dict.items():
         mapped_name = COMPONENT_NAME_MAP.get(comp_name)
         if mapped_name and mapped_name in SIGNAL_COMPONENTS:
-            normalized[mapped_name] = float(value) if value is not None else 0.0
+            # Aggregate if multiple old components map to same new component
+            if mapped_name in normalized:
+                # Take the maximum value (most significant contribution)
+                normalized[mapped_name] = max(normalized[mapped_name], float(value) if value is not None else 0.0)
+            else:
+                normalized[mapped_name] = float(value) if value is not None else 0.0
+    
+    # Second, try legacy format mapping (old attribution.jsonl)
+    for comp_name, value in components_dict.items():
+        if comp_name in LEGACY_COMPONENT_MAP:
+            mapped_name = LEGACY_COMPONENT_MAP[comp_name]
+            if mapped_name in SIGNAL_COMPONENTS:
+                # Aggregate if multiple old components map to same new component
+                if mapped_name in normalized:
+                    # Take the maximum value (most significant contribution)
+                    normalized[mapped_name] = max(normalized[mapped_name], abs(float(value)) if value is not None else normalized[mapped_name]
+                else:
+                    # For legacy components, use absolute value and normalize
+                    # Legacy values might be in different scale, so we'll use a simple mapping
+                    normalized[mapped_name] = abs(float(value)) if value is not None else 0.0
     
     # Then, ensure ALL SIGNAL_COMPONENTS are present (even if 0)
     for component in SIGNAL_COMPONENTS:
