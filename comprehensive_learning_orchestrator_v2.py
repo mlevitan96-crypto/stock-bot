@@ -194,6 +194,7 @@ def process_attribution_log(state: Dict, process_all_historical: bool = False) -
     if process_all_historical:
         # Count total unique records in file
         total_in_file = 0
+        total_learnable = 0
         with open(attr_log, 'r', encoding='utf-8') as f:
             for line in f:
                 if line.strip():
@@ -201,17 +202,26 @@ def process_attribution_log(state: Dict, process_all_historical: bool = False) -
                         rec = json.loads(line)
                         if rec.get("type") == "attribution":
                             total_in_file += 1
+                            # Count learnable trades (those with components and non-zero P&L)
+                            ctx = rec.get("context", {})
+                            comps = ctx.get("components", {}) or rec.get("components", {})
+                            pnl_pct = float(rec.get("pnl_pct", 0))
+                            if comps and pnl_pct != 0:
+                                total_learnable += 1
                     except:
                         pass
         state["total_trades_processed"] = total_in_file
+        state["total_trades_learned_from"] = total_learnable
     else:
         # Only count new records processed in this run
         new_records = len(processed_ids)
         if new_records > 0:
             current_total = state.get("total_trades_processed", 0)
             state["total_trades_processed"] = current_total + new_records
+            # Add to learned from count
+            current_learned = state.get("total_trades_learned_from", 0)
+            state["total_trades_learned_from"] = current_learned + processed
     
-    state["total_trades_learned_from"] = state.get("total_trades_learned_from", 0) + processed
     return processed
 
 def process_exit_log(state: Dict, process_all_historical: bool = False) -> int:
@@ -697,7 +707,6 @@ def process_uw_attribution_blocked(state: Dict, process_all_historical: bool = F
                 
                 processed += 1
                 processed_ids.add(rec_id)
-                state["last_uw_blocked_id"] = rec_id
                 
             except Exception as e:
                 continue

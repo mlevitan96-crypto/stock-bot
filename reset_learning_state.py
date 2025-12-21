@@ -26,7 +26,7 @@ if LEARNING_STATE_FILE.exists():
     
     response = input("Reset all last processed IDs? (yes/no): ")
     if response.lower() == "yes":
-        # Reset last processed IDs but keep totals
+        # Reset last processed IDs and totals (for clean re-processing)
         state["last_attribution_id"] = None
         state["last_exit_id"] = None
         state["last_signal_id"] = None
@@ -34,6 +34,15 @@ if LEARNING_STATE_FILE.exists():
         state["last_blocked_trade_id"] = None
         state["last_gate_id"] = None
         state["last_uw_blocked_id"] = None
+        # Reset totals for accurate counting after re-processing
+        state["total_trades_processed"] = 0
+        state["total_trades_learned_from"] = 0
+        state["total_exits_processed"] = 0
+        state["total_signals_processed"] = 0
+        state["total_orders_processed"] = 0
+        state["total_blocked_processed"] = 0
+        state["total_gates_processed"] = 0
+        state["total_uw_blocked_processed"] = 0
         
         with open(LEARNING_STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(state, f, indent=2)
