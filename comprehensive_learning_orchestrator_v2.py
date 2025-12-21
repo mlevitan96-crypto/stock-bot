@@ -159,6 +159,35 @@ def process_attribution_log(state: Dict, process_all_historical: bool = False) -
                     # Try direct on record
                     comps = rec.get("components", {})
                 
+                # Normalize component names to match SIGNAL_COMPONENTS
+                # This ensures ALL components are tracked, even if value is 0
+                try:
+                    from fix_component_tracking import normalize_components_for_learning
+                    comps = normalize_components_for_learning(comps)
+                except ImportError:
+                    # Fallback: ensure all SIGNAL_COMPONENTS are present
+                    from adaptive_signal_optimizer import SIGNAL_COMPONENTS
+                    normalized_comps = {}
+                    # Map common name variations
+                    name_map = {
+                        "flow": "options_flow",
+                        "iv_skew": "iv_term_skew",
+                        "smile": "smile_slope",
+                        "whale": "whale_persistence",
+                        "event": "event_alignment",
+                        "regime": "regime_modifier",
+                        "calendar": "calendar_catalyst"
+                    }
+                    for comp_name, value in comps.items():
+                        mapped = name_map.get(comp_name, comp_name)
+                        if mapped in SIGNAL_COMPONENTS:
+                            normalized_comps[mapped] = float(value) if value is not None else 0.0
+                    # Ensure all components present (even if 0)
+                    for comp in SIGNAL_COMPONENTS:
+                        if comp not in normalized_comps:
+                            normalized_comps[comp] = 0.0
+                    comps = normalized_comps
+                
                 pnl_pct = float(rec.get("pnl_pct", 0)) / 100.0  # Convert % to decimal
                 regime = ctx.get("market_regime", ctx.get("gamma_regime", "neutral"))
                 sector = ctx.get("sector", "unknown")
@@ -167,11 +196,14 @@ def process_attribution_log(state: Dict, process_all_historical: bool = False) -
                 processed_ids.add(rec_id)
                 state["last_attribution_id"] = rec_id
                 
-                # Only learn from trades with components and non-zero P&L
-                # But still mark all trades as processed
-                if comps and pnl_pct != 0:
+                # Learn from ALL trades with components (even if P&L is 0)
+                # This ensures components with 0 samples get tracked
+                if comps:
+                    # Record trade even if P&L is 0 (for component tracking)
+                    # But only count as "learned from" if P&L != 0
                     optimizer.record_trade(comps, pnl_pct, regime, sector)
-                    processed += 1
+                    if pnl_pct != 0:
+                        processed += 1
                     
                     # Correlate with signal patterns for signal pattern learning
                     try:
@@ -929,14 +961,43 @@ def learn_from_trade_close(symbol: str, pnl_pct: float, components: Dict, regime
     SHORT-TERM LEARNING: Record trade for learning (but don't update weights immediately).
     
     Industry best practice: Batch weight updates to prevent overfitting.
-    - Records trade immediately for tracking
+    - Records trade immediately for tracking (ALL components, even if value is 0)
     - Updates EWMA in daily batch processing
     - Weight adjustments only in daily batch (with MIN_SAMPLES guard)
+    
+    CRITICAL: Normalizes component names and ensures ALL SIGNAL_COMPONENTS are included.
     """
     optimizer = get_optimizer()
-    if optimizer and components and pnl_pct != 0:
+    if optimizer and components:
+        # Normalize component names to match SIGNAL_COMPONENTS
+        try:
+            from fix_component_tracking import normalize_components_for_learning
+            normalized_components = normalize_components_for_learning(components)
+        except ImportError:
+            # Fallback normalization
+            from adaptive_signal_optimizer import SIGNAL_COMPONENTS
+            normalized_components = {}
+            name_map = {
+                "flow": "options_flow",
+                "iv_skew": "iv_term_skew",
+                "smile": "smile_slope",
+                "whale": "whale_persistence",
+                "event": "event_alignment",
+                "regime": "regime_modifier",
+                "calendar": "calendar_catalyst"
+            }
+            for comp_name, value in components.items():
+                mapped = name_map.get(comp_name, comp_name)
+                if mapped in SIGNAL_COMPONENTS:
+                    normalized_components[mapped] = float(value) if value is not None else 0.0
+            # Ensure all components present (even if 0)
+            for comp in SIGNAL_COMPONENTS:
+                if comp not in normalized_components:
+                    normalized_components[comp] = 0.0
+        
         # Record trade for learning (updates internal tracking)
-        optimizer.record_trade(components, pnl_pct / 100.0, regime, sector)
+        # Record even if P&L is 0 to track all components
+        optimizer.record_trade(normalized_components, pnl_pct / 100.0, regime, sector)
         
         # DO NOT update weights immediately - batch in daily processing
         # This prevents overfitting to noise in individual trades

@@ -504,18 +504,25 @@ class LearningOrchestrator:
         """
         win = pnl > 0
         
+        # Track ALL components in feature_vector
+        # Components with 0 value are still tracked (they just contribute 0 to wins/losses)
         for component, value in feature_vector.items():
             if component not in self.component_performance:
+                # Component not in tracking system - skip (shouldn't happen if normalized correctly)
                 continue
             
             perf = self.component_performance[component]
             
-            if win:
-                perf["wins"] += 1
-                perf["contribution_when_win"].append(value)
-            else:
-                perf["losses"] += 1
-                perf["contribution_when_loss"].append(value)
+            # Track component even if value is 0 (for sample counting)
+            # Only count as win/loss if value is non-zero (component actually contributed)
+            if value != 0:
+                if win:
+                    perf["wins"] += 1
+                    perf["contribution_when_win"].append(value)
+                else:
+                    perf["losses"] += 1
+                    perf["contribution_when_loss"].append(value)
+            # If value is 0, component didn't contribute, but we still track it was present
             
             perf["total_pnl"] += pnl
             
@@ -616,14 +623,30 @@ class LearningOrchestrator:
             new_mult = current_mult
             reason = None
             
+            # ADJUST TOWARDS PROFITABILITY: Increase weights for strong performers
+            # Both win rate AND P&L must be positive
             if wilson_low > 0.55 and ewma_wr > 0.55 and ewma_pnl > 0:
                 new_mult = min(2.5, current_mult + self.UPDATE_STEP)
-                reason = f"strong_performer(wilson_low={wilson_low:.3f},ewma={ewma_wr:.3f})"
+                reason = f"strong_performer(wilson_low={wilson_low:.3f},ewma={ewma_wr:.3f},pnl={ewma_pnl:.3f})"
             
+            # ADJUST AWAY FROM LOSING: Decrease weights for weak performers
+            # Low win rate OR negative P&L triggers reduction
             elif wilson_high < 0.45 and ewma_wr < 0.45:
                 new_mult = max(0.25, current_mult - self.UPDATE_STEP)
                 reason = f"weak_performer(wilson_high={wilson_high:.3f},ewma={ewma_wr:.3f})"
             
+            # Also decrease if P&L is negative (even if win rate is borderline)
+            # This ensures we move AWAY from losing patterns
+            elif ewma_pnl < -0.01 and ewma_wr < 0.50:
+                new_mult = max(0.25, current_mult - self.UPDATE_STEP)
+                reason = f"negative_pnl(ewma_pnl={ewma_pnl:.3f},ewma_wr={ewma_wr:.3f})"
+            
+            # Also decrease if win rate is very low (strong signal to reduce)
+            elif ewma_wr < 0.40:
+                new_mult = max(0.25, current_mult - self.UPDATE_STEP)
+                reason = f"very_low_win_rate(ewma={ewma_wr:.3f})"
+            
+            # Mean reversion for neutral performers
             elif 0.48 <= ewma_wr <= 0.52 and total > self.MIN_SAMPLES * 2:
                 decay = (current_mult - 1.0) * 0.1
                 new_mult = current_mult - decay
