@@ -399,27 +399,38 @@ def process_signal_log(state: Dict, process_all_historical: bool = False) -> int
                 if rec_id in processed_ids:
                     continue
                 
-                # Extract signal data
-                symbol = rec.get("symbol") or rec.get("ticker", "")
+                # Extract signal data (signals.jsonl format: {"type": "signal", "cluster": {...}})
                 cluster = rec.get("cluster", {})
-                components = rec.get("components", {})
-                score = float(rec.get("score", rec.get("composite_score", 0.0)))
+                symbol = cluster.get("ticker") or cluster.get("symbol") or rec.get("symbol") or rec.get("ticker", "")
                 
-                # Learn from signal pattern
-                try:
-                    from learning_enhancements_v1 import get_signal_learner
-                    signal_learner = get_signal_learner()
-                    signal_learner.record_signal(
-                        signal_id=rec_id,
-                        symbol=symbol,
-                        components=components,
-                        score=score
-                    )
-                except ImportError:
-                    pass
-                except Exception as e:
-                    # Don't fail on learning errors
-                    pass
+                # Try to get components from various locations
+                components = rec.get("components", {})
+                if not components and cluster:
+                    # Components might be in cluster or need to be extracted
+                    # For now, create a basic component dict from cluster data
+                    components = {
+                        "flow": cluster.get("count", 0) / 100.0 if cluster.get("count") else 0,
+                        "dark_pool": cluster.get("avg_premium", 0) / 1000000.0 if cluster.get("avg_premium") else 0,
+                    }
+                
+                score = float(rec.get("score", rec.get("composite_score", cluster.get("score", 0.0))))
+                
+                # Learn from signal pattern (only if we have valid data)
+                if symbol and components:
+                    try:
+                        from learning_enhancements_v1 import get_signal_learner
+                        signal_learner = get_signal_learner()
+                        signal_learner.record_signal(
+                            signal_id=rec_id,
+                            symbol=symbol,
+                            components=components,
+                            score=score
+                        )
+                    except ImportError:
+                        pass
+                    except Exception as e:
+                        # Don't fail on learning errors
+                        pass
                 
                 processed += 1
                 processed_ids.add(rec_id)
