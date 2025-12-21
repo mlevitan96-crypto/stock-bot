@@ -1050,9 +1050,20 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
               hold_min=round(hold_minutes, 1),
               reason=close_reason)
     
-    # V4.0: Feed exit outcome to learning system for exit signal weight updates
+    # SHORT-TERM LEARNING: Immediate learning after trade close
+    # This enables fast adaptation to market changes
     try:
-        from adaptive_signal_optimizer import get_optimizer, EXIT_COMPONENTS
+        from comprehensive_learning_orchestrator_v2 import learn_from_trade_close
+        
+        comps = context.get("components", {})
+        regime = context.get("market_regime", "unknown")
+        sector = "unknown"  # Could extract from symbol if needed
+        
+        # Immediate learning from this trade
+        learn_from_trade_close(symbol, pnl_pct, comps, regime, sector)
+        
+        # Also feed to exit model for exit signal learning
+        from adaptive_signal_optimizer import get_optimizer
         optimizer = get_optimizer()
         if optimizer and hasattr(optimizer, 'exit_model'):
             # Parse close reason to extract exit signals
@@ -1081,9 +1092,8 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
                 elif "momentum" in signal:
                     exit_components["momentum_reversal"] = 1.0
             
-            # Record exit outcome for learning (similar to entry learning)
+            # Record exit outcome for learning
             if exit_components and pnl_pct != 0:
-                # Use exit model's learning orchestrator if available
                 if hasattr(optimizer, 'learner') and hasattr(optimizer.learner, 'record_trade_outcome'):
                     optimizer.learner.record_trade_outcome(
                         trade_data={
@@ -1094,8 +1104,8 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
                         },
                         feature_vector=exit_components,
                         pnl=pnl_pct / 100.0,  # Convert % to decimal
-                        regime=context.get("market_regime", "unknown"),
-                        sector="unknown"  # Could extract from symbol if needed
+                        regime=regime,
+                        sector=sector
                     )
     except Exception as e:
         # Don't fail exit logging if learning fails
@@ -1925,10 +1935,41 @@ def build_symbol_decisions(clusters, gex_map, dp_map, net_map, vol_map, ovl_map)
 # V3.2: Integrates with adaptive signal optimizer for global weight learning
 # =========================
 def learn_from_outcomes():
+    """
+    MEDIUM-TERM LEARNING: Daily batch processing of all data sources.
+    
+    Now uses comprehensive learning orchestrator to process:
+    - All historical trades (not just today's)
+    - Exit events
+    - Signal patterns
+    - Order execution quality
+    """
     if not Config.ENABLE_PER_TICKER_LEARNING:
         return
+    
+    # Use comprehensive learning orchestrator
+    try:
+        from comprehensive_learning_orchestrator_v2 import run_daily_learning
+        results = run_daily_learning()
+        
+        log_event("learning", "comprehensive_learning_completed",
+                 attribution=results.get("attribution", 0),
+                 exits=results.get("exits", 0),
+                 signals=results.get("signals", 0),
+                 orders=results.get("orders", 0),
+                 weights_updated=results.get("weights_updated", 0))
+    except ImportError:
+        # Fallback to old method if orchestrator not available
+        _learn_from_outcomes_legacy()
+    except Exception as e:
+        log_event("learning", "comprehensive_learning_failed", error=str(e))
+        # Fallback to legacy method
+        _learn_from_outcomes_legacy()
+
+def _learn_from_outcomes_legacy():
+    """Legacy learning method (fallback)"""
     profiles = load_profiles()
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     path = os.path.join(LOG_DIR, "attribution.jsonl")
     if not os.path.exists(path):
         return
