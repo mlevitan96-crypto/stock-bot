@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-19 (Learning Pipeline Verification Added)  
+**Last Updated:** 2025-12-21 (Overfitting Safeguards & Profitability Tracking Added)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ---
@@ -20,7 +20,9 @@
 3. **UW Daemon** (`uw_flow_daemon.py`): Fetches and caches UnusualWhales API data
 4. **Deploy Supervisor** (`deploy_supervisor.py`): Process manager for all services
 5. **SRE Monitoring** (`sre_monitoring.py`): Health monitoring for signals, APIs, execution
-6. **Learning Engine** (`comprehensive_learning_orchestrator.py`): ML-based parameter optimization
+6. **Learning Engine** (`comprehensive_learning_orchestrator_v2.py`): Comprehensive multi-timeframe learning system
+7. **Profitability Tracker** (`profitability_tracker.py`): Daily/weekly/monthly performance tracking
+8. **Adaptive Signal Optimizer** (`adaptive_signal_optimizer.py`): Bayesian weight optimization with anti-overfitting guards
 
 ---
 
@@ -189,21 +191,26 @@ pkill -f "python.*dashboard.py"
 - `signals.jsonl`: Signal generation
 - `orders.jsonl`: Order execution
 - `exit.jsonl`: Position exits
+- `attribution.jsonl`: Trade attribution (P&L, components, exit reasons)
 - `displacement.jsonl`: Displacement events
 - `gate.jsonl`: Gate blocks
 - `worker.jsonl`: Worker thread events
 - `supervisor.jsonl`: Supervisor logs
 - `comprehensive_learning.jsonl`: Learning engine cycles
+- `weight_learning.jsonl`: Weight learning updates
 
 ### State Files (in `state/` directory)
 - `position_metadata.json`: Current positions
 - `blocked_trades.jsonl`: Blocked trade reasons
 - `displacement_cooldowns.json`: Displacement cooldowns
+- `learning_processing_state.json`: Learning system state (last processed IDs, totals)
+- `profitability_tracking.json`: Daily/weekly/monthly performance metrics
+- `signal_weights.json`: Adaptive signal weights (from `adaptive_signal_optimizer.py`)
 
 ### Data Files (in `data/` directory)
 - `uw_flow_cache.json`: UW API cache
 - `live_orders.jsonl`: Order events
-- `attribution.jsonl`: Trade attribution (P&L, close reasons)
+- `uw_attribution.jsonl`: UW signal attribution (including blocked entries with decision="rejected")
 
 ---
 
@@ -270,26 +277,85 @@ When `MAX_CONCURRENT_POSITIONS` (16) reached:
 
 ### Integration Points
 
-- `main.py` line 5620: Learning orchestrator imported
-- `main.py` line 5645: Learning thread started
-- `main.py` line 5687: Health endpoint includes learning status
-- `sre_monitoring.py` line 541: SRE health includes learning status
+- `main.py` line 1952: `run_daily_learning()` called in `learn_from_outcomes()`
+- `main.py` line 1056: `learn_from_trade_close()` called after each trade
+- `main.py` line 5400: Daily learning triggered after market close
+- `main.py` line 5404: Profitability tracking updated daily/weekly/monthly
+- `comprehensive_learning_orchestrator_v2.py`: Central orchestrator for all learning
+
+### Learning Schedule (Industry Best Practices)
+
+**SHORT-TERM (Continuous):**
+- Records trade immediately after close
+- NO weight updates (prevents overfitting)
+- EWMA updated in daily batch only
+
+**MEDIUM-TERM (Daily):**
+- Processes all new trades from the day
+- Updates EWMA for all components
+- Updates weights ONLY if:
+  - MIN_SAMPLES (50) met
+  - MIN_DAYS_BETWEEN_UPDATES (3) passed
+  - Statistical significance confirmed (Wilson intervals)
+
+**WEEKLY:**
+- Weekly weight adjustments
+- Profile retraining
+- Weekly profitability metrics
+
+**MONTHLY:**
+- Monthly profitability metrics
+- Long-term trend analysis
+
+### Overfitting Safeguards (2025-12-21 Implementation)
+
+**Key Parameters** (`adaptive_signal_optimizer.py`):
+- `MIN_SAMPLES = 50` (increased from 30, industry standard: 50-100)
+- `MIN_DAYS_BETWEEN_UPDATES = 3` (prevents over-adjustment)
+- `LOOKBACK_DAYS = 60` (increased from 30, more stable learning)
+- `UPDATE_STEP = 0.05` (5% max change per update)
+- `EWMA_ALPHA = 0.15` (85% weight on history, 15% on new)
+
+**Safeguards:**
+1. ✅ Batch processing (no per-trade weight updates)
+2. ✅ Minimum 50 samples before adjustment
+3. ✅ Minimum 3 days between updates
+4. ✅ Wilson confidence intervals (95% statistical significance)
+5. ✅ EWMA smoothing (prevents overreacting to noise)
+6. ✅ Small update steps (5% max)
+7. ✅ Multiple conditions required (Wilson AND EWMA must agree)
+
+**Industry Alignment:**
+- Matches practices used by Two Sigma, Citadel, prop trading firms
+- Conservative approach prevents overfitting while maintaining responsiveness
 
 ### Learning Components
 
-1. **Counterfactual Analysis**: What-if scenarios
-2. **Weight Variations**: Test different signal weights
-3. **Timing Optimization**: Entry/exit timing
-4. **Sizing Optimization**: Position sizing
-5. **Exit Threshold Learning**: Optimize exit parameters
-6. **Profit Target Learning**: Optimize scale-out targets
-7. **Risk Limit Learning**: Optimize risk parameters
+1. **Actual Trades** (`logs/attribution.jsonl`): All historical trades processed
+2. **Exit Events** (`logs/exit.jsonl`): Exit signal learning
+3. **Blocked Trades** (`state/blocked_trades.jsonl`): Counterfactual learning
+4. **Gate Events** (`logs/gate.jsonl`): Gate pattern learning
+5. **UW Blocked Entries** (`data/uw_attribution.jsonl`): Missed opportunities
+6. **Signal Patterns** (`logs/signals.jsonl`): Signal generation patterns
+7. **Execution Quality** (`logs/orders.jsonl`): Order execution analysis
 
 ### Health Check
 
 **On Server**:
 ```bash
 curl http://localhost:8081/health | python3 -m json.tool | grep -A 10 comprehensive_learning
+```
+
+**Comprehensive Learning Status**:
+```bash
+cd ~/stock-bot
+python3 check_comprehensive_learning_status.py
+```
+
+**Profitability Tracking**:
+```bash
+cd ~/stock-bot
+python3 profitability_tracker.py
 ```
 
 **Local (Windows)**:
@@ -366,6 +432,11 @@ python manual_learning_check.py
 | `check_learning_status.py` | Quick learning status check | Project root |
 | `check_trades_closing.py` | Check if trades are closing and logged | Project root |
 | `manual_learning_check.py` | Detailed learning system report | Project root |
+| `check_comprehensive_learning_status.py` | Comprehensive learning system status | Project root |
+| `profitability_tracker.py` | Daily/weekly/monthly profitability report | Project root |
+| `check_uw_blocked_entries.py` | Check UW attribution for blocked entries | Project root |
+| `reset_learning_state.py` | Reset learning processing state | Project root |
+| `backfill_historical_learning.py` | Process all historical data for learning | Project root |
 | `VERIFY_BOT_IS_RUNNING.sh` | Verify bot is running (handles env var confusion) | Project root |
 | `VERIFY_DEPLOYMENT.sh` | Regression testing after deployment | Project root |
 | `VERIFY_TRADE_EXECUTION_AND_LEARNING.sh` | Verify trade execution and learning engine | Project root |
@@ -419,7 +490,36 @@ tail -50 logs/supervisor.jsonl | grep -i error
 
 ---
 
-## Recent Fixes (2025-12-19)
+## Recent Fixes & Improvements
+
+### 2025-12-21: Overfitting Safeguards & Profitability Tracking
+
+1. **Overfitting Safeguards**:
+   - Increased `MIN_SAMPLES` from 30 to 50 (industry standard)
+   - Removed per-trade weight updates (now batched daily only)
+   - Added `MIN_DAYS_BETWEEN_UPDATES = 3` (prevents over-adjustment)
+   - Increased `LOOKBACK_DAYS` from 30 to 60 (more stable learning)
+   - Aligned with industry best practices (Two Sigma, Citadel)
+
+2. **Profitability Tracking System**:
+   - Daily/weekly/monthly performance metrics
+   - 30-day trend analysis (improving/declining)
+   - Component performance tracking
+   - Goal status (target: 60% win rate)
+
+3. **Comprehensive Learning System**:
+   - Processes ALL data sources (trades, exits, blocked trades, gates, UW entries)
+   - Multi-timeframe learning (short/medium/long-term)
+   - State tracking to avoid duplicate processing
+   - 100% coverage of all log files
+
+**Documentation:**
+- `OVERFITTING_ANALYSIS_AND_RECOMMENDATIONS.md`: Industry best practices analysis
+- `LEARNING_SCHEDULE_AND_PROFITABILITY.md`: Learning schedule and profitability tracking
+- `DEPLOY_OVERFITTING_FIXES.md`: Deployment guide
+- `LEARNING_SYSTEM_COMPLETE.md`: Complete learning system overview
+
+### 2025-12-19: Learning Pipeline Verification
 
 1. **SRE Monitoring Freshness**: Fixed `data_freshness_sec` always being null
 2. **Dashboard Display**: Added learning engine status, improved signal metadata
@@ -431,13 +531,41 @@ tail -50 logs/supervisor.jsonl | grep -i error
 
 ---
 
+## Key Interactions & Decisions (2025-12-21)
+
+### Overfitting Concerns & Industry Best Practices
+
+**User Concern**: "Before I deploy, I want to make sure we don't overfit and adjust too often. Is there a concern we do that with adjusting after every trade?"
+
+**Analysis**: Valid concern. System was updating weights after every trade, which could lead to overfitting.
+
+**Solution Implemented**:
+1. Removed per-trade weight updates (now batched daily only)
+2. Increased MIN_SAMPLES to 50 (industry standard)
+3. Added MIN_DAYS_BETWEEN_UPDATES = 3
+4. Increased LOOKBACK_DAYS to 60
+
+**Result**: System now follows industry best practices (Two Sigma, Citadel) and is protected against overfitting while maintaining responsiveness.
+
+### Profitability Goal
+
+**User Goal**: "The overall goal is HOW DO WE MAKE MONEY? This must be profitable. The goal is to make every trade a winning one."
+
+**Implementation**:
+1. Comprehensive profitability tracking (daily/weekly/monthly)
+2. 30-day trend analysis (improving/declining)
+3. Goal status tracking (target: 60% win rate)
+4. Component performance analysis
+5. Full learning cycle: Signal → Trade → Learn → Review → Update → Trade
+
 ## Future Improvements
 
-1. **Phase 3 Learning**: Full implementation of parameter optimization
+1. **Out-of-Sample Validation**: Validate weight updates on recent data before applying
 2. **Regime-Specific Learning**: Market regime-aware parameter tuning
 3. **Symbol-Specific Optimization**: Per-symbol parameter learning
 4. **Multi-Parameter Optimization**: Simultaneous optimization of multiple parameters
 5. **Execution Quality Learning**: Full integration of execution analysis
+6. **Bootstrap Resampling**: Additional statistical validation
 
 ---
 
