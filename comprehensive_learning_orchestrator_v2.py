@@ -122,22 +122,41 @@ def process_attribution_log(state: Dict, process_all: bool = False) -> int:
                 # Extract data
                 symbol = rec.get("symbol")
                 ctx = rec.get("context", {})
+                
+                # Try multiple ways to get components
                 comps = ctx.get("components", {})
+                if not comps:
+                    # Try direct on record
+                    comps = rec.get("components", {})
+                
                 pnl_pct = float(rec.get("pnl_pct", 0)) / 100.0  # Convert % to decimal
                 regime = ctx.get("market_regime", ctx.get("gamma_regime", "neutral"))
                 sector = ctx.get("sector", "unknown")
                 
-                # Only process if we have components and non-zero P&L
+                # Always mark as processed to avoid re-processing
+                processed_ids.add(rec_id)
+                state["last_attribution_id"] = rec_id
+                
+                # Only learn from trades with components and non-zero P&L
+                # But still mark all trades as processed
                 if comps and pnl_pct != 0:
                     optimizer.record_trade(comps, pnl_pct, regime, sector)
                     processed += 1
-                    processed_ids.add(rec_id)
-                    state["last_attribution_id"] = rec_id
+                elif not comps:
+                    # Log that we skipped due to missing components
+                    pass  # Could log this if needed
+                elif pnl_pct == 0:
+                    # Zero P&L trades - still valuable but don't affect learning much
+                    # Could process these with pnl_pct = 0.0 if we want to track them
+                    pass
                 
             except Exception as e:
                 continue
     
-    state["total_trades_processed"] = state.get("total_trades_processed", 0) + processed
+    # Count all records we've seen (not just learned from)
+    total_seen = len(processed_ids)
+    state["total_trades_processed"] = state.get("total_trades_processed", 0) + total_seen
+    state["total_trades_learned_from"] = state.get("total_trades_learned_from", 0) + processed
     return processed
 
 def process_exit_log(state: Dict, process_all: bool = False) -> int:
@@ -202,7 +221,11 @@ def process_exit_log(state: Dict, process_all: bool = False) -> int:
                         elif "momentum" in signal_name:
                             exit_components["momentum_reversal"] = 1.0
                 
-                # Record exit outcome
+                # Always mark as processed
+                processed_ids.add(rec_id)
+                state["last_exit_id"] = rec_id
+                
+                # Record exit outcome if we have exit components
                 if exit_components and pnl_pct != 0:
                     if hasattr(optimizer, 'learner') and hasattr(optimizer.learner, 'record_trade_outcome'):
                         optimizer.learner.record_trade_outcome(
@@ -216,8 +239,6 @@ def process_exit_log(state: Dict, process_all: bool = False) -> int:
                             sector="unknown"
                         )
                         processed += 1
-                        processed_ids.add(rec_id)
-                        state["last_exit_id"] = rec_id
                 
             except Exception as e:
                 continue
