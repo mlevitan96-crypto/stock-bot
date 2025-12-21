@@ -123,6 +123,7 @@ def process_attribution_log(state: Dict, process_all: bool = False) -> int:
     processed = 0
     last_id = state.get("last_attribution_id")
     processed_ids: Set[str] = set()
+    seen_last_id = False  # Track if we've seen the last processed record
     
     with open(attr_log, 'r', encoding='utf-8') as f:
         for line in f:
@@ -135,9 +136,16 @@ def process_attribution_log(state: Dict, process_all: bool = False) -> int:
                 
                 rec_id = get_record_id(rec, "attribution")
                 
-                # Skip if already processed (unless process_all)
-                if not process_all and last_id and rec_id == last_id:
-                    break
+                # If process_all=False, only process records after last_id
+                if not process_all and last_id:
+                    if rec_id == last_id:
+                        # Found last processed record, process everything after this
+                        seen_last_id = True
+                        continue  # Skip the last_id record itself
+                    elif not seen_last_id:
+                        # Haven't found last_id yet, skip this record
+                        continue
+                
                 if rec_id in processed_ids:
                     continue
                 
@@ -175,9 +183,9 @@ def process_attribution_log(state: Dict, process_all: bool = False) -> int:
             except Exception as e:
                 continue
     
-    # Count all records we've seen (not just learned from)
-    total_seen = len(processed_ids)
-    state["total_trades_processed"] = state.get("total_trades_processed", 0) + total_seen
+    # Count only NEW records processed in this run (not cumulative)
+    new_records = len(processed_ids)
+    state["total_trades_processed"] = state.get("total_trades_processed", 0) + new_records
     state["total_trades_learned_from"] = state.get("total_trades_learned_from", 0) + processed
     return processed
 
@@ -199,6 +207,7 @@ def process_exit_log(state: Dict, process_all: bool = False) -> int:
     processed = 0
     last_id = state.get("last_exit_id")
     processed_ids: Set[str] = set()
+    seen_last_id = False
     
     with open(exit_log, 'r', encoding='utf-8') as f:
         for line in f:
@@ -208,9 +217,14 @@ def process_exit_log(state: Dict, process_all: bool = False) -> int:
                 rec = json.loads(line)
                 rec_id = get_record_id(rec, "exit")
                 
-                # Skip if already processed
-                if not process_all and last_id and rec_id == last_id:
-                    break
+                # If process_all=False, only process records after last_id
+                if not process_all and last_id:
+                    if rec_id == last_id:
+                        seen_last_id = True
+                        continue
+                    elif not seen_last_id:
+                        continue
+                
                 if rec_id in processed_ids:
                     continue
                 
@@ -285,6 +299,7 @@ def process_signal_log(state: Dict, process_all: bool = False) -> int:
     processed = 0
     last_id = state.get("last_signal_id")
     processed_ids: Set[str] = set()
+    seen_last_id = False
     
     # Track signal patterns and their outcomes
     # This is a placeholder for future signal pattern learning
@@ -301,8 +316,13 @@ def process_signal_log(state: Dict, process_all: bool = False) -> int:
                 
                 rec_id = get_record_id(rec, "signal")
                 
-                if not process_all and last_id and rec_id == last_id:
-                    break
+                if not process_all and last_id:
+                    if rec_id == last_id:
+                        seen_last_id = True
+                        continue
+                    elif not seen_last_id:
+                        continue
+                
                 if rec_id in processed_ids:
                     continue
                 
@@ -335,6 +355,7 @@ def process_order_log(state: Dict, process_all: bool = False) -> int:
     processed = 0
     last_id = state.get("last_order_id")
     processed_ids: Set[str] = set()
+    seen_last_id = False
     
     # Track execution quality patterns
     # This is a placeholder for future execution learning
@@ -351,8 +372,13 @@ def process_order_log(state: Dict, process_all: bool = False) -> int:
                 
                 rec_id = get_record_id(rec, "order")
                 
-                if not process_all and last_id and rec_id == last_id:
-                    break
+                if not process_all and last_id:
+                    if rec_id == last_id:
+                        seen_last_id = True
+                        continue
+                    elif not seen_last_id:
+                        continue
+                
                 if rec_id in processed_ids:
                     continue
                 
@@ -389,6 +415,7 @@ def process_blocked_trades(state: Dict, process_all: bool = False) -> int:
     processed = 0
     last_id = state.get("last_blocked_trade_id")
     processed_ids: Set[str] = set()
+    seen_last_id = False
     
     with open(blocked_log, 'r', encoding='utf-8') as f:
         for line in f:
@@ -398,9 +425,13 @@ def process_blocked_trades(state: Dict, process_all: bool = False) -> int:
                 rec = json.loads(line)
                 rec_id = f"{rec.get('symbol')}_{rec.get('timestamp', '')}"
                 
-                # Skip if already processed
-                if not process_all and last_id and rec_id == last_id:
-                    break
+                if not process_all and last_id:
+                    if rec_id == last_id:
+                        seen_last_id = True
+                        continue
+                    elif not seen_last_id:
+                        continue
+                
                 if rec_id in processed_ids:
                     continue
                 
@@ -446,6 +477,7 @@ def process_gate_events(state: Dict, process_all: bool = False) -> int:
     processed = 0
     last_id = state.get("last_gate_id")
     processed_ids: Set[str] = set()
+    seen_last_id = False
     
     # Track gate blocking patterns
     # This helps learn if gates are too strict or too loose
@@ -458,8 +490,13 @@ def process_gate_events(state: Dict, process_all: bool = False) -> int:
                 rec = json.loads(line)
                 rec_id = f"{rec.get('symbol', '')}_{rec.get('ts', rec.get('_ts', ''))}"
                 
-                if not process_all and last_id and rec_id == last_id:
-                    break
+                if not process_all and last_id:
+                    if rec_id == last_id:
+                        seen_last_id = True
+                        continue
+                    elif not seen_last_id:
+                        continue
+                
                 if rec_id in processed_ids:
                     continue
                 
@@ -494,6 +531,7 @@ def process_uw_attribution_blocked(state: Dict, process_all: bool = False) -> in
     processed = 0
     last_id = state.get("last_uw_blocked_id")
     processed_ids: Set[str] = set()
+    seen_last_id = False
     
     with open(uw_attr_log, 'r', encoding='utf-8') as f:
         for line in f:
@@ -503,13 +541,20 @@ def process_uw_attribution_blocked(state: Dict, process_all: bool = False) -> in
                 rec = json.loads(line)
                 
                 # Only process blocked entries
-                if rec.get("decision") != "ENTRY_BLOCKED":
+                decision = rec.get("decision", "")
+                # Check for various blocked decision formats
+                if decision not in ("ENTRY_BLOCKED", "BLOCKED", "blocked", "entry_blocked"):
                     continue
                 
                 rec_id = f"{rec.get('symbol')}_{rec.get('_ts', '')}"
                 
-                if not process_all and last_id and rec_id == last_id:
-                    break
+                if not process_all and last_id:
+                    if rec_id == last_id:
+                        seen_last_id = True
+                        continue
+                    elif not seen_last_id:
+                        continue
+                
                 if rec_id in processed_ids:
                     continue
                 
