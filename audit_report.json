@@ -1,0 +1,1724 @@
+{
+  "timestamp": "2025-12-21T17:43:56.189156+00:00",
+  "summary": {
+    "passed": 37,
+    "warnings": 145,
+    "info": 162,
+    "errors": 0
+  },
+  "errors": [],
+  "warnings": [
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "adaptive_signal_optimizer.py",
+      "line": 27,
+      "message": "Duplicate import",
+      "code": "import time"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "check_system_health.py",
+      "line": 304,
+      "message": "Duplicate import",
+      "code": "import alpaca_trade_api as tradeapi"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "COMPREHENSIVE_CODE_AUDIT.py",
+      "line": 106,
+      "message": "Wildcard import detected",
+      "code": "if \"import *\" in source and \"from\" in source:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "COMPREHENSIVE_CODE_AUDIT.py",
+      "line": 109,
+      "message": "Wildcard import detected",
+      "code": "if \"import *\" in line:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "comprehensive_learning_orchestrator.py",
+      "line": 392,
+      "message": "Duplicate import",
+      "code": "from adaptive_signal_optimizer import get_optimizer"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "comprehensive_learning_orchestrator.py",
+      "line": 1535,
+      "message": "Duplicate import",
+      "code": "import re"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "comprehensive_learning_orchestrator.py",
+      "line": 1632,
+      "message": "Duplicate import",
+      "code": "from risk_management import get_risk_limits"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "dashboard.py",
+      "line": 1251,
+      "message": "Duplicate import",
+      "code": "from pathlib import Path"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "dashboard.py",
+      "line": 1321,
+      "message": "Duplicate import",
+      "code": "from pathlib import Path"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "deploy_supervisor.py",
+      "line": 205,
+      "message": "Duplicate import",
+      "code": "import socket"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "deploy_supervisor.py",
+      "line": 400,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "ecosystem_health_check.py",
+      "line": 261,
+      "message": "Duplicate import",
+      "code": "import uw_composite_v2 as uw_v2"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "health_supervisor.py",
+      "line": 244,
+      "message": "Duplicate import",
+      "code": "import alpaca_trade_api as tradeapi"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "heartbeat_keeper.py",
+      "line": 244,
+      "message": "Duplicate import",
+      "code": "import alpaca_trade_api as tradeapi"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 814,
+      "message": "Duplicate import",
+      "code": "from zoneinfo import ZoneInfo"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 816,
+      "message": "Duplicate import",
+      "code": "from backports.zoneinfo import ZoneInfo"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 831,
+      "message": "Duplicate import",
+      "code": "from zoneinfo import ZoneInfo"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 833,
+      "message": "Duplicate import",
+      "code": "from backports.zoneinfo import ZoneInfo"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 859,
+      "message": "Duplicate import",
+      "code": "from zoneinfo import ZoneInfo"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 861,
+      "message": "Duplicate import",
+      "code": "from backports.zoneinfo import ZoneInfo"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 1066,
+      "message": "Duplicate import",
+      "code": "from adaptive_signal_optimizer import get_optimizer"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 1150,
+      "message": "Duplicate import",
+      "code": "from datetime import datetime"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 1155,
+      "message": "Duplicate import",
+      "code": "from datetime import datetime"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 1679,
+      "message": "Duplicate import",
+      "code": "import random"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 3011,
+      "message": "Duplicate import",
+      "code": "from risk_management import generate_idempotency_key"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 3078,
+      "message": "Duplicate import",
+      "code": "from risk_management import generate_idempotency_key"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 4293,
+      "message": "Duplicate import",
+      "code": "from risk_management import validate_order_size"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 4320,
+      "message": "Duplicate import",
+      "code": "from risk_management import generate_idempotency_key"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 4354,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 4417,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 4561,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 5640,
+      "message": "Duplicate import",
+      "code": "from cache_enrichment_service import CacheEnrichmentService"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 5743,
+      "message": "Duplicate import",
+      "code": "from comprehensive_learning_orchestrator import get_learning_orchestrator"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 6220,
+      "message": "Duplicate import",
+      "code": "from cache_enrichment_service import CacheEnrichmentService"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 6227,
+      "message": "Duplicate import",
+      "code": "from sre_monitoring import get_sre_health"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 6237,
+      "message": "Duplicate import",
+      "code": "from sre_monitoring import SREMonitoringEngine"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 6259,
+      "message": "Duplicate import",
+      "code": "from sre_monitoring import SREMonitoringEngine"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 6280,
+      "message": "Duplicate import",
+      "code": "import threading"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 6347,
+      "message": "Duplicate import",
+      "code": "import fcntl"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "main.py",
+      "line": 6660,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "risk_management.py",
+      "line": 132,
+      "message": "Duplicate import",
+      "code": "from telemetry.logger import TelemetryLogger"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "test_learning_system.py",
+      "line": 108,
+      "message": "Duplicate import",
+      "code": "from comprehensive_learning_orchestrator import ComprehensiveLearningOrchestrator"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "test_learning_system.py",
+      "line": 123,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "test_learning_system.py",
+      "line": 146,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "test_learning_system.py",
+      "line": 167,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "test_learning_system.py",
+      "line": 177,
+      "message": "Duplicate import",
+      "code": "from comprehensive_learning_orchestrator import ComprehensiveLearningOrchestrator"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "test_learning_system.py",
+      "line": 203,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "uw_composite_v2.py",
+      "line": 948,
+      "message": "Duplicate import",
+      "code": "import math"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "uw_flow_daemon.py",
+      "line": 521,
+      "message": "Duplicate import",
+      "code": "import pytz"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "uw_integration_full.py",
+      "line": 948,
+      "message": "Duplicate import",
+      "code": "import math"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "zero_downtime_deploy.py",
+      "line": 335,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "zero_downtime_deploy.py",
+      "line": 346,
+      "message": "Duplicate import",
+      "code": "import socket"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "zero_downtime_deploy.py",
+      "line": 419,
+      "message": "Duplicate import",
+      "code": "import traceback"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "config\\registry.py",
+      "line": 249,
+      "message": "Duplicate import",
+      "code": "import json"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Imports",
+      "file": "config\\registry.py",
+      "line": 257,
+      "message": "Duplicate import",
+      "code": "import json"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 844,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 868,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 993,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 1153,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 1666,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3393,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3541,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3563,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3606,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 5318,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 6358,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 6523,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "deploy_supervisor.py",
+      "line": 167,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "deploy_supervisor.py",
+      "line": 185,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "deploy_supervisor.py",
+      "line": 215,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "deploy_supervisor.py",
+      "line": 229,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "deploy_supervisor.py",
+      "line": 239,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "deploy_supervisor.py",
+      "line": 263,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "deploy_supervisor.py",
+      "line": 265,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "deploy_supervisor.py",
+      "line": 288,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "dashboard.py",
+      "line": 1280,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "dashboard.py",
+      "line": 1338,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "dashboard.py",
+      "line": 1342,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "dashboard.py",
+      "line": 1366,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "uw_flow_daemon.py",
+      "line": 100,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "uw_flow_daemon.py",
+      "line": 226,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "uw_flow_daemon.py",
+      "line": 403,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "uw_flow_daemon.py",
+      "line": 527,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "comprehensive_learning_orchestrator_v2.py",
+      "line": 57,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "comprehensive_learning_orchestrator_v2.py",
+      "line": 211,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "comprehensive_learning_orchestrator_v2.py",
+      "line": 406,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "comprehensive_learning_orchestrator_v2.py",
+      "line": 485,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Error Handling",
+      "file": "comprehensive_learning_orchestrator_v2.py",
+      "line": 730,
+      "message": "Bare except clause (should specify exception type)",
+      "code": "except:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "adaptive_signal_optimizer.py",
+      "line": 81,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "total_pnl: float = 0.0"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "adaptive_signal_optimizer.py",
+      "line": 46,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "\"regime_modifier\","
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "ANALYZE_DISPLACEMENT_ISSUE.py",
+      "line": 231,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "print(\"  2. Relax the criteria (especially max_pnl_pct)\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "audit_learning_coverage.py",
+      "line": 470,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "\"impact\": \"Cannot track long-term performance trends or regime changes\""
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "cache_enrichment_service.py",
+      "line": 125,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "# Write enriched cache back (always write to ensure signals are persisted)"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "CHECK_DISPLACEMENT_AND_EXITS.py",
+      "line": 116,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "pnl_pct = (current_price - entry_price) / entry_price if entry_price > 0 else 0"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "check_learning_status.py",
+      "line": 59,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "print(f\"  Last trade: {last.get('symbol')} P&L: {last.get('pnl_pct', 0)}%\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "check_trades_api.py",
+      "line": 169,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "total_pnl = sum(p.get(\"unrealized_pl\", 0) for p in positions)"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "code_audit_connections.py",
+      "line": 5,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "Verifies that all components read/write to consistent file paths"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "comprehensive_learning_orchestrator_v2.py",
+      "line": 162,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "pnl_pct = float(rec.get(\"pnl_pct\", 0)) / 100.0  # Convert % to decimal"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "counterfactual_analyzer.py",
+      "line": 35,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "def compute_counterfactual_pnl(blocked_trade: Dict) -> Optional[float]:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "cross_asset_confirmation.py",
+      "line": 43,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(rec) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "dashboard_proxy.py",
+      "line": 72,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "self.wfile.write(response.encode())"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "deploy_supervisor.py",
+      "line": 82,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(entry) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "feature_attribution_v2.py",
+      "line": 14,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "FEATURE_PNL_ROLLUP = Path(\"state/pnl_feature_rollup.json\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "feature_attribution_v2.py",
+      "line": 36,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(rec) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "feature_attribution_v2.py",
+      "line": 27,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "\"regime_align\": 0.07"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "FULL_SYSTEM_AUDIT.py",
+      "line": 128,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "pnl = float(getattr(pos, \"unrealized_pl\", 0))"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "manual_learning_check.py",
+      "line": 27,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "wr = wins / (wins + losses) if (wins + losses) > 0 else 0"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "monitoring_guards.py",
+      "line": 19,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(obj) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "position_reconciliation_loop.py",
+      "line": 120,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "self.degraded_state_path.write_text(json.dumps(degraded_state, indent=2))"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "risk_management.py",
+      "line": 169,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "def calculate_daily_pnl(current_equity: float) -> float:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "risk_management.py",
+      "line": 27,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "from main import Config, log_event, atomic_write_json"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "self_healing_monitor.py",
+      "line": 184,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "# Save updated cache (atomic write)"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "startup_contract_check.py",
+      "line": 118,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps({"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "test_learning_system.py",
+      "line": 105,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(trade) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "test_uw_endpoints.py",
+      "line": 49,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "f\"/api/market/regime\","
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "uw_composite_v2.py",
+      "line": 132,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "\"regime_modifier\": 0.3,"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "uw_enrichment_v2.py",
+      "line": 24,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps({"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "uw_execution_v2.py",
+      "line": 44,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(rec) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "uw_flow_daemon.py",
+      "line": 25,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "from config.registry import CacheFiles, Directories, read_json, atomic_write_json, append_jsonl"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "uw_integration_full.py",
+      "line": 132,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "\"regime_modifier\": 0.3,"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "v2_nightly_orchestration_with_auto_promotion.py",
+      "line": 23,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "\"alpha_attribution_v2\": \"data/alpha_attribution_v2.jsonl\",   # live or simulated per-fill attribution events (feature vectors + pnl)"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "v2_nightly_orchestration_with_auto_promotion.py",
+      "line": 47,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(obj) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "v3_2_features.py",
+      "line": 226,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "pnl_pct: float"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "v3_2_features.py",
+      "line": 232,
+      "message": "Inconsistent naming: 'profit' should be 'pnl_usd'",
+      "code": "# Take profit if EV dropped by 5%"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "v3_2_features.py",
+      "line": 137,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "regime_modifier: float,"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "v4_orchestrator.py",
+      "line": 23,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "\"alpha_attribution_v2\": \"data/alpha_attribution_v2.jsonl\",   # live or simulated per-fill attribution events (feature vectors + pnl)"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "v4_orchestrator.py",
+      "line": 47,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(obj) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "zero_downtime_deploy.py",
+      "line": 79,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "self.state_file.write_text(json.dumps(self.current_state, indent=2))"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "config\\registry.py",
+      "line": 82,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "PNL_ATTRIBUTION = Directories.DATA / \"pnl_attribution.jsonl\""
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "config\\registry.py",
+      "line": 247,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "def atomic_write_json(path: Path, data: Any) -> None:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "config\\registry.py",
+      "line": 72,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "REGIME_SWITCHER_REPORT = Directories.DATA / \"regime_switcher_report.json\""
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "config\\uw_signal_contracts.py",
+      "line": 31,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "\"regime_modifier\",    # Market regime adjustment"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "signals\\uw.py",
+      "line": 6,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "- Dynamic weighting by market regime"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "signals\\uw_adaptive.py",
+      "line": 74,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "\"buckets\": {str(b): {\"wins\": 0, \"losses\": 0, \"pnl\": 0.0} for b in BUCKETS},"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "signals\\uw_composite.py",
+      "line": 285,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(rec) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "signals\\uw_composite.py",
+      "line": 7,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "dark pool sentiment/notional, insider modifiers, and regime weighting."
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "signals\\uw_macro.py",
+      "line": 229,
+      "message": "Inconsistent naming: 'return_pct' should be 'pnl_pct'",
+      "code": "avg_ret = float(d.get(\"avg_monthly_return_pct\", 0.0))"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "signals\\uw_macro.py",
+      "line": 70,
+      "message": "Inconsistent naming: 'wr' should be 'win_rate'",
+      "code": "f.write(json.dumps(obj) + \"\\n\")"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "signals\\uw_macro.py",
+      "line": 301,
+      "message": "Inconsistent naming: 'regime' should be 'market_regime'",
+      "code": "def compute_macro_score(symbol: str, uw_cache: Dict[str, Any], regime: str) -> Dict[str, Any]:"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "signals\\uw_weight_tuner.py",
+      "line": 30,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "composite_score, pnl, flow_conviction, dark_pool_total_premium, insider_sentiment, flow_sentiment, dark_pool_sentiment"
+    },
+    {
+      "severity": "WARNING",
+      "category": "Naming",
+      "file": "telemetry\\logger.py",
+      "line": 127,
+      "message": "Inconsistent naming: 'pnl' should be 'pnl_usd'",
+      "code": "def log_daily_postmortem(self, pnl_total: float, trades: int, win_rate: float,"
+    },
+    {
+      "severity": "WARNING",
+      "category": "State",
+      "file": "state\\position_metadata.json",
+      "line": 0,
+      "message": "State file does not exist (will be created on first run)",
+      "code": ""
+    },
+    {
+      "severity": "WARNING",
+      "category": "State",
+      "file": "state\\learning_processing_state.json",
+      "line": 0,
+      "message": "State file does not exist (will be created on first run)",
+      "code": ""
+    },
+    {
+      "severity": "WARNING",
+      "category": "State",
+      "file": "state\\signal_weights.json",
+      "line": 0,
+      "message": "State file does not exist (will be created on first run)",
+      "code": ""
+    },
+    {
+      "severity": "WARNING",
+      "category": "Readiness",
+      "file": ".env",
+      "line": 0,
+      "message": ".env file not found (may be gitignored)",
+      "code": ""
+    }
+  ],
+  "info": [
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 5741,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 5869,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 6031,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 6165,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 7005,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 7021,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 7027,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 8513,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 8587,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 9067,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 9561,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 10453,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 10495,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 11933,
+      "message": "API call without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 931,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 1021,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 1171,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 1199,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 1303,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 1331,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 1393,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 1429,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 2243,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 2329,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 2843,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 2853,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 2875,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3009,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3083,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3103,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3123,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3135,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 3955,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 4203,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 4247,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 4631,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 4697,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 4717,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 4769,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 4883,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 5069,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 5119,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 6879,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 8905,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 9167,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 9251,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 9253,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 9323,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 10171,
+      "message": "File operation without error handling",
+      "code": ""
+    },
+    {
+      "severity": "INFO",
+      "category": "Error Handling",
+      "file": "main.py",
+      "line": 10627,
+      "message": "File operation without error handling",
+      "code": ""
+    }
+  ],
+  "passed": [
+    {
+      "category": "Syntax",
+      "message": "Checked 65 Python files"
+    },
+    {
+      "category": "Imports",
+      "message": "Checked import statements"
+    },
+    {
+      "category": "Error Handling",
+      "message": "Checked error handling patterns"
+    },
+    {
+      "category": "Naming",
+      "message": "Checked naming consistency"
+    },
+    {
+      "category": "Config",
+      "message": "Checked configuration consistency"
+    },
+    {
+      "category": "Dead Code",
+      "message": "Checked for dead code"
+    },
+    {
+      "category": "Integration",
+      "message": "learn_from_trade_close integrated"
+    },
+    {
+      "category": "Integration",
+      "message": "run_daily_learning integrated"
+    },
+    {
+      "category": "Integration",
+      "message": "profitability_tracker integrated"
+    },
+    {
+      "category": "Integration",
+      "message": "adaptive_signal_optimizer integrated"
+    },
+    {
+      "category": "Integration",
+      "message": "Checked integration points"
+    },
+    {
+      "category": "Logging",
+      "message": "Found logging in 4 patterns"
+    },
+    {
+      "category": "Logging",
+      "message": "Checked logging consistency"
+    },
+    {
+      "category": "State",
+      "message": "State directory exists"
+    },
+    {
+      "category": "State",
+      "message": "Checked state management"
+    },
+    {
+      "category": "API",
+      "message": "Alpaca API integration found"
+    },
+    {
+      "category": "API",
+      "message": "UW API integration found"
+    },
+    {
+      "category": "API",
+      "message": "Checked API integrations"
+    },
+    {
+      "category": "Risk",
+      "message": "Risk management patterns found"
+    },
+    {
+      "category": "Risk",
+      "message": "Checked risk management"
+    },
+    {
+      "category": "Learning",
+      "message": "Learning orchestrator exists"
+    },
+    {
+      "category": "Learning",
+      "message": "run_daily_learning found"
+    },
+    {
+      "category": "Learning",
+      "message": "learn_from_trade_close found"
+    },
+    {
+      "category": "Learning",
+      "message": "run_historical_backfill found"
+    },
+    {
+      "category": "Learning",
+      "message": "process_attribution_log found"
+    },
+    {
+      "category": "Learning",
+      "message": "MIN_SAMPLES = 50 (correct)"
+    },
+    {
+      "category": "Learning",
+      "message": "MIN_DAYS_BETWEEN_UPDATES found"
+    },
+    {
+      "category": "Learning",
+      "message": "Checked learning system"
+    },
+    {
+      "category": "Readiness",
+      "message": "main.py exists"
+    },
+    {
+      "category": "Readiness",
+      "message": "deploy_supervisor.py exists"
+    },
+    {
+      "category": "Readiness",
+      "message": "dashboard.py exists"
+    },
+    {
+      "category": "Readiness",
+      "message": "comprehensive_learning_orchestrator_v2.py exists"
+    },
+    {
+      "category": "Readiness",
+      "message": "adaptive_signal_optimizer.py exists"
+    },
+    {
+      "category": "Readiness",
+      "message": "profitability_tracker.py exists"
+    },
+    {
+      "category": "Readiness",
+      "message": "Logs directory exists"
+    },
+    {
+      "category": "Readiness",
+      "message": "State directory exists"
+    },
+    {
+      "category": "Readiness",
+      "message": "Checked trading readiness"
+    }
+  ]
+}
