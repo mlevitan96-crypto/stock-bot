@@ -101,7 +101,7 @@ def get_record_id(rec: Dict, log_type: str) -> str:
         return f"{rec.get('symbol', '')}_{rec.get('ts', rec.get('_ts', ''))}"
     return f"{log_type}_{rec.get('ts', rec.get('_ts', ''))}"
 
-def process_attribution_log(state: Dict, process_all: bool = False) -> int:
+def process_attribution_log(state: Dict, process_all_historical: bool = False) -> int:
     """
     Process attribution.jsonl for trade outcome learning.
     
@@ -137,7 +137,7 @@ def process_attribution_log(state: Dict, process_all: bool = False) -> int:
                 rec_id = get_record_id(rec, "attribution")
                 
                 # If process_all=False, only process records after last_id
-                if not process_all and last_id:
+                if not process_all_historical and last_id:
                     if rec_id == last_id:
                         # Found last processed record, process everything after this
                         seen_last_id = True
@@ -185,28 +185,36 @@ def process_attribution_log(state: Dict, process_all: bool = False) -> int:
     
     # Update last processed ID (most recent record seen)
     if processed_ids:
-        # Get the last record ID (most recent)
         all_ids = sorted(processed_ids)
         state["last_attribution_id"] = all_ids[-1]
     
-    # Count unique records - only increment if we actually processed new ones
-    # Don't double-count if records were already processed
-    new_records_this_run = len(processed_ids)
-    if new_records_this_run > 0:
-        # Only update if we processed new records
-        # The total should reflect unique records, not cumulative
-        current_total = state.get("total_trades_processed", 0)
-        # Only add if this is a new batch (not re-processing same records)
-        if new_records_this_run <= current_total:
-            # We're re-processing, don't double count
-            pass
-        else:
-            state["total_trades_processed"] = max(current_total, new_records_this_run)
+    # Count unique records processed
+    # If process_all=True, count all records in file
+    # If process_all=False, only count new records (those after last_id)
+    if process_all_historical:
+        # Count total unique records in file
+        total_in_file = 0
+        with open(attr_log, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        rec = json.loads(line)
+                        if rec.get("type") == "attribution":
+                            total_in_file += 1
+                    except:
+                        pass
+        state["total_trades_processed"] = total_in_file
+    else:
+        # Only count new records processed in this run
+        new_records = len(processed_ids)
+        if new_records > 0:
+            current_total = state.get("total_trades_processed", 0)
+            state["total_trades_processed"] = current_total + new_records
     
     state["total_trades_learned_from"] = state.get("total_trades_learned_from", 0) + processed
     return processed
 
-def process_exit_log(state: Dict, process_all: bool = False) -> int:
+def process_exit_log(state: Dict, process_all_historical: bool = False) -> int:
     """
     Process exit.jsonl for exit signal learning.
     
@@ -235,7 +243,7 @@ def process_exit_log(state: Dict, process_all: bool = False) -> int:
                 rec_id = get_record_id(rec, "exit")
                 
                 # If process_all=False, only process records after last_id
-                if not process_all and last_id:
+                if not process_all_historical and last_id:
                     if rec_id == last_id:
                         seen_last_id = True
                         continue
@@ -301,15 +309,23 @@ def process_exit_log(state: Dict, process_all: bool = False) -> int:
         all_ids = sorted(processed_ids)
         state["last_exit_id"] = all_ids[-1]
     
-    # Track unique records (don't double count)
-    new_records = len(processed_ids)
-    if new_records > 0:
-        current_total = state.get("total_exits_processed", 0)
-        state["total_exits_processed"] = max(current_total, new_records)
+    # Count unique records
+    if process_all_historical:
+        total_in_file = 0
+        with open(exit_log, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    total_in_file += 1
+        state["total_exits_processed"] = total_in_file
+    else:
+        new_records = len(processed_ids)
+        if new_records > 0:
+            current_total = state.get("total_exits_processed", 0)
+            state["total_exits_processed"] = current_total + new_records
     
     return processed
 
-def process_signal_log(state: Dict, process_all: bool = False) -> int:
+def process_signal_log(state: Dict, process_all_historical: bool = False) -> int:
     """
     Process signals.jsonl for signal pattern learning.
     
@@ -343,7 +359,7 @@ def process_signal_log(state: Dict, process_all: bool = False) -> int:
                 
                 rec_id = get_record_id(rec, "signal")
                 
-                if not process_all and last_id:
+                if not process_all_historical and last_id:
                     if rec_id == last_id:
                         seen_last_id = True
                         continue
@@ -375,7 +391,7 @@ def process_signal_log(state: Dict, process_all: bool = False) -> int:
     
     return processed
 
-def process_order_log(state: Dict, process_all: bool = False) -> int:
+def process_order_log(state: Dict, process_all_historical: bool = False) -> int:
     """
     Process orders.jsonl for execution quality learning.
     
@@ -409,7 +425,7 @@ def process_order_log(state: Dict, process_all: bool = False) -> int:
                 
                 rec_id = get_record_id(rec, "order")
                 
-                if not process_all and last_id:
+                if not process_all_historical and last_id:
                     if rec_id == last_id:
                         seen_last_id = True
                         continue
@@ -441,7 +457,7 @@ def process_order_log(state: Dict, process_all: bool = False) -> int:
     
     return processed
 
-def process_blocked_trades(state: Dict, process_all: bool = False) -> int:
+def process_blocked_trades(state: Dict, process_all_historical: bool = False) -> int:
     """
     Process blocked_trades.jsonl for counterfactual learning.
     
@@ -472,7 +488,7 @@ def process_blocked_trades(state: Dict, process_all: bool = False) -> int:
                 rec = json.loads(line)
                 rec_id = f"{rec.get('symbol')}_{rec.get('timestamp', '')}"
                 
-                if not process_all and last_id:
+                if not process_all_historical and last_id:
                     if rec_id == last_id:
                         seen_last_id = True
                         continue
@@ -517,7 +533,7 @@ def process_blocked_trades(state: Dict, process_all: bool = False) -> int:
     
     return processed
 
-def process_gate_events(state: Dict, process_all: bool = False) -> int:
+def process_gate_events(state: Dict, process_all_historical: bool = False) -> int:
     """
     Process gate.jsonl for gate blocking pattern learning.
     
@@ -547,7 +563,7 @@ def process_gate_events(state: Dict, process_all: bool = False) -> int:
                 rec = json.loads(line)
                 rec_id = f"{rec.get('symbol', '')}_{rec.get('ts', rec.get('_ts', ''))}"
                 
-                if not process_all and last_id:
+                if not process_all_historical and last_id:
                     if rec_id == last_id:
                         seen_last_id = True
                         continue
@@ -581,7 +597,7 @@ def process_gate_events(state: Dict, process_all: bool = False) -> int:
     
     return processed
 
-def process_uw_attribution_blocked(state: Dict, process_all: bool = False) -> int:
+def process_uw_attribution_blocked(state: Dict, process_all_historical: bool = False) -> int:
     """
     Process uw_attribution.jsonl for blocked entry learning.
     
@@ -608,14 +624,15 @@ def process_uw_attribution_blocked(state: Dict, process_all: bool = False) -> in
                 rec = json.loads(line)
                 
                 # Only process blocked entries
-                decision = rec.get("decision", "")
-                # Check for various blocked decision formats
-                if decision not in ("ENTRY_BLOCKED", "BLOCKED", "blocked", "entry_blocked"):
+                decision = rec.get("decision", "").upper()
+                # Check for various blocked decision formats (including "rejected" and "signal")
+                # "rejected" means entry was blocked, "signal" means it was just evaluated
+                if "BLOCKED" not in decision and "REJECTED" not in decision:
                     continue
                 
                 rec_id = f"{rec.get('symbol')}_{rec.get('_ts', '')}"
                 
-                if not process_all and last_id:
+                if not process_all_historical and last_id:
                     if rec_id == last_id:
                         seen_last_id = True
                         continue
@@ -643,7 +660,17 @@ def process_uw_attribution_blocked(state: Dict, process_all: bool = False) -> in
             except Exception as e:
                 continue
     
-    state["total_uw_blocked_processed"] = state.get("total_uw_blocked_processed", 0) + processed
+    # Update last processed ID
+    if processed_ids:
+        all_ids = sorted(processed_ids)
+        state["last_uw_blocked_id"] = all_ids[-1]
+    
+    # Track unique records
+    new_records = len(processed_ids)
+    if new_records > 0:
+        current_total = state.get("total_uw_blocked_processed", 0)
+        state["total_uw_blocked_processed"] = max(current_total, new_records)
+    
     return processed
 
 def run_comprehensive_learning(process_all_historical: bool = False):
