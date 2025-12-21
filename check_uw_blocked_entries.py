@@ -23,11 +23,11 @@ with open(uw_attr_log, 'r', encoding='utf-8') as f:
             continue
         try:
             rec = json.loads(line)
-            decision = rec.get("decision", "")
+            decision = rec.get("decision", "").upper()
             
-            if "BLOCKED" in decision.upper() or decision.upper() == "BLOCKED":
+            if "BLOCKED" in decision or decision == "BLOCKED" or "REJECTED" in decision or decision == "REJECTED":
                 blocked.append(rec)
-            elif "APPROVED" in decision.upper():
+            elif "APPROVED" in decision:
                 approved.append(rec)
             else:
                 other.append(rec)
