@@ -22,8 +22,9 @@
 5. **SRE Monitoring** (`sre_monitoring.py`): Health monitoring for signals, APIs, execution
 6. **Learning Engine** (`comprehensive_learning_orchestrator_v2.py`): Comprehensive multi-timeframe learning system
 7. **Learning Enhancements** (`learning_enhancements_v1.py`): Pattern learning (gate, UW blocked, signal patterns)
-8. **Profitability Tracker** (`profitability_tracker.py`): Daily/weekly/monthly performance tracking
-9. **Adaptive Signal Optimizer** (`adaptive_signal_optimizer.py`): Bayesian weight optimization with anti-overfitting guards
+8. **Learning Scheduler** (`comprehensive_learning_scheduler.py`): Multi-timeframe learning automation (daily/weekly/bi-weekly/monthly)
+9. **Profitability Tracker** (`profitability_tracker.py`): Daily/weekly/monthly performance tracking
+10. **Adaptive Signal Optimizer** (`adaptive_signal_optimizer.py`): Bayesian weight optimization with anti-overfitting guards
 
 ---
 
@@ -498,6 +499,27 @@ tail -50 logs/supervisor.jsonl | grep -i error
 ---
 
 ## Recent Fixes & Improvements
+
+### 2025-12-21: Multi-Timeframe Learning Automation
+
+1. **Weekly Learning Cycle**:
+   - Runs every Friday after market close
+   - Focus: Weekly pattern analysis, trend detection, weight optimization
+   - Updates weekly profitability tracking
+
+2. **Bi-Weekly Learning Cycle**:
+   - Runs every other Friday (odd weeks) after market close
+   - Focus: Deeper pattern analysis, regime detection, structural changes
+   - Detects performance shifts and regime changes
+
+3. **Monthly Learning Cycle**:
+   - Runs first trading day of month after market close
+   - Focus: Long-term profitability, structural optimization, major adjustments
+   - Evaluates profitability status and goal tracking (60% win rate)
+
+**Automation**: All cycles fully automated in background thread  
+**Profitability Focus**: All cycles track and optimize for long-term profitability  
+**Status**: ✅ Production ready
 
 ### 2025-12-21: Learning Enhancements V1 Implementation
 
