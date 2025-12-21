@@ -88,14 +88,20 @@ def normalize_components_for_learning(components_dict: dict) -> dict:
         if comp_name in LEGACY_COMPONENT_MAP:
             mapped_name = LEGACY_COMPONENT_MAP[comp_name]
             if mapped_name in SIGNAL_COMPONENTS:
-                # Aggregate if multiple old components map to same new component
-                if mapped_name in normalized:
-                    # Take the maximum value (most significant contribution)
-                    normalized[mapped_name] = max(normalized[mapped_name], abs(float(value)) if value is not None else normalized[mapped_name]
-                else:
-                    # For legacy components, use absolute value and normalize
-                    # Legacy values might be in different scale, so we'll use a simple mapping
-                    normalized[mapped_name] = abs(float(value)) if value is not None else 0.0
+                try:
+                    val = float(value) if value is not None else 0.0
+                    # Aggregate if multiple old components map to same new component
+                    if mapped_name in normalized:
+                        # Sum the values (multiple legacy components contribute to same signal)
+                        # Use absolute value to ensure positive contribution
+                        normalized[mapped_name] = normalized[mapped_name] + abs(val)
+                    else:
+                        # For legacy components, use absolute value
+                        # Legacy values might be in different scale, so we normalize
+                        normalized[mapped_name] = abs(val) if val != 0 else 0.0
+                except (ValueError, TypeError):
+                    # Skip invalid values
+                    pass
     
     # Then, ensure ALL SIGNAL_COMPONENTS are present (even if 0)
     for component in SIGNAL_COMPONENTS:
