@@ -16,7 +16,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 
 # Paths
@@ -73,7 +73,7 @@ def check_logs_exist() -> Dict[str, Any]:
         results["attribution_log"]["records"] = len(records)
         
         # Count recent records (last 7 days)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         week_ago = now - timedelta(days=7)
         recent = 0
         last_ts = None
@@ -222,7 +222,7 @@ def check_data_flow() -> Dict[str, Any]:
                 else:
                     rec_dt = datetime.fromtimestamp(int(ts_str))
                 
-                today = datetime.utcnow().date()
+                today = datetime.now(timezone.utc).date()
                 if rec_dt.date() == today:
                     results["trades_fed_to_learning"] += 1
             except:
@@ -289,7 +289,7 @@ def check_weight_updates() -> Dict[str, Any]:
                 else:
                     saved_dt = datetime.fromtimestamp(int(saved_at))
                 
-                age = datetime.utcnow() - saved_dt
+                age = datetime.now(timezone.utc) - saved_dt
                 if age.days == 0:
                     results["update_frequency"] = "today"
                 elif age.days == 1:
@@ -371,7 +371,7 @@ def generate_report() -> Dict[str, Any]:
     print()
     
     report = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "logs": check_logs_exist(),
         "learning_state": check_learning_state(),
         "data_flow": check_data_flow(),
