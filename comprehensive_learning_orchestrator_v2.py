@@ -383,11 +383,24 @@ def process_signal_log(state: Dict, process_all_historical: bool = False) -> int
         all_ids = sorted(processed_ids)
         state["last_signal_id"] = all_ids[-1]
     
-    # Track unique records
-    new_records = len(processed_ids)
-    if new_records > 0:
-        current_total = state.get("total_signals_processed", 0)
-        state["total_signals_processed"] = max(current_total, new_records)
+    # Count unique records
+    if process_all_historical:
+        total_in_file = 0
+        with open(signal_log, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        rec = json.loads(line)
+                        if rec.get("type") == "signal":
+                            total_in_file += 1
+                    except:
+                        pass
+        state["total_signals_processed"] = total_in_file
+    else:
+        new_records = len(processed_ids)
+        if new_records > 0:
+            current_total = state.get("total_signals_processed", 0)
+            state["total_signals_processed"] = current_total + new_records
     
     return processed
 
@@ -449,11 +462,24 @@ def process_order_log(state: Dict, process_all_historical: bool = False) -> int:
         all_ids = sorted(processed_ids)
         state["last_order_id"] = all_ids[-1]
     
-    # Track unique records
-    new_records = len(processed_ids)
-    if new_records > 0:
-        current_total = state.get("total_orders_processed", 0)
-        state["total_orders_processed"] = max(current_total, new_records)
+    # Count unique records
+    if process_all_historical:
+        total_in_file = 0
+        with open(order_log, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        rec = json.loads(line)
+                        if rec.get("type") == "order":
+                            total_in_file += 1
+                    except:
+                        pass
+        state["total_orders_processed"] = total_in_file
+    else:
+        new_records = len(processed_ids)
+        if new_records > 0:
+            current_total = state.get("total_orders_processed", 0)
+            state["total_orders_processed"] = current_total + new_records
     
     return processed
 
@@ -525,11 +551,19 @@ def process_blocked_trades(state: Dict, process_all_historical: bool = False) ->
         all_ids = sorted(processed_ids)
         state["last_blocked_trade_id"] = all_ids[-1]
     
-    # Track unique records
-    new_records = len(processed_ids)
-    if new_records > 0:
-        current_total = state.get("total_blocked_processed", 0)
-        state["total_blocked_processed"] = max(current_total, new_records)
+    # Count unique records
+    if process_all_historical:
+        total_in_file = 0
+        with open(blocked_log, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    total_in_file += 1
+        state["total_blocked_processed"] = total_in_file
+    else:
+        new_records = len(processed_ids)
+        if new_records > 0:
+            current_total = state.get("total_blocked_processed", 0)
+            state["total_blocked_processed"] = current_total + new_records
     
     return processed
 
@@ -589,11 +623,19 @@ def process_gate_events(state: Dict, process_all_historical: bool = False) -> in
         all_ids = sorted(processed_ids)
         state["last_gate_id"] = all_ids[-1]
     
-    # Track unique records
-    new_records = len(processed_ids)
-    if new_records > 0:
-        current_total = state.get("total_gates_processed", 0)
-        state["total_gates_processed"] = max(current_total, new_records)
+    # Count unique records
+    if process_all_historical:
+        total_in_file = 0
+        with open(gate_log, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    total_in_file += 1
+        state["total_gates_processed"] = total_in_file
+    else:
+        new_records = len(processed_ids)
+        if new_records > 0:
+            current_total = state.get("total_gates_processed", 0)
+            state["total_gates_processed"] = current_total + new_records
     
     return processed
 
@@ -665,11 +707,25 @@ def process_uw_attribution_blocked(state: Dict, process_all_historical: bool = F
         all_ids = sorted(processed_ids)
         state["last_uw_blocked_id"] = all_ids[-1]
     
-    # Track unique records
-    new_records = len(processed_ids)
-    if new_records > 0:
-        current_total = state.get("total_uw_blocked_processed", 0)
-        state["total_uw_blocked_processed"] = max(current_total, new_records)
+    # Count unique records
+    if process_all_historical:
+        total_in_file = 0
+        with open(uw_attr_log, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        rec = json.loads(line)
+                        decision = rec.get("decision", "").upper()
+                        if "BLOCKED" in decision or "REJECTED" in decision:
+                            total_in_file += 1
+                    except:
+                        pass
+        state["total_uw_blocked_processed"] = total_in_file
+    else:
+        new_records = len(processed_ids)
+        if new_records > 0:
+            current_total = state.get("total_uw_blocked_processed", 0)
+            state["total_uw_blocked_processed"] = current_total + new_records
     
     return processed
 
