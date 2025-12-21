@@ -12,8 +12,19 @@ Data Sources:
 2. logs/exit.jsonl - Exit events and reasons
 3. logs/signals.jsonl - Signal generation patterns
 4. logs/orders.jsonl - Execution quality
-5. data/uw_attribution.jsonl - UW signal patterns
-6. data/daily_postmortem.jsonl - Daily summaries (if exists)
+5. data/uw_attribution.jsonl - UW signal patterns (including blocked entries)
+6. state/blocked_trades.jsonl - Blocked trades (counterfactual learning)
+7. logs/gate.jsonl - Gate blocking events
+8. data/daily_postmortem.jsonl - Daily summaries (if exists)
+
+Full Learning Cycle:
+Signal → Trade Decision → Learn → Review → Update → Trade
+- Signal: All signals generated
+- Trade Decision: Taken trades, blocked trades, missed opportunities
+- Learn: Process all outcomes (actual and counterfactual)
+- Review: Analyze patterns, performance, missed opportunities
+- Update: Adjust weights, thresholds, criteria
+- Trade: Apply learnings to next cycle
 
 Features:
 - Tracks last processed record IDs to avoid duplicates
@@ -51,11 +62,18 @@ def load_learning_state() -> Dict:
         "last_signal_id": None,
         "last_order_id": None,
         "last_uw_attribution_id": None,
+        "last_blocked_trade_id": None,
+        "last_gate_id": None,
+        "last_uw_blocked_id": None,
         "last_processed_ts": None,
         "total_trades_processed": 0,
+        "total_trades_learned_from": 0,
         "total_exits_processed": 0,
         "total_signals_processed": 0,
-        "total_orders_processed": 0
+        "total_orders_processed": 0,
+        "total_blocked_processed": 0,
+        "total_gates_processed": 0,
+        "total_uw_blocked_processed": 0
     }
 
 def save_learning_state(state: Dict):
@@ -77,6 +95,10 @@ def get_record_id(rec: Dict, log_type: str) -> str:
         return f"{rec.get('symbol')}_{rec.get('ts', rec.get('_ts', ''))}"
     elif log_type == "uw_attribution":
         return f"{rec.get('symbol')}_{rec.get('_ts', '')}"
+    elif log_type == "blocked_trade":
+        return f"{rec.get('symbol')}_{rec.get('timestamp', '')}"
+    elif log_type == "gate":
+        return f"{rec.get('symbol', '')}_{rec.get('ts', rec.get('_ts', ''))}"
     return f"{log_type}_{rec.get('ts', rec.get('_ts', ''))}"
 
 def process_attribution_log(state: Dict, process_all: bool = False) -> int:
@@ -346,6 +368,172 @@ def process_order_log(state: Dict, process_all: bool = False) -> int:
     state["total_orders_processed"] = state.get("total_orders_processed", 0) + processed
     return processed
 
+def process_blocked_trades(state: Dict, process_all: bool = False) -> int:
+    """
+    Process blocked_trades.jsonl for counterfactual learning.
+    
+    Counterfactual learning: What would have happened if we took blocked trades?
+    This helps learn if gates are too strict or too loose.
+    
+    Returns:
+        Number of blocked trades processed
+    """
+    blocked_log = STATE_DIR / "blocked_trades.jsonl"
+    if not blocked_log.exists():
+        return 0
+    
+    optimizer = get_optimizer()
+    if not optimizer:
+        return 0
+    
+    processed = 0
+    last_id = state.get("last_blocked_trade_id")
+    processed_ids: Set[str] = set()
+    
+    with open(blocked_log, 'r', encoding='utf-8') as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+                rec_id = f"{rec.get('symbol')}_{rec.get('timestamp', '')}"
+                
+                # Skip if already processed
+                if not process_all and last_id and rec_id == last_id:
+                    break
+                if rec_id in processed_ids:
+                    continue
+                
+                # Extract blocked trade data
+                symbol = rec.get("symbol")
+                reason = rec.get("reason", "unknown")
+                score = rec.get("score", 0.0)
+                comps = rec.get("components", {})
+                decision_price = rec.get("decision_price", 0.0)
+                direction = rec.get("direction", "unknown")
+                
+                # Always mark as processed
+                processed_ids.add(rec_id)
+                state["last_blocked_trade_id"] = rec_id
+                
+                # TODO: Counterfactual analysis - compute theoretical P&L
+                # For now, we track blocked trades but don't learn from them yet
+                # This requires price data to compute "what if" scenarios
+                # Future: Implement counterfactual analyzer to compute theoretical outcomes
+                
+                processed += 1
+                
+            except Exception as e:
+                continue
+    
+    state["total_blocked_processed"] = state.get("total_blocked_processed", 0) + processed
+    return processed
+
+def process_gate_events(state: Dict, process_all: bool = False) -> int:
+    """
+    Process gate.jsonl for gate blocking pattern learning.
+    
+    This learns which gates are blocking good trades vs bad trades.
+    Helps optimize gate thresholds.
+    
+    Returns:
+        Number of gate events processed
+    """
+    gate_log = LOG_DIR / "gate.jsonl"
+    if not gate_log.exists():
+        return 0
+    
+    processed = 0
+    last_id = state.get("last_gate_id")
+    processed_ids: Set[str] = set()
+    
+    # Track gate blocking patterns
+    # This helps learn if gates are too strict or too loose
+    
+    with open(gate_log, 'r', encoding='utf-8') as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+                rec_id = f"{rec.get('symbol', '')}_{rec.get('ts', rec.get('_ts', ''))}"
+                
+                if not process_all and last_id and rec_id == last_id:
+                    break
+                if rec_id in processed_ids:
+                    continue
+                
+                # TODO: Implement gate pattern learning
+                # Track which gates block which types of trades
+                # Learn optimal gate thresholds
+                
+                processed += 1
+                processed_ids.add(rec_id)
+                state["last_gate_id"] = rec_id
+                
+            except Exception as e:
+                continue
+    
+    state["total_gates_processed"] = state.get("total_gates_processed", 0) + processed
+    return processed
+
+def process_uw_attribution_blocked(state: Dict, process_all: bool = False) -> int:
+    """
+    Process uw_attribution.jsonl for blocked entry learning.
+    
+    This learns from UW attribution events where decision="ENTRY_BLOCKED".
+    Helps understand which signal combinations were blocked and why.
+    
+    Returns:
+        Number of blocked UW entries processed
+    """
+    uw_attr_log = DATA_DIR / "uw_attribution.jsonl"
+    if not uw_attr_log.exists():
+        return 0
+    
+    processed = 0
+    last_id = state.get("last_uw_blocked_id")
+    processed_ids: Set[str] = set()
+    
+    with open(uw_attr_log, 'r', encoding='utf-8') as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+                
+                # Only process blocked entries
+                if rec.get("decision") != "ENTRY_BLOCKED":
+                    continue
+                
+                rec_id = f"{rec.get('symbol')}_{rec.get('_ts', '')}"
+                
+                if not process_all and last_id and rec_id == last_id:
+                    break
+                if rec_id in processed_ids:
+                    continue
+                
+                # Extract blocked entry data
+                symbol = rec.get("symbol")
+                score = rec.get("score", 0.0)
+                flow_sentiment = rec.get("flow_sentiment", "unknown")
+                dark_pool_sentiment = rec.get("dark_pool_sentiment", "unknown")
+                insider_sentiment = rec.get("insider_sentiment", "unknown")
+                
+                # TODO: Learn from blocked UW entries
+                # Track which signal combinations were blocked
+                # Learn if blocking was correct or if we missed opportunities
+                
+                processed += 1
+                processed_ids.add(rec_id)
+                state["last_uw_blocked_id"] = rec_id
+                
+            except Exception as e:
+                continue
+    
+    state["total_uw_blocked_processed"] = state.get("total_uw_blocked_processed", 0) + processed
+    return processed
+
 def run_comprehensive_learning(process_all_historical: bool = False):
     """
     Run comprehensive learning from all data sources.
@@ -365,12 +553,25 @@ def run_comprehensive_learning(process_all_historical: bool = False):
         "exits": 0,
         "signals": 0,
         "orders": 0,
+        "blocked_trades": 0,
+        "gate_events": 0,
+        "uw_blocked": 0,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     
-    # Process all data sources
+    # Process all data sources - FULL LEARNING CYCLE
+    # Signal → Trade Decision → Learn → Review → Update → Trade
+    
+    # 1. Actual trades (what we did)
     results["attribution"] = process_attribution_log(state, process_all_historical)
     results["exits"] = process_exit_log(state, process_all_historical)
+    
+    # 2. Blocked trades and missed opportunities (what we didn't do)
+    results["blocked_trades"] = process_blocked_trades(state, process_all_historical)
+    results["gate_events"] = process_gate_events(state, process_all_historical)
+    results["uw_blocked"] = process_uw_attribution_blocked(state, process_all_historical)
+    
+    # 3. Signal patterns and execution quality
     results["signals"] = process_signal_log(state, process_all_historical)
     results["orders"] = process_order_log(state, process_all_historical)
     
