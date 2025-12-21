@@ -21,6 +21,8 @@
 4. **Deploy Supervisor** (`deploy_supervisor.py`): Process manager for all services
 5. **SRE Monitoring** (`sre_monitoring.py`): Health monitoring for signals, APIs, execution
 6. **Learning Engine** (`comprehensive_learning_orchestrator_v2.py`): Comprehensive multi-timeframe learning system
+   - **IMPORTANT**: This is the ONLY learning orchestrator. The old `comprehensive_learning_orchestrator.py` (without _v2) is DEPRECATED and should NOT be used or referenced.
+   - All learning goes through `comprehensive_learning_orchestrator_v2.py`
 7. **Learning Enhancements** (`learning_enhancements_v1.py`): Pattern learning (gate, UW blocked, signal patterns)
 8. **Learning Scheduler** (`comprehensive_learning_scheduler.py`): Multi-timeframe learning automation (daily/weekly/bi-weekly/monthly)
 9. **Profitability Tracker** (`profitability_tracker.py`): Daily/weekly/monthly performance tracking
@@ -287,6 +289,9 @@ When `MAX_CONCURRENT_POSITIONS` (16) reached:
 - `main.py` line 5400: Daily learning triggered after market close
 - `main.py` line 5404: Profitability tracking updated daily/weekly/monthly
 - `comprehensive_learning_orchestrator_v2.py`: Central orchestrator for all learning
+  - **DEPRECATED/REMOVED**: `comprehensive_learning_orchestrator.py` (old version without _v2) - DO NOT USE OR REFERENCE
+  - **DEPRECATED/REMOVED**: `_learn_from_outcomes_legacy()` in main.py - DO NOT USE OR REFERENCE
+  - Only `comprehensive_learning_orchestrator_v2.py` should be used for all learning operations
 
 ### Learning Schedule (Industry Best Practices)
 
