@@ -5655,7 +5655,13 @@ if __name__ == "__main__":
     
     # Start comprehensive learning orchestrator (runs daily after market close)
     def run_comprehensive_learning_periodic():
-        """Run comprehensive learning daily after market close."""
+        """
+        Run comprehensive learning on multiple schedules:
+        - Daily: After market close
+        - Weekly: Every Friday after market close
+        - Bi-Weekly: Every other Friday after market close
+        - Monthly: First trading day of month after market close
+        """
         last_run_date = None
         
         while True:
@@ -5667,12 +5673,12 @@ if __name__ == "__main__":
                 market_closed = is_after_close_now()
                 
                 # Run if: (1) market is closed, (2) we haven't run today yet
-                should_run = False
+                should_run_daily = False
                 if market_closed and last_run_date != today:
-                    should_run = True
+                    should_run_daily = True
                     log_event("comprehensive_learning", "scheduled_run_triggered", reason="market_closed", date=str(today))
                 
-                if should_run:
+                if should_run_daily:
                     try:
                         # Use NEW comprehensive learning orchestrator V2
                         from comprehensive_learning_orchestrator_v2 import run_daily_learning
@@ -5712,6 +5718,17 @@ if __name__ == "__main__":
                         log_event("comprehensive_learning", "error", error=str(e))
                         import traceback
                         log_event("comprehensive_learning", "error_traceback", traceback=traceback.format_exc())
+                
+                # Check for weekly/bi-weekly/monthly cycles
+                try:
+                    from comprehensive_learning_scheduler import check_and_run_scheduled_cycles
+                    scheduled_results = check_and_run_scheduled_cycles()
+                    if scheduled_results:
+                        log_event("comprehensive_learning", "scheduled_cycles_executed", cycles=list(scheduled_results.keys()))
+                except ImportError:
+                    pass  # Scheduler not available
+                except Exception as e:
+                    log_event("comprehensive_learning", "scheduler_error", error=str(e))
                 
                 # Sleep for 1 hour, then check again
                 # This is safe because we only run once per day (checked by last_run_date)
