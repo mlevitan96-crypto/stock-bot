@@ -183,9 +183,26 @@ def process_attribution_log(state: Dict, process_all: bool = False) -> int:
             except Exception as e:
                 continue
     
-    # Count only NEW records processed in this run (not cumulative)
-    new_records = len(processed_ids)
-    state["total_trades_processed"] = state.get("total_trades_processed", 0) + new_records
+    # Update last processed ID (most recent record seen)
+    if processed_ids:
+        # Get the last record ID (most recent)
+        all_ids = sorted(processed_ids)
+        state["last_attribution_id"] = all_ids[-1]
+    
+    # Count unique records - only increment if we actually processed new ones
+    # Don't double-count if records were already processed
+    new_records_this_run = len(processed_ids)
+    if new_records_this_run > 0:
+        # Only update if we processed new records
+        # The total should reflect unique records, not cumulative
+        current_total = state.get("total_trades_processed", 0)
+        # Only add if this is a new batch (not re-processing same records)
+        if new_records_this_run <= current_total:
+            # We're re-processing, don't double count
+            pass
+        else:
+            state["total_trades_processed"] = max(current_total, new_records_this_run)
+    
     state["total_trades_learned_from"] = state.get("total_trades_learned_from", 0) + processed
     return processed
 
@@ -279,7 +296,17 @@ def process_exit_log(state: Dict, process_all: bool = False) -> int:
             except Exception as e:
                 continue
     
-    state["total_exits_processed"] = state.get("total_exits_processed", 0) + processed
+    # Update last processed ID
+    if processed_ids:
+        all_ids = sorted(processed_ids)
+        state["last_exit_id"] = all_ids[-1]
+    
+    # Track unique records (don't double count)
+    new_records = len(processed_ids)
+    if new_records > 0:
+        current_total = state.get("total_exits_processed", 0)
+        state["total_exits_processed"] = max(current_total, new_records)
+    
     return processed
 
 def process_signal_log(state: Dict, process_all: bool = False) -> int:
@@ -335,7 +362,17 @@ def process_signal_log(state: Dict, process_all: bool = False) -> int:
             except Exception as e:
                 continue
     
-    state["total_signals_processed"] = state.get("total_signals_processed", 0) + processed
+    # Update last processed ID
+    if processed_ids:
+        all_ids = sorted(processed_ids)
+        state["last_signal_id"] = all_ids[-1]
+    
+    # Track unique records
+    new_records = len(processed_ids)
+    if new_records > 0:
+        current_total = state.get("total_signals_processed", 0)
+        state["total_signals_processed"] = max(current_total, new_records)
+    
     return processed
 
 def process_order_log(state: Dict, process_all: bool = False) -> int:
@@ -391,7 +428,17 @@ def process_order_log(state: Dict, process_all: bool = False) -> int:
             except Exception as e:
                 continue
     
-    state["total_orders_processed"] = state.get("total_orders_processed", 0) + processed
+    # Update last processed ID
+    if processed_ids:
+        all_ids = sorted(processed_ids)
+        state["last_order_id"] = all_ids[-1]
+    
+    # Track unique records
+    new_records = len(processed_ids)
+    if new_records > 0:
+        current_total = state.get("total_orders_processed", 0)
+        state["total_orders_processed"] = max(current_total, new_records)
+    
     return processed
 
 def process_blocked_trades(state: Dict, process_all: bool = False) -> int:
@@ -457,7 +504,17 @@ def process_blocked_trades(state: Dict, process_all: bool = False) -> int:
             except Exception as e:
                 continue
     
-    state["total_blocked_processed"] = state.get("total_blocked_processed", 0) + processed
+    # Update last processed ID
+    if processed_ids:
+        all_ids = sorted(processed_ids)
+        state["last_blocked_trade_id"] = all_ids[-1]
+    
+    # Track unique records
+    new_records = len(processed_ids)
+    if new_records > 0:
+        current_total = state.get("total_blocked_processed", 0)
+        state["total_blocked_processed"] = max(current_total, new_records)
+    
     return processed
 
 def process_gate_events(state: Dict, process_all: bool = False) -> int:
@@ -511,7 +568,17 @@ def process_gate_events(state: Dict, process_all: bool = False) -> int:
             except Exception as e:
                 continue
     
-    state["total_gates_processed"] = state.get("total_gates_processed", 0) + processed
+    # Update last processed ID
+    if processed_ids:
+        all_ids = sorted(processed_ids)
+        state["last_gate_id"] = all_ids[-1]
+    
+    # Track unique records
+    new_records = len(processed_ids)
+    if new_records > 0:
+        current_total = state.get("total_gates_processed", 0)
+        state["total_gates_processed"] = max(current_total, new_records)
+    
     return processed
 
 def process_uw_attribution_blocked(state: Dict, process_all: bool = False) -> int:
