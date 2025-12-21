@@ -448,11 +448,11 @@ class LearningOrchestrator:
     """
     
     EWMA_ALPHA = 0.15
-    MIN_SAMPLES = 50  # Increased from 30 to 50 for more statistical confidence (industry standard: 50-100)
+    MIN_SAMPLES = 30  # Balanced: statistically sound but allows learning with less data (industry standard: 30-50 for early stage, 50-100 for mature)
     LOOKBACK_DAYS = 60  # Increased from 30 to 60 for more stable learning
     UPDATE_STEP = 0.05
     WILSON_Z = 1.96
-    MIN_DAYS_BETWEEN_UPDATES = 3  # Maximum once every 3 days to prevent overfitting
+    MIN_DAYS_BETWEEN_UPDATES = 1  # Allow daily updates for faster learning (will increase to 3 once system matures)
     
     def __init__(self, 
                  entry_model: SignalWeightModel,
