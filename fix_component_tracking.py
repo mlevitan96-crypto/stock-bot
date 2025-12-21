@@ -34,6 +34,14 @@ COMPONENT_NAME_MAP = {
     "freshness_factor": None  # Not a signal component, just metadata
 }
 
+# Additional mappings for components that might appear with different names
+ADDITIONAL_NAME_MAP = {
+    "whale_persistence": "whale_persistence",  # Direct match
+    "temporal_motif": "temporal_motif",  # Direct match
+    "regime_modifier": "regime_modifier",  # Direct match
+    "calendar_catalyst": "calendar_catalyst",  # Direct match
+}
+
 def normalize_components_for_learning(components_dict: dict) -> dict:
     """
     Normalize component names from composite_score_v3 format to SIGNAL_COMPONENTS format.
