@@ -5399,6 +5399,18 @@ def daily_and_weekly_tasks_if_needed():
         if Config.ENABLE_PER_TICKER_LEARNING:
             # MEDIUM-TERM LEARNING: Daily batch processing
             learn_from_outcomes()
+            
+            # PROFITABILITY TRACKING: Update daily/weekly/monthly metrics
+            try:
+                from profitability_tracker import update_daily_performance, update_weekly_performance, update_monthly_performance
+                update_daily_performance()
+                # Update weekly on Fridays, monthly on first day of month
+                if is_friday():
+                    update_weekly_performance()
+                if datetime.now(timezone.utc).day == 1:
+                    update_monthly_performance()
+            except Exception as e:
+                log_event("profitability_tracking", "update_failed", error=str(e))
 
     if is_friday() and is_after_close_now():
         if _last_weekly_adjust_day != day:
