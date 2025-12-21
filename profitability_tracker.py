@@ -40,7 +40,7 @@ def load_performance_tracking() -> Dict:
 
 def save_performance_tracking(data: Dict):
     """Save performance tracking data"""
-    PERFORMANCE_TRACK_FILE.parent.mkdir(parents=True, exist=True)
+    PERFORMANCE_TRACK_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(PERFORMANCE_TRACK_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2)
 
