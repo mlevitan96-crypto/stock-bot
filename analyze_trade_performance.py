@@ -26,14 +26,24 @@ with open(attr_log, 'r', encoding='utf-8') as f:
             continue
         try:
             rec = json.loads(line)
-            if rec.get('msg') != 'attribution_logged':
+            # Check for both formats: "type": "attribution" or "msg": "attribution_logged"
+            if rec.get('type') != 'attribution' and rec.get('msg') != 'attribution_logged':
                 continue
             
             symbol = rec.get('symbol', 'UNKNOWN')
-            pnl_pct = rec.get('pnl_pct', 0)
+            
+            # Handle nested context structure
+            context = rec.get('context', {})
+            if context:
+                pnl_pct = context.get('pnl_pct', rec.get('pnl_pct', 0))
+                reason = context.get('close_reason', rec.get('reason', 'unknown'))
+                hold_min = context.get('hold_minutes', rec.get('hold_min', 0))
+            else:
+                pnl_pct = rec.get('pnl_pct', 0)
+                reason = rec.get('reason', 'unknown')
+                hold_min = rec.get('hold_min', rec.get('hold_minutes', 0))
+            
             pnl_usd = rec.get('pnl_usd', 0)
-            reason = rec.get('reason', 'unknown')
-            hold_min = rec.get('hold_min', 0)
             
             if pnl_pct > 0:
                 wins.append(pnl_pct)
@@ -55,6 +65,26 @@ for symbol in by_symbol:
     by_symbol[symbol]["losses"] = [l for l in by_symbol[symbol]["losses"] if l < 0]
 
 total_trades = len(wins) + len(losses)
+if total_trades == 0:
+    print("No trades found in attribution log")
+    print("Checking log format...")
+    # Show first few lines for debugging
+    with open(attr_log, 'r', encoding='utf-8') as f:
+        for i, line in enumerate(f):
+            if i >= 3:
+                break
+            if line.strip():
+                try:
+                    rec = json.loads(line)
+                    print(f"Sample record keys: {list(rec.keys())}")
+                    if 'type' in rec:
+                        print(f"  type: {rec['type']}")
+                    if 'msg' in rec:
+                        print(f"  msg: {rec['msg']}")
+                except:
+                    print(f"  (parse error)")
+    exit(0)
+
 win_rate = (len(wins) / total_trades * 100) if total_trades > 0 else 0
 
 print(f"Total Trades: {total_trades}")
