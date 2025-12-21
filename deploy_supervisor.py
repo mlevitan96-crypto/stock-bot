@@ -2,6 +2,8 @@
 """
 Deployment Supervisor V4 - Production-ready for Reserved VM deployments.
 Dashboard starts FIRST with ZERO delay to bind port 5000 immediately.
+
+IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK.md
 """
 
 import os

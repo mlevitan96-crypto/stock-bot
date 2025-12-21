@@ -364,6 +364,10 @@ class SREMonitoringEngine:
         
         # After checking all symbols, set freshness for signals that never had data
         # Use cache_age as the freshness indicator (shows when cache was last updated)
+        # Get cache_age if not already set (for the case where cache file exists but wasn't read)
+        if cache_age is None and uw_cache_file.exists():
+            cache_age = time.time() - uw_cache_file.stat().st_mtime
+        
         if cache_age is not None:
             for signal_name, health in signals.items():
                 if health.data_freshness_sec is None:
@@ -381,6 +385,13 @@ class SREMonitoringEngine:
                         health.status = "optional"
                     else:
                         health.status = "no_data"
+        else:
+            # No cache file - set defaults
+            for signal_name, health in signals.items():
+                if health.data_freshness_sec is None:
+                    health.data_freshness_sec = 999999  # Very stale if no cache
+                if health.last_update_age_sec is None or health.last_update_age_sec == 0:
+                    health.last_update_age_sec = 999999
         
         return signals
     
