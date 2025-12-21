@@ -1965,50 +1965,6 @@ def learn_from_outcomes():
     except Exception as e:
         log_event("learning", "comprehensive_learning_failed", error=str(e))
         # Don't fallback to legacy - v2 is the only learning system
-            comps = ctx.get("components", {})
-
-            prof = get_or_init_profile(profiles, symbol)
-            if entry_action:
-                prof["entry_bandit"] = update_bandit(prof["entry_bandit"], entry_action, reward)
-            stop_action = "atr_1.5x" if atr_mult == 1.5 else "atr_1.0x" if atr_mult == 1.0 else "atr_2.0x"
-            prof["stop_bandit"] = update_bandit(prof["stop_bandit"], stop_action, reward)
-
-            cw = prof.get("component_weights", dict(Config.DEFAULT_COMPONENT_WEIGHTS))
-            for k in Config.SIGNAL_COMPONENTS:
-                contrib = float(comps.get(k, 0.0))
-                if contrib == 0.0:
-                    continue
-                step = 0.05 * (1 if reward > 0 else -1)
-                mag = min(1.0, abs(contrib) / 2.0)
-                cw[k] = float(max(0.5, min(2.0, cw.get(k, 1.0) + step * mag)))
-            prof["component_weights"] = cw
-
-            prof["samples"] = prof.get("samples", 0) + 1
-            profiles[symbol] = prof
-            
-            # V3.2: Feed trade data to adaptive signal optimizer for global weight learning
-            # FIX: Use pnl_pct (percentage) not pnl_usd (dollars) for learning
-            pnl_pct = float(rec.get("pnl_pct", 0)) / 100.0  # Convert % to decimal (0.025 for 2.5%)
-            regime = ctx.get("gamma_regime", "neutral")
-            sector = ctx.get("sector", "unknown")
-            record_trade_for_learning(comps, pnl_pct, regime, sector)
-            trades_processed += 1
-    
-    save_profiles(profiles)
-    
-    # V3.2: Trigger adaptive weight update if enough trades processed
-    if trades_processed >= 5:
-        optimizer = _get_adaptive_optimizer()
-        if optimizer:
-            try:
-                result = optimizer.update_weights()
-                log_event("learning", "adaptive_weights_updated", 
-                         trades_processed=trades_processed,
-                         weights_updated=result.get("updated", 0))
-            except Exception as e:
-                log_event("learning", "adaptive_weights_update_failed", error=str(e))
-    
-    log_event("learning", "profiles_updated", trades_processed=trades_processed)
 
 def weekly_retrain_profiles():
     if not Config.ENABLE_PER_TICKER_LEARNING:
