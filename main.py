@@ -1959,34 +1959,12 @@ def learn_from_outcomes():
                  orders=results.get("orders", 0),
                  weights_updated=results.get("weights_updated", 0))
     except ImportError:
-        # Fallback to old method if orchestrator not available
-        _learn_from_outcomes_legacy()
+        # Learning system not available - log but don't fail
+        log_event("learning", "comprehensive_learning_not_available", 
+                 note="comprehensive_learning_orchestrator_v2 not available")
     except Exception as e:
         log_event("learning", "comprehensive_learning_failed", error=str(e))
-        # Fallback to legacy method
-        _learn_from_outcomes_legacy()
-
-def _learn_from_outcomes_legacy():
-    """Legacy learning method (fallback)"""
-    profiles = load_profiles()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    path = os.path.join(LOG_DIR, "attribution.jsonl")
-    if not os.path.exists(path):
-        return
-    
-    trades_processed = 0
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            rec = json.loads(line)
-            if rec.get("type") != "attribution":
-                continue
-            if not rec.get("ts", "").startswith(today):
-                continue
-            symbol = rec.get("symbol")
-            ctx = rec.get("context", {})
-            reward = float(rec.get("pnl_usd", 0))
-            entry_action = ctx.get("entry_action")
-            atr_mult = ctx.get("atr_mult")
+        # Don't fallback to legacy - v2 is the only learning system
             comps = ctx.get("components", {})
 
             prof = get_or_init_profile(profiles, symbol)
