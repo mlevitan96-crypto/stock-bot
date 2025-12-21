@@ -172,6 +172,18 @@ def process_attribution_log(state: Dict, process_all_historical: bool = False) -
                 if comps and pnl_pct != 0:
                     optimizer.record_trade(comps, pnl_pct, regime, sector)
                     processed += 1
+                    
+                    # Correlate with signal patterns for signal pattern learning
+                    try:
+                        from learning_enhancements_v1 import get_signal_learner
+                        signal_learner = get_signal_learner()
+                        signal_learner.update_pattern_with_outcome(
+                            symbol=symbol,
+                            components=comps,
+                            pnl_pct=pnl_pct * 100.0  # Convert back to percentage
+                        )
+                    except:
+                        pass
                 elif not comps:
                     # Log that we skipped due to missing components
                     pass  # Could log this if needed
@@ -187,6 +199,14 @@ def process_attribution_log(state: Dict, process_all_historical: bool = False) -
     if processed_ids:
         all_ids = sorted(processed_ids)
         state["last_attribution_id"] = all_ids[-1]
+    
+    # Save signal learner state
+    try:
+        from learning_enhancements_v1 import get_signal_learner
+        signal_learner = get_signal_learner()
+        signal_learner.save_state()
+    except:
+        pass
     
     # Count unique records processed
     # If process_all=True, count all records in file
@@ -379,8 +399,28 @@ def process_signal_log(state: Dict, process_all_historical: bool = False) -> int
                 if rec_id in processed_ids:
                     continue
                 
-                # TODO: Implement signal pattern learning
-                # For now, just mark as processed
+                # Extract signal data
+                symbol = rec.get("symbol") or rec.get("ticker", "")
+                cluster = rec.get("cluster", {})
+                components = rec.get("components", {})
+                score = float(rec.get("score", rec.get("composite_score", 0.0)))
+                
+                # Learn from signal pattern
+                try:
+                    from learning_enhancements_v1 import get_signal_learner
+                    signal_learner = get_signal_learner()
+                    signal_learner.record_signal(
+                        signal_id=rec_id,
+                        symbol=symbol,
+                        components=components,
+                        score=score
+                    )
+                except ImportError:
+                    pass
+                except Exception as e:
+                    # Don't fail on learning errors
+                    pass
+                
                 processed += 1
                 processed_ids.add(rec_id)
                 state["last_signal_id"] = rec_id
@@ -392,6 +432,14 @@ def process_signal_log(state: Dict, process_all_historical: bool = False) -> int
     if processed_ids:
         all_ids = sorted(processed_ids)
         state["last_signal_id"] = all_ids[-1]
+    
+    # Save signal learner state
+    try:
+        from learning_enhancements_v1 import get_signal_learner
+        signal_learner = get_signal_learner()
+        signal_learner.save_state()
+    except:
+        pass
     
     # Count unique records
     if process_all_historical:
@@ -591,13 +639,17 @@ def process_gate_events(state: Dict, process_all_historical: bool = False) -> in
     if not gate_log.exists():
         return 0
     
+    # Import gate pattern learner
+    try:
+        from learning_enhancements_v1 import get_gate_learner
+        gate_learner = get_gate_learner()
+    except ImportError:
+        gate_learner = None
+    
     processed = 0
     last_id = state.get("last_gate_id")
     processed_ids: Set[str] = set()
     seen_last_id = False
-    
-    # Track gate blocking patterns
-    # This helps learn if gates are too strict or too loose
     
     with open(gate_log, 'r', encoding='utf-8') as f:
         for line in f:
@@ -617,9 +669,26 @@ def process_gate_events(state: Dict, process_all_historical: bool = False) -> in
                 if rec_id in processed_ids:
                     continue
                 
-                # TODO: Implement gate pattern learning
-                # Track which gates block which types of trades
-                # Learn optimal gate thresholds
+                # Extract gate information
+                symbol = rec.get("symbol", "")
+                gate_name = rec.get("gate", rec.get("reason", "unknown"))
+                score = float(rec.get("score", 0.0))
+                components = rec.get("components", {})
+                reason = rec.get("reason", rec.get("gate", "unknown"))
+                
+                # Learn from gate pattern
+                if gate_learner:
+                    try:
+                        gate_learner.record_gate_block(
+                            gate_name=gate_name,
+                            symbol=symbol,
+                            score=score,
+                            components=components,
+                            reason=reason
+                        )
+                    except Exception as e:
+                        # Don't fail on learning errors
+                        pass
                 
                 processed += 1
                 processed_ids.add(rec_id)
@@ -627,6 +696,13 @@ def process_gate_events(state: Dict, process_all_historical: bool = False) -> in
                 
             except Exception as e:
                 continue
+    
+    # Save gate learner state
+    if gate_learner:
+        try:
+            gate_learner.save_state()
+        except:
+            pass
     
     # Update last processed ID
     if processed_ids:
@@ -697,13 +773,28 @@ def process_uw_attribution_blocked(state: Dict, process_all_historical: bool = F
                 # Extract blocked entry data
                 symbol = rec.get("symbol")
                 score = rec.get("score", 0.0)
+                components = rec.get("components", {})
                 flow_sentiment = rec.get("flow_sentiment", "unknown")
                 dark_pool_sentiment = rec.get("dark_pool_sentiment", "unknown")
                 insider_sentiment = rec.get("insider_sentiment", "unknown")
                 
-                # TODO: Learn from blocked UW entries
-                # Track which signal combinations were blocked
-                # Learn if blocking was correct or if we missed opportunities
+                # Learn from blocked UW entries
+                try:
+                    from learning_enhancements_v1 import get_uw_blocked_learner
+                    uw_learner = get_uw_blocked_learner()
+                    uw_learner.record_blocked_entry(
+                        symbol=symbol,
+                        score=score,
+                        components=components,
+                        flow_sentiment=flow_sentiment,
+                        dark_pool_sentiment=dark_pool_sentiment,
+                        insider_sentiment=insider_sentiment
+                    )
+                except ImportError:
+                    pass
+                except Exception as e:
+                    # Don't fail on learning errors
+                    pass
                 
                 processed += 1
                 processed_ids.add(rec_id)
@@ -715,6 +806,14 @@ def process_uw_attribution_blocked(state: Dict, process_all_historical: bool = F
     if processed_ids:
         all_ids = sorted(processed_ids)
         state["last_uw_blocked_id"] = all_ids[-1]
+    
+    # Save UW blocked learner state
+    try:
+        from learning_enhancements_v1 import get_uw_blocked_learner
+        uw_learner = get_uw_blocked_learner()
+        uw_learner.save_state()
+    except:
+        pass
     
     # Count unique records
     if process_all_historical:
