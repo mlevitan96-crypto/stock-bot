@@ -186,10 +186,26 @@ if attr_log.exists():
         
         print()
         print("CURRENT LEARNING BEHAVIOR:")
-        print("  - learn_from_outcomes() only processes TODAY's trades")
-        print("  - Only processes records with type='attribution'")
-        print("  - Requires components in context.components")
-        print(f"  - Historical records ignored: {total_records - by_date.get(datetime.now(timezone.utc).date().isoformat(), 0)}")
+        # Check if comprehensive learning orchestrator is being used
+        learning_state_file = Path("state/learning_processing_state.json")
+        if learning_state_file.exists():
+            try:
+                with open(learning_state_file, 'r', encoding='utf-8') as f:
+                    learning_state = json.load(f)
+                    total_processed = learning_state.get("total_trades_processed", 0)
+                    print(f"  - Comprehensive learning orchestrator ACTIVE")
+                    print(f"  - Total trades processed historically: {total_processed}")
+                    print(f"  - Processes ALL historical trades (not just today's)")
+                    print(f"  - Tracks last processed IDs to avoid duplicates")
+                    if learning_state.get("last_processed_ts"):
+                        print(f"  - Last processed: {learning_state.get('last_processed_ts')}")
+            except:
+                print("  - Comprehensive learning orchestrator state file exists but unreadable")
+        else:
+            print("  - learn_from_outcomes() only processes TODAY's trades (LEGACY MODE)")
+            print("  - Only processes records with type='attribution'")
+            print("  - Requires components in context.components")
+            print(f"  - Historical records ignored: {total_records - by_date.get(datetime.now(timezone.utc).date().isoformat(), 0)}")
 
 print()
 print()
@@ -234,16 +250,39 @@ gaps = []
 
 # Check if exit.jsonl is being analyzed
 exit_log = LOG_DIR / "exit.jsonl"
+learning_state_file = Path("state/learning_processing_state.json")
 if exit_log.exists():
     with open(exit_log, 'r', encoding='utf-8') as f:
         exit_lines = [l for l in f if l.strip()]
         if exit_lines:
-            gaps.append({
-                "log": "exit.jsonl",
-                "records": len(exit_lines),
-                "issue": "Exit events logged but not analyzed for exit signal learning",
-                "impact": "Exit signal weights not being optimized based on exit outcomes"
-            })
+            # Check if comprehensive learning processed exits
+            if learning_state_file.exists():
+                try:
+                    with open(learning_state_file, 'r', encoding='utf-8') as f:
+                        learning_state = json.load(f)
+                        processed_exits = learning_state.get("total_exits_processed", 0)
+                        unprocessed = max(0, len(exit_lines) - processed_exits)
+                        if unprocessed > 0:
+                            gaps.append({
+                                "log": "exit.jsonl",
+                                "records": unprocessed,
+                                "issue": f"{unprocessed} exit events not yet processed",
+                                "impact": "Run backfill_historical_learning.py to process remaining exits"
+                            })
+                except:
+                    gaps.append({
+                        "log": "exit.jsonl",
+                        "records": len(exit_lines),
+                        "issue": "Exit events logged but processing state unclear",
+                        "impact": "Exit signal weights may not be optimized"
+                    })
+            else:
+                gaps.append({
+                    "log": "exit.jsonl",
+                    "records": len(exit_lines),
+                    "issue": "Exit events logged but not analyzed for exit signal learning",
+                    "impact": "Exit signal weights not being optimized based on exit outcomes"
+                })
 
 # Check if signals.jsonl is being analyzed
 signals_log = LOG_DIR / "signals.jsonl"
@@ -285,26 +324,52 @@ if postmortem_log.exists():
             })
 
 # Check historical trades
+learning_state_file = Path("state/learning_processing_state.json")
 if attr_log.exists():
     with open(attr_log, 'r', encoding='utf-8') as f:
         lines = [l for l in f if l.strip()]
-        today = datetime.now(timezone.utc).date().isoformat()
-        historical = 0
-        for line in lines:
+        total_records = len(lines)
+        
+        # Check if comprehensive learning is active
+        if learning_state_file.exists():
             try:
-                rec = json.loads(line)
-                ts = rec.get("ts", "")
-                if ts and not ts.startswith(today):
-                    historical += 1
+                with open(learning_state_file, 'r', encoding='utf-8') as f:
+                    learning_state = json.load(f)
+                    processed = learning_state.get("total_trades_processed", 0)
+                    unprocessed = max(0, total_records - processed)
+                    if unprocessed > 0:
+                        gaps.append({
+                            "log": "attribution.jsonl (unprocessed)",
+                            "records": unprocessed,
+                            "issue": f"{unprocessed} trades not yet processed by comprehensive learning",
+                            "impact": "Run backfill_historical_learning.py to process remaining trades"
+                        })
             except:
-                pass
-        if historical > 0:
-            gaps.append({
-                "log": "attribution.jsonl (historical)",
-                "records": historical,
-                "issue": "Historical trades not being processed",
-                "impact": "Learning resets daily, losing historical performance data"
-            })
+                gaps.append({
+                    "log": "attribution.jsonl (historical)",
+                    "records": total_records,
+                    "issue": "Comprehensive learning state file exists but unreadable",
+                    "impact": "Cannot verify if historical trades are processed"
+                })
+        else:
+            # Legacy mode - check for historical trades
+            today = datetime.now(timezone.utc).date().isoformat()
+            historical = 0
+            for line in lines:
+                try:
+                    rec = json.loads(line)
+                    ts = rec.get("ts", "")
+                    if ts and not ts.startswith(today):
+                        historical += 1
+                except:
+                    pass
+            if historical > 0:
+                gaps.append({
+                    "log": "attribution.jsonl (historical)",
+                    "records": historical,
+                    "issue": "Historical trades not being processed (legacy mode)",
+                    "impact": "Learning resets daily, losing historical performance data"
+                })
 
 if gaps:
     for gap in gaps:
