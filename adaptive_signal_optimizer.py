@@ -24,6 +24,7 @@ import random
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
+import time
 from dataclasses import dataclass, field, asdict
 
 STATE_DIR = Path("state")
@@ -447,10 +448,11 @@ class LearningOrchestrator:
     """
     
     EWMA_ALPHA = 0.15
-    MIN_SAMPLES = 30
-    LOOKBACK_DAYS = 30
+    MIN_SAMPLES = 50  # Increased from 30 to 50 for more statistical confidence (industry standard: 50-100)
+    LOOKBACK_DAYS = 60  # Increased from 30 to 60 for more stable learning
     UPDATE_STEP = 0.05
     WILSON_Z = 1.96
+    MIN_DAYS_BETWEEN_UPDATES = 3  # Maximum once every 3 days to prevent overfitting
     
     def __init__(self, 
                  entry_model: SignalWeightModel,
@@ -459,6 +461,7 @@ class LearningOrchestrator:
         self.exit_model = exit_model
         self.learning_history: List[Dict] = []
         self.component_performance: Dict[str, Dict] = {}
+        self.last_weight_update_ts: Optional[int] = None  # Track last update time
         self._init_performance_tracking()
         
     def _init_performance_tracking(self):
@@ -577,8 +580,23 @@ class LearningOrchestrator:
         """
         Perform Bayesian weight update based on accumulated performance.
         
+        Industry best practice: Batch updates with minimum samples and time between updates.
+        
         Returns summary of adjustments made.
         """
+        # Check minimum days between updates (prevents overfitting)
+        now_ts = int(time.time())
+        if self.last_weight_update_ts:
+            days_since_update = (now_ts - self.last_weight_update_ts) / 86400
+            if days_since_update < self.MIN_DAYS_BETWEEN_UPDATES:
+                return {
+                    "ts": now_ts,
+                    "adjustments": [],
+                    "total_adjusted": 0,
+                    "skipped": True,
+                    "reason": f"too_soon({days_since_update:.1f}d < {self.MIN_DAYS_BETWEEN_UPDATES}d)"
+                }
+        
         adjustments = []
         
         for component in SIGNAL_COMPONENTS:
@@ -628,11 +646,16 @@ class LearningOrchestrator:
                     "win_rate": round(wins/total, 3) if total > 0 else 0
                 })
         
+        # Update last update timestamp if we made adjustments
+        if adjustments:
+            self.last_weight_update_ts = int(time.time())
+        
         result = {
             "ts": int(time.time()),
             "adjustments": adjustments,
             "total_adjusted": len(adjustments),
-            "current_multipliers": self.entry_model.get_multipliers()
+            "current_multipliers": self.entry_model.get_multipliers(),
+            "last_update_ts": self.last_weight_update_ts
         }
         
         self._log_learning(result)

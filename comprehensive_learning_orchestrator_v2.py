@@ -797,21 +797,21 @@ def run_comprehensive_learning(process_all_historical: bool = False):
 
 def learn_from_trade_close(symbol: str, pnl_pct: float, components: Dict, regime: str = "neutral", sector: str = "unknown"):
     """
-    SHORT-TERM LEARNING: Immediate learning after each trade close.
+    SHORT-TERM LEARNING: Record trade for learning (but don't update weights immediately).
     
-    This is called immediately after a trade closes for fast adaptation.
+    Industry best practice: Batch weight updates to prevent overfitting.
+    - Records trade immediately for tracking
+    - Updates EWMA in daily batch processing
+    - Weight adjustments only in daily batch (with MIN_SAMPLES guard)
     """
     optimizer = get_optimizer()
     if optimizer and components and pnl_pct != 0:
+        # Record trade for learning (updates internal tracking)
         optimizer.record_trade(components, pnl_pct / 100.0, regime, sector)
         
-        # Update weights if we have enough samples (but don't wait for batch)
-        # This enables fast adaptation
-        try:
-            optimizer.update_weights()
-            optimizer.save_state()
-        except:
-            pass  # Don't fail on weight update
+        # DO NOT update weights immediately - batch in daily processing
+        # This prevents overfitting to noise in individual trades
+        # Weight updates happen in run_daily_learning() with proper safeguards
 
 def run_daily_learning():
     """
