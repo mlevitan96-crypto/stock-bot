@@ -884,9 +884,28 @@ def run_comprehensive_learning(process_all_historical: bool = False):
         try:
             weight_result = optimizer.update_weights()
             results["weights_updated"] = weight_result.get("total_adjusted", 0)
+            results["weight_adjustments"] = weight_result.get("adjustments", [])
             optimizer.save_state()
+            
+            # Log weight updates for monitoring (if log_event available)
+            try:
+                from main import log_event
+                if weight_result.get("total_adjusted", 0) > 0:
+                    log_event("learning", "weights_updated", 
+                             total_adjusted=weight_result.get("total_adjusted", 0),
+                             adjustments=weight_result.get("adjustments", []))
+                elif weight_result.get("skipped"):
+                    log_event("learning", "weights_update_skipped", 
+                             reason=weight_result.get("reason", "unknown"))
+            except ImportError:
+                pass  # log_event not available in standalone mode
         except Exception as e:
             results["weight_update_error"] = str(e)
+            try:
+                from main import log_event
+                log_event("learning", "weight_update_error", error=str(e))
+            except ImportError:
+                pass
     
     # Save state
     state["last_processed_ts"] = datetime.now(timezone.utc).isoformat()
