@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-19  
+**Last Updated:** 2025-12-19 (Learning Pipeline Verification Added)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ---
@@ -287,9 +287,38 @@ When `MAX_CONCURRENT_POSITIONS` (16) reached:
 
 ### Health Check
 
+**On Server**:
 ```bash
 curl http://localhost:8081/health | python3 -m json.tool | grep -A 10 comprehensive_learning
 ```
+
+**Local (Windows)**:
+```powershell
+cd c:\Users\markl\OneDrive\Documents\Cursor\stock-bot
+python VERIFY_LEARNING_PIPELINE.py
+```
+
+### Learning Pipeline Verification
+
+**Quick Status Check** (copy/paste ready):
+```powershell
+cd c:\Users\markl\OneDrive\Documents\Cursor\stock-bot
+python check_learning_status.py
+```
+
+**Check if Trades Closing**:
+```powershell
+cd c:\Users\markl\OneDrive\Documents\Cursor\stock-bot
+python check_trades_closing.py
+```
+
+**Full Learning Report**:
+```powershell
+cd c:\Users\markl\OneDrive\Documents\Cursor\stock-bot
+python manual_learning_check.py
+```
+
+**Note**: All scripts must be run from project root directory.
 
 ---
 
@@ -328,16 +357,22 @@ curl http://localhost:8081/health | python3 -m json.tool | grep -A 10 comprehens
 
 ## Diagnostic Scripts Reference
 
-| Script | Purpose |
-|--------|---------|
-| `FULL_SYSTEM_AUDIT.py` | Comprehensive system health check |
-| `DIAGNOSE_WHY_NO_ORDERS.py` | Diagnose why orders aren't being placed |
-| `CHECK_DISPLACEMENT_AND_EXITS.py` | Check displacement and exit logic |
-| `VERIFY_BOT_IS_RUNNING.sh` | Verify bot is running (handles env var confusion) |
-| `VERIFY_DEPLOYMENT.sh` | Regression testing after deployment |
-| `VERIFY_TRADE_EXECUTION_AND_LEARNING.sh` | Verify trade execution and learning engine |
-| `RESTART_DASHBOARD_AND_BOT.sh` | Restart services after code changes |
-| `FIX_AND_DEPLOY.sh` | Complete deployment with conflict resolution |
+| Script | Purpose | Run From |
+|--------|---------|----------|
+| `FULL_SYSTEM_AUDIT.py` | Comprehensive system health check | Project root |
+| `DIAGNOSE_WHY_NO_ORDERS.py` | Diagnose why orders aren't being placed | Project root |
+| `CHECK_DISPLACEMENT_AND_EXITS.py` | Check displacement and exit logic | Project root |
+| `VERIFY_LEARNING_PIPELINE.py` | Verify learning system is processing trades | Project root |
+| `check_learning_status.py` | Quick learning status check | Project root |
+| `check_trades_closing.py` | Check if trades are closing and logged | Project root |
+| `manual_learning_check.py` | Detailed learning system report | Project root |
+| `VERIFY_BOT_IS_RUNNING.sh` | Verify bot is running (handles env var confusion) | Project root |
+| `VERIFY_DEPLOYMENT.sh` | Regression testing after deployment | Project root |
+| `VERIFY_TRADE_EXECUTION_AND_LEARNING.sh` | Verify trade execution and learning engine | Project root |
+| `RESTART_DASHBOARD_AND_BOT.sh` | Restart services after code changes | Project root |
+| `FIX_AND_DEPLOY.sh` | Complete deployment with conflict resolution | Project root |
+
+**Important**: All Python scripts must be run from the **project root directory** (where `main.py` is located).
 
 ---
 

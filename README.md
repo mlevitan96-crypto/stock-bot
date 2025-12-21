@@ -1,5 +1,7 @@
 # Trading Bot - DigitalOcean Deployment
 
+> **📚 IMPORTANT: Before making any changes, read [MEMORY_BANK.md](MEMORY_BANK.md) for complete project context, common issues, solutions, and best practices.**
+
 ## Quick Start
 
 ### 1. Create Droplet
@@ -73,11 +75,13 @@ curl http://localhost:8080/health
 
 | File | Purpose |
 |------|---------|
+| **[MEMORY_BANK.md](MEMORY_BANK.md)** | **Complete knowledge base - project context, issues, solutions** |
 | `main.py` | Core trading logic |
 | `deploy_supervisor.py` | Process manager |
 | `dashboard.py` | Web dashboard (port 5000) |
 | `config/registry.py` | Configuration defaults |
 | `start.sh` | Manual startup script |
+| `CONTEXT.md` | Quick project context (points to Memory Bank) |
 
 ## Ports
 
@@ -101,3 +105,12 @@ deploy_supervisor.py (parent)
 ```
 
 The supervisor auto-restarts crashed children with exponential backoff.
+
+## Troubleshooting
+
+For common issues and solutions, see **[MEMORY_BANK.md](MEMORY_BANK.md)** which contains:
+- Environment variable setup (including why they're not visible in shell)
+- Deployment procedures and scripts
+- Common issues with step-by-step solutions
+- Diagnostic scripts reference
+- Quick reference commands

@@ -1,0 +1,52 @@
+{
+  "timestamp": "2025-12-21T16:37:25.454155",
+  "logs": {
+    "attribution_log": {
+      "exists": false,
+      "records": 0,
+      "recent_records": 0,
+      "last_record_ts": null
+    },
+    "uw_attribution_log": {
+      "exists": false,
+      "records": 0,
+      "recent_records": 0,
+      "last_record_ts": null
+    }
+  },
+  "learning_state": {
+    "weights_state_exists": false,
+    "weights_loaded": false,
+    "learning_log_exists": false,
+    "learning_updates": 0,
+    "last_update_ts": null,
+    "component_samples": {},
+    "multipliers": {},
+    "errors": []
+  },
+  "data_flow": {
+    "trades_logged": 0,
+    "trades_with_components": 0,
+    "trades_fed_to_learning": 0,
+    "missing_components": 0,
+    "sample_breakdown": {}
+  },
+  "weight_updates": {
+    "has_learned_weights": false,
+    "components_with_samples": 0,
+    "components_updated": 0,
+    "update_frequency": "unknown",
+    "recommendations": [
+      "No weights state file found - learning system may not be initialized"
+    ]
+  },
+  "application": {
+    "adaptive_optimizer_available": true,
+    "weights_exported": true,
+    "composite_using_adaptive": true,
+    "recommendations": [
+      "All multipliers are at default (1.0) - learning hasn't adjusted weights yet"
+    ],
+    "exported_weights_count": 21
+  }
+}

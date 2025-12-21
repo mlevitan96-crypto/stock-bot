@@ -1,4 +1,5 @@
 # main.py — Single-file adaptive bot with comprehensive Unusual Whales integration + Alpaca paper trading
+# IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK.md
 # Features:
 # - Multi-factor scoring: flow clusters + dark pool + gamma/greeks + net premium + realized vol + option volume levels
 # - Disciplined thresholds and weights (configurable via env)
@@ -1967,9 +1968,11 @@ def learn_from_outcomes():
             profiles[symbol] = prof
             
             # V3.2: Feed trade data to adaptive signal optimizer for global weight learning
+            # FIX: Use pnl_pct (percentage) not pnl_usd (dollars) for learning
+            pnl_pct = float(rec.get("pnl_pct", 0)) / 100.0  # Convert % to decimal (0.025 for 2.5%)
             regime = ctx.get("gamma_regime", "neutral")
             sector = ctx.get("sector", "unknown")
-            record_trade_for_learning(comps, reward, regime, sector)
+            record_trade_for_learning(comps, pnl_pct, regime, sector)
             trades_processed += 1
     
     save_profiles(profiles)

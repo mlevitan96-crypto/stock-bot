@@ -2,6 +2,8 @@
 """
 Position Dashboard - Fast Start Version
 Binds port 5000 immediately, then lazy-loads heavy dependencies.
+
+IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK.md
 """
 
 import os
