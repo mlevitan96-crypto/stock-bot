@@ -85,21 +85,41 @@ class CausalAnalysisEngine:
         
         This is the foundation - we need to capture EVERYTHING that might explain why it won/lost.
         """
+        # V4.2: Context might be at top level or nested
         context = trade.get("context", {})
+        if not context:
+            # Try to build context from trade data itself
+            context = {
+                "components": trade.get("components", {}),
+                "market_regime": trade.get("market_regime", "unknown"),
+                "entry_score": trade.get("entry_score", 0.0),
+                "direction": trade.get("direction", "unknown"),
+            }
+        
         components = context.get("components", {})
+        if not components:
+            # Try top-level components
+            components = trade.get("components", {})
         
         # Market regime
         market_regime = context.get("market_regime", "unknown")
         
         # Time-based context
-        entry_ts = trade.get("ts", "")
+        # V4.2: Try multiple timestamp fields
+        entry_ts = trade.get("ts") or trade.get("timestamp") or trade.get("entry_ts") or context.get("entry_ts") or ""
         if isinstance(entry_ts, str):
             try:
                 entry_dt = datetime.fromisoformat(entry_ts.replace("Z", "+00:00"))
             except:
-                entry_dt = datetime.now(timezone.utc)
-        else:
+                try:
+                    # Try parsing as timestamp string
+                    entry_dt = datetime.fromtimestamp(float(entry_ts), tz=timezone.utc)
+                except:
+                    entry_dt = datetime.now(timezone.utc)
+        elif isinstance(entry_ts, (int, float)):
             entry_dt = datetime.fromtimestamp(entry_ts, tz=timezone.utc)
+        else:
+            entry_dt = datetime.now(timezone.utc)
         
         hour = entry_dt.hour
         if hour < 9 or hour >= 16:
@@ -189,9 +209,18 @@ class CausalAnalysisEngine:
         if not trade_id or trade_id.startswith("open_"):
             return
         
+        # V4.2: Handle both pnl_usd and pnl_pct formats
         pnl_usd = trade.get("pnl_usd", 0.0)
-        pnl_pct = trade.get("pnl_pct", 0.0) if "pnl_pct" in trade else (pnl_usd / 100.0)  # Rough estimate
-        win = pnl_usd > 0
+        pnl_pct = trade.get("pnl_pct", 0.0)
+        
+        # If pnl_pct not provided, try to calculate from pnl_usd
+        # But we need entry_price to calculate properly - use rough estimate if missing
+        if pnl_pct == 0.0 and pnl_usd != 0.0:
+            # Rough estimate: assume $100 position = 1% per $1
+            # This is just for analysis, not exact
+            pnl_pct = pnl_usd  # Treat as percentage if no other info
+        
+        win = pnl_usd > 0 or pnl_pct > 0
         
         context = self.extract_trade_context(trade)
         components = trade.get("context", {}).get("components", {})
@@ -348,8 +377,9 @@ class CausalAnalysisEngine:
             avg_pnl = pattern["total_pnl"] / total if total > 0 else 0
             
             # Success pattern: high win rate AND positive P&L
-            # V4.1: Lower threshold to find more patterns (was 0.6, now 0.55)
-            if win_rate >= 0.55 and avg_pnl > 0.005:
+            # V4.3: Lower threshold further to find ANY success patterns (was 0.55, now 0.50)
+            # Also accept if win rate is above 50% OR avg P&L is positive (more lenient)
+            if (win_rate >= 0.50 and avg_pnl > 0.0) or (win_rate >= 0.45 and avg_pnl > 0.01):
                 success_patterns.append({
                     "context": context_key,
                     "win_rate": win_rate,
@@ -549,8 +579,15 @@ class CausalAnalysisEngine:
             return {"processed": 0, "error": "attribution.jsonl not found"}
         
         processed = 0
+        skipped_no_type = 0
+        skipped_open = 0
+        skipped_no_id = 0
+        errors = 0
+        total_lines = 0
+        
         with ATTRIBUTION_LOG.open("r") as f:
             for line in f:
+                total_lines += 1
                 if limit and processed >= limit:
                     break
                 
@@ -559,16 +596,64 @@ class CausalAnalysisEngine:
                 
                 try:
                     trade = json.loads(line)
-                    if trade.get("type") == "attribution":
-                        trade_id = trade.get("trade_id", "")
-                        if trade_id and not trade_id.startswith("open_"):
-                            self.analyze_trade(trade)
-                            processed += 1
+                    # V4.2: Check if it's an attribution record (may not have "type" field)
+                    # Attribution records have: trade_id, symbol, pnl_usd, context
+                    trade_id = trade.get("trade_id", "")
+                    
+                    # Skip if no trade_id
+                    if not trade_id:
+                        skipped_no_id += 1
+                        continue
+                    
+                    # Skip "open_" trades (incomplete)
+                    if trade_id.startswith("open_"):
+                        skipped_open += 1
+                        continue
+                    
+                    # Check if it has attribution structure (has context and pnl)
+                    has_context = "context" in trade
+                    has_pnl = "pnl_usd" in trade or "pnl_pct" in trade
+                    
+                    # Accept if it's explicitly type="attribution" OR has attribution structure
+                    if trade.get("type") == "attribution" or (has_context and has_pnl):
+                        self.analyze_trade(trade)
+                        processed += 1
+                    else:
+                        skipped_no_type += 1
+                        
                 except Exception as e:
+                    errors += 1
+                    # Debug: print first few errors
+                    if errors <= 3:
+                        print(f"   DEBUG: Error parsing line {total_lines}: {str(e)[:100]}")
                     continue
         
+        # Debug output
+        if processed == 0:
+            print(f"   DEBUG: Total lines: {total_lines}, Processed: {processed}")
+            print(f"   DEBUG: Skipped (no_id): {skipped_no_id}, (open_): {skipped_open}, (no_type): {skipped_no_type}, Errors: {errors}")
+            # Try to read first line to see structure
+            if total_lines > 0:
+                try:
+                    with ATTRIBUTION_LOG.open("r") as f:
+                        first_line = f.readline().strip()
+                        if first_line:
+                            sample = json.loads(first_line)
+                            print(f"   DEBUG: Sample record keys: {list(sample.keys())[:10]}")
+                            print(f"   DEBUG: Sample type: {sample.get('type', 'NO_TYPE')}")
+                            print(f"   DEBUG: Sample trade_id: {sample.get('trade_id', 'NO_ID')[:50]}")
+                except:
+                    pass
+        
         self._save_state()
-        return {"processed": processed}
+        return {
+            "processed": processed,
+            "total_lines": total_lines,
+            "skipped_no_id": skipped_no_id,
+            "skipped_open": skipped_open,
+            "skipped_no_type": skipped_no_type,
+            "errors": errors
+        }
     
     def answer_why(self, component: str, question: str = "why_underperforming") -> Dict[str, Any]:
         """
