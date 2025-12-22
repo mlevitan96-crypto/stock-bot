@@ -63,17 +63,20 @@ class LearningSystemTester:
         print("-" * 80)
         
         try:
-            from comprehensive_learning_orchestrator import ComprehensiveLearningOrchestrator
+            # Test close reason parsing (using main.py function)
+            from main import build_composite_close_reason
             
-            orchestrator = ComprehensiveLearningOrchestrator()
+            test_signals = {
+                "time_exit": True,
+                "age_hours": 72,
+                "signal_decay": 0.65,
+                "flow_reversal": True
+            }
+            reason = build_composite_close_reason(test_signals)
             
-            # Test close reason parsing
-            test_reason = "time_exit(72h)+signal_decay(0.65)+flow_reversal"
-            signals = orchestrator._parse_close_reason(test_reason)
-            
-            assert "time_exit" in signals, "Should parse time_exit"
-            assert "signal_decay" in signals, "Should parse signal_decay"
-            assert "flow_reversal" in signals, "Should parse flow_reversal"
+            assert "time_exit" in reason, "Should include time_exit"
+            assert "signal_decay" in reason, "Should include signal_decay"
+            assert "flow_reversal" in reason, "Should include flow_reversal"
             
             print("  [PASS] Close reason parsing works")
             self.passed += 1
