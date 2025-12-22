@@ -25,7 +25,7 @@ def check_file_paths() -> List[Tuple[str, bool, str]]:
     # 1. attribution.jsonl
     # Writer: main.py jsonl_write("attribution", ...) -> logs/attribution.jsonl
     # Reader: executive_summary_generator.py -> should read logs/attribution.jsonl
-    # Reader: comprehensive_learning_orchestrator.py -> should read logs/attribution.jsonl
+    # Reader: comprehensive_learning_orchestrator_v2.py -> should read logs/attribution.jsonl
     
     exec_summary_code = Path("executive_summary_generator.py").read_text(encoding='utf-8', errors='ignore')
     learning_orch_code = Path("comprehensive_learning_orchestrator.py").read_text(encoding='utf-8', errors='ignore')

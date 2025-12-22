@@ -564,7 +564,7 @@ class SREMonitoringEngine:
         
         # Check comprehensive learning system
         try:
-            from comprehensive_learning_orchestrator import get_learning_orchestrator
+            from comprehensive_learning_orchestrator_v2 import run_comprehensive_learning
             orchestrator = get_learning_orchestrator()
             learning_health = orchestrator.get_health()
             result["comprehensive_learning"] = {
