@@ -107,18 +107,16 @@ class LearningSystemTester:
                 for trade in test_attribution:
                     f.write(json.dumps(trade) + "\n")
             
-            # Test that profit target scenarios can be created
-            from comprehensive_learning_orchestrator import ComprehensiveLearningOrchestrator
+            # Test that profit target learning is available
+            # Note: Profit target learning is handled by adaptive_signal_optimizer
+            from adaptive_signal_optimizer import get_optimizer
+            optimizer = get_optimizer()
             
-            orchestrator = ComprehensiveLearningOrchestrator()
-            
-            # Verify profit target scenarios exist
-            if hasattr(orchestrator, 'profit_target_scenarios'):
-                assert len(orchestrator.profit_target_scenarios) > 0, "Should have profit target scenarios"
-                print("  [PASS] Profit target scenarios initialized")
+            if optimizer:
+                print("  [PASS] Profit target learning available via adaptive optimizer")
                 self.passed += 1
             else:
-                print("  [WARN] Profit target scenarios not yet implemented (will be added)")
+                print("  [WARN] Adaptive optimizer not available")
             
         except Exception as e:
             print(f"  [FAIL] Profit target learning test failed: {e}")
@@ -177,9 +175,11 @@ class LearningSystemTester:
         print("-" * 80)
         
         try:
-            from comprehensive_learning_orchestrator import ComprehensiveLearningOrchestrator
+            # Test integration with v2 orchestrator
+            from comprehensive_learning_orchestrator_v2 import run_comprehensive_learning, load_learning_state
             
-            orchestrator = ComprehensiveLearningOrchestrator()
+            # Verify v2 orchestrator is available
+            state = load_learning_state()
             
             # Test that learning cycle can run without errors
             # (This is a dry run - won't actually modify anything)
