@@ -3436,6 +3436,10 @@ class AlpacaExecutor:
                 "updated_at": datetime.utcnow().isoformat()
             }
             
+            # V3.0: Persist targets if position is already open
+            if symbol in self.opens and "targets" in self.opens[symbol]:
+                metadata[symbol]["targets"] = self.opens[symbol]["targets"]
+            
             atomic_write_json(metadata_path, metadata)
             
         except Exception as e:
@@ -3496,6 +3500,15 @@ class AlpacaExecutor:
                             self.opens[symbol]["entry_score"] = meta.get("entry_score", 0.0)
                         if "components" not in self.opens[symbol] or not self.opens[symbol]["components"]:
                             self.opens[symbol]["components"] = meta.get("components", {})
+                        # V3.0: Restore targets from metadata if available
+                        if "targets" in meta and meta["targets"]:
+                            self.opens[symbol]["targets"] = meta["targets"]
+                        elif "targets" not in self.opens[symbol]:
+                            # Initialize targets if missing
+                            self.opens[symbol]["targets"] = [
+                                {"pct": t, "hit": False, "fraction": Config.SCALE_OUT_FRACTIONS[i] if i < len(Config.SCALE_OUT_FRACTIONS) else 0.0}
+                                for i, t in enumerate(Config.PROFIT_TARGETS)
+                            ]
             
             # Add any positions in metadata that aren't in self.opens
             for symbol, meta in metadata.items():
@@ -3511,6 +3524,16 @@ class AlpacaExecutor:
                     except:
                         entry_ts = datetime.utcnow()
                     
+                    # V3.0: Restore targets from metadata if available, otherwise initialize fresh
+                    targets_from_meta = meta.get("targets")
+                    if targets_from_meta:
+                        targets_state = targets_from_meta
+                    else:
+                        targets_state = [
+                            {"pct": t, "hit": False, "fraction": Config.SCALE_OUT_FRACTIONS[i] if i < len(Config.SCALE_OUT_FRACTIONS) else 0.0}
+                            for i, t in enumerate(Config.PROFIT_TARGETS)
+                        ]
+                    
                     self.opens[symbol] = {
                         "ts": entry_ts,
                         "entry_price": avg_entry,
@@ -3518,7 +3541,7 @@ class AlpacaExecutor:
                         "side": side,
                         "trail_dist": None,
                         "high_water": current_price,
-                        "targets": [
+                        "targets": targets_state
                             {"pct": 0.02, "fraction": 0.30, "hit": False},
                             {"pct": 0.05, "fraction": 0.30, "hit": False},
                             {"pct": 0.10, "fraction": 0.40, "hit": False}
@@ -3701,10 +3724,26 @@ class AlpacaExecutor:
                 exit_signals["time_exit"] = True
 
             ret_pct = _position_return_pct(info["entry_price"], current_price, info.get("side", "buy"))
+            
+            # V3.0: Ensure targets exist (re-initialize if missing)
+            if "targets" not in info or not info["targets"]:
+                info["targets"] = [
+                    {"pct": t, "hit": False, "fraction": Config.SCALE_OUT_FRACTIONS[i] if i < len(Config.SCALE_OUT_FRACTIONS) else 0.0}
+                    for i, t in enumerate(Config.PROFIT_TARGETS)
+                ]
+                log_event("exit", "profit_targets_reinitialized", symbol=symbol, ret_pct=round(ret_pct, 4))
+            
             for tgt in info.get("targets", []):
                 if not tgt["hit"] and ret_pct >= tgt["pct"]:
                     if self._scale_out_partial(symbol, tgt["fraction"], info.get("side", "buy")):
                         tgt["hit"] = True
+                        # V3.0: Persist updated targets to metadata
+                        self._persist_position_metadata(symbol, info.get("ts", datetime.utcnow()), 
+                                                        info.get("entry_price", 0.0), info.get("qty", 0),
+                                                        info.get("side", "buy"), info.get("entry_score", 0.0),
+                                                        info.get("components", {}), 
+                                                        info.get("market_regime", "unknown"),
+                                                        info.get("direction", "unknown"))
                         side = info.get("side", "buy")
                         entry_price = info.get("entry_price", 0.0)
                         qty = info.get("qty", 1)
