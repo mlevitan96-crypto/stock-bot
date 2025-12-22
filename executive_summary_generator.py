@@ -489,7 +489,7 @@ def generate_executive_summary() -> Dict[str, Any]:
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "trades": formatted_trades,
-        "total_trades": len(trades),
+        "total_trades": len(closed_trades_for_display),
         "pnl_metrics": pnl_metrics,
         "signal_analysis": signal_analysis,
         "learning_insights": learning_insights,

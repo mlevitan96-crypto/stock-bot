@@ -162,10 +162,13 @@ WEIGHTS_V2 = {
 }
 
 # V2 Thresholds
+# EMERGENCY FIX: Raised thresholds due to poor performance (43% win rate, -$91.78 P&L)
+# Previous: base=2.7, canary=2.9, champion=3.2
+# New: Significantly higher to reduce losing trades
 ENTRY_THRESHOLDS = {
-    "base": 2.7,
-    "canary": 2.9,
-    "champion": 3.2
+    "base": 3.5,      # Raised from 2.7 (30% increase) - only trade strongest signals
+    "canary": 3.8,    # Raised from 2.9 (31% increase)
+    "champion": 4.2   # Raised from 3.2 (31% increase)
 }
 
 # Sizing Overlays

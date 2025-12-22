@@ -101,6 +101,102 @@ def check_composite_score_floor(clusters: List[Dict[str, Any]]) -> bool:
     return True
 
 
+def check_performance_freeze() -> bool:
+    """
+    EMERGENCY: Check if trading should be frozen due to poor performance.
+    
+    Triggers freeze if:
+    - Win rate < 40% AND total P&L < -$50 (last 30 trades)
+    - OR 2-day win rate < 30% AND 2-day P&L < -$20
+    
+    Returns:
+        True if performance is acceptable, False if should freeze
+    """
+    try:
+        from executive_summary_generator import get_all_trades, calculate_pnl_metrics
+        
+        trades = get_all_trades(lookback_days=30)
+        if len(trades) < 10:
+            return True  # Not enough data
+        
+        # Filter closed trades only
+        closed_trades = [
+            t for t in trades 
+            if not (t.get("trade_id", "").startswith("open_"))
+            and (float(t.get("pnl_usd", 0.0)) != 0.0 or t.get("context", {}).get("close_reason"))
+        ]
+        
+        if len(closed_trades) < 10:
+            return True  # Not enough closed trades
+        
+        # Calculate metrics
+        wins = sum(1 for t in closed_trades if float(t.get("pnl_usd", 0.0)) > 0)
+        total = len(closed_trades)
+        win_rate = wins / total if total > 0 else 0
+        total_pnl = sum(float(t.get("pnl_usd", 0.0)) for t in closed_trades)
+        
+        # Get 2-day metrics
+        pnl_metrics = calculate_pnl_metrics(closed_trades)
+        win_rate_2d = pnl_metrics.get("win_rate_2d", 0) / 100.0  # Convert from percentage
+        pnl_2d = pnl_metrics.get("pnl_2d", 0.0)
+        trades_2d = pnl_metrics.get("trades_2d", 0)
+        
+        # CRITICAL: Freeze if performance is terrible
+        should_freeze = False
+        freeze_reason = None
+        
+        # Condition 1: Overall poor performance
+        if win_rate < 0.40 and total_pnl < -50.0:
+            should_freeze = True
+            freeze_reason = f"poor_performance: win_rate={win_rate:.1%}, pnl=${total_pnl:.2f}"
+        
+        # Condition 2: Recent performance collapse (2-day)
+        if trades_2d >= 5 and win_rate_2d < 0.30 and pnl_2d < -20.0:
+            should_freeze = True
+            freeze_reason = f"recent_collapse: 2d_win_rate={win_rate_2d:.1%}, 2d_pnl=${pnl_2d:.2f}"
+        
+        if should_freeze:
+            # Set freeze flag
+            freeze_path = Path("state/governor_freezes.json")
+            freezes = {}
+            if freeze_path.exists():
+                try:
+                    freezes = json.loads(freeze_path.read_text())
+                except:
+                    pass
+            
+            freezes["performance_freeze"] = True
+            freezes["performance_freeze_reason"] = freeze_reason
+            freezes["performance_freeze_ts"] = now_iso()
+            freezes["performance_metrics"] = {
+                "win_rate": round(win_rate, 3),
+                "total_pnl": round(total_pnl, 2),
+                "total_trades": total,
+                "win_rate_2d": round(win_rate_2d, 3),
+                "pnl_2d": round(pnl_2d, 2),
+                "trades_2d": trades_2d
+            }
+            
+            freeze_path.parent.mkdir(parents=True, exist_ok=True)
+            freeze_path.write_text(json.dumps(freezes, indent=2))
+            
+            log_alert("performance_freeze_triggered", {
+                "reason": freeze_reason,
+                "metrics": freezes["performance_metrics"]
+            }, severity="CRITICAL")
+            
+            return False  # Freeze active
+        
+        return True  # Performance acceptable
+    
+    except Exception as e:
+        # Don't block on errors - log and continue
+        log_alert("performance_freeze_check_error", {
+            "error": str(e)
+        }, severity="MEDIUM")
+        return True  # Assume OK if check fails
+
+
 def check_freeze_state() -> bool:
     """
     Guard: Alert immediately if any freeze flag becomes active.
@@ -108,6 +204,10 @@ def check_freeze_state() -> bool:
     Returns:
         True if no freezes, False if any freeze active
     """
+    # CRITICAL: Check performance first (emergency stop for losing trades)
+    if not check_performance_freeze():
+        return False  # Performance freeze active
+    
     # Two freeze mechanisms exist in the codebase:
     # - `state/governor_freezes.json` (operator/system-level freezes)
     # - `state/pre_market_freeze.flag` (watchdog crash-loop safety freeze)
