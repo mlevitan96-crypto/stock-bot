@@ -321,12 +321,19 @@ def get_learning_insights() -> Dict[str, Any]:
 def generate_written_summary(trades: List[Dict[str, Any]], pnl_metrics: Dict[str, Any], 
                              signal_analysis: Dict[str, Any], learning_insights: Dict[str, Any]) -> str:
     """Generate written executive summary."""
+    # Filter out open trades (only count closed trades)
+    closed_trades = [
+        t for t in trades 
+        if not (t.get("trade_id", "").startswith("open_"))
+        and (float(t.get("pnl_usd", 0.0)) != 0.0 or t.get("context", {}).get("close_reason"))
+    ]
+    
     summary_parts = []
     
     # Performance summary
-    total_trades = len(trades)
-    total_pnl = sum(float(t.get("pnl_usd", 0.0)) for t in trades)
-    wins = sum(1 for t in trades if float(t.get("pnl_usd", 0.0)) > 0)
+    total_trades = len(closed_trades)
+    total_pnl = sum(float(t.get("pnl_usd", 0.0)) for t in closed_trades)
+    wins = sum(1 for t in closed_trades if float(t.get("pnl_usd", 0.0)) > 0)
     win_rate = round(wins / total_trades * 100, 1) if total_trades > 0 else 0.0
     
     summary_parts.append(f"## Performance Summary")
