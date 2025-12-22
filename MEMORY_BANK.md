@@ -20,13 +20,21 @@
 3. **UW Daemon** (`uw_flow_daemon.py`): Fetches and caches UnusualWhales API data
 4. **Deploy Supervisor** (`deploy_supervisor.py`): Process manager for all services
 5. **SRE Monitoring** (`sre_monitoring.py`): Health monitoring for signals, APIs, execution
-6. **Learning Engine** (`comprehensive_learning_orchestrator_v2.py`): Comprehensive multi-timeframe learning system
+6. **Health Supervisor** (`health_supervisor.py`): **FULLY AUTOMATED** self-healing system
+   - **AUTOMATED**: Runs continuously in background thread, NO manual intervention needed
+   - **Self-Healing**: Automatically detects and fixes architecture issues every hour
+   - **Auto-Testing**: Runs regression tests after healing to ensure no breakage
+   - **Zero Manual Work**: User only needs to deploy updates - system maintains itself
+   - **Architecture Health**: Checks for hardcoded paths, deprecated imports, missing registry usage
+   - **Auto-Remediation**: Fixes issues automatically and verifies with regression tests
+7. **Learning Engine** (`comprehensive_learning_orchestrator_v2.py`): Comprehensive multi-timeframe learning system
    - **IMPORTANT**: This is the ONLY learning orchestrator. The old `comprehensive_learning_orchestrator.py` (without _v2) is DEPRECATED and REMOVED - should NOT be used or referenced.
    - All learning goes through `comprehensive_learning_orchestrator_v2.py`
    - **Architecture Mapping**: 
-     - Run `architecture_mapping_audit.py` regularly to catch mapping issues
-     - Run `architecture_self_healing.py` (with --apply) to automatically fix common issues
+     - **AUTOMATED**: `health_supervisor.py` runs architecture checks and healing automatically every hour
+     - **AUTOMATED**: Regression tests run automatically after healing
      - All paths must use `config/registry.py` (StateFiles, CacheFiles, LogFiles, ConfigFiles) - NO hardcoded paths
+     - **NO MANUAL WORK REQUIRED** - System is fully self-healing and self-testing
 7. **Learning Enhancements** (`learning_enhancements_v1.py`): Pattern learning (gate, UW blocked, signal patterns)
 8. **Learning Scheduler** (`comprehensive_learning_scheduler.py`): Multi-timeframe learning automation (daily/weekly/bi-weekly/monthly)
 9. **Profitability Tracker** (`profitability_tracker.py`): Daily/weekly/monthly performance tracking
