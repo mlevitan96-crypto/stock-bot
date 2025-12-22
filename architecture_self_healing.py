@@ -26,7 +26,7 @@ class ArchitectureHealer:
         self.fixes_applied = []
         self.errors = []
         
-        # Registry mappings
+        # Registry mappings (escaped properly for regex)
         self.path_mappings = {
             r'Path\("state/fail_counter\.json"\)': 'StateFiles.FAIL_COUNTER',
             r'Path\("state/smart_poller\.json"\)': 'StateFiles.SMART_POLLER',
@@ -57,16 +57,21 @@ class ArchitectureHealer:
             
             # Check for hardcoded paths
             for pattern, replacement in self.path_mappings.items():
-                matches = re.finditer(pattern, content)
-                for match in matches:
-                    issues.append({
-                        'type': 'hardcoded_path',
-                        'file': str(file_path),
-                        'line': content[:match.start()].count('\n') + 1,
-                        'pattern': pattern,
-                        'replacement': replacement,
-                        'match': match.group(0)
-                    })
+                try:
+                    matches = re.finditer(pattern, content)
+                    for match in matches:
+                        issues.append({
+                            'type': 'hardcoded_path',
+                            'file': str(file_path),
+                            'line': content[:match.start()].count('\n') + 1,
+                            'pattern': pattern,
+                            'replacement': replacement,
+                            'match': match.group(0)
+                        })
+                except re.error as e:
+                    # Skip invalid regex patterns
+                    self.errors.append(f"Invalid regex pattern {pattern} in {file_path}: {e}")
+                    continue
             
             # Check for deprecated imports
             for pattern, replacement in self.import_mappings.items():
@@ -121,8 +126,12 @@ class ArchitectureHealer:
                 if issue['type'] in ['hardcoded_path', 'deprecated_import']:
                     pattern = issue['pattern']
                     replacement = issue['replacement']
-                    content = re.sub(pattern, replacement, content)
-                    self.fixes_applied.append(f"{file_path.name}: {issue['type']} at line {issue['line']}")
+                    try:
+                        content = re.sub(pattern, replacement, content)
+                        self.fixes_applied.append(f"{file_path.name}: {issue['type']} at line {issue['line']}")
+                    except re.error as e:
+                        self.errors.append(f"Regex error fixing {file_path.name}: {e}")
+                        continue
             
             # Add missing imports if needed
             missing_import_issues = [i for i in issues if i['type'] == 'missing_import']
