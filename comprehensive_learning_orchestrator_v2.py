@@ -922,7 +922,7 @@ def run_comprehensive_learning(process_all_historical: bool = False):
     results["orders"] = process_order_log(state, process_all_historical)
     
     # V4.0: Run causal analysis to understand WHY signals win/lose
-    if enable_causal_analysis:
+    try:
         try:
             from causal_analysis_engine import CausalAnalysisEngine
             causal_engine = CausalAnalysisEngine()
