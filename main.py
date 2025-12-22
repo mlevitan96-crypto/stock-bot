@@ -3542,10 +3542,6 @@ class AlpacaExecutor:
                         "trail_dist": None,
                         "high_water": current_price,
                         "targets": targets_state
-                            {"pct": 0.02, "fraction": 0.30, "hit": False},
-                            {"pct": 0.05, "fraction": 0.30, "hit": False},
-                            {"pct": 0.10, "fraction": 0.40, "hit": False}
-                        ]
                     }
                     self.high_water[symbol] = current_price
                     log_event("reload", "position_added_from_metadata", symbol=symbol)
