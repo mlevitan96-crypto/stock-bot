@@ -16,7 +16,7 @@ This enables PREDICTIVE understanding, not just reactive adjustments.
 import json
 import math
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 import statistics
@@ -609,15 +609,28 @@ class CausalAnalysisEngine:
         
         return insights
     
-    def process_all_trades(self, limit: Optional[int] = None):
-        """Process all historical trades for causal analysis"""
+    def process_all_trades(self, limit: Optional[int] = None, lookback_days: Optional[int] = None):
+        """
+        Process all historical trades for causal analysis
+        
+        Args:
+            limit: Maximum number of trades to process (None = all)
+            lookback_days: Only process trades from last N days (None = all historical)
+        """
         if not ATTRIBUTION_LOG.exists():
             return {"processed": 0, "error": "attribution.jsonl not found"}
+        
+        # Calculate cutoff timestamp if lookback specified
+        cutoff_ts = None
+        if lookback_days:
+            cutoff_dt = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+            cutoff_ts = cutoff_dt.timestamp()
         
         processed = 0
         skipped_no_type = 0
         skipped_open = 0
         skipped_no_id = 0
+        skipped_old = 0
         errors = 0
         total_lines = 0
         
@@ -646,6 +659,37 @@ class CausalAnalysisEngine:
                         skipped_open += 1
                         continue
                     
+                    # V4.5: Filter by time if lookback specified
+                    if cutoff_ts:
+                        trade_ts = None
+                        context = trade.get("context", {})
+                        entry_ts_str = context.get("entry_ts") or trade.get("entry_ts") or trade.get("ts", "")
+                        
+                        if entry_ts_str:
+                            try:
+                                if isinstance(entry_ts_str, str):
+                                    trade_dt = datetime.fromisoformat(entry_ts_str.replace("Z", "+00:00"))
+                                else:
+                                    trade_dt = datetime.fromtimestamp(entry_ts_str, tz=timezone.utc)
+                                trade_ts = trade_dt.timestamp()
+                            except:
+                                pass
+                        
+                        # Try trade_id timestamp
+                        if trade_ts is None and trade_id.startswith("close_"):
+                            try:
+                                parts = trade_id.split("_")
+                                if len(parts) >= 3:
+                                    date_str = "_".join(parts[2:])
+                                    trade_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                                    trade_ts = trade_dt.timestamp()
+                            except:
+                                pass
+                        
+                        if trade_ts and trade_ts < cutoff_ts:
+                            skipped_old += 1
+                            continue
+                    
                     # Check if it has attribution structure (has context and pnl)
                     has_context = "context" in trade
                     has_pnl = "pnl_usd" in trade or "pnl_pct" in trade
@@ -667,7 +711,7 @@ class CausalAnalysisEngine:
         # Debug output
         if processed == 0:
             print(f"   DEBUG: Total lines: {total_lines}, Processed: {processed}")
-            print(f"   DEBUG: Skipped (no_id): {skipped_no_id}, (open_): {skipped_open}, (no_type): {skipped_no_type}, Errors: {errors}")
+            print(f"   DEBUG: Skipped (no_id): {skipped_no_id}, (open_): {skipped_open}, (no_type): {skipped_no_type}, (old): {skipped_old}, Errors: {errors}")
             # Try to read first line to see structure
             if total_lines > 0:
                 try:
@@ -680,6 +724,11 @@ class CausalAnalysisEngine:
                             print(f"   DEBUG: Sample trade_id: {sample.get('trade_id', 'NO_ID')[:50]}")
                 except:
                     pass
+        else:
+            if lookback_days:
+                print(f"   Time window: Last {lookback_days} days")
+            if skipped_old > 0:
+                print(f"   Skipped (outside time window): {skipped_old}")
         
         self._save_state()
         return {
@@ -688,6 +737,7 @@ class CausalAnalysisEngine:
             "skipped_no_id": skipped_no_id,
             "skipped_open": skipped_open,
             "skipped_no_type": skipped_no_type,
+            "skipped_old": skipped_old,
             "errors": errors
         }
     
@@ -763,15 +813,36 @@ class CausalAnalysisEngine:
 
 def main():
     """Run causal analysis"""
+    import argparse
+    parser = argparse.ArgumentParser(description="Causal analysis engine")
+    parser.add_argument("--days", type=int, help="Lookback days (default: all historical)")
+    parser.add_argument("--week", action="store_true", help="Analyze last 7 days")
+    parser.add_argument("--month", action="store_true", help="Analyze last 30 days")
+    parser.add_argument("--limit", type=int, help="Limit number of trades to process")
+    
+    args = parser.parse_args()
+    
+    lookback = None
+    if args.week:
+        lookback = 7
+    elif args.month:
+        lookback = 30
+    elif args.days:
+        lookback = args.days
+    
     engine = CausalAnalysisEngine()
     
     print("="*80)
     print("CAUSAL ANALYSIS ENGINE")
+    if lookback:
+        print(f"Time Period: Last {lookback} days")
+    else:
+        print("Time Period: ALL HISTORICAL DATA")
     print("="*80)
     
     # Process all trades
     print("\n1. Processing historical trades...")
-    result = engine.process_all_trades()
+    result = engine.process_all_trades(limit=args.limit, lookback_days=lookback)
     print(f"   Processed: {result.get('processed', 0)} trades")
     
     # Generate insights
