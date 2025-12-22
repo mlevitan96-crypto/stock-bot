@@ -186,18 +186,22 @@ class CausalAnalysisEngine:
         context = self.extract_trade_context(trade)
         components = trade.get("context", {}).get("components", {})
         
+        # V4.1: Normalize component names to match SIGNAL_COMPONENTS
+        # Attribution data may use "flow" but we need "options_flow"
+        normalized_components = self._normalize_component_names(components)
+        
         # Store trade context
         self.state["trade_contexts"][trade_id] = {
             "context": context,
             "pnl_usd": pnl_usd,
             "pnl_pct": pnl_pct,
             "win": win,
-            "components": components,
+            "components": normalized_components,
             "ts": trade.get("ts", "")
         }
         
         # Analyze each component in context
-        for comp_name, comp_value in components.items():
+        for comp_name, comp_value in normalized_components.items():
             if comp_name not in self.state["component_patterns"]:
                 self.state["component_patterns"][comp_name] = {}
             
