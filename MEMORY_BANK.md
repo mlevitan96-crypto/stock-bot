@@ -245,14 +245,16 @@ pkill -f "python.*dashboard.py"
 2. `decide_and_execute()` → Scores clusters → Checks gates → Calls `submit_entry()`
 3. `evaluate_exits()` → Checks exit criteria → Calls `close_position()`
 
-### Exit Criteria
-- Time-based: `TIME_EXIT_DAYS_STALE` (default 14 days)
-- Trailing stop: `TRAILING_STOP_PCT` (default 2%)
-- Signal decay: Current score < entry score threshold
-- Flow reversal: Signal direction changed
-- Regime protection: High volatility negative gamma protection
-- Profit targets: Scale-out at 2%, 5%, 10%
-- Stale positions: Low movement for extended time
+### Exit Criteria (VERIFIED)
+- **Trailing stop:** `TRAILING_STOP_PCT` (default 1.5%) - `main.py` line 3695
+- **Profit targets:** Scale-out at 2%, 5%, 10% with fractions [30%, 30%, 40%] - `main.py` line 3704
+- **Time-based:** `TIME_EXIT_MINUTES` (default 240 minutes = 4 hours) - `main.py` line 3696
+- **Signal decay:** Current score < entry score threshold - `main.py` line 3625-3628
+- **Flow reversal:** Signal direction changed - `main.py` line 3600-3605
+- **Regime protection:** High volatility negative gamma protection
+- **Stale positions:** `TIME_EXIT_DAYS_STALE` (default 12 days)
+
+**All exit mechanisms are implemented and called every cycle via `evaluate_exits()`**
 
 ### Displacement Logic
 When `MAX_CONCURRENT_POSITIONS` (16) reached:
@@ -293,6 +295,34 @@ When `MAX_CONCURRENT_POSITIONS` (16) reached:
 ---
 
 ## Learning Engine
+
+### Weight Update Flow (VERIFIED)
+
+1. **Trade Closes** → `log_exit_attribution()` (main.py:1077)
+   - Calls `learn_from_trade_close()` immediately after trade closes
+   - Records trade outcome with ALL signal components (even if value is 0)
+
+2. **Daily Learning Batch** → `run_daily_learning()` (comprehensive_learning_orchestrator_v2.py)
+   - Processes all new trades from attribution.jsonl
+   - Calls `optimizer.update_weights()` when >= 5 new samples
+   - Updates multipliers (0.25x-2.5x) based on:
+     - Win rate (Wilson confidence intervals)
+     - EWMA win rate
+     - EWMA P&L
+     - **Adjusts TOWARDS profitability AND AWAY from losing** (both directions)
+
+3. **Weight Application** → `get_weights_for_composite()` (adaptive_signal_optimizer.py:900)
+   - Returns `get_all_effective_weights()` = `base_weight * multiplier`
+   - `uw_composite_v2.py` line 503: `weights.update(adaptive_weights)`
+   - This REPLACES base weights with effective weights (correct - effective weights already include multiplier)
+   - Components use `weights.get("options_flow", 2.4)` which uses learned weights
+
+**Status:** ✅ SYSTEM IS CONNECTED CORRECTLY
+
+**Note:** Weights may not have updated yet if:
+- Not enough samples (< 30 trades per component)
+- Not enough time (< 1 day since last update)
+- Learning hasn't run daily batch yet
 
 ### Integration Points
 
