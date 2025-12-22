@@ -96,6 +96,28 @@ class CausalAnalysisEngine:
                 "direction": trade.get("direction", "unknown"),
             }
         
+        # V4.3: Also check if context fields are at top level (for older trades)
+        if context.get("time_of_day") == "unknown" or "time_of_day" not in context:
+            # Try to extract from entry_ts if available
+            entry_ts_str = context.get("entry_ts") or trade.get("entry_ts") or trade.get("ts", "")
+            if entry_ts_str:
+                try:
+                    if isinstance(entry_ts_str, str):
+                        entry_dt = datetime.fromisoformat(entry_ts_str.replace("Z", "+00:00"))
+                    else:
+                        entry_dt = datetime.fromtimestamp(entry_ts_str, tz=timezone.utc)
+                    hour = entry_dt.hour
+                    if hour < 9 or hour >= 16:
+                        context["time_of_day"] = "AFTER_HOURS"
+                    elif hour == 9:
+                        context["time_of_day"] = "OPEN"
+                    elif hour >= 15:
+                        context["time_of_day"] = "CLOSE"
+                    else:
+                        context["time_of_day"] = "MID_DAY"
+                except:
+                    pass
+        
         components = context.get("components", {})
         if not components:
             # Try top-level components
@@ -419,12 +441,26 @@ class CausalAnalysisEngine:
         
         relevant_combos.sort(key=lambda x: x["samples"] * abs(x["avg_pnl"]), reverse=True)
         
+        # V4.3: Also provide summary statistics
+        total_wins = sum(p["wins"] for p in patterns.values())
+        total_losses = sum(p["losses"] for p in patterns.values())
+        total_samples = total_wins + total_losses
+        overall_win_rate = total_wins / total_samples if total_samples > 0 else 0
+        overall_avg_pnl = sum(p["total_pnl"] for p in patterns.values()) / total_samples if total_samples > 0 else 0
+        
         return {
             "component": component,
             "success_patterns": success_patterns[:5],  # Top 5
             "failure_patterns": failure_patterns[:5],  # Top 5
             "feature_combinations": relevant_combos[:5],  # Top 5
             "total_contexts": len(patterns),
+            "overall_stats": {
+                "total_samples": total_samples,
+                "wins": total_wins,
+                "losses": total_losses,
+                "win_rate": overall_win_rate,
+                "avg_pnl": overall_avg_pnl
+            },
             "analysis_ts": datetime.now(timezone.utc).isoformat()
         }
     
