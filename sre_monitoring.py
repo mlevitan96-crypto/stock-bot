@@ -562,22 +562,33 @@ class SREMonitoringEngine:
         # Check order execution
         result["order_execution"] = self.check_order_execution_pipeline()
         
-        # Check comprehensive learning system
+        # Check comprehensive learning system (v2)
         try:
-            from comprehensive_learning_orchestrator_v2 import run_comprehensive_learning
-            orchestrator = get_learning_orchestrator()
-            learning_health = orchestrator.get_health()
+            from comprehensive_learning_orchestrator_v2 import load_learning_state
+            from datetime import datetime, timezone
+            state = load_learning_state()
+            last_processed = state.get("last_processed_ts")
+            if last_processed:
+                try:
+                    last_dt = datetime.fromisoformat(last_processed.replace("Z", "+00:00"))
+                    age_sec = (datetime.now(timezone.utc) - last_dt).total_seconds()
+                except:
+                    age_sec = None
+            else:
+                age_sec = None
+            
             result["comprehensive_learning"] = {
-                "running": learning_health.get("running", False),
-                "last_run_age_sec": learning_health.get("last_run_age_sec"),
-                "error_count": learning_health.get("error_count", 0),
-                "success_count": learning_health.get("success_count", 0),
-                "components_available": learning_health.get("components_available", {})
+                "status": "active",
+                "last_run_age_sec": age_sec,
+                "total_trades_processed": state.get("total_trades_processed", 0),
+                "total_trades_learned_from": state.get("total_trades_learned_from", 0),
+                "note": "Using comprehensive_learning_orchestrator_v2"
             }
         except Exception as e:
             result["comprehensive_learning"] = {
                 "status": "error",
-                "error": str(e)
+                "error": str(e),
+                "note": "Could not check v2 orchestrator health"
             }
         
         # Determine overall health
