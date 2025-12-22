@@ -923,42 +923,41 @@ def run_comprehensive_learning(process_all_historical: bool = False):
     
     # V4.0: Run causal analysis to understand WHY signals win/lose
     try:
+        from causal_analysis_engine import CausalAnalysisEngine
+        causal_engine = CausalAnalysisEngine()
+        
+        # Process all trades for causal analysis
+        causal_result = causal_engine.process_all_trades()
+        results["causal_analysis"] = {
+            "trades_analyzed": causal_result.get("processed", 0),
+            "status": "completed"
+        }
+        
+        # Generate insights
+        insights = causal_engine.generate_insights()
+        results["causal_insights"] = {
+            "components_analyzed": len(insights.get("component_insights", {})),
+            "recommendations": len(insights.get("recommendations", [])),
+            "feature_combinations": len(insights.get("feature_combination_insights", {}))
+        }
+        
+        # Log insights
         try:
-            from causal_analysis_engine import CausalAnalysisEngine
-            causal_engine = CausalAnalysisEngine()
-            
-            # Process all trades for causal analysis
-            causal_result = causal_engine.process_all_trades()
-            results["causal_analysis"] = {
-                "trades_analyzed": causal_result.get("processed", 0),
-                "status": "completed"
-            }
-            
-            # Generate insights
-            insights = causal_engine.generate_insights()
-            results["causal_insights"] = {
-                "components_analyzed": len(insights.get("component_insights", {})),
-                "recommendations": len(insights.get("recommendations", [])),
-                "feature_combinations": len(insights.get("feature_combination_insights", {}))
-            }
-            
-            # Log insights
-            try:
-                from main import log_event
-                log_event("causal_analysis", "insights_generated",
-                         components=results["causal_insights"]["components_analyzed"],
-                         recommendations=results["causal_insights"]["recommendations"])
-            except ImportError:
-                pass
+            from main import log_event
+            log_event("causal_analysis", "insights_generated",
+                     components=results["causal_insights"]["components_analyzed"],
+                     recommendations=results["causal_insights"]["recommendations"])
         except ImportError:
-            results["causal_analysis"] = {"status": "not_available", "error": "causal_analysis_engine not found"}
-        except Exception as e:
-            results["causal_analysis"] = {"status": "error", "error": str(e)}
-            try:
-                from main import log_event
-                log_event("causal_analysis", "error", error=str(e))
-            except ImportError:
-                pass
+            pass
+    except ImportError:
+        results["causal_analysis"] = {"status": "not_available", "error": "causal_analysis_engine not found"}
+    except Exception as e:
+        results["causal_analysis"] = {"status": "error", "error": str(e)}
+        try:
+            from main import log_event
+            log_event("causal_analysis", "error", error=str(e))
+        except ImportError:
+            pass
     
     # Update weights if enough new samples
     total_new = results["attribution"] + results["exits"]
@@ -988,24 +987,6 @@ def run_comprehensive_learning(process_all_historical: bool = False):
                 log_event("learning", "weight_update_error", error=str(e))
             except ImportError:
                 pass
-    
-    # V4.0: Run causal analysis after processing trades
-    try:
-        from causal_analysis_engine import CausalAnalysisEngine
-        causal_engine = CausalAnalysisEngine()
-        # Process any new trades for causal analysis
-        causal_engine.process_all_trades(limit=100)  # Process last 100 trades
-        # Generate insights
-        insights = causal_engine.generate_insights()
-        results["causal_insights"] = {
-            "components_analyzed": len(insights.get("component_insights", {})),
-            "recommendations": len(insights.get("recommendations", [])),
-            "feature_combinations": len(insights.get("feature_combination_insights", {}))
-        }
-    except ImportError:
-        pass  # Causal engine not available
-    except Exception as e:
-        results["causal_analysis_error"] = str(e)
     
     # Save state
     state["last_processed_ts"] = datetime.now(timezone.utc).isoformat()
