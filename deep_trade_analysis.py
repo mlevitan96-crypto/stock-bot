@@ -12,7 +12,7 @@ Analyzes individual trades to find:
 import json
 from pathlib import Path
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 LOGS_DIR = Path("logs")
 ATTRIBUTION_LOG = LOGS_DIR / "attribution.jsonl"
@@ -88,6 +88,66 @@ def analyze_winning_trades(lookback_days: int = None):
                 context = trade.get("context", {})
                 components = context.get("components", {})
                 
+                # V4.6: Extract entry_score from multiple sources
+                entry_score = context.get("entry_score", 0.0)
+                if entry_score == 0.0:
+                    # Try top-level
+                    entry_score = trade.get("entry_score", 0.0)
+                if entry_score == 0.0:
+                    # Try metadata if available
+                    entry_score = context.get("metadata", {}).get("entry_score", 0.0) if isinstance(context.get("metadata"), dict) else 0.0
+                
+                # V4.6: Extract time_of_day from entry_ts if missing
+                time_of_day = context.get("time_of_day", "unknown")
+                if time_of_day == "unknown":
+                    entry_ts_str = context.get("entry_ts") or trade.get("entry_ts") or trade.get("ts", "")
+                    if entry_ts_str:
+                        try:
+                            if isinstance(entry_ts_str, str):
+                                entry_dt = datetime.fromisoformat(entry_ts_str.replace("Z", "+00:00"))
+                            else:
+                                entry_dt = datetime.fromtimestamp(entry_ts_str, tz=timezone.utc)
+                            hour = entry_dt.hour
+                            if hour < 9 or hour >= 16:
+                                time_of_day = "AFTER_HOURS"
+                            elif hour == 9:
+                                time_of_day = "OPEN"
+                            elif hour >= 15:
+                                time_of_day = "CLOSE"
+                            else:
+                                time_of_day = "MID_DAY"
+                        except:
+                            pass
+                
+                # V4.6: Extract signal_strength from entry_score if missing
+                signal_strength = context.get("signal_strength", "unknown")
+                if signal_strength == "unknown" and entry_score > 0:
+                    if entry_score < 2.5:
+                        signal_strength = "WEAK"
+                    elif entry_score < 3.5:
+                        signal_strength = "MODERATE"
+                    else:
+                        signal_strength = "STRONG"
+                
+                # V4.6: Extract flow_magnitude from components if missing
+                flow_magnitude = context.get("flow_magnitude", "unknown")
+                if flow_magnitude == "unknown":
+                    flow_comp = components.get("flow") or components.get("options_flow")
+                    if isinstance(flow_comp, dict):
+                        flow_conv = flow_comp.get("conviction", 0.0)
+                    elif isinstance(flow_comp, (int, float)):
+                        flow_conv = float(flow_comp)
+                    else:
+                        flow_conv = 0.0
+                    
+                    if flow_conv > 0:
+                        if flow_conv < 0.3:
+                            flow_magnitude = "LOW"
+                        elif flow_conv < 0.7:
+                            flow_magnitude = "MEDIUM"
+                        else:
+                            flow_magnitude = "HIGH"
+                
                 trade_data = {
                     "trade_id": trade_id,
                     "symbol": trade.get("symbol", ""),
@@ -96,10 +156,10 @@ def analyze_winning_trades(lookback_days: int = None):
                     "context": context,
                     "components": components,
                     "market_regime": context.get("market_regime", "unknown"),
-                    "time_of_day": context.get("time_of_day", "unknown"),
-                    "signal_strength": context.get("signal_strength", "unknown"),
-                    "flow_magnitude": context.get("flow_magnitude", "unknown"),
-                    "entry_score": context.get("entry_score", 0.0),
+                    "time_of_day": time_of_day,
+                    "signal_strength": signal_strength,
+                    "flow_magnitude": flow_magnitude,
+                    "entry_score": entry_score,
                 }
                 
                 if pnl_usd > 0 or pnl_pct > 0:
