@@ -1026,6 +1026,49 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
         log_event("exit", "close_reason_missing", symbol=symbol, 
                  note="close_reason was empty, using fallback")
     
+    # V4.0: Enhanced context for causal analysis - capture EVERYTHING that might explain win/loss
+    entry_dt = entry_ts if isinstance(entry_ts, datetime) else datetime.fromisoformat(str(entry_ts).replace("Z", "+00:00")) if isinstance(entry_ts, str) else datetime.now(timezone.utc)
+    if entry_dt.tzinfo is None:
+        entry_dt = entry_dt.replace(tzinfo=timezone.utc)
+    
+    hour = entry_dt.hour
+    if hour < 9 or hour >= 16:
+        time_of_day = "AFTER_HOURS"
+    elif hour == 9:
+        time_of_day = "OPEN"
+    elif hour >= 15:
+        time_of_day = "CLOSE"
+    else:
+        time_of_day = "MID_DAY"
+    
+    day_of_week = entry_dt.strftime("%A").upper()
+    
+    # Extract signal characteristics for causal analysis
+    components = info.get("components", {}) or metadata.get("components", {}) if metadata else {}
+    entry_score = info.get("entry_score", 0.0) or metadata.get("entry_score", 0.0) if metadata else 0.0
+    
+    # Flow magnitude
+    flow_conv = 0.0
+    if isinstance(components.get("flow"), dict):
+        flow_conv = components["flow"].get("conviction", 0.0)
+    elif isinstance(components.get("flow"), (int, float)):
+        flow_conv = float(components.get("flow", 0.0))
+    
+    if flow_conv < 0.3:
+        flow_magnitude = "LOW"
+    elif flow_conv < 0.7:
+        flow_magnitude = "MEDIUM"
+    else:
+        flow_magnitude = "HIGH"
+    
+    # Signal strength
+    if entry_score < 2.5:
+        signal_strength = "WEAK"
+    elif entry_score < 3.5:
+        signal_strength = "MODERATE"
+    else:
+        signal_strength = "STRONG"
+    
     context = {
         "close_reason": close_reason,
         "entry_price": round(entry_price, 4),
@@ -1034,10 +1077,17 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
         "hold_minutes": round(hold_minutes, 1),
         "side": side,
         "qty": qty,
-        "entry_score": info.get("entry_score", 0.0),
-        "components": info.get("components", {}),
-        "market_regime": info.get("market_regime", "unknown"),
-        "direction": info.get("direction", "unknown")
+        "entry_score": entry_score,
+        "components": components,
+        "market_regime": info.get("market_regime", "unknown") or (metadata.get("market_regime", "unknown") if metadata else "unknown"),
+        "direction": info.get("direction", "unknown") or (metadata.get("direction", "unknown") if metadata else "unknown"),
+        # V4.0: Enhanced context for causal analysis
+        "time_of_day": time_of_day,
+        "day_of_week": day_of_week,
+        "entry_hour": hour,
+        "flow_magnitude": flow_magnitude,
+        "signal_strength": signal_strength,
+        "entry_ts": entry_dt.isoformat(),
     }
     
     if metadata:

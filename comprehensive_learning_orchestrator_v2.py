@@ -921,6 +921,45 @@ def run_comprehensive_learning(process_all_historical: bool = False):
     results["signals"] = process_signal_log(state, process_all_historical)
     results["orders"] = process_order_log(state, process_all_historical)
     
+    # V4.0: Run causal analysis to understand WHY signals win/lose
+    if enable_causal_analysis:
+        try:
+            from causal_analysis_engine import CausalAnalysisEngine
+            causal_engine = CausalAnalysisEngine()
+            
+            # Process all trades for causal analysis
+            causal_result = causal_engine.process_all_trades()
+            results["causal_analysis"] = {
+                "trades_analyzed": causal_result.get("processed", 0),
+                "status": "completed"
+            }
+            
+            # Generate insights
+            insights = causal_engine.generate_insights()
+            results["causal_insights"] = {
+                "components_analyzed": len(insights.get("component_insights", {})),
+                "recommendations": len(insights.get("recommendations", [])),
+                "feature_combinations": len(insights.get("feature_combination_insights", {}))
+            }
+            
+            # Log insights
+            try:
+                from main import log_event
+                log_event("causal_analysis", "insights_generated",
+                         components=results["causal_insights"]["components_analyzed"],
+                         recommendations=results["causal_insights"]["recommendations"])
+            except ImportError:
+                pass
+        except ImportError:
+            results["causal_analysis"] = {"status": "not_available", "error": "causal_analysis_engine not found"}
+        except Exception as e:
+            results["causal_analysis"] = {"status": "error", "error": str(e)}
+            try:
+                from main import log_event
+                log_event("causal_analysis", "error", error=str(e))
+            except ImportError:
+                pass
+    
     # Update weights if enough new samples
     total_new = results["attribution"] + results["exits"]
     if total_new >= 5:
@@ -949,6 +988,24 @@ def run_comprehensive_learning(process_all_historical: bool = False):
                 log_event("learning", "weight_update_error", error=str(e))
             except ImportError:
                 pass
+    
+    # V4.0: Run causal analysis after processing trades
+    try:
+        from causal_analysis_engine import CausalAnalysisEngine
+        causal_engine = CausalAnalysisEngine()
+        # Process any new trades for causal analysis
+        causal_engine.process_all_trades(limit=100)  # Process last 100 trades
+        # Generate insights
+        insights = causal_engine.generate_insights()
+        results["causal_insights"] = {
+            "components_analyzed": len(insights.get("component_insights", {})),
+            "recommendations": len(insights.get("recommendations", [])),
+            "feature_combinations": len(insights.get("feature_combination_insights", {}))
+        }
+    except ImportError:
+        pass  # Causal engine not available
+    except Exception as e:
+        results["causal_analysis_error"] = str(e)
     
     # Save state
     state["last_processed_ts"] = datetime.now(timezone.utc).isoformat()
@@ -998,6 +1055,30 @@ def learn_from_trade_close(symbol: str, pnl_pct: float, components: Dict, regime
         # Record trade for learning (updates internal tracking)
         # Record even if P&L is 0 to track all components
         optimizer.record_trade(normalized_components, pnl_pct / 100.0, regime, sector)
+        
+        # V4.0: Feed to causal analysis engine for deep investigation
+        try:
+            from causal_analysis_engine import CausalAnalysisEngine
+            causal_engine = CausalAnalysisEngine()
+            # Create trade record for causal analysis
+            trade_record = {
+                "trade_id": f"{symbol}_{datetime.now(timezone.utc).isoformat()}",
+                "symbol": symbol,
+                "pnl_usd": pnl_pct,  # Approximate
+                "pnl_pct": pnl_pct,
+                "context": {
+                    "components": components,
+                    "market_regime": regime,
+                    "sector": sector
+                },
+                "ts": datetime.now(timezone.utc).isoformat()
+            }
+            causal_engine.analyze_trade(trade_record)
+        except ImportError:
+            pass  # Causal engine not available yet
+        except Exception as e:
+            # Don't fail learning if causal analysis fails
+            pass
         
         # DO NOT update weights immediately - batch in daily processing
         # This prevents overfitting to noise in individual trades
