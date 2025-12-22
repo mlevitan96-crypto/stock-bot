@@ -648,3 +648,27 @@ tail -50 logs/supervisor.jsonl | grep -i error
 ---
 
 **Note:** This memory bank should be updated after each significant change or fix to maintain accuracy.
+
+---
+
+## Philosophy: Fully Automated Self-Healing System
+
+**CRITICAL PRINCIPLE: ZERO MANUAL WORK**
+
+This is a **FULLY AUTOMATED, SELF-HEALING, SELF-TESTING production trading bot** designed for profitability and reliability.
+
+- The bot is a **self-contained automated self-healing money-making machine**
+- All health checks, healing, testing, and maintenance are **AUTOMATED**
+- User only needs to: 1) Review code changes, 2) Deploy to droplet via `git pull`
+- System automatically: detects issues, fixes them, tests fixes, and continues operating
+- **NO manual running of scripts, NO manual testing, NO manual healing**
+- Health supervisor runs continuously and handles everything automatically
+- Architecture self-healing runs every hour automatically
+- Regression tests run automatically after healing
+- **This is NOT a manual system - it is fully autonomous**
+
+**User Workflow:**
+1. Review code changes in git
+2. Deploy to droplet: `git pull origin main`
+3. System automatically: checks health, heals issues, tests fixes, continues trading
+4. **That's it - no other manual work required**
