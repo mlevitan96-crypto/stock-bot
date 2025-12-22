@@ -296,6 +296,47 @@ When `MAX_CONCURRENT_POSITIONS` (16) reached:
 
 ## Learning Engine
 
+### Causal Analysis Engine (V4.0 - NEW)
+
+**Purpose**: Answers the "WHY" behind wins and losses, not just "what happened".
+
+**Key Capabilities**:
+1. **Deep Context Extraction**: Captures market regime, time of day, volatility, signal strength, flow magnitude, etc.
+2. **Pattern Recognition**: Identifies which conditions lead to success vs failure for each signal
+3. **Feature Combination Analysis**: Discovers which signals work together
+4. **Root Cause Investigation**: Deep dives into losing trades to find failure patterns
+5. **Predictive Insights**: Generates "USE_WHEN" and "AVOID_WHEN" recommendations
+
+**Files**:
+- `causal_analysis_engine.py`: Core engine for causal analysis
+- `query_why_analysis.py`: Interactive tool to query "why" questions
+
+**Usage**:
+```bash
+# Process all trades for analysis
+python3 causal_analysis_engine.py
+
+# Query why a component underperforms
+python3 query_why_analysis.py --component options_flow --question why_underperforming
+
+# Query when a component works best
+python3 query_why_analysis.py --component dark_pool --question when_works_best
+
+# Analyze all components
+python3 query_why_analysis.py --all
+```
+
+**Integration**:
+- Automatically processes trades during daily learning batch
+- Enhanced context capture in `log_exit_attribution()` (time_of_day, signal_strength, flow_magnitude, etc.)
+- Component reports now include regime_performance and sector_performance breakdowns
+
+**Output**: Actionable insights like:
+- "Use options_flow when: regime=RISK_ON, time=OPEN, flow_mag=HIGH"
+- "Avoid dark_pool when: regime=RISK_OFF, time=CLOSE, iv_regime=HIGH"
+
+This enables **PREDICTIVE understanding**, not just reactive adjustments.
+
 ### Weight Update Flow (VERIFIED)
 
 1. **Trade Closes** → `log_exit_attribution()` (main.py:1077)

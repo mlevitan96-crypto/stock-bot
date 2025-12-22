@@ -713,6 +713,10 @@ class LearningOrchestrator:
             
             band = self.entry_model.weight_bands.get(component)
             
+            # V4.0: Include regime and sector performance in report
+            regime_perf = perf.get("regime_performance", {})
+            sector_perf = perf.get("sector_performance", {})
+            
             report[component] = {
                 "multiplier": band.current if band else 1.0,
                 "effective_weight": self.entry_model.get_effective_weight(component),
@@ -721,7 +725,16 @@ class LearningOrchestrator:
                 "wilson_interval": [round(wilson_low, 3), round(wilson_high, 3)],
                 "ewma_win_rate": round(perf.get("ewma_win_rate", 0.5), 3),
                 "ewma_pnl": round(perf.get("ewma_pnl", 0.0), 2),
-                "status": self._component_status(wilson_low, wilson_high, perf.get("ewma_win_rate", 0.5))
+                "status": self._component_status(wilson_low, wilson_high, perf.get("ewma_win_rate", 0.5)),
+                # V4.0: Context-aware performance
+                "regime_performance": {k: {"win_rate": round(v["wins"]/(v["wins"]+v["losses"]), 3) if (v["wins"]+v["losses"]) > 0 else 0,
+                                         "pnl": round(v["pnl"], 2),
+                                         "samples": v["wins"]+v["losses"]}
+                                     for k, v in regime_perf.items() if (v.get("wins", 0) + v.get("losses", 0)) > 0},
+                "sector_performance": {k: {"win_rate": round(v["wins"]/(v["wins"]+v["losses"]), 3) if (v["wins"]+v["losses"]) > 0 else 0,
+                                          "pnl": round(v["pnl"], 2),
+                                          "samples": v["wins"]+v["losses"]}
+                                      for k, v in sector_perf.items() if (v.get("wins", 0) + v.get("losses", 0)) > 0}
             }
         
         return report
