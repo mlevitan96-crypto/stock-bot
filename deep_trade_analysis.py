@@ -17,14 +17,26 @@ from datetime import datetime, timezone
 LOGS_DIR = Path("logs")
 ATTRIBUTION_LOG = LOGS_DIR / "attribution.jsonl"
 
-def analyze_winning_trades():
-    """Deep dive into winning trades to find patterns"""
+def analyze_winning_trades(lookback_days: int = None):
+    """
+    Deep dive into winning trades to find patterns
+    
+    Args:
+        lookback_days: Number of days to look back (None = all historical data)
+    """
     if not ATTRIBUTION_LOG.exists():
         print("attribution.jsonl not found")
         return
     
+    # Calculate cutoff timestamp if lookback specified
+    cutoff_ts = None
+    if lookback_days:
+        cutoff_dt = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+        cutoff_ts = cutoff_dt.timestamp()
+    
     wins = []
     losses = []
+    skipped_old = 0
     
     with ATTRIBUTION_LOG.open("r") as f:
         for line in f:
@@ -38,6 +50,38 @@ def analyze_winning_trades():
                 trade_id = trade.get("trade_id", "")
                 if not trade_id or trade_id.startswith("open_"):
                     continue
+                
+                # V4.5: Filter by time if lookback specified
+                if cutoff_ts:
+                    # Try to get timestamp from various fields
+                    trade_ts = None
+                    context = trade.get("context", {})
+                    entry_ts_str = context.get("entry_ts") or trade.get("entry_ts") or trade.get("ts", "")
+                    
+                    if entry_ts_str:
+                        try:
+                            if isinstance(entry_ts_str, str):
+                                trade_dt = datetime.fromisoformat(entry_ts_str.replace("Z", "+00:00"))
+                            else:
+                                trade_dt = datetime.fromtimestamp(entry_ts_str, tz=timezone.utc)
+                            trade_ts = trade_dt.timestamp()
+                        except:
+                            pass
+                    
+                    # If no timestamp found, try trade_id (format: close_SYMBOL_ISO_DATE)
+                    if trade_ts is None and trade_id.startswith("close_"):
+                        try:
+                            parts = trade_id.split("_")
+                            if len(parts) >= 3:
+                                date_str = "_".join(parts[2:])
+                                trade_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                                trade_ts = trade_dt.timestamp()
+                        except:
+                            pass
+                    
+                    if trade_ts and trade_ts < cutoff_ts:
+                        skipped_old += 1
+                        continue
                 
                 pnl_usd = trade.get("pnl_usd", 0.0)
                 pnl_pct = trade.get("pnl_pct", 0.0)
@@ -67,10 +111,16 @@ def analyze_winning_trades():
     
     print("="*80)
     print("DEEP TRADE ANALYSIS")
+    if lookback_days:
+        print(f"Time Period: Last {lookback_days} days")
+    else:
+        print("Time Period: ALL HISTORICAL DATA")
     print("="*80)
     print(f"\nTotal Trades: {len(wins) + len(losses)}")
-    print(f"Wins: {len(wins)} ({len(wins)/(len(wins)+len(losses))*100:.1f}%)")
-    print(f"Losses: {len(losses)} ({len(losses)/(len(wins)+len(losses))*100:.1f}%)")
+    if skipped_old > 0:
+        print(f"Skipped (outside time window): {skipped_old}")
+    print(f"Wins: {len(wins)} ({len(wins)/(len(wins)+len(losses))*100:.1f}%)" if (len(wins)+len(losses)) > 0 else "Wins: 0")
+    print(f"Losses: {len(losses)} ({len(losses)/(len(wins)+len(losses))*100:.1f}%)" if (len(wins)+len(losses)) > 0 else "Losses: 0")
     
     if not wins:
         print("\n⚠️  NO WINNING TRADES FOUND - This explains why no success patterns are identified")
@@ -340,4 +390,20 @@ def analyze_winning_trades():
         print(f"   Risk/Reward: {abs(avg_win/avg_loss):.2f}:1" if avg_loss != 0 else "   Risk/Reward: N/A")
 
 if __name__ == "__main__":
-    analyze_winning_trades()
+    import argparse
+    parser = argparse.ArgumentParser(description="Deep trade analysis")
+    parser.add_argument("--days", type=int, help="Lookback days (default: all historical)")
+    parser.add_argument("--week", action="store_true", help="Analyze last 7 days")
+    parser.add_argument("--month", action="store_true", help="Analyze last 30 days")
+    
+    args = parser.parse_args()
+    
+    lookback = None
+    if args.week:
+        lookback = 7
+    elif args.month:
+        lookback = 30
+    elif args.days:
+        lookback = args.days
+    
+    analyze_winning_trades(lookback_days=lookback)
