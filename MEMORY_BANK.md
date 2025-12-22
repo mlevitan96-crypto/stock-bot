@@ -643,6 +643,7 @@ tail -50 logs/supervisor.jsonl | grep -i error
 
 **Repository:** https://github.com/mlevitan96-crypto/stock-bot  
 **Deployment Location:** `~/stock-bot` on Ubuntu droplet  
+**Root Directory:** `~/stock-bot` (use this path in all next steps sections)  
 **Dashboard URL:** `http://<droplet-ip>:5000`
 
 ---

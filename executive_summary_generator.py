@@ -63,6 +63,20 @@ def get_all_trades(lookback_days: int = 30) -> List[Dict[str, Any]]:
                 if trade.get("type") != "attribution":
                     continue
                 
+                # CRITICAL FIX: Only include CLOSED trades (exclude "open_" trade_id entries)
+                # Open trades have pnl_usd=0.0 and no close_reason, which pollutes the dashboard
+                trade_id = trade.get("trade_id", "")
+                if trade_id and trade_id.startswith("open_"):
+                    continue  # Skip open trades - only show closed trades
+                
+                # Also filter trades that have no P&L and no close_reason (likely incomplete)
+                context = trade.get("context", {})
+                pnl_usd = float(trade.get("pnl_usd", 0.0))
+                close_reason = context.get("close_reason", "") or trade.get("close_reason", "")
+                if pnl_usd == 0.0 and (not close_reason or close_reason == "unknown" or close_reason == "N/A"):
+                    # This looks like an open trade or incomplete record - skip it
+                    continue
+                
                 ts_str = trade.get("ts", "")
                 if not ts_str:
                     continue
@@ -96,6 +110,13 @@ def get_all_trades(lookback_days: int = 30) -> List[Dict[str, Any]]:
 
 def calculate_pnl_metrics(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Calculate P&L metrics for different time periods."""
+    # Filter out open trades (only count closed trades)
+    closed_trades = [
+        t for t in trades 
+        if not (t.get("trade_id", "").startswith("open_"))
+        and (float(t.get("pnl_usd", 0.0)) != 0.0 or t.get("context", {}).get("close_reason"))
+    ]
+    
     now = datetime.now(timezone.utc)
     two_days_ago = now - timedelta(days=2)
     five_days_ago = now - timedelta(days=5)
@@ -142,9 +163,16 @@ def calculate_pnl_metrics(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 def analyze_signal_performance(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Analyze which signals provided most/least value."""
+    # Filter out open trades
+    closed_trades = [
+        t for t in trades 
+        if not (t.get("trade_id", "").startswith("open_"))
+        and (float(t.get("pnl_usd", 0.0)) != 0.0 or t.get("context", {}).get("close_reason"))
+    ]
+    
     signal_pnl = defaultdict(lambda: {"total_pnl": 0.0, "count": 0, "wins": 0, "losses": 0})
     
-    for trade in trades:
+    for trade in closed_trades:
         context = trade.get("context", {})
         components = context.get("components", {})
         pnl = float(trade.get("pnl_usd", 0.0))
@@ -375,16 +403,30 @@ def generate_executive_summary() -> Dict[str, Any]:
     # Generate written summary
     written_summary = generate_written_summary(trades, pnl_metrics, signal_analysis, learning_insights)
     
-    # Format trades for display (last 50)
+    # Format trades for display (last 50 CLOSED trades only)
+    # Filter out open trades first
+    closed_trades_for_display = [
+        t for t in trades 
+        if not (t.get("trade_id", "").startswith("open_"))
+        and (float(t.get("pnl_usd", 0.0)) != 0.0 or t.get("context", {}).get("close_reason"))
+    ]
+    
     formatted_trades = []
-    for trade in trades[:50]:
+    for trade in closed_trades_for_display[:50]:
         try:
             context = trade.get("context", {})
             # Extract close_reason - handle both direct and nested
-            close_reason = context.get("close_reason", "unknown")
+            close_reason = context.get("close_reason", "")
             if not close_reason or close_reason == "unknown":
                 # Try to get from trade root level
-                close_reason = trade.get("close_reason", "unknown")
+                close_reason = trade.get("close_reason", "")
+            
+            # If still no close_reason, check if this is an open trade (should be filtered earlier, but double-check)
+            if not close_reason or close_reason == "unknown":
+                # Check trade_id to see if it's an open trade
+                trade_id = trade.get("trade_id", "")
+                if trade_id and trade_id.startswith("open_"):
+                    close_reason = "N/A"  # Open trade, hasn't closed yet
             
             # Extract hold_minutes - ensure it's calculated if missing
             hold_minutes = context.get("hold_minutes", 0.0)
@@ -418,15 +460,22 @@ def generate_executive_summary() -> Dict[str, Any]:
             if entry_score == 0.0:
                 entry_score = trade.get("entry_score", 0.0)
             
-            formatted_trades.append({
-                "timestamp": trade.get("ts", ""),
-                "symbol": trade.get("symbol", ""),
-                "pnl_usd": round(float(trade.get("pnl_usd", 0.0)), 2),
-                "pnl_pct": round(float(context.get("pnl_pct", 0.0)), 2),
-                "hold_minutes": round(float(hold_minutes), 1),
-                "entry_score": round(float(entry_score), 2),
-                "close_reason": close_reason if close_reason and close_reason != "unknown" else "N/A"
-            })
+            # Only include trades that have actually closed (have P&L or close_reason)
+            # Skip trades that are still open (pnl_usd=0 and no close_reason)
+            pnl_usd = round(float(trade.get("pnl_usd", 0.0)), 2)
+            has_close_reason = close_reason and close_reason != "unknown" and close_reason != "N/A"
+            
+            # Include if it has P&L OR has a close reason (indicates it closed)
+            if pnl_usd != 0.0 or has_close_reason:
+                formatted_trades.append({
+                    "timestamp": trade.get("ts", ""),
+                    "symbol": trade.get("symbol", ""),
+                    "pnl_usd": pnl_usd,
+                    "pnl_pct": round(float(context.get("pnl_pct", 0.0)), 2),
+                    "hold_minutes": round(float(hold_minutes), 1),
+                    "entry_score": round(float(entry_score), 2),
+                    "close_reason": close_reason if close_reason and close_reason != "unknown" else "N/A"
+                })
         except Exception:
             continue  # Skip malformed trades
     
