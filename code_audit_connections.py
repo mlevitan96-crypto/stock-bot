@@ -35,7 +35,7 @@ def check_file_paths() -> List[Tuple[str, bool, str]]:
     
     results.append(("attribution.jsonl (executive_summary_generator)", exec_uses_logs, 
                    "Should read from LOGS_DIR/attribution.jsonl" if not exec_uses_logs else "OK"))
-    results.append(("attribution.jsonl (comprehensive_learning_orchestrator)", learning_uses_logs,
+    results.append(("attribution.jsonl (comprehensive_learning_orchestrator_v2)", learning_uses_logs,
                    "Should read from LOGS_DIR/attribution.jsonl" if not learning_uses_logs else "OK"))
     
     # 2. blocked_trades.jsonl

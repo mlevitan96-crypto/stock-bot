@@ -28,7 +28,7 @@ from flask import Flask, jsonify, Response, send_from_directory
 from position_reconciliation_loop import run_position_reconciliation_loop
 
 from config.registry import (
-    Directories, CacheFiles, StateFiles, LogFiles, Thresholds, APIConfig,
+    Directories, CacheFiles, StateFiles, LogFiles, ConfigFiles, Thresholds, APIConfig,
     read_json, atomic_write_json, append_jsonl
 )
 
@@ -467,7 +467,7 @@ if Config.ENABLE_PER_TICKER_LEARNING:
 # Load theme risk config from persistent file (overrides env vars)
 def load_theme_risk_config():
     """Load theme risk settings from config/theme_risk.json with priority over env vars."""
-    config_path = "config/theme_risk.json"
+    config_path = ConfigFiles.THEME_RISK
     if os.path.exists(config_path):
         try:
             with open(config_path, 'r') as f:
@@ -1638,7 +1638,7 @@ class SmartPoller:
     """
     def __init__(self):
         self.lock = threading.Lock()
-        self.state_file = Path("state/smart_poller.json")
+        self.state_file = StateFiles.SMART_POLLER
         self.intervals = {
             "option_flow": 60,        # Real-time: institutional trades (HIGH actionability)
             "top_net_impact": 300,    # 5min: aggregated net premium (MEDIUM actionability)
@@ -1797,7 +1797,7 @@ def owner_health_check() -> dict:
         issues.append({"check": "heartbeat_error", "error": str(e)})
     
     # 2. Check fail counter integrity
-    fail_counter_path = Path("state/fail_counter.json")
+    fail_counter_path = StateFiles.FAIL_COUNTER
     try:
         if fail_counter_path.exists():
             fc = json.loads(fail_counter_path.read_text())
@@ -4610,7 +4610,7 @@ def audit_seg(name, phase, extra=None):
     }
     if extra:
         event.update(extra)
-    gov_log = Path("data/governance_events.jsonl")
+    gov_log = CacheFiles.GOVERNANCE_EVENTS
     gov_log.parent.mkdir(exist_ok=True)
     with gov_log.open("a") as f:
         f.write(json.dumps(event) + "\n")
@@ -5036,7 +5036,7 @@ def run_once():
                 
                 # V3 Attribution: Store enriched composite with FULL INTELLIGENCE features for learning
                 try:
-                    with open("data/uw_attribution.jsonl", "a") as f:
+                    with open(CacheFiles.UW_ATTRIBUTION, "a") as f:
                         attr_rec = {
                             "ts": int(time.time()),
                             "symbol": ticker,
@@ -5262,7 +5262,7 @@ def run_once():
         
         # Collect cycle metrics for optimization engine
         exec_quality_data = []
-        exec_log_path = Path("data/execution_quality.jsonl")
+        exec_log_path = CacheFiles.EXECUTION_QUALITY
         if exec_log_path.exists():
             with exec_log_path.open("r") as f:
                 for line in f:
@@ -5410,12 +5410,12 @@ class WorkerState:
         self.backoff_sec = Config.BACKOFF_BASE_SEC
         self.last_metrics = {}
         self.running = False
-        self.fail_counter_path = Path("state/fail_counter.json")
+        self.fail_counter_path = StateFiles.FAIL_COUNTER
     
     def _load_fail_count(self) -> int:
         """Load persistent fail counter from disk."""
         try:
-            fail_counter_path = Path("state/fail_counter.json")
+            fail_counter_path = StateFiles.FAIL_COUNTER
             if fail_counter_path.exists():
                 data = json.loads(fail_counter_path.read_text())
                 return int(data.get("fail_count", 0))
@@ -5484,7 +5484,7 @@ class Watchdog:
                 send_webhook({"event": "iteration_failed", "error": str(e), "fail_count": self.state.fail_count})
                 
                 if self.state.fail_count >= 5:
-                    freeze_path = Path("state/pre_market_freeze.flag")
+                    freeze_path = StateFiles.PRE_MARKET_FREEZE
                     freeze_path.write_text("too_many_failures")
                     log_event("worker_error", "freeze_activated", reason="too_many_failures", fail_count=self.state.fail_count)
                     self.state.backoff_sec = 300
@@ -5731,12 +5731,27 @@ def health():
     except Exception as e:
         status["sre_health_error"] = str(e)
     
-    # Add comprehensive learning health
+    # Add comprehensive learning health (v2)
     try:
-        from comprehensive_learning_orchestrator import get_learning_orchestrator
-        orchestrator = get_learning_orchestrator()
-        learning_health = orchestrator.get_health()
-        status["comprehensive_learning"] = learning_health
+        from comprehensive_learning_orchestrator_v2 import load_learning_state
+        state = load_learning_state()
+        last_processed = state.get("last_processed_ts")
+        if last_processed:
+            try:
+                last_dt = datetime.fromisoformat(last_processed.replace("Z", "+00:00"))
+                age_sec = (datetime.now(timezone.utc) - last_dt).total_seconds()
+            except:
+                age_sec = None
+        else:
+            age_sec = None
+        
+        status["comprehensive_learning"] = {
+            "status": "active",
+            "last_run_age_sec": age_sec,
+            "total_trades_processed": state.get("total_trades_processed", 0),
+            "total_trades_learned_from": state.get("total_trades_learned_from", 0),
+            "note": "Using comprehensive_learning_orchestrator_v2"
+        }
     except Exception as e:
         status["comprehensive_learning_error"] = str(e)
     
@@ -6484,7 +6499,7 @@ def startup_reconcile_positions():
     Alpaca is source of truth. Halts trading if reconciliation fails.
     TIMEOUT PROTECTED: 10s max to prevent workflow startup hangs.
     """
-    reconcile_log_path = Path("logs/reconcile.jsonl")
+    reconcile_log_path = LogFiles.RECONCILE
     reconcile_log_path.parent.mkdir(exist_ok=True)
     
     try:
@@ -6504,7 +6519,7 @@ def startup_reconcile_positions():
         
         # Load bot's internal state with locking
         metadata_path = StateFiles.POSITION_METADATA
-        champions_path = Path("state/champions.json")
+        champions_path = StateFiles.CHAMPIONS
         
         local_metadata = load_metadata_with_lock(metadata_path)
         
