@@ -27,8 +27,8 @@ def check_file_paths() -> List[Tuple[str, bool, str]]:
     # Reader: executive_summary_generator.py -> should read logs/attribution.jsonl
     # Reader: comprehensive_learning_orchestrator_v2.py -> should read logs/attribution.jsonl
     
-    exec_summary_code = Path("executive_summary_generator.py").read_text(encoding='utf-8', errors='ignore')
-    learning_orch_code = Path("comprehensive_learning_orchestrator.py").read_text(encoding='utf-8', errors='ignore')
+    exec_summary_code = Path("executive_summary_generator.py").read_text(encoding='utf-8', errors='ignore') if Path("executive_summary_generator.py").exists() else ""
+    learning_orch_code = Path("comprehensive_learning_orchestrator_v2.py").read_text(encoding='utf-8', errors='ignore') if Path("comprehensive_learning_orchestrator_v2.py").exists() else ""
     
     exec_uses_logs = "LOGS_DIR / \"attribution.jsonl\"" in exec_summary_code or "logs/attribution.jsonl" in exec_summary_code
     learning_uses_logs = "LOGS_DIR / \"attribution.jsonl\"" in learning_orch_code or "logs/attribution.jsonl" in learning_orch_code
@@ -52,7 +52,7 @@ def check_file_paths() -> List[Tuple[str, bool, str]]:
                    "Should read from STATE_DIR/blocked_trades.jsonl" if not counterfactual_reads_state else "OK"))
     
     # 3. comprehensive_learning.jsonl
-    # Writer: comprehensive_learning_orchestrator.py -> data/comprehensive_learning.jsonl
+    # Writer: comprehensive_learning_orchestrator_v2.py -> state/learning_processing_state.json (not jsonl)
     # Reader: executive_summary_generator.py -> should read data/comprehensive_learning.jsonl
     
     learning_writes_data = "DATA_DIR / \"comprehensive_learning.jsonl\"" in learning_orch_code
