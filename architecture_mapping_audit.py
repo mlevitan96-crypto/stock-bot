@@ -204,7 +204,7 @@ def check_file_path_consistency():
     return issues
 
 def check_deprecated_references():
-    """Check for references to deprecated code"""
+    """Check for references to deprecated code (only actual code, not comments/strings)"""
     print("=" * 80)
     print("DEPRECATED CODE REFERENCES CHECK")
     print("=" * 80)
@@ -212,21 +212,70 @@ def check_deprecated_references():
     
     issues = []
     deprecated_items = [
-        "comprehensive_learning_orchestrator",  # Without _v2
-        "_learn_from_outcomes_legacy",
-        "from comprehensive_learning_orchestrator import",  # Old import
+        ("comprehensive_learning_orchestrator", r'\bcomprehensive_learning_orchestrator\b(?!_v2)'),  # Without _v2
+        ("_learn_from_outcomes_legacy", r'\b_learn_from_outcomes_legacy\b'),
+        ("from comprehensive_learning_orchestrator import", r'from\s+comprehensive_learning_orchestrator\s+import(?!.*_v2)'),  # Old import
     ]
     
-    # Check Python files
+    # Exclude files that check FOR these patterns (not actual usage)
+    excluded_files = {
+        "architecture_mapping_audit.py",
+        "architecture_self_healing.py",
+        "regression_test_architecture_fixes.py",
+        "code_audit_connections.py",  # Audit file
+        "COMPREHENSIVE_CODE_AUDIT.py",  # Audit file
+    }
+    
+    import ast
+    
     for py_file in Path(".").glob("*.py"):
-        if py_file.name == "architecture_mapping_audit.py":
+        if py_file.name in excluded_files:
             continue
         try:
             content = py_file.read_text(encoding='utf-8', errors='ignore')
-            for deprecated in deprecated_items:
-                if deprecated in content:
-                    issues.append(f"{py_file.name} references deprecated: {deprecated}")
-        except:
+            
+            # Parse AST to find actual code (not comments/strings)
+            try:
+                tree = ast.parse(content, filename=str(py_file))
+                
+                # Check imports
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ImportFrom):
+                        if node.module and 'comprehensive_learning_orchestrator' in node.module and '_v2' not in node.module:
+                            issues.append(f"{py_file.name} imports deprecated: {node.module} (line {node.lineno})")
+                    elif isinstance(node, ast.Name):
+                        if node.id == 'comprehensive_learning_orchestrator' or node.id == '_learn_from_outcomes_legacy':
+                            # Check if it's in a call or attribute
+                            issues.append(f"{py_file.name} uses deprecated: {node.id} (line {node.lineno})")
+                
+            except SyntaxError:
+                # If AST parsing fails, fall back to simple string search but be smarter
+                lines = content.split('\n')
+                in_string = False
+                in_comment = False
+                
+                for i, line in enumerate(lines, 1):
+                    stripped = line.strip()
+                    # Skip comment-only lines
+                    if stripped.startswith('#'):
+                        continue
+                    # Skip docstrings (basic check)
+                    if '"""' in line or "'''" in line:
+                        continue
+                    
+                    # Check for actual code usage (not in strings)
+                    for deprecated_name, pattern in deprecated_items:
+                        if deprecated_name in line:
+                            # Check if it's in a string literal
+                            if ('"' in line and line.find('"') < line.find(deprecated_name)) or \
+                               ("'" in line and line.find("'") < line.find(deprecated_name)):
+                                continue
+                            # This looks like actual code
+                            issues.append(f"{py_file.name} references deprecated: {deprecated_name} (line {i})")
+                            break
+                            
+        except Exception as e:
+            # Skip files that can't be read
             pass
     
     if issues:
