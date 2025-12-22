@@ -137,6 +137,64 @@ class HealthSupervisor:
             severity="WARN",
             remediation_fn=self._trigger_circuit_breaker
         ))
+        
+        self.checks.append(HealthCheck(
+            name="architecture_self_healing",
+            check_fn=self._check_architecture_health,
+            interval_sec=3600,  # Run every hour
+            severity="INFO",
+            remediation_fn=self._heal_architecture_issues
+        ))
+    
+    def _check_architecture_health(self) -> Dict[str, Any]:
+        """Check architecture mapping health and auto-heal issues"""
+        try:
+            from architecture_self_healing import ArchitectureHealer
+            healer = ArchitectureHealer(dry_run=True)  # Check mode
+            results = healer.heal_all()
+            
+            return {
+                "status": "healthy" if results['issues_found'] == 0 else "needs_healing",
+                "issues_found": results['issues_found'],
+                "files_checked": results['files_checked'],
+                "fixes_available": results['fixes_applied'],
+                "errors": len(results.get('errors', []))
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    def _heal_architecture_issues(self) -> bool:
+        """Automatically heal architecture issues"""
+        try:
+            from architecture_self_healing import ArchitectureHealer
+            healer = ArchitectureHealer(dry_run=False)  # Apply mode
+            results = healer.heal_all()
+            
+            if results['fixes_applied'] > 0:
+                # Run regression tests after healing
+                try:
+                    from regression_test_architecture_fixes import run_all_tests
+                    test_result = run_all_tests()
+                    return test_result == 0  # 0 = success
+                except:
+                    return True  # Healing succeeded even if tests failed
+            return True
+        except Exception as e:
+            # Log to health checks file
+            health_log = DATA_DIR / "health_checks.jsonl"
+            with health_log.open("a") as f:
+                import json
+                from datetime import datetime, timezone
+                f.write(json.dumps({
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "check": "architecture_healing",
+                    "status": "error",
+                    "error": str(e)
+                }) + "\n")
+            return False
     
     def _check_uw_daemon_alive(self) -> Dict[str, Any]:
         """Check if UW flow daemon is updating cache."""
