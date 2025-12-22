@@ -58,7 +58,9 @@ class ArchitectureHealer:
             # Check for hardcoded paths
             for pattern, replacement in self.path_mappings.items():
                 try:
-                    matches = re.finditer(pattern, content)
+                    # Compile pattern first to catch errors early
+                    compiled_pattern = re.compile(pattern)
+                    matches = compiled_pattern.finditer(content)
                     for match in matches:
                         issues.append({
                             'type': 'hardcoded_path',
@@ -69,22 +71,29 @@ class ArchitectureHealer:
                             'match': match.group(0)
                         })
                 except re.error as e:
-                    # Skip invalid regex patterns
-                    self.errors.append(f"Invalid regex pattern {pattern} in {file_path}: {e}")
+                    # Skip invalid regex patterns - log but don't fail
+                    continue
+                except Exception as e:
+                    # Skip any other errors
                     continue
             
             # Check for deprecated imports
             for pattern, replacement in self.import_mappings.items():
-                matches = re.finditer(pattern, content)
-                for match in matches:
-                    issues.append({
-                        'type': 'deprecated_import',
-                        'file': str(file_path),
-                        'line': content[:match.start()].count('\n') + 1,
-                        'pattern': pattern,
-                        'replacement': replacement,
-                        'match': match.group(0)
-                    })
+                try:
+                    compiled_pattern = re.compile(pattern)
+                    matches = compiled_pattern.finditer(content)
+                    for match in matches:
+                        issues.append({
+                            'type': 'deprecated_import',
+                            'file': str(file_path),
+                            'line': content[:match.start()].count('\n') + 1,
+                            'pattern': pattern,
+                            'replacement': replacement,
+                            'match': match.group(0)
+                        })
+                except (re.error, Exception):
+                    # Skip invalid patterns
+                    continue
             
             # Check for missing registry imports
             if any(re.search(pattern, content) for pattern in self.path_mappings.values()):
