@@ -429,6 +429,14 @@ This enables **PREDICTIVE understanding**, not just reactive adjustments.
 3. **Blocked Trades** (`state/blocked_trades.jsonl`): Counterfactual learning
 4. **Gate Events** (`logs/gate.jsonl`): Gate pattern learning ✅ **IMPLEMENTED**
 5. **UW Blocked Entries** (`data/uw_attribution.jsonl`): Missed opportunities ✅ **IMPLEMENTED**
+6. **Counter Intelligence Analysis** (`counter_intelligence_analysis.py`): **NEW** - Deep analysis of blocked signals and missed opportunities
+   - Analyzes blocked trades, UW blocked entries, gate events, and all signals
+   - Estimates outcomes for blocked signals (would they have won/lost?)
+   - Identifies missed opportunities and valid blocks
+   - Pattern analysis: blocked vs executed signals
+   - Component analysis: what components are in blocked vs executed?
+   - Opportunity cost analysis: what did we miss?
+   - Recommendations: are we blocking too many winners?
 6. **Signal Patterns** (`logs/signals.jsonl`): Signal generation patterns ✅ **IMPLEMENTED**
 7. **Execution Quality** (`logs/orders.jsonl`): Order execution analysis (tracking only, learning pending)
 
