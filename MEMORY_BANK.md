@@ -651,6 +651,36 @@ tail -50 logs/supervisor.jsonl | grep -i error
 
 ---
 
+## Response Format Requirements
+
+**CRITICAL: Always provide copy/paste ready next steps section**
+
+When providing outputs or completing tasks, ALWAYS include a "Next Steps" section with:
+- Root directory path: `~/stock-bot` (or `/root/stock-bot` if using root user)
+- Commands ready to copy/paste (NO SSH prefix needed)
+- Clear, sequential steps for the droplet
+- Format as code block for easy copying
+
+**Example Format:**
+```bash
+# Next Steps (run on droplet)
+cd ~/stock-bot
+git pull origin main
+python3 architecture_mapping_audit.py
+```
+
+**User does NOT need:**
+- SSH connection commands
+- Explanation of what SSH is
+- Local machine commands
+
+**User DOES need:**
+- Direct commands to run on droplet
+- Root directory path (`~/stock-bot`)
+- Copy/paste ready format
+
+---
+
 ## Philosophy: Fully Automated Self-Healing System
 
 **CRITICAL PRINCIPLE: ZERO MANUAL WORK**
