@@ -201,7 +201,8 @@ def analyze_trade_statistics():
     print(f"  Margin of error: ±{(upper-lower)/2*100:.1f}%")
     
     if (upper - lower) > 0.2:
-        print(f"\n  ⚠️  WARNING: Wide confidence interval ({upper-lower)*100:.1f}%)")
+        margin = (upper - lower) * 100
+        print(f"\n  ⚠️  WARNING: Wide confidence interval ({margin:.1f}%)")
         print(f"     This means we're very uncertain about the true win rate")
         print(f"     Need more data to narrow the range")
     
