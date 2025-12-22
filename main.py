@@ -174,13 +174,20 @@ def build_composite_close_reason(exit_signals: dict) -> str:
     
     # If no specific reasons, use primary reason or default
     if not reasons:
-        primary = exit_signals.get("primary_reason", "unknown")
-        if primary and primary != "none":
+        primary = exit_signals.get("primary_reason")
+        if primary and primary != "none" and primary != "unknown":
             reasons.append(primary)
         else:
-            reasons.append("unknown")
+            # Default fallback - should never happen if exit_signals is populated correctly
+            reasons.append("unknown_exit")
     
-    return "+".join(reasons) if reasons else "unknown"
+    result = "+".join(reasons) if reasons else "unknown_exit"
+    
+    # Safety check: ensure we never return empty string
+    if not result or result.strip() == "":
+        result = "unknown_exit"
+    
+    return result
 
 from v2_nightly_orchestration_with_auto_promotion import should_run_direct_v2
 from telemetry.logger import TelemetryLogger, timestamp_to_iso
@@ -1011,6 +1018,13 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
     else:
         pnl_usd = 0.0
         pnl_pct = 0.0
+    
+    # Ensure close_reason is never empty or None
+    if not close_reason or close_reason == "unknown" or close_reason.strip() == "":
+        # Fallback: create a basic close reason
+        close_reason = "unknown_exit"
+        log_event("exit", "close_reason_missing", symbol=symbol, 
+                 note="close_reason was empty, using fallback")
     
     context = {
         "close_reason": close_reason,
@@ -3747,10 +3761,11 @@ class AlpacaExecutor:
 
             if time_hit or stop_hit:
                 # Build composite close reason before adding to close list
+                # CRITICAL: Always set exit_reason when adding to close list
                 if symbol not in exit_reasons:
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 to_close.append(symbol)
-                print(f"DEBUG EXITS: {symbol} marked for close - time_hit={time_hit}, stop_hit={stop_hit}, age={age_min:.1f}min", flush=True)
+                print(f"DEBUG EXITS: {symbol} marked for close - time_hit={time_hit}, stop_hit={stop_hit}, age={age_min:.1f}min, reason={exit_reasons[symbol]}", flush=True)
         
         if to_close:
             print(f"DEBUG EXITS: Found {len(to_close)} positions to close: {to_close}", flush=True)
@@ -3777,12 +3792,16 @@ class AlpacaExecutor:
                 close_reason = exit_reasons.get(symbol)
                 if not close_reason:
                     # Fallback: build from basic signals
+                    # Calculate age for fallback (holding_period_min is already calculated above)
+                    age_hours_fallback = holding_period_min / 60.0
                     basic_signals = {
-                        "time_exit": age_min >= Config.TIME_EXIT_MINUTES,
+                        "time_exit": holding_period_min >= Config.TIME_EXIT_MINUTES,
                         "trail_stop": exit_price < entry_price * (1 - Config.TRAILING_STOP_PCT / 100),
-                        "age_hours": (datetime.utcnow() - entry_ts).total_seconds() / 3600.0
+                        "age_hours": age_hours_fallback
                     }
                     close_reason = build_composite_close_reason(basic_signals)
+                    # Log that we used fallback
+                    log_event("exit", "close_reason_fallback", symbol=symbol, reason=close_reason)
                 
                 log_order({"action": "close_position", "symbol": symbol, "reason": close_reason})
                 
