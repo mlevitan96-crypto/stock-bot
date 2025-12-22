@@ -122,8 +122,14 @@ class CausalAnalysisEngine:
         else:
             signal_strength = "STRONG"
         
-        # Flow magnitude
-        flow_conv = components.get("flow", {}).get("conviction", 0.0) if isinstance(components.get("flow"), dict) else 0.0
+        # Flow magnitude (handle both "flow" and "options_flow" names)
+        flow_comp = components.get("flow") or components.get("options_flow")
+        if isinstance(flow_comp, dict):
+            flow_conv = flow_comp.get("conviction", 0.0)
+        elif isinstance(flow_comp, (int, float)):
+            flow_conv = float(flow_comp)
+        else:
+            flow_conv = 0.0
         if flow_conv < 0.3:
             flow_magnitude = "LOW"
         elif flow_conv < 0.7:
@@ -144,7 +150,11 @@ class CausalAnalysisEngine:
         volatility_regime = context.get("volatility_regime", "NORMAL_VOL")
         
         # Market trend (infer from flow sentiment)
-        flow_sentiment = components.get("flow", {}).get("sentiment", "NEUTRAL") if isinstance(components.get("flow"), dict) else "NEUTRAL"
+        flow_comp = components.get("flow") or components.get("options_flow")
+        if isinstance(flow_comp, dict):
+            flow_sentiment = flow_comp.get("sentiment", "NEUTRAL")
+        else:
+            flow_sentiment = "NEUTRAL"
         if flow_sentiment in ("BULLISH", "VERY_BULLISH"):
             market_trend = "BULLISH"
         elif flow_sentiment in ("BEARISH", "VERY_BEARISH"):
@@ -268,6 +278,8 @@ class CausalAnalysisEngine:
     def _analyze_feature_combinations(self, trade: Dict, context: Dict, win: bool, pnl_pct: float):
         """Analyze which combinations of features lead to wins/losses"""
         components = trade.get("context", {}).get("components", {})
+        # Normalize component names for combination analysis
+        components = self._normalize_component_names(components)
         
         # Find active features (non-zero values)
         active_features = [name for name, value in components.items() 
@@ -336,7 +348,8 @@ class CausalAnalysisEngine:
             avg_pnl = pattern["total_pnl"] / total if total > 0 else 0
             
             # Success pattern: high win rate AND positive P&L
-            if win_rate >= 0.6 and avg_pnl > 0.01:
+            # V4.1: Lower threshold to find more patterns (was 0.6, now 0.55)
+            if win_rate >= 0.55 and avg_pnl > 0.005:
                 success_patterns.append({
                     "context": context_key,
                     "win_rate": win_rate,
@@ -393,6 +406,69 @@ class CausalAnalysisEngine:
                 key, value = part.split(":", 1)
                 conditions[key] = value
         return conditions
+    
+    def _normalize_component_names(self, components: Dict) -> Dict:
+        """
+        Normalize component names from attribution format to SIGNAL_COMPONENTS format.
+        
+        Handles:
+        - "flow" -> "options_flow"
+        - "iv_skew" -> "iv_term_skew"
+        - "smile" -> "smile_slope"
+        - Components stored as dicts (extract value)
+        """
+        from adaptive_signal_optimizer import SIGNAL_COMPONENTS
+        
+        # Component name mapping (from attribution format to SIGNAL_COMPONENTS)
+        name_map = {
+            "flow": "options_flow",
+            "iv_skew": "iv_term_skew",
+            "smile": "smile_slope",
+            "whale": "whale_persistence",
+            "event": "event_alignment",
+            "regime": "regime_modifier",
+            "calendar": "calendar_catalyst",
+            "motif_bonus": "temporal_motif",
+            # Direct matches (no change needed)
+            "dark_pool": "dark_pool",
+            "insider": "insider",
+            "toxicity_penalty": "toxicity_penalty",
+            "congress": "congress",
+            "shorts_squeeze": "shorts_squeeze",
+            "institutional": "institutional",
+            "market_tide": "market_tide",
+            "greeks_gamma": "greeks_gamma",
+            "ftd_pressure": "ftd_pressure",
+            "iv_rank": "iv_rank",
+            "oi_change": "oi_change",
+            "etf_flow": "etf_flow",
+            "squeeze_score": "squeeze_score",
+        }
+        
+        normalized = {}
+        
+        for comp_name, comp_value in components.items():
+            # Handle components stored as dicts (e.g., {"flow": {"conviction": 0.5}})
+            if isinstance(comp_value, dict):
+                # Extract numeric value from dict
+                if "conviction" in comp_value:
+                    value = comp_value.get("conviction", 0.0)
+                elif "value" in comp_value:
+                    value = comp_value.get("value", 0.0)
+                else:
+                    # Try to find first numeric value
+                    value = next((v for v in comp_value.values() if isinstance(v, (int, float))), 0.0)
+            else:
+                value = comp_value if isinstance(comp_value, (int, float)) else 0.0
+            
+            # Map component name
+            mapped_name = name_map.get(comp_name, comp_name)
+            
+            # Only include if it's a valid SIGNAL_COMPONENT
+            if mapped_name in SIGNAL_COMPONENTS:
+                normalized[mapped_name] = value
+        
+        return normalized
     
     def generate_insights(self) -> Dict[str, Any]:
         """
