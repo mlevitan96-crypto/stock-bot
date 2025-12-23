@@ -66,8 +66,10 @@ The GitHub token is:
 
 **Recommended:** Add to `.env` file:
 ```bash
-echo "GITHUB_TOKEN=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" >> .env
+echo "GITHUB_TOKEN=your_github_token_here" >> .env
 ```
+
+The token is already configured in the script as a default, but using `.env` is more secure.
 
 ## Workflow Example
 
