@@ -68,10 +68,13 @@ def check_positions():
                 for pos in positions:
                     symbol = getattr(pos, 'symbol', 'UNKNOWN')
                     qty = getattr(pos, 'qty', 0)
-                    entry_price = getattr(pos, 'avg_entry_price', 0)
-                    current_price = getattr(pos, 'current_price', 0)
-                    pnl = getattr(pos, 'unrealized_pl', 0)
-                    print(f"  {symbol}: {qty} shares @ ${entry_price:.2f} (current: ${current_price:.2f}, P&L: ${pnl:.2f})")
+                    try:
+                        entry_price = float(getattr(pos, 'avg_entry_price', 0))
+                        current_price = float(getattr(pos, 'current_price', 0))
+                        pnl = float(getattr(pos, 'unrealized_pl', 0))
+                        print(f"  {symbol}: {qty} shares @ ${entry_price:.2f} (current: ${current_price:.2f}, P&L: ${pnl:.2f})")
+                    except (ValueError, TypeError) as e:
+                        print(f"  {symbol}: {qty} shares (error formatting: {e})")
             else:
                 print("  No positions open")
                 
