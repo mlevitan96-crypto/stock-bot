@@ -5558,6 +5558,16 @@ class Watchdog:
                 else:
                     # Market closed - still log cycle but skip trading
                     metrics = {"market_open": False, "clusters": 0, "orders": 0}
+                    # CRITICAL: Always log cycles to run.jsonl for visibility
+                    jsonl_write("run", {
+                        "ts": int(time.time()),
+                        "_ts": int(time.time()),
+                        "msg": "cycle_complete",
+                        "clusters": 0,
+                        "orders": 0,
+                        "market_open": False,
+                        "metrics": metrics
+                    })
                     log_event("run", "complete", clusters=0, orders=0, metrics=metrics, market_open=False)
                 
                 daily_and_weekly_tasks_if_needed()
