@@ -1189,7 +1189,7 @@ SRE_DASHBOARD_HTML = """
         }
         
         updateSREDashboard();
-        setInterval(updateSREDashboard, 10000);
+        setInterval(updateSREDashboard, 60000);  // 60 seconds - reduce load
     </script>
 </body>
 </html>
