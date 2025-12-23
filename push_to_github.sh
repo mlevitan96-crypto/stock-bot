@@ -104,17 +104,20 @@ if ! git config user.name > /dev/null 2>&1; then
 fi
 
 # Set up remote with token if not exists
-if ! git remote get-url origin > /dev/null 2>&1 || ! git remote get-url origin | grep -q "$GITHUB_TOKEN"; then
-    git remote remove origin 2>/dev/null || true
+current_remote=$(git remote get-url origin 2>/dev/null || echo "")
+if [ -z "$current_remote" ] || ! echo "$current_remote" | grep -q "${GITHUB_TOKEN}"; then
+    if [ -n "$current_remote" ]; then
+        git remote remove origin 2>/dev/null || true
+    fi
     git remote add origin "https://${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git" 2>/dev/null || \
     git remote set-url origin "https://${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git"
     echo "✓ Git remote configured"
 fi
 
-# Ensure we're on the right branch
+# Ensure we're on the right branch (don't try to create if exists)
 current_branch=$(git branch --show-current 2>/dev/null || echo "")
 if [ "$current_branch" != "$GITHUB_BRANCH" ]; then
-    git checkout "$GITHUB_BRANCH" 2>/dev/null || git checkout -b "$GITHUB_BRANCH"
+    git checkout "$GITHUB_BRANCH" 2>/dev/null || true
 fi
 
 # Add files (force-add even if in .gitignore for analysis)
