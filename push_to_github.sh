@@ -10,11 +10,19 @@ if [ -f .env ]; then
 fi
 
 # Configuration
+# Priority: .env file > environment variable > default (for convenience)
 GITHUB_TOKEN="${GITHUB_TOKEN:-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}"
 GITHUB_REPO="mlevitan96-crypto/stock-bot"
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_USER="mlevitan96"
 GITHUB_EMAIL="mlevitan96@gmail.com"
+
+# Override with .env if exists
+if [ -f .env ]; then
+    if grep -q "GITHUB_TOKEN" .env; then
+        GITHUB_TOKEN=$(grep "GITHUB_TOKEN" .env | cut -d '=' -f2 | tr -d '"' | tr -d "'" | xargs)
+    fi
+fi
 
 # Check if files provided
 if [ $# -eq 0 ]; then
@@ -94,12 +102,13 @@ fi
 # Ensure we're on the right branch
 git checkout "$GITHUB_BRANCH" 2>/dev/null || git checkout -b "$GITHUB_BRANCH"
 
-# Add files
+# Add files (force-add even if in .gitignore for analysis)
 echo ""
 echo "Adding files to git..."
 for file in "${EXPANDED_FILES[@]}"; do
     if [ -f "$file" ] || [ -d "$file" ]; then
-        git add "$file"
+        # Force add even if in .gitignore (for analysis purposes)
+        git add -f "$file"
         echo "  ✓ Added: $file"
     fi
 done
