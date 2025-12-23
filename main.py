@@ -5330,6 +5330,14 @@ def run_once():
         except Exception:
             pass
         
+        # CRITICAL FIX: Write heartbeat BEFORE owner_health_check to prevent false stale alerts
+        # heartbeat() is normally called after run_once() completes, but owner_health_check
+        # runs at the end of run_once() and checks heartbeat file - need to write it first
+        try:
+            watchdog.heartbeat({"clusters": len(clusters), "orders": len(orders)})
+        except Exception as e:
+            log_event("heartbeat", "early_write_failed", error=str(e))
+        
         print("DEBUG: About to call owner_health_check", flush=True)
         audit_seg("run_once", "before_health_check")
         # Owner-in-the-loop health check cycle
@@ -5563,9 +5571,11 @@ class Watchdog:
         log_event("heartbeat", "worker_alive", metrics=metrics or {})
         
         # CRITICAL FIX: Write heartbeat file so owner_health_check can find it
+        heartbeat_path = StateFiles.BOT_HEARTBEAT
         try:
-            heartbeat_path = StateFiles.BOT_HEARTBEAT
+            # Ensure directory exists
             heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
+            
             heartbeat_data = {
                 "last_heartbeat_ts": int(self.state.last_heartbeat),
                 "last_heartbeat_dt": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
@@ -5573,14 +5583,24 @@ class Watchdog:
                 "running": self.state.running,
                 "metrics": metrics or {}
             }
-            # Use same method as owner_health_check (simple write_text)
+            
+            # Write file - use simple write_text (same as owner_health_check)
             heartbeat_path.write_text(json.dumps(heartbeat_data, indent=2))
-            # DEBUG: Log successful write to verify it's working
-            print(f"DEBUG: Heartbeat file written to {heartbeat_path}", flush=True)
+            
+            # Verify file was written
+            if not heartbeat_path.exists():
+                print(f"ERROR: Heartbeat file write failed - file doesn't exist: {heartbeat_path}", flush=True)
+                log_event("heartbeat", "write_verify_failed", path=str(heartbeat_path))
+            else:
+                # Success - log occasionally (not every heartbeat to avoid spam)
+                if self.state.iter_count % 10 == 0:
+                    print(f"DEBUG: Heartbeat file OK: {heartbeat_path} (iter {self.state.iter_count})", flush=True)
+                    
         except Exception as e:
             # CRITICAL: Log the error so we can see why it's failing
-            print(f"ERROR: Failed to write heartbeat file: {e}", flush=True)
-            log_event("heartbeat", "write_failed", error=str(e), path=str(heartbeat_path))
+            print(f"ERROR: Failed to write heartbeat file to {heartbeat_path}: {e}", flush=True)
+            import traceback
+            log_event("heartbeat", "write_failed", error=str(e), path=str(heartbeat_path), traceback=traceback.format_exc())
 
     def _worker_loop(self):
         self.state.running = True
