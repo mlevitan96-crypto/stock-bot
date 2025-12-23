@@ -18,11 +18,22 @@ GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_USER="mlevitan96"
 GITHUB_EMAIL="mlevitan96@gmail.com"
 
-# Override with .env if exists
+# Load from .env if exists
 if [ -f .env ]; then
     if grep -q "GITHUB_TOKEN" .env; then
         GITHUB_TOKEN=$(grep "GITHUB_TOKEN" .env | cut -d '=' -f2 | tr -d '"' | tr -d "'" | xargs)
     fi
+fi
+
+# Check if token is set
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo "❌ ERROR: GITHUB_TOKEN not set"
+    echo ""
+    echo "Set it in one of these ways:"
+    echo "  1. Add to .env file: echo 'GITHUB_TOKEN=your_token' >> .env"
+    echo "  2. Export as env var: export GITHUB_TOKEN=your_token"
+    echo ""
+    exit 1
 fi
 
 # Check if files provided
@@ -101,7 +112,10 @@ if ! git remote get-url origin > /dev/null 2>&1 || ! git remote get-url origin |
 fi
 
 # Ensure we're on the right branch
-git checkout "$GITHUB_BRANCH" 2>/dev/null || git checkout -b "$GITHUB_BRANCH"
+current_branch=$(git branch --show-current 2>/dev/null || echo "")
+if [ "$current_branch" != "$GITHUB_BRANCH" ]; then
+    git checkout "$GITHUB_BRANCH" 2>/dev/null || git checkout -b "$GITHUB_BRANCH"
+fi
 
 # Add files (force-add even if in .gitignore for analysis)
 echo ""
