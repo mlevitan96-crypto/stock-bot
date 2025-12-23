@@ -6756,9 +6756,18 @@ def main():
         print("Flask server starting anyway to allow monitoring...")
         # DO NOT sys.exit(1) - allow server to start for health monitoring
     
-    watchdog.start()
-    supervisor = threading.Thread(target=watchdog.supervise, daemon=True)
-    supervisor.start()
+    # Start watchdog with error handling
+    try:
+        watchdog.start()
+        supervisor = threading.Thread(target=watchdog.supervise, daemon=True)
+        supervisor.start()
+        log_event("system", "watchdog_started")
+    except Exception as e:
+        log_event("system", "watchdog_start_failed", error=str(e))
+        print(f"WARNING: Watchdog failed to start: {e}")
+        import traceback
+        traceback.print_exc()
+        # Continue anyway - bot can run without watchdog
     
     # Start health supervisor with error handling
     try:
@@ -6773,7 +6782,8 @@ def main():
         traceback.print_exc()
     
     log_event("system", "api_start", port=Config.API_PORT)
-    app.run(host="0.0.0.0", port=Config.API_PORT)
+    print(f"Starting Flask server on port {Config.API_PORT}...", flush=True)
+    app.run(host="0.0.0.0", port=Config.API_PORT, debug=False)
 
 if __name__ == "__main__":
     # INVINCIBLE MAIN LOOP: Catch-all exception handler prevents process exit
