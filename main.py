@@ -6760,9 +6760,17 @@ def main():
     supervisor = threading.Thread(target=watchdog.supervise, daemon=True)
     supervisor.start()
     
-    health_super = get_supervisor()
-    health_super.start()
-    log_event("system", "health_supervisor_started")
+    # Start health supervisor with error handling
+    try:
+        health_super = get_supervisor()
+        health_super.start()
+        log_event("system", "health_supervisor_started")
+    except Exception as e:
+        log_event("system", "health_supervisor_start_failed", error=str(e))
+        print(f"WARNING: Health supervisor failed to start: {e}")
+        print("Bot will continue without health supervisor...")
+        import traceback
+        traceback.print_exc()
     
     log_event("system", "api_start", port=Config.API_PORT)
     app.run(host="0.0.0.0", port=Config.API_PORT)
