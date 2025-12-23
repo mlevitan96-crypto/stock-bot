@@ -105,17 +105,31 @@ class SREMonitoringEngine:
         """Check health of a specific UW API endpoint."""
         health = APIEndpointHealth(endpoint=endpoint, status="unknown")
         
-        # Check cache freshness first - if cache is fresh, API key must be working
-        # (even if we can't see it in environment variables)
+        # FIRST: Check if UW daemon is actually running
+        import subprocess
+        daemon_running = False
+        try:
+            result = subprocess.run(["pgrep", "-f", "uw_flow_daemon"], capture_output=True, timeout=2)
+            daemon_running = result.returncode == 0
+        except:
+            pass
+        
+        if not daemon_running:
+            health.status = "daemon_not_running"
+            health.last_error = "UW daemon process not running - endpoints cannot be fresh"
+            return health
+        
+        # Check cache freshness - if cache is fresh, endpoints are working
         cache_file = DATA_DIR / "uw_flow_cache.json"
         if cache_file.exists():
             cache_age = time.time() - cache_file.stat().st_mtime
-            if cache_age < 300:  # Cache updated in last 5 minutes
-                # Cache is fresh - API key must be working
+            if cache_age < 600:  # Cache updated in last 10 minutes (more lenient)
+                # Cache is fresh - endpoints are working
                 health.status = "healthy"
                 health.last_success_age_sec = cache_age
                 health.avg_latency_ms = None
-                # Still check error logs for this endpoint
+                
+                # Still check error logs for this specific endpoint
                 error_log = DATA_DIR / "uw_error.jsonl"
                 if error_log.exists():
                     now = time.time()
@@ -127,7 +141,9 @@ class SREMonitoringEngine:
                         for line in error_log.read_text().splitlines()[-100:]:
                             try:
                                 event = json.loads(line)
-                                if endpoint in event.get("url", ""):
+                                event_url = event.get("url", "")
+                                # Check if this error is for this endpoint
+                                if endpoint in event_url or (endpoint.replace("/", "") in event_url.replace("/", "")):
                                     requests_1h += 1
                                     if event.get("_ts", 0) > cutoff_1h:
                                         errors_1h += 1
@@ -145,32 +161,31 @@ class SREMonitoringEngine:
                             health.last_error = last_error_msg
                 
                 return health
-            elif cache_age < 600:  # Cache updated in last 10 minutes
+            elif cache_age < 1800:  # Cache updated in last 30 minutes
                 health.status = "degraded"
                 health.last_success_age_sec = cache_age
+                health.last_error = f"Cache moderately stale ({int(cache_age/60)} min old)"
             else:
-                # Cache is stale - check if API key is available
+                # Cache is very stale
                 if not self.uw_api_key:
                     health.status = "no_api_key"
                     health.last_error = "UW_API_KEY not set and cache is stale"
                 else:
                     health.status = "stale"
                     health.last_success_age_sec = cache_age
-                    health.last_error = f"Cache stale ({int(cache_age)}s old)"
+                    health.last_error = f"Cache very stale ({int(cache_age/60)} min old) - UW daemon may not be updating"
                 return health
         else:
-            # No cache file - check if API key is available
+            # No cache file
             if not self.uw_api_key:
                 health.status = "no_api_key"
                 health.last_error = "UW_API_KEY not set and no cache file"
-                return health
             else:
                 health.status = "no_cache"
-                health.last_error = "Cache file does not exist"
-                return health
+                health.last_error = "Cache file does not exist - UW daemon may not have started"
+            return health
         
-        # If we get here, cache exists but is moderately stale - continue with normal checks
-        # Check error logs for this endpoint
+        # Fallback: Check error logs
         error_log = DATA_DIR / "uw_error.jsonl"
         now = time.time()
         cutoff_1h = now - 3600
@@ -184,7 +199,8 @@ class SREMonitoringEngine:
                 for line in error_log.read_text().splitlines()[-100:]:
                     try:
                         event = json.loads(line)
-                        if endpoint in event.get("url", ""):
+                        event_url = event.get("url", "")
+                        if endpoint in event_url or (endpoint.replace("/", "") in event_url.replace("/", "")):
                             requests_1h += 1
                             if event.get("_ts", 0) > cutoff_1h:
                                 errors_1h += 1
@@ -195,10 +211,9 @@ class SREMonitoringEngine:
             except:
                 pass
         
-        # Calculate error rate from logs
         if requests_1h > 0:
             health.error_rate_1h = errors_1h / requests_1h
-            if health.error_rate_1h > 0.5:  # More than 50% errors
+            if health.error_rate_1h > 0.5:
                 health.status = "degraded"
                 health.last_error = last_error_msg
         else:
