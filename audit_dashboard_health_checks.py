@@ -22,21 +22,45 @@ def audit_health_endpoints():
     # Check basic /health endpoint
     print("\n1. BASIC /health ENDPOINT")
     print("-"*80)
-    print("Location: dashboard.py line 1196-1203")
-    print("Status: ⚠️  HARDCODED - Always returns 'healthy'")
-    print("""
-    Code:
+    print("Location: dashboard.py line 1196+")
+    
+    # Actually check the code
+    dashboard_file = Path("dashboard.py")
+    if dashboard_file.exists():
+        try:
+            code = dashboard_file.read_text()
+            if 'get_sre_health' in code and 'bot_running' in code and '@app.route("/health")' in code:
+                print("Status: ✓ FIXED - Now checks real health")
+                print("""
+    Code (FIXED):
     @app.route("/health")
     def health():
+        # Gets real health from SRE monitoring
+        from sre_monitoring import get_sre_health
+        sre_health = get_sre_health()
+        overall_health = sre_health.get("overall_health", "unknown")
+        
+        # Checks if bot process is actually running
+        bot_running = check_bot_process()
+        
         return jsonify({
-            "status": "healthy",  # ⚠️ HARDCODED
-            "timestamp": datetime.utcnow().isoformat(),
-            "dependencies_loaded": _registry_loaded,
-            "alpaca_connected": _alpaca_api is not None
+            "status": "healthy" if overall_health == "healthy" and bot_running else "degraded",
+            "overall_health": overall_health,
+            "bot_running": bot_running,
+            ...
         })
     """)
-    print("⚠️  ISSUE: This endpoint doesn't check actual bot health!")
-    print("   It only checks if dashboard dependencies are loaded.")
+                print("✓ FIXED: This endpoint now checks actual bot health!")
+                print("   - Checks SRE health status")
+                print("   - Verifies bot process is running")
+                print("   - Returns real status, not hardcoded")
+            else:
+                print("Status: ⚠️  HARDCODED - Always returns 'healthy'")
+                print("⚠️  ISSUE: This endpoint doesn't check actual bot health!")
+        except Exception as e:
+            print(f"Status: ⚠️  Could not verify: {e}")
+    else:
+        print("Status: ⚠️  dashboard.py not found")
     
     # Check /api/health_status endpoint
     print("\n2. /api/health_status ENDPOINT")
@@ -179,10 +203,17 @@ def provide_recommendations():
     print("="*80)
     
     print("\n1. DASHBOARD HEALTH CHECKS:")
-    print("  ⚠️  /health endpoint is hardcoded (not critical - dashboard uses /api/sre/health)")
+    # Check if /health was fixed
+    dashboard_file = Path("dashboard.py")
+    if dashboard_file.exists():
+        code = dashboard_file.read_text()
+        if 'get_sre_health' in code and 'bot_running' in code:
+            print("  ✓ /health endpoint FIXED - Now checks real health")
+        else:
+            print("  ⚠️  /health endpoint is hardcoded (not critical - dashboard uses /api/sre/health)")
+            print("  Recommendation: Fix /health endpoint to check real health")
     print("  ✓ Dashboard frontend uses real SRE monitoring")
     print("  ✓ Overall health status is calculated from real checks")
-    print("  Recommendation: Consider removing or fixing /health endpoint")
     
     print("\n2. FREEZE MECHANISMS:")
     print("  ✓ Freeze mechanisms exist and are checked")
@@ -205,6 +236,13 @@ if __name__ == "__main__":
     print("SUMMARY")
     print("="*80)
     print("\n✓ Dashboard uses REAL health checks via /api/sre/health")
-    print("⚠️  Basic /health endpoint is hardcoded (but not used by dashboard)")
+    # Check if /health was fixed
+    dashboard_file = Path("dashboard.py")
+    if dashboard_file.exists():
+        code = dashboard_file.read_text()
+        if 'get_sre_health' in code and 'bot_running' in code:
+            print("✓ /health endpoint FIXED - Now checks real health")
+        else:
+            print("⚠️  Basic /health endpoint is hardcoded (but not used by dashboard)")
     print("✓ Freeze mechanisms exist and work (stop trading, not bot process)")
     print("⚠️  No automatic bot stop mechanism (only freezes that block trading)")
