@@ -5150,7 +5150,7 @@ def run_once():
                     # The code expects lowercase (see line 3908: side = "buy" if c["direction"] == "bullish")
                     flow_sentiment = flow_sentiment_raw.lower() if flow_sentiment_raw in ("BULLISH", "BEARISH") else "neutral"
                     score = composite.get("score", 0.0)
-                    print(f"DEBUG: Composite signal for {ticker}: score={score:.2f}, sentiment={flow_sentiment_raw}->{flow_sentiment}, threshold={get_threshold(ticker, 'base'):.2f}", flush=True)
+                    print(f"DEBUG: Composite signal ACCEPTED for {ticker}: score={score:.2f}, sentiment={flow_sentiment_raw}->{flow_sentiment}, threshold={get_threshold(ticker, 'base'):.2f}", flush=True)
                     cluster = {
                         "ticker": ticker,
                         "direction": flow_sentiment,  # CRITICAL: Must be lowercase "bullish"/"bearish"
@@ -5172,12 +5172,24 @@ def run_once():
                     threshold_used = get_threshold(ticker, 'base')
                     toxicity = composite.get("toxicity", 0.0)
                     freshness = composite.get("freshness", 1.0)
-                    print(f"DEBUG: Composite signal REJECTED for {ticker}: score={score:.2f} < threshold={threshold_used:.2f} OR toxicity={toxicity:.2f} > 0.90 OR freshness={freshness:.2f} < 0.30", flush=True)
+                    
+                    # Determine actual rejection reason
+                    rejection_reasons = []
+                    if score < threshold_used:
+                        rejection_reasons.append(f"score={score:.2f} < threshold={threshold_used:.2f}")
+                    if toxicity > 0.90:
+                        rejection_reasons.append(f"toxicity={toxicity:.2f} > 0.90")
+                    if freshness < 0.30:
+                        rejection_reasons.append(f"freshness={freshness:.2f} < 0.30")
+                    
+                    reason_str = " OR ".join(rejection_reasons) if rejection_reasons else "unknown"
+                    print(f"DEBUG: Composite signal REJECTED for {ticker}: {reason_str}", flush=True)
                     log_event("composite_gate", "rejected", symbol=ticker, 
                              score=score,
                              threshold=threshold_used,
                              toxicity=toxicity,
-                             freshness=freshness)
+                             freshness=freshness,
+                             rejection_reason=reason_str)
             
             clusters = filtered_clusters
             print(f"DEBUG: Composite scoring complete: {symbols_processed} symbols processed, {symbols_with_signals} passed gate, {len(clusters)} clusters generated", flush=True)
