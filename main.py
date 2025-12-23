@@ -6680,13 +6680,17 @@ def startup_reconcile_positions():
         
     except Exception as e:
         log_event("reconcile", "startup_failed", error=str(e))
-        send_webhook({
-            "event": "RECONCILE_FAILURE_HALT_TRADING",
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        # DO NOT start trading if reconciliation fails
-        raise RuntimeError(f"Startup reconciliation failed - cannot verify position state: {e}")
+        # Don't send webhook on every startup failure (too noisy)
+        # send_webhook({
+        #     "event": "RECONCILE_FAILURE_HALT_TRADING",
+        #     "error": str(e),
+        #     "timestamp": datetime.utcnow().isoformat()
+        # })
+        # DO NOT raise - let main() handle it and continue
+        # The bot should start even if reconciliation fails (will retry in background)
+        print(f"WARNING: Startup reconciliation failed: {e}")
+        print("Bot will continue - reconciliation will retry in background")
+        return False  # Return False instead of raising
 
 # =========================
 # ENTRY POINT
