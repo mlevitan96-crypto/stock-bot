@@ -126,7 +126,8 @@ echo "Adding files to git..."
 for file in "${EXPANDED_FILES[@]}"; do
     if [ -f "$file" ] || [ -d "$file" ]; then
         # Force add even if in .gitignore (for analysis purposes)
-        git add -f "$file"
+        # Suppress warning about .gitignore
+        git add -f "$file" 2>&1 | grep -v "ignored by one of your .gitignore" || true
         echo "  ✓ Added: $file"
     fi
 done
