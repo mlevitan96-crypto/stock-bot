@@ -13,10 +13,6 @@ fi
 # Priority: .env file > environment variable
 # Token MUST be set in .env or environment variable
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
-GITHUB_REPO="mlevitan96-crypto/stock-bot"
-GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
-GITHUB_USER="mlevitan96"
-GITHUB_EMAIL="mlevitan96@gmail.com"
 
 # Load from .env if exists
 if [ -f .env ]; then
@@ -35,6 +31,11 @@ if [ -z "$GITHUB_TOKEN" ]; then
     echo ""
     exit 1
 fi
+
+GITHUB_REPO="mlevitan96-crypto/stock-bot"
+GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+GITHUB_USER="mlevitan96"
+GITHUB_EMAIL="mlevitan96@gmail.com"
 
 # Check if files provided
 if [ $# -eq 0 ]; then
