@@ -69,15 +69,42 @@ sleep 10
 # 8. Final check
 echo ""
 echo "8. Final process check..."
-BOT_RUNNING=$(pgrep -f "python.*main.py" > /dev/null && echo "YES" || echo "NO")
-DASHBOARD_RUNNING=$(pgrep -f "python.*dashboard.py" > /dev/null && echo "YES" || echo "NO")
-SUPERVISOR_RUNNING=$(pgrep -f "deploy_supervisor" > /dev/null && echo "YES" || echo "NO")
+# More robust process detection - check multiple patterns
+BOT_RUNNING="NO"
+if pgrep -f "python.*main.py" > /dev/null 2>&1; then
+    BOT_RUNNING="YES"
+elif pgrep -f "main.py" > /dev/null 2>&1; then
+    BOT_RUNNING="YES"
+elif ps aux | grep -E "[p]ython.*main\.py|[p]ython main" > /dev/null 2>&1; then
+    BOT_RUNNING="YES"
+fi
+
+DASHBOARD_RUNNING=$(pgrep -f "python.*dashboard.py" > /dev/null 2>&1 && echo "YES" || echo "NO")
+SUPERVISOR_RUNNING=$(pgrep -f "deploy_supervisor" > /dev/null 2>&1 && echo "YES" || echo "NO")
+UW_DAEMON_RUNNING=$(pgrep -f "uw_flow_daemon" > /dev/null 2>&1 && echo "YES" || echo "NO")
 
 echo "  Bot (main.py): $BOT_RUNNING"
 echo "  Dashboard: $DASHBOARD_RUNNING"
 echo "  Supervisor: $SUPERVISOR_RUNNING"
+echo "  UW Daemon: $UW_DAEMON_RUNNING"
 
-if [ "$BOT_RUNNING" = "YES" ]; then
+# Also check if bot is actually responding via health endpoint
+BOT_RESPONDING="NO"
+if command -v curl > /dev/null 2>&1; then
+    if curl -s -m 2 http://localhost:8081/health > /dev/null 2>&1; then
+        BOT_RESPONDING="YES"
+    fi
+fi
+
+if [ "$BOT_RESPONDING" = "YES" ]; then
+    echo "  Bot Health Endpoint: RESPONDING"
+elif [ "$BOT_RUNNING" = "YES" ]; then
+    echo "  Bot Health Endpoint: NOT RESPONDING (may still be starting)"
+else
+    echo "  Bot Health Endpoint: NOT RESPONDING"
+fi
+
+if [ "$BOT_RUNNING" = "YES" ] || [ "$BOT_RESPONDING" = "YES" ]; then
     echo ""
     echo "  ✓ Bot is running!"
     echo "  Run diagnostic again in 1 minute: python3 diagnose_alpaca_orders.py"
