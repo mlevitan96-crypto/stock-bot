@@ -1077,11 +1077,17 @@ SRE_DASHBOARD_HTML = """
                     
                     // Update overall health
                     const overallHealth = data.overall_health || 'unknown';
+                    const botProcess = data.bot_process || {};
+                    const botRunning = botProcess.running || false;
+                    const botPid = botProcess.pid || null;
+                    const botCheckMethod = botProcess.check_method || 'unknown';
+                    
                     const overallEl = document.getElementById('overall-health');
                     overallEl.className = 'overall-health ' + getStatusClass(overallHealth);
                     overallEl.innerHTML = `
                         <h2>${overallHealth.toUpperCase()}</h2>
                         <p>Market: <span class="market-status ${data.market_open ? 'open' : 'closed'}">${data.market_status || 'unknown'}</span></p>
+                        <p>Bot Process: <span class="market-status ${botRunning ? 'open' : 'closed'}">${botRunning ? 'RUNNING' : 'NOT RUNNING'}</span>${botPid ? ` (PID: ${botPid})` : ''}</p>
                         ${data.critical_issues ? '<p style="color: #ef4444; margin-top: 10px;"><strong>Critical Issues:</strong> ' + data.critical_issues.join(', ') + '</p>' : ''}
                         ${data.warnings ? '<p style="color: #f59e0b; margin-top: 10px;"><strong>Warnings:</strong> ' + data.warnings.join(', ') + '</p>' : ''}
                     `;
