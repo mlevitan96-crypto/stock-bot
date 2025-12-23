@@ -5575,8 +5575,12 @@ class Watchdog:
             }
             # Use same method as owner_health_check (simple write_text)
             heartbeat_path.write_text(json.dumps(heartbeat_data, indent=2))
+            # DEBUG: Log successful write to verify it's working
+            print(f"DEBUG: Heartbeat file written to {heartbeat_path}", flush=True)
         except Exception as e:
-            log_event("heartbeat", "write_failed", error=str(e))
+            # CRITICAL: Log the error so we can see why it's failing
+            print(f"ERROR: Failed to write heartbeat file: {e}", flush=True)
+            log_event("heartbeat", "write_failed", error=str(e), path=str(heartbeat_path))
 
     def _worker_loop(self):
         self.state.running = True
