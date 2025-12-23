@@ -1,0 +1,99 @@
+{
+  "start": "2025-12-23T20:49:16.781450",
+  "fixes": {
+    "dashboard": {
+      "fixed": false,
+      "error": "  File \"dashboard.py\", line 1401\n    if last_order_ts:\nSyntaxError: expected 'except' or 'finally' block\n"
+    },
+    "dashboard_restart": {
+      "attempted": true,
+      "now_running": false
+    }
+  },
+  "data": {
+    "timestamp": "2025-12-23T20:49:16.945313",
+    "system": {
+      "hostname": "ubuntu-s-1vcpu-2gb-nyc3-01-alpaca",
+      "uptime": "20:49:16 up 10 days, 21 min,  3 users,  load average: 0.09, 0.06, 0.04"
+    },
+    "processes": {
+      "main_bot": {
+        "running": true,
+        "details": "root      514264  4.2 13.0 875572 262772 pts/0   Sl+  18:06   7:00 python main.py\n"
+      },
+      "dashboard": {
+        "running": false,
+        "details": ""
+      },
+      "supervisor": {
+        "running": true,
+        "details": "root      514217  0.0  0.1   7632  2432 ?        Ss   18:05   0:01 SCREEN -dmS supervisor bash -c cd ~/stock-bot && source venv/bin/activate && python deploy_supervisor.py\nroot      514219  0.0  2.7 357580 55596 pts/0    Ssl+ 18:05   0:04 python deploy_supervisor.py\n"
+      }
+    },
+    "files": {
+      "heartbeat": {
+        "exists": true,
+        "last_heartbeat_ts": 1766522950,
+        "age_sec": 7.020361661911011,
+        "data": {
+          "last_heartbeat_ts": 1766522950,
+          "last_heartbeat_dt": "2025-12-23 20:49:10 UTC",
+          "iter_count": 164,
+          "running": true,
+          "metrics": {
+            "clusters": 0,
+            "orders": 0,
+            "total_pnl": 114.73,
+            "trades": 16,
+            "win_rate": 0.5625,
+            "market_regime": "mixed",
+            "composite_enabled": true,
+            "risk_metrics": {
+              "current_equity": 52352.7,
+              "peak_equity": 52436.84,
+              "daily_pnl": -30.560000000004948,
+              "drawdown_pct": 0.0016045970733552866,
+              "daily_loss_limit": 2200,
+              "drawdown_limit_pct": 0.2,
+              "mode": "PAPER"
+            },
+            "owner_check": {
+              "issues": [],
+              "healthy": true,
+              "position_reconcile": {
+                "skipped": true,
+                "reason": "throttled"
+              }
+            }
+          }
+        }
+      },
+      "data/live_orders.jsonl": {
+        "exists": true,
+        "last_order_ts": 1766428946,
+        "last_order_age_sec": 94011.02057385445
+      },
+      "logs/orders.jsonl": {
+        "exists": true,
+        "last_order_ts": null,
+        "last_order_age_sec": null
+      },
+      "dashboard_log": {
+        "exists": true,
+        "last_50_lines": [
+          "  File \"/root/stock-bot/dashboard.py\", line 1375",
+          "    try:",
+          "    ^",
+          "IndentationError: expected an indented block after 'if' statement on line 1374"
+        ]
+      }
+    },
+    "logs": {
+      "logs/run.jsonl": {
+        "exists": true,
+        "recent_count": 100
+      }
+    }
+  },
+  "end": "2025-12-23T20:49:22.098085"
+}
