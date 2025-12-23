@@ -1,0 +1,40 @@
+{
+  "analysis_timestamp": "2025-12-23T21:57:48.777861+00:00",
+  "findings": {
+    "health_status": {
+      "last_order_age_hours": 27.10065227356222,
+      "last_order_status": "stale",
+      "doctor_age_minutes": 5770.814999234676,
+      "doctor_status": "stale",
+      "market_open": false
+    },
+    "sre_health": {
+      "error": "Extra data: line 1 column 5 (char 4)"
+    },
+    "processes": {
+      "main.py": {
+        "running": true,
+        "pids": [
+          "514264"
+        ],
+        "count": 1
+      },
+      "dashboard.py": {
+        "running": true,
+        "pids": [
+          "521810"
+        ],
+        "count": 1
+      }
+    },
+    "heartbeat": {
+      "timestamp": 1766526490,
+      "age_minutes": 9.6463099082311,
+      "age_hours": 0.16077183180385166
+    }
+  },
+  "issues": [
+    "Doctor/heartbeat stale (>60 min)",
+    "Last order very old (>24 hours)"
+  ]
+}
