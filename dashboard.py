@@ -1392,12 +1392,13 @@ def api_health_status():
             last_order_age_sec = time.time() - last_order_ts
         
         # Get Doctor/heartbeat from file
+        # CRITICAL: Check bot_heartbeat.json FIRST (main.py writes here)
         heartbeat_age_sec = None
         heartbeat_files = [
+            Path("state/bot_heartbeat.json"),  # Main bot heartbeat - check FIRST
             Path("state/doctor_state.json"),
             Path("state/system_heartbeat.json"),
-            Path("state/heartbeat.json"),
-            Path("state/bot_heartbeat.json")
+            Path("state/heartbeat.json")
         ]
         
         for hb_file in heartbeat_files:

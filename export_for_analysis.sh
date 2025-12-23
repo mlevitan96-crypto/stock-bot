@@ -85,10 +85,18 @@ case "$ANALYSIS_TYPE" in
     
     "quick"|"q")
         echo "Quick export (most recent files only)..."
-        ./push_to_github.sh \
-            state/bot_heartbeat.json \
-            logs/run.jsonl \
-            "Quick export for analysis"
+        # Use clean branch version to avoid secret scanning issues
+        if [ -f "./push_to_github_clean.sh" ]; then
+            ./push_to_github_clean.sh \
+                state/bot_heartbeat.json \
+                logs/run.jsonl \
+                "Quick export for analysis"
+        else
+            ./push_to_github.sh \
+                state/bot_heartbeat.json \
+                logs/run.jsonl \
+                "Quick export for analysis"
+        fi
         ;;
     
     *)

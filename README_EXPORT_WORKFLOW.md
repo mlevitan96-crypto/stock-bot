@@ -59,17 +59,19 @@ Quick exports for common analysis scenarios.
 
 ## Security
 
-The GitHub token is:
-1. First checked in `.env` file (if `GITHUB_TOKEN` is set)
-2. Then checked in environment variable
-3. Falls back to default (for convenience)
+The GitHub token **MUST** be set in one of these ways:
 
-**Recommended:** Add to `.env` file:
-```bash
-echo "GITHUB_TOKEN=your_github_token_here" >> .env
-```
+1. **Recommended:** Add to `.env` file:
+   ```bash
+   echo "GITHUB_TOKEN=your_github_token_here" >> .env
+   ```
 
-The token is already configured in the script as a default, but using `.env` is more secure.
+2. Or export as environment variable:
+   ```bash
+   export GITHUB_TOKEN=your_github_token_here
+   ```
+
+The script will fail if the token is not set (security best practice).
 
 ## Workflow Example
 

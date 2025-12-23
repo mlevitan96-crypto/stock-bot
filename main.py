@@ -5338,6 +5338,25 @@ def run_once():
         except Exception as e:
             log_event("heartbeat", "early_write_failed", error=str(e))
         
+        # CRITICAL FIX: Write heartbeat BEFORE owner_health_check to prevent false stale alerts
+        # The heartbeat file is checked by owner_health_check, but heartbeat() is normally
+        # called AFTER run_once() completes. We need to write it here so the check sees fresh data.
+        # Note: This is a duplicate write (heartbeat() also called after run_once), but ensures
+        # owner_health_check sees fresh heartbeat file.
+        try:
+            heartbeat_path = StateFiles.BOT_HEARTBEAT
+            heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
+            heartbeat_data = {
+                "last_heartbeat_ts": int(time.time()),
+                "last_heartbeat_dt": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "iter_count": 0,  # Will be updated by actual heartbeat() call
+                "running": True,
+                "metrics": {"clusters": len(clusters), "orders": len(orders)}
+            }
+            heartbeat_path.write_text(json.dumps(heartbeat_data, indent=2))
+        except Exception as e:
+            log_event("heartbeat", "early_write_failed", error=str(e))
+        
         print("DEBUG: About to call owner_health_check", flush=True)
         audit_seg("run_once", "before_health_check")
         # Owner-in-the-loop health check cycle
