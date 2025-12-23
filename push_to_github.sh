@@ -10,8 +10,9 @@ if [ -f .env ]; then
 fi
 
 # Configuration
-# Priority: .env file > environment variable > default (for convenience)
-GITHUB_TOKEN="${GITHUB_TOKEN:-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}"
+# Priority: .env file > environment variable
+# Token MUST be set in .env or environment variable
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 GITHUB_REPO="mlevitan96-crypto/stock-bot"
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_USER="mlevitan96"
