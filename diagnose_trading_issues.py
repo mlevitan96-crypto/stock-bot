@@ -45,6 +45,51 @@ def check_positions():
             print("  No positions open")
             
         return len(positions)
+    except ImportError:
+        # Try alternative import
+        try:
+            import alpaca_trade_api as tradeapi
+            from dotenv import load_dotenv
+            import os
+            load_dotenv()
+            
+            api = tradeapi.REST(
+                os.getenv("ALPACA_KEY"),
+                os.getenv("ALPACA_SECRET"),
+                os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets"),
+                api_version='v2'
+            )
+            
+            positions = api.list_positions()
+            print(f"\nCurrent positions: {len(positions)}")
+            print(f"Max allowed: 16\n")
+            
+            if positions:
+                for pos in positions:
+                    symbol = getattr(pos, 'symbol', 'UNKNOWN')
+                    qty = getattr(pos, 'qty', 0)
+                    entry_price = getattr(pos, 'avg_entry_price', 0)
+                    current_price = getattr(pos, 'current_price', 0)
+                    pnl = getattr(pos, 'unrealized_pl', 0)
+                    print(f"  {symbol}: {qty} shares @ ${entry_price:.2f} (current: ${current_price:.2f}, P&L: ${pnl:.2f})")
+            else:
+                print("  No positions open")
+                
+            return len(positions)
+        except Exception as e:
+            print(f"  Error checking positions: {e}")
+            print("  (Trying to read from position metadata instead...)")
+            # Fallback: check position metadata
+            metadata_file = Path("state/position_metadata.json")
+            if metadata_file.exists():
+                try:
+                    with open(metadata_file, 'r') as f:
+                        metadata = json.load(f)
+                    print(f"\n  Positions in metadata: {len(metadata)}")
+                    return len(metadata)
+                except:
+                    pass
+            return 0
     except Exception as e:
         print(f"  Error checking positions: {e}")
         return 0
@@ -62,7 +107,7 @@ def check_recent_signals():
         return
     
     recent_signals = []
-    cutoff = time.time() - 3600  # Last hour
+    cutoff = time.time() - 86400  # Last 24 hours (expand window)
     
     with open(signals_file, 'r') as f:
         for line in f:
@@ -74,7 +119,7 @@ def check_recent_signals():
             except:
                 pass
     
-    print(f"\nSignals in last hour: {len(recent_signals)}")
+    print(f"\nSignals in last 24 hours: {len(recent_signals)}")
     
     if recent_signals:
         scores = [s.get("score", 0) for s in recent_signals]
@@ -87,7 +132,7 @@ def check_recent_signals():
 def check_blocked_trades():
     """Check why trades were blocked"""
     print("\n" + "=" * 80)
-    print("BLOCKED TRADES ANALYSIS (Last Hour)")
+    print("BLOCKED TRADES ANALYSIS (Last 24 Hours)")
     print("=" * 80)
     
     blocked_file = Path("state/blocked_trades.jsonl")
@@ -95,7 +140,7 @@ def check_blocked_trades():
         print("\n❌ blocked_trades.jsonl not found")
         return
     
-    cutoff = time.time() - 3600
+    cutoff = time.time() - 86400  # Last 24 hours
     blocked = []
     reasons = Counter()
     
@@ -111,7 +156,7 @@ def check_blocked_trades():
             except:
                 pass
     
-    print(f"\nBlocked trades in last hour: {len(blocked)}")
+    print(f"\nBlocked trades in last 24 hours: {len(blocked)}")
     print("\nBlock reasons:")
     for reason, count in reasons.most_common():
         print(f"  {reason}: {count}")
@@ -119,7 +164,7 @@ def check_blocked_trades():
 def check_gate_events():
     """Check gate events"""
     print("\n" + "=" * 80)
-    print("GATE EVENTS (Last Hour)")
+    print("GATE EVENTS (Last 24 Hours)")
     print("=" * 80)
     
     gate_file = Path("logs/gate.jsonl")
@@ -127,7 +172,7 @@ def check_gate_events():
         print("\n❌ gate.jsonl not found")
         return
     
-    cutoff = time.time() - 3600
+    cutoff = time.time() - 86400  # Last 24 hours
     gate_events = []
     gate_types = Counter()
     
@@ -143,7 +188,7 @@ def check_gate_events():
             except:
                 pass
     
-    print(f"\nGate events in last hour: {len(gate_events)}")
+    print(f"\nGate events in last 24 hours: {len(gate_events)}")
     print("\nGate types:")
     for gtype, count in gate_types.most_common():
         print(f"  {gtype}: {count}")
@@ -158,9 +203,25 @@ def check_clusters():
     run_file = Path("logs/run.jsonl")
     if not run_file.exists():
         print("\n❌ run.jsonl not found")
+        # Also check supervisor logs
+        supervisor_file = Path("logs/supervisor.jsonl")
+        if supervisor_file.exists():
+            print("\n  Checking supervisor logs instead...")
+            cutoff = time.time() - 86400
+            with open(supervisor_file, 'r') as f:
+                lines = f.readlines()
+                recent_lines = [l for l in lines[-100:]]  # Last 100 lines
+                print(f"  Recent supervisor events: {len(recent_lines)}")
+                for line in recent_lines[-10:]:  # Show last 10
+                    try:
+                        rec = json.loads(line)
+                        event = rec.get("event", "")
+                        print(f"    {event}")
+                    except:
+                        pass
         return
     
-    cutoff = time.time() - 3600
+    cutoff = time.time() - 86400  # Last 24 hours
     recent_runs = []
     
     with open(run_file, 'r') as f:
@@ -173,7 +234,7 @@ def check_clusters():
             except:
                 pass
     
-    print(f"\nRun cycles in last hour: {len(recent_runs)}")
+    print(f"\nRun cycles in last 24 hours: {len(recent_runs)}")
     
     if recent_runs:
         clusters_counts = [r.get("clusters", 0) for r in recent_runs]
@@ -185,6 +246,10 @@ def check_clusters():
         if clusters_counts and max(clusters_counts) == 0:
             print("\n  ⚠️  WARNING: No clusters generated in recent cycles!")
             print("     This means signals are being rejected before clustering")
+    else:
+        print("\n  ⚠️  WARNING: No run cycles found in last 24 hours!")
+        print("     Bot may not be executing run_once() or not logging cycles")
+        print("     Check if bot process is actually running")
 
 def check_threshold():
     """Check current threshold"""
