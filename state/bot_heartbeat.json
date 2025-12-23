@@ -1,7 +1,7 @@
 {
-  "last_heartbeat_ts": 1766519650,
-  "last_heartbeat_dt": "2025-12-23 19:54:10 UTC",
-  "iter_count": 109,
+  "last_heartbeat_ts": 1766519890,
+  "last_heartbeat_dt": "2025-12-23 19:58:10 UTC",
+  "iter_count": 113,
   "running": true,
   "metrics": {
     "clusters": 0,
@@ -12,10 +12,10 @@
     "market_regime": "mixed",
     "composite_enabled": true,
     "risk_metrics": {
-      "current_equity": 52362.1,
+      "current_equity": 52362.9,
       "peak_equity": 52436.84,
-      "daily_pnl": -21.160000000003492,
-      "drawdown_pct": 0.0014253337920438753,
+      "daily_pnl": -20.360000000000582,
+      "drawdown_pct": 0.0014100773425705106,
       "daily_loss_limit": 2200,
       "drawdown_limit_pct": 0.2,
       "mode": "PAPER"
