@@ -1195,12 +1195,47 @@ def index():
 
 @app.route("/health")
 def health():
-    return jsonify({
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "dependencies_loaded": _registry_loaded,
-        "alpaca_connected": _alpaca_api is not None
-    })
+    """Health check endpoint - checks actual system health"""
+    try:
+        # Get real health status from SRE monitoring
+        from sre_monitoring import get_sre_health
+        sre_health = get_sre_health()
+        overall_health = sre_health.get("overall_health", "unknown")
+        
+        # Check if bot process is running
+        import subprocess
+        bot_running = False
+        try:
+            result = subprocess.run(
+                ["pgrep", "-f", "python.*main.py"],
+                capture_output=True,
+                timeout=2
+            )
+            bot_running = result.returncode == 0
+        except:
+            pass
+        
+        return jsonify({
+            "status": "healthy" if overall_health == "healthy" and bot_running else "degraded",
+            "overall_health": overall_health,
+            "bot_running": bot_running,
+            "timestamp": datetime.utcnow().isoformat(),
+            "dependencies_loaded": _registry_loaded,
+            "alpaca_connected": _alpaca_api is not None,
+            "sre_health": {
+                "market_open": sre_health.get("market_open", False),
+                "last_order": sre_health.get("last_order", {}),
+            }
+        })
+    except Exception as e:
+        # Fallback if SRE monitoring fails
+        return jsonify({
+            "status": "unknown",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+            "dependencies_loaded": _registry_loaded,
+            "alpaca_connected": _alpaca_api is not None
+        }), 500
 
 @app.route("/api/positions")
 def api_positions():
