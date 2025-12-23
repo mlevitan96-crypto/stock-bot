@@ -188,9 +188,28 @@ def start_service(service):
         thread = threading.Thread(target=stream_output, args=(proc, name), daemon=True)
         thread.start()
         
-        time.sleep(0.5)
+        # Wait longer and check multiple times to catch immediate crashes
+        time.sleep(2)  # Increased from 0.5 to 2 seconds
         if proc.poll() is not None:
-            log(f"ERROR: {name} exited immediately with code {proc.returncode}")
+            exit_code = proc.returncode
+            log(f"ERROR: {name} exited immediately with code {exit_code}")
+            # Try to capture stderr for debugging
+            try:
+                if proc.stderr:
+                    stderr_output = proc.stderr.read()
+                    if stderr_output:
+                        log(f"STDERR from {name}: {stderr_output[:500]}")
+            except:
+                pass
+            log_event("SERVICE_EXITED_IMMEDIATELY", service=name, exit_code=exit_code)
+            return False
+        
+        # Check again after another second to catch delayed crashes
+        time.sleep(1)
+        if proc.poll() is not None:
+            exit_code = proc.returncode
+            log(f"ERROR: {name} exited after 3 seconds with code {exit_code}")
+            log_event("SERVICE_EXITED_EARLY", service=name, exit_code=exit_code)
             return False
         
         log(f"Service {name} started successfully (PID: {proc.pid})")
