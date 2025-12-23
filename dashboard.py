@@ -1361,27 +1361,34 @@ def api_health_status():
         import time
         from pathlib import Path
         
-        # Get last order directly from file
+        # Get last order from multiple possible files (CRITICAL FIX)
         last_order_ts = None
         last_order_age_sec = None
-        orders_file = Path("data/live_orders.jsonl")
-        if orders_file.exists():
-            try:
-                with orders_file.open("r") as f:
-                    lines = f.readlines()
-                    for line in lines[-500:]:
-                        try:
-                            event = json.loads(line.strip())
-                            event_ts = event.get("_ts", 0)
-                            event_type = event.get("event", "")
-                            if event_ts > (last_order_ts or 0) and event_type in ["MARKET_FILLED", "LIMIT_FILLED", "ORDER_SUBMITTED"]:
-                                last_order_ts = event_ts
-                        except:
-                            pass
-                if last_order_ts:
-                    last_order_age_sec = time.time() - last_order_ts
-            except:
-                pass
+        orders_files = [
+            Path("data/live_orders.jsonl"),
+            Path("logs/orders.jsonl"),
+            Path("logs/trading.jsonl")
+        ]
+        
+        for orders_file in orders_files:
+            if orders_file.exists():
+                try:
+                    with orders_file.open("r") as f:
+                        lines = f.readlines()
+                        for line in lines[-500:]:
+                            try:
+                                event = json.loads(line.strip())
+                                event_ts = event.get("_ts", 0)
+                                event_type = event.get("event", "")
+                                if event_ts > (last_order_ts or 0) and event_type in ["MARKET_FILLED", "LIMIT_FILLED", "ORDER_SUBMITTED"]:
+                                    last_order_ts = event_ts
+                            except:
+                                pass
+                except:
+                    pass
+        
+        if last_order_ts:
+            last_order_age_sec = time.time() - last_order_ts
         
         # Get Doctor/heartbeat from file
         heartbeat_age_sec = None
@@ -1396,7 +1403,8 @@ def api_health_status():
             if hb_file.exists():
                 try:
                     data = json.loads(hb_file.read_text())
-                    heartbeat_ts = data.get("timestamp") or data.get("_ts") or data.get("last_heartbeat") or data.get("last_update")
+                    # CRITICAL FIX: Check last_heartbeat_ts first (the actual field name used by main.py)
+                    heartbeat_ts = data.get("last_heartbeat_ts") or data.get("timestamp") or data.get("_ts") or data.get("last_heartbeat") or data.get("last_update")
                     if heartbeat_ts:
                         heartbeat_age_sec = time.time() - float(heartbeat_ts)
                         break
