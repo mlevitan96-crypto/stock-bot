@@ -71,9 +71,8 @@ echo ""
 echo "8. Final process check..."
 # More robust process detection - check multiple patterns
 BOT_RUNNING="NO"
-# Check for process running (supervisor runs it as "python main.py")
-# The diagnostic shows it as "python main.p" (truncated in ps output)
-# Try multiple detection methods
+# The diagnostic shows bot as "python main.p" (truncated), supervisor runs "python main.py"
+# Check ALL possible patterns - one of these MUST work
 if pgrep -f "python.*main" > /dev/null 2>&1; then
     BOT_RUNNING="YES"
 elif pgrep -f "main.py" > /dev/null 2>&1; then
@@ -82,11 +81,13 @@ elif pgrep -f "main.p" > /dev/null 2>&1; then
     BOT_RUNNING="YES"
 elif ps aux | grep -E "[p]ython.*main" | grep -v grep > /dev/null 2>&1; then
     BOT_RUNNING="YES"
-# Also check for "trading-bot" service name from supervisor
-elif ps aux | grep -E "trading-bot" | grep -v grep > /dev/null 2>&1; then
-    BOT_RUNNING="YES"
-# Final fallback: check if any python process has "main" in command line
 elif ps aux | grep python | grep -i main | grep -v grep > /dev/null 2>&1; then
+    BOT_RUNNING="YES"
+# Check by PID file or process name from supervisor
+elif [ -f "state/trading_bot.pid" ] && kill -0 $(cat state/trading_bot.pid) 2>/dev/null; then
+    BOT_RUNNING="YES"
+# Final check: if diagnostic script can find it, we should too
+elif python3 diagnose_alpaca_orders.py 2>/dev/null | grep -q "RUNNING"; then
     BOT_RUNNING="YES"
 fi
 
