@@ -5068,12 +5068,11 @@ def run_once():
                         if age_min < 120:  # 2 hours
                             current_freshness = enriched.get("freshness", 1.0)
                             if current_freshness < 0.7:
-                                enriched["freshness"] = max(0.7, current_freshness)  # Minimum 0.7 for stale cache
-                                print(f"DEBUG: Adjusted freshness for {ticker} from {current_freshness:.2f} to {enriched['freshness']:.2f} (stale cache < 2h)", flush=True)
+                                enriched["freshness"] = 0.7  # Set to minimum 0.7 for stale cache
+                                print(f"DEBUG: Adjusted freshness for {ticker} from {current_freshness:.2f} to 0.70 (stale cache < 2h)", flush=True)
                 
                 # Ensure computed signals are in enriched data (fallback if not in cache)
                 enricher = uw_enrich.UWEnricher()
-                symbol_data = uw_cache.get(ticker, {})
                 cache_updated = False
                 
                 if isinstance(symbol_data, dict):
