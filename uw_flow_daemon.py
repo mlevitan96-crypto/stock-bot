@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config.registry import CacheFiles, Directories, read_json, atomic_write_json, append_jsonl
+from config.registry import CacheFiles, Directories, StateFiles, read_json, atomic_write_json, append_jsonl
 
 load_dotenv()
 
@@ -151,7 +151,7 @@ class SmartPoller:
     """Intelligent polling manager to optimize API usage."""
     
     def __init__(self):
-        self.state_file = Path("state/smart_poller.json")
+        self.state_file = StateFiles.SMART_POLLER
         # OPTIMIZED: Maximize API usage while staying under 15,000/day limit
         # Market hours: 9:30 AM - 4:00 PM ET = 6.5 hours = 390 minutes
         # Target: Use ~14,000 calls (93% of limit) to leave buffer

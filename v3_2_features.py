@@ -13,6 +13,8 @@ from pathlib import Path
 from datetime import datetime, date
 from typing import Dict, List, Tuple, Optional
 
+from config.registry import StateFiles
+
 # ============================================================================
 # CONFIGURATION PATHS (v3.2.1)
 # ============================================================================
@@ -22,7 +24,7 @@ OPTIMIZATIONS_LOG = Path("data/optimizations.jsonl")
 TCA_SUMMARY_LOG = Path("data/tca_summary.jsonl")
 CHAMPION_EVENTS_LOG = Path("data/champion_events.jsonl")
 BAYES_PROFILES_PATH = Path("state/bayes_profiles.json")
-CHAMPIONS_PATH = Path("state/champions.json")
+CHAMPIONS_PATH = StateFiles.CHAMPIONS
 ROUTER_CONFIG_PATH = Path("config/execution_router.json")
 SYSTEM_STAGE_PATH = Path("state/system_stage.json")
 
