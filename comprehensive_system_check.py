@@ -267,7 +267,15 @@ def check_recent_activity():
                         try:
                             rec = json.loads(line)
                             ts = rec.get("ts", rec.get("_ts", 0))
-                            if ts > cutoff:
+                            # Handle both numeric and string timestamps
+                            if isinstance(ts, str):
+                                try:
+                                    from datetime import datetime
+                                    ts_dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                                    ts = ts_dt.timestamp()
+                                except:
+                                    continue
+                            if isinstance(ts, (int, float)) and ts > cutoff:
                                 count += 1
                         except:
                             pass
@@ -276,35 +284,50 @@ def check_recent_activity():
                 print(f"\n{name}: Error reading - {e}")
         else:
             print(f"\n{name}: File not found")
+    
+    # Suppress any daemon thread output that might cause crashes
+    import sys
+    sys.stdout.flush()
+    sys.stderr.flush()
 
 def main():
-    print("=" * 80)
-    print("COMPREHENSIVE SYSTEM CHECK")
-    print("=" * 80)
-    print(f"\nTime: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
-    
-    bot_running = check_bot_process()
-    check_worker_thread()
-    check_uw_daemon()
-    check_uw_endpoints_detailed()
-    check_market_status()
-    check_freeze_state()
-    check_recent_activity()
-    
-    print("\n" + "=" * 80)
-    print("SUMMARY & RECOMMENDATIONS")
-    print("=" * 80)
-    
-    if not bot_running:
-        print("\n❌ CRITICAL: Bot process is not running")
-        print("  Fix: Restart bot with ./RESTART_BOT_NOW.sh")
-    else:
-        print("\n✓ Bot process is running")
-        print("  If no cycles, check:")
-        print("  1. Worker thread status (heartbeat)")
-        print("  2. Freeze state")
-        print("  3. Market status")
-        print("  4. UW daemon status")
+    try:
+        print("=" * 80)
+        print("COMPREHENSIVE SYSTEM CHECK")
+        print("=" * 80)
+        print(f"\nTime: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
+        
+        bot_running = check_bot_process()
+        check_worker_thread()
+        check_uw_daemon()
+        check_uw_endpoints_detailed()
+        check_market_status()
+        check_freeze_state()
+        check_recent_activity()
+        
+        print("\n" + "=" * 80)
+        print("SUMMARY & RECOMMENDATIONS")
+        print("=" * 80)
+        
+        if not bot_running:
+            print("\n❌ CRITICAL: Bot process is not running")
+            print("  Fix: Restart bot with ./RESTART_BOT_NOW.sh")
+        else:
+            print("\n✓ Bot process is running")
+            print("  If no cycles, check:")
+            print("  1. Worker thread status (heartbeat)")
+            print("  2. Freeze state")
+            print("  3. Market status")
+            print("  4. UW daemon status")
+    except Exception as e:
+        print(f"\nError in diagnostic: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        # Clean exit to avoid daemon thread issues
+        import sys
+        sys.stdout.flush()
+        sys.stderr.flush()
 
 if __name__ == "__main__":
     main()
