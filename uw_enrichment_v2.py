@@ -236,7 +236,8 @@ class UWEnricher:
         Data freshness score (1.0 = fresh, decays over time)
         Decays to 0.5 after decay_min minutes
         """
-        last_update = data.get("last_update", int(time.time()))
+        # CRITICAL FIX: Check both _last_update (from daemon) and last_update (legacy)
+        last_update = data.get("_last_update", data.get("last_update", int(time.time())))
         age_sec = int(time.time()) - last_update
         age_min = age_sec / 60.0
         
