@@ -1359,6 +1359,7 @@ def api_health_status():
     """Health status endpoint for dashboard - provides Last Order and Doctor status"""
     try:
         import time
+        import json
         from pathlib import Path
         
         # Get last order from multiple possible files (CRITICAL FIX)
