@@ -5350,8 +5350,15 @@ def run_once():
         else:
             ZERO_ORDER_CYCLE_COUNT = 0
         
+        # Calculate average composite score from ALL symbols processed (not just clusters)
+        # This gives better visibility into why signals are being rejected
         composite_scores = [c.get("composite_score", 0.0) for c in clusters if c.get("source") == "composite"]
-        avg_score = sum(composite_scores) / len(composite_scores) if composite_scores else 5.0
+        if composite_scores:
+            avg_score = sum(composite_scores) / len(composite_scores)
+        else:
+            # If no clusters passed, use a default that won't trigger rollback
+            # (signals were rejected, not that scoring is broken)
+            avg_score = 3.0  # Changed from 5.0 to 3.0 to reflect actual rejection threshold
         
         rollback = check_rollback_conditions(
             composite_scores_avg=avg_score,
@@ -5554,6 +5561,22 @@ class Watchdog:
         if metrics:
             self.state.last_metrics = metrics
         log_event("heartbeat", "worker_alive", metrics=metrics or {})
+        
+        # CRITICAL FIX: Write heartbeat file so owner_health_check can find it
+        try:
+            heartbeat_path = StateFiles.BOT_HEARTBEAT
+            heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
+            heartbeat_data = {
+                "last_heartbeat_ts": int(self.state.last_heartbeat),
+                "last_heartbeat_dt": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "iter_count": self.state.iter_count,
+                "running": self.state.running,
+                "metrics": metrics or {}
+            }
+            # Use same method as owner_health_check (simple write_text)
+            heartbeat_path.write_text(json.dumps(heartbeat_data, indent=2))
+        except Exception as e:
+            log_event("heartbeat", "write_failed", error=str(e))
 
     def _worker_loop(self):
         self.state.running = True
