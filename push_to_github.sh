@@ -2,7 +2,8 @@
 # Push files to GitHub for analysis
 # Usage: ./push_to_github.sh <file1> [file2] ... [commit_message]
 
-set -e
+# Don't exit on errors - we'll handle them explicitly
+set +e
 
 # Load .env if it exists
 if [ -f .env ]; then
@@ -10,11 +11,13 @@ if [ -f .env ]; then
 fi
 
 # Configuration
-# Priority: .env file > environment variable
-# Token MUST be set in .env or environment variable
-GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+GITHUB_REPO="mlevitan96-crypto/stock-bot"
+GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+GITHUB_USER="mlevitan96"
+GITHUB_EMAIL="mlevitan96@gmail.com"
 
-# Load from .env if exists
+# Load GitHub token from .env
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 if [ -f .env ]; then
     if grep -q "GITHUB_TOKEN" .env; then
         GITHUB_TOKEN=$(grep "GITHUB_TOKEN" .env | cut -d '=' -f2 | tr -d '"' | tr -d "'" | xargs)
@@ -23,29 +26,15 @@ fi
 
 # Check if token is set
 if [ -z "$GITHUB_TOKEN" ]; then
-    echo "❌ ERROR: GITHUB_TOKEN not set"
+    echo "❌ ERROR: GITHUB_TOKEN not set in .env file"
     echo ""
-    echo "Set it in one of these ways:"
-    echo "  1. Add to .env file: echo 'GITHUB_TOKEN=your_token' >> .env"
-    echo "  2. Export as env var: export GITHUB_TOKEN=your_token"
-    echo ""
+    echo "Add it with: echo 'GITHUB_TOKEN=your_token' >> .env"
     exit 1
 fi
-
-GITHUB_REPO="mlevitan96-crypto/stock-bot"
-GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
-GITHUB_USER="mlevitan96"
-GITHUB_EMAIL="mlevitan96@gmail.com"
 
 # Check if files provided
 if [ $# -eq 0 ]; then
     echo "Usage: $0 <file1> [file2] ... [commit_message]"
-    echo ""
-    echo "Examples:"
-    echo "  $0 logs/run.jsonl"
-    echo "  $0 state/bot_heartbeat.json 'Update heartbeat for analysis'"
-    echo "  $0 logs/*.jsonl 'Export all logs'"
-    echo "  $0 data/uw_flow_cache.json state/position_metadata.json 'Export state files'"
     exit 1
 fi
 
@@ -75,8 +64,6 @@ for file in "${FILES[@]}"; do
         EXPANDED_FILES+=($file)
     elif [ -f "$file" ] || [ -d "$file" ]; then
         EXPANDED_FILES+=("$file")
-    else
-        echo "⚠️  Warning: $file not found, skipping"
     fi
 done
 
@@ -97,45 +84,55 @@ echo ""
 echo "Commit message: $COMMIT_MSG"
 echo ""
 
-# Configure git if not already configured
+# Configure git
 if ! git config user.name > /dev/null 2>&1; then
     git config user.name "$GITHUB_USER"
     git config user.email "$GITHUB_EMAIL"
-    echo "✓ Git configured"
 fi
 
-# Set up remote with token if not exists
+# Disable gitignore warnings
+git config advice.addIgnoredFile false 2>/dev/null || true
+
+# Set up remote with token
 current_remote=$(git remote get-url origin 2>/dev/null || echo "")
-if [ -z "$current_remote" ] || ! echo "$current_remote" | grep -q "${GITHUB_TOKEN}"; then
+expected_url="https://${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git"
+if [ -z "$current_remote" ] || [ "$current_remote" != "$expected_url" ]; then
     if [ -n "$current_remote" ]; then
         git remote remove origin 2>/dev/null || true
     fi
-    git remote add origin "https://${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git" 2>/dev/null || \
-    git remote set-url origin "https://${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git"
-    echo "✓ Git remote configured"
+    git remote add origin "$expected_url" 2>/dev/null || \
+    git remote set-url origin "$expected_url" 2>/dev/null || true
 fi
 
-# Ensure we're on the right branch (don't try to create if exists)
+# Ensure we're on the right branch
 current_branch=$(git branch --show-current 2>/dev/null || echo "")
 if [ "$current_branch" != "$GITHUB_BRANCH" ]; then
     git checkout "$GITHUB_BRANCH" 2>/dev/null || true
 fi
 
-# Add files (force-add even if in .gitignore for analysis)
+# Add files (force-add, suppress all output)
 echo ""
 echo "Adding files to git..."
+ADDED_ANY=0
 for file in "${EXPANDED_FILES[@]}"; do
     if [ -f "$file" ] || [ -d "$file" ]; then
-        # Force add even if in .gitignore (for analysis purposes)
-        # Suppress all warnings by redirecting stderr
-        git add -f "$file" 2>/dev/null || true
-        echo "  ✓ Added: $file"
+        # Force add - redirect both stdout and stderr to suppress warnings
+        if git add -f "$file" >/dev/null 2>&1; then
+            echo "  ✓ Added: $file"
+            ADDED_ANY=1
+        else
+            echo "  ⚠️  Failed to add: $file"
+        fi
     fi
 done
 
-# Check if there are changes
-if git diff --staged --quiet; then
-    echo ""
+if [ $ADDED_ANY -eq 0 ]; then
+    echo "⚠️  No files were added"
+    exit 0
+fi
+
+# Check if there are changes to commit
+if git diff --staged --quiet 2>/dev/null; then
     echo "⚠️  No changes to commit (files may already be up to date)"
     exit 0
 fi
@@ -143,26 +140,25 @@ fi
 # Commit
 echo ""
 echo "Committing changes..."
-git commit -m "$COMMIT_MSG" || {
-    echo "⚠️  Commit failed (may be no changes)"
+if ! git commit -m "$COMMIT_MSG" >/dev/null 2>&1; then
+    echo "⚠️  Commit failed"
     exit 0
-}
+fi
+echo "  ✓ Committed"
 
 # Push
 echo ""
 echo "Pushing to GitHub..."
-git push origin "$GITHUB_BRANCH" || {
-    echo "❌ Push failed"
+if git push origin "$GITHUB_BRANCH" >/dev/null 2>&1; then
+    echo ""
+    echo "=================================================================================="
+    echo "✅ SUCCESS: Files pushed to GitHub"
+    echo "=================================================================================="
+    echo ""
+    echo "Files are now available at:"
+    echo "  https://github.com/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/<file>"
+    echo ""
+else
+    echo "❌ Push failed - check your GitHub token and permissions"
     exit 1
-}
-
-echo ""
-echo "=================================================================================="
-echo "✅ SUCCESS: Files pushed to GitHub"
-echo "=================================================================================="
-echo ""
-echo "Files are now available at:"
-echo "  https://github.com/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/<file>"
-echo ""
-echo "You can now ask the AI to analyze these files directly from the repository."
-echo ""
+fi
