@@ -71,11 +71,16 @@ echo ""
 echo "8. Final process check..."
 # More robust process detection - check multiple patterns
 BOT_RUNNING="NO"
-if pgrep -f "python.*main.py" > /dev/null 2>&1; then
+# Check for process running (supervisor runs it as "python main.py")
+# The diagnostic shows it as "python main.p" (truncated), so check for "main" in process
+if pgrep -f "python.*main" > /dev/null 2>&1; then
     BOT_RUNNING="YES"
 elif pgrep -f "main.py" > /dev/null 2>&1; then
     BOT_RUNNING="YES"
-elif ps aux | grep -E "[p]ython.*main\.py|[p]ython main" > /dev/null 2>&1; then
+elif ps aux | grep -E "[p]ython.*main" | grep -v grep > /dev/null 2>&1; then
+    BOT_RUNNING="YES"
+# Also check for "trading-bot" service name
+elif ps aux | grep -E "trading-bot" | grep -v grep > /dev/null 2>&1; then
     BOT_RUNNING="YES"
 fi
 
