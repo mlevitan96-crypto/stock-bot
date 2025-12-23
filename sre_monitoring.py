@@ -511,15 +511,71 @@ class SREMonitoringEngine:
         
         return result
     
+    def check_bot_process_running(self) -> Dict[str, Any]:
+        """Check if the bot process is actually running."""
+        import subprocess
+        result = {
+            "running": False,
+            "pid": None,
+            "check_method": "unknown"
+        }
+        
+        try:
+            # Method 1: Check for python main.py process
+            proc = subprocess.run(
+                ["pgrep", "-f", "python.*main.py"],
+                capture_output=True,
+                timeout=2
+            )
+            if proc.returncode == 0:
+                pids = proc.stdout.decode().strip().split('\n')
+                if pids and pids[0]:
+                    result["running"] = True
+                    result["pid"] = int(pids[0])
+                    result["check_method"] = "pgrep_python_main"
+                    return result
+            
+            # Method 2: Check for main.py in process list
+            proc = subprocess.run(
+                ["pgrep", "-f", "main.py"],
+                capture_output=True,
+                timeout=2
+            )
+            if proc.returncode == 0:
+                pids = proc.stdout.decode().strip().split('\n')
+                if pids and pids[0]:
+                    result["running"] = True
+                    result["pid"] = int(pids[0])
+                    result["check_method"] = "pgrep_main"
+                    return result
+            
+            # Method 3: Try to connect to health endpoint
+            try:
+                import requests
+                resp = requests.get("http://localhost:8081/health", timeout=2)
+                if resp.status_code == 200:
+                    result["running"] = True
+                    result["check_method"] = "health_endpoint"
+                    return result
+            except:
+                pass
+                
+        except Exception as e:
+            result["error"] = str(e)
+        
+        return result
+    
     def get_comprehensive_health(self) -> Dict[str, Any]:
         """Get comprehensive health status for all components."""
         market_open, market_status = self.is_market_open()
         last_order_ts = self.get_last_order_timestamp()
+        bot_process = self.check_bot_process_running()
         
         result = {
             "timestamp": time.time(),
             "market_status": market_status,
             "market_open": market_open,
+            "bot_process": bot_process,
             "last_order": {
                 "timestamp": last_order_ts,
                 "age_sec": time.time() - last_order_ts if last_order_ts else None,
