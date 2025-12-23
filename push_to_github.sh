@@ -149,7 +149,10 @@ echo "  ✓ Committed"
 # Push
 echo ""
 echo "Pushing to GitHub..."
-if git push origin "$GITHUB_BRANCH" >/dev/null 2>&1; then
+PUSH_OUTPUT=$(git push origin "$GITHUB_BRANCH" 2>&1)
+PUSH_EXIT=$?
+
+if [ $PUSH_EXIT -eq 0 ]; then
     echo ""
     echo "=================================================================================="
     echo "✅ SUCCESS: Files pushed to GitHub"
@@ -159,6 +162,28 @@ if git push origin "$GITHUB_BRANCH" >/dev/null 2>&1; then
     echo "  https://github.com/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/<file>"
     echo ""
 else
-    echo "❌ Push failed - check your GitHub token and permissions"
+    echo "❌ Push failed"
+    echo ""
+    echo "Error details:"
+    echo "$PUSH_OUTPUT"
+    echo ""
+    
+    # Check for specific errors
+    if echo "$PUSH_OUTPUT" | grep -q "GH013\|secret\|token"; then
+        echo "⚠️  GitHub secret scanning detected token in git history"
+        echo ""
+        echo "SOLUTION: Create a NEW token and use it:"
+        echo "  1. Go to: https://github.com/settings/tokens"
+        echo "  2. Generate new token (classic) with 'repo' scope"
+        echo "  3. Update .env: echo 'GITHUB_TOKEN=new_token_here' > .env"
+        echo "  4. Try again"
+    elif echo "$PUSH_OUTPUT" | grep -q "authentication\|unauthorized\|403"; then
+        echo "⚠️  Authentication failed - token may be invalid or expired"
+        echo "   Update GITHUB_TOKEN in .env with a valid token"
+    elif echo "$PUSH_OUTPUT" | grep -q "remote rejected\|protected branch"; then
+        echo "⚠️  Branch protection or rules blocking push"
+        echo "   Check repository settings for branch protection rules"
+    fi
+    
     exit 1
 fi
