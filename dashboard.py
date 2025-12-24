@@ -1073,6 +1073,10 @@ SRE_DASHBOARD_HTML = """
             fetch('/api/sre/health')
                 .then(response => response.json())
                 .then(data => {
+                    // Debug: Log UW endpoints to console
+                    console.log('SRE Health Data:', data);
+                    console.log('UW API Endpoints:', data.uw_api_endpoints);
+                    
                     document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
                     
                     // Update overall health
@@ -1125,26 +1129,34 @@ SRE_DASHBOARD_HTML = """
                     const apis = data.uw_api_endpoints || {};
                     const apiContainer = document.getElementById('api-container');
                     if (Object.keys(apis).length === 0) {
-                        apiContainer.innerHTML = '<div class="loading">No API endpoints found</div>';
+                        apiContainer.innerHTML = '<div class="loading" style="grid-column: 1 / -1; padding: 20px; text-align: center; color: #f59e0b;">⚠️ No UW API endpoints found in response. Check console for errors.</div>';
                     } else {
                         apiContainer.innerHTML = Object.entries(apis).map(([name, health]) => {
                             const status = health.status || 'unknown';
                             const statusClass = getStatusClass(status);
+                            const endpoint = health.endpoint || name;
                             return `
-                                <div class="health-card ${statusClass}">
+                                <div class="health-card ${statusClass}" style="min-height: 150px;">
                                     <div class="health-card-header">
-                                        <span class="health-card-name">${name}</span>
+                                        <span class="health-card-name" style="font-weight: bold; font-size: 1.1em;">${name}</span>
                                         <span class="health-status ${statusClass}">${status}</span>
                                     </div>
-                                    <div class="health-details">
+                                    <div class="health-details" style="margin-top: 10px;">
+                                        <div style="font-size: 0.85em; color: #64748b; margin-bottom: 8px; word-break: break-all;">
+                                            <strong>Endpoint:</strong> ${endpoint}
+                                        </div>
+                                        ${health.last_success_age_sec !== null && health.last_success_age_sec !== undefined ? 
+                                            `<div><strong>Last Success:</strong> ${formatTimeAgo(health.last_success_age_sec)} ago</div>` : ''}
                                         ${health.avg_latency_ms !== null && health.avg_latency_ms !== undefined ? 
-                                            `<div><strong>Avg Latency:</strong> ${health.avg_latency_ms.toFixed(0)}ms</div>` : ''}
+                                            `<div><strong>Avg Latency:</strong> ${health.avg_latency_ms.toFixed(0)}ms</div>` : 
+                                            '<div><strong>Latency:</strong> N/A (cache-based check)</div>'}
                                         ${health.error_rate_1h !== undefined ? 
                                             `<div><strong>Error Rate (1h):</strong> ${(health.error_rate_1h * 100).toFixed(1)}%</div>` : ''}
                                         ${health.rate_limit_remaining !== null && health.rate_limit_remaining !== undefined ? 
                                             `<div><strong>Rate Limit:</strong> ${health.rate_limit_remaining} remaining</div>` : ''}
                                         ${health.last_error ? 
-                                            `<div style="color: #ef4444; margin-top: 5px;"><strong>Error:</strong> ${health.last_error}</div>` : ''}
+                                            `<div style="color: #ef4444; margin-top: 8px; padding: 8px; background: #fee2e2; border-radius: 4px; font-size: 0.9em;"><strong>⚠️ Error:</strong> ${health.last_error.substring(0, 100)}</div>` : 
+                                            '<div style="color: #10b981; margin-top: 8px;">✅ No recent errors</div>'}
                                     </div>
                                 </div>
                             `;

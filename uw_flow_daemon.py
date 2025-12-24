@@ -134,7 +134,17 @@ class UWClient:
         return raw.get("data", [])
     
     def get_greek_exposure(self, ticker: str) -> Dict:
-        """Get Greek exposure for a ticker."""
+        """Get Greek exposure for a ticker (detailed exposure data)."""
+        # FIXED: Use correct endpoint per uw_signal_contracts.py
+        raw = self._get(f"/api/stock/{ticker}/greek-exposure")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+    
+    def get_greeks(self, ticker: str) -> Dict:
+        """Get Greeks for a ticker (basic greeks data - different from greek_exposure)."""
+        # This is a separate endpoint from greek_exposure (per sre_monitoring.py core_endpoints)
         raw = self._get(f"/api/stock/{ticker}/greeks")
         data = raw.get("data", {})
         if isinstance(data, list) and len(data) > 0:
@@ -145,6 +155,54 @@ class UWClient:
         """Get top net impact symbols."""
         raw = self._get("/api/market/top-net-impact", params={"limit": limit})
         return raw.get("data", [])
+    
+    def get_market_tide(self) -> Dict:
+        """Get market-wide options sentiment (market tide)."""
+        raw = self._get("/api/market/market-tide")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+    
+    def get_oi_change(self, ticker: str) -> Dict:
+        """Get open interest changes for a ticker."""
+        raw = self._get(f"/api/stock/{ticker}/oi-change")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+    
+    def get_etf_flow(self, ticker: str) -> Dict:
+        """Get ETF inflow/outflow for a ticker."""
+        raw = self._get(f"/api/etfs/{ticker}/in-outflow")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+    
+    def get_iv_rank(self, ticker: str) -> Dict:
+        """Get IV rank for a ticker."""
+        raw = self._get(f"/api/stock/{ticker}/iv-rank")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+    
+    def get_shorts_ftds(self, ticker: str) -> Dict:
+        """Get fails-to-deliver data for a ticker."""
+        raw = self._get(f"/api/shorts/{ticker}/ftds")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+    
+    def get_max_pain(self, ticker: str) -> Dict:
+        """Get max pain for a ticker."""
+        raw = self._get(f"/api/stock/{ticker}/max-pain")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
 
 
 class SmartPoller:
@@ -167,8 +225,15 @@ class SmartPoller:
         self.intervals = {
             "option_flow": 150,       # 2.5 min: Most critical data, poll frequently
             "dark_pool_levels": 600,  # 10 min: Important but less time-sensitive
-            "greek_exposure": 1800,   # 30 min: Changes slowly, infrequent polling OK
+            "greek_exposure": 1800,   # 30 min: Detailed exposure (changes slowly)
+            "greeks": 1800,           # 30 min: Basic greeks (changes slowly)
             "top_net_impact": 300,    # 5 min: Market-wide, poll moderately
+            "market_tide": 300,       # 5 min: Market-wide sentiment
+            "oi_change": 900,         # 15 min: OI changes per ticker
+            "etf_flow": 1800,         # 30 min: ETF flows per ticker
+            "iv_rank": 1800,          # 30 min: IV rank per ticker
+            "shorts_ftds": 3600,      # 60 min: FTD data changes slowly
+            "max_pain": 900,           # 15 min: Max pain per ticker
         }
         self.last_call = self._load_state()
     
@@ -191,11 +256,17 @@ class SmartPoller:
         except Exception:
             pass
     
-    def should_poll(self, endpoint: str) -> bool:
+    def should_poll(self, endpoint: str, force_first: bool = False) -> bool:
         """Check if enough time has passed since last call."""
         now = time.time()
         last = self.last_call.get(endpoint, 0)
         base_interval = self.intervals.get(endpoint, 60)
+        
+        # If this is the first poll (no last call recorded), allow it immediately
+        if force_first and last == 0:
+            self.last_call[endpoint] = now
+            self._save_state()
+            return True
         
         # OPTIMIZATION: During market hours, use normal intervals
         # Outside market hours, use longer intervals to conserve quota
@@ -462,11 +533,126 @@ class UWFlowDaemon:
                     # Write dark_pool data (nested is fine - main.py reads it as cache_data.get("dark_pool", {}))
                     self._update_cache(ticker, {"dark_pool": dp_normalized})
             
-            # Poll greeks (less frequently)
+            # Poll greek_exposure (detailed exposure data)
             if self.poller.should_poll("greek_exposure"):
-                gex_data = self.client.get_greek_exposure(ticker)
-                if gex_data:
-                    self._update_cache(ticker, {"greeks": gex_data})
+                try:
+                    print(f"[UW-DAEMON] Polling greek_exposure for {ticker}...", flush=True)
+                    gex_data = self.client.get_greek_exposure(ticker)
+                    if gex_data:
+                        # Load existing cache to merge greeks data
+                        cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
+                        existing_greeks = cache.get(ticker, {}).get("greeks", {})
+                        existing_greeks.update(gex_data)  # Merge with existing greeks data
+                        self._update_cache(ticker, {"greeks": existing_greeks})
+                        print(f"[UW-DAEMON] Updated greek_exposure for {ticker}: {len(gex_data)} fields", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] greek_exposure for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching greek_exposure for {ticker}: {e}", flush=True)
+                    import traceback
+                    print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+            
+            # Poll greeks (basic greeks data - separate endpoint)
+            if self.poller.should_poll("greeks"):
+                try:
+                    print(f"[UW-DAEMON] Polling greeks for {ticker}...", flush=True)
+                    greeks_data = self.client.get_greeks(ticker)
+                    if greeks_data:
+                        # Load existing cache to merge greeks data
+                        cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
+                        existing_greeks = cache.get(ticker, {}).get("greeks", {})
+                        existing_greeks.update(greeks_data)  # Merge with existing
+                        self._update_cache(ticker, {"greeks": existing_greeks})
+                        print(f"[UW-DAEMON] Updated greeks for {ticker}: {len(greeks_data)} fields", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] greeks for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching greeks for {ticker}: {e}", flush=True)
+                    import traceback
+                    print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+            
+            # Poll OI change
+            if self.poller.should_poll("oi_change"):
+                try:
+                    print(f"[UW-DAEMON] Polling oi_change for {ticker}...", flush=True)
+                    oi_data = self.client.get_oi_change(ticker)
+                    if oi_data:
+                        self._update_cache(ticker, {"oi_change": oi_data})
+                        print(f"[UW-DAEMON] Updated oi_change for {ticker}: {len(str(oi_data))} bytes", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] oi_change for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching oi_change for {ticker}: {e}", flush=True)
+                    import traceback
+                    print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+            
+            # Poll ETF flow
+            if self.poller.should_poll("etf_flow"):
+                try:
+                    print(f"[UW-DAEMON] Polling etf_flow for {ticker}...", flush=True)
+                    etf_data = self.client.get_etf_flow(ticker)
+                    if etf_data:
+                        self._update_cache(ticker, {"etf_flow": etf_data})
+                        print(f"[UW-DAEMON] Updated etf_flow for {ticker}: {len(str(etf_data))} bytes", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] etf_flow for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching etf_flow for {ticker}: {e}", flush=True)
+                    import traceback
+                    print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+            
+            # Poll IV rank
+            if self.poller.should_poll("iv_rank"):
+                try:
+                    print(f"[UW-DAEMON] Polling iv_rank for {ticker}...", flush=True)
+                    iv_data = self.client.get_iv_rank(ticker)
+                    if iv_data:
+                        self._update_cache(ticker, {"iv_rank": iv_data})
+                        print(f"[UW-DAEMON] Updated iv_rank for {ticker}: {len(str(iv_data))} bytes", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] iv_rank for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching iv_rank for {ticker}: {e}", flush=True)
+                    import traceback
+                    print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+            
+            # Poll shorts/FTDs
+            if self.poller.should_poll("shorts_ftds"):
+                try:
+                    print(f"[UW-DAEMON] Polling shorts_ftds for {ticker}...", flush=True)
+                    ftd_data = self.client.get_shorts_ftds(ticker)
+                    if ftd_data:
+                        self._update_cache(ticker, {"ftd_pressure": ftd_data})
+                        print(f"[UW-DAEMON] Updated ftd_pressure for {ticker}: {len(str(ftd_data))} bytes", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] shorts_ftds for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching shorts_ftds for {ticker}: {e}", flush=True)
+                    import traceback
+                    print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+            
+            # Poll max pain
+            if self.poller.should_poll("max_pain"):
+                try:
+                    print(f"[UW-DAEMON] Polling max_pain for {ticker}...", flush=True)
+                    max_pain_data = self.client.get_max_pain(ticker)
+                    if max_pain_data:
+                        # Max pain contributes to greeks_gamma signal
+                        cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
+                        existing_greeks = cache.get(ticker, {}).get("greeks", {})
+                        max_pain_value = max_pain_data.get("max_pain") or max_pain_data.get("maxPain")
+                        if max_pain_value:
+                            existing_greeks["max_pain"] = max_pain_value
+                            self._update_cache(ticker, {"greeks": existing_greeks})
+                            print(f"[UW-DAEMON] Updated max_pain for {ticker}: {max_pain_value}", flush=True)
+                        else:
+                            print(f"[UW-DAEMON] max_pain for {ticker}: no max_pain value in response (keys: {list(max_pain_data.keys())})", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] max_pain for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching max_pain for {ticker}: {e}", flush=True)
+                    import traceback
+                    print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
         
         except Exception as e:
             print(f"[UW-DAEMON] Error polling {ticker}: {e}", flush=True)
@@ -477,13 +663,16 @@ class UWFlowDaemon:
         print(f"[UW-DAEMON] Monitoring {len(self.tickers)} tickers", flush=True)
         print(f"[UW-DAEMON] Cache file: {CACHE_FILE}", flush=True)
         
+        # Force first poll of market-wide endpoints on startup
+        first_poll = True
+        
         cycle = 0
         while self.running:
             try:
                 cycle += 1
                 
                 # Poll top net impact (market-wide, not per-ticker)
-                if self.poller.should_poll("top_net_impact"):
+                if self.poller.should_poll("top_net_impact", force_first=first_poll):
                     try:
                         top_net = self.client.get_top_net_impact(limit=100)
                         # Store in cache metadata
@@ -496,6 +685,27 @@ class UWFlowDaemon:
                     except Exception as e:
                         print(f"[UW-DAEMON] Error polling top_net_impact: {e}", flush=True)
                 
+                # Poll market tide (market-wide, not per-ticker)
+                if self.poller.should_poll("market_tide", force_first=first_poll):
+                    try:
+                        print(f"[UW-DAEMON] Polling market_tide...", flush=True)
+                        tide_data = self.client.get_market_tide()
+                        if tide_data:
+                            # Store in cache metadata
+                            cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
+                            cache["_market_tide"] = {
+                                "data": tide_data,
+                                "last_update": int(time.time())
+                            }
+                            atomic_write_json(CACHE_FILE, cache)
+                            print(f"[UW-DAEMON] Updated market_tide: {len(str(tide_data))} bytes", flush=True)
+                        else:
+                            print(f"[UW-DAEMON] market_tide: API returned empty data", flush=True)
+                    except Exception as e:
+                        print(f"[UW-DAEMON] Error polling market_tide: {e}", flush=True)
+                        import traceback
+                        print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+                
                 # Poll each ticker (optimized delay for rate limit efficiency)
                 for ticker in self.tickers:
                     if not self.running:
@@ -504,6 +714,11 @@ class UWFlowDaemon:
                     # 1.5s delay: balances speed with rate limit safety
                     # With 53 tickers: ~80 seconds per full cycle at 1.5s delay
                     time.sleep(1.5)
+                
+                # Clear first_poll flag after first cycle
+                if first_poll:
+                    first_poll = False
+                    print("[UW-DAEMON] Completed first poll cycle - all endpoints attempted", flush=True)
                 
                 # Log cycle completion
                 if cycle % 10 == 0:

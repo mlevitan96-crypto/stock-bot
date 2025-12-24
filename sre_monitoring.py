@@ -606,9 +606,12 @@ class SREMonitoringEngine:
         uw_health = self.check_uw_api_health()
         result["uw_api_endpoints"] = {
             name: {
+                "endpoint": h.endpoint,  # Include the actual endpoint URL
                 "status": h.status,
                 "error_rate_1h": h.error_rate_1h,
                 "avg_latency_ms": h.avg_latency_ms,
+                "rate_limit_remaining": h.rate_limit_remaining,
+                "last_success_age_sec": h.last_success_age_sec,
                 "last_error": h.last_error
             }
             for name, h in uw_health.items()
