@@ -22,7 +22,7 @@ def trigger_investigation():
         subprocess.run(["git", "add", str(trigger_file)], check=True)
         subprocess.run(["git", "commit", "-m", f"Trigger investigation - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"], check=True)
         subprocess.run(["git", "push", "origin", "main"], check=True)
-        print("✅ Investigation triggered - droplet will run it automatically")
+        print("Investigation triggered - droplet will run it automatically")
         print("   Waiting for results... (check back in ~30 seconds)")
         return True
     except subprocess.CalledProcessError as e:
