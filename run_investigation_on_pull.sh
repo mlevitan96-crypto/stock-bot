@@ -9,8 +9,12 @@ echo "RUNNING INVESTIGATION (Triggered by Git Pull)"
 echo "=========================================="
 echo ""
 
-# Run investigation
-python3 investigate_no_trades.py
+# Run investigation (try comprehensive version first, fallback to original)
+if [ -f "comprehensive_no_trades_diagnosis.py" ]; then
+    python3 comprehensive_no_trades_diagnosis.py || python3 investigate_no_trades.py
+else
+    python3 investigate_no_trades.py
+fi
 
 # Commit and push results
 if [ -f "investigate_no_trades.json" ]; then
