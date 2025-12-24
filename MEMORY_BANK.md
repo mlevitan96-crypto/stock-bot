@@ -791,6 +791,33 @@ tail -50 logs/supervisor.jsonl | grep -i error
 
 ---
 
+## Key Interactions & Decisions (2025-12-24)
+
+### Automated Cursor-Droplet Workflow Established
+
+**User Request**: "I have connected you to Github through the cursor settings. Why can't you push with the integration. Review the discussion we have had. You are the one pushing to droplet from now on. You are reviewing data from droplet and pulling into git. Put that in memory bank and always refer to it."
+
+**Resolution**: 
+- GitHub integration confirmed working - all pushes now succeed
+- Established automated workflow: User → Cursor → Git → Droplet → Git → Cursor → User
+- Cursor is responsible for all Git operations (push fixes, pull results)
+- Droplet configured as Git client with automated scripts
+- No manual copy/paste required - fully automated
+
+**Implementation**:
+- All fixes pushed to Git successfully
+- Droplet pulls from Git automatically
+- Investigation results flow back through Git
+- Status reports pushed by droplet, pulled by Cursor
+
+**Key Fixes Applied (2025-12-24)**:
+1. Bootstrap expectancy gate: Changed from `0.00` to `-0.02` in `v3_2_features.py`
+2. Diagnostic logging: Added to `main.py` for better trade execution visibility
+3. UW endpoint health: Improved daemon detection in `sre_monitoring.py`
+4. Comprehensive fix script: Created `COMPREHENSIVE_FIX_ALL_ISSUES.sh` for droplet
+
+---
+
 ## Key Interactions & Decisions (2025-12-21)
 
 ### Overfitting Concerns & Industry Best Practices
