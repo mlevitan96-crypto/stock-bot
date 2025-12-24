@@ -114,9 +114,17 @@ class SREMonitoringEngine:
         except:
             pass
         
+        # Also check for uw_integration_full.py (alternative daemon name)
+        if not daemon_running:
+            try:
+                result = subprocess.run(["pgrep", "-f", "uw_integration_full"], capture_output=True, timeout=2)
+                daemon_running = result.returncode == 0
+            except:
+                pass
+        
         if not daemon_running:
             health.status = "daemon_not_running"
-            health.last_error = "UW daemon process not running - endpoints cannot be fresh"
+            health.last_error = "UW daemon process not running (checked: uw_flow_daemon, uw_integration_full) - endpoints cannot be fresh"
             return health
         
         # Check cache freshness - if cache is fresh, endpoints are working
