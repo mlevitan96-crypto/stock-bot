@@ -20,3 +20,4 @@ feature_store/
 # IDE
 .vscode/
 .idea/
+# Trigger investigation
