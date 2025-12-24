@@ -506,6 +506,7 @@ class UWFlowDaemon:
         self.tickers = [t.strip().upper() for t in self.tickers if t.strip()]
         self.running = True
         self._shutting_down = False  # Prevent reentrant signal handler calls
+        self._loop_entered = False  # Track if main loop has been entered
         
         # Register signal handlers BEFORE any debug_log calls that might block
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -523,6 +524,12 @@ class UWFlowDaemon:
     
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals."""
+        # CRITICAL FIX: Ignore signals until main loop is entered
+        # This prevents premature shutdown during initialization
+        if not self._loop_entered:
+            safe_print(f"[UW-DAEMON] Signal {signum} received before loop entry - IGNORING (daemon still initializing)")
+            return  # Ignore signal until loop is entered
+        
         # Use safe_print immediately to avoid any blocking
         safe_print(f"[UW-DAEMON] Signal handler called: signal {signum}")
         
@@ -532,7 +539,8 @@ class UWFlowDaemon:
                 "signum": signum,
                 "signal_name": "SIGTERM" if signum == 15 else "SIGINT" if signum == 2 else f"UNKNOWN({signum})",
                 "already_shutting_down": self._shutting_down,
-                "running_before": self.running
+                "running_before": self.running,
+                "loop_entered": self._loop_entered
             }, "H2")
         except Exception as debug_err:
             safe_print(f"[UW-DAEMON] Debug log failed in signal handler: {debug_err}")
@@ -913,59 +921,66 @@ class UWFlowDaemon:
     
     def run(self):
         """Main daemon loop."""
-        safe_print("[UW-DAEMON] run() method called")
-        safe_print(f"[UW-DAEMON] self.running = {self.running}")
-        
-        # #region agent log
         try:
-            debug_log("uw_flow_daemon.py:run", "Daemon starting", {
-                "ticker_count": len(self.tickers),
-                "has_api_key": bool(self.client.api_key),
-                "cache_file": str(CACHE_FILE)
-            }, "H2")
-        except Exception as debug_err:
-            safe_print(f"[UW-DAEMON] Debug log failed (non-critical): {debug_err}")
-        # #endregion
-        
-        safe_print("[UW-DAEMON] Starting UW Flow Daemon...")
-        safe_print(f"[UW-DAEMON] Monitoring {len(self.tickers)} tickers")
-        safe_print(f"[UW-DAEMON] Cache file: {CACHE_FILE}")
-        
-        # Force first poll of market-wide endpoints on startup
-        first_poll = True
-        cycle = 0
-        
-        safe_print("[UW-DAEMON] Step 1: Variables initialized")
-        safe_print(f"[UW-DAEMON] Step 2: Running flag = {self.running}")
-        
-        # CRITICAL: Check running flag BEFORE any debug_log calls
-        if not self.running:
-            safe_print("[UW-DAEMON] ERROR: running=False before entering loop!")
-            return
-        
-        safe_print("[UW-DAEMON] Step 3: Running check passed")
-        
-        # #region agent log
-        try:
-            debug_log("uw_flow_daemon.py:run", "Entering main loop", {"running": self.running, "cycle": cycle}, "H2")
-        except Exception as debug_err:
-            safe_print(f"[UW-DAEMON] Debug log failed (non-critical): {debug_err}")
-        # #endregion
-        
-        safe_print("[UW-DAEMON] Step 4: About to enter while loop")
-        safe_print(f"[UW-DAEMON] Step 5: Checking while condition: self.running = {self.running}")
-        
-        # CRITICAL: Force check running flag one more time right before loop
-        if not self.running:
-            safe_print("[UW-DAEMON] ERROR: running became False right before loop!")
-            return
-        
-        safe_print("[UW-DAEMON] Step 5.5: Final check passed, entering while loop NOW")
-        
-        # Use a local variable to track if we should continue, to avoid signal handler race conditions
-        should_continue = True
-        
-        while should_continue and self.running:
+            safe_print("[UW-DAEMON] run() method called")
+            safe_print(f"[UW-DAEMON] self.running = {self.running}")
+            
+            # #region agent log
+            try:
+                debug_log("uw_flow_daemon.py:run", "Daemon starting", {
+                    "ticker_count": len(self.tickers),
+                    "has_api_key": bool(self.client.api_key),
+                    "cache_file": str(CACHE_FILE)
+                }, "H2")
+            except Exception as debug_err:
+                safe_print(f"[UW-DAEMON] Debug log failed (non-critical): {debug_err}")
+            # #endregion
+            
+            safe_print("[UW-DAEMON] Starting UW Flow Daemon...")
+            safe_print(f"[UW-DAEMON] Monitoring {len(self.tickers)} tickers")
+            safe_print(f"[UW-DAEMON] Cache file: {CACHE_FILE}")
+            
+            # Force first poll of market-wide endpoints on startup
+            first_poll = True
+            cycle = 0
+            
+            safe_print("[UW-DAEMON] Step 1: Variables initialized")
+            safe_print(f"[UW-DAEMON] Step 2: Running flag = {self.running}")
+            
+            # CRITICAL: Check running flag BEFORE any debug_log calls
+            if not self.running:
+                safe_print("[UW-DAEMON] ERROR: running=False before entering loop!")
+                return
+            
+            safe_print("[UW-DAEMON] Step 3: Running check passed")
+            
+            # #region agent log
+            try:
+                debug_log("uw_flow_daemon.py:run", "Entering main loop", {"running": self.running, "cycle": cycle}, "H2")
+            except Exception as debug_err:
+                safe_print(f"[UW-DAEMON] Debug log failed (non-critical): {debug_err}")
+            # #endregion
+            
+            safe_print("[UW-DAEMON] Step 4: About to enter while loop")
+            safe_print(f"[UW-DAEMON] Step 5: Checking while condition: self.running = {self.running}")
+            
+            # CRITICAL: Force check running flag one more time right before loop
+            if not self.running:
+                safe_print("[UW-DAEMON] ERROR: running became False right before loop!")
+                return
+            
+            safe_print("[UW-DAEMON] Step 5.5: Final check passed, entering while loop NOW")
+            
+            # Use a local variable to track if we should continue, to avoid signal handler race conditions
+            should_continue = True
+            
+            # CRITICAL FIX: Enter loop FIRST, then set flag to prevent race condition
+            # This ensures we're actually in the loop before accepting signals
+            while should_continue and self.running:
+                # Set loop entry flag on FIRST iteration only
+                if not self._loop_entered:
+                    self._loop_entered = True
+                    safe_print("[UW-DAEMON] ✅ LOOP ENTERED - Loop entry flag set, signals will now be honored")
             safe_print(f"[UW-DAEMON] Step 6: INSIDE while loop! Cycle will be {cycle + 1}")
             try:
                 cycle += 1
@@ -1127,10 +1142,32 @@ class UWFlowDaemon:
                     break
                 time.sleep(60)  # Wait longer on error
         
+        except Exception as e:
+            safe_print(f"[UW-DAEMON] FATAL ERROR in run() method: {e}")
+            import traceback
+            safe_print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}")
+            # #region agent log
+            try:
+                debug_log("uw_flow_daemon.py:run", "Fatal exception", {
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "traceback": traceback.format_exc()
+                }, "H1")
+            except:
+                pass
+            # #endregion
+            raise
+        
         safe_print("[UW-DAEMON] Shutting down...")
         # #region agent log
-        debug_log("uw_flow_daemon.py:run", "Daemon shutdown complete", {"cycle": cycle}, "H2")
+        try:
+            debug_log("uw_flow_daemon.py:run", "Daemon shutdown complete", {"cycle": cycle}, "H2")
+        except:
+            pass
         # #endregion
+        
+        # Reset loop entry flag for potential restart
+        self._loop_entered = False
 
 
 def main():
