@@ -9,6 +9,16 @@ echo "RUNNING INVESTIGATION (Triggered by Git Pull)"
 echo "=========================================="
 echo ""
 
+# Check if UW test is requested
+if [ -f ".trigger_uw_test" ]; then
+    echo "UW endpoint test requested - running test..."
+    if [ -f "TRIGGER_UW_TEST.sh" ]; then
+        bash TRIGGER_UW_TEST.sh
+        rm -f .trigger_uw_test 2>/dev/null
+    fi
+    echo ""
+fi
+
 # Run investigation (ALWAYS use comprehensive version first - it has the fixes)
 # Use comprehensive version which works around registry issues
 if [ -f "comprehensive_no_trades_diagnosis.py" ]; then
