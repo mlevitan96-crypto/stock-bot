@@ -9,12 +9,23 @@ echo "RUNNING INVESTIGATION (Triggered by Git Pull)"
 echo "=========================================="
 echo ""
 
-# Check if UW test is requested
-if [ -f ".trigger_uw_test" ]; then
-    echo "UW endpoint test requested - running test..."
+# Check if UW test is requested OR if test script exists (auto-run)
+if [ -f ".trigger_uw_test" ] || [ -f "test_uw_endpoints_comprehensive.py" ]; then
+    echo "UW endpoint test detected - running test..."
     if [ -f "TRIGGER_UW_TEST.sh" ]; then
         bash TRIGGER_UW_TEST.sh
         rm -f .trigger_uw_test 2>/dev/null
+    elif [ -f "test_uw_endpoints_comprehensive.py" ]; then
+        # Run test directly
+        if [ -d "venv" ]; then
+            source venv/bin/activate
+        fi
+        python3 test_uw_endpoints_comprehensive.py
+        if [ -f "uw_endpoint_test_results.json" ]; then
+            git add uw_endpoint_test_results.json 2>/dev/null
+            git commit -m "UW endpoint test results - $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
+            git push origin main 2>/dev/null || true
+        fi
     fi
     echo ""
 fi
