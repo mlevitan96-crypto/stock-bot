@@ -4224,15 +4224,20 @@ class StrategyEngine:
                                   cycle_count=new_positions_this_cycle)
                 continue
             
-            # Legacy score gate (kept for compatibility)
-            if score < Config.MIN_EXEC_SCORE:
-                print(f"DEBUG {symbol}: BLOCKED by score_below_min ({score} < {Config.MIN_EXEC_SCORE})", flush=True)
-                log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=Config.MIN_EXEC_SCORE)
+            # Stage-aware score gate (more lenient in bootstrap for learning)
+            min_score = Config.MIN_EXEC_SCORE
+            if system_stage == "bootstrap":
+                min_score = 1.5  # More lenient for bootstrap learning (was 2.0)
+            
+            if score < min_score:
+                print(f"DEBUG {symbol}: BLOCKED by score_below_min ({score} < {min_score}, stage={system_stage})", flush=True)
+                log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=min_score, stage=system_stage)
                 log_blocked_trade(symbol, "score_below_min", score,
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
                                   components=comps,
-                                  min_required=Config.MIN_EXEC_SCORE)
+                                  min_required=min_score,
+                                  stage=system_stage)
                 continue
             if not self.executor.can_open_new_position():
                 # V1.0: Attempt Opportunity Cost Displacement before blocking
