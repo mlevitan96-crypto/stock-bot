@@ -45,7 +45,7 @@ Set up git to use your token for authentication:
 
 ```bash
 cd ~/stock-bot
-git remote set-url origin https://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@github.com/mlevitan96-crypto/stock-bot.git
+git remote set-url origin https://YOUR_GITHUB_TOKEN@github.com/mlevitan96-crypto/stock-bot.git
 ```
 
 **Verify remote is set correctly:**
@@ -336,7 +336,7 @@ Once set up, Cursor can:
 ### Git Push Fails with Authentication Error
 ```bash
 # Re-set the remote URL with token
-git remote set-url origin https://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@github.com/mlevitan96-crypto/stock-bot.git
+git remote set-url origin https://YOUR_GITHUB_TOKEN@github.com/mlevitan96-crypto/stock-bot.git
 ```
 
 ### Merge Conflicts

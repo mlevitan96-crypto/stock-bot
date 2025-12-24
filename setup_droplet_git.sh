@@ -26,7 +26,7 @@ echo "✅ Git configured"
 # Step 3: Set up GitHub authentication
 echo ""
 echo "Step 3: Setting up GitHub authentication..."
-git remote set-url origin https://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@github.com/mlevitan96-crypto/stock-bot.git
+git remote set-url origin https://YOUR_GITHUB_TOKEN@github.com/mlevitan96-crypto/stock-bot.git
 echo "✅ GitHub authentication configured"
 
 # Step 4: Test connection
