@@ -9,9 +9,24 @@ echo "FINAL DEPLOYMENT - APPLYING ALL FIXES"
 echo "=========================================="
 echo ""
 
-# Step 1: Pull ALL latest fixes
+# Step 1: Pull ALL latest fixes (handle conflicts)
 echo "Step 1: Pulling latest fixes..."
+# First, handle any untracked files that would conflict
 git fetch origin main
+# Check for files that would be overwritten
+CONFLICT_FILES=$(git diff --name-only --diff-filter=U 2>/dev/null || git ls-files --others --exclude-standard 2>/dev/null)
+if [ -n "$CONFLICT_FILES" ]; then
+    echo "Handling conflicting untracked files..."
+    for file in $CONFLICT_FILES; do
+        if git ls-tree -r origin/main --name-only | grep -q "^$file$"; then
+            echo "  Removing conflicting untracked file: $file"
+            rm -f "$file" 2>/dev/null || true
+        fi
+    done
+fi
+# Remove specific known conflicting files
+rm -f setup_droplet_git.sh 2>/dev/null || true
+# Now pull/reset
 git reset --hard origin/main 2>&1 | tail -5
 echo "✓ Code updated"
 echo ""
