@@ -1,28 +1,14 @@
 {
-  "timestamp": "2025-12-23T21:51:39.366699",
+  "timestamp": "2025-12-24T09:37:57.181519",
   "summary": {
-    "total_findings": 12,
+    "total_findings": 5,
     "critical": 1,
-    "high": 5,
-    "medium": 5,
-    "low": 1
+    "high": 1,
+    "medium": 3,
+    "low": 0
   },
   "findings": {
     "hardcoded_values": [
-      {
-        "file": "main.py",
-        "type": "hardcoded_api_endpoint",
-        "issue": "Hardcoded API endpoint: \"https://paper-api.alpaca.markets\"",
-        "fix": "Use config/registry.py APIConfig.UW_BASE_URL",
-        "severity": "medium"
-      },
-      {
-        "file": "uw_flow_daemon.py",
-        "type": "hardcoded_api_endpoint",
-        "issue": "Hardcoded API endpoint: \"https://api.unusualwhales.com\"",
-        "fix": "Use config/registry.py APIConfig.UW_BASE_URL",
-        "severity": "medium"
-      },
       {
         "file": "deploy_supervisor.py",
         "type": "hardcoded_path",
@@ -33,16 +19,9 @@
       {
         "file": "deploy_supervisor.py",
         "type": "timezone_inconsistency",
-        "issue": "Timezone references: {'UTC', 'ET'}",
+        "issue": "Timezone references: {'ET', 'UTC'}",
         "fix": "Use pytz.timezone('US/Eastern') consistently (handles DST)",
         "severity": "medium"
-      },
-      {
-        "file": "signals/uw_adaptive.py",
-        "type": "hardcoded_path",
-        "issue": "Hardcoded paths found: {'data'}",
-        "fix": "Use config/registry.py (StateFiles, CacheFiles, LogFiles, ConfigFiles)",
-        "severity": "high"
       },
       {
         "file": "signals/uw_adaptive.py",
@@ -54,26 +33,12 @@
       {
         "file": "adaptive_signal_optimizer.py",
         "type": "timezone_inconsistency",
-        "issue": "Timezone references: {'UTC', 'ET'}",
+        "issue": "Timezone references: {'ET', 'UTC'}",
         "fix": "Use pytz.timezone('US/Eastern') consistently (handles DST)",
         "severity": "medium"
       }
     ],
-    "mismatched_labels": [
-      {
-        "type": "signal_component_mismatch",
-        "issue": "Signal component lists don't match",
-        "missing_in_registry": [
-          "flow",
-          "freshness_factor"
-        ],
-        "missing_in_contracts": [
-          "options_flow"
-        ],
-        "fix": "Synchronize SIGNAL_COMPONENTS and SignalComponents.ALL_COMPONENTS",
-        "severity": "high"
-      }
-    ],
+    "mismatched_labels": [],
     "logging_issues": [],
     "learning_flow_issues": [
       {
@@ -83,39 +48,14 @@
         "severity": "critical"
       }
     ],
-    "signal_capture_issues": [
-      {
-        "type": "missing_endpoint_polling",
-        "issue": "Missing endpoint polling: {'insider', 'calendar', 'congress', 'institutional'}",
-        "fix": "Add polling for missing endpoints in uw_flow_daemon.py",
-        "severity": "high"
-      }
-    ],
-    "architecture_issues": [
-      {
-        "file": "deploy_supervisor.py",
-        "type": "missing_registry_usage",
-        "issue": "Uses hardcoded paths but doesn't import registry",
-        "fix": "Import from config.registry and use StateFiles, CacheFiles, LogFiles",
-        "severity": "high"
-      }
-    ],
-    "documentation_issues": [
-      {
-        "type": "incomplete_memory_bank",
-        "issue": "Missing sections: ['Signal Components']",
-        "fix": "Add missing sections to MEMORY_BANK.md",
-        "severity": "low"
-      }
-    ],
+    "signal_capture_issues": [],
+    "architecture_issues": [],
+    "documentation_issues": [],
     "bugs": [],
     "best_practices": []
   },
   "recommendations": [
     "Move all hardcoded values to config/registry.py",
-    "Synchronize signal component names across all modules",
-    "Ensure all trades flow to learning system and updates flow back",
-    "Verify all 11 UW endpoints are being polled and cached",
-    "Use config/registry.py for all file paths"
+    "Ensure all trades flow to learning system and updates flow back"
   ]
 }
