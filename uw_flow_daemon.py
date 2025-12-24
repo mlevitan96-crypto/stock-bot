@@ -475,22 +475,30 @@ class SmartPoller:
         return True
     
     def _is_market_hours(self) -> bool:
-        """Check if currently in trading hours (9:30 AM - 4:00 PM ET)."""
+        """Check if currently in trading hours (9:30 AM - 4:00 PM ET).
+        
+        Uses US/Eastern timezone which automatically handles DST (EST/EDT).
+        Matches timezone usage in main.py and sre_monitoring.py.
+        """
         try:
             import pytz
-            et = pytz.timezone('US/Eastern')
+            et = pytz.timezone('US/Eastern')  # Handles DST automatically (EST/EDT)
             now_et = datetime.now(et)
             hour_min = now_et.hour * 60 + now_et.minute
-            market_open = 9 * 60 + 30  # 9:30 AM
-            market_close = 16 * 60      # 4:00 PM
+            market_open = 9 * 60 + 30  # 9:30 AM ET
+            market_close = 16 * 60      # 4:00 PM ET
             is_open = market_open <= hour_min < market_close
-            # Log market status for debugging
+            
+            # Log market status for debugging (only log when closed to reduce noise)
             if not is_open:
-                safe_print(f"[UW-DAEMON] Market is CLOSED (ET time: {now_et.strftime('%H:%M')}) - skipping API calls")
+                safe_print(f"[UW-DAEMON] Market is CLOSED (ET time: {now_et.strftime('%H:%M')}) - will use longer polling intervals")
+            
             return is_open
         except Exception as e:
-            safe_print(f"[UW-DAEMON] Error checking market hours: {e} - defaulting to CLOSED")
-            return False  # Default to CLOSED if timezone check fails (safer)
+            # Maintain backward compatibility: default to True if timezone check fails
+            # This matches original behavior and prevents breaking existing functionality
+            safe_print(f"[UW-DAEMON] ⚠️  Error checking market hours: {e} - defaulting to OPEN (backward compatibility)")
+            return True
 
 
 class UWFlowDaemon:
@@ -709,12 +717,8 @@ class UWFlowDaemon:
                 # Trading bot can use stale data if available
                 return
             
-            # Poll option flow (only during market hours)
+            # Poll option flow (should_poll already checks market hours)
             if self.poller.should_poll("option_flow"):
-                # Double-check market hours before making API call
-                if not self.poller._is_market_hours():
-                    safe_print(f"[UW-DAEMON] Market closed - skipping API call for {ticker}")
-                    return
                 flow_data = self.client.get_option_flow(ticker, limit=100)
                 
                 # Check if rate limited
@@ -990,166 +994,168 @@ class UWFlowDaemon:
                 if not self._loop_entered:
                     self._loop_entered = True
                     safe_print("[UW-DAEMON] ✅ LOOP ENTERED - Loop entry flag set, signals will now be honored")
-            safe_print(f"[UW-DAEMON] Step 6: INSIDE while loop! Cycle will be {cycle + 1}")
-            try:
-                cycle += 1
-                if cycle == 1:
-                    safe_print(f"[UW-DAEMON] ✅ SUCCESS: Entered main loop! Cycle {cycle}")
-                elif cycle <= 3:
-                    safe_print(f"[UW-DAEMON] Loop continuing, cycle {cycle}")
                 
-                # Check running flag at start of each cycle
-                if not self.running:
-                    safe_print(f"[UW-DAEMON] Running flag became False during cycle {cycle}")
-                    should_continue = False
-                    break
-                # #region agent log
+                safe_print(f"[UW-DAEMON] Step 6: INSIDE while loop! Cycle will be {cycle + 1}")
                 try:
-                    debug_log("uw_flow_daemon.py:run", "Cycle start", {"cycle": cycle, "first_poll": first_poll, "running": self.running}, "H2")
-                except Exception as debug_err:
-                    pass  # Non-critical
-                # #endregion
-                
-                # Check if we should exit
-                if not self.running:
+                    cycle += 1
+                    if cycle == 1:
+                        safe_print(f"[UW-DAEMON] ✅ SUCCESS: Entered main loop! Cycle {cycle}")
+                    elif cycle <= 3:
+                        safe_print(f"[UW-DAEMON] Loop continuing, cycle {cycle}")
+                    
+                    # Check running flag at start of each cycle
+                    if not self.running:
+                        safe_print(f"[UW-DAEMON] Running flag became False during cycle {cycle}")
+                        should_continue = False
+                        break
+                    
                     # #region agent log
-                    debug_log("uw_flow_daemon.py:run", "Exiting loop - running=False", {}, "H2")
+                    try:
+                        debug_log("uw_flow_daemon.py:run", "Cycle start", {"cycle": cycle, "first_poll": first_poll, "running": self.running}, "H2")
+                    except Exception as debug_err:
+                        pass  # Non-critical
                     # #endregion
-                    break
-                
-                # Poll top net impact (market-wide, not per-ticker)
-                if self.poller.should_poll("top_net_impact", force_first=first_poll):
-                    try:
-                        safe_print(f"[UW-DAEMON] Polling top_net_impact (first_poll={first_poll})...")
-                        top_net = self.client.get_top_net_impact(limit=100)
-                        # Store in cache metadata
-                        cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
-                        cache["_top_net_impact"] = {
-                            "data": top_net,
-                            "last_update": int(time.time())
-                        }
-                        atomic_write_json(CACHE_FILE, cache)
-                    except Exception as e:
-                        safe_print(f"[UW-DAEMON] Error polling top_net_impact: {e}")
-                
-                # Poll market tide (market-wide, not per-ticker)
-                if self.poller.should_poll("market_tide", force_first=first_poll):
-                    try:
-                        safe_print(f"[UW-DAEMON] Polling market_tide (first_poll={first_poll})...")
+                    
+                    # Check if we should exit
+                    if not self.running:
                         # #region agent log
-                        debug_log("uw_flow_daemon.py:run:market_tide", "Calling get_market_tide", {"first_poll": first_poll}, "H3")
+                        debug_log("uw_flow_daemon.py:run", "Exiting loop - running=False", {}, "H2")
                         # #endregion
-                        tide_data = self.client.get_market_tide()
-                        # #region agent log
-                        debug_log("uw_flow_daemon.py:run:market_tide", "get_market_tide response", {
-                            "has_data": bool(tide_data),
-                            "data_type": type(tide_data).__name__,
-                            "data_keys": list(tide_data.keys()) if isinstance(tide_data, dict) else [],
-                            "data_str": str(tide_data)[:200] if tide_data else "empty"
-                        }, "H3")
-                        # #endregion
-                        if tide_data:
+                        break
+                    
+                    # Poll top net impact (market-wide, not per-ticker)
+                    if self.poller.should_poll("top_net_impact", force_first=first_poll):
+                        try:
+                            safe_print(f"[UW-DAEMON] Polling top_net_impact (first_poll={first_poll})...")
+                            top_net = self.client.get_top_net_impact(limit=100)
                             # Store in cache metadata
                             cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
-                            cache["_market_tide"] = {
-                                "data": tide_data,
+                            cache["_top_net_impact"] = {
+                                "data": top_net,
                                 "last_update": int(time.time())
                             }
                             atomic_write_json(CACHE_FILE, cache)
-                            safe_print(f"[UW-DAEMON] Updated market_tide: {len(str(tide_data))} bytes")
-                        else:
-                            safe_print(f"[UW-DAEMON] market_tide: API returned empty data")
-                    except Exception as e:
-                        safe_print(f"[UW-DAEMON] Error polling market_tide: {e}")
-                        import traceback
-                        safe_print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}")
+                        except Exception as e:
+                            safe_print(f"[UW-DAEMON] Error polling top_net_impact: {e}")
+                    
+                    # Poll market tide (market-wide, not per-ticker)
+                    if self.poller.should_poll("market_tide", force_first=first_poll):
+                        try:
+                            safe_print(f"[UW-DAEMON] Polling market_tide (first_poll={first_poll})...")
+                            # #region agent log
+                            debug_log("uw_flow_daemon.py:run:market_tide", "Calling get_market_tide", {"first_poll": first_poll}, "H3")
+                            # #endregion
+                            tide_data = self.client.get_market_tide()
+                            # #region agent log
+                            debug_log("uw_flow_daemon.py:run:market_tide", "get_market_tide response", {
+                                "has_data": bool(tide_data),
+                                "data_type": type(tide_data).__name__,
+                                "data_keys": list(tide_data.keys()) if isinstance(tide_data, dict) else [],
+                                "data_str": str(tide_data)[:200] if tide_data else "empty"
+                            }, "H3")
+                            # #endregion
+                            if tide_data:
+                                # Store in cache metadata
+                                cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
+                                cache["_market_tide"] = {
+                                    "data": tide_data,
+                                    "last_update": int(time.time())
+                                }
+                                atomic_write_json(CACHE_FILE, cache)
+                                safe_print(f"[UW-DAEMON] Updated market_tide: {len(str(tide_data))} bytes")
+                            else:
+                                safe_print(f"[UW-DAEMON] market_tide: API returned empty data")
+                        except Exception as e:
+                            safe_print(f"[UW-DAEMON] Error polling market_tide: {e}")
+                            import traceback
+                            safe_print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}")
+                    
+                    # Poll each ticker (optimized delay for rate limit efficiency)
+                    for ticker in self.tickers:
+                        if not self.running:
+                            break
+                        self._poll_ticker(ticker)
+                        # 1.5s delay: balances speed with rate limit safety
+                        # With 53 tickers: ~80 seconds per full cycle at 1.5s delay
+                        time.sleep(1.5)
+                    
+                    # Clear first_poll flag after first cycle
+                    if first_poll:
+                        first_poll = False
+                        safe_print("[UW-DAEMON] Completed first poll cycle - all endpoints attempted")
+                    
+                    # Log cycle completion
+                    if cycle % 10 == 0:
+                        safe_print(f"[UW-DAEMON] Completed {cycle} cycles")
+                        # #region agent log
+                        debug_log("uw_flow_daemon.py:run", "Cycle milestone", {"cycle": cycle}, "H2")
+                        # #endregion
+                    
+                    # Sleep before next cycle
+                    # If rate limited, sleep longer (check every 5 minutes for reset)
+                    if self._rate_limited:
+                        # Log status periodically so user knows system is still monitoring
+                        if cycle % 12 == 0:  # Every 12 cycles = every hour when rate limited
+                            safe_print(f"[UW-DAEMON] ⏳ Rate limited - monitoring for reset (8PM EST). Cache data preserved for graceful degradation.")
+                        # #region agent log
+                        debug_log("uw_flow_daemon.py:run", "Rate limited - sleeping", {}, "H2")
+                        # #endregion
+                        time.sleep(300)  # 5 minutes
+                        # Check if it's past 8PM EST (limit reset time)
+                        try:
+                            import pytz
+                            et = pytz.timezone('US/Eastern')
+                            now_et = datetime.now(et)
+                            if now_et.hour >= 20:  # 8PM or later
+                                print(f"[UW-DAEMON] ✅ Limit should have reset, resuming polling...", flush=True)
+                                self._rate_limited = False
+                        except:
+                            pass
+                    else:
+                        # #region agent log
+                        debug_log("uw_flow_daemon.py:run", "Normal sleep", {"cycle": cycle}, "H2")
+                        # #endregion
+                        time.sleep(30)  # Normal: Check every 30 seconds
                 
-                # Poll each ticker (optimized delay for rate limit efficiency)
-                for ticker in self.tickers:
-                    if not self.running:
-                        break
-                    self._poll_ticker(ticker)
-                    # 1.5s delay: balances speed with rate limit safety
-                    # With 53 tickers: ~80 seconds per full cycle at 1.5s delay
-                    time.sleep(1.5)
-                
-                # Clear first_poll flag after first cycle
-                if first_poll:
-                    first_poll = False
-                    safe_print("[UW-DAEMON] Completed first poll cycle - all endpoints attempted")
-                
-                # Log cycle completion
-                if cycle % 10 == 0:
-                    safe_print(f"[UW-DAEMON] Completed {cycle} cycles")
+                except KeyboardInterrupt:
+                    safe_print("[UW-DAEMON] Keyboard interrupt received")
                     # #region agent log
-                    debug_log("uw_flow_daemon.py:run", "Cycle milestone", {"cycle": cycle}, "H2")
-                    # #endregion
-                
-                # Sleep before next cycle
-                # If rate limited, sleep longer (check every 5 minutes for reset)
-                if self._rate_limited:
-                    # Log status periodically so user knows system is still monitoring
-                    if cycle % 12 == 0:  # Every 12 cycles = every hour when rate limited
-                        safe_print(f"[UW-DAEMON] ⏳ Rate limited - monitoring for reset (8PM EST). Cache data preserved for graceful degradation.")
-                    # #region agent log
-                    debug_log("uw_flow_daemon.py:run", "Rate limited - sleeping", {}, "H2")
-                    # #endregion
-                    time.sleep(300)  # 5 minutes
-                    # Check if it's past 8PM EST (limit reset time)
                     try:
-                        import pytz
-                        et = pytz.timezone('US/Eastern')
-                        now_et = datetime.now(et)
-                        if now_et.hour >= 20:  # 8PM or later
-                            print(f"[UW-DAEMON] ✅ Limit should have reset, resuming polling...", flush=True)
-                            self._rate_limited = False
+                        debug_log("uw_flow_daemon.py:run", "Keyboard interrupt", {}, "H2")
                     except:
                         pass
-                else:
-                    # #region agent log
-                    debug_log("uw_flow_daemon.py:run", "Normal sleep", {"cycle": cycle}, "H2")
                     # #endregion
-                    time.sleep(30)  # Normal: Check every 30 seconds
-            
-            except KeyboardInterrupt:
-                safe_print("[UW-DAEMON] Keyboard interrupt received")
-                # #region agent log
-                try:
-                    debug_log("uw_flow_daemon.py:run", "Keyboard interrupt", {}, "H2")
-                except:
-                    pass
-                # #endregion
-                should_continue = False
-                self.running = False
-                break
-            except Exception as e:
-                # #region agent log
-                try:
-                    debug_log("uw_flow_daemon.py:run", "Main loop exception", {
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                        "cycle": cycle,
-                        "running": self.running
-                    }, "H2")
-                except:
-                    pass
-                # #endregion
-                safe_print(f"[UW-DAEMON] Error in main loop: {e}")
-                import traceback
-                tb = traceback.format_exc()
-                safe_print(f"[UW-DAEMON] Traceback: {tb}")
-                # #region agent log
-                try:
-                    debug_log("uw_flow_daemon.py:run", "Exception traceback", {"traceback": tb}, "H2")
-                except:
-                    pass
-                # #endregion
-                # Don't exit on error - continue loop unless explicitly stopped
-                if not self.running:
-                    safe_print(f"[UW-DAEMON] Running flag False after exception, breaking loop")
                     should_continue = False
+                    self.running = False
                     break
-                time.sleep(60)  # Wait longer on error
+                except Exception as e:
+                    # #region agent log
+                    try:
+                        debug_log("uw_flow_daemon.py:run", "Main loop exception", {
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "cycle": cycle,
+                            "running": self.running
+                        }, "H2")
+                    except:
+                        pass
+                    # #endregion
+                    safe_print(f"[UW-DAEMON] Error in main loop: {e}")
+                    import traceback
+                    tb = traceback.format_exc()
+                    safe_print(f"[UW-DAEMON] Traceback: {tb}")
+                    # #region agent log
+                    try:
+                        debug_log("uw_flow_daemon.py:run", "Exception traceback", {"traceback": tb}, "H2")
+                    except:
+                        pass
+                    # #endregion
+                    # Don't exit on error - continue loop unless explicitly stopped
+                    if not self.running:
+                        safe_print(f"[UW-DAEMON] Running flag False after exception, breaking loop")
+                        should_continue = False
+                        break
+                    time.sleep(60)  # Wait longer on error
         
         except Exception as e:
             safe_print(f"[UW-DAEMON] FATAL ERROR in run() method: {e}")
