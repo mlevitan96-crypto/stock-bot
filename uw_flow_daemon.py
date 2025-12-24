@@ -19,10 +19,115 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
+# Signal-safe print function to avoid reentrant call issues
+_print_lock = False
+def safe_print(*args, **kwargs):
+    """Print that's safe to call from signal handlers and avoids reentrant calls."""
+    global _print_lock
+    if _print_lock:
+        return  # Prevent reentrant calls
+    _print_lock = True
+    try:
+        msg = ' '.join(str(a) for a in args) + '\n'
+        os.write(1, msg.encode())  # stdout file descriptor is 1
+    except:
+        pass  # If print fails, just continue
+    finally:
+        _print_lock = False
+
+# #region agent log
+DEBUG_LOG_PATH = Path(__file__).parent / ".cursor" / "debug.log"
+_DEBUG_LOGGING = False  # Flag to prevent reentrant debug logging
+def debug_log(location, message, data=None, hypothesis_id=None):
+    global _DEBUG_LOGGING
+    if _DEBUG_LOGGING:
+        return  # Prevent reentrant calls
+    _DEBUG_LOGGING = True
+    try:
+        # Ensure directory exists
+        try:
+            DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as dir_err:
+            # If directory creation fails, try to write error to stderr
+            try:
+                os.write(2, f"[DEBUG-ERROR] Failed to create dir {DEBUG_LOG_PATH.parent}: {dir_err}\n".encode())
+            except:
+                pass
+            _DEBUG_LOGGING = False
+            return
+        
+        # Create log entry
+        try:
+            log_entry = json.dumps({
+                "sessionId": "uw-daemon-debug",
+                "runId": "run1",
+                "hypothesisId": hypothesis_id,
+                "location": location,
+                "message": message,
+                "data": data or {},
+                "timestamp": int(time.time() * 1000)
+            }) + "\n"
+        except Exception as json_err:
+            try:
+                os.write(2, f"[DEBUG-ERROR] Failed to create JSON: {json_err}\n".encode())
+            except:
+                pass
+            _DEBUG_LOGGING = False
+            return
+        
+        # Write to file
+        try:
+            with DEBUG_LOG_PATH.open("a") as f:
+                f.write(log_entry)
+                f.flush()  # Force flush to ensure it's written
+        except Exception as write_err:
+            try:
+                os.write(2, f"[DEBUG-ERROR] Failed to write to {DEBUG_LOG_PATH}: {write_err}\n".encode())
+            except:
+                pass
+            _DEBUG_LOGGING = False
+            return
+        
+        # Use os.write to avoid reentrant print issues (optional debug output to stderr)
+        try:
+            debug_msg = f"[DEBUG] {location}: {message} {json.dumps(data or {})}\n"
+            os.write(2, debug_msg.encode())  # Write directly to stderr file descriptor
+        except:
+            pass  # If stderr write fails, continue - file write succeeded
+    except Exception as e:
+        # Use os.write for error reporting too
+        try:
+            error_msg = f"[DEBUG-ERROR] Unexpected error in debug_log: {e}\n"
+            os.write(2, error_msg.encode())
+            import traceback
+            tb_msg = f"[DEBUG-ERROR] Traceback: {traceback.format_exc()}\n"
+            os.write(2, tb_msg.encode())
+        except:
+            pass
+    finally:
+        _DEBUG_LOGGING = False
+# #endregion
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config.registry import CacheFiles, Directories, StateFiles, read_json, atomic_write_json, append_jsonl
+try:
+    from config.registry import CacheFiles, Directories, StateFiles, read_json, atomic_write_json, append_jsonl
+    # Test debug_log immediately after imports
+    try:
+        debug_log("uw_flow_daemon.py:imports", "Imports successful", {}, "H1")
+    except Exception as debug_err:
+        # If debug_log fails, write to stderr directly
+        try:
+            os.write(2, f"[CRITICAL] debug_log failed: {debug_err}\n".encode())
+        except:
+            pass
+except Exception as e:
+    try:
+        debug_log("uw_flow_daemon.py:imports", "Import failed", {"error": str(e)}, "H1")
+    except:
+        pass
+    raise
 
 load_dotenv()
 
@@ -40,6 +145,10 @@ class UWClient:
     def _get(self, path_or_url: str, params: dict = None) -> dict:
         """Make API request with quota tracking."""
         url = path_or_url if path_or_url.startswith("http") else f"{self.base}{path_or_url}"
+        
+        # #region agent log
+        debug_log("uw_flow_daemon.py:_get", "API call attempt", {"url": url, "has_api_key": bool(self.api_key)}, "H3")
+        # #endregion
         
         # QUOTA TRACKING: Log all UW API calls
         quota_log = CacheFiles.UW_API_QUOTA
@@ -69,15 +178,15 @@ class UWClient:
                 
                 # Log if we're getting close to limit
                 if pct > 75:
-                    print(f"[UW-DAEMON] ⚠️  Rate limit warning: {count}/{limit} ({pct:.1f}%)", flush=True)
+                    safe_print(f"[UW-DAEMON] ⚠️  Rate limit warning: {count}/{limit} ({pct:.1f}%)")
                 elif pct > 90:
-                    print(f"[UW-DAEMON] 🚨 Rate limit critical: {count}/{limit} ({pct:.1f}%)", flush=True)
+                    safe_print(f"[UW-DAEMON] 🚨 Rate limit critical: {count}/{limit} ({pct:.1f}%)")
             
-            # Check for 429 (rate limited)
+                # Check for 429 (rate limited)
             if r.status_code == 429:
                 error_data = r.json() if r.content else {}
-                print(f"[UW-DAEMON] ❌ RATE LIMITED (429): {error_data.get('message', 'Daily limit hit')}", flush=True)
-                print(f"[UW-DAEMON] ⚠️  Stopping polling until limit resets (8PM EST)", flush=True)
+                safe_print(f"[UW-DAEMON] ❌ RATE LIMITED (429): {error_data.get('message', 'Daily limit hit')}")
+                safe_print(f"[UW-DAEMON] ⚠️  Stopping polling until limit resets (8PM EST)")
                 append_jsonl(CacheFiles.UW_FLOW_CACHE_LOG, {
                     "event": "UW_API_RATE_LIMITED",
                     "url": url,
@@ -93,16 +202,33 @@ class UWClient:
             
             # Log non-200 responses for debugging
             if r.status_code != 200:
-                print(f"[UW-DAEMON] ⚠️  API returned status {r.status_code} for {url}", flush=True)
+                safe_print(f"[UW-DAEMON] ⚠️  API returned status {r.status_code} for {url}")
                 try:
                     error_text = r.text[:200] if r.text else "No response body"
-                    print(f"[UW-DAEMON] Response: {error_text}", flush=True)
+                    safe_print(f"[UW-DAEMON] Response: {error_text}")
                 except:
                     pass
             
             r.raise_for_status()
-            return r.json()
+            response_data = r.json()
+            # #region agent log
+            debug_log("uw_flow_daemon.py:_get", "API call success", {
+                "url": url, 
+                "status": r.status_code,
+                "has_data": bool(response_data.get("data")),
+                "data_type": type(response_data.get("data")).__name__,
+                "data_keys": list(response_data.keys()) if isinstance(response_data, dict) else []
+            }, "H3")
+            # #endregion
+            return response_data
         except requests.exceptions.HTTPError as e:
+            # #region agent log
+            debug_log("uw_flow_daemon.py:_get", "API HTTP error", {
+                "url": url,
+                "status": getattr(e.response, 'status_code', None),
+                "error": str(e)
+            }, "H3")
+            # #endregion
             append_jsonl(CacheFiles.UW_FLOW_CACHE_LOG, {
                 "event": "UW_API_ERROR",
                 "url": url,
@@ -112,6 +238,13 @@ class UWClient:
             })
             return {"data": []}
         except Exception as e:
+            # #region agent log
+            debug_log("uw_flow_daemon.py:_get", "API exception", {
+                "url": url,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }, "H3")
+            # #endregion
             append_jsonl(CacheFiles.UW_FLOW_CACHE_LOG, {
                 "event": "UW_API_ERROR",
                 "url": url,
@@ -125,7 +258,7 @@ class UWClient:
         raw = self._get("/api/option-trades/flow-alerts", params={"symbol": ticker, "limit": limit})
         data = raw.get("data", [])
         if data:
-            print(f"[UW-DAEMON] Retrieved {len(data)} flow trades for {ticker}", flush=True)
+            safe_print(f"[UW-DAEMON] Retrieved {len(data)} flow trades for {ticker}")
         return data
     
     def get_dark_pool_levels(self, ticker: str) -> List[Dict]:
@@ -159,10 +292,45 @@ class UWClient:
     def get_market_tide(self) -> Dict:
         """Get market-wide options sentiment (market tide)."""
         raw = self._get("/api/market/market-tide")
+        # #region agent log
+        debug_log("uw_flow_daemon.py:get_market_tide", "Raw API response", {
+            "raw_type": type(raw).__name__,
+            "raw_keys": list(raw.keys()) if isinstance(raw, dict) else [],
+            "has_data_key": "data" in raw if isinstance(raw, dict) else False
+        }, "H3")
+        # #endregion
+        
         data = raw.get("data", {})
-        if isinstance(data, list) and len(data) > 0:
-            data = data[0]
-        return data if isinstance(data, dict) else {}
+        # #region agent log
+        debug_log("uw_flow_daemon.py:get_market_tide", "Extracted data", {
+            "data_type": type(data).__name__,
+            "is_list": isinstance(data, list),
+            "list_len": len(data) if isinstance(data, list) else 0,
+            "is_dict": isinstance(data, dict),
+            "dict_keys": list(data.keys()) if isinstance(data, dict) else []
+        }, "H3")
+        # #endregion
+        
+        if isinstance(data, list):
+            if len(data) > 0:
+                data = data[0]
+            else:
+                # Empty list - return empty dict
+                # #region agent log
+                debug_log("uw_flow_daemon.py:get_market_tide", "Empty list returned", {}, "H3")
+                # #endregion
+                return {}
+        
+        # If data is already a dict, return it; otherwise return empty dict
+        result = data if isinstance(data, dict) else {}
+        # #region agent log
+        debug_log("uw_flow_daemon.py:get_market_tide", "Final result", {
+            "result_type": type(result).__name__,
+            "result_keys": list(result.keys()) if isinstance(result, dict) else [],
+            "result_empty": not bool(result)
+        }, "H3")
+        # #endregion
+        return result
     
     def get_oi_change(self, ticker: str) -> Dict:
         """Get open interest changes for a ticker."""
@@ -262,10 +430,23 @@ class SmartPoller:
         last = self.last_call.get(endpoint, 0)
         base_interval = self.intervals.get(endpoint, 60)
         
+        # #region agent log
+        debug_log("uw_flow_daemon.py:should_poll", "Polling decision", {
+            "endpoint": endpoint,
+            "force_first": force_first,
+            "last": last,
+            "interval": base_interval,
+            "time_since_last": now - last if last > 0 else None
+        }, "H5")
+        # #endregion
+        
         # If this is the first poll (no last call recorded), allow it immediately
         if force_first and last == 0:
             self.last_call[endpoint] = now
             self._save_state()
+            # #region agent log
+            debug_log("uw_flow_daemon.py:should_poll", "First poll allowed", {"endpoint": endpoint}, "H5")
+            # #endregion
             return True
         
         # OPTIMIZATION: During market hours, use normal intervals
@@ -277,11 +458,20 @@ class SmartPoller:
             interval = base_interval * 3
         
         if now - last < interval:
+            # #region agent log
+            debug_log("uw_flow_daemon.py:should_poll", "Polling skipped - interval not elapsed", {
+                "endpoint": endpoint,
+                "time_remaining": interval - (now - last)
+            }, "H5")
+            # #endregion
             return False
         
         # Update timestamp
         self.last_call[endpoint] = now
         self._save_state()
+        # #region agent log
+        debug_log("uw_flow_daemon.py:should_poll", "Polling allowed", {"endpoint": endpoint}, "H5")
+        # #endregion
         return True
     
     def _is_market_hours(self) -> bool:
@@ -315,13 +505,62 @@ class UWFlowDaemon:
         ).split(",")
         self.tickers = [t.strip().upper() for t in self.tickers if t.strip()]
         self.running = True
+        self._shutting_down = False  # Prevent reentrant signal handler calls
+        
+        # Register signal handlers BEFORE any debug_log calls that might block
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
+        
+        # #region agent log
+        try:
+            debug_log("uw_flow_daemon.py:__init__", "UWFlowDaemon initialized", {
+                "ticker_count": len(self.tickers),
+                "has_api_key": bool(self.client.api_key) if hasattr(self, 'client') else False
+            }, "H1")
+        except Exception as debug_err:
+            safe_print(f"[UW-DAEMON] Debug log failed in __init__ (non-critical): {debug_err}")
+        # #endregion
     
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals."""
-        print(f"\n[UW-DAEMON] Received signal {signum}, shutting down...", flush=True)
+        # Use safe_print immediately to avoid any blocking
+        safe_print(f"[UW-DAEMON] Signal handler called: signal {signum}")
+        
+        # #region agent log
+        try:
+            debug_log("uw_flow_daemon.py:_signal_handler", "Signal received", {
+                "signum": signum,
+                "signal_name": "SIGTERM" if signum == 15 else "SIGINT" if signum == 2 else f"UNKNOWN({signum})",
+                "already_shutting_down": self._shutting_down,
+                "running_before": self.running
+            }, "H2")
+        except Exception as debug_err:
+            safe_print(f"[UW-DAEMON] Debug log failed in signal handler: {debug_err}")
+        # #endregion
+        
+        # Prevent reentrant calls - if already shutting down, just set flag
+        if self._shutting_down:
+            self.running = False
+            # #region agent log
+            debug_log("uw_flow_daemon.py:_signal_handler", "Already shutting down, setting running=False", {}, "H2")
+            # #endregion
+            return
+        
+        self._shutting_down = True
+        # Use os.write to avoid reentrant print/stderr issues
+        try:
+            import os
+            msg = f"\n[UW-DAEMON] Received signal {signum}, shutting down...\n"
+            os.write(2, msg.encode())  # Write directly to stderr file descriptor (2)
+        except:
+            pass  # If write fails, just continue - we still need to set running=False
         self.running = False
+        # #region agent log
+        debug_log("uw_flow_daemon.py:_signal_handler", "Signal handled - running set to False", {
+            "running": self.running,
+            "shutting_down": self._shutting_down
+        }, "H2")
+        # #endregion
     
     def _normalize_flow_data(self, flow_data: List[Dict], ticker: str) -> Dict:
         """Normalize flow data into cache format."""
@@ -384,6 +623,14 @@ class UWFlowDaemon:
     
     def _update_cache(self, ticker: str, data: Dict):
         """Update cache for a ticker."""
+        # #region agent log
+        debug_log("uw_flow_daemon.py:_update_cache", "Cache update start", {
+            "ticker": ticker,
+            "data_keys": list(data.keys()),
+            "has_data": bool(data)
+        }, "H4")
+        # #endregion
+        
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
         
         # Load existing cache
@@ -430,6 +677,13 @@ class UWFlowDaemon:
         
         # Atomic write
         atomic_write_json(CACHE_FILE, cache)
+        # #region agent log
+        debug_log("uw_flow_daemon.py:_update_cache", "Cache update complete", {
+            "ticker": ticker,
+            "cache_size": len(cache),
+            "ticker_data_keys": list(cache.get(ticker, {}).keys())
+        }, "H4")
+        # #endregion
     
     def _poll_ticker(self, ticker: str):
         """Poll all endpoints for a ticker."""
@@ -659,21 +913,90 @@ class UWFlowDaemon:
     
     def run(self):
         """Main daemon loop."""
-        print("[UW-DAEMON] Starting UW Flow Daemon...", flush=True)
-        print(f"[UW-DAEMON] Monitoring {len(self.tickers)} tickers", flush=True)
-        print(f"[UW-DAEMON] Cache file: {CACHE_FILE}", flush=True)
+        safe_print("[UW-DAEMON] run() method called")
+        safe_print(f"[UW-DAEMON] self.running = {self.running}")
+        
+        # #region agent log
+        try:
+            debug_log("uw_flow_daemon.py:run", "Daemon starting", {
+                "ticker_count": len(self.tickers),
+                "has_api_key": bool(self.client.api_key),
+                "cache_file": str(CACHE_FILE)
+            }, "H2")
+        except Exception as debug_err:
+            safe_print(f"[UW-DAEMON] Debug log failed (non-critical): {debug_err}")
+        # #endregion
+        
+        safe_print("[UW-DAEMON] Starting UW Flow Daemon...")
+        safe_print(f"[UW-DAEMON] Monitoring {len(self.tickers)} tickers")
+        safe_print(f"[UW-DAEMON] Cache file: {CACHE_FILE}")
         
         # Force first poll of market-wide endpoints on startup
         first_poll = True
-        
         cycle = 0
-        while self.running:
+        
+        safe_print("[UW-DAEMON] Step 1: Variables initialized")
+        safe_print(f"[UW-DAEMON] Step 2: Running flag = {self.running}")
+        
+        # CRITICAL: Check running flag BEFORE any debug_log calls
+        if not self.running:
+            safe_print("[UW-DAEMON] ERROR: running=False before entering loop!")
+            return
+        
+        safe_print("[UW-DAEMON] Step 3: Running check passed")
+        
+        # #region agent log
+        try:
+            debug_log("uw_flow_daemon.py:run", "Entering main loop", {"running": self.running, "cycle": cycle}, "H2")
+        except Exception as debug_err:
+            safe_print(f"[UW-DAEMON] Debug log failed (non-critical): {debug_err}")
+        # #endregion
+        
+        safe_print("[UW-DAEMON] Step 4: About to enter while loop")
+        safe_print(f"[UW-DAEMON] Step 5: Checking while condition: self.running = {self.running}")
+        
+        # CRITICAL: Force check running flag one more time right before loop
+        if not self.running:
+            safe_print("[UW-DAEMON] ERROR: running became False right before loop!")
+            return
+        
+        safe_print("[UW-DAEMON] Step 5.5: Final check passed, entering while loop NOW")
+        
+        # Use a local variable to track if we should continue, to avoid signal handler race conditions
+        should_continue = True
+        
+        while should_continue and self.running:
+            safe_print(f"[UW-DAEMON] Step 6: INSIDE while loop! Cycle will be {cycle + 1}")
             try:
                 cycle += 1
+                if cycle == 1:
+                    safe_print(f"[UW-DAEMON] ✅ SUCCESS: Entered main loop! Cycle {cycle}")
+                elif cycle <= 3:
+                    safe_print(f"[UW-DAEMON] Loop continuing, cycle {cycle}")
+                
+                # Check running flag at start of each cycle
+                if not self.running:
+                    safe_print(f"[UW-DAEMON] Running flag became False during cycle {cycle}")
+                    should_continue = False
+                    break
+                # #region agent log
+                try:
+                    debug_log("uw_flow_daemon.py:run", "Cycle start", {"cycle": cycle, "first_poll": first_poll, "running": self.running}, "H2")
+                except Exception as debug_err:
+                    pass  # Non-critical
+                # #endregion
+                
+                # Check if we should exit
+                if not self.running:
+                    # #region agent log
+                    debug_log("uw_flow_daemon.py:run", "Exiting loop - running=False", {}, "H2")
+                    # #endregion
+                    break
                 
                 # Poll top net impact (market-wide, not per-ticker)
                 if self.poller.should_poll("top_net_impact", force_first=first_poll):
                     try:
+                        safe_print(f"[UW-DAEMON] Polling top_net_impact (first_poll={first_poll})...")
                         top_net = self.client.get_top_net_impact(limit=100)
                         # Store in cache metadata
                         cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
@@ -683,13 +1006,24 @@ class UWFlowDaemon:
                         }
                         atomic_write_json(CACHE_FILE, cache)
                     except Exception as e:
-                        print(f"[UW-DAEMON] Error polling top_net_impact: {e}", flush=True)
+                        safe_print(f"[UW-DAEMON] Error polling top_net_impact: {e}")
                 
                 # Poll market tide (market-wide, not per-ticker)
                 if self.poller.should_poll("market_tide", force_first=first_poll):
                     try:
-                        print(f"[UW-DAEMON] Polling market_tide...", flush=True)
+                        safe_print(f"[UW-DAEMON] Polling market_tide (first_poll={first_poll})...")
+                        # #region agent log
+                        debug_log("uw_flow_daemon.py:run:market_tide", "Calling get_market_tide", {"first_poll": first_poll}, "H3")
+                        # #endregion
                         tide_data = self.client.get_market_tide()
+                        # #region agent log
+                        debug_log("uw_flow_daemon.py:run:market_tide", "get_market_tide response", {
+                            "has_data": bool(tide_data),
+                            "data_type": type(tide_data).__name__,
+                            "data_keys": list(tide_data.keys()) if isinstance(tide_data, dict) else [],
+                            "data_str": str(tide_data)[:200] if tide_data else "empty"
+                        }, "H3")
+                        # #endregion
                         if tide_data:
                             # Store in cache metadata
                             cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
@@ -698,13 +1032,13 @@ class UWFlowDaemon:
                                 "last_update": int(time.time())
                             }
                             atomic_write_json(CACHE_FILE, cache)
-                            print(f"[UW-DAEMON] Updated market_tide: {len(str(tide_data))} bytes", flush=True)
+                            safe_print(f"[UW-DAEMON] Updated market_tide: {len(str(tide_data))} bytes")
                         else:
-                            print(f"[UW-DAEMON] market_tide: API returned empty data", flush=True)
+                            safe_print(f"[UW-DAEMON] market_tide: API returned empty data")
                     except Exception as e:
-                        print(f"[UW-DAEMON] Error polling market_tide: {e}", flush=True)
+                        safe_print(f"[UW-DAEMON] Error polling market_tide: {e}")
                         import traceback
-                        print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+                        safe_print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}")
                 
                 # Poll each ticker (optimized delay for rate limit efficiency)
                 for ticker in self.tickers:
@@ -718,18 +1052,24 @@ class UWFlowDaemon:
                 # Clear first_poll flag after first cycle
                 if first_poll:
                     first_poll = False
-                    print("[UW-DAEMON] Completed first poll cycle - all endpoints attempted", flush=True)
+                    safe_print("[UW-DAEMON] Completed first poll cycle - all endpoints attempted")
                 
                 # Log cycle completion
                 if cycle % 10 == 0:
-                    print(f"[UW-DAEMON] Completed {cycle} cycles", flush=True)
+                    safe_print(f"[UW-DAEMON] Completed {cycle} cycles")
+                    # #region agent log
+                    debug_log("uw_flow_daemon.py:run", "Cycle milestone", {"cycle": cycle}, "H2")
+                    # #endregion
                 
                 # Sleep before next cycle
                 # If rate limited, sleep longer (check every 5 minutes for reset)
                 if self._rate_limited:
                     # Log status periodically so user knows system is still monitoring
                     if cycle % 12 == 0:  # Every 12 cycles = every hour when rate limited
-                        print(f"[UW-DAEMON] ⏳ Rate limited - monitoring for reset (8PM EST). Cache data preserved for graceful degradation.", flush=True)
+                        safe_print(f"[UW-DAEMON] ⏳ Rate limited - monitoring for reset (8PM EST). Cache data preserved for graceful degradation.")
+                    # #region agent log
+                    debug_log("uw_flow_daemon.py:run", "Rate limited - sleeping", {}, "H2")
+                    # #endregion
                     time.sleep(300)  # 5 minutes
                     # Check if it's past 8PM EST (limit reset time)
                     try:
@@ -742,21 +1082,99 @@ class UWFlowDaemon:
                     except:
                         pass
                 else:
+                    # #region agent log
+                    debug_log("uw_flow_daemon.py:run", "Normal sleep", {"cycle": cycle}, "H2")
+                    # #endregion
                     time.sleep(30)  # Normal: Check every 30 seconds
             
             except KeyboardInterrupt:
+                safe_print("[UW-DAEMON] Keyboard interrupt received")
+                # #region agent log
+                try:
+                    debug_log("uw_flow_daemon.py:run", "Keyboard interrupt", {}, "H2")
+                except:
+                    pass
+                # #endregion
+                should_continue = False
+                self.running = False
                 break
             except Exception as e:
-                print(f"[UW-DAEMON] Error in main loop: {e}", flush=True)
+                # #region agent log
+                try:
+                    debug_log("uw_flow_daemon.py:run", "Main loop exception", {
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "cycle": cycle,
+                        "running": self.running
+                    }, "H2")
+                except:
+                    pass
+                # #endregion
+                safe_print(f"[UW-DAEMON] Error in main loop: {e}")
+                import traceback
+                tb = traceback.format_exc()
+                safe_print(f"[UW-DAEMON] Traceback: {tb}")
+                # #region agent log
+                try:
+                    debug_log("uw_flow_daemon.py:run", "Exception traceback", {"traceback": tb}, "H2")
+                except:
+                    pass
+                # #endregion
+                # Don't exit on error - continue loop unless explicitly stopped
+                if not self.running:
+                    safe_print(f"[UW-DAEMON] Running flag False after exception, breaking loop")
+                    should_continue = False
+                    break
                 time.sleep(60)  # Wait longer on error
         
-        print("[UW-DAEMON] Shutting down...", flush=True)
+        safe_print("[UW-DAEMON] Shutting down...")
+        # #region agent log
+        debug_log("uw_flow_daemon.py:run", "Daemon shutdown complete", {"cycle": cycle}, "H2")
+        # #endregion
 
 
 def main():
     """Entry point."""
-    daemon = UWFlowDaemon()
-    daemon.run()
+    safe_print("[UW-DAEMON] Main function called")
+    # #region agent log
+    try:
+        debug_log("uw_flow_daemon.py:main", "Main function called", {
+            "cwd": str(Path.cwd()),
+            "script_path": str(Path(__file__)),
+            "debug_log_path": str(DEBUG_LOG_PATH)
+        }, "H1")
+    except Exception as debug_err:
+        safe_print(f"[UW-DAEMON] Debug log failed (non-critical): {debug_err}")
+    # #endregion
+    
+    try:
+        safe_print("[UW-DAEMON] Creating daemon object...")
+        daemon = UWFlowDaemon()
+        safe_print("[UW-DAEMON] Daemon object created successfully")
+        safe_print(f"[UW-DAEMON] Daemon running flag: {daemon.running}")
+        # #region agent log
+        try:
+            debug_log("uw_flow_daemon.py:main", "Daemon object created", {
+                "ticker_count": len(daemon.tickers),
+                "running": daemon.running
+            }, "H1")
+        except Exception as debug_err:
+            safe_print(f"[UW-DAEMON] Debug log failed (non-critical): {debug_err}")
+        # #endregion
+        safe_print("[UW-DAEMON] Calling daemon.run()...")
+        daemon.run()
+        safe_print("[UW-DAEMON] daemon.run() returned")
+    except Exception as e:
+        # #region agent log
+        debug_log("uw_flow_daemon.py:main", "Main exception", {
+            "error": str(e),
+            "error_type": type(e).__name__
+        }, "H1")
+        # #endregion
+        import traceback
+        print(f"[UW-DAEMON] Fatal error: {e}", flush=True)
+        print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+        raise
 
 
 if __name__ == "__main__":
