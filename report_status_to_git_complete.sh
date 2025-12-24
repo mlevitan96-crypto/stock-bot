@@ -31,19 +31,43 @@ git add "$STATUS_FILE"
 git commit -m "Status report: $(date '+%Y-%m-%d %H:%M:%S')" || true
 git push origin main || true
 
-# Check for investigation triggers
+# Check for investigation triggers (multiple trigger methods)
+TRIGGER_DETECTED=false
+
+# Method 1: .investigation_trigger file
 if [ -f ".investigation_trigger" ]; then
     TRIGGER_TIME=$(stat -c %Y .investigation_trigger 2>/dev/null || echo 0)
     LAST_RUN_TIME=$(stat -c %Y .last_investigation_run 2>/dev/null || echo 0)
     if [ "$TRIGGER_TIME" -gt "$LAST_RUN_TIME" ]; then
-        echo "Investigation trigger detected, running investigation..."
-        python3 investigate_no_trades.py 2>/dev/null || true
-        touch .last_investigation_run
-        git add investigate_no_trades.json .last_investigation_run 2>/dev/null || true
-        git commit -m "Auto-investigation results - $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
-        git push origin main 2>/dev/null || true
-        echo "Investigation complete and results pushed to git"
+        TRIGGER_DETECTED=true
     fi
+fi
+
+# Method 2: RUN_INVESTIGATION_NOW.flag file
+if [ -f "RUN_INVESTIGATION_NOW.flag" ]; then
+    TRIGGER_DETECTED=true
+fi
+
+# Method 3: run_investigation_on_pull.sh exists and is newer than last run
+if [ -f "run_investigation_on_pull.sh" ]; then
+    SCRIPT_TIME=$(stat -c %Y run_investigation_on_pull.sh 2>/dev/null || echo 0)
+    LAST_RUN_TIME=$(stat -c %Y .last_investigation_run 2>/dev/null || echo 0)
+    if [ "$SCRIPT_TIME" -gt "$LAST_RUN_TIME" ]; then
+        TRIGGER_DETECTED=true
+    fi
+fi
+
+# Run investigation if triggered
+if [ "$TRIGGER_DETECTED" = true ]; then
+    echo "Investigation trigger detected, running investigation immediately..."
+    python3 investigate_no_trades.py 2>/dev/null || true
+    touch .last_investigation_run
+    git add investigate_no_trades.json .last_investigation_run 2>/dev/null || true
+    git commit -m "Auto-investigation results - $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
+    git push origin main 2>/dev/null || true
+    echo "Investigation complete and results pushed to git"
+    # Clean up trigger files
+    rm -f RUN_INVESTIGATION_NOW.flag 2>/dev/null || true
 fi
 
 echo "Status reported to git"
