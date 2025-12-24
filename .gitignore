@@ -2,6 +2,9 @@
 .env
 *.env
 
+# Droplet configuration (contains credentials)
+droplet_config.json
+
 # Python
 __pycache__/
 *.py[cod]

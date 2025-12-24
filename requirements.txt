@@ -4,3 +4,4 @@ alpaca-trade-api==3.2.0
 # alpaca-trade-api pins urllib3<2; keep this compatible with requests==2.31.0
 urllib3==1.26.20
 watchdog==3.0.0
+paramiko==3.4.0
