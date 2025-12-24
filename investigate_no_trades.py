@@ -16,15 +16,34 @@ from typing import Dict, List, Any
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from config.registry import read_json, CacheFiles, StateFiles, LogFiles
+    from config.registry import read_json, CacheFiles, StateFiles, LogFiles, Directories
+    USE_REGISTRY = True
 except ImportError:
     print("Warning: Could not import config.registry, using fallback paths")
+    USE_REGISTRY = False
     def read_json(path):
         try:
             with open(path) as f:
                 return json.load(f)
         except:
             return {}
+    
+    # Fallback paths
+    class Directories:
+        DATA = Path("data")
+        STATE = Path("state")
+        LOGS = Path("logs")
+    
+    class CacheFiles:
+        UW_FLOW_CACHE = Directories.DATA / "uw_flow_cache.json"
+    
+    class StateFiles:
+        POSITIONS = Directories.STATE / "internal_positions.json"
+        BLOCKED_TRADES = Directories.STATE / "blocked_trades.jsonl"
+    
+    class LogFiles:
+        TRADING = Directories.LOGS / "trading.jsonl"
+        ORDERS = Directories.LOGS / "orders.jsonl"
 
 def read_jsonl(path: str, limit: int = None) -> List[Dict]:
     """Read JSONL file, return list of dicts"""
@@ -113,9 +132,23 @@ def check_services_running() -> Dict:
 
 def check_recent_execution_cycles() -> Dict:
     """Check if execution cycles are running"""
-    run_log = LogFiles.RUN_LOG
-    if not os.path.exists(run_log):
-        return {"error": f"Run log not found: {run_log}", "recent_cycles": []}
+    # Try multiple possible log file locations
+    possible_logs = [
+        "logs/run.jsonl",
+        "logs/trading.jsonl",
+        "logs/deployment_supervisor.jsonl",
+        str(LogFiles.TRADING) if USE_REGISTRY else None,
+        str(LogFiles.DEPLOYMENT_SUPERVISOR) if USE_REGISTRY and hasattr(LogFiles, 'DEPLOYMENT_SUPERVISOR') else None,
+    ]
+    
+    run_log = None
+    for log_path in possible_logs:
+        if log_path and os.path.exists(log_path):
+            run_log = log_path
+            break
+    
+    if not run_log:
+        return {"error": "No execution log found (checked: run.jsonl, trading.jsonl, deployment_supervisor.jsonl)", "recent_cycles": []}
     
     cycles = read_jsonl(run_log, limit=50)
     
@@ -154,9 +187,22 @@ def check_recent_execution_cycles() -> Dict:
 
 def check_positions() -> Dict:
     """Check current positions"""
-    positions_file = StateFiles.POSITIONS
-    if not os.path.exists(positions_file):
-        return {"error": f"Positions file not found: {positions_file}", "count": 0, "positions": []}
+    # Try multiple possible position file locations
+    possible_files = [
+        str(StateFiles.INTERNAL_POSITIONS) if USE_REGISTRY and hasattr(StateFiles, 'INTERNAL_POSITIONS') else None,
+        str(StateFiles.POSITION_METADATA) if USE_REGISTRY and hasattr(StateFiles, 'POSITION_METADATA') else None,
+        "state/internal_positions.json",
+        "state/position_metadata.json",
+    ]
+    
+    positions_file = None
+    for file_path in possible_files:
+        if file_path and os.path.exists(file_path):
+            positions_file = file_path
+            break
+    
+    if not positions_file:
+        return {"error": "No positions file found", "count": 0, "positions": []}
     
     try:
         positions = read_json(positions_file)
@@ -181,9 +227,21 @@ def check_positions() -> Dict:
 
 def check_blocked_trades() -> Dict:
     """Check why trades are being blocked"""
-    blocked_file = StateFiles.BLOCKED_TRADES
-    if not os.path.exists(blocked_file):
-        return {"error": f"Blocked trades file not found: {blocked_file}", "recent_blocks": []}
+    # Try multiple possible blocked trades file locations
+    possible_files = [
+        "state/blocked_trades.jsonl",
+        "data/blocked_trades.jsonl",
+        str(StateFiles.BLOCKED_TRADES) if USE_REGISTRY else None,
+    ]
+    
+    blocked_file = None
+    for file_path in possible_files:
+        if file_path and os.path.exists(file_path):
+            blocked_file = file_path
+            break
+    
+    if not blocked_file:
+        return {"error": "No blocked trades file found", "recent_blocks": []}
     
     blocks = read_jsonl(blocked_file, limit=100)
     
@@ -259,9 +317,21 @@ def check_signals_and_clusters() -> Dict:
 
 def check_recent_orders() -> Dict:
     """Check recent order submissions"""
-    order_log = LogFiles.ORDER_LOG
-    if not os.path.exists(order_log):
-        return {"error": f"Order log not found: {order_log}", "recent_orders": []}
+    # Try multiple possible order log locations
+    possible_logs = [
+        str(LogFiles.ORDERS) if USE_REGISTRY else None,
+        "logs/orders.jsonl",
+        "logs/order.jsonl",
+    ]
+    
+    order_log = None
+    for log_path in possible_logs:
+        if log_path and os.path.exists(log_path):
+            order_log = log_path
+            break
+    
+    if not order_log:
+        return {"error": "No order log found", "recent_orders": []}
     
     orders = read_jsonl(order_log, limit=50)
     
@@ -471,10 +541,27 @@ def main():
 if __name__ == "__main__":
     try:
         result = main()
-        sys.exit(0 if result["summary"]["status"] != "CRITICAL" else 1)
+        # Always save results even if there were errors
+        output_file = "investigate_no_trades.json"
+        if os.path.exists(output_file):
+            print(f"\n✅ Investigation results saved to: {output_file}")
+        sys.exit(0 if result.get("summary", {}).get("status") != "CRITICAL" else 1)
     except Exception as e:
         print(f"\n❌ Error during investigation: {e}")
         import traceback
-        traceback.print_exc()
+        error_trace = traceback.format_exc()
+        print(error_trace)
+        
+        # Save error results anyway
+        error_result = {
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e),
+            "traceback": error_trace,
+            "partial_checks": {}
+        }
+        output_file = "investigate_no_trades.json"
+        with open(output_file, 'w') as f:
+            json.dump(error_result, f, indent=2)
+        print(f"✅ Error details saved to: {output_file}")
         sys.exit(1)
 
