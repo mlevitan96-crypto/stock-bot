@@ -204,8 +204,8 @@ class SignalComponents:
     """Signal component names - must match across all modules."""
     
     ALL_COMPONENTS = [
-        "options_flow",
-        "dark_pool", 
+        "flow",
+        "dark_pool",
         "insider",
         "iv_term_skew",
         "smile_slope",
@@ -219,12 +219,13 @@ class SignalComponents:
         "institutional",
         "market_tide",
         "calendar_catalyst",
-        "etf_flow",
         "greeks_gamma",
         "ftd_pressure",
         "iv_rank",
         "oi_change",
-        "squeeze_score"
+        "etf_flow",
+        "squeeze_score",
+        "freshness_factor"
     ]
     
     @classmethod

@@ -6,6 +6,7 @@ Dashboard starts FIRST with ZERO delay to bind port 5000 immediately.
 IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK.md
 """
 
+from config.registry import StateFiles, CacheFiles, LogFiles, ConfigFiles
 import os
 import sys
 import time

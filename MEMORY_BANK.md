@@ -275,7 +275,7 @@ When `MAX_CONCURRENT_POSITIONS` (16) reached:
 ### Signal Categories
 
 1. **CORE Signals** (Required):
-   - `options_flow`: Options flow sentiment
+   - `options_flow` / `flow`: Options flow sentiment
    - `dark_pool`: Dark pool activity
    - `insider`: Insider trading
 
@@ -284,7 +284,36 @@ When `MAX_CONCURRENT_POSITIONS` (16) reached:
    - `smile_slope`: Volatility smile slope
 
 3. **ENRICHED Signals** (Optional):
-   - `whale_persistence`, `event_alignment`, `temporal_motif`, `congress`, `institutional`, `market_tide`, `calendar_catalyst`, `etf_flow`, `greeks_gamma`, `ftd_pressure`, `iv_rank`, `oi_change`, `squeeze_score`, `shorts_squeeze`
+   - `whale_persistence`, `event_alignment`, `temporal_motif`, `congress`, `institutional`, `market_tide`, `calendar_catalyst`, `etf_flow`, `greeks_gamma`, `ftd_pressure`, `iv_rank`, `oi_change`, `squeeze_score`, `shorts_squeeze`, `freshness_factor`
+
+## Signal Components
+
+All 22+ signal components used in trading:
+
+1. **flow** / **options_flow**: Options flow sentiment (primary signal)
+2. **dark_pool**: Dark pool activity
+3. **insider**: Insider trading
+4. **iv_term_skew**: IV term structure skew
+5. **smile_slope**: Volatility smile slope
+6. **whale_persistence**: Large player patterns
+7. **event_alignment**: Event/earnings alignment
+8. **temporal_motif**: Temporal patterns
+9. **toxicity_penalty**: Signal staleness penalty
+10. **regime_modifier**: Market regime adjustment
+11. **congress**: Congress/politician trading
+12. **shorts_squeeze**: Short interest/squeeze signals
+13. **institutional**: Institutional activity
+14. **market_tide**: Market-wide options sentiment
+15. **calendar_catalyst**: Earnings/events calendar
+16. **greeks_gamma**: Gamma exposure
+17. **ftd_pressure**: Fails-to-deliver pressure
+18. **iv_rank**: IV rank percentile
+19. **oi_change**: Open interest changes
+20. **etf_flow**: ETF money flow
+21. **squeeze_score**: Combined squeeze indicators
+22. **freshness_factor**: Data recency factor
+
+**Source:** `config/uw_signal_contracts.py` and `config/registry.py::SignalComponents.ALL_COMPONENTS`
 
 ### Health Status Levels
 

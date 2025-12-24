@@ -138,8 +138,9 @@ class UWClient:
     """Unusual Whales API client."""
     
     def __init__(self, api_key=None):
+        from config.registry import APIConfig
         self.api_key = api_key or os.getenv("UW_API_KEY")
-        self.base = "https://api.unusualwhales.com"
+        self.base = APIConfig.UW_BASE_URL
         self.headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
     
     def _get(self, path_or_url: str, params: dict = None) -> dict:
@@ -371,6 +372,38 @@ class UWClient:
         if isinstance(data, list) and len(data) > 0:
             data = data[0]
         return data if isinstance(data, dict) else {}
+    
+    def get_insider(self, ticker: str) -> Dict:
+        """Get insider trading data for a ticker."""
+        raw = self._get(f"/api/insider/{ticker}")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+    
+    def get_calendar(self, ticker: str) -> Dict:
+        """Get calendar/events data for a ticker."""
+        raw = self._get(f"/api/calendar/{ticker}")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+    
+    def get_congress(self, ticker: str) -> Dict:
+        """Get congress trading data for a ticker."""
+        raw = self._get(f"/api/congress/{ticker}")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+    
+    def get_institutional(self, ticker: str) -> Dict:
+        """Get institutional data for a ticker."""
+        raw = self._get(f"/api/institutional/{ticker}")
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
 
 
 class SmartPoller:
@@ -397,6 +430,10 @@ class SmartPoller:
             "greeks": 1800,           # 30 min: Basic greeks (changes slowly)
             "top_net_impact": 300,    # 5 min: Market-wide, poll moderately
             "market_tide": 300,       # 5 min: Market-wide sentiment
+            "insider": 1800,          # 30 min: Insider trading (changes slowly)
+            "calendar": 3600,         # 60 min: Calendar events (changes slowly)
+            "congress": 1800,         # 30 min: Congress trading (changes slowly)
+            "institutional": 1800,    # 30 min: Institutional data (changes slowly)
             "oi_change": 900,         # 15 min: OI changes per ticker
             "etf_flow": 1800,         # 30 min: ETF flows per ticker
             "iv_rank": 1800,          # 30 min: IV rank per ticker
@@ -928,6 +965,58 @@ class UWFlowDaemon:
                     print(f"[UW-DAEMON] Error fetching max_pain for {ticker}: {e}", flush=True)
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+            
+            # Poll insider
+            if self.poller.should_poll("insider"):
+                try:
+                    print(f"[UW-DAEMON] Polling insider for {ticker}...", flush=True)
+                    insider_data = self.client.get_insider(ticker)
+                    if insider_data:
+                        self._update_cache(ticker, {"insider": insider_data})
+                        print(f"[UW-DAEMON] Updated insider for {ticker}: {len(str(insider_data))} bytes", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] insider for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching insider for {ticker}: {e}", flush=True)
+            
+            # Poll calendar
+            if self.poller.should_poll("calendar"):
+                try:
+                    print(f"[UW-DAEMON] Polling calendar for {ticker}...", flush=True)
+                    calendar_data = self.client.get_calendar(ticker)
+                    if calendar_data:
+                        self._update_cache(ticker, {"calendar": calendar_data})
+                        print(f"[UW-DAEMON] Updated calendar for {ticker}: {len(str(calendar_data))} bytes", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] calendar for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching calendar for {ticker}: {e}", flush=True)
+            
+            # Poll congress
+            if self.poller.should_poll("congress"):
+                try:
+                    print(f"[UW-DAEMON] Polling congress for {ticker}...", flush=True)
+                    congress_data = self.client.get_congress(ticker)
+                    if congress_data:
+                        self._update_cache(ticker, {"congress": congress_data})
+                        print(f"[UW-DAEMON] Updated congress for {ticker}: {len(str(congress_data))} bytes", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] congress for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching congress for {ticker}: {e}", flush=True)
+            
+            # Poll institutional
+            if self.poller.should_poll("institutional"):
+                try:
+                    print(f"[UW-DAEMON] Polling institutional for {ticker}...", flush=True)
+                    institutional_data = self.client.get_institutional(ticker)
+                    if institutional_data:
+                        self._update_cache(ticker, {"institutional": institutional_data})
+                        print(f"[UW-DAEMON] Updated institutional for {ticker}: {len(str(institutional_data))} bytes", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] institutional for {ticker}: API returned empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching institutional for {ticker}: {e}", flush=True)
         
         except Exception as e:
             print(f"[UW-DAEMON] Error polling {ticker}: {e}", flush=True)

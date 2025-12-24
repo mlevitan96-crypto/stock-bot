@@ -241,7 +241,7 @@ class Config:
     UW_API_KEY = get_env("UW_API_KEY")
     ALPACA_KEY = get_env("ALPACA_KEY")
     ALPACA_SECRET = get_env("ALPACA_SECRET")
-    ALPACA_BASE_URL = get_env("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+    ALPACA_BASE_URL = get_env("ALPACA_BASE_URL", APIConfig.ALPACA_BASE_URL)
 
     # Runtime
     TRADING_MODE = get_env("TRADING_MODE", "PAPER")  # PAPER or LIVE - v3.1.1
@@ -1199,8 +1199,9 @@ def compute_daily_metrics():
 # =========================
 class UWClient:
     def __init__(self, api_key=None):
+        from config.registry import APIConfig
         self.api_key = api_key or Config.UW_API_KEY
-        self.base = "https://api.unusualwhales.com"
+        self.base = APIConfig.UW_BASE_URL
         self.headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
     
     def _to_iso(self, ts):

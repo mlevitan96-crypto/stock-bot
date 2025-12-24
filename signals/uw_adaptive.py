@@ -19,12 +19,14 @@ Files:
 - data/adaptive_gate_state.json
 """
 
+from config.registry import StateFiles, CacheFiles, LogFiles, ConfigFiles
 import json
 import time
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
+from config.registry import StateFiles
 
-STATE_FILE = Path("data/adaptive_gate_state.json")
+STATE_FILE = StateFiles.ADAPTIVE_GATE_STATE
 
 # Default bucket edges for composite UW scores
 BUCKETS = [
