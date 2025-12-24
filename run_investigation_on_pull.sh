@@ -9,16 +9,18 @@ echo "RUNNING INVESTIGATION (Triggered by Git Pull)"
 echo "=========================================="
 echo ""
 
-# Run investigation (try comprehensive version first, fallback to original)
+# Run investigation (ALWAYS use comprehensive version first - it has the fixes)
 # Use comprehensive version which works around registry issues
 if [ -f "comprehensive_no_trades_diagnosis.py" ]; then
+    echo "Running comprehensive diagnosis (has all fixes)..."
     python3 comprehensive_no_trades_diagnosis.py 2>&1
     INVEST_EXIT=$?
     if [ $INVEST_EXIT -ne 0 ]; then
-        echo "Comprehensive diagnosis failed, trying original..."
+        echo "WARNING: Comprehensive diagnosis failed, trying original..."
         python3 investigate_no_trades.py 2>&1
     fi
 else
+    echo "WARNING: comprehensive_no_trades_diagnosis.py not found, using original..."
     python3 investigate_no_trades.py 2>&1
 fi
 
