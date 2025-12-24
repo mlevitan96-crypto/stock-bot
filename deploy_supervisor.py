@@ -172,9 +172,11 @@ def start_service(service):
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,  # Prevent child from reading from terminal
             bufsize=1,
             universal_newlines=True,
-            env=env
+            env=env,
+            start_new_session=False  # Keep in same process group (don't detach from terminal)
         )
         processes[name] = proc
         
