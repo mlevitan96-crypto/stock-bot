@@ -29,10 +29,19 @@ if [ -f .env ] && grep -q "GITHUB_TOKEN" .env; then
     echo "  ✓ GITHUB_TOKEN already in .env"
 else
     echo "  Adding GITHUB_TOKEN to .env..."
-    echo "" >> .env
-    echo "# GitHub token for export workflow" >> .env
-    echo "GITHUB_TOKEN=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" >> .env
-    echo "  ✓ GITHUB_TOKEN added to .env"
+    echo ""
+    echo "  ⚠️  Please add your GitHub token to .env manually:"
+    echo "     echo 'GITHUB_TOKEN=your_token_here' >> .env"
+    echo ""
+    read -p "  Enter your GitHub token (or press Enter to skip): " token
+    if [ -n "$token" ]; then
+        echo "" >> .env
+        echo "# GitHub token for export workflow" >> .env
+        echo "GITHUB_TOKEN=$token" >> .env
+        echo "  ✓ GITHUB_TOKEN added to .env"
+    else
+        echo "  ⚠️  Skipped - you'll need to add GITHUB_TOKEN to .env manually"
+    fi
 fi
 
 # 4. Configure git if needed
