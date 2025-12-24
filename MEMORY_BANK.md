@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-24 (Automated Cursor-Droplet Workflow Established)  
+**Last Updated:** 2025-12-24 (UW Endpoint Testing & Complete Fix Deployment)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ---
@@ -38,6 +38,7 @@
 
 **Droplet → Cursor (Pushed by Droplet, Pulled by Cursor):**
 - `investigate_no_trades.json` - Investigation results
+- `uw_endpoint_test_results.json` - UW API endpoint test results
 - `status_report.json` - System status reports
 - `.last_investigation_run` - Investigation trigger file
 - Log summaries (via `sync_logs_to_git.sh`)
@@ -83,8 +84,16 @@ Droplet is configured with:
 - `user.name` and `user.email` for commits
 - `pull.rebase false` for merge strategy
 - `core.editor true` for non-interactive commits
+- Post-merge hook: Automatically runs `run_investigation_on_pull.sh` on every `git pull`
 - Post-commit hook to auto-push after commits
 - Cron jobs for status reports and investigation triggers
+- GitHub PAT token configured in remote URL for automatic authentication
+
+**Post-Merge Hook Behavior:**
+- Automatically runs investigation when test script is present
+- Automatically runs UW endpoint test when test script is present
+- Commits and pushes results automatically
+- No manual intervention required
 
 ---
 
@@ -811,10 +820,22 @@ tail -50 logs/supervisor.jsonl | grep -i error
 - Status reports pushed by droplet, pulled by Cursor
 
 **Key Fixes Applied (2025-12-24)**:
-1. Bootstrap expectancy gate: Changed from `0.00` to `-0.02` in `v3_2_features.py`
-2. Diagnostic logging: Added to `main.py` for better trade execution visibility
-3. UW endpoint health: Improved daemon detection in `sre_monitoring.py`
-4. Comprehensive fix script: Created `COMPREHENSIVE_FIX_ALL_ISSUES.sh` for droplet
+1. Bootstrap expectancy gate: Changed from `0.00` to `-0.02` in `v3_2_features.py` (more lenient for learning)
+2. Stage-aware score gate: Made `MIN_EXEC_SCORE` stage-aware - `1.5` for bootstrap, `2.0` for others in `main.py`
+3. Investigation script: Added error handling for `StateFiles.BLOCKED_TRADES` registry issue
+4. UW endpoint health: Improved graceful fallback in `sre_monitoring.py` for missing contracts
+5. Diagnostic logging: Added comprehensive execution cycle logging in `main.py`
+6. Comprehensive diagnosis: Created `comprehensive_no_trades_diagnosis.py` as robust alternative
+7. UW endpoint testing: Created `test_uw_endpoints_comprehensive.py` to verify all API endpoints
+8. Auto-deployment: Enhanced `run_investigation_on_pull.sh` to auto-run UW tests
+9. Git token configuration: Droplet configured with new GitHub PAT token for automatic pushes
+
+**UW Endpoint Testing (2025-12-24)**:
+- Created comprehensive test script: `test_uw_endpoints_comprehensive.py`
+- Tests 9 core endpoints: flow-alerts, darkpool, greeks, greek-exposure, top-net-impact, market-tide, oi-change, etf-flow, iv-rank
+- Auto-runs via post-merge hook when test script is present
+- Results automatically pushed to Git as `uw_endpoint_test_results.json`
+- Integrated into `report_status_to_git_complete.sh` for automatic execution
 
 ---
 
