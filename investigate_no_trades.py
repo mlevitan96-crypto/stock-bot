@@ -231,8 +231,10 @@ def check_blocked_trades() -> Dict:
     possible_files = [
         "state/blocked_trades.jsonl",
         "data/blocked_trades.jsonl",
-        str(StateFiles.BLOCKED_TRADES) if USE_REGISTRY else None,
     ]
+    # Add registry path if available and attribute exists
+    if USE_REGISTRY and hasattr(StateFiles, 'BLOCKED_TRADES'):
+        possible_files.append(str(StateFiles.BLOCKED_TRADES))
     
     blocked_file = None
     for file_path in possible_files:
