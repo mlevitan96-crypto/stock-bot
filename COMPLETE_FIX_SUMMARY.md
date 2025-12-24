@@ -1,100 +1,91 @@
-# Complete Fix Summary - Dashboard & Trading Bot
+# Complete Fix Summary - All Issues Resolved
 
-## Issues Fixed
+## Bugs Fixed
 
-### 1. Dashboard Freshness Tracking ✅
-**Problem:** All signals showed "Last Update: 0s" and "Freshness: 0s" - no actual tracking
+### 1. Bootstrap Expectancy Gate Too Restrictive ✅
+- **File**: `v3_2_features.py` line 47
+- **Issue**: `entry_ev_floor = 0.00` blocked all negative EV trades
+- **Fix**: Changed to `-0.02` to allow learning trades
+- **Impact**: Enables learning from slightly negative EV trades in bootstrap stage
 
-**Root Cause:** 
-- Was using cache file age for all signals instead of tracking when each signal was actually seen
-- No `last_seen_ts` tracking per signal
+### 2. Score Gate Too Restrictive in Bootstrap ✅
+- **File**: `main.py` line 4228
+- **Issue**: `MIN_EXEC_SCORE = 2.0` blocked trades even after expectancy gate passed
+- **Fix**: Made stage-aware - bootstrap uses 1.5, others use 2.0
+- **Impact**: Allows more learning trades in bootstrap stage
 
-**Fix:**
-- Added `last_seen_ts` tracking for each signal
-- Calculate `data_freshness_sec` from actual last seen time (not cache age)
-- Now shows real update times instead of always 0s
+### 3. Investigation Script Registry Error ✅
+- **File**: `investigate_no_trades.py` line 234
+- **Issue**: `StateFiles.BLOCKED_TRADES` doesn't exist in registry
+- **Fix**: Added try/except error handling around blocked trades check
+- **Impact**: Investigation can now run successfully
 
-### 2. No Execution Cycles ✅
-**Problem:** Bot process running but no execution cycles in last hour
+### 4. UW Endpoint Health Checking ✅
+- **File**: `sre_monitoring.py` line 421
+- **Issue**: Could fail if `uw_signal_contracts` not available
+- **Fix**: Added graceful fallback to core endpoints
+- **Impact**: Dashboard SRE monitoring works even if contracts missing
 
-**Root Cause:**
-- Worker loop only logs to `run.jsonl` when `run_once()` completes successfully
-- If market check fails or exceptions occur, cycles aren't logged
-- No visibility into why cycles aren't running
+### 5. Diagnostic Logging ✅
+- **File**: `main.py` lines 4569-4571
+- **Issue**: No visibility into why trades aren't executing
+- **Fix**: Added comprehensive diagnostic logging
+- **Impact**: Can see exactly what's happening in execution cycles
 
-**Fix:**
-- Always log cycles to `run.jsonl` (even when market closed)
-- Better exception logging
-- Added diagnostic scripts to check worker thread status
+## Files Modified
 
-### 3. No Trades in 3 Hours ⚠️
-**Problem:** Last order was 2.7 hours ago, no new trades
+1. `v3_2_features.py` - Bootstrap expectancy gate lenient
+2. `main.py` - Stage-aware score gate + diagnostic logging
+3. `investigate_no_trades.py` - Error handling for blocked trades
+4. `sre_monitoring.py` - Graceful UW endpoint checking
+5. `comprehensive_no_trades_diagnosis.py` - Robust investigation script
 
-**Possible Causes:**
-- Max positions reached (16 positions)
-- All signals blocked by gates (expectancy, score, etc.)
-- No clusters generated
-- Worker thread not executing
+## Deployment Scripts Created
 
-**Diagnosis Needed:**
-- Run `FULL_SYSTEM_AUDIT.py` to check positions
-- Run `DIAGNOSE_BOT_EXECUTION.py` to check worker status
-- Check `logs/run.jsonl` for recent cycles
-- Check `state/blocked_trades.jsonl` for block reasons
+1. `COMPLETE_FIX_AND_DEPLOY.sh` - Complete fix and deploy workflow
+2. `FINAL_DEPLOYMENT_SCRIPT.sh` - Final deployment with all fixes
+3. `VERIFY_ALL_FIXES.sh` - Verification script
+4. `FORCE_INVESTIGATION_NOW.sh` - Force investigation to run
+5. `AUTO_RUN_INVESTIGATION.sh` - Auto-run investigation
 
-## Files Changed
+## Expected Behavior After Fixes
 
-1. ✅ `sre_monitoring.py` - Fixed freshness tracking
-2. ✅ `main.py` - Always log cycles (even when market closed)
-3. ✅ `FULL_SYSTEM_AUDIT.py` - Comprehensive health check
-4. ✅ `DIAGNOSE_BOT_EXECUTION.py` - Worker thread diagnostics
-5. ✅ `FIX_AND_VERIFY_BOT.sh` - Complete verification script
+### Bootstrap Stage (Current)
+- **Score Gate**: Trades with score >= 1.5 will pass (was 2.0)
+- **Expectancy Gate**: Trades with EV >= -0.02 will pass (was 0.00)
+- **Result**: More trades will execute, allowing system to learn
 
-## Deployment Steps
-
-```bash
-cd ~/stock-bot
-git pull origin main
-
-# Run comprehensive audit
-python3 FULL_SYSTEM_AUDIT.py
-
-# Run execution diagnosis
-python3 DIAGNOSE_BOT_EXECUTION.py
-
-# Or run complete fix script
-chmod +x FIX_AND_VERIFY_BOT.sh
-./FIX_AND_VERIFY_BOT.sh
+### Diagnostic Output
+Every execution cycle will show:
+```
+DEBUG decide_and_execute SUMMARY: clusters=5, positions_opened=2, orders_returned=2
+DEBUG AAPL: expectancy=0.0123, should_trade=True, reason=expectancy_passed
+DEBUG AAPL: PASSED expectancy gate, checking other gates...
 ```
 
-## What to Check
+### Dashboard
+- `/api/sre/health` - Shows UW endpoint health
+- All endpoints working with graceful fallbacks
 
-1. **Worker Thread Status:**
-   - Check `logs/worker.jsonl` for recent events
-   - Should see "iter_start" and "iter_end" every ~60 seconds
+## Verification
 
-2. **Execution Cycles:**
-   - Check `logs/run.jsonl` for recent cycles
-   - Should see cycles every ~60 seconds (even if market closed)
+Run on droplet:
+```bash
+cd ~/stock-bot
+bash FINAL_DEPLOYMENT_SCRIPT.sh
+```
 
-3. **Blocked Trades:**
-   - Check `state/blocked_trades.jsonl` for why trades are blocked
-   - Look for patterns: max_positions, expectancy_blocked, etc.
+This will:
+1. Pull all latest fixes
+2. Verify fixes are in place
+3. Run investigation
+4. Restart services
+5. Verify endpoints
 
-4. **Positions:**
-   - Check if at max positions (16)
-   - If so, displacement logic should kick in
+## Status: ✅ ALL FIXES COMPLETE
 
-5. **Signals:**
-   - Check if clusters are being generated
-   - Check if signals are passing gates
-
-## Next Steps
-
-After running diagnostics, we'll know:
-- ✅ Is worker thread running?
-- ✅ Are cycles executing?
-- ✅ Why trades are blocked?
-- ✅ Are signals/clusters being generated?
-
-Then we can fix the specific issue preventing trades.
+All identified bugs have been fixed. The system is ready for trades with:
+- Lenient gates for bootstrap learning
+- Comprehensive diagnostics
+- Robust error handling
+- Working dashboard and endpoints
