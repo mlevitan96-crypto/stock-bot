@@ -10,10 +10,16 @@ echo "=========================================="
 echo ""
 
 # Run investigation (try comprehensive version first, fallback to original)
+# Use comprehensive version which works around registry issues
 if [ -f "comprehensive_no_trades_diagnosis.py" ]; then
-    python3 comprehensive_no_trades_diagnosis.py || python3 investigate_no_trades.py
+    python3 comprehensive_no_trades_diagnosis.py 2>&1
+    INVEST_EXIT=$?
+    if [ $INVEST_EXIT -ne 0 ]; then
+        echo "Comprehensive diagnosis failed, trying original..."
+        python3 investigate_no_trades.py 2>&1
+    fi
 else
-    python3 investigate_no_trades.py
+    python3 investigate_no_trades.py 2>&1
 fi
 
 # Commit and push results
