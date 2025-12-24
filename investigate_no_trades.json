@@ -1,0 +1,6 @@
+{
+  "timestamp": "2025-12-24T21:00:04.200017",
+  "error": "type object 'StateFiles' has no attribute 'BLOCKED_TRADES'",
+  "traceback": "Traceback (most recent call last):\n  File \"/root/stock-bot/investigate_no_trades.py\", line 543, in <module>\n    result = main()\n             ^^^^^^\n  File \"/root/stock-bot/investigate_no_trades.py\", line 454, in main\n    investigation[\"checks\"][\"blocked_trades\"] = check_blocked_trades()\n                                                ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/stock-bot/investigate_no_trades.py\", line 234, in check_blocked_trades\n    str(StateFiles.BLOCKED_TRADES) if USE_REGISTRY else None,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: type object 'StateFiles' has no attribute 'BLOCKED_TRADES'\n",
+  "partial_checks": {}
+}
