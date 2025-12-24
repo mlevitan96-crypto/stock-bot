@@ -483,9 +483,14 @@ class SmartPoller:
             hour_min = now_et.hour * 60 + now_et.minute
             market_open = 9 * 60 + 30  # 9:30 AM
             market_close = 16 * 60      # 4:00 PM
-            return market_open <= hour_min < market_close
-        except:
-            return True  # Default to allowing polls if timezone check fails
+            is_open = market_open <= hour_min < market_close
+            # Log market status for debugging
+            if not is_open:
+                safe_print(f"[UW-DAEMON] Market is CLOSED (ET time: {now_et.strftime('%H:%M')}) - skipping API calls")
+            return is_open
+        except Exception as e:
+            safe_print(f"[UW-DAEMON] Error checking market hours: {e} - defaulting to CLOSED")
+            return False  # Default to CLOSED if timezone check fails (safer)
 
 
 class UWFlowDaemon:
@@ -704,8 +709,12 @@ class UWFlowDaemon:
                 # Trading bot can use stale data if available
                 return
             
-            # Poll option flow
+            # Poll option flow (only during market hours)
             if self.poller.should_poll("option_flow"):
+                # Double-check market hours before making API call
+                if not self.poller._is_market_hours():
+                    safe_print(f"[UW-DAEMON] Market closed - skipping API call for {ticker}")
+                    return
                 flow_data = self.client.get_option_flow(ticker, limit=100)
                 
                 # Check if rate limited
