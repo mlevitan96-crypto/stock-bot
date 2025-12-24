@@ -457,7 +457,13 @@ def main():
     print(f"   Current positions: {investigation['checks']['positions'].get('count', 0)}")
     
     print("\n5. Checking blocked trades...")
-    investigation["checks"]["blocked_trades"] = check_blocked_trades()
+    try:
+        investigation["checks"]["blocked_trades"] = check_blocked_trades()
+    except Exception as e:
+        investigation["checks"]["blocked_trades"] = {
+            "error": f"Failed to check blocked trades: {str(e)}",
+            "recent_blocks_count": 0
+        }
     blocks = investigation["checks"]["blocked_trades"]
     print(f"   Recent blocks: {blocks.get('recent_blocks_count', 0)}")
     if blocks.get("reasons"):
