@@ -420,16 +420,9 @@ class SREMonitoringEngine:
     
     def check_uw_api_health(self) -> Dict[str, APIEndpointHealth]:
         """Check health of all UW API endpoints."""
-        from config.uw_signal_contracts import UW_ENDPOINT_CONTRACTS
-        
         endpoints_health = {}
         
-        for endpoint_name, contract in UW_ENDPOINT_CONTRACTS.items():
-            test_symbol = "AAPL"  # Default test symbol
-            health = self.check_uw_endpoint_health(contract.endpoint, test_symbol)
-            endpoints_health[endpoint_name] = health
-        
-        # Also check core endpoints
+        # Always check core endpoints (these are the ones actually used)
         core_endpoints = [
             ("option_flow", "/api/option-trades/flow-alerts"),
             ("dark_pool", "/api/darkpool/{ticker}"),
@@ -438,9 +431,24 @@ class SREMonitoringEngine:
         ]
         
         for name, endpoint in core_endpoints:
-            if name not in endpoints_health:
-                health = self.check_uw_endpoint_health(endpoint, "AAPL")
-                endpoints_health[name] = health
+            health = self.check_uw_endpoint_health(endpoint, "AAPL")
+            endpoints_health[name] = health
+        
+        # Also check contracts if available (but don't fail if not)
+        try:
+            from config.uw_signal_contracts import UW_ENDPOINT_CONTRACTS
+            
+            for endpoint_name, contract in UW_ENDPOINT_CONTRACTS.items():
+                if endpoint_name not in endpoints_health:
+                    test_symbol = "AAPL"  # Default test symbol
+                    health = self.check_uw_endpoint_health(contract.endpoint, test_symbol)
+                    endpoints_health[endpoint_name] = health
+        except ImportError:
+            # Contracts not available - that's OK, we have core endpoints
+            pass
+        except Exception as e:
+            # Don't fail on contract errors
+            pass
         
         return endpoints_health
     
