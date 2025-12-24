@@ -1,8 +1,90 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-21 (Full Learning Cycle Script Added - Process All Historical Data Now)  
+**Last Updated:** 2025-12-24 (Automated Cursor-Droplet Workflow Established)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
+
+---
+
+## 🚀 CRITICAL: Automated Cursor-Droplet Workflow
+
+**ESTABLISHED:** 2025-12-24  
+**WORKFLOW:** User → Cursor → Git → Droplet → Git → Cursor → User
+
+### Core Principle
+**Cursor (AI Assistant) is the automated interface between User and Droplet. NO copy/paste middleman.**
+
+### Workflow Responsibilities
+
+#### **Cursor (AI) Responsibilities:**
+1. **Push Changes to Git**: All code fixes, improvements, and scripts are committed and pushed to GitHub
+2. **Pull Data from Git**: Investigation results, status reports, and diagnostics are pulled from Git (pushed by droplet)
+3. **Review & Analyze**: Analyze data from droplet, identify issues, create fixes
+4. **Automate Everything**: No manual copy/paste - everything flows through Git
+
+#### **Droplet Responsibilities:**
+1. **Pull from Git**: Automatically pulls latest code via `git pull origin main`
+2. **Push Results to Git**: Investigation results (`investigate_no_trades.json`), status reports (`status_report.json`), logs
+3. **Run Automated Scripts**: Executes scripts pushed by Cursor (e.g., `COMPREHENSIVE_FIX_ALL_ISSUES.sh`)
+4. **Report Status**: Hourly status reports pushed to Git for Cursor to review
+
+### Key Files & Scripts
+
+**Cursor → Droplet (Pushed by Cursor):**
+- Code fixes (`.py` files)
+- Fix scripts (`.sh` files)
+- Documentation (`.md` files)
+- Configuration updates
+
+**Droplet → Cursor (Pushed by Droplet, Pulled by Cursor):**
+- `investigate_no_trades.json` - Investigation results
+- `status_report.json` - System status reports
+- `.last_investigation_run` - Investigation trigger file
+- Log summaries (via `sync_logs_to_git.sh`)
+
+### Automated Workflow Examples
+
+**Example 1: Fix No Trades Issue**
+1. User: "Investigate why there were no trades today"
+2. Cursor: Creates `.investigation_trigger` file, commits and pushes to Git
+3. Droplet: Hourly status script detects trigger, runs `investigate_no_trades.py`, commits results to Git
+4. Cursor: Pulls from Git, reads `investigate_no_trades.json`, analyzes results
+5. Cursor: Creates fixes, pushes to Git
+6. Droplet: Pulls fixes, applies them, restarts services
+
+**Example 2: Deploy Code Fixes**
+1. User: "Fix the bootstrap expectancy gate"
+2. Cursor: Modifies `v3_2_features.py`, commits and pushes to Git
+3. Droplet: Pulls from Git (via cron or manual), applies fixes
+4. Cursor: Verifies fix by pulling status reports from Git
+
+### Tools Available
+
+**`droplet_client.py`**: SSH client for direct droplet interaction (use sparingly, prefer Git workflow)
+- Use when: Need immediate status check, troubleshooting connection issues
+- Prefer Git when: Deploying changes, getting investigation results
+
+**Git Integration**: Primary communication channel
+- Cursor pushes via: `git add`, `git commit`, `git push origin main`
+- Cursor pulls via: `git pull origin main`
+- Droplet configured with: Auto-sync scripts, post-commit hooks, cron jobs
+
+### Important Notes
+
+1. **Always use Git as primary channel** - Droplet is configured as Git client
+2. **Investigation triggers**: Create `.investigation_trigger` file to signal droplet to investigate
+3. **Status reports**: Droplet pushes hourly status reports - pull and review regularly
+4. **No manual intervention**: User should never need to copy/paste - Cursor handles everything
+5. **GitHub integration**: Cursor has GitHub integration enabled - can push directly
+
+### Droplet Git Configuration
+
+Droplet is configured with:
+- `user.name` and `user.email` for commits
+- `pull.rebase false` for merge strategy
+- `core.editor true` for non-interactive commits
+- Post-commit hook to auto-push after commits
+- Cron jobs for status reports and investigation triggers
 
 ---
 
