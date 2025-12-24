@@ -4564,6 +4564,11 @@ class StrategyEngine:
                               "price": exec_price, "order_type": order_type, "status": entry_status, 
                               "note": "submitted_pending_fill"})
                 log_attribution(trade_id=f"open_{symbol}_{now_iso()}", symbol=symbol, pnl_usd=0.0, context=context)
+        
+        # DIAGNOSTIC: Log summary of execution
+        print(f"DEBUG decide_and_execute SUMMARY: {len(clusters_sorted)} clusters processed, {new_positions_this_cycle} positions opened this cycle, {len(orders)} orders returned", flush=True)
+        if len(orders) == 0 and len(clusters_sorted) > 0:
+            print(f"DEBUG WARNING: {len(clusters_sorted)} clusters processed but 0 orders returned - check gate logs above for block reasons", flush=True)
                 
                 # RISK MANAGEMENT: Update daily start equity if this is first trade of day
                 try:
