@@ -1,235 +1,256 @@
 #!/usr/bin/env python3
 """
-Comprehensive diagnosis of why no trades occurred today.
-This runs locally and analyzes what we can determine from git and codebase.
+Comprehensive diagnosis of why no trades are executing.
+This works even if investigate_no_trades.py has issues.
 """
 
 import json
-import subprocess
+import os
 import sys
+import time
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Dict, List, Any
 
-def pull_latest():
-    """Pull latest from git"""
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent))
+
+LOGS_DIR = Path("logs")
+DATA_DIR = Path("data")
+STATE_DIR = Path("state")
+
+def read_jsonl(path: Path, limit: int = None) -> List[Dict]:
+    """Read JSONL file."""
+    if not path.exists():
+        return []
+    results = []
     try:
-        subprocess.run(["git", "pull", "origin", "main", "--no-rebase"], 
-                      check=True, capture_output=True)
-        return True
+        with open(path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            if limit:
+                lines = lines[-limit:]
+            for line in lines:
+                if line.strip():
+                    try:
+                        results.append(json.loads(line))
+                    except:
+                        pass
     except:
-        return False
+        pass
+    return results
 
-def read_status_report():
-    """Read status report from git"""
-    status_file = Path("status_report.json")
-    if status_file.exists():
+def check_market_hours() -> Dict:
+    """Check if market is open."""
+    now = datetime.now(timezone.utc)
+    hour = now.hour
+    weekday = now.weekday()  # 0=Monday, 6=Sunday
+    
+    is_weekend = weekday >= 5
+    is_market_hours = not is_weekend and 13 <= hour < 20  # 9 AM - 4 PM EST
+    
+    return {
+        "is_market_hours": is_market_hours,
+        "is_weekend": is_weekend,
+        "current_time": now.isoformat(),
+        "hour_utc": hour,
+        "weekday": weekday
+    }
+
+def check_services() -> Dict:
+    """Check if services are running."""
+    import subprocess
+    services = {}
+    
+    for svc in ["deploy_supervisor", "main.py", "dashboard.py", "uw_flow_daemon"]:
         try:
-            with open(status_file) as f:
-                return json.load(f)
+            result = subprocess.run(["pgrep", "-f", svc], capture_output=True, timeout=2)
+            services[svc] = result.returncode == 0
         except:
-            pass
-    return None
-
-def analyze_common_issues():
-    """Analyze based on common issues from codebase"""
-    issues = []
-    fixes = []
+            services[svc] = False
     
-    # Common Issue 1: Order submission rejecting non-filled orders
-    issues.append({
-        "issue": "Order submission logic rejects non-filled orders",
-        "description": "Code at line 4018-4023 in main.py rejects all orders that aren't immediately filled",
-        "fix_file": "main.py",
-        "fix_lines": "4018-4023",
-        "severity": "CRITICAL"
-    })
-    fixes.append({
-        "file": "main.py",
-        "issue": "Rejecting non-filled orders",
-        "fix": "Accept 'submitted_unfilled', 'limit', 'market' statuses, only reject 'error' statuses"
-    })
+    return {
+        "services": services,
+        "all_running": all(services.values())
+    }
+
+def check_execution_cycles() -> Dict:
+    """Check recent execution cycles."""
+    run_file = LOGS_DIR / "trading.jsonl"
+    if not run_file.exists():
+        return {"error": "No trading log found"}
     
-    # Common Issue 2: Max positions reached
-    issues.append({
-        "issue": "Maximum positions reached (16)",
-        "description": "Bot may be at capacity and waiting for exits",
-        "check": "Check state/internal_positions.json for position count",
-        "severity": "HIGH"
-    })
+    cycles = read_jsonl(run_file, limit=100)
+    if not cycles:
+        return {"error": "No execution cycles found in log"}
     
-    # Common Issue 3: Execution cycles not running
-    issues.append({
-        "issue": "Execution cycles not running",
-        "description": "Worker thread may not be executing cycles",
-        "check": "Check logs/run.jsonl for recent cycles",
-        "severity": "HIGH"
-    })
+    # Find cycles that indicate execution
+    execution_cycles = [c for c in cycles if c.get("event") in ["run_once", "cycle", "execution"]]
     
-    # Common Issue 4: All signals blocked by gates
-    issues.append({
-        "issue": "All signals blocked by gates",
-        "description": "Signals may be failing expectancy, score, or other gates",
-        "check": "Check state/blocked_trades.jsonl for block reasons",
-        "severity": "MEDIUM"
-    })
+    if not execution_cycles:
+        return {"error": "No execution cycles found", "total_log_entries": len(cycles)}
     
-    # Common Issue 5: No clusters generated
-    issues.append({
-        "issue": "No clusters generated from UW data",
-        "description": "UW daemon may not be fetching data or clustering failing",
-        "check": "Check data/uw_flow_cache.json for tickers with trades",
-        "severity": "HIGH"
-    })
+    last_cycle = execution_cycles[-1]
+    last_ts = last_cycle.get("_ts", last_cycle.get("timestamp", 0))
+    if isinstance(last_ts, str):
+        try:
+            last_ts = datetime.fromisoformat(last_ts.replace('Z', '+00:00')).timestamp()
+        except:
+            last_ts = 0
     
-    return issues, fixes
-
-def generate_fix_script(fixes):
-    """Generate a fix script based on identified issues"""
-    script = """#!/bin/bash
-# Auto-generated fix script for no trades issue
-cd ~/stock-bot
-
-echo "Applying fixes for no trades issue..."
-echo ""
-
-# Fix 1: Update order submission logic to accept non-filled orders
-echo "Fix 1: Updating order submission logic..."
-python3 << 'PYTHON_FIX'
-import re
-
-# Read main.py
-with open('main.py', 'r') as f:
-    content = f.read()
-
-# Find and fix the order rejection logic
-# Look for: if entry_status != "filled" or filled_qty <= 0:
-pattern = r'if entry_status != "filled" or filled_qty <= 0:.*?continue'
-replacement = '''if entry_status in ("error", "spread_too_wide", "min_notional_blocked", "insufficient_buying_power"):
-    # Reject error statuses
-    continue
-# Accept all other statuses (submitted_unfilled, limit, market, filled, etc.)
-# Reconciliation loop will pick up fills later'''
-
-# Check if fix is needed
-if 'if entry_status != "filled" or filled_qty <= 0:' in content:
-    # More careful replacement
-    lines = content.split('\\n')
-    new_lines = []
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        if 'if entry_status != "filled" or filled_qty <= 0:' in line:
-            # Replace this problematic check
-            new_lines.append('            # FIXED: Accept non-filled orders, only reject errors')
-            new_lines.append('            if entry_status in ("error", "spread_too_wide", "min_notional_blocked", "insufficient_buying_power"):')
-            new_lines.append('                log_event("order", "entry_rejected_error", symbol=symbol, status=entry_status)')
-            new_lines.append('                continue  # Only reject actual errors')
-            new_lines.append('            # Accept: submitted_unfilled, limit, market, filled, etc.')
-            # Skip the old continue line
-            i += 1
-            while i < len(lines) and ('continue' in lines[i] or lines[i].strip() == ''):
-                i += 1
-            continue
-        new_lines.append(line)
-        i += 1
+    now = time.time()
+    minutes_ago = (now - last_ts) / 60 if last_ts > 0 else 999
     
-    with open('main.py', 'w') as f:
-        f.write('\\n'.join(new_lines))
-    print("✅ Fixed order submission logic")
-else:
-    print("ℹ️  Order submission logic already fixed or different")
-PYTHON_FIX
+    clusters = last_cycle.get("clusters", 0)
+    orders = last_cycle.get("orders", 0)
+    
+    return {
+        "minutes_since_last_cycle": minutes_ago,
+        "last_cycle_clusters": clusters,
+        "last_cycle_orders": orders,
+        "total_execution_cycles": len(execution_cycles)
+    }
 
-echo ""
-echo "✅ Fixes applied. Restarting services..."
-pkill -f deploy_supervisor
-sleep 2
-cd ~/stock-bot && source venv/bin/activate && screen -dmS supervisor python deploy_supervisor.py
+def check_positions() -> Dict:
+    """Check current positions."""
+    try:
+        from config.registry import StateFiles
+        pos_file = StateFiles.POSITIONS
+    except:
+        pos_file = STATE_DIR / "internal_positions.json"
+    
+    if not pos_file.exists():
+        return {"count": 0, "positions": []}
+    
+    try:
+        with open(pos_file) as f:
+            data = json.load(f)
+            positions = data.get("positions", []) if isinstance(data, dict) else []
+            return {"count": len(positions), "positions": positions[:10]}
+    except:
+        return {"count": 0, "positions": []}
 
-echo ""
-echo "✅ Services restarted. Monitor with: screen -r supervisor"
-"""
-    return script
+def check_blocked_trades() -> Dict:
+    """Check why trades are blocked."""
+    blocked_file = STATE_DIR / "blocked_trades.jsonl"
+    if not blocked_file.exists():
+        return {"recent_blocks_count": 0, "block_reasons": {}}
+    
+    blocks = read_jsonl(blocked_file, limit=100)
+    if not blocks:
+        return {"recent_blocks_count": 0, "block_reasons": {}}
+    
+    # Filter recent (last hour)
+    now = time.time()
+    recent_blocks = [b for b in blocks if b.get("_ts", 0) > (now - 3600)]
+    
+    # Count by reason
+    reasons = {}
+    for block in recent_blocks:
+        reason = block.get("reason", "unknown")
+        reasons[reason] = reasons.get(reason, 0) + 1
+    
+    return {
+        "recent_blocks_count": len(recent_blocks),
+        "total_blocks": len(blocks),
+        "block_reasons": reasons
+    }
+
+def check_uw_cache() -> Dict:
+    """Check UW cache status."""
+    cache_file = DATA_DIR / "uw_flow_cache.json"
+    if not cache_file.exists():
+        return {"exists": False, "error": "Cache file does not exist"}
+    
+    cache_age = time.time() - cache_file.stat().st_mtime
+    cache_age_min = cache_age / 60
+    
+    try:
+        with open(cache_file) as f:
+            cache = json.load(f)
+            tickers = [k for k in cache.keys() if not k.startswith("_")]
+            tickers_with_data = [t for t in tickers if cache.get(t, {}).get("flow_trades")]
+            return {
+                "exists": True,
+                "age_minutes": cache_age_min,
+                "tickers_in_cache": len(tickers),
+                "tickers_with_data": len(tickers_with_data),
+                "is_fresh": cache_age_min < 10
+            }
+    except Exception as e:
+        return {"exists": True, "error": str(e), "age_minutes": cache_age_min}
 
 def main():
-    """Main diagnosis"""
-    print("=" * 80)
-    print("COMPREHENSIVE DIAGNOSIS: Why No Trades Today")
-    print("=" * 80)
-    print()
+    """Run comprehensive diagnosis."""
+    print("Running comprehensive diagnosis...")
     
-    # Pull latest
-    print("Pulling latest from git...")
-    pull_latest()
+    diagnosis = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": {}
+    }
     
-    # Read status report
-    print("Reading status report...")
-    status = read_status_report()
-    if status:
-        print(f"Status report timestamp: {status.get('timestamp', 'unknown')}")
-        print(f"Services running:")
-        services = status.get('services', {})
-        for svc, count in services.items():
-            status_icon = "✅" if int(count) > 0 else "❌"
-            print(f"  {status_icon} {svc}: {count}")
-        print()
+    # Run all checks
+    diagnosis["checks"]["market_hours"] = check_market_hours()
+    diagnosis["checks"]["services"] = check_services()
+    diagnosis["checks"]["execution_cycles"] = check_execution_cycles()
+    diagnosis["checks"]["positions"] = check_positions()
+    diagnosis["checks"]["blocked_trades"] = check_blocked_trades()
+    diagnosis["checks"]["uw_cache"] = check_uw_cache()
     
-    # Analyze common issues
-    print("Analyzing common issues from codebase...")
-    issues, fixes = analyze_common_issues()
+    # Generate summary
+    issues = []
+    recommendations = []
     
-    print("\n" + "=" * 80)
-    print("IDENTIFIED ISSUES")
-    print("=" * 80)
+    if not diagnosis["checks"]["market_hours"]["is_market_hours"]:
+        issues.append("Market is not open")
     
-    critical_issues = [i for i in issues if i.get("severity") == "CRITICAL"]
-    high_issues = [i for i in issues if i.get("severity") == "HIGH"]
-    medium_issues = [i for i in issues if i.get("severity") == "MEDIUM"]
+    if not diagnosis["checks"]["services"]["all_running"]:
+        missing = [k for k, v in diagnosis["checks"]["services"]["services"].items() if not v]
+        issues.append(f"Services not running: {', '.join(missing)}")
+        recommendations.append("Restart missing services")
     
-    if critical_issues:
-        print("\n🔴 CRITICAL ISSUES:")
-        for issue in critical_issues:
-            print(f"  - {issue['issue']}")
-            print(f"    {issue['description']}")
+    cycles = diagnosis["checks"]["execution_cycles"]
+    if "error" in cycles:
+        issues.append(f"Execution cycles: {cycles['error']}")
+    elif cycles.get("minutes_since_last_cycle", 999) > 10:
+        issues.append(f"No execution cycles in {cycles.get('minutes_since_last_cycle', 0):.1f} minutes")
+        recommendations.append("Check if main.py worker thread is running")
     
-    if high_issues:
-        print("\n🟠 HIGH PRIORITY ISSUES:")
-        for issue in high_issues:
-            print(f"  - {issue['issue']}")
-            print(f"    {issue.get('description', '')}")
-            if 'check' in issue:
-                print(f"    Check: {issue['check']}")
+    pos_count = diagnosis["checks"]["positions"]["count"]
+    if pos_count >= 16:
+        issues.append(f"At max positions ({pos_count}/16)")
+        recommendations.append("Wait for exits or check displacement logic")
     
-    if medium_issues:
-        print("\n🟡 MEDIUM PRIORITY ISSUES:")
-        for issue in medium_issues:
-            print(f"  - {issue['issue']}")
-            print(f"    {issue.get('description', '')}")
+    blocks = diagnosis["checks"]["blocked_trades"]
+    if blocks.get("recent_blocks_count", 0) > 0:
+        top_reason = max(blocks.get("block_reasons", {}).items(), key=lambda x: x[1], default=(None, 0))
+        if top_reason[0]:
+            issues.append(f"Trades blocked: {top_reason[0]} ({top_reason[1]} times)")
+            recommendations.append(f"Investigate why {top_reason[0]} is blocking trades")
     
-    # Generate fix
-    print("\n" + "=" * 80)
-    print("RECOMMENDED FIX")
-    print("=" * 80)
+    cache = diagnosis["checks"]["uw_cache"]
+    if not cache.get("exists"):
+        issues.append("UW cache does not exist")
+        recommendations.append("Check if UW daemon is running")
+    elif not cache.get("is_fresh"):
+        issues.append(f"UW cache is stale ({cache.get('age_minutes', 0):.1f} min old)")
+        recommendations.append("Check UW daemon and API connectivity")
+    elif cache.get("tickers_with_data", 0) == 0:
+        issues.append("UW cache exists but has no flow trades data")
+        recommendations.append("Check UW API connectivity and rate limits")
     
-    if critical_issues:
-        print("\nMost likely issue: Order submission logic rejecting non-filled orders")
-        print("\nThis is a known bug where the code rejects all orders that aren't")
-        print("immediately filled, even if they were successfully submitted.")
-        print("\nFix: Update main.py to accept 'submitted_unfilled', 'limit', 'market'")
-        print("statuses and only reject actual error statuses.")
-        
-        # Generate fix script
-        fix_script = generate_fix_script(fixes)
-        with open("fix_no_trades.sh", "w") as f:
-            f.write(fix_script)
-        print("\n✅ Generated fix script: fix_no_trades.sh")
-        print("   Run on droplet: cd ~/stock-bot && git pull && chmod +x fix_no_trades.sh && ./fix_no_trades.sh")
-    else:
-        print("\nNo critical issues identified. Need investigation results from droplet.")
-        print("Run investigation on droplet to get detailed diagnosis.")
+    diagnosis["summary"] = {
+        "issues": issues,
+        "recommendations": recommendations,
+        "status": "critical" if issues else "healthy"
+    }
     
-    print("\n" + "=" * 80)
+    # Save results
+    output_file = Path("investigate_no_trades.json")
+    with open(output_file, 'w') as f:
+        json.dump(diagnosis, f, indent=2, default=str)
+    
+    print("Diagnosis complete. Results saved to investigate_no_trades.json")
+    return diagnosis
 
 if __name__ == "__main__":
     main()
-
