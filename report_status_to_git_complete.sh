@@ -31,6 +31,23 @@ git add "$STATUS_FILE"
 git commit -m "Status report: $(date '+%Y-%m-%d %H:%M:%S')" || true
 git push origin main || true
 
+# Run UW endpoint test if script exists (first time only, or if .trigger_uw_test exists)
+if [ -f "test_uw_endpoints_comprehensive.py" ] && ([ ! -f ".uw_test_run" ] || [ -f ".trigger_uw_test" ]); then
+    echo "Running UW endpoint test..."
+    if [ -d "venv" ]; then
+        source venv/bin/activate
+    fi
+    python3 test_uw_endpoints_comprehensive.py 2>&1
+    
+    if [ -f "uw_endpoint_test_results.json" ]; then
+        git add uw_endpoint_test_results.json 2>/dev/null
+        git commit -m "UW endpoint test results - $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
+        git push origin main 2>/dev/null || true
+        touch .uw_test_run
+        rm -f .trigger_uw_test 2>/dev/null
+    fi
+fi
+
 # Check for investigation triggers (multiple trigger methods)
 TRIGGER_DETECTED=false
 
