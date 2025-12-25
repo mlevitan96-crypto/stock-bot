@@ -7,16 +7,16 @@ STRUCTURAL INTELLIGENCE INTEGRATION TESTS
   [PASS] Bullish multiplier: 1.00, Bearish multiplier: 1.00
 
 === Test 2: Macro Gate ===
-  [PASS] Macro status: {'current_yield': 4.5, 'yield_trend': 'NEUTRAL', 'last_update': '2025-12-25T19:21:17.453621+00:00'}
+  [PASS] Macro status: {'current_yield': 4.5, 'yield_trend': 'NEUTRAL', 'last_update': '2025-12-25T19:21:17.453813+00:00'}
   [PASS] Tech bullish multiplier: 1.00
 
 === Test 3: Structural Exit ===
   [PASS] Exit recommendation: {'should_exit': False, 'reason': '', 'scale_out_pct': 0.0, 'recommended_action': 'HOLD'}
 
 === Test 4: Thompson Sampling Engine ===
-  [PASS] Sampled weight: 2.37
-  [PASS] Optimal weight: 2.25
-  [PASS] Component stats: {'current_weight': 1.0, 'proposed_weight': 2.252475714994194, 'trials': 1, 'successes': 1, 'win_rate': 1.0, 'confidence_interval': (0.0, 1.0), 'alpha': 2.0, 'beta': 1.0}
+  [PASS] Sampled weight: 1.93
+  [PASS] Optimal weight: 0.91
+  [PASS] Component stats: {'current_weight': 1.0, 'proposed_weight': 0.9077096804397532, 'trials': 2, 'successes': 2, 'win_rate': 1.0, 'confidence_interval': (0.0, 1.0), 'alpha': 3.0, 'beta': 1.0}
 
 === Test 5: Shadow Trade Logger ===
   [PASS] Rejected signal logged
@@ -24,8 +24,8 @@ STRUCTURAL INTELLIGENCE INTEGRATION TESTS
   [PASS] Current threshold: 2.0
 
 === Test 6: Token Bucket ===
-  [PASS] Can poll AAPL: False, wait time: 60.0s
-  [PASS] Quota status: {'tokens_available': 120, 'rate_per_min': 120, 'daily_calls': 0, 'daily_limit': 15000, 'daily_remaining': 15000, 'can_make_call': True, 'symbols_tracked': 1, 'market_hours_focus': True, 'in_focus_hours': False}
+  [PASS] Can poll AAPL: True, wait time: 0.0s
+  [PASS] Quota status: {'tokens_available': 120, 'rate_per_min': 120, 'daily_calls': 0, 'daily_limit': 15000, 'daily_remaining': 15000, 'can_make_call': True, 'symbols_tracked': 1, 'market_hours_focus': True, 'in_focus_hours': True}
 
 === Test 7: Full Integration ===
   [PASS] All modules imported and instantiated
