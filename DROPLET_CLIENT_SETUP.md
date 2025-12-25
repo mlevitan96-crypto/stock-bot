@@ -1,6 +1,10 @@
-# Droplet Client Setup Guide
+# Droplet Client Setup Guide - SSH Config Method
 
-This guide will help you set up the droplet client so Cursor can directly interact with your droplet, eliminating the need for manual copy/paste operations.
+## Current Status
+
+✅ **SSH Configuration:** CONFIGURED AND WORKING  
+✅ **Method:** SSH Config File (host: `alpaca`)  
+✅ **Connection:** Tested and verified
 
 ## Overview
 
@@ -12,71 +16,30 @@ The droplet client allows Cursor to:
 - ✅ Deploy changes automatically
 - ✅ Monitor system health
 
-## Setup Steps
+## Configuration
 
-### 1. Install Dependencies
+**SSH Config Host:** `alpaca` (configured in `~/.ssh/config`)
 
-```bash
-pip install -r requirements.txt
-```
-
-This will install `paramiko` (SSH library) along with other dependencies.
-
-### 2. Configure Droplet Connection
-
-Create a `droplet_config.json` file in your project root:
-
-```bash
-cp droplet_config.example.json droplet_config.json
-```
-
-Edit `droplet_config.json` with your droplet details:
-
+**Configuration File:** `droplet_config.json`
 ```json
 {
-  "host": "123.456.789.0",
+  "host": "alpaca",
   "port": 22,
   "username": "root",
-  "key_file": "C:/Users/yourname/.ssh/id_rsa",
+  "use_ssh_config": true,
   "project_dir": "~/stock-bot"
 }
 ```
 
-**Security Options:**
-
-**Option A: SSH Key (Recommended)**
-- Use `key_file` pointing to your private SSH key
-- More secure, no password needed
-- Example: `"key_file": "C:/Users/yourname/.ssh/id_rsa"`
-
-**Option B: Password**
-- Use `password` field
-- Less secure, but simpler
-- Example: `"password": "your-password"`
-
-**Important:** Add `droplet_config.json` to `.gitignore` to avoid committing credentials!
-
-```bash
-echo "droplet_config.json" >> .gitignore
-```
-
-### 3. Test Connection
-
-Test the connection:
-
-```bash
-python droplet_client.py
-```
-
-You should see output showing:
-- Connection status
-- Current droplet status
-- Git status
-- Recent logs
+**How It Works:**
+- Uses your standard SSH config file (`~/.ssh/config`)
+- Automatically resolves hostname, username, port, and key file from SSH config
+- No passwords stored in config files
+- Secure and standard approach
 
 ## Usage in Cursor
 
-Once set up, you can use the droplet client in Cursor by asking natural language questions like:
+Once configured, you can use the droplet client in Cursor by asking natural language questions like:
 
 ### Status Queries
 - "What's the status of the droplet?"
@@ -151,30 +114,18 @@ logs = get_droplet_logs(50)
 git_status = get_droplet_git_status()
 ```
 
-## Environment Variables Alternative
-
-Instead of a config file, you can use environment variables:
-
-```bash
-export DROPLET_HOST="123.456.789.0"
-export DROPLET_PORT="22"
-export DROPLET_USER="root"
-export DROPLET_KEY_FILE="C:/Users/yourname/.ssh/id_rsa"
-export DROPLET_PROJECT_DIR="~/stock-bot"
-```
-
 ## Troubleshooting
 
 ### Connection Failed
-- Verify SSH key or password is correct
-- Check that droplet is accessible (ping, SSH manually)
+- Verify SSH config host `alpaca` exists in `~/.ssh/config`
+- Test SSH connection manually: `ssh alpaca "echo test"`
+- Check that `droplet_config.json` exists with `"host": "alpaca"` and `"use_ssh_config": true`
 - Ensure firewall allows SSH (port 22)
-- Try connecting manually: `ssh root@your-droplet-ip`
 
 ### Authentication Failed
-- If using key file, ensure path is correct and key has proper permissions
-- If using password, ensure it's correct
-- Check that the user has SSH access
+- Verify SSH key is loaded in SSH agent or key file is accessible
+- Test SSH connection manually: `ssh alpaca`
+- Check SSH config has correct identity file
 
 ### Command Timeout
 - Some commands may take longer (e.g., deployment)
@@ -187,11 +138,10 @@ export DROPLET_PROJECT_DIR="~/stock-bot"
 
 ## Security Best Practices
 
-1. **Never commit `droplet_config.json`** - Add to `.gitignore`
-2. **Use SSH keys** instead of passwords when possible
+1. **Never commit `droplet_config.json`** - Already in `.gitignore`
+2. **Use SSH config** - Standard and secure approach
 3. **Restrict SSH access** - Use firewall rules to limit access
-4. **Use environment variables** in CI/CD instead of config files
-5. **Rotate credentials** regularly
+4. **Rotate credentials** regularly
 
 ## Next Steps
 
@@ -203,3 +153,6 @@ Once set up, you can:
 
 Cursor will now be able to see everything happening on your droplet without you needing to manually SSH and copy/paste!
 
+---
+
+**Status:** ✅ **COMPLETE - Fully configured and working**

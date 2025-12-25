@@ -1,10 +1,8 @@
 {
-  "host": "your-droplet-ip-or-hostname",
+  "host": "alpaca",
   "port": 22,
   "username": "root",
-  "password": "your-password-here",
-  "key_file": "/path/to/your/ssh/key",
+  "use_ssh_config": true,
   "project_dir": "~/stock-bot",
-  "_comment": "Use either 'password' OR 'key_file', not both. key_file is more secure."
+  "_comment": "Using SSH config host 'alpaca' - connection details from ~/.ssh/config. This is the standard and secure approach."
 }
-

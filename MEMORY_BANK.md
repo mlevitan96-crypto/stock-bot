@@ -41,40 +41,32 @@ git push origin main
 
 #### **SSH Configuration Details**
 
-**Configuration File:** `droplet_config.json` (must be created if not exists)
+**Configuration Method:** SSH Config File (Standard SSH configuration)
+
+**SSH Config Host:** `alpaca` (configured in `~/.ssh/config`)
+
+**Configuration File:** `droplet_config.json` (uses SSH config)
 
 **Location:** Root of project directory (`stock-bot/droplet_config.json`)
 
-**Required Fields:**
+**Current Configuration:**
 ```json
 {
-  "host": "your-droplet-ip-or-hostname",
+  "host": "alpaca",
   "port": 22,
   "username": "root",
-  "password": "your-password-here",
-  "key_file": "/path/to/your/ssh/key",
+  "use_ssh_config": true,
   "project_dir": "~/stock-bot",
-  "_comment": "Use either 'password' OR 'key_file', not both. key_file is more secure."
+  "_comment": "Using SSH config host 'alpaca' - connection details from ~/.ssh/config"
 }
 ```
 
-**SSH Connection Methods:**
-1. **Password Authentication** (if `password` is provided):
-   - Uses username and password to connect
-   - Less secure but easier to set up
-
-2. **SSH Key Authentication** (if `key_file` is provided):
-   - Uses SSH private key file
-   - More secure, recommended for production
-   - Key file path must be absolute or relative to project root
-
-**Environment Variables (Alternative to config file):**
-- `DROPLET_HOST` - Droplet IP or hostname
-- `DROPLET_PORT` - SSH port (default: 22)
-- `DROPLET_USER` - SSH username (default: "root")
-- `DROPLET_PASSWORD` - SSH password
-- `DROPLET_KEY_FILE` - Path to SSH private key file
-- `DROPLET_PROJECT_DIR` - Project directory on droplet (default: "~/stock-bot")
+**How It Works:**
+- Uses your standard SSH config file (`~/.ssh/config`)
+- SSH config host alias: `alpaca`
+- Automatically resolves hostname, username, port, and key file from SSH config
+- More secure and standard approach
+- No passwords stored in config files
 
 #### **SSH Connection Code (Python)**
 
@@ -129,19 +121,17 @@ bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh
 #### **SSH Connection Troubleshooting**
 
 **If SSH connection fails:**
-1. Check `droplet_config.json` exists and has correct values
-2. Verify `host` is correct (IP address or hostname)
-3. Verify `username` is correct (usually "root")
-4. Verify either `password` OR `key_file` is provided (not both)
-5. If using `key_file`, verify path is correct and file is readable
-6. Check firewall allows SSH (port 22)
-7. Verify droplet is running and accessible
+1. Verify SSH config host `alpaca` exists in `~/.ssh/config`
+2. Test SSH connection manually: `ssh alpaca "echo test"`
+3. Verify `droplet_config.json` exists with `"host": "alpaca"` and `"use_ssh_config": true`
+4. Check firewall allows SSH (port 22)
+5. Verify droplet is running and accessible
 
 **Common Errors:**
-- `Authentication failed`: Wrong password or key file
-- `Connection timeout`: Droplet IP/hostname incorrect or firewall blocking
+- `Authentication failed`: SSH key not loaded in SSH agent or key file not accessible
+- `Connection timeout`: SSH config hostname incorrect or firewall blocking
 - `No module named 'paramiko'`: Install with `pip install paramiko==3.4.0`
-- `Droplet configuration not found`: Create `droplet_config.json` or set environment variables
+- `Droplet configuration not found`: Create `droplet_config.json` with SSH config host
 
 ### **Step 4: Droplet → Git**
 
@@ -271,49 +261,46 @@ git pull origin main
 
 ## **SSH CONFIGURATION SETUP INSTRUCTIONS**
 
-### **Step 1: Create `droplet_config.json`**
+### **Current Setup (COMPLETE)**
 
-**Location:** `stock-bot/droplet_config.json`
+**SSH Configuration:** ✅ **CONFIGURED AND WORKING**
 
-**Template:**
+**Method:** SSH Config File (Standard SSH approach)
+
+**SSH Config Host:** `alpaca` (configured in `~/.ssh/config`)
+
+**Configuration File:** `droplet_config.json`
 ```json
 {
-  "host": "your-droplet-ip-address",
+  "host": "alpaca",
   "port": 22,
   "username": "root",
-  "password": "your-password",
+  "use_ssh_config": true,
   "project_dir": "~/stock-bot"
 }
 ```
 
-**OR with SSH key:**
-```json
-{
-  "host": "your-droplet-ip-address",
-  "port": 22,
-  "username": "root",
-  "key_file": "/path/to/your/private/key",
-  "project_dir": "~/stock-bot"
-}
-```
+**Status:** ✅ Connection tested and verified working
 
-### **Step 2: Install Required Python Package**
+### **How It Works**
 
-```bash
-pip install paramiko==3.4.0
-```
+1. **SSH Config:** Your `~/.ssh/config` contains host alias `alpaca` with connection details
+2. **Automatic Resolution:** `droplet_client.py` automatically parses SSH config to get:
+   - Hostname (resolved IP)
+   - Username
+   - Port
+   - SSH key file
+3. **Connection:** Uses standard SSH authentication (SSH agent or key file)
+4. **Security:** No passwords stored, uses your existing SSH setup
 
-### **Step 3: Test SSH Connection**
+### **Testing Connection**
 
 ```python
 from droplet_client import DropletClient
 
-try:
-    client = DropletClient()
-    status = client.get_status()
-    print(f"Connected successfully to {status['host']}")
-except Exception as e:
-    print(f"Connection failed: {e}")
+client = DropletClient()
+status = client.get_status()
+print(f"Connected to: {status['host']}")
 ```
 
 ---
