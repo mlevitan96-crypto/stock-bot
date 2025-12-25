@@ -10,11 +10,24 @@ echo "=========================================="
 echo "Started: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
 echo ""
 
-# Step 0: Run final verification if script exists (comprehensive end-to-end check)
+# Step 0: Run final verification ALWAYS (comprehensive end-to-end check)
+echo "Step 0: Running final comprehensive verification..."
 if [ -f "FINAL_DROPLET_VERIFICATION.sh" ]; then
-    echo "Running final comprehensive verification..."
     chmod +x FINAL_DROPLET_VERIFICATION.sh
     bash FINAL_DROPLET_VERIFICATION.sh
+    VERIFICATION_EXIT=$?
+    if [ $VERIFICATION_EXIT -eq 0 ]; then
+        echo "✓ Final verification passed"
+    else
+        echo "⚠ Final verification had issues (check results above)"
+    fi
+    echo ""
+elif [ -f "AUTO_RUN_FINAL_VERIFICATION.sh" ]; then
+    chmod +x AUTO_RUN_FINAL_VERIFICATION.sh
+    bash AUTO_RUN_FINAL_VERIFICATION.sh
+    echo ""
+else
+    echo "⚠ Final verification scripts not found"
     echo ""
 fi
 
