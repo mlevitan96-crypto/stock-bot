@@ -75,21 +75,16 @@ $env:USERPROFILE\.ssh\id_rsa
 ```bash
 cat > droplet_config.json << 'EOF'
 {
-  "host": "104.236.102.57",
+  "host": "alpaca",
   "port": 22,
   "username": "root",
-  "password": "YOUR_DROPLET_PASSWORD_HERE",
+  "use_ssh_config": true,
   "project_dir": "~/stock-bot"
 }
 EOF
 ```
 
-**Then edit the file and replace `YOUR_DROPLET_PASSWORD_HERE` with your actual droplet password.**
-
-**To edit in PowerShell:**
-```powershell
-notepad droplet_config.json
-```
+**Note:** This uses your SSH config file (`~/.ssh/config`) with host alias `alpaca`. Make sure you have `alpaca` configured in your SSH config.
 
 ---
 

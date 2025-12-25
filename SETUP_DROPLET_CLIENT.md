@@ -1,18 +1,15 @@
-# Droplet Client Setup - Step by Step Guide
+# Droplet Client Setup - SSH Config Method
 
-Follow these steps in order. Each step has copy/paste commands ready to use.
+## Current Status
 
----
+✅ **SSH Configuration:** CONFIGURED AND WORKING  
+✅ **Method:** SSH Config File (host: `alpaca`)
 
 ## Step 1: Add Config File to .gitignore
 
 **Why:** We don't want to accidentally commit your droplet credentials to git.
 
-**Action:** Add `droplet_config.json` to your `.gitignore` file.
-
-```bash
-echo "droplet_config.json" >> .gitignore
-```
+**Action:** Add `droplet_config.json` to your `.gitignore` file (already done).
 
 **Verify it worked:**
 ```bash
@@ -27,7 +24,7 @@ You should see `droplet_config.json` in the output.
 
 **Why:** We need `paramiko` to connect to your droplet via SSH.
 
-**Action:** Install the new dependency.
+**Action:** Install the dependency.
 
 ```bash
 pip install paramiko==3.4.0
@@ -44,83 +41,42 @@ You should see: `paramiko installed successfully`
 
 ## Step 3: Create Your Droplet Config File
 
-**Why:** The client needs to know how to connect to your droplet.
+**Why:** The client needs to know which SSH config host to use.
 
-**Action:** Create `droplet_config.json` with your droplet connection details.
-
-**Option A: Using SSH Key (Recommended - More Secure)**
-
-Create the file with this content (replace with your actual values):
+**Action:** Create `droplet_config.json` with SSH config host.
 
 ```bash
 cat > droplet_config.json << 'EOF'
 {
-  "host": "YOUR_DROPLET_IP_HERE",
+  "host": "alpaca",
   "port": 22,
   "username": "root",
-  "key_file": "C:/Users/markl/.ssh/id_rsa",
+  "use_ssh_config": true,
   "project_dir": "~/stock-bot"
 }
 EOF
 ```
 
-**Then edit it with your actual values:**
-- Replace `YOUR_DROPLET_IP_HERE` with your droplet's IP address
-- Replace `C:/Users/markl/.ssh/id_rsa` with the path to your SSH private key (if different)
-
-**Option B: Using Password (Less Secure, But Simpler)**
-
-If you don't have an SSH key set up, use password instead:
-
-```bash
-cat > droplet_config.json << 'EOF'
-{
-  "host": "YOUR_DROPLET_IP_HERE",
-  "port": 22,
-  "username": "root",
-  "password": "YOUR_PASSWORD_HERE",
-  "project_dir": "~/stock-bot"
-}
-EOF
-```
-
-**Then edit it with your actual values:**
-- Replace `YOUR_DROPLET_IP_HERE` with your droplet's IP address
-- Replace `YOUR_PASSWORD_HERE` with your droplet password
-
-**Note:** If you're not sure which option to use, try Option A first. If you don't have an SSH key, you can generate one or use Option B.
+**Note:** This uses your SSH config file (`~/.ssh/config`) with host alias `alpaca`. Make sure you have `alpaca` configured in your SSH config with the correct hostname, user, and identity file.
 
 ---
 
-## Step 4: Find Your SSH Key Path (If Using Option A)
+## Step 4: Verify SSH Config
 
-**Why:** We need the exact path to your SSH private key.
+**Why:** Make sure your SSH config has the `alpaca` host configured.
 
-**Action:** Find where your SSH key is located.
+**Action:** Test SSH connection manually.
 
-**On Windows (PowerShell):**
-```powershell
-Test-Path $env:USERPROFILE\.ssh\id_rsa
+```bash
+ssh alpaca "echo 'SSH config working'"
 ```
 
-If it returns `True`, your key is at: `C:/Users/markl/.ssh/id_rsa` (replace `markl` with your username)
-
-**List all SSH keys:**
-```powershell
-Get-ChildItem $env:USERPROFILE\.ssh\
+**Expected Output:**
+```
+SSH config working
 ```
 
-**If you don't have an SSH key yet, you can generate one:**
-```powershell
-ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
-```
-
-Then copy your public key to the droplet:
-```powershell
-type $env:USERPROFILE\.ssh\id_rsa.pub
-```
-
-Copy the output and add it to your droplet's `~/.ssh/authorized_keys` file.
+If this works, your SSH config is set up correctly.
 
 ---
 
@@ -131,22 +87,34 @@ Copy the output and add it to your droplet's `~/.ssh/authorized_keys` file.
 **Action:** Test the droplet client connection.
 
 ```bash
-python droplet_client.py
+python test_ssh_connection.py
 ```
 
 **Expected Output:**
 ```
-Droplet Client - Testing Connection
 ============================================================
-Connected to: YOUR_DROPLET_IP
-Status:
-{
-  "timestamp": "...",
-  "host": "...",
-  "service_status": "active",
-  "process_count": 3,
-  ...
-}
+TESTING SSH CONNECTION TO DROPLET
+============================================================
+
+[OK] Config loaded successfully
+  Host: 104.236.102.57
+  Username: root
+  Port: 22
+
+Testing connection...
+[OK] Connection successful!
+  Droplet: 104.236.102.57
+  Project Dir: ~/stock-bot
+
+Testing command execution...
+[OK] Command executed (exit code: 0)
+  Output:
+/root/stock-bot
+Test command successful
+...
+
+[OK] ALL TESTS PASSED - SSH CONNECTION WORKING
+============================================================
 ```
 
 **If you see an error:**
@@ -156,15 +124,14 @@ Status:
 - Check that the file has valid JSON
 
 **Error: "Authentication failed"**
-- If using key file: Check the path is correct and the key has proper permissions
-- If using password: Verify the password is correct
-- Try connecting manually: `ssh root@YOUR_DROPLET_IP`
+- Verify SSH config host `alpaca` exists in `~/.ssh/config`
+- Test SSH connection manually: `ssh alpaca`
+- Check SSH key is accessible
 
 **Error: "Connection failed" or "Connection timeout"**
-- Verify the droplet IP is correct
+- Verify SSH config hostname is correct
 - Check that the droplet is running and accessible
-- Try pinging: `ping YOUR_DROPLET_IP`
-- Check firewall allows SSH (port 22)
+- Test SSH manually: `ssh alpaca`
 
 ---
 
@@ -239,51 +206,30 @@ python -c "from droplet_client import get_droplet_status; import json; print(jso
 
 ## Troubleshooting
 
-### Can't Find SSH Key
-If you're on Windows and can't find your SSH key:
+### SSH Config Not Found
+If your SSH config doesn't have `alpaca`:
 
-1. Check if it exists:
-   ```powershell
-   Test-Path $env:USERPROFILE\.ssh\id_rsa
+1. Add it to `~/.ssh/config`:
+   ```
+   Host alpaca
+       HostName 104.236.102.57
+       User root
+       IdentityFile ~/.ssh/id_ed25519
+       Port 22
    ```
 
-2. If it doesn't exist, generate one:
-   ```powershell
-   ssh-keygen -t rsa -b 4096
-   ```
-   (Press Enter to accept defaults, or set a passphrase)
-
-3. Copy public key to clipboard:
-   ```powershell
-   Get-Content $env:USERPROFILE\.ssh\id_rsa.pub | Set-Clipboard
-   ```
-
-4. SSH into your droplet and add it:
-   ```bash
-   ssh root@YOUR_DROPLET_IP
-   mkdir -p ~/.ssh
-   echo "PASTE_YOUR_KEY_HERE" >> ~/.ssh/authorized_keys
-   chmod 600 ~/.ssh/authorized_keys
-   chmod 700 ~/.ssh
-   ```
-
-### Config File Path Issues on Windows
-If you're having trouble with the key file path, try:
-
-1. Use forward slashes: `C:/Users/markl/.ssh/id_rsa` (not backslashes)
-2. Use double backslashes: `C:\\Users\\markl\\.ssh\\id_rsa`
-3. Use raw string format in the JSON (the example above should work)
+2. Test it: `ssh alpaca "echo test"`
 
 ### Still Having Issues?
 1. Test SSH connection manually first:
    ```bash
-   ssh root@YOUR_DROPLET_IP
+   ssh alpaca
    ```
 
 2. If manual SSH works but the client doesn't:
    - Check the config file JSON is valid
-   - Verify the key file path is correct
-   - Make sure you're using the right username
+   - Verify `use_ssh_config` is set to `true`
+   - Make sure SSH config host `alpaca` exists
 
 3. Check the error message - it usually tells you what's wrong!
 
@@ -301,3 +247,6 @@ Once setup is complete, you can ask Cursor things like:
 
 Cursor will handle all the SSH connections and commands for you!
 
+---
+
+**Status:** ✅ **COMPLETE - Using SSH config method**
