@@ -177,7 +177,7 @@ def analyze_results():
 def main():
     """Execute complete immediate workflow."""
     print()
-    print("🚀 IMMEDIATE DROPLET WORKFLOW")
+    print("IMMEDIATE DROPLET WORKFLOW")
     print("=" * 60)
     print()
     
