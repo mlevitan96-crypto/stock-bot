@@ -7083,7 +7083,6 @@ def main():
     # Catches producer/consumer type mismatches that cause runtime errors
     try:
         from startup_contract_check import run_startup_contract_check
-from xai.explainable_logger import get_explainable_logger
         contract_passed = run_startup_contract_check()
         if not contract_passed:
             log_event("system", "contract_check_failed", action="warning")
