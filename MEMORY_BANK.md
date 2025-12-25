@@ -1,12 +1,324 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-25 (Structural Intelligence Overhaul Complete)  
+**Last Updated:** 2025-12-25 (Complete Workflow with SSH Details Added)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ---
 
-## 🚀 CRITICAL: Complete Full Workflow (MANDATORY SOP)
+# 🚀 COMPLETE WORKFLOW: User → Cursor → Git → Droplet → Git → Cursor → User
+
+## **MANDATORY STANDARD OPERATING PROCEDURE (SOP) - NO EXCEPTIONS**
+
+**This is the ONLY acceptable workflow. Every task MUST complete this full cycle before reporting to user.**
+
+---
+
+## **STEP-BY-STEP WORKFLOW WITH SSH DETAILS**
+
+### **Step 1: User → Cursor**
+- User provides instruction or request
+- Cursor receives and understands the task
+
+### **Step 2: Cursor → Git**
+**Cursor MUST push all changes to Git immediately**
+
+**Commands:**
+```bash
+git add .
+git commit -m "Description of changes"
+git push origin main
+```
+
+**Verification:**
+- Check that `git push` succeeds
+- Verify no errors in output
+- **NEVER skip this step**
+
+### **Step 3: Git → Droplet (SSH Connection)**
+
+**Cursor MUST connect to droplet via SSH and trigger deployment immediately**
+
+#### **SSH Configuration Details**
+
+**Configuration File:** `droplet_config.json` (must be created if not exists)
+
+**Location:** Root of project directory (`stock-bot/droplet_config.json`)
+
+**Required Fields:**
+```json
+{
+  "host": "your-droplet-ip-or-hostname",
+  "port": 22,
+  "username": "root",
+  "password": "your-password-here",
+  "key_file": "/path/to/your/ssh/key",
+  "project_dir": "~/stock-bot",
+  "_comment": "Use either 'password' OR 'key_file', not both. key_file is more secure."
+}
+```
+
+**SSH Connection Methods:**
+1. **Password Authentication** (if `password` is provided):
+   - Uses username and password to connect
+   - Less secure but easier to set up
+
+2. **SSH Key Authentication** (if `key_file` is provided):
+   - Uses SSH private key file
+   - More secure, recommended for production
+   - Key file path must be absolute or relative to project root
+
+**Environment Variables (Alternative to config file):**
+- `DROPLET_HOST` - Droplet IP or hostname
+- `DROPLET_PORT` - SSH port (default: 22)
+- `DROPLET_USER` - SSH username (default: "root")
+- `DROPLET_PASSWORD` - SSH password
+- `DROPLET_KEY_FILE` - Path to SSH private key file
+- `DROPLET_PROJECT_DIR` - Project directory on droplet (default: "~/stock-bot")
+
+#### **SSH Connection Code (Python)**
+
+**Primary Method: Use `droplet_client.py`**
+
+```python
+from droplet_client import DropletClient
+
+# Initialize client (reads from droplet_config.json or environment variables)
+client = DropletClient()
+
+# Connect and execute commands
+with client:
+    # Execute deployment command
+    result = client.execute_command(
+        "cd ~/stock-bot && git fetch origin main && git reset --hard origin/main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh",
+        timeout=600
+    )
+    
+    # Check results
+    if result["success"]:
+        print("Deployment successful")
+    else:
+        print(f"Deployment failed: {result['stderr']}")
+```
+
+**Alternative: Direct SSH Command (if droplet_client.py not available)**
+
+```bash
+ssh root@your-droplet-ip "cd ~/stock-bot && git fetch origin main && git reset --hard origin/main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh"
+```
+
+#### **Deployment Commands to Execute on Droplet**
+
+**Standard Deployment:**
+```bash
+cd ~/stock-bot
+git fetch origin main
+git reset --hard origin/main
+bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh
+```
+
+**This script automatically:**
+1. Pulls latest code from Git
+2. Installs dependencies
+3. Runs integration tests
+4. Runs regression tests
+5. Runs XAI regression tests
+6. Runs complete verification
+7. Commits and pushes results back to Git
+
+#### **SSH Connection Troubleshooting**
+
+**If SSH connection fails:**
+1. Check `droplet_config.json` exists and has correct values
+2. Verify `host` is correct (IP address or hostname)
+3. Verify `username` is correct (usually "root")
+4. Verify either `password` OR `key_file` is provided (not both)
+5. If using `key_file`, verify path is correct and file is readable
+6. Check firewall allows SSH (port 22)
+7. Verify droplet is running and accessible
+
+**Common Errors:**
+- `Authentication failed`: Wrong password or key file
+- `Connection timeout`: Droplet IP/hostname incorrect or firewall blocking
+- `No module named 'paramiko'`: Install with `pip install paramiko==3.4.0`
+- `Droplet configuration not found`: Create `droplet_config.json` or set environment variables
+
+### **Step 4: Droplet → Git**
+
+**Droplet automatically pushes results back to Git after deployment completes**
+
+**Result Files Pushed by Droplet:**
+- `integration_test_output.txt` - Integration test results
+- `regression_test_output.txt` - Regression test results
+- `xai_regression_test_output.txt` - XAI regression test results
+- `verification_output.txt` - Complete verification results
+- `final_verification_results.json` - Final verification JSON
+- `droplet_verification_results.json` - Comprehensive verification results
+- `investigate_no_trades.json` - Investigation results (if triggered)
+- `uw_endpoint_test_results.json` - UW API test results (if triggered)
+- `status_report.json` - System status reports (if triggered)
+
+**Git Commit Message Format:**
+- `"Structural Intelligence deployment verification - YYYY-MM-DD HH:MM:SS"`
+- `"Droplet verification results - YYYY-MM-DDTHH:MM:SS%z"`
+
+### **Step 5: Git → Cursor**
+
+**Cursor MUST pull results from Git immediately after SSH command completes**
+
+**Commands:**
+```bash
+git pull origin main
+```
+
+**Verification:**
+- Check for new result files listed above
+- Read and parse JSON result files
+- Verify deployment status from results
+
+**Result Analysis:**
+- Check `final_verification_results.json` for `"verification_passed": true`
+- Check `droplet_verification_results.json` for `"overall_status": "PASS"`
+- Review any error messages or warnings
+- Identify issues if deployment failed
+
+### **Step 6: Cursor → User**
+
+**Cursor MUST report completion only after entire workflow is done**
+
+**Report Must Include:**
+1. **What was done**: Summary of changes/fixes
+2. **Git push status**: Confirmation code was pushed
+3. **Droplet deployment status**: Success or failure
+4. **Verification results**: All test results and status
+5. **Issues found**: Any errors or warnings
+6. **Final confirmation**: Everything works or what needs fixing
+
+**NEVER report partial completion - only report when User → Cursor → Git → Droplet → Git → Cursor → User cycle is complete**
+
+---
+
+## **MANDATORY RULES - NO EXCEPTIONS**
+
+### **Cursor Responsibilities:**
+- ✅ **ALWAYS** push to Git first (Step 2) - NEVER skip
+- ✅ **ALWAYS** connect to droplet via SSH (Step 3) - Use `droplet_client.py` or direct SSH
+- ✅ **ALWAYS** pull results from Git (Step 5) - NEVER ask user to copy/paste
+- ✅ **ALWAYS** verify results before reporting (Step 5)
+- ✅ **ALWAYS** complete entire workflow before reporting (Step 6)
+- ✅ **ALWAYS** handle entire workflow - user never needs to copy/paste commands
+
+### **Prohibited Actions:**
+- ❌ **NEVER** skip Git push step
+- ❌ **NEVER** skip droplet SSH connection step
+- ❌ **NEVER** ask user to manually copy/paste commands
+- ❌ **NEVER** report partial completion
+- ❌ **NEVER** mention hourly, scheduled, or delayed processes - everything is immediate
+- ❌ **NEVER** assume droplet has latest code without triggering pull
+- ❌ **NEVER** say "wait for hook" - Cursor always triggers immediately via SSH
+
+---
+
+## **TOOLS AND SCRIPTS**
+
+### **Primary Tools:**
+- `droplet_client.py` - SSH client for connecting to droplet (REQUIRED)
+- `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` - Complete workflow automation script
+- `FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh` - Deployment script on droplet
+
+### **Configuration Files:**
+- `droplet_config.json` - SSH connection configuration (REQUIRED for SSH)
+- `droplet_config.example.json` - Template for SSH configuration
+
+### **Result Files (Pulled from Git):**
+- `final_verification_results.json` - Final verification status
+- `droplet_verification_results.json` - Comprehensive verification results
+- `integration_test_output.txt` - Integration test output
+- `regression_test_output.txt` - Regression test output
+- `xai_regression_test_output.txt` - XAI regression test output
+- `verification_output.txt` - Complete verification output
+
+---
+
+## **WORKFLOW EXAMPLES**
+
+### **Example 1: Deploy Code Fixes**
+1. **User → Cursor**: "Fix the bootstrap expectancy gate"
+2. **Cursor → Git**: 
+   - Modify `main.py`
+   - `git add . && git commit -m "Fix bootstrap expectancy gate" && git push origin main`
+3. **Git → Droplet (SSH)**:
+   - `from droplet_client import DropletClient`
+   - `client = DropletClient()`
+   - `client.execute_command("cd ~/stock-bot && git fetch origin main && git reset --hard origin/main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh")`
+4. **Droplet → Git**: Deployment script runs, commits results, pushes to Git
+5. **Git → Cursor**: `git pull origin main`, read `final_verification_results.json`
+6. **Cursor → User**: "Fix deployed successfully. All verifications passed."
+
+### **Example 2: Investigate No Trades**
+1. **User → Cursor**: "Why are there no trades?"
+2. **Cursor → Git**: Create investigation script, push to Git
+3. **Git → Droplet (SSH)**: Execute investigation script via SSH
+4. **Droplet → Git**: Investigation results pushed to Git
+5. **Git → Cursor**: Pull results, analyze, create fixes
+6. **Cursor → Git**: Push fixes to Git
+7. **Git → Droplet (SSH)**: Deploy fixes via SSH
+8. **Droplet → Git**: Deployment results pushed to Git
+9. **Git → Cursor**: Pull results, verify fixes
+10. **Cursor → User**: "No trades issue fixed. Root cause: [explanation]. Fixes deployed."
+
+---
+
+## **SSH CONFIGURATION SETUP INSTRUCTIONS**
+
+### **Step 1: Create `droplet_config.json`**
+
+**Location:** `stock-bot/droplet_config.json`
+
+**Template:**
+```json
+{
+  "host": "your-droplet-ip-address",
+  "port": 22,
+  "username": "root",
+  "password": "your-password",
+  "project_dir": "~/stock-bot"
+}
+```
+
+**OR with SSH key:**
+```json
+{
+  "host": "your-droplet-ip-address",
+  "port": 22,
+  "username": "root",
+  "key_file": "/path/to/your/private/key",
+  "project_dir": "~/stock-bot"
+}
+```
+
+### **Step 2: Install Required Python Package**
+
+```bash
+pip install paramiko==3.4.0
+```
+
+### **Step 3: Test SSH Connection**
+
+```python
+from droplet_client import DropletClient
+
+try:
+    client = DropletClient()
+    status = client.get_status()
+    print(f"Connected successfully to {status['host']}")
+except Exception as e:
+    print(f"Connection failed: {e}")
+```
+
+---
+
+## 🚀 CRITICAL: Complete Full Workflow (MANDATORY SOP) - LEGACY SECTION
 
 **ESTABLISHED:** 2025-12-25  
 **WORKFLOW:** User → Cursor → Git → Droplet (SSH) → Git → Cursor → User
