@@ -21,13 +21,13 @@ def execute_on_droplet_via_ssh(command, description):
         stdout, stderr, exit_code = client._execute_with_cd(command, timeout=300)
         
         if exit_code == 0:
-            print(f"  ✓ {description} completed")
+            print(f"  [OK] {description} completed")
             if stdout:
                 print(f"    Output: {stdout.strip()[:200]}")
             client.close()
             return True
         else:
-            print(f"  ✗ {description} failed: {stderr[:200] if stderr else 'Unknown error'}")
+            print(f"  [FAIL] {description} failed: {stderr[:200] if stderr else 'Unknown error'}")
             client.close()
             return False
     except ImportError:
@@ -51,9 +51,9 @@ def main():
     print("Step 1: Ensuring all code is pushed to Git...")
     result = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True)
     if result.returncode == 0:
-        print("  ✓ Code pushed to Git")
+        print("  [OK] Code pushed to Git")
     else:
-        print("  ⚠ Git push had issues (may already be up to date)")
+        print("  [WARNING] Git push had issues (may already be up to date)")
     print()
     
     # Step 2: Pull on droplet
@@ -92,7 +92,7 @@ def main():
     
     verify_file = Path("droplet_verification_results.json")
     if verify_file.exists():
-        print("  ✓ Droplet verification results found")
+        print("  [OK] Droplet verification results found")
         try:
             with open(verify_file) as f:
                 data = json.load(f)
@@ -102,12 +102,12 @@ def main():
         except:
             results['verification'] = False
     else:
-        print("  ✗ Droplet verification results not found")
+        print("  [MISSING] Droplet verification results not found")
         results['verification'] = False
     
     integration_file = Path("structural_intelligence_test_results.json")
     if integration_file.exists():
-        print("  ✓ Integration test results found")
+        print("  [OK] Integration test results found")
         try:
             with open(integration_file) as f:
                 data = json.load(f)
@@ -118,12 +118,12 @@ def main():
         except:
             results['integration'] = False
     else:
-        print("  ✗ Integration test results not found")
+        print("  [MISSING] Integration test results not found")
         results['integration'] = False
     
     regression_file = Path("regression_test_results.json")
     if regression_file.exists():
-        print("  ✓ Regression test results found")
+        print("  [OK] Regression test results found")
         try:
             with open(regression_file) as f:
                 data = json.load(f)
@@ -134,7 +134,7 @@ def main():
         except:
             results['regression'] = False
     else:
-        print("  ✗ Regression test results not found")
+        print("  [MISSING] Regression test results not found")
         results['regression'] = False
     
     print()
@@ -150,7 +150,7 @@ def main():
     print()
     
     if all(results.values()):
-        print("✓✓✓ ALL VERIFICATIONS PASSED - DEPLOYMENT SUCCESSFUL ✓✓✓")
+        print("[SUCCESS] ALL VERIFICATIONS PASSED - DEPLOYMENT SUCCESSFUL")
         return 0
     else:
         print("⚠ SOME VERIFICATIONS FAILED OR MISSING")
