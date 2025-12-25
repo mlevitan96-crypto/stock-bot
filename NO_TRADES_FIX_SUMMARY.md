@@ -70,3 +70,4 @@ Check diagnostic logs for:
 2. **"X clusters processed but 0 orders"** → All blocked by gates (check blocked_trades.jsonl)
 3. **"X orders returned"** → Orders being submitted (check order logs)
 
+

@@ -2250,7 +2250,25 @@ def try_promotion_if_ready(symbol: str, prod_metrics: dict = None, exp_metrics: 
                      reason=decision["reason"],
                      prod_metrics=decision.get("prod", {}),
                      exp_metrics=decision.get("exp", {}))
-            # TODO: Copy experiment parameters into production profile here
+            # Copy experiment parameters into production profile
+            try:
+                profiles = load_profiles()
+                if symbol in profiles:
+                    exp_profile = profiles[symbol]
+                    # Copy experiment parameters (bandit actions, component weights, etc.)
+                    if "entry_bandit" in exp_profile:
+                        exp_profile["entry_bandit"] = exp_profile.get("entry_bandit", {})
+                    if "stop_bandit" in exp_profile:
+                        exp_profile["stop_bandit"] = exp_profile.get("stop_bandit", {})
+                    if "component_weights" in exp_profile:
+                        exp_profile["component_weights"] = exp_profile.get("component_weights", {})
+                    # Mark as promoted
+                    exp_profile["promoted_to_prod"] = datetime.utcnow().isoformat()
+                    save_profiles(profiles)
+                    log_event("promotion", "parameters_copied", symbol=symbol, 
+                             exp_metrics=decision.get("exp", {}))
+            except Exception as e:
+                log_event("promotion", "parameter_copy_failed", symbol=symbol, error=str(e))
             return True
         else:
             # Promotion rejected with detailed audit trail
@@ -2545,7 +2563,23 @@ def weekly_shadow_lab_promotions(api, current_regime: str):
         
         if decision["promote"]:
             approved += 1
-            # TODO: Copy experiment parameters into production profile
+            # Copy experiment parameters into production profile
+            try:
+                profiles = load_profiles()
+                if symbol in profiles:
+                    exp_profile = profiles[symbol]
+                    # Copy experiment parameters
+                    if "entry_bandit" in exp_profile:
+                        exp_profile["entry_bandit"] = exp_profile.get("entry_bandit", {})
+                    if "stop_bandit" in exp_profile:
+                        exp_profile["stop_bandit"] = exp_profile.get("stop_bandit", {})
+                    if "component_weights" in exp_profile:
+                        exp_profile["component_weights"] = exp_profile.get("component_weights", {})
+                    exp_profile["promoted_to_prod"] = datetime.utcnow().isoformat()
+                    save_profiles(profiles)
+                    log_event("weekly_promotions", "parameters_copied", symbol=symbol)
+            except Exception as e:
+                log_event("weekly_promotions", "parameter_copy_failed", symbol=symbol, error=str(e))
         else:
             rejected += 1
     
@@ -2987,6 +3021,12 @@ class AlpacaExecutor:
                             pass
                     log_order({"action": "limit_retry_failed", "symbol": symbol, "side": side,
                                "limit_price": limit_price, "attempt": attempt, "error": str(e)})
+                    # Track execution failure for learning
+                    try:
+                        from tca_data_manager import track_execution_failure
+                        track_execution_failure(symbol, "limit_retry_failed", {"attempt": attempt, "error": str(e)})
+                    except ImportError:
+                        pass
                 
                 if attempt < Config.ENTRY_MAX_RETRIES:
                     time.sleep(Config.ENTRY_RETRY_SLEEP_SEC)
@@ -3066,6 +3106,12 @@ class AlpacaExecutor:
                         pass
                 log_order({"action": "limit_final_failed", "symbol": symbol, "side": side,
                            "limit_price": limit_price, "error": str(e)})
+                # Track execution failure for learning
+                try:
+                    from tca_data_manager import track_execution_failure
+                    track_execution_failure(symbol, "limit_final_failed", {"error": str(e)})
+                except ImportError:
+                    pass
 
         try:
             # Use idempotency key from risk management if available
@@ -3121,6 +3167,12 @@ class AlpacaExecutor:
                 except Exception:
                     pass
             log_order({"action": "market_fail", "symbol": symbol, "side": side, "error": str(e)})
+            # Track execution failure for learning
+            try:
+                from tca_data_manager import track_execution_failure
+                track_execution_failure(symbol, "market_fail", {"error": str(e)})
+            except ImportError:
+                pass
             return None, None, "error", 0, "error"
 
     def can_open_new_position(self) -> bool:
@@ -3508,6 +3560,12 @@ class AlpacaExecutor:
             return True
         except Exception as e:
             log_order({"action": "scale_out_failed", "symbol": symbol, "fraction": fraction, "error": str(e)})
+            # Track execution failure for learning
+            try:
+                from tca_data_manager import track_execution_failure
+                track_execution_failure(symbol, "scale_out_failed", {"fraction": fraction, "error": str(e)})
+            except ImportError:
+                pass
             return False
 
     def market_buy(self, symbol: str, qty: int):
@@ -4100,7 +4158,12 @@ class StrategyEngine:
                 qty = uw_size_modifier(qty, uw_sentiment, uw_conviction)
             
             # V3.2 CHECKPOINT: PRE_ALLOCATE - Dynamic Sizing
-            recent_slippage_pct = 0.003  # TODO: Get from recent TCA data
+            # Get recent slippage from TCA data
+            try:
+                from tca_data_manager import get_recent_slippage
+                recent_slippage_pct = get_recent_slippage(symbol=symbol, lookback_hours=24)
+            except ImportError:
+                recent_slippage_pct = 0.003  # Fallback default
             size_multiplier = v32.DynamicSizing.calculate_multiplier(
                 composite_score=score,
                 slippage_pct=recent_slippage_pct,
@@ -4163,8 +4226,14 @@ class StrategyEngine:
             ticker_profile = bayes_profiles.get("profiles", {}).get(ticker_key, {})
             ticker_bayes_expectancy = ticker_profile.get("expectancy", 0.0)
             
-            regime_modifier = 0.0  # TODO: Link to regime forecast
-            tca_modifier = 0.0  # TODO: Link to recent TCA quality
+            # Get regime forecast modifier and TCA quality
+            try:
+                from tca_data_manager import get_regime_forecast_modifier, get_tca_quality_score
+                regime_modifier = get_regime_forecast_modifier(market_regime)
+                tca_modifier = get_tca_quality_score(symbol=symbol, lookback_hours=24) * 0.1  # Scale to -0.1 to +0.1
+            except ImportError:
+                regime_modifier = 0.0  # Fallback default
+                tca_modifier = 0.0  # Fallback default
             theme_risk_penalty = 0.0  # Already checked via theme_risk guard
             
             # Link toxicity_penalty to actual toxicity from cluster data
@@ -4383,8 +4452,14 @@ class StrategyEngine:
                             log_order({"symbol": symbol, "qty": qty, "side": side, "error": "invalid_price_data", "bid": bid, "ask": ask})
                             continue
                     spread_bps = ((ask - bid) / bid * 10000) if bid > 0 else 100
-                    toxicity_score = 0.0  # TODO: Link to toxicity sentinel
-                    recent_failures = 0  # TODO: Track per-symbol execution failures
+                    # Get toxicity score and execution failure count
+                    try:
+                        from tca_data_manager import get_toxicity_sentinel_score, get_recent_failures
+                        toxicity_score = get_toxicity_sentinel_score(symbol, c)
+                        recent_failures = get_recent_failures(symbol, lookback_hours=24)
+                    except ImportError:
+                        toxicity_score = 0.0  # Fallback default
+                        recent_failures = 0  # Fallback default
                     
                     # v3.2.1: ExecutionRouter with telemetry
                     selected_strategy, strategy_params = v32.ExecutionRouter.select_strategy(

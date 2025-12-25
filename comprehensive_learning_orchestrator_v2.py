@@ -447,11 +447,12 @@ def process_signal_log(state: Dict, process_all_historical: bool = False) -> int
                 
                 score = float(rec.get("score", rec.get("composite_score", cluster.get("score", 0.0))))
                 
-                # Learn from signal pattern (only if we have valid data)
+                # Learn from signal pattern (enhanced implementation)
                 if symbol and components:
                     try:
-                        from learning_enhancements_v1 import get_signal_learner
-                        signal_learner = get_signal_learner()
+                        # Try new signal pattern learner first
+                        from signal_pattern_learner import get_signal_pattern_learner
+                        signal_learner = get_signal_pattern_learner()
                         signal_learner.record_signal(
                             signal_id=rec_id,
                             symbol=symbol,
@@ -459,7 +460,18 @@ def process_signal_log(state: Dict, process_all_historical: bool = False) -> int
                             score=score
                         )
                     except ImportError:
-                        pass
+                        # Fallback to V1 enhancements if available
+                        try:
+                            from learning_enhancements_v1 import get_signal_learner
+                            signal_learner = get_signal_learner()
+                            signal_learner.record_signal(
+                                signal_id=rec_id,
+                                symbol=symbol,
+                                components=components,
+                                score=score
+                            )
+                        except ImportError:
+                            pass
                     except Exception as e:
                         # Don't fail on learning errors
                         pass
@@ -549,8 +561,32 @@ def process_order_log(state: Dict, process_all_historical: bool = False) -> int:
                 if rec_id in processed_ids:
                     continue
                 
-                # TODO: Implement execution quality learning
-                # For now, just mark as processed
+                # Implement execution quality learning
+                try:
+                    from execution_quality_learner import get_execution_learner
+                    learner = get_execution_learner()
+                    
+                    # Extract execution data
+                    strategy = rec.get("order_type", rec.get("strategy", "unknown"))
+                    regime = rec.get("regime", "unknown")
+                    slippage_pct = rec.get("slippage_pct", rec.get("slippage", 0.0))
+                    filled = rec.get("status") == "filled" or rec.get("filled", False)
+                    fill_time = rec.get("fill_time_sec", None)
+                    
+                    # Record for learning
+                    learner.record_order_execution(
+                        symbol=symbol,
+                        strategy=strategy,
+                        regime=regime,
+                        slippage_pct=float(slippage_pct),
+                        filled=filled,
+                        fill_time_sec=fill_time
+                    )
+                except ImportError:
+                    pass
+                except Exception:
+                    pass  # Don't fail on learning errors
+                
                 processed += 1
                 processed_ids.add(rec_id)
                 state["last_order_id"] = rec_id
@@ -637,10 +673,35 @@ def process_blocked_trades(state: Dict, process_all_historical: bool = False) ->
                 processed_ids.add(rec_id)
                 state["last_blocked_trade_id"] = rec_id
                 
-                # TODO: Counterfactual analysis - compute theoretical P&L
-                # For now, we track blocked trades but don't learn from them yet
-                # This requires price data to compute "what if" scenarios
-                # Future: Implement counterfactual analyzer to compute theoretical outcomes
+                # Counterfactual analysis - compute theoretical P&L
+                try:
+                    from counterfactual_analyzer import compute_counterfactual_pnl
+                    theoretical_pnl = compute_counterfactual_pnl(rec)
+                    
+                    if theoretical_pnl is not None:
+                        # Learn from counterfactual outcome
+                        # If theoretical P&L is positive, we may have been too conservative
+                        # If negative, blocking was correct
+                        optimizer = get_optimizer()
+                        if optimizer and comps:
+                            # Record as a "what if" trade for learning
+                            # Use negative reward to indicate this was blocked (not taken)
+                            # But still learn from the signal components
+                            regime = rec.get("regime", "unknown")
+                            sector = rec.get("sector", "unknown")
+                            
+                            # Feed to learning system with theoretical outcome
+                            if hasattr(optimizer, 'record_trade_for_learning'):
+                                optimizer.record_trade_for_learning(
+                                    components=comps,
+                                    reward=theoretical_pnl,  # Theoretical P&L as reward
+                                    regime=regime,
+                                    sector=sector
+                                )
+                except ImportError:
+                    pass
+                except Exception:
+                    pass  # Don't fail on counterfactual errors
                 
                 processed += 1
                 

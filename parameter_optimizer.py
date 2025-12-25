@@ -1,275 +1,170 @@
 #!/usr/bin/env python3
 """
 Universal Parameter Optimizer
-=============================
-Framework for optimizing any hardcoded parameter based on historical outcomes.
-
-Features:
-- Test multiple parameter values
-- Track outcomes with exponential decay weighting
-- Gradually adjust toward optimal (anti-overfitting)
-- Regime-specific and symbol-specific optimization
-- Multi-parameter optimization (test combinations)
+Learns optimal values for all hardcoded parameters through historical analysis.
 """
 
 import json
-import math
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Tuple
+from collections import defaultdict
 
-DATA_DIR = Path("data")
 STATE_DIR = Path("state")
-LOGS_DIR = Path("logs")
-
-PARAMETER_STATE_FILE = STATE_DIR / "parameter_optimization_state.json"
-ATTRIBUTION_FILE = LOGS_DIR / "attribution.jsonl"
-
-
-@dataclass
-class ParameterTest:
-    """Represents a parameter value being tested"""
-    param_name: str
-    test_value: float
-    test_count: int = 0
-    total_outcome: float = 0.0
-    weighted_outcome: float = 0.0
-    total_weight: float = 0.0
-    wins: int = 0
-    losses: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
+PARAMETER_OPTIMIZATION_STATE = STATE_DIR / "parameter_optimization.json"
 
 class ParameterOptimizer:
     """Universal framework for optimizing any hardcoded parameter."""
     
     def __init__(self):
-        self.parameter_tests: Dict[str, List[ParameterTest]] = {}
+        self.state_file = PARAMETER_OPTIMIZATION_STATE
         self.state = self._load_state()
     
-    def _load_state(self) -> Dict[str, Any]:
-        """Load optimization state."""
-        try:
-            if PARAMETER_STATE_FILE.exists():
-                return json.loads(PARAMETER_STATE_FILE.read_text())
-        except Exception:
-            pass
-        return {}
+    def _load_state(self) -> Dict:
+        """Load optimization state"""
+        if self.state_file.exists():
+            try:
+                with open(self.state_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except:
+                pass
+        return {
+            "parameters": {},  # param_name -> {current_value, optimal_value, test_values, outcomes}
+            "last_updated": None
+        }
     
     def _save_state(self):
-        """Save optimization state."""
-        try:
-            PARAMETER_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            PARAMETER_STATE_FILE.write_text(json.dumps(self.state, indent=2))
-        except Exception:
-            pass
+        """Save optimization state"""
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.state["last_updated"] = datetime.now(timezone.utc).isoformat()
+        with open(self.state_file, 'w', encoding='utf-8') as f:
+            json.dump(self.state, f, indent=2)
     
-    def _exponential_decay_weight(self, age_days: float, halflife_days: float = 30.0) -> float:
-        """Calculate exponential decay weight for time-weighted learning."""
-        return math.exp(-age_days * math.log(2) / halflife_days)
-    
-    def optimize_parameter(self,
-                          param_name: str,
-                          test_values: List[float],
-                          outcome_metric: str = "pnl",
-                          min_samples: int = 30,
-                          lookback_days: int = 60) -> Dict[str, Any]:
+    def register_parameter(self, param_name: str, current_value: float, 
+                          test_values: List[float], description: str = ""):
         """
-        Test different parameter values and learn optimal.
+        Register a parameter for optimization.
         
         Args:
             param_name: Name of parameter (e.g., "TRAILING_STOP_PCT")
-            test_values: List of values to test (e.g., [0.010, 0.015, 0.020, 0.025])
-            outcome_metric: What to optimize ("pnl", "win_rate", "sharpe")
-            min_samples: Minimum samples before making recommendations
-            lookback_days: How far back to look
-        
-        Returns:
-            {
-                "status": "success",
-                "best_value": float,
-                "test_results": {...},
-                "recommendation": float (gradual adjustment)
-            }
+            current_value: Current parameter value
+            test_values: List of values to test
+            description: Description of parameter
         """
-        if not ATTRIBUTION_FILE.exists():
-            return {"status": "skipped", "reason": "no_trades"}
+        if param_name not in self.state["parameters"]:
+            self.state["parameters"][param_name] = {
+                "current_value": current_value,
+                "optimal_value": current_value,
+                "test_values": test_values,
+                "outcomes": {},  # value -> {pnl_sum, win_rate, samples}
+                "description": description,
+                "last_optimized": None
+            }
+        else:
+            # Update current value if changed
+            self.state["parameters"][param_name]["current_value"] = current_value
+            if test_values:
+                self.state["parameters"][param_name]["test_values"] = test_values
         
-        # Initialize test tracking
-        if param_name not in self.parameter_tests:
-            self.parameter_tests[param_name] = [
-                ParameterTest(param_name=param_name, test_value=val)
-                for val in test_values
-            ]
+        self._save_state()
+    
+    def record_outcome(self, param_name: str, param_value: float, 
+                      pnl_pct: float, win: bool):
+        """
+        Record outcome for a parameter value.
         
-        tests = self.parameter_tests[param_name]
-        now = datetime.now(timezone.utc)
+        Args:
+            param_name: Parameter name
+            param_value: Value that was used
+            pnl_pct: P&L percentage
+            win: Whether trade was a win
+        """
+        if param_name not in self.state["parameters"]:
+            return
         
-        # Process historical trades
-        with ATTRIBUTION_FILE.open("r") as f:
-            lines = f.readlines()
+        param = self.state["parameters"][param_name]
+        value_key = str(round(param_value, 6))
         
-        for line in lines:
-            try:
-                trade = json.loads(line.strip())
-                if trade.get("type") != "attribution":
-                    continue
-                
-                ts_str = trade.get("ts", "")
-                if not ts_str:
-                    continue
-                
-                trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                if trade_time.tzinfo is None:
-                    trade_time = trade_time.replace(tzinfo=timezone.utc)
-                else:
-                    trade_time = trade_time.astimezone(timezone.utc)
-                
-                trade_age_days = (now - trade_time).total_seconds() / 86400.0
-                if trade_age_days > lookback_days:
-                    continue
-                
-                decay_weight = self._exponential_decay_weight(trade_age_days)
-                
-                # Get outcome
-                if outcome_metric == "pnl":
-                    outcome = float(trade.get("pnl_usd", 0.0))
-                elif outcome_metric == "pnl_pct":
-                    outcome = float(trade.get("context", {}).get("pnl_pct", 0.0))
-                else:
-                    outcome = 0.0
-                
-                # Simulate: "What if we used test_value for this trade?"
-                # This requires parameter-specific simulation logic
-                # For now, we'll use a simplified approach
-                for test in tests:
-                    # Simulate outcome with this parameter value
-                    # (Implementation depends on parameter type)
-                    simulated_outcome = self._simulate_parameter_effect(
-                        param_name, test.test_value, trade, outcome
-                    )
-                    
-                    test.test_count += 1
-                    test.total_outcome += simulated_outcome
-                    test.weighted_outcome += simulated_outcome * decay_weight
-                    test.total_weight += decay_weight
-                    
-                    if simulated_outcome > 0:
-                        test.wins += 1
-                    else:
-                        test.losses += 1
-                
-            except Exception as e:
-                continue
+        if value_key not in param["outcomes"]:
+            param["outcomes"][value_key] = {
+                "pnl_sum": 0.0,
+                "wins": 0,
+                "losses": 0,
+                "samples": 0
+            }
         
-        # Find best value
-        best_test = None
-        best_weighted_avg = float('-inf')
+        outcome = param["outcomes"][value_key]
+        outcome["pnl_sum"] += pnl_pct
+        outcome["samples"] += 1
+        if win:
+            outcome["wins"] += 1
+        else:
+            outcome["losses"] += 1
         
-        for test in tests:
-            if test.test_count < min_samples:
+        # Update optimal value if we have enough samples
+        if outcome["samples"] >= 10:
+            self._update_optimal_value(param_name)
+        
+        self._save_state()
+    
+    def _update_optimal_value(self, param_name: str):
+        """Update optimal value for a parameter based on outcomes"""
+        param = self.state["parameters"][param_name]
+        
+        best_value = param["current_value"]
+        best_score = float('-inf')
+        
+        for value_str, outcome in param["outcomes"].items():
+            if outcome["samples"] < 10:  # Need minimum samples
                 continue
             
-            if test.total_weight > 0:
-                weighted_avg = test.weighted_outcome / test.total_weight
-            else:
-                weighted_avg = test.total_outcome / test.test_count
+            win_rate = outcome["wins"] / outcome["samples"] if outcome["samples"] > 0 else 0
+            avg_pnl = outcome["pnl_sum"] / outcome["samples"] if outcome["samples"] > 0 else 0
             
-            if weighted_avg > best_weighted_avg:
-                best_weighted_avg = weighted_avg
-                best_test = test
+            # Score = win_rate * 0.6 + (avg_pnl > 0) * 0.4
+            score = win_rate * 0.6 + (1 if avg_pnl > 0 else 0) * 0.4
+            
+            if score > best_score:
+                best_score = score
+                try:
+                    best_value = float(value_str)
+                except:
+                    pass
         
-        if not best_test:
-            return {"status": "insufficient_data", "min_samples": min_samples}
-        
-        # Calculate gradual recommendation (10% toward optimal)
-        current_value = self._get_current_parameter_value(param_name)
-        if current_value is None:
-            current_value = test_values[len(test_values) // 2]  # Use middle value as default
-        
-        recommendation = current_value + (best_test.test_value - current_value) * 0.1
-        
-        return {
-            "status": "success",
-            "best_value": best_test.test_value,
-            "best_weighted_avg": round(best_weighted_avg, 2),
-            "current_value": current_value,
-            "recommendation": round(recommendation, 4),
-            "test_results": {
-                str(test.test_value): {
-                    "count": test.test_count,
-                    "weighted_avg": round(test.weighted_outcome / test.total_weight, 2) if test.total_weight > 0 else 0,
-                    "win_rate": round(test.wins / test.test_count * 100, 1) if test.test_count > 0 else 0
-                }
-                for test in tests
-            }
-        }
+        if best_value != param["optimal_value"]:
+            param["optimal_value"] = best_value
+            param["last_optimized"] = datetime.now(timezone.utc).isoformat()
     
-    def _simulate_parameter_effect(self, param_name: str, test_value: float, 
-                                   trade: Dict, actual_outcome: float) -> float:
-        """
-        Simulate how a different parameter value would have affected this trade.
-        
-        This is parameter-specific and requires custom logic per parameter type.
-        For now, returns actual outcome (placeholder).
-        """
-        # TODO: Implement parameter-specific simulation
-        # Examples:
-        # - TRAILING_STOP_PCT: Would different stop have triggered earlier/later?
-        # - TIME_EXIT_MINUTES: Would different time exit have been better?
-        # - PROFIT_TARGETS: Would different targets have captured more profit?
-        
-        return actual_outcome
-    
-    def _get_current_parameter_value(self, param_name: str) -> Optional[float]:
-        """Get current value of parameter from config."""
-        try:
-            from config.registry import Thresholds
-            return getattr(Thresholds, param_name, None)
-        except Exception:
+    def get_optimal_value(self, param_name: str) -> Optional[float]:
+        """Get optimal value for a parameter"""
+        if param_name not in self.state["parameters"]:
             return None
+        
+        param = self.state["parameters"][param_name]
+        optimal = param.get("optimal_value")
+        
+        # Only return if we have enough data
+        total_samples = sum(outcome["samples"] for outcome in param["outcomes"].values())
+        if total_samples < 30:  # Need minimum samples across all values
+            return None
+        
+        return optimal
     
-    def optimize_all_parameters(self) -> Dict[str, Any]:
-        """Optimize all hardcoded parameters."""
-        results = {}
-        
-        # Exit parameters
-        results["TRAILING_STOP_PCT"] = self.optimize_parameter(
-            "TRAILING_STOP_PCT", [0.010, 0.015, 0.020, 0.025]
-        )
-        results["TIME_EXIT_MINUTES"] = self.optimize_parameter(
-            "TIME_EXIT_MINUTES", [180, 240, 300, 360]
-        )
-        results["TIME_EXIT_DAYS_STALE"] = self.optimize_parameter(
-            "TIME_EXIT_DAYS_STALE", [10, 12, 14, 16]
-        )
-        
-        # Entry parameters
-        results["MIN_EXEC_SCORE"] = self.optimize_parameter(
-            "MIN_EXEC_SCORE", [1.5, 2.0, 2.5, 3.0]
-        )
-        results["MIN_PREMIUM_USD"] = self.optimize_parameter(
-            "MIN_PREMIUM_USD", [50000, 100000, 200000, 500000]
-        )
-        
-        # Position management
-        results["MAX_CONCURRENT_POSITIONS"] = self.optimize_parameter(
-            "MAX_CONCURRENT_POSITIONS", [12, 16, 20, 24]
-        )
-        results["POSITION_SIZE_USD"] = self.optimize_parameter(
-            "POSITION_SIZE_USD", [300, 500, 750, 1000]
-        )
-        
-        return results
+    def get_all_optimizations(self) -> Dict[str, float]:
+        """Get all parameter optimizations"""
+        optimizations = {}
+        for param_name, param in self.state["parameters"].items():
+            optimal = self.get_optimal_value(param_name)
+            if optimal is not None:
+                optimizations[param_name] = optimal
+        return optimizations
 
+# Global instance
+_optimizer_instance = None
 
 def get_parameter_optimizer() -> ParameterOptimizer:
-    """Get or create parameter optimizer instance."""
-    global _parameter_optimizer
-    if _parameter_optimizer is None:
-        _parameter_optimizer = ParameterOptimizer()
-    return _parameter_optimizer
-
-
-_parameter_optimizer: Optional[ParameterOptimizer] = None
+    """Get global parameter optimizer instance"""
+    global _optimizer_instance
+    if _optimizer_instance is None:
+        _optimizer_instance = ParameterOptimizer()
+    return _optimizer_instance
