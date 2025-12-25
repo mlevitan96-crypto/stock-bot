@@ -6,13 +6,57 @@
 
 ---
 
-## 🚀 CRITICAL: Automated Cursor-Droplet Workflow
+## 🚀 CRITICAL: Automated Cursor-Droplet Workflow (SOP)
 
 **ESTABLISHED:** 2025-12-24  
 **WORKFLOW:** User → Cursor → Git → Droplet → Git → Cursor → User
 
 ### Core Principle
-**Cursor (AI Assistant) is the automated interface between User and Droplet. NO copy/paste middleman.**
+**Cursor (AI Assistant) is the automated interface between User and Droplet. NO copy/paste middleman. NO manual intervention required.**
+
+### Standard Operating Procedure (SOP)
+
+**ALWAYS follow this complete workflow for ANY task:**
+
+1. **PUSH TO GIT** (Cursor responsibility)
+   - Make code changes, fixes, or create scripts
+   - Commit changes: `git add . && git commit -m "description"`
+   - Push to GitHub: `git push origin main`
+   - Verify push succeeded
+
+2. **WAIT FOR DROPLET TO PULL** (Automatic)
+   - Droplet pulls automatically via:
+     - Hourly status script (`report_status_to_git_complete.sh` runs `git pull`)
+     - Post-merge hook (runs `run_investigation_on_pull.sh` after pull)
+     - Manual pull (if user triggers)
+   - Post-merge hook automatically:
+     - Runs investigation scripts
+     - Runs UW endpoint tests
+     - Commits and pushes results back to Git
+
+3. **PULL RESULTS FROM GIT** (Cursor responsibility)
+   - Wait appropriate time (30-90 seconds for automatic pulls)
+   - Pull from Git: `git pull origin main`
+   - Check for new files:
+     - `investigate_no_trades.json` - Investigation results
+     - `uw_endpoint_test_results.json` - UW API test results
+     - `status_report.json` - System status
+     - `.last_investigation_run` - Investigation timestamp
+
+4. **ANALYZE & UPDATE USER** (Cursor responsibility)
+   - Read and analyze results from pulled files
+   - Identify issues, bugs, or improvements needed
+   - Create fixes if needed (go back to step 1)
+   - Report findings to user with clear summary
+
+**CRITICAL RULES:**
+- ✅ ALWAYS push to Git first (never skip this step)
+- ✅ ALWAYS pull results from Git (never ask user to copy/paste)
+- ✅ ALWAYS wait for droplet to process (don't assume immediate results)
+- ✅ ALWAYS analyze results and provide summary to user
+- ❌ NEVER ask user to manually copy/paste code or results
+- ❌ NEVER skip the Git workflow
+- ❌ NEVER assume droplet has latest code without pulling
 
 ### Workflow Responsibilities
 
