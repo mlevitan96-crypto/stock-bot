@@ -14,7 +14,9 @@
 ### Core Principle
 **Cursor (AI Assistant) is the automated interface between User and Droplet. NO copy/paste middleman. NO manual intervention required.**
 
-### Standard Operating Procedure (SOP)
+### Standard Operating Procedure (SOP) - IMMEDIATE EXECUTION
+
+**CRITICAL: ALL ACTIONS ARE IMMEDIATE - NO HOURLY WAITING**
 
 **ALWAYS follow this complete workflow for ANY task:**
 
@@ -24,18 +26,17 @@
    - Push to GitHub: `git push origin main`
    - Verify push succeeded
 
-2. **WAIT FOR DROPLET TO PULL** (Automatic)
-   - Droplet pulls automatically via:
-     - Hourly status script (`report_status_to_git_complete.sh` runs `git pull`)
-     - Post-merge hook (runs `run_investigation_on_pull.sh` after pull)
-     - Manual pull (if user triggers)
-   - Post-merge hook automatically:
-     - Runs investigation scripts
-     - Runs UW endpoint tests
-     - Commits and pushes results back to Git
+2. **TRIGGER IMMEDIATE DROPLET ACTION** (Cursor responsibility - IMMEDIATE)
+   - **IMMEDIATE EXECUTION**: Use `IMMEDIATE_DROPLET_WORKFLOW.py` or `trigger_immediate_droplet_action.py`
+   - These scripts SSH to droplet and trigger `git pull` immediately
+   - Post-merge hook runs automatically after pull:
+     - Runs investigation scripts immediately
+     - Runs UW endpoint tests immediately
+     - Commits and pushes results back to Git immediately
+   - **NO WAITING**: Everything happens within seconds, not hours
 
-3. **PULL RESULTS FROM GIT** (Cursor responsibility)
-   - Wait appropriate time (30-90 seconds for automatic pulls)
+3. **PULL RESULTS FROM GIT** (Cursor responsibility - IMMEDIATE)
+   - Wait 10-30 seconds for droplet to process
    - Pull from Git: `git pull origin main`
    - Check for new files:
      - `investigate_no_trades.json` - Investigation results
@@ -51,12 +52,18 @@
 
 **CRITICAL RULES:**
 - ✅ ALWAYS push to Git first (never skip this step)
+- ✅ ALWAYS trigger immediate droplet action via SSH (never wait for hourly cron)
 - ✅ ALWAYS pull results from Git (never ask user to copy/paste)
-- ✅ ALWAYS wait for droplet to process (don't assume immediate results)
 - ✅ ALWAYS analyze results and provide summary to user
+- ❌ NEVER wait for hourly processes - everything is immediate
 - ❌ NEVER ask user to manually copy/paste code or results
 - ❌ NEVER skip the Git workflow
-- ❌ NEVER assume droplet has latest code without pulling
+- ❌ NEVER assume droplet has latest code without triggering pull
+
+**IMMEDIATE EXECUTION TOOLS:**
+- `IMMEDIATE_DROPLET_WORKFLOW.py` - Complete workflow (push → trigger → pull → analyze)
+- `trigger_immediate_droplet_action.py` - Just trigger droplet via SSH
+- Both use `droplet_client.py` to SSH and execute commands immediately
 
 ### Workflow Responsibilities
 
@@ -67,10 +74,11 @@
 4. **Automate Everything**: No manual copy/paste - everything flows through Git
 
 #### **Droplet Responsibilities:**
-1. **Pull from Git**: Automatically pulls latest code via `git pull origin main`
-2. **Push Results to Git**: Investigation results (`investigate_no_trades.json`), status reports (`status_report.json`), logs
-3. **Run Automated Scripts**: Executes scripts pushed by Cursor (e.g., `COMPREHENSIVE_FIX_ALL_ISSUES.sh`)
-4. **Report Status**: Hourly status reports pushed to Git for Cursor to review
+1. **Pull from Git**: Pulls immediately when triggered via SSH (via `trigger_immediate_droplet_action.py`)
+2. **Execute Post-Merge Hook**: Automatically runs `run_investigation_on_pull.sh` after every pull
+3. **Push Results to Git**: Investigation results (`investigate_no_trades.json`), status reports (`status_report.json`), logs
+4. **Run Automated Scripts**: Executes scripts pushed by Cursor (e.g., `COMPREHENSIVE_FIX_ALL_ISSUES.sh`)
+5. **Report Status**: Status reports pushed to Git immediately after execution (not hourly)
 
 ### Key Files & Scripts
 
@@ -89,25 +97,31 @@
 
 ### Automated Workflow Examples
 
-**Example 1: Fix No Trades Issue**
+**Example 1: Fix No Trades Issue (IMMEDIATE)**
 1. User: "Investigate why there were no trades today"
 2. Cursor: Creates `.investigation_trigger` file, commits and pushes to Git
-3. Droplet: Hourly status script detects trigger, runs `investigate_no_trades.py`, commits results to Git
-4. Cursor: Pulls from Git, reads `investigate_no_trades.json`, analyzes results
-5. Cursor: Creates fixes, pushes to Git
-6. Droplet: Pulls fixes, applies them, restarts services
+3. Cursor: Runs `IMMEDIATE_DROPLET_WORKFLOW.py` which:
+   - Triggers immediate `git pull` on droplet via SSH
+   - Post-merge hook runs `investigate_no_trades.py` immediately
+   - Results committed and pushed to Git immediately
+4. Cursor: Pulls from Git (10-30 seconds later), reads `investigate_no_trades.json`, analyzes results
+5. Cursor: Creates fixes, pushes to Git, triggers immediate execution again
+6. Droplet: Pulls fixes immediately, applies them, restarts services
 
-**Example 2: Deploy Code Fixes**
+**Example 2: Deploy Code Fixes (IMMEDIATE)**
 1. User: "Fix the bootstrap expectancy gate"
 2. Cursor: Modifies `v3_2_features.py`, commits and pushes to Git
-3. Droplet: Pulls from Git (via cron or manual), applies fixes
-4. Cursor: Verifies fix by pulling status reports from Git
+3. Cursor: Runs `trigger_immediate_droplet_action.py` to trigger immediate pull
+4. Droplet: Pulls from Git immediately, post-merge hook applies fixes
+5. Cursor: Pulls results from Git and verifies fix
 
 ### Tools Available
 
-**`droplet_client.py`**: SSH client for direct droplet interaction (use sparingly, prefer Git workflow)
-- Use when: Need immediate status check, troubleshooting connection issues
-- Prefer Git when: Deploying changes, getting investigation results
+**`droplet_client.py`**: SSH client for direct droplet interaction
+- **PRIMARY USE**: Trigger immediate `git pull` on droplet (bypasses hourly cron)
+- Use `trigger_immediate_droplet_action.py` to trigger immediate execution
+- Use `IMMEDIATE_DROPLET_WORKFLOW.py` for complete workflow automation
+- All interactions are immediate - no waiting for hourly processes
 
 **Git Integration**: Primary communication channel
 - Cursor pushes via: `git add`, `git commit`, `git push origin main`
