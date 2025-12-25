@@ -448,6 +448,165 @@ DASHBOARD_HTML = """
             }
         }, 60000);  // Refresh every 60 seconds (reduced from 30s)
         
+        // Auto-refresh XAI Auditor if on xai tab
+        setInterval(() => {
+            const xaiTab = document.getElementById('xai-tab');
+            if (xaiTab && xaiTab.classList.contains('active')) {
+                loadXAIAuditor();
+            }
+        }, 60000);  // Refresh every 60 seconds
+        
+        function loadXAIAuditor() {
+            const xaiContent = document.getElementById('xai-content');
+            const scrollTop = xaiContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
+            
+            if (!xaiContent.dataset.loaded) {
+                xaiContent.innerHTML = '<div class="loading">Loading Natural Language Auditor...</div>';
+            }
+            
+            fetch('/api/xai/auditor')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    xaiContent.dataset.loaded = 'true';
+                    renderXAIAuditor(data, xaiContent);
+                    if (scrollTop > 0) {
+                        requestAnimationFrame(() => {
+                            xaiContent.scrollTop = scrollTop;
+                            window.scrollTo(0, scrollTop);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('XAI Auditor error:', error);
+                    xaiContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading Natural Language Auditor: ${error.message}</div>`;
+                });
+        }
+        
+        function renderXAIAuditor(data, container) {
+            let html = `
+                <div class="stat-card" style="margin-bottom: 20px; border: 3px solid #667eea;">
+                    <h2 style="color: #667eea; margin-bottom: 15px;">🧠 Natural Language Auditor</h2>
+                    <p style="color: #666; margin-bottom: 15px;">Explainable AI (XAI) logs showing natural language "Why" sentences for every trade and weight adjustment.</p>
+                    <button onclick="exportXAI()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+                        📥 Export All Logs
+                    </button>
+                </div>
+                
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">📊 Trade Explanations</h2>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Type</th>
+                                    <th>Why (Natural Language)</th>
+                                    <th>Regime</th>
+                                    <th>P&L %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            const trades = data.trades || [];
+            if (trades.length === 0) {
+                html += '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No trade explanations yet</td></tr>';
+            } else {
+                trades.forEach(trade => {
+                    const timeStr = trade.timestamp ? new Date(trade.timestamp).toLocaleString() : 'N/A';
+                    const pnl = trade.pnl_pct || (trade.type === 'trade_exit' ? trade.pnl_pct : null);
+                    const pnlClass = pnl !== null && pnl !== undefined && pnl >= 0 ? 'positive' : 'negative';
+                    html += `
+                        <tr>
+                            <td>${timeStr}</td>
+                            <td class="symbol">${trade.symbol}</td>
+                            <td>${trade.type || 'N/A'}</td>
+                            <td style="max-width: 400px; word-wrap: break-word;">${trade.why || 'N/A'}</td>
+                            <td>${trade.regime || 'N/A'}</td>
+                            <td class="${pnlClass}">${pnl !== null && pnl !== undefined ? (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%' : 'N/A'}</td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">⚙️ Weight Adjustment Explanations</h2>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Component</th>
+                                    <th>Old Weight</th>
+                                    <th>New Weight</th>
+                                    <th>Why (Natural Language)</th>
+                                    <th>Samples</th>
+                                    <th>Win Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            const weights = data.weights || [];
+            if (weights.length === 0) {
+                html += '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No weight adjustments yet</td></tr>';
+            } else {
+                weights.forEach(weight => {
+                    const timeStr = weight.timestamp ? new Date(weight.timestamp).toLocaleString() : 'N/A';
+                    html += `
+                        <tr>
+                            <td>${timeStr}</td>
+                            <td class="symbol">${weight.component}</td>
+                            <td>${weight.old_weight !== undefined ? weight.old_weight.toFixed(2) : 'N/A'}</td>
+                            <td>${weight.new_weight !== undefined ? weight.new_weight.toFixed(2) : 'N/A'}</td>
+                            <td style="max-width: 400px; word-wrap: break-word;">${weight.why || 'N/A'}</td>
+                            <td>${weight.sample_count || 0}</td>
+                            <td>${weight.win_rate !== undefined ? (weight.win_rate * 100).toFixed(1) + '%' : 'N/A'}</td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function exportXAI() {
+            fetch('/api/xai/export')
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `xai_logs_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    alert('Export failed: ' + error.message);
+                });
+        }
+        
         function loadExecutiveSummary() {
             const executiveContent = document.getElementById('executive-content');
             // Save scroll position before update
@@ -1351,6 +1510,60 @@ def api_sre_health():
             return jsonify({"error": f"Failed to load SRE health: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/xai/auditor", methods=["GET"])
+def api_xai_auditor():
+    """Get XAI explainable logs for Natural Language Auditor"""
+    try:
+        from xai.explainable_logger import get_explainable_logger
+        explainable = get_explainable_logger()
+        
+        trades = explainable.get_trade_explanations(limit=100)
+        weights = explainable.get_weight_explanations(limit=100)
+        
+        return jsonify({
+            "trades": trades,
+            "weights": weights
+        })
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "trades": [],
+            "weights": []
+        }), 500
+
+@app.route("/api/xai/export", methods=["GET"])
+def api_xai_export():
+    """Export all XAI logs as JSON"""
+    try:
+        from xai.explainable_logger import get_explainable_logger
+        from pathlib import Path
+        import json
+        
+        explainable = get_explainable_logger()
+        log_file = explainable.log_file
+        
+        if not log_file.exists():
+            return Response("No logs available", mimetype='text/plain'), 404
+        
+        # Read all logs
+        logs = []
+        with open(log_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        logs.append(json.loads(line))
+                    except:
+                        continue
+        
+        # Return as JSON download
+        return Response(
+            json.dumps(logs, indent=2),
+            mimetype='application/json',
+            headers={'Content-Disposition': f'attachment; filename=xai_logs_{datetime.now().strftime("%Y%m%d")}.json'}
+        )
+    except Exception as e:
+        return Response(f"Export failed: {str(e)}", mimetype='text/plain'), 500
 
 @app.route("/api/executive_summary", methods=["GET"])
 def api_executive_summary():
