@@ -9,7 +9,15 @@ echo "COMPLETE VERIFICATION (Triggered by Git Pull)"
 echo "=========================================="
 echo ""
 
-# Step 0: Run structural intelligence deployment if script exists
+# Step 0: Run final verification if script exists (comprehensive end-to-end check)
+if [ -f "FINAL_DROPLET_VERIFICATION.sh" ]; then
+    echo "Running final comprehensive verification..."
+    chmod +x FINAL_DROPLET_VERIFICATION.sh
+    bash FINAL_DROPLET_VERIFICATION.sh
+    echo ""
+fi
+
+# Step 0b: Run structural intelligence deployment if script exists
 if [ -f "FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh" ]; then
     echo "Running structural intelligence deployment verification..."
     chmod +x FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh
