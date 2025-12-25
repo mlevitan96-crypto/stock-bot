@@ -56,7 +56,7 @@ def main():
         
         # Pull from git first
         if pull_from_git():
-            print("  ✓ Pulled from git")
+            print("  [OK] Pulled from git")
         
         # Check for results
         results = check_for_results()
