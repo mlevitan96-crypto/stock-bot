@@ -100,9 +100,8 @@ def execute_droplet_deployment():
         print("    bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh")
         return False
     
-    # Step 3: Wait for results to be pushed
-    print("Step 3: Waiting for results to be pushed to Git (60 seconds)...")
-    time.sleep(60)
+    # Step 3: Results are pushed synchronously during deployment
+    print("Step 3: Deployment script pushes results synchronously...")
     print()
     
     # Step 4: Pull results from Git

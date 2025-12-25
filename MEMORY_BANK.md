@@ -28,19 +28,19 @@
    - **NEVER skip this step**
 
 2. **TRIGGER IMMEDIATE DROPLET ACTION VIA SSH** (Cursor responsibility - REQUIRED)
-   - **IMMEDIATE EXECUTION**: Use `COMPLETE_FULL_WORKFLOW.py` or `droplet_client.py` to SSH into droplet
-   - Execute: `cd ~/stock-bot && git pull origin main`
-   - Post-merge hook runs automatically after pull:
-     - Runs `complete_droplet_verification.py` immediately
-     - Runs investigation scripts immediately
-     - Runs backtests immediately
+   - **IMMEDIATE EXECUTION**: Use `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` or `droplet_client.py` to SSH into droplet
+   - Execute: `cd ~/stock-bot && git pull origin main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh`
+   - Deployment runs immediately and synchronously:
+     - Installs dependencies immediately
+     - Runs all tests immediately
+     - Runs complete verification immediately
      - Commits and pushes results back to Git immediately
-   - **NO WAITING FOR HOOKS**: Cursor actively triggers via SSH
-   - **NO HOURLY PROCESSES**: Everything is immediate
+   - **IMMEDIATE EXECUTION**: Cursor actively triggers via SSH and waits for completion
+   - **NO WAITING**: Everything executes immediately and synchronously
 
 3. **PULL RESULTS FROM GIT** (Cursor responsibility - REQUIRED)
-   - Wait 30-60 seconds for droplet to process and push results
-   - Pull from Git: `git pull origin main`
+   - Pull from Git immediately after SSH command completes: `git pull origin main`
+   - Results are pushed synchronously during SSH execution
    - Check for new files:
      - `droplet_verification_results.json` - Complete verification results
      - `investigate_no_trades.json` - Investigation results
@@ -70,7 +70,7 @@
 - ✅ ALWAYS pull results from Git (never ask user to copy/paste)
 - ✅ ALWAYS verify results before reporting to user
 - ✅ ALWAYS complete entire workflow before reporting
-- ❌ NEVER wait for hourly processes - everything is immediate
+- ❌ NEVER mention hourly, scheduled, or delayed processes - everything is immediate
 - ❌ NEVER ask user to manually copy/paste code or results
 - ❌ NEVER skip any step in the workflow
 - ❌ NEVER assume droplet has latest code without triggering pull
@@ -78,9 +78,9 @@
 - ❌ NEVER say "wait for hook" - always trigger immediately via SSH
 
 **IMMEDIATE EXECUTION TOOLS:**
-- `IMMEDIATE_DROPLET_WORKFLOW.py` - Complete workflow (push → trigger → pull → analyze)
-- `trigger_immediate_droplet_action.py` - Just trigger droplet via SSH
-- Both use `droplet_client.py` to SSH and execute commands immediately
+- `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` - Complete workflow (push → SSH execute → pull → verify)
+- `droplet_client.py` - SSH client for immediate execution
+- All tools execute immediately and synchronously - no waiting, no delays
 
 ### Workflow Responsibilities
 
