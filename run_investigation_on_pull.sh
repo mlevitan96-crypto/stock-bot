@@ -1,8 +1,31 @@
 #!/bin/bash
 # This script runs automatically when pulled from git
-# It triggers an investigation immediately
+# It triggers an investigation immediately AND runs complete verification
 
 cd ~/stock-bot
+
+echo "=========================================="
+echo "COMPLETE VERIFICATION (Triggered by Git Pull)"
+echo "=========================================="
+echo ""
+
+# Step 1: Run complete verification
+echo "Step 1: Running complete verification..."
+if [ -f "complete_droplet_verification.py" ]; then
+    python3 complete_droplet_verification.py 2>&1
+    VERIFY_EXIT=$?
+    if [ $VERIFY_EXIT -eq 0 ]; then
+        echo "✓ Complete verification passed"
+    else
+        echo "⚠ Complete verification had issues (check droplet_verification_results.json)"
+    fi
+else
+    echo "⚠ complete_droplet_verification.py not found - running fallback verification"
+    if [ -f "deploy_and_verify_on_droplet.sh" ]; then
+        bash deploy_and_verify_on_droplet.sh 2>&1
+    fi
+fi
+echo ""
 
 echo "=========================================="
 echo "RUNNING INVESTIGATION (Triggered by Git Pull)"
