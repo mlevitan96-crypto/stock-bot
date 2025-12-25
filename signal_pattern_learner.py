@@ -60,6 +60,10 @@ class SignalPatternLearner:
             components: Signal components dict
             score: Composite score
         """
+        # Ensure state is initialized
+        if "signal_combinations" not in self.state:
+            self.state["signal_combinations"] = {}
+        
         # Hash combination
         combo_hash = self._hash_combination(components)
         
@@ -79,6 +83,10 @@ class SignalPatternLearner:
         # Update running average score
         n = combo["samples"]
         combo["avg_score"] = (combo["avg_score"] * (n - 1) + score) / n
+        
+        # Ensure component_patterns is initialized
+        if "component_patterns" not in self.state:
+            self.state["component_patterns"] = {}
         
         # Update component patterns
         for comp_name, comp_value in components.items():
@@ -131,6 +139,10 @@ class SignalPatternLearner:
         Returns:
             List of combination dicts sorted by performance
         """
+        # Ensure state is initialized
+        if "signal_combinations" not in self.state:
+            self.state["signal_combinations"] = {}
+        
         combinations = []
         for combo_hash, combo_data in self.state["signal_combinations"].items():
             if combo_data["samples"] < 5:  # Need minimum samples
