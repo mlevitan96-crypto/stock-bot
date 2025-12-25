@@ -9,11 +9,11 @@ echo "COMPLETE VERIFICATION (Triggered by Git Pull)"
 echo "=========================================="
 echo ""
 
-# Step 0: Run structural intelligence verification if script exists
-if [ -f "verify_structural_intelligence_complete.sh" ]; then
-    echo "Running structural intelligence complete verification..."
-    chmod +x verify_structural_intelligence_complete.sh
-    bash verify_structural_intelligence_complete.sh
+# Step 0: Run structural intelligence deployment if script exists
+if [ -f "FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh" ]; then
+    echo "Running structural intelligence deployment verification..."
+    chmod +x FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh
+    bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh
     echo ""
 fi
 
