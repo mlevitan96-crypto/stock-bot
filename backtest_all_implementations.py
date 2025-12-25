@@ -34,7 +34,8 @@ def test_result(name: str, passed: bool, message: str = ""):
         "status": status,
         "message": message
     })
-    print(f"{'✓' if passed else '✗'} {name}: {message}")
+    status_char = "[PASS]" if passed else "[FAIL]"
+    print(f"{status_char} {name}: {message}")
 
 def test_tca_data_manager():
     """Test TCA data manager implementation"""
@@ -362,10 +363,10 @@ def main():
     
     # Exit with appropriate code
     if results["tests_failed"] == 0:
-        print("\n✓ ALL TESTS PASSED")
+        print("\n[SUCCESS] ALL TESTS PASSED")
         return 0
     else:
-        print(f"\n✗ {results['tests_failed']} TEST(S) FAILED")
+        print(f"\n[FAILURE] {results['tests_failed']} TEST(S) FAILED")
         return 1
 
 if __name__ == "__main__":
