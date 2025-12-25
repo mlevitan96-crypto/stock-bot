@@ -31,7 +31,7 @@
     {
       "test": "TCA: get_recent_failures",
       "status": "PASS",
-      "message": "Returns 5"
+      "message": "Returns 10"
     },
     {
       "test": "Execution Learner: Import",
@@ -46,7 +46,7 @@
     {
       "test": "Execution Learner: get_recommended_strategy",
       "status": "PASS",
-      "message": "Returns: None"
+      "message": "Returns: limit_offset"
     },
     {
       "test": "Signal Learner: Import",
@@ -61,7 +61,7 @@
     {
       "test": "Signal Learner: get_best_combinations",
       "status": "PASS",
-      "message": "Returns 0 combinations"
+      "message": "Returns 1 combinations"
     },
     {
       "test": "Counterfactual: get_price_at_time",
