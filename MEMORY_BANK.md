@@ -27,20 +27,25 @@
    - Verify push succeeded
    - **NEVER skip this step**
 
-2. **TRIGGER IMMEDIATE DROPLET ACTION** (Cursor responsibility - REQUIRED)
-   - **PREFERRED: SSH via droplet_client.py** (if configured):
-     - Use `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` or `droplet_client.py` to SSH into droplet
-     - Execute: `cd ~/stock-bot && git fetch origin main && git reset --hard origin/main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh`
+2. **TRIGGER IMMEDIATE DROPLET ACTION** (Cursor responsibility - REQUIRED - ALWAYS DONE BY CURSOR)
+   - **CURSOR ALWAYS HANDLES THIS**: Cursor is responsible for triggering droplet deployment
+   - **PRIMARY METHOD: SSH via droplet_client.py**:
+     - Cursor uses `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` or `droplet_client.py` to SSH into droplet
+     - Cursor executes: `cd ~/stock-bot && git fetch origin main && git reset --hard origin/main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh`
      - Deployment runs immediately and synchronously
-   - **FALLBACK: User Console Trigger** (if SSH not configured):
-     - User runs in DigitalOcean console: `cd ~/stock-bot && git fetch origin main && git reset --hard origin/main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh`
+     - Cursor waits for completion and pulls results
+   - **FALLBACK ONLY: User Console** (only if SSH not configured - Cursor still handles git push):
+     - If SSH unavailable, Cursor still pushes to Git (Step 1)
+     - User may need to trigger droplet manually via console (rare case)
      - Post-merge hook automatically runs deployment verification
+   - **CURSOR ALWAYS**: Pushes to Git AND triggers droplet (via SSH or instructs user only if SSH unavailable)
    - Deployment executes immediately:
      - Installs dependencies immediately
      - Runs all tests immediately
      - Runs complete verification immediately
      - Commits and pushes results back to Git immediately
    - **IMMEDIATE EXECUTION**: No waiting, everything executes synchronously
+   - **NO USER COPY/PASTE**: Cursor handles entire workflow - user never needs to copy/paste commands
 
 3. **PULL RESULTS FROM GIT** (Cursor responsibility - REQUIRED)
    - Pull from Git immediately after SSH command completes: `git pull origin main`
@@ -69,17 +74,19 @@
    - **NEVER report partial completion**
 
 **MANDATORY RULES:**
-- ✅ ALWAYS push to Git first (never skip this step)
-- ✅ ALWAYS trigger immediate droplet action via SSH (never wait for hooks or hourly processes)
-- ✅ ALWAYS pull results from Git (never ask user to copy/paste)
-- ✅ ALWAYS verify results before reporting to user
-- ✅ ALWAYS complete entire workflow before reporting
+- ✅ ALWAYS push to Git first (Cursor responsibility - never skip this step)
+- ✅ ALWAYS trigger immediate droplet action (Cursor responsibility - via SSH or instruct user only if SSH unavailable)
+- ✅ ALWAYS pull results from Git (Cursor responsibility - never ask user to copy/paste)
+- ✅ ALWAYS verify results before reporting to user (Cursor responsibility)
+- ✅ ALWAYS complete entire workflow before reporting (Cursor responsibility)
+- ✅ CURSOR HANDLES ENTIRE WORKFLOW: Git push AND droplet trigger - user never needs to copy/paste
 - ❌ NEVER mention hourly, scheduled, or delayed processes - everything is immediate
-- ❌ NEVER ask user to manually copy/paste code or results
-- ❌ NEVER skip any step in the workflow
-- ❌ NEVER assume droplet has latest code without triggering pull
-- ❌ NEVER report back with partial completion
-- ❌ NEVER say "wait for hook" - always trigger immediately via SSH
+- ❌ NEVER ask user to manually copy/paste code or results - Cursor handles everything
+- ❌ NEVER skip any step in the workflow - Cursor completes full cycle
+- ❌ NEVER assume droplet has latest code without triggering pull - Cursor always triggers
+- ❌ NEVER report back with partial completion - Cursor only reports when everything is done
+- ❌ NEVER say "wait for hook" - Cursor always triggers immediately via SSH
+- ❌ NEVER expect user to handle git push or droplet trigger - Cursor ALWAYS does both
 
 **IMMEDIATE EXECUTION TOOLS:**
 - `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` - Complete workflow (push → SSH execute → pull → verify)
@@ -88,11 +95,13 @@
 
 ### Workflow Responsibilities
 
-#### **Cursor (AI) Responsibilities:**
-1. **Push Changes to Git**: All code fixes, improvements, and scripts are committed and pushed to GitHub
-2. **Pull Data from Git**: Investigation results, status reports, and diagnostics are pulled from Git (pushed by droplet)
-3. **Review & Analyze**: Analyze data from droplet, identify issues, create fixes
-4. **Automate Everything**: No manual copy/paste - everything flows through Git
+#### **Cursor (AI) Responsibilities (COMPLETE WORKFLOW - NO EXCEPTIONS):**
+1. **Push Changes to Git**: All code fixes, improvements, and scripts are committed and pushed to GitHub (ALWAYS)
+2. **Trigger Droplet Deployment**: Cursor ALWAYS triggers droplet action via SSH (or instructs user only if SSH unavailable) (ALWAYS)
+3. **Pull Data from Git**: Investigation results, status reports, and diagnostics are pulled from Git (pushed by droplet) (ALWAYS)
+4. **Review & Analyze**: Analyze data from droplet, identify issues, create fixes (ALWAYS)
+5. **Automate Everything**: No manual copy/paste - Cursor handles entire workflow from Git push to droplet trigger to results verification (ALWAYS)
+6. **Complete Full Cycle**: Cursor completes User → Cursor → Git → Droplet → Git → Cursor → User cycle before reporting (ALWAYS)
 
 #### **Droplet Responsibilities:**
 1. **Execute Deployment**: Runs deployment script immediately when triggered via SSH

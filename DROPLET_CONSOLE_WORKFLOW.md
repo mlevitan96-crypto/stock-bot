@@ -2,15 +2,38 @@
 
 ## Overview
 
-If you use DigitalOcean's **web console** (browser-based terminal) instead of SSH, here's the complete workflow:
+**IMPORTANT: Cursor handles the complete workflow automatically. This guide is for reference only if SSH is unavailable.**
 
-## Complete Workflow: User → Cursor → Git → Droplet Console → Git → Cursor → User
+**Standard Workflow: User → Cursor → Git → Droplet (SSH) → Git → Cursor → User**
 
-### Step 1: Cursor Pushes to Git ✅
+Cursor ALWAYS:
+1. Pushes to Git
+2. Triggers droplet via SSH (or instructs user only if SSH unavailable)
+3. Pulls results from Git
+4. Verifies everything
+5. Reports completion
+
+## Complete Workflow: User → Cursor → Git → Droplet → Git → Cursor → User
+
+### Step 1: Cursor Pushes to Git ✅ (ALWAYS DONE BY CURSOR)
 - Cursor commits and pushes all changes to GitHub
-- **Status**: Already done for XAI implementation
+- Cursor verifies push succeeded
+- **User never needs to do this - Cursor handles it**
 
-### Step 2: You Run Commands in Droplet Console
+### Step 2: Cursor Triggers Droplet (ALWAYS DONE BY CURSOR)
+
+**PRIMARY: Cursor uses SSH** (automatic):
+- Cursor uses `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` or `droplet_client.py`
+- Cursor executes deployment via SSH automatically
+- User never needs to do anything
+
+**FALLBACK ONLY: If SSH unavailable** (rare case):
+- Cursor still pushes to Git (Step 1)
+- User may need to trigger droplet manually via console (only if SSH not configured)
+
+**NOTE: This is FALLBACK ONLY - Cursor normally handles this via SSH automatically**
+
+If SSH is unavailable and Cursor instructs you to use console:
 
 **Open DigitalOcean Console:**
 1. Go to DigitalOcean dashboard
@@ -18,10 +41,10 @@ If you use DigitalOcean's **web console** (browser-based terminal) instead of SS
 3. Click "Console" or "Access" → "Launch Droplet Console"
 4. A browser-based terminal will open
 
-**Run This Command (Copy/Paste):**
+**Run This Command (Only if Cursor instructs you - normally Cursor does this via SSH):**
 
 ```bash
-cd ~/stock-bot && git pull origin main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh
+cd ~/stock-bot && git fetch origin main && git reset --hard origin/main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh
 ```
 
 **What This Does:**
@@ -40,9 +63,9 @@ cd ~/stock-bot && git pull origin main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERI
 - Final summary showing which tests passed/failed
 - Results automatically pushed to Git
 
-### Step 3: Cursor Pulls Results from Git
+### Step 3: Cursor Pulls Results from Git (ALWAYS DONE BY CURSOR)
 
-After you run the command in the console, Cursor will:
+After droplet deployment completes (via SSH or console), Cursor automatically:
 - Pull results from Git: `git pull origin main`
 - Check for result files:
   - `droplet_verification_results.json`
