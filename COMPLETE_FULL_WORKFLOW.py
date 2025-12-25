@@ -195,7 +195,7 @@ def main():
     print()
     print("=" * 80)
     print("COMPLETE FULL WORKFLOW")
-    print("User → Cursor → Git → Droplet → Git → Cursor → User")
+    print("User -> Cursor -> Git -> Droplet -> Git -> Cursor -> User")
     print("=" * 80)
     print()
     
