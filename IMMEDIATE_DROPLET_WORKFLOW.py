@@ -50,10 +50,10 @@ def push_to_git():
     )
     
     if result.returncode == 0:
-        print("✓ Successfully pushed to Git")
+        print("[OK] Successfully pushed to Git")
         return True
     else:
-        print(f"✗ Push failed: {result.stderr}")
+        print(f"[FAIL] Push failed: {result.stderr}")
         return False
 
 def trigger_droplet():
@@ -74,16 +74,14 @@ def trigger_droplet():
         )
         print(result.stdout)
         if result.returncode == 0:
-            print("✓ Droplet triggered successfully")
+            print("[OK] Droplet triggered successfully")
             return True
         else:
-            print(f"⚠ SSH trigger failed (will rely on post-merge hook)")
-            print("  Droplet will pull automatically on next interaction")
+            print(f"[WARNING] SSH trigger failed - trying direct SSH connection")
             return False
     else:
-        print("⚠ SSH trigger script not available")
-        print("  Droplet will pull automatically via post-merge hook")
-        return True  # Not a failure - post-merge hook will handle it
+        print("[WARNING] SSH trigger script not available - trying direct SSH connection")
+        return False
 
 def pull_results():
     """Pull results from Git."""
@@ -105,14 +103,14 @@ def pull_results():
     )
     
     if result.returncode == 0:
-        print("✓ Successfully pulled from Git")
+        print("[OK] Successfully pulled from Git")
         if "Updating" in result.stdout or "Fast-forward" in result.stdout:
             print("  New results received!")
         else:
             print("  No new results yet (may need to wait longer)")
         return True
     else:
-        print(f"⚠ Pull had issues: {result.stderr}")
+        print(f"[WARNING] Pull had issues: {result.stderr}")
         return False
 
 def analyze_results():
@@ -127,7 +125,7 @@ def analyze_results():
     # Check for investigation results
     invest_file = Path("investigate_no_trades.json")
     if invest_file.exists():
-        print("✓ Investigation results found")
+        print("[OK] Investigation results found")
         try:
             import json
             with open(invest_file) as f:
@@ -145,7 +143,7 @@ def analyze_results():
     # Check for UW test results
     uw_file = Path("uw_endpoint_test_results.json")
     if uw_file.exists():
-        print("✓ UW endpoint test results found")
+        print("[OK] UW endpoint test results found")
         try:
             import json
             with open(uw_file) as f:
@@ -160,7 +158,7 @@ def analyze_results():
     # Check for status report
     status_file = Path("status_report.json")
     if status_file.exists():
-        print("✓ Status report found")
+        print("[OK] Status report found")
         try:
             import json
             with open(status_file) as f:
@@ -202,9 +200,9 @@ def main():
     print("=" * 60)
     print()
     print("Summary:")
-    print(f"  - Investigation results: {'✓' if 'investigation' in results else '✗'}")
-    print(f"  - UW test results: {'✓' if 'uw_test' in results else '✗'}")
-    print(f"  - Status report: {'✓' if 'status' in results else '✗'}")
+    print(f"  - Investigation results: {'[OK]' if 'investigation' in results else '[MISSING]'}")
+    print(f"  - UW test results: {'[OK]' if 'uw_test' in results else '[MISSING]'}")
+    print(f"  - Status report: {'[OK]' if 'status' in results else '[MISSING]'}")
     print()
     
     return True

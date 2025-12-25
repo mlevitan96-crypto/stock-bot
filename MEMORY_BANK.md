@@ -6,59 +6,76 @@
 
 ---
 
-## 🚀 CRITICAL: Automated Cursor-Droplet Workflow (SOP)
+## 🚀 CRITICAL: Complete Full Workflow (MANDATORY SOP)
 
-**ESTABLISHED:** 2025-12-24  
-**WORKFLOW:** User → Cursor → Git → Droplet → Git → Cursor → User
+**ESTABLISHED:** 2025-12-25  
+**WORKFLOW:** User → Cursor → Git → Droplet (SSH) → Git → Cursor → User
 
 ### Core Principle
-**Cursor (AI Assistant) is the automated interface between User and Droplet. NO copy/paste middleman. NO manual intervention required.**
+**NO TASK IS COMPLETE UNTIL THE ENTIRE WORKFLOW IS FINISHED. Cursor must execute the complete cycle and only report back when EVERYTHING is done.**
 
-### Standard Operating Procedure (SOP) - IMMEDIATE EXECUTION
+### Standard Operating Procedure (SOP) - MANDATORY COMPLETE WORKFLOW
 
-**CRITICAL: ALL ACTIONS ARE IMMEDIATE - NO HOURLY WAITING**
+**CRITICAL: THE ONLY ACCEPTABLE WORKFLOW - NO EXCEPTIONS**
 
-**ALWAYS follow this complete workflow for ANY task:**
+**EVERY task MUST follow this complete workflow:**
 
-1. **PUSH TO GIT** (Cursor responsibility)
+1. **PUSH TO GIT** (Cursor responsibility - REQUIRED)
    - Make code changes, fixes, or create scripts
    - Commit changes: `git add . && git commit -m "description"`
    - Push to GitHub: `git push origin main`
    - Verify push succeeded
+   - **NEVER skip this step**
 
-2. **TRIGGER IMMEDIATE DROPLET ACTION** (Cursor responsibility - IMMEDIATE)
-   - **IMMEDIATE EXECUTION**: Use `IMMEDIATE_DROPLET_WORKFLOW.py` or `trigger_immediate_droplet_action.py`
-   - These scripts SSH to droplet and trigger `git pull` immediately
+2. **TRIGGER IMMEDIATE DROPLET ACTION VIA SSH** (Cursor responsibility - REQUIRED)
+   - **IMMEDIATE EXECUTION**: Use `COMPLETE_FULL_WORKFLOW.py` or `droplet_client.py` to SSH into droplet
+   - Execute: `cd ~/stock-bot && git pull origin main`
    - Post-merge hook runs automatically after pull:
+     - Runs `complete_droplet_verification.py` immediately
      - Runs investigation scripts immediately
-     - Runs UW endpoint tests immediately
+     - Runs backtests immediately
      - Commits and pushes results back to Git immediately
-   - **NO WAITING**: Everything happens within seconds, not hours
+   - **NO WAITING FOR HOOKS**: Cursor actively triggers via SSH
+   - **NO HOURLY PROCESSES**: Everything is immediate
 
-3. **PULL RESULTS FROM GIT** (Cursor responsibility - IMMEDIATE)
-   - Wait 10-30 seconds for droplet to process
+3. **PULL RESULTS FROM GIT** (Cursor responsibility - REQUIRED)
+   - Wait 30-60 seconds for droplet to process and push results
    - Pull from Git: `git pull origin main`
    - Check for new files:
+     - `droplet_verification_results.json` - Complete verification results
      - `investigate_no_trades.json` - Investigation results
+     - `backtest_results.json` - Backtest results
      - `uw_endpoint_test_results.json` - UW API test results
      - `status_report.json` - System status
-     - `.last_investigation_run` - Investigation timestamp
 
-4. **ANALYZE & UPDATE USER** (Cursor responsibility)
-   - Read and analyze results from pulled files
-   - Identify issues, bugs, or improvements needed
+4. **VERIFY & ANALYZE RESULTS** (Cursor responsibility - REQUIRED)
+   - Read and verify all results from pulled files
+   - Check `droplet_verification_results.json` for `overall_status: "PASS"`
+   - Verify backtest results show all tests passing
+   - Identify any issues or errors
    - Create fixes if needed (go back to step 1)
-   - Report findings to user with clear summary
 
-**CRITICAL RULES:**
+5. **REPORT COMPLETION TO USER** (Cursor responsibility - REQUIRED)
+   - **ONLY report back when ENTIRE workflow is complete**
+   - Provide clear summary of:
+     - What was done
+     - Verification status
+     - Any issues found
+     - Confirmation that everything works
+   - **NEVER report partial completion**
+
+**MANDATORY RULES:**
 - ✅ ALWAYS push to Git first (never skip this step)
-- ✅ ALWAYS trigger immediate droplet action via SSH (never wait for hourly cron)
+- ✅ ALWAYS trigger immediate droplet action via SSH (never wait for hooks or hourly processes)
 - ✅ ALWAYS pull results from Git (never ask user to copy/paste)
-- ✅ ALWAYS analyze results and provide summary to user
+- ✅ ALWAYS verify results before reporting to user
+- ✅ ALWAYS complete entire workflow before reporting
 - ❌ NEVER wait for hourly processes - everything is immediate
 - ❌ NEVER ask user to manually copy/paste code or results
-- ❌ NEVER skip the Git workflow
+- ❌ NEVER skip any step in the workflow
 - ❌ NEVER assume droplet has latest code without triggering pull
+- ❌ NEVER report back with partial completion
+- ❌ NEVER say "wait for hook" - always trigger immediately via SSH
 
 **IMMEDIATE EXECUTION TOOLS:**
 - `IMMEDIATE_DROPLET_WORKFLOW.py` - Complete workflow (push → trigger → pull → analyze)
