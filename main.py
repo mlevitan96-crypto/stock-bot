@@ -1237,17 +1237,52 @@ class UWClient:
         except Exception:
             pass  # Don't fail on quota logging
         
+        # TOKEN BUCKET: Check quota before making API call
         try:
+            from api_management import get_quota_manager
+            quota = get_quota_manager()
+            
+            # Extract symbol from params or URL for prioritization
+            symbol = params.get("symbol") if params else None
+            if not symbol and "ticker" in (params or {}):
+                symbol = params.get("ticker")
+            if not symbol and "/" in path_or_url:
+                # Try to extract from URL path
+                parts = path_or_url.split("/")
+                if "stock" in parts or "darkpool" in parts:
+                    idx = parts.index("stock") if "stock" in parts else parts.index("darkpool")
+                    if idx + 1 < len(parts):
+                        symbol = parts[idx + 1]
+            
+            can_poll, wait_time = quota.should_poll_symbol(symbol or "unknown")
+            if not can_poll:
+                # Rate limited - return empty data
+                if wait_time > 0:
+                    time.sleep(min(wait_time, 5.0))  # Max 5 second wait
+                return {"data": []}
+            
+            # Make the API call
             r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
             r.raise_for_status()
-            return r.json()
-        except requests.exceptions.HTTPError as e:
-            # Rate limited (429) or endpoint not available (404) - return empty data
-            jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e)})
-            return {"data": []}
-        except Exception as e:
-            jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e)})
-            return {"data": []}
+            result = r.json()
+            
+            # Record API call
+            quota.record_api_call(symbol or "unknown")
+            
+            return result
+        except ImportError:
+            # Fallback if quota manager not available
+            try:
+                r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
+                r.raise_for_status()
+                return r.json()
+            except requests.exceptions.HTTPError as e:
+                # Rate limited (429) or endpoint not available (404) - return empty data
+                jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e)})
+                return {"data": []}
+            except Exception as e:
+                jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e)})
+                return {"data": []}
 
     def get_option_flow(self, ticker: str, limit: int = 100):
         raw = self._get("/api/option-trades/flow-alerts", params={"symbol": ticker, "limit": limit})
@@ -3715,6 +3750,35 @@ class AlpacaExecutor:
             high_water_pct = ((high_water_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
             exit_signals["pnl_pct"] = pnl_pct
             
+            # STRUCTURAL EXIT: Check for gamma call walls and liquidity exhaustion
+            try:
+                from structural_intelligence import get_structural_exit
+                structural_exit = get_structural_exit()
+                
+                position_data = {
+                    "current_price": current_price,
+                    "side": info.get("side", "buy"),
+                    "entry_price": entry_price,
+                    "unrealized_pnl_pct": pnl_pct / 100.0
+                }
+                
+                exit_rec = structural_exit.get_exit_recommendation(symbol, position_data)
+                
+                if exit_rec.get("should_exit"):
+                    exit_reason = exit_rec.get("reason", "structural_exit")
+                    scale_pct = exit_rec.get("scale_out_pct", 1.0)
+                    
+                    # Add to exit signals
+                    exit_signals["structural_exit"] = exit_reason
+                    exit_signals["scale_out_pct"] = scale_pct
+                    
+                    log_event("structural_exit", exit_reason, symbol=symbol, 
+                             scale_pct=scale_pct, pnl_pct=pnl_pct)
+            except ImportError:
+                pass
+            except Exception as e:
+                log_event("structural_exit", "error", symbol=symbol, error=str(e))
+            
             # Get current composite score for signal decay detection
             current_composite_score = 0.0
             flow_reversal = False
@@ -4077,7 +4141,35 @@ class StrategyEngine:
             
             # PRIORITIZE COMPOSITE SCORE: If cluster has pre-calculated composite_score, always use it
             if "composite_score" in c and c.get("source") in ("composite", "composite_v3"):
-                score = c["composite_score"]
+                base_score = c["composite_score"]
+                
+                # STRUCTURAL INTELLIGENCE: Apply regime and macro multipliers
+                try:
+                    from structural_intelligence import get_regime_detector, get_macro_gate
+                    regime_detector = get_regime_detector()
+                    macro_gate = get_macro_gate()
+                    
+                    # Get regime multiplier
+                    regime_name, regime_conf = regime_detector.detect_regime()
+                    regime_mult = regime_detector.get_regime_multiplier(direction)
+                    
+                    # Get macro multiplier
+                    sector = self.theme_map.get(symbol, "Technology")  # Default to tech
+                    macro_mult = macro_gate.get_macro_multiplier(direction, sector)
+                    
+                    # Apply multipliers to composite score
+                    score = base_score * regime_mult * macro_mult
+                    
+                    log_event("structural_intelligence", "composite_adjusted", 
+                             symbol=symbol, base_score=base_score, regime_mult=regime_mult, 
+                             macro_mult=macro_mult, final_score=score, regime=regime_name)
+                except ImportError:
+                    score = base_score
+                    log_event("structural_intelligence", "import_failed", symbol=symbol)
+                except Exception as e:
+                    score = base_score
+                    log_event("structural_intelligence", "error", symbol=symbol, error=str(e))
+                
                 log_event("scoring", "using_composite_score", symbol=symbol, score=score)
                 entry_action = None
                 atr_mult = None
@@ -4273,6 +4365,16 @@ class StrategyEngine:
             if not should_trade:
                 log_event("gate", "expectancy_blocked", symbol=symbol, 
                          expectancy=expectancy, reason=gate_reason, stage=system_stage)
+                
+                # SHADOW LOGGER: Track rejected signal
+                try:
+                    from self_healing import get_shadow_logger
+                    shadow = get_shadow_logger()
+                    threshold = shadow.get_gate_threshold("expectancy_gate", "min_expectancy", 0.0)
+                    shadow.log_rejected_signal(symbol, f"expectancy_blocked:{gate_reason}", score, comps, "expectancy_gate", threshold)
+                except:
+                    pass
+                
                 log_blocked_trade(symbol, f"expectancy_blocked:{gate_reason}", score, 
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
@@ -4301,6 +4403,16 @@ class StrategyEngine:
             if score < min_score:
                 print(f"DEBUG {symbol}: BLOCKED by score_below_min ({score} < {min_score}, stage={system_stage})", flush=True)
                 log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=min_score, stage=system_stage)
+                
+                # SHADOW LOGGER: Track rejected signal
+                try:
+                    from self_healing import get_shadow_logger
+                    shadow = get_shadow_logger()
+                    threshold = shadow.get_gate_threshold("score_gate", "min_score", min_score)
+                    shadow.log_rejected_signal(symbol, "score_below_min", score, comps, "score_gate", threshold)
+                except:
+                    pass
+                
                 log_blocked_trade(symbol, "score_below_min", score,
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,

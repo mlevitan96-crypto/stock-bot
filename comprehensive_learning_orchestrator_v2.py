@@ -1024,8 +1024,56 @@ def run_comprehensive_learning(process_all_historical: bool = False):
     total_new = results["attribution"] + results["exits"]
     if total_new >= 5:
         try:
-            weight_result = optimizer.update_weights()
-            results["weights_updated"] = weight_result.get("total_adjusted", 0)
+            # THOMPSON SAMPLING: Use Thompson Sampling for weight updates
+            try:
+                from learning import get_thompson_engine
+                thompson = get_thompson_engine()
+                
+                # Get all component names from recent trades
+                component_names = set()
+                for rec in attribution_data:
+                    comps = rec.get("components", {}) or rec.get("context", {}).get("components", {})
+                    component_names.update(comps.keys())
+                
+                # Register components and get optimal weights
+                for comp_name in component_names:
+                    thompson.register_component(comp_name, initial_weight=1.0)
+                
+                # Get Thompson Sampling weights
+                thompson_weights = thompson.get_all_weights()
+                
+                # Update optimizer with Thompson Sampling weights
+                for comp_name, weight in thompson_weights.items():
+                    if comp_name in SIGNAL_COMPONENTS:
+                        optimizer.update_component_weight(comp_name, weight)
+                
+                # Record outcomes for Thompson Sampling from recent trades
+                for rec in attribution_data:
+                    comps = rec.get("components", {}) or rec.get("context", {}).get("components", {})
+                    pnl_pct = float(rec.get("pnl_pct", 0.0))
+                    
+                    for comp_name, comp_value in comps.items():
+                        if comp_name in thompson_weights:
+                            weight_used = thompson_weights[comp_name]
+                            thompson.record_outcome(comp_name, weight_used, pnl_pct, success_threshold=0.0)
+                            
+                            # Finalize weight if confidence is high enough
+                            if thompson.should_finalize_weight(comp_name):
+                                thompson.finalize_weight(comp_name)
+                
+                results["weights_updated"] = len(thompson_weights)
+                results["thompson_sampling"] = True
+            except ImportError:
+                # Fallback to original optimizer
+                weight_result = optimizer.update_weights()
+                results["weights_updated"] = weight_result.get("total_adjusted", 0)
+                results["thompson_sampling"] = False
+            except Exception as e:
+                # Fallback on error
+                weight_result = optimizer.update_weights()
+                results["weights_updated"] = weight_result.get("total_adjusted", 0)
+                results["thompson_sampling"] = False
+                results["thompson_error"] = str(e)
             results["weight_adjustments"] = weight_result.get("adjustments", [])
             optimizer.save_state()
             

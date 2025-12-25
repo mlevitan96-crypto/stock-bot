@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-12-25T18:05:03.254682+00:00",
+  "tests_passed": 3,
+  "tests_total": 6,
+  "results": {
+    "Main Imports": false,
+    "Structural Intelligence Imports": false,
+    "Learning Orchestrator Imports": true,
+    "Existing Functions": false,
+    "Config Registry": true,
+    "Signal Modules": true
+  }
+}

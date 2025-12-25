@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-12-25T18:01:36.223929+00:00",
+  "tests_passed": 1,
+  "tests_total": 7,
+  "results": {
+    "Regime Detector": false,
+    "Macro Gate": false,
+    "Structural Exit": false,
+    "Thompson Sampling": false,
+    "Shadow Logger": true,
+    "Token Bucket": false,
+    "Full Integration": false
+  }
+}
