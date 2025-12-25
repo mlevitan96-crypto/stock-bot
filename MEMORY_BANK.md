@@ -91,11 +91,11 @@
 4. **Automate Everything**: No manual copy/paste - everything flows through Git
 
 #### **Droplet Responsibilities:**
-1. **Pull from Git**: Pulls immediately when triggered via SSH (via `trigger_immediate_droplet_action.py`)
-2. **Execute Post-Merge Hook**: Automatically runs `run_investigation_on_pull.sh` after every pull
-3. **Push Results to Git**: Investigation results (`investigate_no_trades.json`), status reports (`status_report.json`), logs
-4. **Run Automated Scripts**: Executes scripts pushed by Cursor (e.g., `COMPREHENSIVE_FIX_ALL_ISSUES.sh`)
-5. **Report Status**: Status reports pushed to Git immediately after execution (not hourly)
+1. **Execute Deployment**: Runs deployment script immediately when triggered via SSH
+2. **Execute Synchronously**: All deployment steps execute immediately and synchronously
+3. **Push Results to Git**: Results pushed to Git immediately after deployment completes
+4. **Run Automated Scripts**: Executes scripts pushed by Cursor immediately via SSH
+5. **Report Status**: Status reports pushed to Git immediately after execution
 
 ### Key Files & Scripts
 
@@ -116,29 +116,29 @@
 
 **Example 1: Fix No Trades Issue (IMMEDIATE)**
 1. User: "Investigate why there were no trades today"
-2. Cursor: Creates `.investigation_trigger` file, commits and pushes to Git
-3. Cursor: Runs `IMMEDIATE_DROPLET_WORKFLOW.py` which:
-   - Triggers immediate `git pull` on droplet via SSH
-   - Post-merge hook runs `investigate_no_trades.py` immediately
-   - Results committed and pushed to Git immediately
-4. Cursor: Pulls from Git (10-30 seconds later), reads `investigate_no_trades.json`, analyzes results
-5. Cursor: Creates fixes, pushes to Git, triggers immediate execution again
-6. Droplet: Pulls fixes immediately, applies them, restarts services
+2. Cursor: Creates fixes, commits and pushes to Git
+3. Cursor: Runs `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` which:
+   - SSHs into droplet immediately
+   - Executes `git pull && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh` synchronously
+   - Waits for deployment to complete
+   - Results pushed to Git immediately during execution
+4. Cursor: Pulls from Git immediately after SSH completes, reads results, analyzes
+5. Cursor: Creates fixes if needed, pushes to Git, triggers immediate execution again
+6. Droplet: Executes deployment immediately and synchronously
 
 **Example 2: Deploy Code Fixes (IMMEDIATE)**
 1. User: "Fix the bootstrap expectancy gate"
 2. Cursor: Modifies `v3_2_features.py`, commits and pushes to Git
-3. Cursor: Runs `trigger_immediate_droplet_action.py` to trigger immediate pull
-4. Droplet: Pulls from Git immediately, post-merge hook applies fixes
-5. Cursor: Pulls results from Git and verifies fix
+3. Cursor: Runs `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` to trigger immediate deployment via SSH
+4. Droplet: Executes deployment immediately and synchronously via SSH
+5. Cursor: Pulls results from Git immediately after SSH completes and verifies fix
 
 ### Tools Available
 
 **`droplet_client.py`**: SSH client for direct droplet interaction
-- **PRIMARY USE**: Trigger immediate `git pull` on droplet (bypasses hourly cron)
-- Use `trigger_immediate_droplet_action.py` to trigger immediate execution
-- Use `IMMEDIATE_DROPLET_WORKFLOW.py` for complete workflow automation
-- All interactions are immediate - no waiting for hourly processes
+- **PRIMARY USE**: Execute deployment immediately and synchronously on droplet
+- Use `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` for complete workflow automation
+- All interactions execute immediately and synchronously - no delays, no waiting
 
 **Git Integration**: Primary communication channel
 - Cursor pushes via: `git add`, `git commit`, `git push origin main`
@@ -149,7 +149,7 @@
 
 1. **Always use Git as primary channel** - Droplet is configured as Git client
 2. **Investigation triggers**: Create `.investigation_trigger` file to signal droplet to investigate
-3. **Status reports**: Droplet pushes hourly status reports - pull and review regularly
+3. **Status reports**: Droplet pushes status reports immediately after execution
 4. **No manual intervention**: User should never need to copy/paste - Cursor handles everything
 5. **GitHub integration**: Cursor has GitHub integration enabled - can push directly
 
@@ -161,7 +161,7 @@ Droplet is configured with:
 - `core.editor true` for non-interactive commits
 - Post-merge hook: Automatically runs `run_investigation_on_pull.sh` on every `git pull`
 - Post-commit hook to auto-push after commits
-- Cron jobs for status reports and investigation triggers
+- Immediate execution via SSH on every interaction
 - GitHub PAT token configured in remote URL for automatic authentication
 
 **Post-Merge Hook Behavior:**
