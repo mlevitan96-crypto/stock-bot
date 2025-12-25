@@ -27,16 +27,20 @@
    - Verify push succeeded
    - **NEVER skip this step**
 
-2. **TRIGGER IMMEDIATE DROPLET ACTION VIA SSH** (Cursor responsibility - REQUIRED)
-   - **IMMEDIATE EXECUTION**: Use `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` or `droplet_client.py` to SSH into droplet
-   - Execute: `cd ~/stock-bot && git pull origin main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh`
-   - Deployment runs immediately and synchronously:
+2. **TRIGGER IMMEDIATE DROPLET ACTION** (Cursor responsibility - REQUIRED)
+   - **PREFERRED: SSH via droplet_client.py** (if configured):
+     - Use `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` or `droplet_client.py` to SSH into droplet
+     - Execute: `cd ~/stock-bot && git fetch origin main && git reset --hard origin/main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh`
+     - Deployment runs immediately and synchronously
+   - **FALLBACK: User Console Trigger** (if SSH not configured):
+     - User runs in DigitalOcean console: `cd ~/stock-bot && git fetch origin main && git reset --hard origin/main && bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh`
+     - Post-merge hook automatically runs deployment verification
+   - Deployment executes immediately:
      - Installs dependencies immediately
      - Runs all tests immediately
      - Runs complete verification immediately
      - Commits and pushes results back to Git immediately
-   - **IMMEDIATE EXECUTION**: Cursor actively triggers via SSH and waits for completion
-   - **NO WAITING**: Everything executes immediately and synchronously
+   - **IMMEDIATE EXECUTION**: No waiting, everything executes synchronously
 
 3. **PULL RESULTS FROM GIT** (Cursor responsibility - REQUIRED)
    - Pull from Git immediately after SSH command completes: `git pull origin main`
