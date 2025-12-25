@@ -14,9 +14,9 @@ STRUCTURAL INTELLIGENCE INTEGRATION TESTS
   [PASS] Exit recommendation: {'should_exit': False, 'reason': '', 'scale_out_pct': 0.0, 'recommended_action': 'HOLD'}
 
 === Test 4: Thompson Sampling Engine ===
-  [PASS] Sampled weight: 1.93
-  [PASS] Optimal weight: 0.91
-  [PASS] Component stats: {'current_weight': 1.0, 'proposed_weight': 0.9077096804397532, 'trials': 2, 'successes': 2, 'win_rate': 1.0, 'confidence_interval': (0.0, 1.0), 'alpha': 3.0, 'beta': 1.0}
+  [PASS] Sampled weight: 2.03
+  [PASS] Optimal weight: 2.42
+  [PASS] Component stats: {'current_weight': 1.0, 'proposed_weight': 2.418677836647241, 'trials': 3, 'successes': 3, 'win_rate': 1.0, 'confidence_interval': (0.0, 1.0), 'alpha': 4.0, 'beta': 1.0}
 
 === Test 5: Shadow Trade Logger ===
   [PASS] Rejected signal logged

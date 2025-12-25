@@ -1,7 +1,10 @@
-[main c966eb8] Droplet verification results - 2025-12-25T20:00:23.043413+00:00
+[main de7c15d] Droplet verification results - 2025-12-25T21:00:21.888423+00:00
  1 file changed, 1 insertion(+), 1 deletion(-)
 To https://github.com/mlevitan96-crypto/stock-bot.git
-   9c89cc1..c966eb8  main -> main
+ ! [remote rejected] main -> main (cannot lock ref 'refs/heads/main': is at de7c15d1ce61a958e64fb1ea82eebc9448df3a2b but expected de9ea9baf29d3b972c7530c7793bb837b440b928)
+error: failed to push some refs to 'https://github.com/mlevitan96-crypto/stock-bot.git'
+To https://github.com/mlevitan96-crypto/stock-bot.git
+   de9ea9b..de7c15d  main -> main
 ================================================================================
 COMPLETE DROPLET VERIFICATION
 ================================================================================
@@ -42,7 +45,5 @@ Test 5: Verifying learning orchestrator integration...
 Results saved to: droplet_verification_results.json
 
 Pushing results to git...
-  [PASS] Results pushed to git
-To https://github.com/mlevitan96-crypto/stock-bot.git
- ! [remote rejected] main -> main (cannot lock ref 'refs/heads/main': is at c966eb8d304b620c6e0665a12d7b67222b02cae2 but expected 9c89cc1a36ffdf673e24d1dbd2bd702f3c1fc6ba)
-error: failed to push some refs to 'https://github.com/mlevitan96-crypto/stock-bot.git'
+  [WARNING] Could not push to git: Command '['git', 'push', 'origin', 'main']' returned non-zero exit status 1.
+  Results saved locally - manual push may be needed
