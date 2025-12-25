@@ -210,9 +210,9 @@ def track_execution_failure(symbol: str, failure_type: str, details: Dict = None
         failure_type: Type of failure (e.g., "fill_timeout", "slippage_exceeded", "rejected")
         details: Additional failure details
     """
-    from config.registry import StateFiles
+    from pathlib import Path
     
-    failures_file = StateFiles.STATE_DIR / "execution_failures.jsonl"
+    failures_file = Path("state/execution_failures.jsonl")
     failures_file.parent.mkdir(parents=True, exist_ok=True)
     
     record = {
@@ -236,9 +236,9 @@ def get_recent_failures(symbol: str, lookback_hours: int = 24) -> int:
     Returns:
         Count of recent failures
     """
-    from config.registry import StateFiles
+    from pathlib import Path
     
-    failures_file = StateFiles.STATE_DIR / "execution_failures.jsonl"
+    failures_file = Path("state/execution_failures.jsonl")
     if not failures_file.exists():
         return 0
     

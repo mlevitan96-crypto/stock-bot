@@ -1,0 +1,172 @@
+{
+  "tests_passed": 28,
+  "tests_failed": 5,
+  "tests_total": 33,
+  "details": [
+    {
+      "test": "TCA: get_recent_slippage",
+      "status": "PASS",
+      "message": "Returns 0.0030"
+    },
+    {
+      "test": "TCA: get_tca_quality_score",
+      "status": "PASS",
+      "message": "Returns 0.00"
+    },
+    {
+      "test": "TCA: get_regime_forecast_modifier",
+      "status": "PASS",
+      "message": "Returns 0.0500"
+    },
+    {
+      "test": "TCA: get_toxicity_sentinel_score",
+      "status": "PASS",
+      "message": "Returns 0.60"
+    },
+    {
+      "test": "TCA: track_execution_failure",
+      "status": "FAIL",
+      "message": "Error: type object 'StateFiles' has no attribute 'STATE_DIR'"
+    },
+    {
+      "test": "TCA: get_recent_failures",
+      "status": "FAIL",
+      "message": "Error: type object 'StateFiles' has no attribute 'STATE_DIR'"
+    },
+    {
+      "test": "Execution Learner: Import",
+      "status": "PASS",
+      "message": "Module imported"
+    },
+    {
+      "test": "Execution Learner: record_order_execution",
+      "status": "PASS",
+      "message": "No errors"
+    },
+    {
+      "test": "Execution Learner: get_recommended_strategy",
+      "status": "PASS",
+      "message": "Returns: None"
+    },
+    {
+      "test": "Signal Learner: Import",
+      "status": "PASS",
+      "message": "Module imported"
+    },
+    {
+      "test": "Signal Learner: record_signal",
+      "status": "FAIL",
+      "message": "Error: 'signal_combinations'"
+    },
+    {
+      "test": "Signal Learner: get_best_combinations",
+      "status": "FAIL",
+      "message": "Error: 'signal_combinations'"
+    },
+    {
+      "test": "Counterfactual: get_price_at_time",
+      "status": "PASS",
+      "message": "Returns: None"
+    },
+    {
+      "test": "Counterfactual: compute_counterfactual_pnl",
+      "status": "FAIL",
+      "message": "Error: name 'symbol' is not defined"
+    },
+    {
+      "test": "Parameter Optimizer: Import",
+      "status": "PASS",
+      "message": "Module imported"
+    },
+    {
+      "test": "Parameter Optimizer: register_parameter",
+      "status": "PASS",
+      "message": "No errors"
+    },
+    {
+      "test": "Parameter Optimizer: record_outcome",
+      "status": "PASS",
+      "message": "No errors"
+    },
+    {
+      "test": "Parameter Optimizer: get_optimal_value",
+      "status": "PASS",
+      "message": "Returns: None"
+    },
+    {
+      "test": "Main: TCA integration",
+      "status": "PASS",
+      "message": "get_recent_slippage imported"
+    },
+    {
+      "test": "Main: Regime forecast",
+      "status": "PASS",
+      "message": "get_regime_forecast_modifier used"
+    },
+    {
+      "test": "Main: Toxicity sentinel",
+      "status": "PASS",
+      "message": "get_toxicity_sentinel_score used"
+    },
+    {
+      "test": "Main: Execution failure tracking",
+      "status": "PASS",
+      "message": "track_execution_failure used"
+    },
+    {
+      "test": "Main: Experiment parameters",
+      "status": "PASS",
+      "message": "Parameter copying implemented"
+    },
+    {
+      "test": "Learning: Execution quality",
+      "status": "PASS",
+      "message": "Execution quality learner integrated"
+    },
+    {
+      "test": "Learning: Signal patterns",
+      "status": "PASS",
+      "message": "Signal pattern learner integrated"
+    },
+    {
+      "test": "Learning: Counterfactual",
+      "status": "PASS",
+      "message": "Counterfactual analysis integrated"
+    },
+    {
+      "test": "Logging: attribution",
+      "status": "PASS",
+      "message": "File doesn't exist yet (OK)"
+    },
+    {
+      "test": "Logging: exit",
+      "status": "PASS",
+      "message": "File doesn't exist yet (OK)"
+    },
+    {
+      "test": "Logging: signals",
+      "status": "PASS",
+      "message": "File doesn't exist yet (OK)"
+    },
+    {
+      "test": "Logging: orders",
+      "status": "PASS",
+      "message": "File doesn't exist yet (OK)"
+    },
+    {
+      "test": "Logging: gate",
+      "status": "PASS",
+      "message": "File doesn't exist yet (OK)"
+    },
+    {
+      "test": "Logging: blocked_trades",
+      "status": "PASS",
+      "message": "File doesn't exist yet (OK)"
+    },
+    {
+      "test": "Logging: uw_attribution",
+      "status": "PASS",
+      "message": "File doesn't exist yet (OK)"
+    }
+  ]
+}

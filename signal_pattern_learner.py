@@ -30,7 +30,7 @@ class SignalPatternLearner:
             except:
                 pass
         return {
-            "signal_combinations": {},  # combination_hash -> {wins, losses, pnl_sum, samples}
+            "signal_combinations": {},  # combination_hash -> {wins, losses, pnl_sum, samples, components, avg_score}
             "component_patterns": {},  # component -> {context -> {wins, losses, pnl}}
             "timing_patterns": {},  # time_of_day -> {wins, losses, pnl}
             "last_updated": None

@@ -125,6 +125,11 @@ def compute_counterfactual_pnl(blocked_trade: Dict) -> Optional[float]:
     # Get entry price (decision_price)
     entry_price = decision_price
     
+    # Get symbol from blocked trade
+    symbol = blocked_trade.get("symbol", "")
+    if not symbol:
+        return None
+    
     # Get exit price (use current price or price 4 hours later as proxy)
     exit_time = decision_time + timedelta(hours=4)  # Assume 4-hour hold period
     exit_price = get_price_at_time(symbol, exit_time)
