@@ -62,12 +62,58 @@ class DropletClient:
         config["password"] = os.getenv("DROPLET_PASSWORD", config.get("password", ""))
         config["key_file"] = os.getenv("DROPLET_KEY_FILE", config.get("key_file", ""))
         config["project_dir"] = os.getenv("DROPLET_PROJECT_DIR", config.get("project_dir", "~/stock-bot"))
+        config["use_ssh_config"] = config.get("use_ssh_config", False)
         
         if not config.get("host"):
             raise ValueError(
                 "Droplet configuration not found. Please create droplet_config.json or set "
                 "DROPLET_HOST environment variable. See droplet_config.example.json for template."
             )
+        
+        # If using SSH config, parse it to get connection details
+        if config.get("use_ssh_config"):
+            config = self._parse_ssh_config(config)
+        
+        return config
+    
+    def _parse_ssh_config(self, config: Dict) -> Dict:
+        """Parse SSH config file to extract connection details for the host."""
+        import subprocess
+        
+        ssh_host = config.get("host", "")
+        if not ssh_host:
+            return config
+        
+        try:
+            # Use ssh -G to get resolved config for the host
+            result = subprocess.run(
+                ['ssh', '-G', ssh_host],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                # Parse the output
+                for line in result.stdout.split('\n'):
+                    line = line.strip()
+                    if ' ' in line:
+                        key, value = line.split(' ', 1)
+                        if key == 'hostname' and not config.get('hostname'):
+                            config['hostname'] = value
+                        elif key == 'user' and not config.get('username'):
+                            config['username'] = value
+                        elif key == 'port' and not config.get('port'):
+                            config['port'] = int(value)
+                        elif key == 'identityfile' and not config.get('key_file'):
+                            # Use first identity file
+                            config['key_file'] = value
+                
+                # Use resolved hostname for connection
+                if config.get('hostname'):
+                    config['host'] = config['hostname']
+        except Exception as e:
+            print(f"Warning: Could not parse SSH config: {e}")
         
         return config
     
@@ -80,6 +126,7 @@ class DropletClient:
         ssh.set_missing_host_key_policy(AutoAddPolicy())
         
         try:
+            # If using SSH config, try key file first, then fall back to password
             if self.config.get("key_file") and os.path.exists(self.config["key_file"]):
                 # Use SSH key
                 ssh.connect(
@@ -98,8 +145,19 @@ class DropletClient:
                     password=self.config["password"],
                     timeout=10
                 )
+            elif self.config.get("use_ssh_config"):
+                # For SSH config, try connecting without explicit auth (SSH agent or default key)
+                # This will use the SSH agent or default keys from ~/.ssh/
+                ssh.connect(
+                    hostname=self.config["host"],
+                    port=self.config["port"],
+                    username=self.config["username"],
+                    timeout=10,
+                    look_for_keys=True,
+                    allow_agent=True
+                )
             else:
-                raise ValueError("Either key_file or password must be provided in config")
+                raise ValueError("Either key_file, password, or use_ssh_config must be provided in config")
             
             self.ssh_client = ssh
             return ssh
