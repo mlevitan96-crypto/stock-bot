@@ -4659,35 +4659,6 @@ class StrategyEngine:
                 set_daily_start_equity(float(account.equity))
         except Exception:
             pass  # Non-critical
-                
-                # V3.2 CHECKPOINT: POST_TRADE - TCA Feedback & Champion-Challenger
-                # Log execution quality for TCA feedback
-                if expected_entry_price and exec_price:
-                    slippage_pct = abs(exec_price - expected_entry_price) / expected_entry_price if expected_entry_price > 0 else 0
-                    v32.log_jsonl(v32.TCA_SUMMARY_LOG, {
-                        "timestamp": datetime.utcnow().isoformat(),
-                        "symbol": symbol,
-                        "strategy": selected_strategy,
-                        "regime": market_regime,
-                        "slippage_pct": round(slippage_pct, 6),
-                        "spread_bps": round(spread_bps, 2),
-                        "order_type": order_type
-                    })
-                
-                # Update Bayesian profiles with trade expectancy (will be updated on exit)
-                bayes_profiles["total_fills"] = bayes_profiles.get("total_fills", 0) + 1
-                v32.AdaptiveWeighting.save_profiles(bayes_profiles)
-                
-                # V3.2.1: Update stage controller with latest metrics
-                # (Stage promotion evaluated separately based on comprehensive metrics)
-                
-            except Exception as e:
-                import traceback
-                error_msg = str(e)
-                error_trace = traceback.format_exc()
-                print(f"DEBUG {symbol}: EXCEPTION in decide_and_execute: {error_msg}", flush=True)
-                print(f"DEBUG {symbol}: Full traceback:\n{error_trace}", flush=True)
-                log_order({"symbol": symbol, "qty": qty, "side": side, "error": error_msg, "traceback": error_trace})
         
         if Config.ENABLE_PER_TICKER_LEARNING:
             save_profiles(self.profiles)
