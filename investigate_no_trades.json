@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-12-24T21:50:12.227349+00:00",
+  "timestamp": "2025-12-25T20:00:36.270952+00:00",
   "checks": {
     "market_hours": {
       "is_market_hours": false,
       "is_weekend": false,
-      "current_time": "2025-12-24T21:50:12.227386+00:00",
-      "hour_utc": 21,
-      "weekday": 2
+      "current_time": "2025-12-25T20:00:36.270982+00:00",
+      "hour_utc": 20,
+      "weekday": 3
     },
     "services": {
       "services": {
