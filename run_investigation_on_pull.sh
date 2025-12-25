@@ -7,6 +7,7 @@ cd ~/stock-bot
 echo "=========================================="
 echo "COMPLETE VERIFICATION (Triggered by Git Pull)"
 echo "=========================================="
+echo "Started: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
 echo ""
 
 # Step 0: Run final verification if script exists (comprehensive end-to-end check)
