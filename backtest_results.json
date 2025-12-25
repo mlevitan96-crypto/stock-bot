@@ -31,7 +31,7 @@
     {
       "test": "TCA: get_recent_failures",
       "status": "PASS",
-      "message": "Returns 10"
+      "message": "Returns 4"
     },
     {
       "test": "Execution Learner: Import",
@@ -46,7 +46,7 @@
     {
       "test": "Execution Learner: get_recommended_strategy",
       "status": "PASS",
-      "message": "Returns: limit_offset"
+      "message": "Returns: None"
     },
     {
       "test": "Signal Learner: Import",
@@ -61,7 +61,7 @@
     {
       "test": "Signal Learner: get_best_combinations",
       "status": "PASS",
-      "message": "Returns 1 combinations"
+      "message": "Returns 0 combinations"
     },
     {
       "test": "Counterfactual: get_price_at_time",
@@ -136,37 +136,37 @@
     {
       "test": "Logging: attribution",
       "status": "PASS",
-      "message": "File doesn't exist yet (OK)"
+      "message": "File exists and has data"
     },
     {
       "test": "Logging: exit",
       "status": "PASS",
-      "message": "File doesn't exist yet (OK)"
+      "message": "File exists and has data"
     },
     {
       "test": "Logging: signals",
       "status": "PASS",
-      "message": "File doesn't exist yet (OK)"
+      "message": "File exists and has data"
     },
     {
       "test": "Logging: orders",
       "status": "PASS",
-      "message": "File doesn't exist yet (OK)"
+      "message": "File exists and has data"
     },
     {
       "test": "Logging: gate",
       "status": "PASS",
-      "message": "File doesn't exist yet (OK)"
+      "message": "File exists and has data"
     },
     {
       "test": "Logging: blocked_trades",
       "status": "PASS",
-      "message": "File doesn't exist yet (OK)"
+      "message": "File exists and has data"
     },
     {
       "test": "Logging: uw_attribution",
       "status": "PASS",
-      "message": "File doesn't exist yet (OK)"
+      "message": "File exists and has data"
     }
   ]
 }
