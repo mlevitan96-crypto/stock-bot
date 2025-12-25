@@ -4425,16 +4425,17 @@ class StrategyEngine:
                 log_event("risk_management", "order_validation_error", symbol=symbol, error=str(val_error))
                 # Continue on error
             
+            old_mode = Config.ENTRY_MODE
+            
+            # Generate idempotency key using risk management function
             try:
-                old_mode = Config.ENTRY_MODE
-                
-                # Generate idempotency key using risk management function
-                try:
-                    from risk_management import generate_idempotency_key
-                    client_order_id_base = generate_idempotency_key(symbol, side, qty)
-                except ImportError:
-                    # Fallback to existing method
-                    client_order_id_base = build_client_order_id(symbol, side, c)
+                from risk_management import generate_idempotency_key
+                client_order_id_base = generate_idempotency_key(symbol, side, qty)
+            except ImportError:
+                # Fallback to existing method
+                client_order_id_base = build_client_order_id(symbol, side, c)
+            
+            try:
                 
                 # V3.2 CHECKPOINT: ROUTE_ORDERS - Execution Router
                 try:
