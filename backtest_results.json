@@ -1,6 +1,6 @@
 {
-  "tests_passed": 28,
-  "tests_failed": 5,
+  "tests_passed": 33,
+  "tests_failed": 0,
   "tests_total": 33,
   "details": [
     {
@@ -25,13 +25,13 @@
     },
     {
       "test": "TCA: track_execution_failure",
-      "status": "FAIL",
-      "message": "Error: type object 'StateFiles' has no attribute 'STATE_DIR'"
+      "status": "PASS",
+      "message": "No errors"
     },
     {
       "test": "TCA: get_recent_failures",
-      "status": "FAIL",
-      "message": "Error: type object 'StateFiles' has no attribute 'STATE_DIR'"
+      "status": "PASS",
+      "message": "Returns 4"
     },
     {
       "test": "Execution Learner: Import",
@@ -55,13 +55,13 @@
     },
     {
       "test": "Signal Learner: record_signal",
-      "status": "FAIL",
-      "message": "Error: 'signal_combinations'"
+      "status": "PASS",
+      "message": "No errors"
     },
     {
       "test": "Signal Learner: get_best_combinations",
-      "status": "FAIL",
-      "message": "Error: 'signal_combinations'"
+      "status": "PASS",
+      "message": "Returns 0 combinations"
     },
     {
       "test": "Counterfactual: get_price_at_time",
@@ -70,8 +70,8 @@
     },
     {
       "test": "Counterfactual: compute_counterfactual_pnl",
-      "status": "FAIL",
-      "message": "Error: name 'symbol' is not defined"
+      "status": "PASS",
+      "message": "Returns: None"
     },
     {
       "test": "Parameter Optimizer: Import",
