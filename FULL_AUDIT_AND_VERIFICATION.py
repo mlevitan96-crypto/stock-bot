@@ -330,7 +330,7 @@ class FullAudit:
             "Logging (gate.jsonl)": Path("logs/gate.jsonl").exists() or True,
             "Learning Orchestrator": Path("comprehensive_learning_orchestrator_v2.py").exists(),
             "Weight Updates": "update_weights" in open("comprehensive_learning_orchestrator_v2.py").read() if Path("comprehensive_learning_orchestrator_v2.py").exists() else False,
-            "Trading Integration": "get_adaptive_weight" in open("main.py").read() if Path("main.py").exists() else False
+            "Trading Integration": "get_adaptive_weight" in open("main.py", encoding="utf-8", errors="ignore").read() if Path("main.py").exists() else False
         }
         
         for component, exists in cycle_components.items():

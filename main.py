@@ -4649,16 +4649,16 @@ class StrategyEngine:
         print(f"DEBUG decide_and_execute SUMMARY: {len(clusters_sorted)} clusters processed, {new_positions_this_cycle} positions opened this cycle, {len(orders)} orders returned", flush=True)
         if len(orders) == 0 and len(clusters_sorted) > 0:
             print(f"DEBUG WARNING: {len(clusters_sorted)} clusters processed but 0 orders returned - check gate logs above for block reasons", flush=True)
-                
-                # RISK MANAGEMENT: Update daily start equity if this is first trade of day
-                try:
-                    from risk_management import get_daily_start_equity, set_daily_start_equity
-                    if get_daily_start_equity() is None:
-                        # First trade today - set baseline
-                        account = self.executor.api.get_account()
-                        set_daily_start_equity(float(account.equity))
-                except Exception:
-                    pass  # Non-critical
+        
+        # RISK MANAGEMENT: Update daily start equity if this is first trade of day
+        try:
+            from risk_management import get_daily_start_equity, set_daily_start_equity
+            if get_daily_start_equity() is None:
+                # First trade today - set baseline
+                account = self.executor.api.get_account()
+                set_daily_start_equity(float(account.equity))
+        except Exception:
+            pass  # Non-critical
                 
                 # V3.2 CHECKPOINT: POST_TRADE - TCA Feedback & Champion-Challenger
                 # Log execution quality for TCA feedback
