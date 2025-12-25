@@ -1126,6 +1126,47 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
         # Immediate learning from this trade
         learn_from_trade_close(symbol, pnl_pct, comps, regime, sector)
         
+
+        # XAI: Log explainable trade exit
+        try:
+            explainable = get_explainable_logger()
+            
+            # Get regime
+            regime_name = context.get("market_regime", "unknown")
+            
+            # Get gamma walls at exit
+            gamma_walls = None
+            try:
+                from structural_intelligence import get_structural_exit
+                structural_exit = get_structural_exit()
+                position_data = {
+                    "current_price": exit_price,
+                    "side": side,
+                    "entry_price": entry_price,
+                    "unrealized_pnl_pct": pnl_pct / 100.0
+                }
+                exit_rec = structural_exit.get_exit_recommendation(symbol, position_data)
+                if exit_rec.get("gamma_wall_distance"):
+                    gamma_walls = {
+                        "distance_pct": exit_rec.get("gamma_wall_distance"),
+                        "gamma_exposure": exit_rec.get("gamma_exposure", 0)
+                    }
+            except:
+                pass
+            
+            why_sentence = explainable.log_trade_exit(
+                symbol=symbol,
+                entry_price=entry_price,
+                exit_price=exit_price,
+                pnl_pct=pnl_pct,
+                hold_minutes=hold_minutes,
+                exit_reason=close_reason,
+                regime=regime_name,
+                gamma_walls=gamma_walls
+            )
+            log_event("xai", "trade_exit_logged", symbol=symbol, why=why_sentence)
+        except Exception as e:
+            log_event("xai", "trade_exit_log_failed", symbol=symbol, error=str(e))
         # Also feed to exit model for exit signal learning
         from adaptive_signal_optimizer import get_optimizer
         optimizer = get_optimizer()
@@ -4645,6 +4686,67 @@ class StrategyEngine:
                         symbol, qty, side, regime=market_regime, client_order_id_base=client_order_id_base
                     )
                     print(f"DEBUG {symbol}: submit_entry completed - res={res is not None}, order_type={order_type}, entry_status={entry_status}, filled_qty={filled_qty}", flush=True)
+                    
+                    # XAI: Log explainable trade entry
+                    if res is not None and entry_status == "FILLED":
+                        try:
+                            explainable = get_explainable_logger()
+                            # Get regime
+                            regime_name = market_regime
+                            try:
+                                from structural_intelligence import get_regime_detector
+                                regime_detector = get_regime_detector()
+                                regime_name, _ = regime_detector.detect_regime()
+                            except:
+                                pass
+                            
+                            # Get macro yield
+                            macro_yield = None
+                            try:
+                                from structural_intelligence import get_macro_gate
+                                macro_gate = get_macro_gate()
+                                macro_yield = macro_gate.get_current_yield()
+                            except:
+                                pass
+                            
+                            # Get whale clusters
+                            whale_clusters = {}
+                            if c.get("source") not in ("composite", "composite_v3"):
+                                whale_clusters = {
+                                    "count": c.get("count", 0),
+                                    "premium_usd": c.get("avg_premium", 0) * c.get("count", 0)
+                                }
+                            
+                            # Get gamma walls
+                            gamma_walls = None
+                            try:
+                                from structural_intelligence import get_structural_exit
+                                structural_exit = get_structural_exit()
+                                position_data = {"current_price": fill_price or ref_price_check, "side": side, "entry_price": fill_price or ref_price_check}
+                                exit_rec = structural_exit.get_exit_recommendation(symbol, position_data)
+                                if exit_rec.get("gamma_wall_distance"):
+                                    gamma_walls = {
+                                        "distance_pct": exit_rec.get("gamma_wall_distance"),
+                                        "gamma_exposure": exit_rec.get("gamma_exposure", 0)
+                                    }
+                            except:
+                                pass
+                            
+                            why_sentence = explainable.log_trade_entry(
+                                symbol=symbol,
+                                direction=direction,
+                                score=score,
+                                components=comps,
+                                regime=regime_name,
+                                macro_yield=macro_yield,
+                                whale_clusters=whale_clusters,
+                                gamma_walls=gamma_walls,
+                                composite_score=score,
+                                entry_price=fill_price or ref_price_check
+                            )
+                            log_event("xai", "trade_entry_logged", symbol=symbol, why=why_sentence)
+                        except Exception as xai_ex:
+                            log_event("xai", "trade_entry_log_failed", symbol=symbol, error=str(xai_ex))
                 except Exception as submit_ex:
                     import traceback
                     print(f"DEBUG {symbol}: EXCEPTION in submit_entry: {str(submit_ex)}", flush=True)
@@ -6981,6 +7083,7 @@ def main():
     # Catches producer/consumer type mismatches that cause runtime errors
     try:
         from startup_contract_check import run_startup_contract_check
+from xai.explainable_logger import get_explainable_logger
         contract_passed = run_startup_contract_check()
         if not contract_passed:
             log_event("system", "contract_check_failed", action="warning")

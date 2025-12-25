@@ -1057,9 +1057,29 @@ def run_comprehensive_learning(process_all_historical: bool = False):
                             weight_used = thompson_weights[comp_name]
                             thompson.record_outcome(comp_name, weight_used, pnl_pct, success_threshold=0.0)
                             
-                            # Finalize weight if confidence is high enough
-                            if thompson.should_finalize_weight(comp_name):
+                            # Finalize weight if confidence is high enough (min_sample_size = 30)
+                            if thompson.should_finalize_weight(comp_name, min_sample_size=30):
+                                old_weight = comp.get("current_weight", 1.0)
                                 thompson.finalize_weight(comp_name)
+                                new_weight = comp.get("current_weight", 1.0)
+                                
+                                # Log explainable weight adjustment
+                                try:
+                                    from xai.explainable_logger import get_explainable_logger
+                                    explainable = get_explainable_logger()
+                                    win_rate = comp.get("successes", 0) / max(comp.get("trials", 1), 1)
+                                    explainable.log_weight_adjustment(
+                                        component=comp_name,
+                                        old_weight=old_weight,
+                                        new_weight=new_weight,
+                                        reason="Thompson Sampling (min_sample_size=30, Wilson CI>95%)",
+                                        sample_count=comp.get("trials", 0),
+                                        win_rate=win_rate,
+                                        regime=regime or "neutral",
+                                        pnl_contribution=pnl_pct
+                                    )
+                                except Exception as e:
+                                    pass  # Non-critical
                 
                 results["weights_updated"] = len(thompson_weights)
                 results["thompson_sampling"] = True
@@ -1145,6 +1165,39 @@ def learn_from_trade_close(symbol: str, pnl_pct: float, components: Dict, regime
         # Record trade for learning (updates internal tracking)
         # Record even if P&L is 0 to track all components
         optimizer.record_trade(normalized_components, pnl_pct / 100.0, regime, sector)
+        
+        # FULL LOOP VERIFICATION: Categorize success using explainable "Why"
+        if why_sentence:
+            # Extract success categories from "Why" sentence
+            success_category = "UNKNOWN"
+            if "Gamma Wall" in why_sentence or "gamma" in why_sentence.lower():
+                success_category = "GAMMA_WALLS"
+            elif "Whale" in why_sentence or "whale" in why_sentence.lower():
+                success_category = "WHALE_FLOW"
+            elif "regime" in why_sentence.lower() and "bullish" in why_sentence.lower():
+                success_category = "REGIME_ALIGNMENT"
+            elif "FRED" in why_sentence or "Treasury" in why_sentence:
+                success_category = "MACRO_ALIGNMENT"
+            else:
+                success_category = "SIGNAL_COMBINATION"
+            
+            # Store category for learning analysis
+            try:
+                from pathlib import Path
+                import json
+                category_file = Path("state") / "trade_success_categories.jsonl"
+                category_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(category_file, 'a') as f:
+                    json.dump({
+                        "symbol": symbol,
+                        "pnl_pct": pnl_pct,
+                        "success_category": success_category,
+                        "why": why_sentence,
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    }, f)
+                    f.write("\n")
+            except:
+                pass
         
         # V4.0: Feed to causal analysis engine for deep investigation
         try:

@@ -173,6 +173,7 @@ DASHBOARD_HTML = """
             <button class="tab active" onclick="switchTab('positions', event)">📊 Positions</button>
             <button class="tab" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
             <button class="tab" onclick="switchTab('executive', event)">📈 Executive Summary</button>
+            <button class="tab" onclick="switchTab('xai', event)">🧠 Natural Language Auditor</button>
         </div>
         
         <div id="positions-tab" class="tab-content active">
@@ -222,6 +223,12 @@ DASHBOARD_HTML = """
                 <div class="loading">Loading executive summary...</div>
             </div>
         </div>
+        
+        <div id="xai-tab" class="tab-content">
+            <div id="xai-content">
+                <div class="loading">Loading Natural Language Auditor...</div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -260,6 +267,8 @@ DASHBOARD_HTML = """
                 loadSREContent();
             } else if (tabName === 'executive') {
                 loadExecutiveSummary();
+            } else if (tabName === 'xai') {
+                loadXAIAuditor();
             } else if (tabName === 'positions') {
                 // Refresh positions when switching back
                 updateDashboard();

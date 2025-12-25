@@ -160,10 +160,13 @@ class ThompsonSamplingEngine:
         
         self._save_state()
     
-    def should_finalize_weight(self, component_name: str, confidence_level: float = 0.95) -> bool:
+    def should_finalize_weight(self, component_name: str, confidence_level: float = 0.95, min_sample_size: int = 30) -> bool:
         """
         Check if weight change should be finalized based on Wilson confidence interval.
         confidence_level: Required confidence (default: 0.95 = 95%)
+        min_sample_size: Minimum number of trades required (default: 30)
+        
+        CRITICAL: Only finalizes when min_sample_size is reached to prevent overfitting on local noise.
         """
         if component_name not in self.components:
             return False
@@ -172,7 +175,8 @@ class ThompsonSamplingEngine:
         trials = comp["trials"]
         successes = comp["successes"]
         
-        if trials < 30:  # Minimum trials required
+        # COMPONENT AUDIT: Verify minimum sample size to prevent overfitting
+        if trials < min_sample_size:
             return False
         
         # Calculate Wilson confidence interval
@@ -185,7 +189,8 @@ class ThompsonSamplingEngine:
         # (upper - lower) < 0.2 means we're confident
         confidence_width = upper - lower
         
-        if confidence_width < 0.2 and trials >= 30:
+        # COMPONENT AUDIT: Require both min_sample_size AND tight confidence interval
+        if confidence_width < 0.2 and trials >= min_sample_size:
             return True
         
         return False
