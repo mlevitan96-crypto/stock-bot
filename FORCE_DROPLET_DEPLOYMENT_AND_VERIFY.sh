@@ -66,6 +66,13 @@ except Exception as e:
     print(f'  ✗ api_management: {e}')
 
 try:
+    from xai.explainable_logger import get_explainable_logger
+    print('  ✓ xai modules')
+except Exception as e:
+    errors.append(f'xai: {e}')
+    print(f'  ✗ xai: {e}')
+
+try:
     import main
     print('  ✓ main.py imports')
 except Exception as e:
@@ -107,6 +114,22 @@ else
     echo "⚠ Regression tests had issues (check regression_test_output.txt)"
     cat regression_test_output.txt | tail -20
 fi
+
+# Step 5b: Run XAI regression tests
+echo "Step 5b: Running XAI regression tests..."
+if [ -f "test_xai_regression.py" ]; then
+    python3 test_xai_regression.py > xai_regression_test_output.txt 2>&1
+    XAI_EXIT=$?
+    if [ $XAI_EXIT -eq 0 ]; then
+        echo "✓ XAI regression tests passed"
+    else
+        echo "⚠ XAI regression tests had issues (check xai_regression_test_output.txt)"
+        cat xai_regression_test_output.txt | tail -20
+    fi
+else
+    echo "⚠ XAI regression test file not found"
+    XAI_EXIT=1
+fi
 echo ""
 
 # Step 6: Run complete verification
@@ -137,7 +160,7 @@ echo ""
 
 # Step 8: Commit and push all results
 echo "Step 8: Committing and pushing results..."
-git add structural_intelligence_test_results.json regression_test_results.json droplet_verification_results.json integration_test_output.txt regression_test_output.txt verification_output.txt 2>/dev/null || true
+git add structural_intelligence_test_results.json regression_test_results.json droplet_verification_results.json integration_test_output.txt regression_test_output.txt verification_output.txt xai_regression_test_output.txt 2>/dev/null || true
 
 git commit -m "Structural Intelligence deployment verification - $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
 
@@ -151,12 +174,13 @@ echo "DEPLOYMENT VERIFICATION SUMMARY"
 echo "=========================================="
 echo "Integration Tests: $([ $INTEGRATION_EXIT -eq 0 ] && echo 'PASS' || echo 'FAIL')"
 echo "Regression Tests: $([ $REGRESSION_EXIT -eq 0 ] && echo 'PASS' || echo 'FAIL')"
+echo "XAI Regression Tests: $([ $XAI_EXIT -eq 0 ] && echo 'PASS' || echo 'FAIL')"
 echo "Complete Verification: $([ $VERIFY_EXIT -eq 0 ] && echo 'PASS' || echo 'FAIL')"
 echo ""
 echo "Completed: $(date)"
 echo ""
 
-if [ $INTEGRATION_EXIT -eq 0 ] && [ $REGRESSION_EXIT -eq 0 ] && [ $VERIFY_EXIT -eq 0 ]; then
+if [ $INTEGRATION_EXIT -eq 0 ] && [ $REGRESSION_EXIT -eq 0 ] && [ $XAI_EXIT -eq 0 ] && [ $VERIFY_EXIT -eq 0 ]; then
     echo "✓✓✓ ALL VERIFICATIONS PASSED - DEPLOYMENT SUCCESSFUL ✓✓✓"
     exit 0
 else
