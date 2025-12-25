@@ -4645,6 +4645,13 @@ class StrategyEngine:
                               "price": exec_price, "order_type": order_type, "status": entry_status, 
                               "note": "submitted_pending_fill"})
                 log_attribution(trade_id=f"open_{symbol}_{now_iso()}", symbol=symbol, pnl_usd=0.0, context=context)
+            except Exception as e:
+                import traceback
+                print(f"DEBUG {symbol}: EXCEPTION in order submission: {str(e)}", flush=True)
+                print(f"DEBUG {symbol}: Traceback: {traceback.format_exc()}", flush=True)
+                log_order({"symbol": symbol, "qty": qty, "side": side, "error": f"order_submission_exception: {str(e)}"})
+                Config.ENTRY_MODE = old_mode
+                continue
         
         # DIAGNOSTIC: Log summary of execution
         print(f"DEBUG decide_and_execute SUMMARY: {len(clusters_sorted)} clusters processed, {new_positions_this_cycle} positions opened this cycle, {len(orders)} orders returned", flush=True)
