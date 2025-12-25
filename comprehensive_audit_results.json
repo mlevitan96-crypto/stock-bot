@@ -1,0 +1,2145 @@
+{
+  "timestamp": "2025-12-25T19:28:00.517668+00:00",
+  "audit_passed": false,
+  "sections": {
+    "hardcoded_values": {
+      "status": "WARNING",
+      "count": 155,
+      "details": [
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.25",
+          "line": 71
+        },
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.65",
+          "line": 118
+        },
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.5",
+          "line": 273
+        },
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.5",
+          "line": 273
+        },
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.25",
+          "line": 71
+        },
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.25",
+          "line": 71
+        },
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.1",
+          "line": 278
+        },
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.8",
+          "line": 284
+        },
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.03",
+          "line": 294
+        },
+        {
+          "file": "main.py",
+          "type": "hardcoded_threshold",
+          "value": "0.015",
+          "line": 295
+        }
+      ]
+    },
+    "logging_analysis": {
+      "status": "PASS",
+      "count": 0,
+      "details": []
+    },
+    "bugs": {
+      "status": "WARNING",
+      "count": 170,
+      "details": [
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 851,
+          "description": "Should specify exception type"
+        },
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 875,
+          "description": "Should specify exception type"
+        },
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 1000,
+          "description": "Should specify exception type"
+        },
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 1154,
+          "description": "Should specify exception type"
+        },
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 1259,
+          "description": "Should specify exception type"
+        },
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 1807,
+          "description": "Should specify exception type"
+        },
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 3520,
+          "description": "Should specify exception type"
+        },
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 3678,
+          "description": "Should specify exception type"
+        },
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 3709,
+          "description": "Should specify exception type"
+        },
+        {
+          "file": "main.py",
+          "type": "bare_except",
+          "line": 3758,
+          "description": "Should specify exception type"
+        }
+      ]
+    },
+    "labels_references": {
+      "status": "PASS",
+      "count": 0,
+      "details": []
+    },
+    "dashboard": {
+      "status": "FAIL",
+      "count": 2,
+      "details": [
+        "Missing endpoint: /api/profit",
+        "Missing endpoint: /api/state"
+      ]
+    },
+    "self_healing": {
+      "status": "PASS",
+      "count": 0,
+      "details": []
+    },
+    "monitoring": {
+      "status": "PASS",
+      "count": 0,
+      "details": []
+    },
+    "trading_ability": {
+      "status": "PASS",
+      "count": 0,
+      "details": []
+    },
+    "imports": {
+      "status": "FAIL",
+      "count": 3,
+      "details": [
+        "main: No module named 'requests'",
+        "dashboard: No module named 'flask'",
+        "sre_monitoring: No module named 'requests'"
+      ]
+    }
+  },
+  "errors": [
+    "Dashboard: Missing endpoint: /api/profit",
+    "Dashboard: Missing endpoint: /api/state",
+    "Import: main: No module named 'requests'",
+    "Import: dashboard: No module named 'flask'",
+    "Import: sre_monitoring: No module named 'requests'"
+  ],
+  "warnings": [],
+  "hardcoded_values": [
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.25",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.65",
+      "line": 118
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.25",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.25",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 278
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.8",
+      "line": 284
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.03",
+      "line": 294
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.015",
+      "line": 295
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.01",
+      "line": 295
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.25",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 328
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 328
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.55",
+      "line": 330
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.45",
+      "line": 331
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.30",
+      "line": 335
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.25",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.004",
+      "line": 355
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.03",
+      "line": 294
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.02",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.05",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.10",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 328
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 328
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.4",
+      "line": 331
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.15",
+      "line": 411
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.02",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.52",
+      "line": 417
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.20",
+      "line": 418
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.10",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.05",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.25",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.10",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.05",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.55",
+      "line": 330
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.25",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.00778489400243029",
+      "line": 891
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.322396458041136",
+      "line": 891
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.00778469570904146",
+      "line": 892
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.32246712907004",
+      "line": 892
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.02425",
+      "line": 893
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.97575",
+      "line": 893
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 328
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.7",
+      "line": 1059
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 278
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.05",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.01",
+      "line": 295
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.2",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.9",
+      "line": 889
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.8",
+      "line": 284
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.8",
+      "line": 284
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.2",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.9",
+      "line": 889
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.2",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.2",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 328
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 278
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.75",
+      "line": 2399
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.15",
+      "line": 411
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.10",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.50",
+      "line": 2507
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.15",
+      "line": 411
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.55",
+      "line": 330
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.25",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.54",
+      "line": 2513
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.22",
+      "line": 2514
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.15",
+      "line": 411
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.02",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.30",
+      "line": 335
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.05",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.30",
+      "line": 335
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.10",
+      "line": 366
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.40",
+      "line": 2832
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.999",
+      "line": 2880
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.2",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.8",
+      "line": 284
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.003",
+      "line": 4299
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 278
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 278
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 278
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 328
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 328
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 328
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 278
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.999",
+      "line": 2880
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.2",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.2",
+      "line": 71
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.7",
+      "line": 1059
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.7",
+      "line": 1059
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.7",
+      "line": 1059
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.7",
+      "line": 1059
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.70",
+      "line": 5351
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.90",
+      "line": 5475
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.90",
+      "line": 5475
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.30",
+      "line": 335
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.30",
+      "line": 335
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 273
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_percentage",
+      "value": "63.6%",
+      "line": 389
+    },
+    {
+      "file": "main.py",
+      "type": "hardcoded_percentage",
+      "value": "61.5%",
+      "line": 392
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "/api/closed_positions",
+      "line": 1469
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "logs/",
+      "line": 1604
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "/api/xai/export",
+      "line": 593
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "/health",
+      "line": 284
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "/sre",
+      "line": 284
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "/api/sre/health",
+      "line": 284
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "state/",
+      "line": 1477
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "/api/xai/auditor",
+      "line": 467
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "/api/positions",
+      "line": 867
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "/api/health_status",
+      "line": 967
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "data/",
+      "line": 1603
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_path",
+      "value": "/api/executive_summary",
+      "line": 618
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 71
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 71
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 71
+    },
+    {
+      "file": "dashboard.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 106
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "hardcoded_path",
+      "value": "/api/darkpool/{ticker}",
+      "line": 428
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "hardcoded_path",
+      "value": "/api/option-trades/flow-alerts",
+      "line": 427
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "hardcoded_path",
+      "value": "/api/market/top-net-impact",
+      "line": 430
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "hardcoded_path",
+      "value": "/api/stock/{ticker}/greeks",
+      "line": 429
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 167
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 167
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "type": "hardcoded_path",
+      "value": "data/",
+      "line": 274
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "type": "hardcoded_path",
+      "value": "state/",
+      "line": 30
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "type": "hardcoded_path",
+      "value": "logs/",
+      "line": 82
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "type": "hardcoded_threshold",
+      "value": "0.1",
+      "line": 155
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "type": "hardcoded_threshold",
+      "value": "0.5",
+      "line": 195
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "type": "hardcoded_threshold",
+      "value": "0.3",
+      "line": 239
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/stock/{ticker}/iv-rank",
+      "line": 354
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/shorts/{ticker}/ftds",
+      "line": 362
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/market/market-tide",
+      "line": 295
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/institutional/{ticker}",
+      "line": 402
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/market/top-net-impact",
+      "line": 290
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/stock/{ticker}/greek-exposure",
+      "line": 273
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/stock/{ticker}/oi-change",
+      "line": 338
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/calendar/{ticker}",
+      "line": 386
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/stock/{ticker}/greeks",
+      "line": 282
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/congress/{ticker}",
+      "line": 394
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/stock/{ticker}/max-pain",
+      "line": 370
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/etfs/{ticker}/in-outflow",
+      "line": 346
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/darkpool/{ticker}",
+      "line": 267
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/option-trades/flow-alerts",
+      "line": 259
+    },
+    {
+      "file": "uw_flow_daemon.py",
+      "type": "hardcoded_path",
+      "value": "/api/insider/{ticker}",
+      "line": 378
+    }
+  ],
+  "unanalyzed_logs": [],
+  "bugs": [
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 851,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 875,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 1000,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 1154,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 1259,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 1807,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 3520,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 3678,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 3709,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 3758,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 4416,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 4454,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 4700,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 4709,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 4732,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 5697,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 6211,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 6834,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "bare_except",
+      "line": 6999,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 483,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 485,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 487,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 3460,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 3461,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 3462,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 3464,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 3466,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 3471,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4017,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4020,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4036,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4038,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4156,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4159,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4167,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4332,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4404,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4426,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4445,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4471,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4478,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4487,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4489,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4501,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4528,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4538,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4552,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4555,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4566,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4598,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4603,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4605,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4625,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4628,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4629,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4663,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4665,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4670,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4678,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4680,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4684,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4688,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4752,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4753,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4760,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4764,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4769,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4776,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4778,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4795,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4864,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4865,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4871,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4873,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4996,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 4997,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5049,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5064,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5070,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5072,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5074,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5076,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5089,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5092,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5107,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5136,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5140,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5166,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5172,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5175,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5192,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5195,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5200,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5202,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5225,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5237,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5238,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5242,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5259,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5286,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5291,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5298,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5311,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5314,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5321,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5351,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5398,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5448,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5481,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5490,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5495,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5507,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5523,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5525,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5558,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5560,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5564,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5590,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5639,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5678,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5733,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5735,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5740,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5890,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5895,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 5899,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7074,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7075,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7089,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7092,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7100,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7101,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7112,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7124,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7125,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7130,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7161,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7162,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7173,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "main.py",
+      "type": "print_statement",
+      "line": 7178,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "bare_except",
+      "line": 1401,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "bare_except",
+      "line": 1501,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "bare_except",
+      "line": 1556,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "bare_except",
+      "line": 1620,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "bare_except",
+      "line": 1622,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "bare_except",
+      "line": 1651,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 16,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 26,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 41,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 43,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 46,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 48,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 1580,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 1689,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 1690,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "dashboard.py",
+      "type": "print_statement",
+      "line": 1695,
+      "description": "Consider using logging"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 98,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 114,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 122,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 160,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 162,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 217,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 219,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 254,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 373,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 502,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 524,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 591,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "bare_except",
+      "line": 665,
+      "description": "Should specify exception type"
+    },
+    {
+      "file": "sre_monitoring.py",
+      "type": "print_statement",
+      "line": 812,
+      "description": "Consider using logging"
+    }
+  ],
+  "mismatched_labels": [],
+  "incorrect_references": []
+}

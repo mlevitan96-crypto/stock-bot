@@ -1,0 +1,214 @@
+{
+  "timestamp": "2025-12-25T19:29:33.350749+00:00",
+  "audit_passed": false,
+  "sections": {
+    "hardcoded_critical": {
+      "status": "WARNING",
+      "count": 26,
+      "details": [
+        {
+          "file": "dashboard.py",
+          "line": 1477,
+          "type": "hardcoded_path",
+          "value": "\"state/"
+        },
+        {
+          "file": "dashboard.py",
+          "line": 1603,
+          "type": "hardcoded_path",
+          "value": "\"data/"
+        },
+        {
+          "file": "dashboard.py",
+          "line": 1604,
+          "type": "hardcoded_path",
+          "value": "\"logs/"
+        },
+        {
+          "file": "dashboard.py",
+          "line": 1605,
+          "type": "hardcoded_path",
+          "value": "\"logs/"
+        },
+        {
+          "file": "dashboard.py",
+          "line": 1632,
+          "type": "hardcoded_path",
+          "value": "\"state/"
+        },
+        {
+          "file": "dashboard.py",
+          "line": 1633,
+          "type": "hardcoded_path",
+          "value": "\"state/"
+        },
+        {
+          "file": "dashboard.py",
+          "line": 1634,
+          "type": "hardcoded_path",
+          "value": "\"state/"
+        },
+        {
+          "file": "dashboard.py",
+          "line": 1635,
+          "type": "hardcoded_path",
+          "value": "\"state/"
+        },
+        {
+          "file": "dashboard.py",
+          "line": 1477,
+          "type": "hardcoded_path",
+          "value": "Path(\"state/"
+        },
+        {
+          "file": "dashboard.py",
+          "line": 1603,
+          "type": "hardcoded_path",
+          "value": "Path(\"data/"
+        }
+      ]
+    },
+    "logging_analysis": {
+      "status": "PASS",
+      "count": 0,
+      "details": []
+    },
+    "critical_bugs": {
+      "status": "PASS",
+      "count": 0,
+      "details": []
+    },
+    "labels_references": {
+      "status": "PASS",
+      "count": 0,
+      "details": []
+    }
+  },
+  "errors": [],
+  "warnings": [],
+  "hardcoded_critical": [
+    {
+      "file": "dashboard.py",
+      "line": 1477,
+      "type": "hardcoded_path",
+      "value": "\"state/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1603,
+      "type": "hardcoded_path",
+      "value": "\"data/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1604,
+      "type": "hardcoded_path",
+      "value": "\"logs/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1605,
+      "type": "hardcoded_path",
+      "value": "\"logs/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1632,
+      "type": "hardcoded_path",
+      "value": "\"state/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1633,
+      "type": "hardcoded_path",
+      "value": "\"state/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1634,
+      "type": "hardcoded_path",
+      "value": "\"state/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1635,
+      "type": "hardcoded_path",
+      "value": "\"state/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1477,
+      "type": "hardcoded_path",
+      "value": "Path(\"state/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1603,
+      "type": "hardcoded_path",
+      "value": "Path(\"data/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1604,
+      "type": "hardcoded_path",
+      "value": "Path(\"logs/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1605,
+      "type": "hardcoded_path",
+      "value": "Path(\"logs/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1632,
+      "type": "hardcoded_path",
+      "value": "Path(\"state/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1633,
+      "type": "hardcoded_path",
+      "value": "Path(\"state/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1634,
+      "type": "hardcoded_path",
+      "value": "Path(\"state/"
+    },
+    {
+      "file": "dashboard.py",
+      "line": 1635,
+      "type": "hardcoded_path",
+      "value": "Path(\"state/"
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "line": 30,
+      "type": "hardcoded_path",
+      "value": "\"state/"
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "line": 82,
+      "type": "hardcoded_path",
+      "value": "\"logs/"
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "line": 273,
+      "type": "hardcoded_path",
+      "value": "\"logs/"
+    },
+    {
+      "file": "deploy_supervisor.py",
+      "line": 273,
+      "type": "hardcoded_path",
+      "value": "\"logs/"
+    }
+  ],
+  "unanalyzed_logs": [],
+  "bugs_critical": [],
+  "mismatched_labels": []
+}
