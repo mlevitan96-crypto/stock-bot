@@ -1,0 +1,47 @@
+================================================================================
+STRUCTURAL INTELLIGENCE INTEGRATION TESTS
+================================================================================
+
+=== Test 1: Regime Detector ===
+  [PASS] Regime detected: NEUTRAL (confidence: 0.00)
+  [PASS] Bullish multiplier: 1.00, Bearish multiplier: 1.00
+
+=== Test 2: Macro Gate ===
+  [PASS] Macro status: {'current_yield': 4.5, 'yield_trend': 'NEUTRAL', 'last_update': '2025-12-25T19:21:17.453621+00:00'}
+  [PASS] Tech bullish multiplier: 1.00
+
+=== Test 3: Structural Exit ===
+  [PASS] Exit recommendation: {'should_exit': False, 'reason': '', 'scale_out_pct': 0.0, 'recommended_action': 'HOLD'}
+
+=== Test 4: Thompson Sampling Engine ===
+  [PASS] Sampled weight: 2.37
+  [PASS] Optimal weight: 2.25
+  [PASS] Component stats: {'current_weight': 1.0, 'proposed_weight': 2.252475714994194, 'trials': 1, 'successes': 1, 'win_rate': 1.0, 'confidence_interval': (0.0, 1.0), 'alpha': 2.0, 'beta': 1.0}
+
+=== Test 5: Shadow Trade Logger ===
+  [PASS] Rejected signal logged
+  [PASS] Shadow analysis: 1 gates analyzed
+  [PASS] Current threshold: 2.0
+
+=== Test 6: Token Bucket ===
+  [PASS] Can poll AAPL: False, wait time: 60.0s
+  [PASS] Quota status: {'tokens_available': 120, 'rate_per_min': 120, 'daily_calls': 0, 'daily_limit': 15000, 'daily_remaining': 15000, 'can_make_call': True, 'symbols_tracked': 1, 'market_hours_focus': True, 'in_focus_hours': False}
+
+=== Test 7: Full Integration ===
+  [PASS] All modules imported and instantiated
+  [PASS] Composite multiplier: 1.00 (regime: 1.00 * macro: 1.00)
+
+================================================================================
+INTEGRATION TEST SUMMARY
+================================================================================
+[PASS] Regime Detector
+[PASS] Macro Gate
+[PASS] Structural Exit
+[PASS] Thompson Sampling
+[PASS] Shadow Logger
+[PASS] Token Bucket
+[PASS] Full Integration
+
+Total: 7/7 tests passed
+
+Results saved to: structural_intelligence_test_results.json

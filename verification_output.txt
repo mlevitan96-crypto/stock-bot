@@ -1,0 +1,50 @@
+[main 982f1ac] Droplet verification results - 2025-12-25T19:21:24.201682+00:00
+ 1 file changed, 26 insertions(+)
+ create mode 100644 droplet_verification_results.json
+To https://github.com/mlevitan96-crypto/stock-bot.git
+   75721be..982f1ac  main -> main
+To https://github.com/mlevitan96-crypto/stock-bot.git
+ ! [remote rejected] main -> main (cannot lock ref 'refs/heads/main': is at 982f1ac20230414e6bcbc9fa9dd25698d90af079 but expected 75721be3613678ad7857421ab06c2f849ee2b77d)
+error: failed to push some refs to 'https://github.com/mlevitan96-crypto/stock-bot.git'
+================================================================================
+COMPLETE DROPLET VERIFICATION
+================================================================================
+
+Test 1: Verifying all implementation files exist...
+  [PASS] tca_data_manager.py
+  [PASS] execution_quality_learner.py
+  [PASS] signal_pattern_learner.py
+  [PASS] parameter_optimizer.py
+  [PASS] backtest_all_implementations.py
+  [PASS] deploy_and_verify_on_droplet.sh
+
+Test 2: Running comprehensive backtest...
+  [PASS] Backtest passed
+
+Test 3: Verifying Python imports...
+  [PASS] tca_data_manager
+  [PASS] execution_quality_learner
+  [PASS] signal_pattern_learner
+  [PASS] parameter_optimizer
+
+Test 4: Verifying main.py integration...
+  [PASS] tca_integration
+  [PASS] regime_forecast
+  [PASS] toxicity
+  [PASS] execution_tracking
+  [PASS] experiment_params
+
+Test 5: Verifying learning orchestrator integration...
+  [PASS] execution_quality
+  [PASS] signal_patterns
+  [PASS] counterfactual
+
+================================================================================
+[SUCCESS] ALL VERIFICATIONS PASSED
+================================================================================
+
+Results saved to: droplet_verification_results.json
+
+Pushing results to git...
+  [WARNING] Could not push to git: Command '['git', 'push', 'origin', 'main']' returned non-zero exit status 1.
+  Results saved locally - manual push may be needed

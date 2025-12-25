@@ -1,0 +1,36 @@
+================================================================================
+REGRESSION TEST: Structural Intelligence Overhaul
+================================================================================
+
+=== Test 1: Main Imports ===
+[CONFIG] Loaded theme_risk.json: ENABLE_THEME_RISK=True, MAX_THEME_NOTIONAL_USD=$150,000
+  [PASS] main.py imports successfully
+
+=== Test 2: Structural Intelligence Imports ===
+  [PASS] All structural intelligence modules import successfully
+
+=== Test 3: Learning Orchestrator Imports ===
+  [PASS] Learning orchestrator imports successfully
+
+=== Test 4: Existing Functions ===
+  [PASS] Existing functions still available
+
+=== Test 5: Config Registry ===
+  [PASS] Config registry imports successfully
+
+=== Test 6: Signal Modules ===
+  [PASS] Signal modules import successfully
+
+================================================================================
+REGRESSION TEST SUMMARY
+================================================================================
+[PASS] Main Imports
+[PASS] Structural Intelligence Imports
+[PASS] Learning Orchestrator Imports
+[PASS] Existing Functions
+[PASS] Config Registry
+[PASS] Signal Modules
+
+Total: 6/6 tests passed
+
+Results saved to: regression_test_results.json

@@ -1,0 +1,54 @@
+============================================================
+XAI Regression Tests
+============================================================
+
+
+[Imports]
+Testing imports...
+  [OK] XAI imports successful
+
+[ExplainableLogger]
+Testing ExplainableLogger...
+  [OK] Trade entry logging works
+  [OK] Trade exit logging works
+  [OK] Weight adjustment logging works
+  [OK] Trade explanation retrieval works
+  [OK] Weight explanation retrieval works
+
+[Thompson Sampling min_sample_size]
+Testing Thompson Sampling min_sample_size...
+  [OK] min_sample_size=30 enforced correctly
+  [OK] With 30 samples, finalization check: False
+
+[main.py Integration]
+Testing main.py XAI integration...
+  [WARN] main.py missing XAI import (may need manual integration)
+  [OK] main.py has trade entry logging
+  [OK] main.py has trade exit logging
+
+[Dashboard Integration]
+Testing dashboard XAI integration...
+  [OK] Dashboard has XAI tab button
+  [OK] Dashboard has XAI load function
+  [OK] Dashboard has XAI render function
+  [OK] Dashboard has XAI API endpoint
+  [OK] Dashboard has XAI export endpoint
+
+[Learning Integration]
+Testing learning system XAI integration...
+  [OK] Learning system has XAI integration
+  [OK] Learning system categorizes using explainable Why
+
+============================================================
+Test Summary
+============================================================
+  PASS: Imports
+  PASS: ExplainableLogger
+  PASS: Thompson Sampling min_sample_size
+  PASS: main.py Integration
+  PASS: Dashboard Integration
+  PASS: Learning Integration
+
+Total: 6/6 tests passed
+
+[SUCCESS] All regression tests passed!
