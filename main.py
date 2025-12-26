@@ -560,10 +560,30 @@ def build_client_order_id(symbol: str, side: str, cluster: dict, suffix: str = "
     Uniqueness is scoped by (symbol, side, cluster start_ts) plus a suffix for retries.
     """
     try:
-        start_ts = cluster.get("start_ts") or cluster.get("ts") or int(time.time())
+        start_ts_raw = cluster.get("start_ts") or cluster.get("ts") or int(time.time())
+        
+        # Handle ISO timestamp strings (e.g., '2025-12-26T19:08:46.138262Z')
+        if isinstance(start_ts_raw, str):
+            try:
+                from datetime import datetime
+                # Try parsing ISO format
+                if 'T' in start_ts_raw:
+                    dt = datetime.fromisoformat(start_ts_raw.replace('Z', '+00:00'))
+                    start_ts = int(dt.timestamp())
+                else:
+                    # Try parsing as float string
+                    start_ts = int(float(start_ts_raw))
+            except (ValueError, AttributeError):
+                # Fallback to current time if parsing fails
+                start_ts = int(time.time())
+        elif isinstance(start_ts_raw, (int, float)):
+            start_ts = int(start_ts_raw)
+        else:
+            start_ts = int(time.time())
     except Exception:
         start_ts = int(time.time())
-    base = f"uwbot-{symbol}-{side}-{int(start_ts)}"
+    
+    base = f"uwbot-{symbol}-{side}-{start_ts}"
     return f"{base}-{suffix}" if suffix else base
 
 def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = None, 

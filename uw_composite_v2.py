@@ -517,7 +517,8 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     # Dark pool
     dp = enriched_data.get("dark_pool", {}) or {}
     dp_sent = dp.get("sentiment", "NEUTRAL")
-    dp_prem = _to_num(dp.get("total_premium", 0.0))
+    # FIXED: Use total_notional (from new normalization) or fallback to total_premium (old format)
+    dp_prem = _to_num(dp.get("total_notional", 0.0) or dp.get("total_premium", 0.0))
     
     # Insider (also used for institutional)
     ins = enriched_data.get("insider", {}) or {}
@@ -532,8 +533,9 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     # V3 NEW: Expanded intelligence from cache
     congress_data = enriched_data.get("congress", {}) or symbol_intel.get("congress", {})
     shorts_data = enriched_data.get("shorts", {}) or symbol_intel.get("shorts", {})
-    tide_data = symbol_intel.get("market_tide", {})
-    calendar_data = symbol_intel.get("calendar", {})
+    # FIXED: Market tide is stored per-ticker in cache, check enriched_data first
+    tide_data = enriched_data.get("market_tide", {}) or symbol_intel.get("market_tide", {})
+    calendar_data = enriched_data.get("calendar", {}) or symbol_intel.get("calendar", {})
     
     # Motif data
     motif_staircase = enriched_data.get("motif_staircase", {})
