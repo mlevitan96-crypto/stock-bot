@@ -143,9 +143,16 @@ def check_signals():
         if recent:
             print("\n  Recent signals:")
             for sig in recent[-10:]:
-                symbol = sig.get("symbol", "unknown")
-                score = sig.get("composite_score", 0)
-                timestamp = sig.get("timestamp", "unknown")
+                # FIX: Parse nested cluster structure
+                cluster = sig.get("cluster", {})
+                if cluster:
+                    symbol = cluster.get("ticker") or cluster.get("symbol") or sig.get("symbol", "unknown")
+                    score = cluster.get("composite_score") or sig.get("composite_score", 0)
+                    timestamp = sig.get("ts") or cluster.get("timestamp") or sig.get("timestamp", "unknown")
+                else:
+                    symbol = sig.get("symbol", "unknown")
+                    score = sig.get("composite_score", 0)
+                    timestamp = sig.get("ts") or sig.get("timestamp", "unknown")
                 print(f"    {symbol}: score={score:.2f} at {timestamp}")
         else:
             print("  [WARNING] No recent signals found")
