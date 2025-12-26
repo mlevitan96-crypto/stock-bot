@@ -906,15 +906,20 @@ class UWFlowDaemon:
                 try:
                     print(f"[UW-DAEMON] Polling etf_flow for {ticker}...", flush=True)
                     etf_data = self.client.get_etf_flow(ticker)
+                    # Always store etf_flow (even if empty) so we know it was polled
+                    if not etf_data:
+                        etf_data = {}  # Store empty structure
+                    self._update_cache(ticker, {"etf_flow": etf_data})
                     if etf_data:
-                        self._update_cache(ticker, {"etf_flow": etf_data})
                         print(f"[UW-DAEMON] Updated etf_flow for {ticker}: {len(str(etf_data))} bytes", flush=True)
                     else:
-                        print(f"[UW-DAEMON] etf_flow for {ticker}: API returned empty", flush=True)
+                        print(f"[UW-DAEMON] etf_flow for {ticker}: API returned empty (stored as empty)", flush=True)
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching etf_flow for {ticker}: {e}", flush=True)
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+                    # Store empty on error too
+                    self._update_cache(ticker, {"etf_flow": {}})
             
             # Poll IV rank
             if self.poller.should_poll("iv_rank"):
@@ -987,39 +992,54 @@ class UWFlowDaemon:
                 try:
                     print(f"[UW-DAEMON] Polling calendar for {ticker}...", flush=True)
                     calendar_data = self.client.get_calendar(ticker)
+                    # Always store calendar (even if empty) so we know it was polled
+                    if not calendar_data:
+                        calendar_data = {}  # Store empty structure
+                    self._update_cache(ticker, {"calendar": calendar_data})
                     if calendar_data:
-                        self._update_cache(ticker, {"calendar": calendar_data})
                         print(f"[UW-DAEMON] Updated calendar for {ticker}: {len(str(calendar_data))} bytes", flush=True)
                     else:
-                        print(f"[UW-DAEMON] calendar for {ticker}: API returned empty", flush=True)
+                        print(f"[UW-DAEMON] calendar for {ticker}: API returned empty (stored as empty)", flush=True)
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching calendar for {ticker}: {e}", flush=True)
+                    # Store empty on error too
+                    self._update_cache(ticker, {"calendar": {}})
             
             # Poll congress
             if self.poller.should_poll("congress"):
                 try:
                     print(f"[UW-DAEMON] Polling congress for {ticker}...", flush=True)
                     congress_data = self.client.get_congress(ticker)
+                    # Always store congress (even if empty or 404) so we know it was polled
+                    if not congress_data:
+                        congress_data = {}  # Store empty structure
+                    self._update_cache(ticker, {"congress": congress_data})
                     if congress_data:
-                        self._update_cache(ticker, {"congress": congress_data})
                         print(f"[UW-DAEMON] Updated congress for {ticker}: {len(str(congress_data))} bytes", flush=True)
                     else:
-                        print(f"[UW-DAEMON] congress for {ticker}: API returned empty", flush=True)
+                        print(f"[UW-DAEMON] congress for {ticker}: API returned empty (stored as empty)", flush=True)
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching congress for {ticker}: {e}", flush=True)
+                    # Store empty on error too
+                    self._update_cache(ticker, {"congress": {}})
             
             # Poll institutional
             if self.poller.should_poll("institutional"):
                 try:
                     print(f"[UW-DAEMON] Polling institutional for {ticker}...", flush=True)
                     institutional_data = self.client.get_institutional(ticker)
+                    # Always store institutional (even if empty or 404) so we know it was polled
+                    if not institutional_data:
+                        institutional_data = {}  # Store empty structure
+                    self._update_cache(ticker, {"institutional": institutional_data})
                     if institutional_data:
-                        self._update_cache(ticker, {"institutional": institutional_data})
                         print(f"[UW-DAEMON] Updated institutional for {ticker}: {len(str(institutional_data))} bytes", flush=True)
                     else:
-                        print(f"[UW-DAEMON] institutional for {ticker}: API returned empty", flush=True)
+                        print(f"[UW-DAEMON] institutional for {ticker}: API returned empty (stored as empty)", flush=True)
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching institutional for {ticker}: {e}", flush=True)
+                    # Store empty on error too
+                    self._update_cache(ticker, {"institutional": {}})
         
         except Exception as e:
             print(f"[UW-DAEMON] Error polling {ticker}: {e}", flush=True)
@@ -1147,14 +1167,19 @@ class UWFlowDaemon:
                             }, "H3")
                             # #endregion
                             if tide_data:
-                                # Store in cache metadata
+                                # Store in cache metadata AND per-ticker (for scoring)
                                 cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
                                 cache["_market_tide"] = {
                                     "data": tide_data,
                                     "last_update": int(time.time())
                                 }
+                                # Also store per-ticker so scoring can access it
+                                for ticker in self.tickers:
+                                    if ticker not in cache:
+                                        cache[ticker] = {}
+                                    cache[ticker]["market_tide"] = tide_data
                                 atomic_write_json(CACHE_FILE, cache)
-                                safe_print(f"[UW-DAEMON] Updated market_tide: {len(str(tide_data))} bytes")
+                                safe_print(f"[UW-DAEMON] Updated market_tide: {len(str(tide_data))} bytes (stored globally and per-ticker)")
                             else:
                                 safe_print(f"[UW-DAEMON] market_tide: API returned empty data")
                         except Exception as e:
