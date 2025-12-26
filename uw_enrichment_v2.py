@@ -46,7 +46,7 @@ class TemporalMotifDetector:
         self.history[symbol].append({
             "ts": int(time.time()),
             "conviction": data.get("conviction", 0.0),
-            "dark_pool_premium": data.get("dark_pool", {}).get("total_premium", 0),
+            "dark_pool_premium": data.get("dark_pool", {}).get("total_notional", 0) or data.get("dark_pool", {}).get("total_premium", 0),
             "sentiment": data.get("sentiment", "NEUTRAL")
         })
     
@@ -202,7 +202,7 @@ class UWEnricher:
         Penalize very high toxicity (>0.85) as we may be on wrong side
         """
         conviction = data.get("conviction", 0.5)
-        dp_premium = data.get("dark_pool", {}).get("total_premium", 0)
+        dp_premium = data.get("dark_pool", {}).get("total_notional", 0) or data.get("dark_pool", {}).get("total_premium", 0)
         
         # High conviction + large dark pool = potentially toxic
         base_toxicity = conviction * 0.7
@@ -388,6 +388,21 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     ]
     
     enriched_symbol = enricher.enrich_symbol(symbol, data, features)
+    
+    # CRITICAL: Include all cache data fields in enriched output for composite scoring
+    # These are needed by compute_composite_score_v3
+    enriched_symbol["dark_pool"] = data.get("dark_pool", {})
+    enriched_symbol["insider"] = data.get("insider", {})
+    enriched_symbol["market_tide"] = data.get("market_tide", {})
+    enriched_symbol["calendar"] = data.get("calendar", {})
+    enriched_symbol["congress"] = data.get("congress", {})
+    enriched_symbol["institutional"] = data.get("institutional", {})
+    enriched_symbol["shorts"] = data.get("ftd", {})  # FTD data is stored as "ftd" in cache
+    enriched_symbol["greeks"] = data.get("greeks", {})
+    enriched_symbol["iv_rank"] = data.get("iv_rank", {})
+    enriched_symbol["oi_change"] = data.get("oi_change", {})
+    enriched_symbol["etf_flow"] = data.get("etf_flow", {})
+    
     return enriched_symbol
 
 if __name__ == "__main__":
