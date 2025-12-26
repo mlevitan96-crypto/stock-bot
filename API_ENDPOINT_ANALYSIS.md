@@ -1,12 +1,27 @@
 # Unusual Whales API Endpoint Analysis
 
+**Last Updated:** 2025-12-26  
+**Reference:** https://api.unusualwhales.com/docs#/  
+**Status:** All endpoints verified against official API
+
 ## Currently Used Endpoints
 
 ### Core Trading Signals (in `uw_flow_daemon.py`)
-1. ✅ `/api/option-trades/flow-alerts` - Option flow alerts (most critical)
-2. ✅ `/api/darkpool/{ticker}` - Dark pool levels
-3. ✅ `/api/stock/{ticker}/greeks` - Greek exposure
-4. ✅ `/api/market/top-net-impact` - Top net impact symbols
+1. ✅ `/api/option-trades/flow-alerts` - Option flow alerts (most critical) - **VERIFIED WORKING**
+2. ✅ `/api/darkpool/{ticker}` - Dark pool levels - **VERIFIED WORKING** (uses volume/price fields)
+3. ✅ `/api/stock/{ticker}/greeks` - Greek exposure - **VERIFIED WORKING**
+4. ✅ `/api/stock/{ticker}/greek-exposure` - Detailed Greek exposure - **VERIFIED WORKING**
+5. ✅ `/api/market/top-net-impact` - Top net impact symbols - **VERIFIED WORKING**
+6. ✅ `/api/market/market-tide` - Market-wide sentiment - **VERIFIED WORKING**
+7. ✅ `/api/stock/{ticker}/iv-rank` - IV rank - **VERIFIED WORKING**
+8. ✅ `/api/stock/{ticker}/oi-change` - Open interest changes - **VERIFIED WORKING**
+9. ✅ `/api/stock/{ticker}/max-pain` - Max pain strike - **VERIFIED WORKING**
+10. ✅ `/api/insider/{ticker}` - Insider trading - **VERIFIED WORKING**
+11. ✅ `/api/shorts/{ticker}/ftds` - Fails-to-deliver - **VERIFIED WORKING**
+12. ⚠️ `/api/etfs/{ticker}/in-outflow` - ETF flow - **Returns 200 but may be empty** (expected for non-ETF tickers)
+13. ⚠️ `/api/calendar/{ticker}` - Calendar events - **Returns 200 but may be empty** (expected if no events)
+14. ❌ `/api/congress/{ticker}` - **404 NOT FOUND** (per-ticker doesn't exist)
+15. ❌ `/api/institutional/{ticker}` - **404 NOT FOUND** (per-ticker doesn't exist)
 
 ### Macro Intelligence (in `signals/uw_macro.py`)
 5. ✅ `/api/market/sector-tide` - Sector-wide sentiment

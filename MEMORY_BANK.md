@@ -1,8 +1,34 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-26 (Critical Fix: Signal Data Flow - Never Mask Errors)  
+**Last Updated:** 2025-12-26 (UW API Endpoints Verified - All Correct Per Official Docs)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
+
+## ✅ UW API ENDPOINTS - VERIFIED AND DOCUMENTED
+
+**Reference:** https://api.unusualwhales.com/docs#/  
+**Status:** All endpoints verified against official API (2025-12-26)
+
+### Working Endpoints (13 verified)
+1. `/api/option-trades/flow-alerts` - Option flow alerts
+2. `/api/darkpool/{ticker}` - Dark pool (uses volume/price, not premium)
+3. `/api/stock/{ticker}/greeks` - Basic greeks
+4. `/api/stock/{ticker}/greek-exposure` - Detailed greek exposure
+5. `/api/market/top-net-impact` - Top net impact
+6. `/api/market/market-tide` - Market-wide sentiment
+7. `/api/stock/{ticker}/iv-rank` - IV rank
+8. `/api/stock/{ticker}/oi-change` - Open interest changes
+9. `/api/stock/{ticker}/max-pain` - Max pain
+10. `/api/insider/{ticker}` - Insider trading
+11. `/api/shorts/{ticker}/ftds` - Fails-to-deliver
+12. `/api/etfs/{ticker}/in-outflow` - ETF flow (may be empty for non-ETF)
+13. `/api/calendar/{ticker}` - Calendar events (may be empty if no events)
+
+### Non-Existent Endpoints (404)
+- `/api/congress/{ticker}` - Per-ticker doesn't exist (handled gracefully)
+- `/api/institutional/{ticker}` - Per-ticker doesn't exist (handled gracefully)
+
+**Documentation:** See `UW_API_ENDPOINTS_OFFICIAL.md` for complete details.
 
 ## ⚠️ CRITICAL LESSON: NEVER MASK ERRORS - FIX ROOT CAUSES
 
