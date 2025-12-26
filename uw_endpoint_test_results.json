@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-26T21:19:52.997044",
+  "timestamp": "2025-12-26T21:56:40.175490",
   "test_ticker": "AAPL",
   "summary": {
     "total": 9,
@@ -12,7 +12,7 @@
       "endpoint": "/api/option-trades/flow-alerts",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 126.6,
+      "response_time_ms": 128.85,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -1918,8 +1918,8 @@
             "total_bid_side_prem": "194163"
           }
         ],
-        "newer_than": "2025-12-19T21:19:51Z",
-        "older_than": "2025-12-26T21:19:51.855416Z"
+        "newer_than": "2025-12-19T21:56:38Z",
+        "older_than": "2025-12-26T21:56:38.910460Z"
       }
     },
     {
@@ -1927,11 +1927,49 @@
       "endpoint": "/api/darkpool/AAPL",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 162.16,
+      "response_time_ms": 158.25,
       "has_data": true,
       "error": null,
       "sample_data": {
         "data": [
+          {
+            "size": 605,
+            "ticker": "AAPL",
+            "price": "273.22",
+            "volume": 21424830,
+            "executed_at": "2025-12-26T21:27:13Z",
+            "premium": "165298.10",
+            "nbbo_bid": "273.32",
+            "nbbo_ask": "273.38",
+            "canceled": false,
+            "ext_hour_sold_codes": "extended_hours_trade",
+            "market_center": "L",
+            "nbbo_ask_quantity": 12,
+            "nbbo_bid_quantity": 8,
+            "sale_cond_codes": null,
+            "tracking_id": 26946702048978,
+            "trade_code": null,
+            "trade_settlement": "regular"
+          },
+          {
+            "size": 527,
+            "ticker": "AAPL",
+            "price": "273.4",
+            "volume": 21420944,
+            "executed_at": "2025-12-26T21:20:00Z",
+            "premium": "144081.8",
+            "nbbo_bid": "273.3",
+            "nbbo_ask": "273.38",
+            "canceled": false,
+            "ext_hour_sold_codes": "extended_hours_trade",
+            "market_center": "L",
+            "nbbo_ask_quantity": 7,
+            "nbbo_bid_quantity": 4,
+            "sale_cond_codes": "prior_reference_price",
+            "tracking_id": 26946701615205,
+            "trade_code": null,
+            "trade_settlement": "regular"
+          },
           {
             "size": 930,
             "ticker": "AAPL",
@@ -11393,44 +11431,6 @@
             "tracking_id": 26946698639562,
             "trade_code": null,
             "trade_settlement": "regular"
-          },
-          {
-            "size": 424,
-            "ticker": "AAPL",
-            "price": "273.91",
-            "volume": 13152784,
-            "executed_at": "2025-12-26T20:30:23Z",
-            "premium": "116137.84",
-            "nbbo_bid": "273.89",
-            "nbbo_ask": "273.91",
-            "canceled": false,
-            "ext_hour_sold_codes": null,
-            "market_center": "L",
-            "nbbo_ask_quantity": 85,
-            "nbbo_bid_quantity": 60,
-            "sale_cond_codes": null,
-            "tracking_id": 26946698638145,
-            "trade_code": null,
-            "trade_settlement": "regular"
-          },
-          {
-            "size": 451,
-            "ticker": "AAPL",
-            "price": "273.91",
-            "volume": 13153245,
-            "executed_at": "2025-12-26T20:30:23Z",
-            "premium": "123533.41",
-            "nbbo_bid": "273.89",
-            "nbbo_ask": "273.91",
-            "canceled": false,
-            "ext_hour_sold_codes": null,
-            "market_center": "L",
-            "nbbo_ask_quantity": 85,
-            "nbbo_bid_quantity": 60,
-            "sale_cond_codes": null,
-            "tracking_id": 26946698638145,
-            "trade_code": null,
-            "trade_settlement": "regular"
           }
         ]
       }
@@ -11440,7 +11440,7 @@
       "endpoint": "/api/stock/AAPL/greeks",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 128.66,
+      "response_time_ms": 142.03,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -13132,7 +13132,7 @@
       "endpoint": "/api/market/top-net-impact",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 134.25,
+      "response_time_ms": 186.62,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -13225,7 +13225,7 @@
       "endpoint": "/api/market/market-tide",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 127.65,
+      "response_time_ms": 131.78,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -13792,7 +13792,7 @@
       "endpoint": "/api/stock/AAPL/greek-exposure",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 176.34,
+      "response_time_ms": 215.3,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -16555,7 +16555,7 @@
       "endpoint": "/api/stock/AAPL/oi-change",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 115.84,
+      "response_time_ms": 119.67,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -17918,7 +17918,7 @@
       "endpoint": "/api/etfs/AAPL/in-outflow",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 112.93,
+      "response_time_ms": 126.13,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -17931,7 +17931,7 @@
       "endpoint": "/api/stock/AAPL/iv-rank",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 128.68,
+      "response_time_ms": 121.32,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -17960,9 +17960,9 @@
           {
             "close": "273.4",
             "date": "2025-12-26",
-            "updated_at": "2025-12-26T20:35:03.140280Z",
-            "volatility": "0.1708",
-            "iv_rank_1y": "0.0081"
+            "updated_at": "2025-12-26T21:35:03.204026Z",
+            "volatility": "0.1727",
+            "iv_rank_1y": "0.3965"
           }
         ]
       }
