@@ -611,6 +611,7 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         all_notes.append(f"mild_toxicity({toxicity:.2f})")
     
     # 10. Regime modifier
+    # FIXED: Handle "mixed" regime case
     aligned_regime = (regime == "RISK_ON" and flow_sign == +1) or (regime == "RISK_OFF" and flow_sign == -1)
     opposite_regime = (regime == "RISK_ON" and flow_sign == -1) or (regime == "RISK_OFF" and flow_sign == +1)
     regime_factor = 1.0
@@ -618,6 +619,9 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         regime_factor = 1.15 if aligned_regime else 0.95
     elif regime == "RISK_OFF":
         regime_factor = 1.10 if opposite_regime else 0.90
+    elif regime == "mixed" or regime == "NEUTRAL":
+        # FIXED: Mixed/neutral regime - slight positive contribution for balanced conditions
+        regime_factor = 1.02  # Small boost for neutral/mixed conditions
     regime_component = weights.get("regime_modifier", 0.3) * (regime_factor - 1.0) * 2.0
     
     # ============ V3 NEW COMPONENTS ============
@@ -651,7 +655,14 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     
     # 16. Greeks/Gamma (squeeze detection)
     greeks_data = enriched_data.get("greeks", {})
+    # FIXED: Calculate gamma_exposure from call_gamma and put_gamma if not directly available
     gamma_exposure = _to_num(greeks_data.get("gamma_exposure", 0))
+    if gamma_exposure == 0:
+        # Calculate from call_gamma and put_gamma (net gamma exposure)
+        call_gamma = _to_num(greeks_data.get("call_gamma", 0))
+        put_gamma = _to_num(greeks_data.get("put_gamma", 0))
+        gamma_exposure = call_gamma - put_gamma  # Net gamma exposure
+    
     gamma_squeeze = greeks_data.get("gamma_squeeze_setup", False)
     if gamma_squeeze:
         greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 1.0
@@ -660,13 +671,16 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 0.5
     elif abs(gamma_exposure) > 100000:
         greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 0.25
+    elif abs(gamma_exposure) > 10000:  # Lower threshold for smaller contributions
+        greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 0.1
     else:
         greeks_gamma_component = 0.0
     
     # 17. FTD Pressure (squeeze signals)
-    ftd_data = enriched_data.get("ftd", {})
+    # FIXED: Check both 'ftd' and 'shorts' keys (FTD data may be in shorts)
+    ftd_data = enriched_data.get("ftd", {}) or enriched_data.get("shorts", {})
     ftd_count = _to_num(ftd_data.get("ftd_count", 0))
-    ftd_squeeze = ftd_data.get("squeeze_pressure", False)
+    ftd_squeeze = ftd_data.get("squeeze_pressure", False) or ftd_data.get("squeeze_risk", False)
     if ftd_squeeze or ftd_count > 200000:
         ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 1.0
         all_notes.append("high_ftd_pressure")
@@ -674,12 +688,16 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 0.67
     elif ftd_count > 50000:
         ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 0.33
+    elif ftd_count > 10000:  # FIXED: Lower threshold for smaller contributions
+        ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 0.1
     else:
         ftd_pressure_component = 0.0
     
     # 18. IV Rank (volatility regime)
-    iv_data = enriched_data.get("iv", {})
-    iv_rank_val = _to_num(iv_data.get("iv_rank", 50))
+    # FIXED: Check both 'iv' and 'iv_rank' keys, and handle iv_rank_1y field
+    iv_data = enriched_data.get("iv", {}) or enriched_data.get("iv_rank", {})
+    iv_rank_val = _to_num(iv_data.get("iv_rank", iv_data.get("iv_rank_1y", 50)))
+    
     if iv_rank_val < 20:  # Low IV = opportunity
         iv_rank_component = weights.get("iv_rank", 0.2) * 1.0
         all_notes.append("low_iv_opportunity")
@@ -690,13 +708,31 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         all_notes.append("high_iv_caution")
     elif iv_rank_val > 70:
         iv_rank_component = -weights.get("iv_rank", 0.2) * 0.5
+    elif 30 <= iv_rank_val <= 70:  # FIXED: Add contribution for middle range
+        # Moderate IV - slight positive contribution for balanced conditions
+        iv_rank_component = weights.get("iv_rank", 0.2) * 0.15
     else:
         iv_rank_component = 0.0
     
     # 19. OI Change (institutional positioning)
-    oi_data = enriched_data.get("oi", {})
+    # FIXED: Check both 'oi' and 'oi_change' keys
+    oi_data = enriched_data.get("oi_change", {}) or enriched_data.get("oi", {})
+    # Calculate net_oi from available fields if net_oi_change doesn't exist
     net_oi = _to_num(oi_data.get("net_oi_change", 0))
+    if net_oi == 0:
+        # Try to calculate from curr_oi and prev_oi or other fields
+        curr_oi = _to_num(oi_data.get("curr_oi", 0))
+        # If we have volume data, use that as proxy
+        if curr_oi == 0:
+            volume = _to_num(oi_data.get("volume", 0))
+            if volume > 0:
+                net_oi = volume * 0.1  # Estimate OI change from volume
+    
     oi_sentiment = oi_data.get("oi_sentiment", "NEUTRAL")
+    # If sentiment not available, infer from net_oi
+    if oi_sentiment == "NEUTRAL" and net_oi != 0:
+        oi_sentiment = "BULLISH" if net_oi > 0 else "BEARISH"
+    
     if net_oi > 50000 and oi_sentiment == "BULLISH" and flow_sign > 0:
         oi_change_component = weights.get("oi_change", 0.35) * 1.0
         all_notes.append("strong_call_positioning")
@@ -704,6 +740,8 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         oi_change_component = weights.get("oi_change", 0.35) * 0.57
     elif abs(net_oi) > 10000:
         oi_change_component = weights.get("oi_change", 0.35) * 0.29
+    elif abs(net_oi) > 1000:  # FIXED: Lower threshold for smaller contributions
+        oi_change_component = weights.get("oi_change", 0.35) * 0.1
     else:
         oi_change_component = 0.0
     
