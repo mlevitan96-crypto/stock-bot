@@ -657,42 +657,61 @@ class UWFlowDaemon:
         }
     
     def _normalize_dark_pool(self, dp_data: List[Dict]) -> Dict:
-        """Normalize dark pool data."""
+        """Normalize dark pool data.
+        
+        Dark pool API returns volume data, not premium. We calculate notional value
+        from volume * price to estimate premium equivalent.
+        """
         if not dp_data or not isinstance(dp_data, list):
             return {}
         
-        # API may return items with different field names - try multiple possibilities
-        total_premium = 0.0
+        # Dark pool data has: price, lit_volume, off_lit_volume, total_volume, side
+        # Calculate notional value (volume * price) as proxy for premium
+        total_notional = 0.0
+        total_off_lit_volume = 0.0
+        buy_volume = 0.0
+        sell_volume = 0.0
+        
         for d in dp_data:
             if not isinstance(d, dict):
                 continue
-            # Try multiple field names that might contain premium
-            premium = (
-                d.get("premium") or 
-                d.get("total_premium") or 
-                d.get("premium_usd") or 
-                d.get("amount") or 
-                0
-            )
-            try:
-                total_premium += float(premium or 0)
-            except (ValueError, TypeError):
-                pass
+            
+            # Get volume and price
+            price = float(d.get("price") or d.get("last_price") or 0)
+            off_lit_vol = float(d.get("off_lit_volume") or d.get("dark_volume") or 0)
+            total_vol = float(d.get("total_volume") or off_lit_vol or 0)
+            side = str(d.get("side") or "").upper()
+            
+            # Calculate notional (volume * price)
+            notional = total_vol * price
+            total_notional += notional
+            total_off_lit_volume += off_lit_vol
+            
+            # Track buy vs sell
+            if side in ("BUY", "B"):
+                buy_volume += total_vol
+            elif side in ("SELL", "S"):
+                sell_volume += total_vol
         
         print_count = len(dp_data)
         
-        # Sentiment based on premium
-        if total_premium > 1000000:
+        # Sentiment based on buy/sell imbalance and notional value
+        net_volume = buy_volume - sell_volume
+        if total_notional > 1000000 and net_volume > 0:
             sentiment = "BULLISH"
-        elif total_premium < -1000000:
+        elif total_notional > 1000000 and net_volume < 0:
             sentiment = "BEARISH"
         else:
             sentiment = "NEUTRAL"
         
         return {
             "sentiment": sentiment,
-            "total_premium": total_premium,
+            "total_premium": total_notional,  # Use notional as proxy for premium
             "print_count": print_count,
+            "total_off_lit_volume": total_off_lit_volume,
+            "buy_volume": buy_volume,
+            "sell_volume": sell_volume,
+            "net_volume": net_volume,
             "last_update": int(time.time())
         }
     
