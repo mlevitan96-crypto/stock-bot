@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-12-26T16:00:29.656794+00:00",
+  "timestamp": "2025-12-26T16:50:26.039700+00:00",
   "checks": {
     "market_hours": {
       "is_market_hours": true,
       "is_weekend": false,
-      "current_time": "2025-12-26T16:00:29.656831+00:00",
+      "current_time": "2025-12-26T16:50:26.039729+00:00",
       "hour_utc": 16,
       "weekday": 4
     },
@@ -30,20 +30,17 @@
       "block_reasons": {}
     },
     "uw_cache": {
-      "exists": true,
-      "age_minutes": 0.09634516636530559,
-      "tickers_in_cache": 1,
-      "tickers_with_data": 0,
-      "is_fresh": true
+      "exists": false,
+      "error": "Cache file does not exist"
     }
   },
   "summary": {
     "issues": [
       "Execution cycles: No trading log found",
-      "UW cache exists but has no flow trades data"
+      "UW cache does not exist"
     ],
     "recommendations": [
-      "Check UW API connectivity and rate limits"
+      "Check if UW daemon is running"
     ],
     "status": "critical"
   }
