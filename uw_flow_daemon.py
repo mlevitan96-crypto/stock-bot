@@ -390,20 +390,48 @@ class UWClient:
         return data if isinstance(data, dict) else {}
     
     def get_congress(self, ticker: str) -> Dict:
-        """Get congress trading data for a ticker."""
-        raw = self._get(f"/api/congress/{ticker}")
-        data = raw.get("data", {})
-        if isinstance(data, list) and len(data) > 0:
-            data = data[0]
-        return data if isinstance(data, dict) else {}
+        """
+        Get congress trading data.
+        
+        NOTE: Per-ticker endpoint `/api/congress/{ticker}` returns 404.
+        Congress data may be market-wide only. This endpoint is kept for
+        compatibility but will return empty dict.
+        
+        Reference: https://api.unusualwhales.com/docs#/
+        """
+        try:
+            # Try per-ticker first (may not exist)
+            raw = self._get(f"/api/congress/{ticker}")
+            data = raw.get("data", {})
+            if isinstance(data, list) and len(data) > 0:
+                data = data[0]
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            # Per-ticker doesn't exist - return empty
+            # TODO: Check if market-wide endpoint exists
+            return {}
     
     def get_institutional(self, ticker: str) -> Dict:
-        """Get institutional data for a ticker."""
-        raw = self._get(f"/api/institutional/{ticker}")
-        data = raw.get("data", {})
-        if isinstance(data, list) and len(data) > 0:
-            data = data[0]
-        return data if isinstance(data, dict) else {}
+        """
+        Get institutional data.
+        
+        NOTE: Per-ticker endpoint `/api/institutional/{ticker}` returns 404.
+        Institutional data may be market-wide only. This endpoint is kept for
+        compatibility but will return empty dict.
+        
+        Reference: https://api.unusualwhales.com/docs#/
+        """
+        try:
+            # Try per-ticker first (may not exist)
+            raw = self._get(f"/api/institutional/{ticker}")
+            data = raw.get("data", {})
+            if isinstance(data, list) and len(data) > 0:
+                data = data[0]
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            # Per-ticker doesn't exist - return empty
+            # TODO: Check if market-wide endpoint exists
+            return {}
 
 
 class SmartPoller:
