@@ -1150,6 +1150,22 @@ python manual_learning_check.py
 - ❌ **NEVER** run manually (nohup, screen, tmux) in production
 - ❌ **NEVER** start processes directly - always use systemd
 
+### **Self-Healing (MANDATORY)**
+- ✅ **Heartbeat keeper REQUIRED** - Must run continuously to monitor and heal issues
+- ✅ **UW daemon monitoring** - Checks daemon process AND cache file existence
+- ✅ **Immediate restart for CRITICAL** - CRITICAL issues restart immediately (not after 3 failures)
+- ✅ **Systemd-aware restart** - Self-healing uses `systemctl restart` when under systemd
+- ✅ **Process verification** - Checks `pgrep -f uw_flow_daemon` to verify daemon is running
+- ❌ **NEVER** disable self-healing - It's critical for production reliability
+- ❌ **NEVER** ignore daemon failures - Must restart immediately
+
+### **Freeze Management (CRITICAL)**
+- ✅ **Freeze files must be cleared** - `state/freeze.json`, `state/governor_freezes.json`, `state/pre_market_freeze.flag`
+- ✅ **Freeze prevents all trading** - Bot will not trade if ANY freeze file exists
+- ✅ **Manual override required** - Freezes are NEVER auto-cleared (safety feature)
+- ❌ **NEVER** leave freeze files active - Bot will not trade
+- ❌ **NEVER** auto-clear freezes - They require investigation
+
 ### **Deployment Best Practices**
 
 ### Code Changes
