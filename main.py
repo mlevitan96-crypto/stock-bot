@@ -5314,9 +5314,9 @@ def run_once():
 
         audit_seg("run_once", "data_fetch_complete")
         print(f"DEBUG: Fetched data, clustering {len(all_trades)} trades", flush=True)
-        clusters = cluster_signals(all_trades)
+        flow_clusters = cluster_signals(all_trades)
         
-        print(f"DEBUG: Initial clusters={len(clusters)}, use_composite={use_composite}", flush=True)
+        print(f"DEBUG: Initial flow_trades clusters={len(flow_clusters)}, use_composite={use_composite}", flush=True)
         
         # CRITICAL FIX: Always run composite scoring when cache exists, even if flow_trades is empty
         # Composite scoring uses sentiment, conviction, dark_pool, insider - doesn't need flow_trades
