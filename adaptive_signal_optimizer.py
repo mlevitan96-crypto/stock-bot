@@ -148,13 +148,39 @@ class SignalWeightModel:
                 current=1.0
             )
     
-    def get_effective_weight(self, component: str) -> float:
-        """Get current effective weight for a component"""
+    def get_effective_weight(self, component: str, regime: str = "neutral") -> float:
+        """
+        Get current effective weight for a component, regime-aware.
+        
+        Args:
+            component: Signal component name
+            regime: Market regime ("RISK_ON", "RISK_OFF", "NEUTRAL", "mixed")
+        
+        Returns:
+            Effective weight = base_weight * global_multiplier * regime_multiplier
+        """
         base = self.base_weights.get(component, 0.5)
         band = self.weight_bands.get(component)
-        if band:
-            return band.get_effective_weight(base)
-        return base
+        if not band:
+            return base
+        
+        # Get global multiplier
+        global_mult = band.current
+        
+        # Get regime-specific multiplier (if available)
+        regime_mult = 1.0
+        if hasattr(self, "regime_multipliers") and component in self.regime_multipliers:
+            regime_mult = self.regime_multipliers[component].get(regime, 1.0)
+        elif hasattr(self, "regime_multipliers"):
+            # Initialize if not exists
+            if not hasattr(self, "regime_multipliers"):
+                self.regime_multipliers = {}
+            if component not in self.regime_multipliers:
+                self.regime_multipliers[component] = {}
+            self.regime_multipliers[component][regime] = 1.0
+        
+        # Effective weight = base * global_mult * regime_mult
+        return base * global_mult * regime_mult
     
     def get_all_effective_weights(self) -> Dict[str, float]:
         """Get all current effective weights"""
@@ -448,9 +474,10 @@ class LearningOrchestrator:
     """
     
     EWMA_ALPHA = 0.15
-    MIN_SAMPLES = 30  # Balanced: statistically sound but allows learning with less data (industry standard: 30-50 for early stage, 50-100 for mature)
+    # HIGH-VELOCITY LEARNING: Accelerated for paper trading phase (2025-12-26)
+    MIN_SAMPLES = 15  # Reduced from 30 to 15 for faster learning during paper trading
     LOOKBACK_DAYS = 60  # Increased from 30 to 60 for more stable learning
-    UPDATE_STEP = 0.05
+    UPDATE_STEP = 0.20  # Increased from 0.05 to 0.20 for faster weight adjustments
     WILSON_Z = 1.96
     MIN_DAYS_BETWEEN_UPDATES = 1  # Allow daily updates for faster learning (will increase to 3 once system matures)
     

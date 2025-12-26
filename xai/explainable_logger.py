@@ -173,6 +173,44 @@ class ExplainableLogger:
         
         return why_sentence
     
+    def log_threshold_adjustment(self, symbol: str, base_threshold: float, 
+                                adjusted_threshold: float, reason: str, status: Dict) -> str:
+        """
+        Log threshold adjustment with natural language explanation.
+        
+        Args:
+            symbol: Symbol being evaluated
+            base_threshold: Base threshold (e.g., 2.0)
+            adjusted_threshold: Adjusted threshold (e.g., 2.5)
+            reason: Reason for adjustment
+            status: Status dict from SelfHealingThreshold
+        
+        Returns: Natural language "Why" sentence
+        """
+        adjustment = adjusted_threshold - base_threshold
+        consecutive_losses = status.get("consecutive_losses", 0)
+        
+        why_sentence = (
+            f"Threshold raised from {base_threshold:.1f} to {adjusted_threshold:.1f} "
+            f"for {symbol} because last {consecutive_losses} trades were losses. "
+            f"Bot is being more cautious to prevent further losses."
+        )
+        
+        record = {
+            "type": "threshold_adjustment",
+            "symbol": symbol,
+            "base_threshold": base_threshold,
+            "adjusted_threshold": adjusted_threshold,
+            "adjustment": adjustment,
+            "reason": reason,
+            "consecutive_losses": consecutive_losses,
+            "is_activated": status.get("is_activated", False),
+            "why_sentence": why_sentence
+        }
+        
+        self._append_log(record)
+        return why_sentence
+    
     def log_weight_adjustment(self, component: str, old_weight: float, new_weight: float,
                              reason: str, sample_count: int, win_rate: float,
                              regime: str, pnl_contribution: float) -> str:

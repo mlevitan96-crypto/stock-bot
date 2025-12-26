@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""
+Test all APIs directly to see what real data they return
+"""
+
+from droplet_client import DropletClient
+import json
+
+def main():
+    client = DropletClient()
+    
+    try:
+        print("=" * 80)
+        print("TESTING ALL APIs DIRECTLY FOR REAL DATA")
+        print("=" * 80)
+        print()
+        
+        result = client.execute_command(
+            "cd ~/stock-bot && source venv/bin/activate && python3 << 'PYEOF'\n"
+            "import sys\n"
+            "sys.path.insert(0, '.')\n"
+            "from uw_flow_daemon import UWClient\n"
+            "import os\n"
+            "from dotenv import load_dotenv\n"
+            "load_dotenv()\n"
+            "client = UWClient()\n"
+            "ticker = 'AAPL'\n"
+            "print('=' * 80)\n"
+            "print('TESTING ALL APIs FOR REAL DATA')\n"
+            "print('=' * 80)\n"
+            "print()\n"
+            "# Test dark_pool\n"
+            "print('1. DARK_POOL:')\n"
+            "try:\n"
+            "    dp = client.get_dark_pool_levels(ticker)\n"
+            "    print(f'   Response type: {type(dp)}')\n"
+            "    print(f'   Response length: {len(dp) if isinstance(dp, list) else \"NOT A LIST\"}')\n"
+            "    if isinstance(dp, list) and len(dp) > 0:\n"
+            "        print(f'   First item keys: {list(dp[0].keys())[:10]}')\n"
+            "        print(f'   First item premium: {dp[0].get(\"premium\", \"MISSING\")}')\n"
+            "        print(f'   HAS REAL DATA: YES')\n"
+            "    else:\n"
+            "        print(f'   HAS REAL DATA: NO (empty or invalid)')\n"
+            "except Exception as e:\n"
+            "    print(f'   ERROR: {e}')\n"
+            "print()\n"
+            "# Test market_tide\n"
+            "print('2. MARKET_TIDE:')\n"
+            "try:\n"
+            "    tide = client.get_market_tide()\n"
+            "    print(f'   Response type: {type(tide)}')\n"
+            "    print(f'   Response keys: {list(tide.keys()) if isinstance(tide, dict) else \"NOT A DICT\"}')\n"
+            "    if isinstance(tide, dict) and tide:\n"
+            "        print(f'   HAS REAL DATA: YES')\n"
+            "        print(f'   Sample values: {list(tide.items())[:3]}')\n"
+            "    else:\n"
+            "        print(f'   HAS REAL DATA: NO')\n"
+            "except Exception as e:\n"
+            "    print(f'   ERROR: {e}')\n"
+            "print()\n"
+            "# Test congress\n"
+            "print('3. CONGRESS:')\n"
+            "try:\n"
+            "    congress = client.get_congress(ticker)\n"
+            "    print(f'   Response type: {type(congress)}')\n"
+            "    print(f'   Response: {congress}')\n"
+            "    if congress and isinstance(congress, dict) and len(congress) > 0:\n"
+            "        print(f'   HAS REAL DATA: YES')\n"
+            "    else:\n"
+            "        print(f'   HAS REAL DATA: NO (empty or 404)')\n"
+            "except Exception as e:\n"
+            "    error_str = str(e)\n"
+            "    if '404' in error_str:\n"
+            "        print(f'   ERROR: 404 - Endpoint does not exist for per-ticker')\n"
+            "    else:\n"
+            "        print(f'   ERROR: {error_str[:200]}')\n"
+            "print()\n"
+            "# Test institutional\n"
+            "print('4. INSTITUTIONAL:')\n"
+            "try:\n"
+            "    inst = client.get_institutional(ticker)\n"
+            "    print(f'   Response type: {type(inst)}')\n"
+            "    print(f'   Response: {inst}')\n"
+            "    if inst and isinstance(inst, dict) and len(inst) > 0:\n"
+            "        print(f'   HAS REAL DATA: YES')\n"
+            "    else:\n"
+            "        print(f'   HAS REAL DATA: NO (empty or 404)')\n"
+            "except Exception as e:\n"
+            "    error_str = str(e)\n"
+            "    if '404' in error_str:\n"
+            "        print(f'   ERROR: 404 - Endpoint does not exist for per-ticker')\n"
+            "    else:\n"
+            "        print(f'   ERROR: {error_str[:200]}')\n"
+            "print()\n"
+            "# Test etf_flow\n"
+            "print('5. ETF_FLOW:')\n"
+            "try:\n"
+            "    etf = client.get_etf_flow(ticker)\n"
+            "    print(f'   Response type: {type(etf)}')\n"
+            "    print(f'   Response: {etf}')\n"
+            "    if etf and isinstance(etf, dict) and len(etf) > 0:\n"
+            "        print(f'   HAS REAL DATA: YES')\n"
+            "    else:\n"
+            "        print(f'   HAS REAL DATA: NO (empty)')\n"
+            "except Exception as e:\n"
+            "    print(f'   ERROR: {e}')\n"
+            "print()\n"
+            "# Test oi_change\n"
+            "print('6. OI_CHANGE:')\n"
+            "try:\n"
+            "    oi = client.get_oi_change(ticker)\n"
+            "    print(f'   Response type: {type(oi)}')\n"
+            "    print(f'   Response: {oi}')\n"
+            "    if oi and isinstance(oi, dict) and len(oi) > 0:\n"
+            "        print(f'   HAS REAL DATA: YES')\n"
+            "    else:\n"
+            "        print(f'   HAS REAL DATA: NO (empty)')\n"
+            "except Exception as e:\n"
+            "    print(f'   ERROR: {e}')\n"
+            "print()\n"
+            "# Test iv_rank\n"
+            "print('7. IV_RANK:')\n"
+            "try:\n"
+            "    iv = client.get_iv_rank(ticker)\n"
+            "    print(f'   Response type: {type(iv)}')\n"
+            "    print(f'   Response: {iv}')\n"
+            "    if iv and isinstance(iv, dict) and len(iv) > 0:\n"
+            "        print(f'   HAS REAL DATA: YES')\n"
+            "    else:\n"
+            "        print(f'   HAS REAL DATA: NO (empty)')\n"
+            "except Exception as e:\n"
+            "    print(f'   ERROR: {e}')\n"
+            "print()\n"
+            "# Test shorts_ftds\n"
+            "print('8. SHORTS_FTDS:')\n"
+            "try:\n"
+            "    ftd = client.get_shorts_ftds(ticker)\n"
+            "    print(f'   Response type: {type(ftd)}')\n"
+            "    print(f'   Response: {ftd}')\n"
+            "    if ftd and isinstance(ftd, dict) and len(ftd) > 0:\n"
+            "        print(f'   HAS REAL DATA: YES')\n"
+            "    else:\n"
+            "        print(f'   HAS REAL DATA: NO (empty)')\n"
+            "except Exception as e:\n"
+            "    print(f'   ERROR: {e}')\n"
+            "print()\n"
+            "print('=' * 80)\n"
+            "print('SUMMARY')\n"
+            "print('=' * 80)\n"
+            "print('This shows which APIs actually return real data')\n"
+            "print('We need to fix the ones that return empty or error')\n"
+            "PYEOF",
+            timeout=120
+        )
+        print(result['stdout'])
+        print()
+        
+    except Exception as e:
+        print(f"[ERROR] Test failed: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        client.close()
+
+if __name__ == "__main__":
+    main()
+

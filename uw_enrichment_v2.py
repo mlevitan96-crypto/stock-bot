@@ -403,7 +403,61 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     enriched_symbol["oi_change"] = data.get("oi_change", {})
     enriched_symbol["etf_flow"] = data.get("etf_flow", {})
     
+    # SYNTHETIC SQUEEZE ENGINE: Compute if official squeeze data is missing
+    squeeze_data = data.get("squeeze_score", {})
+    if not squeeze_data or not squeeze_data.get("signals", 0):
+        synthetic_squeeze = _compute_synthetic_squeeze(enriched_symbol, data)
+        if synthetic_squeeze:
+            enriched_symbol["squeeze_score"] = synthetic_squeeze
+            enriched_symbol["synthetic_squeeze"] = True  # Flag to indicate synthetic
+    
     return enriched_symbol
+
+def _compute_synthetic_squeeze(enriched_symbol: Dict, data: Dict) -> Dict:
+    """
+    Compute synthetic squeeze score if official UW squeeze data is missing.
+    Logic: (High OI Change + Negative Gamma + Bullish Flow) = Squeeze Potential
+    
+    Returns:
+        Dict with squeeze_score structure: {signals: int, high_squeeze_potential: bool}
+    """
+    signals = 0
+    high_squeeze = False
+    
+    # 1. Check OI Change (high OI change = institutional positioning)
+    oi_data = data.get("oi_change", {}) or enriched_symbol.get("oi_change", {})
+    net_oi = float(oi_data.get("net_oi_change", 0) or 0)
+    if net_oi > 50000:  # High OI change
+        signals += 1
+    
+    # 2. Check Gamma (negative gamma = squeeze setup)
+    greeks_data = data.get("greeks", {}) or enriched_symbol.get("greeks", {})
+    call_gamma = float(greeks_data.get("call_gamma", 0) or 0)
+    put_gamma = float(greeks_data.get("put_gamma", 0) or 0)
+    gamma_exposure = call_gamma - put_gamma
+    if gamma_exposure < -100000:  # Negative gamma (squeeze setup)
+        signals += 1
+    
+    # 3. Check Flow (bullish flow = buying pressure)
+    sentiment = data.get("sentiment", "NEUTRAL")
+    conviction = float(data.get("conviction", 0) or 0)
+    if sentiment == "BULLISH" and conviction > 0.5:  # Strong bullish flow
+        signals += 1
+    
+    # High squeeze potential if all 3 conditions met
+    if signals >= 3:
+        high_squeeze = True
+    
+    return {
+        "signals": signals,
+        "high_squeeze_potential": high_squeeze,
+        "synthetic": True,
+        "components": {
+            "high_oi_change": net_oi > 50000,
+            "negative_gamma": gamma_exposure < -100000,
+            "bullish_flow": sentiment == "BULLISH" and conviction > 0.5
+        }
+    }
 
 if __name__ == "__main__":
     # Test enrichment

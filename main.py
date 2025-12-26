@@ -4461,6 +4461,40 @@ class StrategyEngine:
             if system_stage == "bootstrap":
                 min_score = 1.5  # More lenient for bootstrap learning (was 2.0)
             
+            # SELF-HEALING THRESHOLD: Adjust based on recent performance
+            try:
+                from self_healing_threshold import SelfHealingThreshold
+                if not hasattr(self, '_self_healing_threshold'):
+                    self._self_healing_threshold = SelfHealingThreshold(base_threshold=min_score)
+                adjusted_threshold = self._self_healing_threshold.check_recent_trades()
+                
+                # Log threshold adjustment if activated
+                if self._self_healing_threshold.is_activated():
+                    status = self._self_healing_threshold.get_status()
+                    try:
+                        from xai.explainable_logger import get_explainable_logger
+                        explainable = get_explainable_logger()
+                        explainable.log_threshold_adjustment(
+                            symbol=symbol,
+                            base_threshold=min_score,
+                            adjusted_threshold=adjusted_threshold,
+                            reason=f"self_healing_activated(consecutive_losses={status['consecutive_losses']})",
+                            status=status
+                        )
+                    except Exception as e:
+                        log_event("explainable", "threshold_log_failed", error=str(e))
+                    
+                    log_event("self_healing", "threshold_raised", 
+                            symbol=symbol, base=min_score, adjusted=adjusted_threshold,
+                            consecutive_losses=status['consecutive_losses'])
+                
+                min_score = adjusted_threshold
+            except ImportError:
+                # Self-healing threshold not available - use base threshold
+                pass
+            except Exception as e:
+                log_event("self_healing", "error", error=str(e))
+            
             if score < min_score:
                 print(f"DEBUG {symbol}: BLOCKED by score_below_min ({score} < {min_score}, stage={system_stage})", flush=True)
                 log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=min_score, stage=system_stage)
