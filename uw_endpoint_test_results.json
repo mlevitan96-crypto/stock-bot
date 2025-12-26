@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-26T21:56:40.175490",
+  "timestamp": "2025-12-26T22:00:23.292879",
   "test_ticker": "AAPL",
   "summary": {
     "total": 9,
@@ -12,7 +12,7 @@
       "endpoint": "/api/option-trades/flow-alerts",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 128.85,
+      "response_time_ms": 132.02,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -1918,8 +1918,8 @@
             "total_bid_side_prem": "194163"
           }
         ],
-        "newer_than": "2025-12-19T21:56:38Z",
-        "older_than": "2025-12-26T21:56:38.910460Z"
+        "newer_than": "2025-12-19T22:00:22Z",
+        "older_than": "2025-12-26T22:00:22.109307Z"
       }
     },
     {
@@ -1927,7 +1927,7 @@
       "endpoint": "/api/darkpool/AAPL",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 158.25,
+      "response_time_ms": 135.02,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -11440,7 +11440,7 @@
       "endpoint": "/api/stock/AAPL/greeks",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 142.03,
+      "response_time_ms": 174.36,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -13132,7 +13132,7 @@
       "endpoint": "/api/market/top-net-impact",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 186.62,
+      "response_time_ms": 159.89,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -13225,7 +13225,7 @@
       "endpoint": "/api/market/market-tide",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 131.78,
+      "response_time_ms": 114.03,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -13792,7 +13792,7 @@
       "endpoint": "/api/stock/AAPL/greek-exposure",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 215.3,
+      "response_time_ms": 164.6,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -16555,7 +16555,7 @@
       "endpoint": "/api/stock/AAPL/oi-change",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 119.67,
+      "response_time_ms": 136.48,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -17918,7 +17918,7 @@
       "endpoint": "/api/etfs/AAPL/in-outflow",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 126.13,
+      "response_time_ms": 114.94,
       "has_data": true,
       "error": null,
       "sample_data": {
@@ -17931,7 +17931,7 @@
       "endpoint": "/api/stock/AAPL/iv-rank",
       "status": "success",
       "status_code": 200,
-      "response_time_ms": 121.32,
+      "response_time_ms": 126.5,
       "has_data": true,
       "error": null,
       "sample_data": {
