@@ -926,30 +926,40 @@ class UWFlowDaemon:
                 try:
                     print(f"[UW-DAEMON] Polling iv_rank for {ticker}...", flush=True)
                     iv_data = self.client.get_iv_rank(ticker)
+                    # Always store iv_rank (even if empty) so we know it was polled
+                    if not iv_data:
+                        iv_data = {}  # Store empty structure
+                    self._update_cache(ticker, {"iv_rank": iv_data})
                     if iv_data:
-                        self._update_cache(ticker, {"iv_rank": iv_data})
                         print(f"[UW-DAEMON] Updated iv_rank for {ticker}: {len(str(iv_data))} bytes", flush=True)
                     else:
-                        print(f"[UW-DAEMON] iv_rank for {ticker}: API returned empty", flush=True)
+                        print(f"[UW-DAEMON] iv_rank for {ticker}: API returned empty (stored as empty)", flush=True)
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching iv_rank for {ticker}: {e}", flush=True)
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+                    # Store empty on error too
+                    self._update_cache(ticker, {"iv_rank": {}})
             
             # Poll shorts/FTDs
             if self.poller.should_poll("shorts_ftds"):
                 try:
                     print(f"[UW-DAEMON] Polling shorts_ftds for {ticker}...", flush=True)
                     ftd_data = self.client.get_shorts_ftds(ticker)
+                    # Always store ftd_pressure (even if empty) so we know it was polled
+                    if not ftd_data:
+                        ftd_data = {}  # Store empty structure
+                    self._update_cache(ticker, {"ftd_pressure": ftd_data})
                     if ftd_data:
-                        self._update_cache(ticker, {"ftd_pressure": ftd_data})
                         print(f"[UW-DAEMON] Updated ftd_pressure for {ticker}: {len(str(ftd_data))} bytes", flush=True)
                     else:
-                        print(f"[UW-DAEMON] shorts_ftds for {ticker}: API returned empty", flush=True)
+                        print(f"[UW-DAEMON] shorts_ftds for {ticker}: API returned empty (stored as empty)", flush=True)
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching shorts_ftds for {ticker}: {e}", flush=True)
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+                    # Store empty on error too
+                    self._update_cache(ticker, {"ftd_pressure": {}})
             
             # Poll max pain
             if self.poller.should_poll("max_pain"):
