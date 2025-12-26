@@ -680,15 +680,16 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         gamma_exposure = call_gamma - put_gamma  # Net gamma exposure
     
     gamma_squeeze = greeks_data.get("gamma_squeeze_setup", False)
+    greeks_weight = get_weight("greeks_gamma", regime)
     if gamma_squeeze:
-        greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 1.0
+        greeks_gamma_component = greeks_weight * 1.0
         all_notes.append("gamma_squeeze_setup")
     elif abs(gamma_exposure) > 500000:
-        greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 0.5
+        greeks_gamma_component = greeks_weight * 0.5
     elif abs(gamma_exposure) > 100000:
-        greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 0.25
+        greeks_gamma_component = greeks_weight * 0.25
     elif abs(gamma_exposure) > 10000:  # Lower threshold for smaller contributions
-        greeks_gamma_component = weights.get("greeks_gamma", 0.4) * 0.1
+        greeks_gamma_component = greeks_weight * 0.1
     else:
         greeks_gamma_component = 0.0
     
@@ -697,15 +698,16 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     ftd_data = enriched_data.get("ftd", {}) or enriched_data.get("shorts", {})
     ftd_count = _to_num(ftd_data.get("ftd_count", 0))
     ftd_squeeze = ftd_data.get("squeeze_pressure", False) or ftd_data.get("squeeze_risk", False)
+    ftd_weight = get_weight("ftd_pressure", regime)
     if ftd_squeeze or ftd_count > 200000:
-        ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 1.0
+        ftd_pressure_component = ftd_weight * 1.0
         all_notes.append("high_ftd_pressure")
     elif ftd_count > 100000:
-        ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 0.67
+        ftd_pressure_component = ftd_weight * 0.67
     elif ftd_count > 50000:
-        ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 0.33
+        ftd_pressure_component = ftd_weight * 0.33
     elif ftd_count > 10000:  # FIXED: Lower threshold for smaller contributions
-        ftd_pressure_component = weights.get("ftd_pressure", 0.3) * 0.1
+        ftd_pressure_component = ftd_weight * 0.1
     else:
         ftd_pressure_component = 0.0
     
@@ -714,19 +716,20 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     iv_data = enriched_data.get("iv", {}) or enriched_data.get("iv_rank", {})
     iv_rank_val = _to_num(iv_data.get("iv_rank", iv_data.get("iv_rank_1y", 50)))
     
+    iv_rank_weight = get_weight("iv_rank", regime)
     if iv_rank_val < 20:  # Low IV = opportunity
-        iv_rank_component = weights.get("iv_rank", 0.2) * 1.0
+        iv_rank_component = iv_rank_weight * 1.0
         all_notes.append("low_iv_opportunity")
     elif iv_rank_val < 30:
-        iv_rank_component = weights.get("iv_rank", 0.2) * 0.5
+        iv_rank_component = iv_rank_weight * 0.5
     elif iv_rank_val > 80:  # High IV = caution
-        iv_rank_component = -weights.get("iv_rank", 0.2) * 1.0
+        iv_rank_component = -iv_rank_weight * 1.0
         all_notes.append("high_iv_caution")
     elif iv_rank_val > 70:
-        iv_rank_component = -weights.get("iv_rank", 0.2) * 0.5
+        iv_rank_component = -iv_rank_weight * 0.5
     elif 30 <= iv_rank_val <= 70:  # FIXED: Add contribution for middle range
         # Moderate IV - slight positive contribution for balanced conditions
-        iv_rank_component = weights.get("iv_rank", 0.2) * 0.15
+        iv_rank_component = iv_rank_weight * 0.15
     else:
         iv_rank_component = 0.0
     
@@ -749,15 +752,16 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     if oi_sentiment == "NEUTRAL" and net_oi != 0:
         oi_sentiment = "BULLISH" if net_oi > 0 else "BEARISH"
     
+    oi_weight = get_weight("oi_change", regime)
     if net_oi > 50000 and oi_sentiment == "BULLISH" and flow_sign > 0:
-        oi_change_component = weights.get("oi_change", 0.35) * 1.0
+        oi_change_component = oi_weight * 1.0
         all_notes.append("strong_call_positioning")
     elif net_oi > 20000 and oi_sentiment == "BULLISH":
-        oi_change_component = weights.get("oi_change", 0.35) * 0.57
+        oi_change_component = oi_weight * 0.57
     elif abs(net_oi) > 10000:
-        oi_change_component = weights.get("oi_change", 0.35) * 0.29
+        oi_change_component = oi_weight * 0.29
     elif abs(net_oi) > 1000:  # FIXED: Lower threshold for smaller contributions
-        oi_change_component = weights.get("oi_change", 0.35) * 0.1
+        oi_change_component = oi_weight * 0.1
     else:
         oi_change_component = 0.0
     
@@ -765,13 +769,14 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     etf_data = enriched_data.get("etf_flow", {})
     etf_sentiment = etf_data.get("overall_sentiment", "NEUTRAL")
     risk_on = etf_data.get("market_risk_on", False)
+    etf_weight = get_weight("etf_flow", regime)
     if etf_sentiment == "BULLISH" and risk_on:
-        etf_flow_component = weights.get("etf_flow", 0.05) * 1.0  # Reduced from 0.2 to 0.05
+        etf_flow_component = etf_weight * 1.0  # Reduced from 0.2 to 0.05
         all_notes.append("risk_on_environment")
     elif etf_sentiment == "BULLISH":
-        etf_flow_component = weights.get("etf_flow", 0.05) * 0.5
+        etf_flow_component = etf_weight * 0.5
     elif etf_sentiment == "BEARISH":
-        etf_flow_component = -weights.get("etf_flow", 0.05) * 0.3  # Reduced negative impact too
+        etf_flow_component = -etf_weight * 0.3  # Reduced negative impact too
     else:
         etf_flow_component = 0.0
     
@@ -779,11 +784,12 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     squeeze_data = enriched_data.get("squeeze_score", {})
     squeeze_signals = _to_num(squeeze_data.get("signals", 0))
     high_squeeze = squeeze_data.get("high_squeeze_potential", False)
+    squeeze_weight = get_weight("squeeze_score", regime)
     if high_squeeze:
-        squeeze_score_component = weights.get("squeeze_score", 0.2) * 1.0
+        squeeze_score_component = squeeze_weight * 1.0
         all_notes.append("high_squeeze_potential")
     elif squeeze_signals >= 1:
-        squeeze_score_component = weights.get("squeeze_score", 0.2) * 0.5
+        squeeze_score_component = squeeze_weight * 0.5
     else:
         squeeze_score_component = 0.0
     
