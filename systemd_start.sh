@@ -1,4 +1,4 @@
 #!/bin/bash
-cd /root/stock_bot
+cd /root/stock-bot
 source venv/bin/activate
-/root/stock_bot/venv/bin/python deploy_supervisor.py
+/root/stock-bot/venv/bin/python deploy_supervisor.py
