@@ -174,6 +174,7 @@ DASHBOARD_HTML = """
             <button class="tab" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
             <button class="tab" onclick="switchTab('executive', event)">📈 Executive Summary</button>
             <button class="tab" onclick="switchTab('xai', event)">🧠 Natural Language Auditor</button>
+            <button class="tab" onclick="switchTab('failure_points', event)">⚠️ Trading Readiness</button>
         </div>
         
         <div id="positions-tab" class="tab-content active">
@@ -229,6 +230,12 @@ DASHBOARD_HTML = """
                 <div class="loading">Loading Natural Language Auditor...</div>
             </div>
         </div>
+        
+        <div id="failure_points-tab" class="tab-content">
+            <div id="failure_points-content">
+                <div class="loading">Loading Trading Readiness...</div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -269,6 +276,8 @@ DASHBOARD_HTML = """
                 loadExecutiveSummary();
             } else if (tabName === 'xai') {
                 loadXAIAuditor();
+            } else if (tabName === 'failure_points') {
+                loadFailurePoints();
             } else if (tabName === 'positions') {
                 // Refresh positions when switching back
                 updateDashboard();
@@ -455,6 +464,134 @@ DASHBOARD_HTML = """
                 loadXAIAuditor();
             }
         }, 60000);  // Refresh every 60 seconds
+        
+        // Auto-refresh Failure Points if on failure_points tab
+        setInterval(() => {
+            const fpTab = document.getElementById('failure_points-tab');
+            if (fpTab && fpTab.classList.contains('active')) {
+                loadFailurePoints();
+            }
+        }, 30000);  // Refresh every 30 seconds
+        
+        function loadFailurePoints() {
+            const fpContent = document.getElementById('failure_points-content');
+            const scrollTop = fpContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
+            
+            if (!fpContent.dataset.loaded) {
+                fpContent.innerHTML = '<div class="loading">Loading Trading Readiness...</div>';
+            }
+            
+            fetch('/api/failure_points')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    fpContent.dataset.loaded = 'true';
+                    renderFailurePoints(data, fpContent);
+                    if (scrollTop > 0) {
+                        requestAnimationFrame(() => {
+                            fpContent.scrollTop = scrollTop;
+                            window.scrollTo(0, scrollTop);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Failure Points error:', error);
+                    fpContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading Trading Readiness: ${error.message}</div>`;
+                });
+        }
+        
+        function renderFailurePoints(data, container) {
+            const readiness = data.readiness || 'UNKNOWN';
+            const color = data.color || 'gray';
+            const criticalCount = data.critical_count || 0;
+            const warningCount = data.warning_count || 0;
+            const totalChecked = data.total_checked || 0;
+            const failurePoints = data.failure_points || {};
+            
+            let html = `
+                <div class="stat-card" style="border: 3px solid ${color === 'green' ? '#10b981' : color === 'yellow' ? '#f59e0b' : '#ef4444'}; margin-bottom: 20px;">
+                    <h2 style="color: ${color === 'green' ? '#10b981' : color === 'yellow' ? '#f59e0b' : '#ef4444'}; margin-bottom: 15px;">
+                        Trading Readiness: ${readiness}
+                    </h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <div class="stat-label">Status</div>
+                            <div class="stat-value" style="color: ${color === 'green' ? '#10b981' : color === 'yellow' ? '#f59e0b' : '#ef4444'};">${readiness}</div>
+                        </div>
+                        <div>
+                            <div class="stat-label">Critical Issues</div>
+                            <div class="stat-value" style="color: ${criticalCount > 0 ? '#ef4444' : '#10b981'};">${criticalCount}</div>
+                        </div>
+                        <div>
+                            <div class="stat-label">Warnings</div>
+                            <div class="stat-value" style="color: ${warningCount > 0 ? '#f59e0b' : '#10b981'};">${warningCount}</div>
+                        </div>
+                        <div>
+                            <div class="stat-label">Total Checked</div>
+                            <div class="stat-value">${totalChecked}</div>
+                        </div>
+                    </div>
+                    ${data.critical_fps && data.critical_fps.length > 0 ? `
+                        <div style="margin-top: 15px; padding: 10px; background: #fee2e2; border-radius: 5px;">
+                            <strong style="color: #ef4444;">Critical Failure Points:</strong> ${data.critical_fps.join(', ')}
+                        </div>
+                    ` : ''}
+                    ${data.warning_fps && data.warning_fps.length > 0 ? `
+                        <div style="margin-top: 10px; padding: 10px; background: #fef3c7; border-radius: 5px;">
+                            <strong style="color: #f59e0b;">Warning Failure Points:</strong> ${data.warning_fps.join(', ')}
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">📋 Failure Point Details</h2>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                    <th>Last Check</th>
+                                    <th>Error</th>
+                                    <th>Self-Healing</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            Object.entries(failurePoints).forEach(([fp_id, fp]) => {
+                const statusColor = fp.status === 'OK' ? '#10b981' : fp.status === 'WARN' ? '#f59e0b' : '#ef4444';
+                const lastCheck = fp.last_check ? new Date(fp.last_check * 1000).toLocaleString() : 'N/A';
+                const selfHealing = fp.self_healing_attempted ? (fp.self_healing_success ? '✓ Success' : '✗ Failed') : '-';
+                
+                html += `
+                    <tr>
+                        <td><strong>${fp_id}</strong></td>
+                        <td>${fp.name}</td>
+                        <td>${fp.category}</td>
+                        <td style="color: ${statusColor}; font-weight: bold;">${fp.status}</td>
+                        <td>${lastCheck}</td>
+                        <td style="color: ${fp.last_error ? '#ef4444' : '#666'}; max-width: 300px; word-wrap: break-word;">${fp.last_error || '-'}</td>
+                        <td>${selfHealing}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
         
         function loadXAIAuditor() {
             const xaiContent = document.getElementById('xai-content');
@@ -1683,6 +1820,22 @@ def api_health_status():
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/failure_points")
+def api_failure_points():
+    """Get failure point status and trading readiness"""
+    try:
+        from failure_point_monitor import get_failure_point_monitor
+        monitor = get_failure_point_monitor()
+        readiness = monitor.get_trading_readiness()
+        return jsonify(readiness), 200
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "readiness": "UNKNOWN",
+            "critical_count": 0,
+            "warning_count": 0
+        }), 500
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
