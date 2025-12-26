@@ -1,8 +1,30 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-26 (Systemd Service Management Added as Standard)  
+**Last Updated:** 2025-12-26 (Critical Fix: Signal Data Flow - Never Mask Errors)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
+
+## ⚠️ CRITICAL LESSON: NEVER MASK ERRORS - FIX ROOT CAUSES
+
+**User Directive (2025-12-26):** "The goal of the dashboard health isn't to trick me into not having health data. We aren't trying to just clear errors. We are trying to fix them. I need to know if there are errors. DO NOT JUST FIX THE NOTIFICATION. Fix the error causing the notification. This is sloppy and unacceptable."
+
+**MANDATORY RULE:**
+- ❌ **NEVER** store empty structures just to make dashboard show "healthy"
+- ✅ **ALWAYS** investigate WHY signals aren't populating with real data
+- ✅ **ALWAYS** fix the root cause (API endpoints, data processing, normalization)
+- ✅ **ALWAYS** ensure real intelligence flows into trade data
+- ✅ **ALWAYS** verify APIs return real data before considering it "fixed"
+
+**Example of WRONG approach:**
+- Storing `{}` for signals that return empty just to make dashboard show "healthy"
+- This masks the real problem: APIs aren't returning data or normalization is failing
+
+**Example of CORRECT approach:**
+- Investigate why API returns empty
+- Check if endpoint URL is correct
+- Verify normalization function works with real data
+- Fix the actual data flow issue
+- Only then is the signal truly "healthy"
 
 ---
 

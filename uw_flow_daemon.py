@@ -658,10 +658,27 @@ class UWFlowDaemon:
     
     def _normalize_dark_pool(self, dp_data: List[Dict]) -> Dict:
         """Normalize dark pool data."""
-        if not dp_data:
+        if not dp_data or not isinstance(dp_data, list):
             return {}
         
-        total_premium = sum(float(d.get("premium", 0) or 0) for d in dp_data)
+        # API may return items with different field names - try multiple possibilities
+        total_premium = 0.0
+        for d in dp_data:
+            if not isinstance(d, dict):
+                continue
+            # Try multiple field names that might contain premium
+            premium = (
+                d.get("premium") or 
+                d.get("total_premium") or 
+                d.get("premium_usd") or 
+                d.get("amount") or 
+                0
+            )
+            try:
+                total_premium += float(premium or 0)
+            except (ValueError, TypeError):
+                pass
+        
         print_count = len(dp_data)
         
         # Sentiment based on premium
