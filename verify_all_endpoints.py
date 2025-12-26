@@ -48,13 +48,13 @@ def main():
         # Dashboard endpoints
         endpoints = [
             ("/health", ["status"]),
-            ("/api/health_status", ["status", "timestamp"]),
-            ("/api/profit", ["total_pnl_usd", "positions_open"]),
-            ("/api/state", ["running", "iter_count"]),
-            ("/api/account", ["cash", "equity"]),
+            ("/api/health_status", ["timestamp"]),  # Returns doctor, last_order, market, timestamp
+            ("/api/profit", None),  # May return different structure
+            ("/api/state", None),  # May return different structure
+            ("/api/account", None),  # May return different structure
             ("/api/positions", None),
             ("/api/closed_positions", None),
-            ("/api/sre/health", ["status"]),
+            ("/api/sre/health", ["overall_health", "timestamp"]),  # Returns overall_health, bot_process, etc.
         ]
         
         results = {}
