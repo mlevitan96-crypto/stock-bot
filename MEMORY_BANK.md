@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-25 (Complete Workflow with SSH Details Added)  
+**Last Updated:** 2025-12-26 (Systemd Service Management Added as Standard)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ---
@@ -11,6 +11,138 @@
 ## **MANDATORY STANDARD OPERATING PROCEDURE (SOP) - NO EXCEPTIONS**
 
 **This is the ONLY acceptable workflow. Every task MUST complete this full cycle before reporting to user.**
+
+---
+
+## **🚀 SYSTEMD SERVICE MANAGEMENT (STANDARD - BEST PRACTICE)**
+
+**CRITICAL: The bot MUST run under systemd. This is the production standard and best practice for SDLC.**
+
+### **Why Systemd?**
+- ✅ **Auto-restart on failure** - Service automatically restarts if process crashes
+- ✅ **Auto-start on boot** - Bot starts automatically after server reboot
+- ✅ **Process management** - Systemd manages lifecycle, logging, and resource limits
+- ✅ **Production standard** - Industry best practice for Linux service management
+- ✅ **Monitoring** - Built-in status, logs, and health checks via `systemctl`
+- ✅ **Reliability** - More stable than manual process management
+
+### **Service Configuration**
+
+**Service File:** `/etc/systemd/system/trading-bot.service`
+```ini
+[Unit]
+Description=Algorithmic Trading Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/stock-bot
+EnvironmentFile=/root/stock-bot/.env
+ExecStart=/root/stock-bot/systemd_start.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Start Script:** `/root/stock-bot/systemd_start.sh`
+```bash
+#!/bin/bash
+cd /root/stock-bot
+source venv/bin/activate
+/root/stock-bot/venv/bin/python deploy_supervisor.py
+```
+
+### **Systemd Commands (Standard Operations)**
+
+**Check Status:**
+```bash
+systemctl status trading-bot.service
+```
+
+**Start Service:**
+```bash
+systemctl start trading-bot.service
+```
+
+**Stop Service:**
+```bash
+systemctl stop trading-bot.service
+```
+
+**Restart Service:**
+```bash
+systemctl restart trading-bot.service
+```
+
+**Enable on Boot:**
+```bash
+systemctl enable trading-bot.service
+```
+
+**View Logs:**
+```bash
+journalctl -u trading-bot.service -f
+journalctl -u trading-bot.service -n 100 --no-pager
+```
+
+**Reload After Changes:**
+```bash
+systemctl daemon-reload
+systemctl restart trading-bot.service
+```
+
+### **Service Management Rules**
+
+**MANDATORY:**
+- ✅ Bot MUST run under systemd service (`trading-bot.service`)
+- ✅ Service MUST be enabled on boot (`systemctl enable`)
+- ✅ Service MUST use `deploy_supervisor.py` as entry point
+- ✅ All processes (main.py, uw_flow_daemon.py, dashboard.py) MUST be children of deploy_supervisor.py
+- ✅ Service MUST have `Restart=always` for auto-recovery
+
+**PROHIBITED:**
+- ❌ **NEVER** run bot manually (nohup, screen, tmux) in production
+- ❌ **NEVER** start processes directly (python main.py) - always use systemd
+- ❌ **NEVER** disable systemd service without explicit user request
+- ❌ **NEVER** modify service file without updating documentation
+
+### **Verification**
+
+**Check if running under systemd:**
+```bash
+systemctl is-active trading-bot.service
+ps aux | grep deploy_supervisor | grep -v grep
+ps -eo pid,ppid,comm | grep deploy_supervisor
+# PPID should be 1 (systemd) or child of systemd_start.sh
+```
+
+**Expected Process Tree:**
+```
+systemd (PID 1)
+  └── systemd_start.sh (PID X)
+      └── deploy_supervisor.py (PID Y)
+          ├── main.py (PID Z)
+          ├── uw_flow_daemon.py (PID A)
+          └── dashboard.py (PID B)
+```
+
+### **Troubleshooting**
+
+**Service failing to start:**
+1. Check service status: `systemctl status trading-bot.service`
+2. Check logs: `journalctl -u trading-bot.service -n 50`
+3. Verify start script exists and is executable: `ls -la /root/stock-bot/systemd_start.sh`
+4. Verify paths in start script are correct (must use `/root/stock-bot`, not `/root/stock_bot`)
+5. Check .env file exists: `ls -la /root/stock-bot/.env`
+
+**Service running but processes not starting:**
+1. Check deploy_supervisor.py logs
+2. Verify virtual environment is activated in start script
+3. Check Python path in start script
+4. Verify all dependencies are installed in venv
 
 ---
 
@@ -996,7 +1128,18 @@ python manual_learning_check.py
 
 ---
 
-## Best Practices
+## Best Practices & SDLC Standards
+
+### **Service Management (MANDATORY)**
+- ✅ **Systemd is REQUIRED** - Bot MUST run under systemd service (`trading-bot.service`)
+- ✅ **Auto-restart enabled** - Service configured with `Restart=always` for reliability
+- ✅ **Auto-start on boot** - Service enabled with `systemctl enable` for persistence
+- ✅ **Process hierarchy** - All processes managed by `deploy_supervisor.py` under systemd
+- ✅ **Production standard** - Systemd is industry best practice for Linux services
+- ❌ **NEVER** run manually (nohup, screen, tmux) in production
+- ❌ **NEVER** start processes directly - always use systemd
+
+### **Deployment Best Practices**
 
 ### Code Changes
 
