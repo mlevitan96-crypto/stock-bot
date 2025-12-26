@@ -691,35 +691,46 @@ chmod +x FIX_AND_DEPLOY.sh
 ./FIX_AND_DEPLOY.sh
 ```
 
-### Quick Restart (After Code Changes)
+### Quick Restart (After Code Changes) - SYSTEMD METHOD
 
 ```bash
 cd ~/stock-bot
 git pull origin main
-pkill -f "deploy_supervisor"
-sleep 3
-screen -dmS supervisor bash -c "cd ~/stock-bot && source venv/bin/activate && python deploy_supervisor.py"
-sleep 5
+systemctl restart trading-bot.service
+systemctl status trading-bot.service
 ```
 
-### Manual Service Management
+### Service Management (Systemd - Standard)
+
+**Check service status:**
+```bash
+systemctl status trading-bot.service
+```
+
+**View service logs:**
+```bash
+journalctl -u trading-bot.service -f
+journalctl -u trading-bot.service -n 100 --no-pager
+```
+
+**Restart service:**
+```bash
+systemctl restart trading-bot.service
+```
+
+**Stop service:**
+```bash
+systemctl stop trading-bot.service
+```
+
+**Start service:**
+```bash
+systemctl start trading-bot.service
+```
 
 **Check running processes:**
 ```bash
-ps aux | grep -E "deploy_supervisor|main.py|dashboard.py" | grep -v grep
-```
-
-**View supervisor logs:**
-```bash
-screen -r supervisor
-# Press Ctrl+A then D to detach
-```
-
-**Stop all services:**
-```bash
-pkill -f "deploy_supervisor"
-pkill -f "python.*main.py"
-pkill -f "python.*dashboard.py"
+ps aux | grep -E "deploy_supervisor|main.py|uw_flow_daemon|dashboard" | grep -v grep
 ```
 
 ---
