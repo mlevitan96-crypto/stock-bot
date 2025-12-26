@@ -31,7 +31,7 @@
     {
       "test": "TCA: get_recent_failures",
       "status": "PASS",
-      "message": "Returns 26"
+      "message": "Returns 28"
     },
     {
       "test": "Execution Learner: Import",
