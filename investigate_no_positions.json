@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-26T15:45:54.322999+00:00",
+  "timestamp": "2025-12-26T15:47:04.813984+00:00",
   "processes": [
     {
       "pid": "524007",
@@ -21,14 +21,14 @@
     },
     {
       "pid": "582263",
-      "cpu": "0.5",
+      "cpu": "0.6",
       "mem": "10.6",
       "command": "python main.py"
     },
     {
-      "pid": "694425",
-      "cpu": "1.7",
-      "mem": "1.6",
+      "pid": "694804",
+      "cpu": "0.7",
+      "mem": "1.4",
       "command": "python uw_flow_daemon.py"
     }
   ],
@@ -4677,7 +4677,7 @@
       }
     }
   ],
-  "market_status": "Current NY time: 2025-12-26 10:45:54 EST\nIs market hours: True\nIs weekday: True",
+  "market_status": "Current NY time: 2025-12-26 10:47:05 EST\nIs market hours: True\nIs weekday: True",
   "log_errors": [
     "{\"ts\": \"2025-12-22T18:44:06.648577+00:00\", \"type\": \"order\", \"action\": \"limit_retry_failed\", \"symbol\": \"LCID\", \"side\": \"sell\", \"limit_price\": 12.295, \"attempt\": 3, \"error\": \"invalid limit_price 12.295. sub-penny increment does not fulfill minimum pricing criteria\"}\n",
     "{\"ts\": \"2025-12-22T18:44:06.678467+00:00\", \"type\": \"order\", \"action\": \"limit_final_failed\", \"symbol\": \"LCID\", \"side\": \"sell\", \"limit_price\": 12.295, \"error\": \"invalid limit_price 12.295. sub-penny increment does not fulfill minimum pricing criteria\"}\n",
