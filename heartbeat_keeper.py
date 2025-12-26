@@ -139,38 +139,96 @@ class HealthSupervisor:
         ))
     
     def _check_uw_daemon_alive(self) -> Dict[str, Any]:
-        """Check if UW flow daemon is updating cache."""
+        """Check if UW flow daemon is running and updating cache."""
+        # First check if daemon process is running
+        try:
+            result = subprocess.run(
+                ["pgrep", "-f", "uw_flow_daemon"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            daemon_running = result.returncode == 0 and result.stdout.strip()
+        except:
+            daemon_running = False
+        
+        if not daemon_running:
+            return {"healthy": False, "reason": "daemon_process_not_running"}
+        
+        # Then check cache file
         cache_file = DATA_DIR / "uw_flow_cache.json"
         if not cache_file.exists():
-            return {"healthy": False, "reason": "cache_file_missing"}
+            return {"healthy": False, "reason": "cache_file_missing", "daemon_running": True}
         
         try:
             file_mtime = cache_file.stat().st_mtime
             age_sec = time.time() - file_mtime
             
             if age_sec > 600:
-                return {"healthy": False, "reason": "cache_stale", "age_sec": int(age_sec)}
+                return {"healthy": False, "reason": "cache_stale", "age_sec": int(age_sec), "daemon_running": True}
             
             cache = json.loads(cache_file.read_text())
             symbol_count = len([k for k in cache.keys() if not k.startswith("_")])
             
-            return {"healthy": True, "cache_age_sec": int(age_sec), "symbols": symbol_count}
+            return {"healthy": True, "cache_age_sec": int(age_sec), "symbols": symbol_count, "daemon_running": True}
         except Exception as e:
-            return {"healthy": False, "reason": "cache_read_error", "error": str(e)}
+            return {"healthy": False, "reason": "cache_read_error", "error": str(e), "daemon_running": True}
     
     def _restart_uw_daemon(self) -> bool:
         """Attempt to restart UW daemon process."""
         try:
-            # Kill existing daemon processes first
-            subprocess.run(["pkill", "-f", "uw_flow_daemon"], 
-                         stdout=subprocess.DEVNULL, 
-                         stderr=subprocess.DEVNULL)
-            time.sleep(2)
+            # Check if running under systemd
+            systemd_result = subprocess.run(
+                ["systemctl", "is-active", "trading-bot.service"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
             
-            # Start new daemon (will be managed by uw-daemon workflow)
-            # Don't spawn directly - just trigger workflow restart
-            return True
-        except Exception:
+            if systemd_result.returncode == 0:
+                # Running under systemd - restart the service to restart daemon
+                subprocess.run(
+                    ["systemctl", "restart", "trading-bot.service"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=10
+                )
+                return True
+            else:
+                # Not under systemd - try to restart via deploy_supervisor
+                # Kill existing daemon processes first
+                subprocess.run(["pkill", "-f", "uw_flow_daemon"], 
+                             stdout=subprocess.DEVNULL, 
+                             stderr=subprocess.DEVNULL,
+                             timeout=5)
+                time.sleep(2)
+                
+                # Start daemon directly (fallback if not under systemd)
+                daemon_path = Path(__file__).parent / "uw_flow_daemon.py"
+                if daemon_path.exists():
+                    venv_python = Path(__file__).parent / "venv" / "bin" / "python"
+                    if venv_python.exists():
+                        subprocess.Popen(
+                            [str(venv_python), str(daemon_path)],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            cwd=str(Path(__file__).parent)
+                        )
+                        return True
+                
+                return False
+        except Exception as e:
+            # Log error but don't fail completely
+            try:
+                log_path = LOGS_DIR / "heartbeat.jsonl"
+                with log_path.open("a") as f:
+                    f.write(json.dumps({
+                        "ts": datetime.utcnow().isoformat() + "Z",
+                        "msg": "daemon_restart_failed",
+                        "error": str(e)
+                    }) + "\n")
+            except:
+                pass
             return False
     
     def _check_uw_cache_fresh(self) -> Dict[str, Any]:
