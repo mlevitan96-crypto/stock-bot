@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-12-26T17:42:49.187483+00:00",
+  "timestamp": "2025-12-26T17:50:46.526104+00:00",
   "checks": {
     "market_hours": {
       "is_market_hours": true,
       "is_weekend": false,
-      "current_time": "2025-12-26T17:42:49.187510+00:00",
+      "current_time": "2025-12-26T17:50:46.526133+00:00",
       "hour_utc": 17,
       "weekday": 4
     },
@@ -30,18 +30,18 @@
       "block_reasons": {}
     },
     "uw_cache": {
-      "exists": false,
-      "error": "Cache file does not exist"
+      "exists": true,
+      "age_minutes": 0.08806591431299846,
+      "tickers_in_cache": 2,
+      "tickers_with_data": 1,
+      "is_fresh": true
     }
   },
   "summary": {
     "issues": [
-      "Execution cycles: No trading log found",
-      "UW cache does not exist"
+      "Execution cycles: No trading log found"
     ],
-    "recommendations": [
-      "Check if UW daemon is running"
-    ],
+    "recommendations": [],
     "status": "critical"
   }
 }
