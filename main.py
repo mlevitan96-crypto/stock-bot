@@ -5330,7 +5330,15 @@ def run_once():
             symbols_processed = 0
             symbols_with_signals = 0
             
-            for ticker in uw_cache.keys():
+            # CRITICAL FIX: Process ALL symbols that have clusters OR are in cache
+            # This ensures clusters for symbols not in cache (e.g., NVDA trades stored under AAPL key) are still scored
+            cluster_symbols = set(c.get("ticker") for c in clusters if c.get("ticker"))
+            cache_symbols = set(k for k in uw_cache.keys() if not k.startswith("_"))
+            all_symbols_to_process = cluster_symbols | cache_symbols
+            
+            print(f"DEBUG: Processing {len(all_symbols_to_process)} symbols ({len(cluster_symbols)} from clusters, {len(cache_symbols)} from cache)", flush=True)
+            
+            for ticker in all_symbols_to_process:
                 # Skip metadata keys
                 if ticker.startswith("_"):
                     continue
@@ -5491,8 +5499,12 @@ def run_once():
                              freshness=freshness,
                              rejection_reason=reason_str)
             
-            clusters = filtered_clusters
-            print(f"DEBUG: Composite scoring complete: {symbols_processed} symbols processed, {symbols_with_signals} passed gate, {len(clusters)} clusters generated", flush=True)
+            # CRITICAL FIX: MERGE flow_trades clusters with composite clusters
+            # Flow_trades clusters are from actual API trades, composite clusters are from cache signals
+            # Both should be included - don't discard flow_trades clusters!
+            all_clusters = flow_clusters + filtered_clusters
+            clusters = all_clusters
+            print(f"DEBUG: Composite scoring complete: {symbols_processed} symbols processed, {symbols_with_signals} passed gate, {len(filtered_clusters)} composite clusters, {len(flow_clusters)} flow clusters, {len(clusters)} total clusters", flush=True)
             log_event("composite_filter", "applied", cache_symbols=len(uw_cache), 
                      symbols_processed=symbols_processed,
                      symbols_with_signals=symbols_with_signals,
