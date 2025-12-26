@@ -5316,6 +5316,9 @@ def run_once():
         print(f"DEBUG: Fetched data, clustering {len(all_trades)} trades", flush=True)
         flow_clusters = cluster_signals(all_trades)
         
+        # CRITICAL FIX: Initialize clusters to flow_clusters immediately to prevent UnboundLocalError
+        clusters = flow_clusters
+        
         print(f"DEBUG: Initial flow_trades clusters={len(flow_clusters)}, use_composite={use_composite}", flush=True)
         
         # CRITICAL FIX: Always run composite scoring when cache exists, even if flow_trades is empty
