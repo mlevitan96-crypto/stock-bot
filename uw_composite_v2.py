@@ -51,9 +51,14 @@ def get_adaptive_weights() -> Dict[str, float]:
 _cached_weights: Dict[str, float] = {}
 _weights_cache_ts: float = 0.0
 
-def get_weight(component: str) -> float:
+def get_weight(component: str, regime: str = "neutral") -> float:
     """
     UNIFIED WEIGHT ACCESSOR - All scoring must use this function.
+    Now supports regime-aware weights.
+    
+    Args:
+        component: Signal component name
+        regime: Market regime ("RISK_ON", "RISK_OFF", "NEUTRAL", "mixed")
     
     Returns the current weight for a component, using adaptive weights
     when available, falling back to WEIGHTS_V3 defaults.
@@ -62,6 +67,17 @@ def get_weight(component: str) -> float:
     """
     global _cached_weights, _weights_cache_ts
     
+    # Try to get regime-aware weight from optimizer
+    optimizer = _get_adaptive_optimizer()
+    if optimizer and hasattr(optimizer, 'entry_model'):
+        try:
+            # Get regime-aware effective weight
+            effective_weight = optimizer.entry_model.get_effective_weight(component, regime)
+            return effective_weight
+        except Exception:
+            pass
+    
+    # Fallback to cached weights (non-regime-aware)
     now = time.time()
     if now - _weights_cache_ts > 60:
         adaptive = get_adaptive_weights()
@@ -278,7 +294,7 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int) -> tuple:
     notes_parts = []
     component = 0.0
     
-    w = get_weight("shorts_squeeze")
+    w = get_weight("shorts_squeeze", regime)
     
     # High short interest (>15%) with bullish flow = squeeze potential
     if interest_pct > 15 and flow_sign == 1:
@@ -350,7 +366,7 @@ def compute_institutional_component(insider_data: Dict, flow_sign: int) -> tuple
     
     # Alignment with flow
     aligned = (inst_sign == flow_sign) and inst_sign != 0
-    w = get_weight("institutional")
+    w = get_weight("institutional", regime)
     
     if aligned:
         component = w * (0.5 + activity_strength * 0.5 + usd_bonus)
@@ -414,7 +430,7 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int) -> tuple:
     imbalance = abs(call_ratio - 0.5) * 2
     
     aligned = (tide_sign == flow_sign) and tide_sign != 0
-    w = get_weight("market_tide")
+    w = get_weight("market_tide", regime)
     
     if aligned:
         component = w * (0.4 + imbalance * 0.6)
@@ -449,7 +465,7 @@ def compute_calendar_component(calendar_data: Optional[Dict], symbol: str) -> tu
     
     notes_parts = []
     component = 0.0
-    w = get_weight("calendar_catalyst")
+    w = get_weight("calendar_catalyst", regime)
     
     # Earnings proximity bonus
     if calendar_data.get("has_earnings"):

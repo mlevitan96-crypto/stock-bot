@@ -701,6 +701,49 @@ class LearningOrchestrator:
                     "samples": total,
                     "win_rate": round(wins/total, 3) if total > 0 else 0
                 })
+            
+            # REGIME-AWARE LEARNING: Update weights per regime
+            # Check if we have enough samples per regime to update regime-specific weights
+            regime_perf = perf.get("regime_performance", {})
+            
+            for regime, reg_perf in regime_perf.items():
+                reg_wins = reg_perf.get("wins", 0)
+                reg_losses = reg_perf.get("losses", 0)
+                reg_total = reg_wins + reg_losses
+                
+                if reg_total >= self.MIN_SAMPLES:
+                    # We have enough samples for this regime - update regime-specific weight
+                    reg_wr = reg_wins / reg_total if reg_total > 0 else 0.5
+                    reg_pnl = reg_perf.get("pnl", 0.0) / reg_total if reg_total > 0 else 0.0
+                    
+                    # Initialize regime multipliers if not exists
+                    if not hasattr(self.entry_model, "regime_multipliers"):
+                        self.entry_model.regime_multipliers = {}
+                    if component not in self.entry_model.regime_multipliers:
+                        self.entry_model.regime_multipliers[component] = {}
+                    if regime not in self.entry_model.regime_multipliers[component]:
+                        self.entry_model.regime_multipliers[component][regime] = 1.0
+                    
+                    reg_current = self.entry_model.regime_multipliers[component][regime]
+                    reg_new = reg_current
+                    
+                    # Apply same logic as global, but regime-specific
+                    if reg_wr > 0.55 and reg_pnl > 0:
+                        reg_new = min(2.5, reg_current + self.UPDATE_STEP)
+                    elif reg_wr < 0.45 or reg_pnl < -0.01:
+                        reg_new = max(0.25, reg_current - self.UPDATE_STEP)
+                    
+                    if reg_new != reg_current:
+                        self.entry_model.regime_multipliers[component][regime] = reg_new
+                        adjustments.append({
+                            "component": component,
+                            "regime": regime,
+                            "old_mult": reg_current,
+                            "new_mult": reg_new,
+                            "reason": f"regime_specific(wr={reg_wr:.3f},pnl={reg_pnl:.3f})",
+                            "samples": reg_total,
+                            "win_rate": reg_wr
+                        })
         
         # Update last update timestamp if we made adjustments
         if adjustments:
