@@ -30,6 +30,36 @@
 
 **Documentation:** See `UW_API_ENDPOINTS_OFFICIAL.md` for complete details.
 
+## 📚 COMPLETE BOT REFERENCE DOCUMENTATION
+
+**LIVING DOCUMENTATION:** `COMPLETE_BOT_REFERENCE.md`
+
+This is the **primary reference document** for all bot operations. It contains:
+- All 22 signal components (definitions, sources, calculations, status)
+- Signal calculation logic and composite scoring
+- Data flow and cache structure
+- Learning system (how it works, data sources, weight updates)
+- Adaptive weights (how they work, recovery, reset procedures)
+- Trade execution flow
+- Historical analysis findings
+- Best practices and troubleshooting
+
+**ALWAYS REFERENCE THIS DOCUMENT FIRST** when:
+- Understanding how signals work
+- Debugging signal issues
+- Understanding learning system
+- Troubleshooting component problems
+- Adding new signals or features
+
+**Update this document whenever:**
+- New signals are added
+- Component logic changes
+- Learning system changes
+- New findings from analysis
+- Best practices evolve
+
+---
+
 ## ⚠️ CRITICAL LESSON: NEVER MASK ERRORS - FIX ROOT CAUSES
 
 **User Directive (2025-12-26):** "The goal of the dashboard health isn't to trick me into not having health data. We aren't trying to just clear errors. We are trying to fix them. I need to know if there are errors. DO NOT JUST FIX THE NOTIFICATION. Fix the error causing the notification. This is sloppy and unacceptable."
