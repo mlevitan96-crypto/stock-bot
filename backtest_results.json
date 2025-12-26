@@ -31,7 +31,7 @@
     {
       "test": "TCA: get_recent_failures",
       "status": "PASS",
-      "message": "Returns 29"
+      "message": "Returns 26"
     },
     {
       "test": "Execution Learner: Import",
@@ -61,7 +61,7 @@
     {
       "test": "Signal Learner: get_best_combinations",
       "status": "PASS",
-      "message": "Returns 1 combinations"
+      "message": "Returns 0 combinations"
     },
     {
       "test": "Counterfactual: get_price_at_time",
@@ -91,7 +91,7 @@
     {
       "test": "Parameter Optimizer: get_optimal_value",
       "status": "PASS",
-      "message": "Returns: None"
+      "message": "Returns: 0.5"
     },
     {
       "test": "Main: TCA integration",
