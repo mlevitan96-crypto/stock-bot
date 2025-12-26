@@ -4486,15 +4486,20 @@ class StrategyEngine:
                         continue
                     print(f"DEBUG {symbol}: Displacement successful! Proceeding with entry...", flush=True)
                 else:
-                    print(f"DEBUG {symbol}: BLOCKED by max_positions_reached ({len(self.executor.opens)} >= {Config.MAX_CONCURRENT_POSITIONS}), no displacement candidates", flush=True)
+                    # FIX: Use actual Alpaca positions count, not executor.opens (which may be out of sync)
+                    actual_positions = len(self.executor.api.list_positions())
+                    print(f"DEBUG {symbol}: BLOCKED by max_positions_reached (Alpaca positions: {actual_positions}, executor.opens: {len(self.executor.opens)}, max: {Config.MAX_CONCURRENT_POSITIONS}), no displacement candidates", flush=True)
                     log_event("gate", "max_positions_reached", symbol=symbol, 
-                             current=len(self.executor.opens), max=Config.MAX_CONCURRENT_POSITIONS,
+                             alpaca_positions=actual_positions,
+                             executor_opens=len(self.executor.opens),
+                             max=Config.MAX_CONCURRENT_POSITIONS,
                              displacement_attempted=True, no_candidates=True)
                     log_blocked_trade(symbol, "max_positions_reached", score,
                                       direction=c.get("direction"),
                                       decision_price=ref_price_check,
                                       components=comps,
-                                      current_positions=len(self.executor.opens),
+                                      alpaca_positions=actual_positions,
+                                      executor_opens=len(self.executor.opens),
                                       max_positions=Config.MAX_CONCURRENT_POSITIONS)
                     continue
             if not self.executor.can_open_symbol(symbol):
