@@ -362,6 +362,179 @@ class FailurePointMonitor:
         except Exception as e:
             print(f"[SELF-HEAL] Failed to restart bot: {e}")
     
+    def check_fp_1_5_uw_api_auth(self) -> FailurePointStatus:
+        """FP-1.5: UW API Authentication"""
+        try:
+            log_file = Path("logs/uw_flow_daemon.log")
+            if log_file.exists():
+                with log_file.open() as f:
+                    lines = f.readlines()
+                    recent_lines = lines[-50:] if len(lines) > 50 else lines
+                    for line in recent_lines:
+                        if "401" in line or "403" in line or "Unauthorized" in line:
+                            return FailurePointStatus(
+                                id="FP-1.5",
+                                name="UW API Authentication",
+                                category="Data & Signal Generation",
+                                status="ERROR",
+                                last_check=time.time(),
+                                last_error="API authentication failure detected in logs"
+                            )
+            
+            return FailurePointStatus(
+                id="FP-1.5",
+                name="UW API Authentication",
+                category="Data & Signal Generation",
+                status="OK",
+                last_check=time.time()
+            )
+        except Exception as e:
+            return FailurePointStatus(
+                id="FP-1.5",
+                name="UW API Authentication",
+                category="Data & Signal Generation",
+                status="ERROR",
+                last_check=time.time(),
+                last_error=str(e)
+            )
+    
+    def check_fp_3_2_max_positions(self) -> FailurePointStatus:
+        """FP-3.2: Max Positions Reached"""
+        try:
+            import alpaca_trade_api as tradeapi
+            from dotenv import load_dotenv
+            import os
+            load_dotenv()
+            
+            api = tradeapi.REST(
+                os.getenv("ALPACA_KEY"),
+                os.getenv("ALPACA_SECRET"),
+                os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets"),
+                api_version='v2'
+            )
+            positions = api.list_positions()
+            position_count = len(positions)
+            max_positions = 16
+            
+            if position_count >= max_positions:
+                return FailurePointStatus(
+                    id="FP-3.2",
+                    name="Max Positions Reached",
+                    category="Gates & Filters",
+                    status="WARN",
+                    last_check=time.time(),
+                    last_error=f"At max positions: {position_count}/{max_positions}",
+                    details={"position_count": position_count, "max_positions": max_positions}
+                )
+            
+            return FailurePointStatus(
+                id="FP-3.2",
+                name="Max Positions Reached",
+                category="Gates & Filters",
+                status="OK",
+                last_check=time.time(),
+                details={"position_count": position_count, "max_positions": max_positions}
+            )
+        except Exception as e:
+            return FailurePointStatus(
+                id="FP-3.2",
+                name="Max Positions Reached",
+                category="Gates & Filters",
+                status="ERROR",
+                last_check=time.time(),
+                last_error=str(e)
+            )
+    
+    def check_fp_4_2_alpaca_auth(self) -> FailurePointStatus:
+        """FP-4.2: Alpaca API Authentication"""
+        try:
+            import alpaca_trade_api as tradeapi
+            from dotenv import load_dotenv
+            import os
+            load_dotenv()
+            
+            api = tradeapi.REST(
+                os.getenv("ALPACA_KEY"),
+                os.getenv("ALPACA_SECRET"),
+                os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets"),
+                api_version='v2'
+            )
+            account = api.get_account()
+            
+            return FailurePointStatus(
+                id="FP-4.2",
+                name="Alpaca API Authentication",
+                category="Execution & Broker",
+                status="OK",
+                last_check=time.time()
+            )
+        except Exception as e:
+            error_str = str(e)
+            if "401" in error_str or "403" in error_str or "Unauthorized" in error_str:
+                return FailurePointStatus(
+                    id="FP-4.2",
+                    name="Alpaca API Authentication",
+                    category="Execution & Broker",
+                    status="ERROR",
+                    last_check=time.time(),
+                    last_error="Authentication failure"
+                )
+            return FailurePointStatus(
+                id="FP-4.2",
+                name="Alpaca API Authentication",
+                category="Execution & Broker",
+                status="ERROR",
+                last_check=time.time(),
+                last_error=str(e)
+            )
+    
+    def check_fp_4_3_buying_power(self) -> FailurePointStatus:
+        """FP-4.3: Insufficient Buying Power"""
+        try:
+            import alpaca_trade_api as tradeapi
+            from dotenv import load_dotenv
+            import os
+            load_dotenv()
+            
+            api = tradeapi.REST(
+                os.getenv("ALPACA_KEY"),
+                os.getenv("ALPACA_SECRET"),
+                os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets"),
+                api_version='v2'
+            )
+            account = api.get_account()
+            buying_power = float(account.buying_power)
+            equity = float(account.equity)
+            
+            if buying_power < 100:  # Less than $100
+                return FailurePointStatus(
+                    id="FP-4.3",
+                    name="Insufficient Buying Power",
+                    category="Execution & Broker",
+                    status="WARN",
+                    last_check=time.time(),
+                    last_error=f"Low buying power: ${buying_power:.2f}",
+                    details={"buying_power": buying_power, "equity": equity}
+                )
+            
+            return FailurePointStatus(
+                id="FP-4.3",
+                name="Insufficient Buying Power",
+                category="Execution & Broker",
+                status="OK",
+                last_check=time.time(),
+                details={"buying_power": buying_power, "equity": equity}
+            )
+        except Exception as e:
+            return FailurePointStatus(
+                id="FP-4.3",
+                name="Insufficient Buying Power",
+                category="Execution & Broker",
+                status="ERROR",
+                last_check=time.time(),
+                last_error=str(e)
+            )
+    
     def check_all(self) -> Dict[str, FailurePointStatus]:
         """Check all failure points"""
         checks = [
@@ -369,9 +542,13 @@ class FailurePointMonitor:
             self.check_fp_1_2_cache_exists,
             self.check_fp_1_3_cache_fresh,
             self.check_fp_1_4_cache_has_symbols,
+            self.check_fp_1_5_uw_api_auth,
             self.check_fp_2_1_weights_initialized,
             self.check_fp_3_1_freeze_state,
+            self.check_fp_3_2_max_positions,
             self.check_fp_4_1_alpaca_connection,
+            self.check_fp_4_2_alpaca_auth,
+            self.check_fp_4_3_buying_power,
             self.check_fp_6_1_bot_running,
         ]
         
