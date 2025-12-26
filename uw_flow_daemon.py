@@ -841,9 +841,12 @@ class UWFlowDaemon:
             if self.poller.should_poll("dark_pool_levels"):
                 dp_data = self.client.get_dark_pool_levels(ticker)
                 dp_normalized = self._normalize_dark_pool(dp_data)
-                if dp_normalized:
-                    # Write dark_pool data (nested is fine - main.py reads it as cache_data.get("dark_pool", {}))
-                    self._update_cache(ticker, {"dark_pool": dp_normalized})
+                # Always store dark_pool (even if empty) so we know it was polled
+                # If normalization returned empty dict, create minimal structure
+                if not dp_normalized:
+                    dp_normalized = {"sentiment": "NEUTRAL", "total_premium": 0.0, "print_count": 0, "last_update": int(time.time())}
+                # Write dark_pool data (nested is fine - main.py reads it as cache_data.get("dark_pool", {}))
+                self._update_cache(ticker, {"dark_pool": dp_normalized})
             
             # Poll greek_exposure (detailed exposure data)
             if self.poller.should_poll("greek_exposure"):
