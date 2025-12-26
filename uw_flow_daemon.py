@@ -891,15 +891,20 @@ class UWFlowDaemon:
                 try:
                     print(f"[UW-DAEMON] Polling oi_change for {ticker}...", flush=True)
                     oi_data = self.client.get_oi_change(ticker)
+                    # Always store oi_change (even if empty) so we know it was polled
+                    if not oi_data:
+                        oi_data = {}  # Store empty structure
+                    self._update_cache(ticker, {"oi_change": oi_data})
                     if oi_data:
-                        self._update_cache(ticker, {"oi_change": oi_data})
                         print(f"[UW-DAEMON] Updated oi_change for {ticker}: {len(str(oi_data))} bytes", flush=True)
                     else:
-                        print(f"[UW-DAEMON] oi_change for {ticker}: API returned empty", flush=True)
+                        print(f"[UW-DAEMON] oi_change for {ticker}: API returned empty (stored as empty)", flush=True)
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching oi_change for {ticker}: {e}", flush=True)
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+                    # Store empty on error too
+                    self._update_cache(ticker, {"oi_change": {}})
             
             # Poll ETF flow
             if self.poller.should_poll("etf_flow"):
