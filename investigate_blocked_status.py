@@ -44,7 +44,7 @@ def main():
     print("-" * 80)
     for fp_id, fp_status in sorted(readiness['failure_points'].items()):
         status = fp_status.get('status', 'Unknown')
-        status_symbol = "✓" if status == "OK" else "⚠" if status == "WARN" else "✗"
+        status_symbol = "[OK]" if status == "OK" else "[WARN]" if status == "WARN" else "[FAIL]"
         print(f"{status_symbol} {fp_id:8} {fp_status.get('name', 'Unknown'):40} {status}")
         if fp_status.get('last_error'):
             print(f"         Error: {fp_status['last_error']}")
