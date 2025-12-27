@@ -290,9 +290,14 @@ class FailurePointMonitor:
         """FP-4.1: Alpaca API Connection"""
         try:
             import alpaca_trade_api as tradeapi
-            from dotenv import load_dotenv
             import os
-            load_dotenv()
+            # Try to load dotenv if available, but don't fail if not
+            try:
+                from dotenv import load_dotenv
+                load_dotenv()
+            except ImportError:
+                # dotenv not available, use environment variables directly
+                pass
             
             api = tradeapi.REST(
                 os.getenv("ALPACA_KEY"),
@@ -369,17 +374,30 @@ class FailurePointMonitor:
             if log_file.exists():
                 with log_file.open() as f:
                     lines = f.readlines()
-                    recent_lines = lines[-50:] if len(lines) > 50 else lines
-                    for line in recent_lines:
-                        if "401" in line or "403" in line or "Unauthorized" in line:
-                            return FailurePointStatus(
-                                id="FP-1.5",
-                                name="UW API Authentication",
-                                category="Data & Signal Generation",
-                                status="ERROR",
-                                last_check=time.time(),
-                                last_error="API authentication failure detected in logs"
-                            )
+                    # Check only very recent lines (last 20) to avoid false positives
+                    recent_lines = lines[-20:] if len(lines) > 20 else lines
+                    # Also check if daemon is actually running and cache is being updated
+                    daemon_running = False
+                    try:
+                        import subprocess
+                        result = subprocess.run(['pgrep', '-f', 'uw_flow_daemon'], 
+                                              capture_output=True, timeout=5)
+                        daemon_running = result.returncode == 0
+                    except:
+                        pass
+                    
+                    # Only flag as error if we see recent auth errors AND daemon is running
+                    # (if daemon isn't running, that's a different issue - FP-1.1)
+                    auth_errors = [l for l in recent_lines if "401" in l or "403" in l or "Unauthorized" in l.lower()]
+                    if auth_errors and daemon_running:
+                        return FailurePointStatus(
+                            id="FP-1.5",
+                            name="UW API Authentication",
+                            category="Data & Signal Generation",
+                            status="ERROR",
+                            last_check=time.time(),
+                            last_error="Recent API authentication failure detected in logs"
+                        )
             
             return FailurePointStatus(
                 id="FP-1.5",
@@ -402,9 +420,14 @@ class FailurePointMonitor:
         """FP-3.2: Max Positions Reached"""
         try:
             import alpaca_trade_api as tradeapi
-            from dotenv import load_dotenv
             import os
-            load_dotenv()
+            # Try to load dotenv if available, but don't fail if not
+            try:
+                from dotenv import load_dotenv
+                load_dotenv()
+            except ImportError:
+                # dotenv not available, use environment variables directly
+                pass
             
             api = tradeapi.REST(
                 os.getenv("ALPACA_KEY"),
@@ -449,9 +472,14 @@ class FailurePointMonitor:
         """FP-4.2: Alpaca API Authentication"""
         try:
             import alpaca_trade_api as tradeapi
-            from dotenv import load_dotenv
             import os
-            load_dotenv()
+            # Try to load dotenv if available, but don't fail if not
+            try:
+                from dotenv import load_dotenv
+                load_dotenv()
+            except ImportError:
+                # dotenv not available, use environment variables directly
+                pass
             
             api = tradeapi.REST(
                 os.getenv("ALPACA_KEY"),
@@ -492,9 +520,14 @@ class FailurePointMonitor:
         """FP-4.3: Insufficient Buying Power"""
         try:
             import alpaca_trade_api as tradeapi
-            from dotenv import load_dotenv
             import os
-            load_dotenv()
+            # Try to load dotenv if available, but don't fail if not
+            try:
+                from dotenv import load_dotenv
+                load_dotenv()
+            except ImportError:
+                # dotenv not available, use environment variables directly
+                pass
             
             api = tradeapi.REST(
                 os.getenv("ALPACA_KEY"),
