@@ -1,26 +1,16 @@
 {
-  "timestamp": "2025-12-27T02:18:45.970329+00:00",
-  "verification_passed": true,
+  "timestamp": "2025-12-27T03:00:12.258201+00:00",
+  "verification_passed": false,
   "tests": {
     "file_tca_data_manager.py": "PASS",
     "file_execution_quality_learner.py": "PASS",
     "file_signal_pattern_learner.py": "PASS",
     "file_parameter_optimizer.py": "PASS",
-    "file_backtest_all_implementations.py": "PASS",
-    "file_deploy_and_verify_on_droplet.sh": "PASS",
-    "backtest": "PASS",
-    "import_tca_data_manager": "PASS",
-    "import_execution_quality_learner": "PASS",
-    "import_signal_pattern_learner": "PASS",
-    "import_parameter_optimizer": "PASS",
-    "main_tca_integration": "PASS",
-    "main_regime_forecast": "PASS",
-    "main_toxicity": "PASS",
-    "main_execution_tracking": "PASS",
-    "main_experiment_params": "PASS",
-    "orchestrator_execution_quality": "PASS",
-    "orchestrator_signal_patterns": "PASS",
-    "orchestrator_counterfactual": "PASS"
+    "file_backtest_all_implementations.py": "FAIL",
+    "file_deploy_and_verify_on_droplet.sh": "PASS"
   },
-  "errors": []
+  "errors": [
+    "Missing file: backtest_all_implementations.py",
+    "Some required files are missing"
+  ]
 }
