@@ -11,7 +11,7 @@ def fix_issue(fp_id, error_msg):
     print(f"\nAttempting to fix {fp_id}...")
     
     if "FP-1.1" in fp_id or "daemon" in error_msg.lower():
-        print("  → Restarting UW daemon via systemd...")
+        print("  -> Restarting UW daemon via systemd...")
         try:
             subprocess.run(['systemctl', 'restart', 'trading-bot.service'], 
                          timeout=10, check=True)
@@ -22,12 +22,12 @@ def fix_issue(fp_id, error_msg):
             return False
     
     elif "FP-1.2" in fp_id or "FP-1.3" in fp_id or "FP-1.4" in fp_id or "cache" in error_msg.lower():
-        print("  → Checking UW daemon status...")
+        print("  -> Checking UW daemon status...")
         try:
             result = subprocess.run(['pgrep', '-f', 'uw_flow_daemon'], 
                                   capture_output=True, timeout=5)
             if result.returncode != 0:
-                print("  → Daemon not running, restarting...")
+                print("  -> Daemon not running, restarting...")
                 subprocess.run(['systemctl', 'restart', 'trading-bot.service'], 
                              timeout=10)
                 print("  [OK] Service restarted")
@@ -39,7 +39,7 @@ def fix_issue(fp_id, error_msg):
             return False
     
     elif "FP-2.1" in fp_id or "weights" in error_msg.lower():
-        print("  → Initializing adaptive weights...")
+        print("  -> Initializing adaptive weights...")
         try:
             result = subprocess.run(['python3', 'fix_adaptive_weights_init.py'],
                                    capture_output=True, timeout=30, cwd=Path.cwd())
@@ -54,7 +54,7 @@ def fix_issue(fp_id, error_msg):
             return False
     
     elif "FP-3.1" in fp_id or "freeze" in error_msg.lower():
-        print("  → Checking for freeze files...")
+        print("  -> Checking for freeze files...")
         freeze_file = Path("state/governor_freezes.json")
         pre_market = Path("state/pre_market_freeze.flag")
         
@@ -80,12 +80,12 @@ def fix_issue(fp_id, error_msg):
         return True
     
     elif "FP-4.1" in fp_id or "FP-4.2" in fp_id or "alpaca" in error_msg.lower():
-        print("  → Checking Alpaca connection...")
+        print("  -> Checking Alpaca connection...")
         print("  [INFO] Alpaca connection issues require manual credential check")
         return False
     
     elif "FP-6.1" in fp_id or "bot" in error_msg.lower():
-        print("  → Restarting bot via systemd...")
+        print("  -> Restarting bot via systemd...")
         try:
             subprocess.run(['systemctl', 'restart', 'trading-bot.service'], 
                          timeout=10, check=True)
