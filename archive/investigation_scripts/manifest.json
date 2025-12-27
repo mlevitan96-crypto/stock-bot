@@ -1,0 +1,626 @@
+{
+  "archived_date": "2025-12-26",
+  "reason": "Investigation/test scripts - archived to reduce clutter",
+  "files": [
+    {
+      "original": "analyze_adaptive_weight_learning.py",
+      "archived": "archive\\investigation_scripts\\analyze_adaptive_weight_learning.py",
+      "size": 0
+    },
+    {
+      "original": "analyze_data_availability.py",
+      "archived": "archive\\investigation_scripts\\analyze_data_availability.py",
+      "size": 0
+    },
+    {
+      "original": "ANALYZE_DISPLACEMENT_ISSUE.py",
+      "archived": "archive\\investigation_scripts\\ANALYZE_DISPLACEMENT_ISSUE.py",
+      "size": 0
+    },
+    {
+      "original": "analyze_historical_data_availability.py",
+      "archived": "archive\\investigation_scripts\\analyze_historical_data_availability.py",
+      "size": 0
+    },
+    {
+      "original": "analyze_learning_effectiveness.py",
+      "archived": "archive\\investigation_scripts\\analyze_learning_effectiveness.py",
+      "size": 0
+    },
+    {
+      "original": "analyze_trade_performance.py",
+      "archived": "archive\\investigation_scripts\\analyze_trade_performance.py",
+      "size": 0
+    },
+    {
+      "original": "APPLY_AUDIT_FIXES.py",
+      "archived": "archive\\investigation_scripts\\APPLY_AUDIT_FIXES.py",
+      "size": 0
+    },
+    {
+      "original": "architecture_mapping_audit.py",
+      "archived": "archive\\investigation_scripts\\architecture_mapping_audit.py",
+      "size": 0
+    },
+    {
+      "original": "audit_dashboard_health_checks.py",
+      "archived": "archive\\investigation_scripts\\audit_dashboard_health_checks.py",
+      "size": 0
+    },
+    {
+      "original": "audit_learning_coverage.py",
+      "archived": "archive\\investigation_scripts\\audit_learning_coverage.py",
+      "size": 0
+    },
+    {
+      "original": "auto_test_uw_endpoints.py",
+      "archived": "archive\\investigation_scripts\\auto_test_uw_endpoints.py",
+      "size": 0
+    },
+    {
+      "original": "backtest_30_day.py",
+      "archived": "archive\\investigation_scripts\\backtest_30_day.py",
+      "size": 0
+    },
+    {
+      "original": "backtest_all_implementations.py",
+      "archived": "archive\\investigation_scripts\\backtest_all_implementations.py",
+      "size": 0
+    },
+    {
+      "original": "check_api_responses_from_logs.py",
+      "archived": "archive\\investigation_scripts\\check_api_responses_from_logs.py",
+      "size": 0
+    },
+    {
+      "original": "check_cache_after_wait.py",
+      "archived": "archive\\investigation_scripts\\check_cache_after_wait.py",
+      "size": 0
+    },
+    {
+      "original": "check_component_bugs_in_history.py",
+      "archived": "archive\\investigation_scripts\\check_component_bugs_in_history.py",
+      "size": 0
+    },
+    {
+      "original": "check_comprehensive_learning_status.py",
+      "archived": "archive\\investigation_scripts\\check_comprehensive_learning_status.py",
+      "size": 0
+    },
+    {
+      "original": "CHECK_DISPLACEMENT_AND_EXITS.py",
+      "archived": "archive\\investigation_scripts\\CHECK_DISPLACEMENT_AND_EXITS.py",
+      "size": 0
+    },
+    {
+      "original": "check_learning_enhancements.py",
+      "archived": "archive\\investigation_scripts\\check_learning_enhancements.py",
+      "size": 0
+    },
+    {
+      "original": "check_learning_status.py",
+      "archived": "archive\\investigation_scripts\\check_learning_status.py",
+      "size": 0
+    },
+    {
+      "original": "check_market_and_cache_access.py",
+      "archived": "archive\\investigation_scripts\\check_market_and_cache_access.py",
+      "size": 0
+    },
+    {
+      "original": "check_missing_components.py",
+      "archived": "archive\\investigation_scripts\\check_missing_components.py",
+      "size": 0
+    },
+    {
+      "original": "check_system_health.py",
+      "archived": "archive\\investigation_scripts\\check_system_health.py",
+      "size": 0
+    },
+    {
+      "original": "check_systemd_status.py",
+      "archived": "archive\\investigation_scripts\\check_systemd_status.py",
+      "size": 0
+    },
+    {
+      "original": "check_trades_api.py",
+      "archived": "archive\\investigation_scripts\\check_trades_api.py",
+      "size": 0
+    },
+    {
+      "original": "check_trades_closing.py",
+      "archived": "archive\\investigation_scripts\\check_trades_closing.py",
+      "size": 0
+    },
+    {
+      "original": "check_trading_status_complete.py",
+      "archived": "archive\\investigation_scripts\\check_trading_status_complete.py",
+      "size": 0
+    },
+    {
+      "original": "check_uw_blocked_entries.py",
+      "archived": "archive\\investigation_scripts\\check_uw_blocked_entries.py",
+      "size": 0
+    },
+    {
+      "original": "check_uw_cache_status.py",
+      "archived": "archive\\investigation_scripts\\check_uw_cache_status.py",
+      "size": 0
+    },
+    {
+      "original": "code_audit_connections.py",
+      "archived": "archive\\investigation_scripts\\code_audit_connections.py",
+      "size": 0
+    },
+    {
+      "original": "COMPLETE_BOT_AUDIT.py",
+      "archived": "archive\\investigation_scripts\\COMPLETE_BOT_AUDIT.py",
+      "size": 0
+    },
+    {
+      "original": "complete_fix_all_issues.py",
+      "archived": "archive\\investigation_scripts\\complete_fix_all_issues.py",
+      "size": 0
+    },
+    {
+      "original": "complete_fix_all_workflow_issues.py",
+      "archived": "archive\\investigation_scripts\\complete_fix_all_workflow_issues.py",
+      "size": 0
+    },
+    {
+      "original": "complete_signal_audit.py",
+      "archived": "archive\\investigation_scripts\\complete_signal_audit.py",
+      "size": 0
+    },
+    {
+      "original": "COMPLETE_SIGNAL_FIX_ALL_COMPONENTS.py",
+      "archived": "archive\\investigation_scripts\\COMPLETE_SIGNAL_FIX_ALL_COMPONENTS.py",
+      "size": 0
+    },
+    {
+      "original": "COMPLETE_WORKFLOW_FIX_AND_VERIFY.py",
+      "archived": "archive\\investigation_scripts\\COMPLETE_WORKFLOW_FIX_AND_VERIFY.py",
+      "size": 0
+    },
+    {
+      "original": "COMPREHENSIVE_CODE_AUDIT.py",
+      "archived": "archive\\investigation_scripts\\COMPREHENSIVE_CODE_AUDIT.py",
+      "size": 0
+    },
+    {
+      "original": "comprehensive_diagnosis_fix_all.py",
+      "archived": "archive\\investigation_scripts\\comprehensive_diagnosis_fix_all.py",
+      "size": 0
+    },
+    {
+      "original": "COMPREHENSIVE_END_TO_END_AUDIT.py",
+      "archived": "archive\\investigation_scripts\\COMPREHENSIVE_END_TO_END_AUDIT.py",
+      "size": 0
+    },
+    {
+      "original": "comprehensive_fix_all_signals.py",
+      "archived": "archive\\investigation_scripts\\comprehensive_fix_all_signals.py",
+      "size": 0
+    },
+    {
+      "original": "debug_legacy_components.py",
+      "archived": "archive\\investigation_scripts\\debug_legacy_components.py",
+      "size": 0
+    },
+    {
+      "original": "DEPLOY_AND_TEST_STRUCTURAL_INTELLIGENCE.py",
+      "archived": "archive\\investigation_scripts\\DEPLOY_AND_TEST_STRUCTURAL_INTELLIGENCE.py",
+      "size": 0
+    },
+    {
+      "original": "deploy_and_verify_complete.py",
+      "archived": "archive\\investigation_scripts\\deploy_and_verify_complete.py",
+      "size": 0
+    },
+    {
+      "original": "diagnose_alpaca_orders.py",
+      "archived": "archive\\investigation_scripts\\diagnose_alpaca_orders.py",
+      "size": 0
+    },
+    {
+      "original": "diagnose_and_fix_no_positions.py",
+      "archived": "archive\\investigation_scripts\\diagnose_and_fix_no_positions.py",
+      "size": 0
+    },
+    {
+      "original": "DIAGNOSE_BOT_EXECUTION.py",
+      "archived": "archive\\investigation_scripts\\DIAGNOSE_BOT_EXECUTION.py",
+      "size": 0
+    },
+    {
+      "original": "diagnose_daemon_exit.py",
+      "archived": "archive\\investigation_scripts\\diagnose_daemon_exit.py",
+      "size": 0
+    },
+    {
+      "original": "diagnose_learning_and_exits.py",
+      "archived": "archive\\investigation_scripts\\diagnose_learning_and_exits.py",
+      "size": 0
+    },
+    {
+      "original": "diagnose_no_orders.py",
+      "archived": "archive\\investigation_scripts\\diagnose_no_orders.py",
+      "size": 0
+    },
+    {
+      "original": "diagnose_no_run_cycles.py",
+      "archived": "archive\\investigation_scripts\\diagnose_no_run_cycles.py",
+      "size": 0
+    },
+    {
+      "original": "diagnose_trading_issues.py",
+      "archived": "archive\\investigation_scripts\\diagnose_trading_issues.py",
+      "size": 0
+    },
+    {
+      "original": "DIAGNOSE_WHY_NO_ORDERS.py",
+      "archived": "archive\\investigation_scripts\\DIAGNOSE_WHY_NO_ORDERS.py",
+      "size": 0
+    },
+    {
+      "original": "diagnose_why_no_trades_comprehensive.py",
+      "archived": "archive\\investigation_scripts\\diagnose_why_no_trades_comprehensive.py",
+      "size": 0
+    },
+    {
+      "original": "diagnose_zero_clusters.py",
+      "archived": "archive\\investigation_scripts\\diagnose_zero_clusters.py",
+      "size": 0
+    },
+    {
+      "original": "final_complete_fix_all.py",
+      "archived": "archive\\investigation_scripts\\final_complete_fix_all.py",
+      "size": 0
+    },
+    {
+      "original": "final_verify_trades_ready.py",
+      "archived": "archive\\investigation_scripts\\final_verify_trades_ready.py",
+      "size": 0
+    },
+    {
+      "original": "fix_all_issues_now.py",
+      "archived": "archive\\investigation_scripts\\fix_all_issues_now.py",
+      "size": 0
+    },
+    {
+      "original": "fix_all_signal_storage.py",
+      "archived": "archive\\investigation_scripts\\fix_all_signal_storage.py",
+      "size": 0
+    },
+    {
+      "original": "fix_and_enable_systemd.py",
+      "archived": "archive\\investigation_scripts\\fix_and_enable_systemd.py",
+      "size": 0
+    },
+    {
+      "original": "fix_cache_and_gates.py",
+      "archived": "archive\\investigation_scripts\\fix_cache_and_gates.py",
+      "size": 0
+    },
+    {
+      "original": "fix_cache_read_issue.py",
+      "archived": "archive\\investigation_scripts\\fix_cache_read_issue.py",
+      "size": 0
+    },
+    {
+      "original": "fix_cluster_generation.py",
+      "archived": "archive\\investigation_scripts\\fix_cluster_generation.py",
+      "size": 0
+    },
+    {
+      "original": "fix_clusters_and_freeze.py",
+      "archived": "archive\\investigation_scripts\\fix_clusters_and_freeze.py",
+      "size": 0
+    },
+    {
+      "original": "fix_component_tracking.py",
+      "archived": "archive\\investigation_scripts\\fix_component_tracking.py",
+      "size": 0
+    },
+    {
+      "original": "fix_daemon_and_verify_all.py",
+      "archived": "archive\\investigation_scripts\\fix_daemon_and_verify_all.py",
+      "size": 0
+    },
+    {
+      "original": "fix_dark_pool_and_all_signals.py",
+      "archived": "archive\\investigation_scripts\\fix_dark_pool_and_all_signals.py",
+      "size": 0
+    },
+    {
+      "original": "fix_dark_pool_normalization.py",
+      "archived": "archive\\investigation_scripts\\fix_dark_pool_normalization.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_COMPLETE.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_COMPLETE.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_COMPLETE_WORKING.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_COMPLETE_WORKING.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_DUPLICATE.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_DUPLICATE.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_FINAL.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_FINAL.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_FINAL_CORRECT.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_FINAL_CORRECT.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_FINAL_TESTED.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_FINAL_TESTED.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_NOW.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_NOW.py",
+      "size": 0
+    },
+    {
+      "original": "fix_dashboard_robust.py",
+      "archived": "archive\\investigation_scripts\\fix_dashboard_robust.py",
+      "size": 0
+    },
+    {
+      "original": "fix_dashboard_simple.py",
+      "archived": "archive\\investigation_scripts\\fix_dashboard_simple.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_SYNTAX.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_SYNTAX.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_TESTED.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_TESTED.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DASHBOARD_WORKING.py",
+      "archived": "archive\\investigation_scripts\\FIX_DASHBOARD_WORKING.py",
+      "size": 0
+    },
+    {
+      "original": "FIX_DUPLICATE_FOR.py",
+      "archived": "archive\\investigation_scripts\\FIX_DUPLICATE_FOR.py",
+      "size": 0
+    },
+    {
+      "original": "fix_empty_cache_issue.py",
+      "archived": "archive\\investigation_scripts\\fix_empty_cache_issue.py",
+      "size": 0
+    },
+    {
+      "original": "fix_freeze_and_verify_trading.py",
+      "archived": "archive\\investigation_scripts\\fix_freeze_and_verify_trading.py",
+      "size": 0
+    },
+    {
+      "original": "fix_max_positions_and_signals.py",
+      "archived": "archive\\investigation_scripts\\fix_max_positions_and_signals.py",
+      "size": 0
+    },
+    {
+      "original": "fix_no_positions_issues.py",
+      "archived": "archive\\investigation_scripts\\fix_no_positions_issues.py",
+      "size": 0
+    },
+    {
+      "original": "fix_no_trades_issues.py",
+      "archived": "archive\\investigation_scripts\\fix_no_trades_issues.py",
+      "size": 0
+    },
+    {
+      "original": "fix_scoring_issues.py",
+      "archived": "archive\\investigation_scripts\\fix_scoring_issues.py",
+      "size": 0
+    },
+    {
+      "original": "fix_threshold_and_dark_pool.py",
+      "archived": "archive\\investigation_scripts\\fix_threshold_and_dark_pool.py",
+      "size": 0
+    },
+    {
+      "original": "fix_use_composite_issue.py",
+      "archived": "archive\\investigation_scripts\\fix_use_composite_issue.py",
+      "size": 0
+    },
+    {
+      "original": "fix_uw_daemon_and_verify.py",
+      "archived": "archive\\investigation_scripts\\fix_uw_daemon_and_verify.py",
+      "size": 0
+    },
+    {
+      "original": "FULL_AUDIT_AND_VERIFICATION.py",
+      "archived": "archive\\investigation_scripts\\FULL_AUDIT_AND_VERIFICATION.py",
+      "size": 0
+    },
+    {
+      "original": "FULL_SYSTEM_AUDIT.py",
+      "archived": "archive\\investigation_scripts\\FULL_SYSTEM_AUDIT.py",
+      "size": 0
+    },
+    {
+      "original": "FULL_SYSTEM_AUDIT_AND_FIX.py",
+      "archived": "archive\\investigation_scripts\\FULL_SYSTEM_AUDIT_AND_FIX.py",
+      "size": 0
+    },
+    {
+      "original": "investigate_adaptive_weights.py",
+      "archived": "archive\\investigation_scripts\\investigate_adaptive_weights.py",
+      "size": 0
+    },
+    {
+      "original": "investigate_daemon_polling.py",
+      "archived": "archive\\investigation_scripts\\investigate_daemon_polling.py",
+      "size": 0
+    },
+    {
+      "original": "investigate_no_trades.py",
+      "archived": "archive\\investigation_scripts\\investigate_no_trades.py",
+      "size": 0
+    },
+    {
+      "original": "investigate_no_trades_with_signals.py",
+      "archived": "archive\\investigation_scripts\\investigate_no_trades_with_signals.py",
+      "size": 0
+    },
+    {
+      "original": "investigate_real_signal_data_flow.py",
+      "archived": "archive\\investigation_scripts\\investigate_real_signal_data_flow.py",
+      "size": 0
+    },
+    {
+      "original": "investigate_scoring_system.py",
+      "archived": "archive\\investigation_scripts\\investigate_scoring_system.py",
+      "size": 0
+    },
+    {
+      "original": "investigate_zero_components.py",
+      "archived": "archive\\investigation_scripts\\investigate_zero_components.py",
+      "size": 0
+    },
+    {
+      "original": "regression_test_architecture_fixes.py",
+      "archived": "archive\\investigation_scripts\\regression_test_architecture_fixes.py",
+      "size": 0
+    },
+    {
+      "original": "regression_test_structural_intelligence.py",
+      "archived": "archive\\investigation_scripts\\regression_test_structural_intelligence.py",
+      "size": 0
+    },
+    {
+      "original": "statistical_significance_audit.py",
+      "archived": "archive\\investigation_scripts\\statistical_significance_audit.py",
+      "size": 0
+    },
+    {
+      "original": "test_all_apis_directly.py",
+      "archived": "archive\\investigation_scripts\\test_all_apis_directly.py",
+      "size": 0
+    },
+    {
+      "original": "test_learning_enhancements.py",
+      "archived": "archive\\investigation_scripts\\test_learning_enhancements.py",
+      "size": 0
+    },
+    {
+      "original": "test_learning_integration.py",
+      "archived": "archive\\investigation_scripts\\test_learning_integration.py",
+      "size": 0
+    },
+    {
+      "original": "test_learning_system.py",
+      "archived": "archive\\investigation_scripts\\test_learning_system.py",
+      "size": 0
+    },
+    {
+      "original": "test_real_api_endpoints.py",
+      "archived": "archive\\investigation_scripts\\test_real_api_endpoints.py",
+      "size": 0
+    },
+    {
+      "original": "test_ssh_connection.py",
+      "archived": "archive\\investigation_scripts\\test_ssh_connection.py",
+      "size": 0
+    },
+    {
+      "original": "test_structural_intelligence_integration.py",
+      "archived": "archive\\investigation_scripts\\test_structural_intelligence_integration.py",
+      "size": 0
+    },
+    {
+      "original": "test_uw_endpoints.py",
+      "archived": "archive\\investigation_scripts\\test_uw_endpoints.py",
+      "size": 0
+    },
+    {
+      "original": "test_uw_endpoints_comprehensive.py",
+      "archived": "archive\\investigation_scripts\\test_uw_endpoints_comprehensive.py",
+      "size": 0
+    },
+    {
+      "original": "test_xai_regression.py",
+      "archived": "archive\\investigation_scripts\\test_xai_regression.py",
+      "size": 0
+    },
+    {
+      "original": "verify_all_endpoints.py",
+      "archived": "archive\\investigation_scripts\\verify_all_endpoints.py",
+      "size": 0
+    },
+    {
+      "original": "verify_all_uw_endpoints.py",
+      "archived": "archive\\investigation_scripts\\verify_all_uw_endpoints.py",
+      "size": 0
+    },
+    {
+      "original": "verify_component_tracking.py",
+      "archived": "archive\\investigation_scripts\\verify_component_tracking.py",
+      "size": 0
+    },
+    {
+      "original": "verify_droplet_setup.py",
+      "archived": "archive\\investigation_scripts\\verify_droplet_setup.py",
+      "size": 0
+    },
+    {
+      "original": "verify_end_to_end_complete.py",
+      "archived": "archive\\investigation_scripts\\verify_end_to_end_complete.py",
+      "size": 0
+    },
+    {
+      "original": "verify_learning_and_exits.py",
+      "archived": "archive\\investigation_scripts\\verify_learning_and_exits.py",
+      "size": 0
+    },
+    {
+      "original": "VERIFY_LEARNING_PIPELINE.py",
+      "archived": "archive\\investigation_scripts\\VERIFY_LEARNING_PIPELINE.py",
+      "size": 0
+    },
+    {
+      "original": "verify_signals_working.py",
+      "archived": "archive\\investigation_scripts\\verify_signals_working.py",
+      "size": 0
+    },
+    {
+      "original": "verify_systemd_running.py",
+      "archived": "archive\\investigation_scripts\\verify_systemd_running.py",
+      "size": 0
+    },
+    {
+      "original": "verify_trades_should_be_happening.py",
+      "archived": "archive\\investigation_scripts\\verify_trades_should_be_happening.py",
+      "size": 0
+    },
+    {
+      "original": "verify_trading_activity.py",
+      "archived": "archive\\investigation_scripts\\verify_trading_activity.py",
+      "size": 0
+    },
+    {
+      "original": "verify_trading_workflow.py",
+      "archived": "archive\\investigation_scripts\\verify_trading_workflow.py",
+      "size": 0
+    }
+  ]
+}

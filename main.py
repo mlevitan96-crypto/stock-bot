@@ -831,47 +831,7 @@ def is_market_open_now():
         in_hours = (h > 9 or (h == 9 and m >= 30)) and (h < 16)
         return is_weekday and in_hours
 
-def is_market_open_now_old():
-    """OLD VERSION - Check if market is currently open using Alpaca calendar API"""
-    calendar = get_market_calendar()
-    
-    # If calendar fetch failed, fall back to time-based check
-    if calendar.get("is_open") is None:
-        try:
-            from zoneinfo import ZoneInfo
-        except ImportError:
-            from backports.zoneinfo import ZoneInfo
-        now = datetime.now(timezone.utc)
-        et_now = now.astimezone(ZoneInfo("America/New_York"))
-        h, m = et_now.hour, et_now.minute
-        # Basic check: weekday and trading hours
-        is_weekday = et_now.weekday() < 5
-        in_hours = (h > 9 or (h == 9 and m >= 30)) and (h < 16)
-        return is_weekday and in_hours
-    
-    # Market not open today (weekend/holiday)
-    if not calendar.get("is_open"):
-        return False
-    
-    # Check if current time is within market hours (handles DST automatically)
-    try:
-        from zoneinfo import ZoneInfo
-    except ImportError:
-        from backports.zoneinfo import ZoneInfo
-    now = datetime.now(timezone.utc)
-    et_now = now.astimezone(ZoneInfo("America/New_York"))
-    
-    # Parse market open/close times
-    try:
-        open_time = datetime.strptime(calendar["open"], "%H:%M").time()
-        close_time = datetime.strptime(calendar["close"], "%H:%M").time()
-        current_time = et_now.time()
-        
-        return open_time <= current_time < close_time
-    except:
-        # Fallback to default hours if parsing fails
-        h, m = et_now.hour, et_now.minute
-        return (h > 9 or (h == 9 and m >= 30)) and (h < 16)
+# Removed is_market_open_now_old() - old unused version, replaced by is_market_open_now()
 
 def is_after_close_now():
     """Check if market has closed for the day"""
