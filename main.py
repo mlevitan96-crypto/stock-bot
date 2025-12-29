@@ -5601,6 +5601,22 @@ def run_once():
                 orders = engine.decide_and_execute(clusters, confirm_map, gex_map, None, market_regime)
         print(f"DEBUG: decide_and_execute returned {len(orders)} orders", flush=True)
         audit_seg("run_once", "after_decide_execute", {"order_count": len(orders)})
+        
+        # SELF-HEALING: Clear freeze flag and reset fail counter on successful cycle
+        if watchdog and hasattr(watchdog, 'state'):
+            if watchdog.state.fail_count > 0:
+                watchdog.state.fail_count = 0
+                log_event("self_healing", "fail_counter_reset", reason="successful_cycle")
+            # Clear freeze flag if it exists (was set due to previous failures)
+            freeze_path = StateFiles.PRE_MARKET_FREEZE
+            if freeze_path.exists():
+                try:
+                    freeze_path.unlink()
+                    log_event("self_healing", "freeze_flag_cleared", reason="successful_cycle")
+                    print("✅ SELF-HEALING: Cleared freeze flag after successful cycle", flush=True)
+                except Exception as e:
+                    log_event("self_healing", "freeze_clear_failed", error=str(e))
+        
         print("DEBUG: Calling evaluate_exits", flush=True)
         engine.executor.evaluate_exits()
         audit_seg("run_once", "after_exits")
