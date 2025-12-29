@@ -172,6 +172,12 @@ def build_composite_close_reason(exit_signals: dict) -> str:
     if exit_signals.get("stale_position"):
         reasons.append("stale_position")
     
+    # Stale trade (no momentum after 90 minutes)
+    if exit_signals.get("stale_trade"):
+        age_min = exit_signals.get("stale_trade_age_min", 0)
+        pnl_pct = exit_signals.get("stale_trade_pnl_pct", 0)
+        reasons.append(f"stale_trade({age_min:.0f}min,{pnl_pct:.2f}%)")
+    
     # If no specific reasons, use primary reason or default
     if not reasons:
         primary = exit_signals.get("primary_reason")
@@ -289,7 +295,7 @@ class Config:
     DEFAULT_QTY = get_env("DEFAULT_QTY", 25, int)
     MAX_CONCURRENT_POSITIONS = get_env("MAX_CONCURRENT_POSITIONS", 16, int)  # Increased from 12 - was capacity constrained
     COOLDOWN_MINUTES_PER_TICKER = get_env("COOLDOWN_MINUTES_PER_TICKER", 15, int)
-    TIME_EXIT_MINUTES = get_env("TIME_EXIT_MINUTES", 240, int)  # 4h per forensic audit (was 90 - too aggressive)
+    TIME_EXIT_MINUTES = get_env("TIME_EXIT_MINUTES", 150, int)  # 2.5h - optimized for faster rotation
     TIME_EXIT_DAYS_STALE = get_env("TIME_EXIT_DAYS_STALE", 12, int)
     TIME_EXIT_STALE_PNL_THRESH_PCT = float(get_env("TIME_EXIT_STALE_PNL_THRESH_PCT", "0.03"))
     TRAILING_STOP_PCT = float(get_env("TRAILING_STOP_PCT", "0.015"))
@@ -300,6 +306,10 @@ class Config:
     DISPLACEMENT_MAX_PNL_PCT = float(get_env("DISPLACEMENT_MAX_PNL_PCT", "0.01"))  # Only displace truly stagnant positions
     DISPLACEMENT_SCORE_ADVANTAGE = float(get_env("DISPLACEMENT_SCORE_ADVANTAGE", "2.0"))  # Require significantly better signal
     DISPLACEMENT_COOLDOWN_HOURS = get_env("DISPLACEMENT_COOLDOWN_HOURS", 6, int)  # Reduce churn frequency
+    
+    # Stale Trade Exit - closes positions with no momentum after 90 minutes
+    STALE_TRADE_EXIT_MINUTES = get_env("STALE_TRADE_EXIT_MINUTES", 90, int)  # 90 minutes
+    STALE_TRADE_MOMENTUM_THRESH_PCT = float(get_env("STALE_TRADE_MOMENTUM_THRESH_PCT", "0.002"))  # +/- 0.2% momentum threshold
 
     # Smart entry (maker bias + retry before fallback)
     ENTRY_MODE = get_env("ENTRY_MODE", "MAKER_BIAS")
@@ -3452,8 +3462,10 @@ class AlpacaExecutor:
             
             return None
         
-        # Sort by: worst P&L first, then oldest, then lowest original score
-        candidates.sort(key=lambda x: (x["pnl_pct"], -x["age_hours"], x["original_score"]))
+        # OPTIMIZED: Prioritize high-score entries over stale, lower-score drifting positions
+        # Sort by: lowest original score first (stale positions), then oldest (drifting), then worst P&L
+        # This ensures we displace weak, old positions to make room for fresh, high-score Whale flow
+        candidates.sort(key=lambda x: (x["original_score"], -x["age_hours"], x["pnl_pct"]))
         
         best = candidates[0]
         log_event("displacement", "candidate_found",
@@ -3894,6 +3906,24 @@ class AlpacaExecutor:
                              symbol=symbol, 
                              age_days=round(age_days, 1),
                              pnl_pct=round(pnl_pct, 2),
+                             reason=exit_reasons[symbol])
+                    to_close.append(symbol)
+                    continue
+            
+            # NEW: Stale Trade Exit - closes positions with no momentum after 90 minutes
+            # Frees up capacity for fresh Whale flow by removing positions that aren't moving
+            if age_min >= Config.STALE_TRADE_EXIT_MINUTES:
+                pnl_abs_pct = abs(pnl_pct / 100.0)  # Convert to decimal
+                if pnl_abs_pct <= Config.STALE_TRADE_MOMENTUM_THRESH_PCT:
+                    exit_signals["stale_trade"] = True
+                    exit_signals["stale_trade_age_min"] = round(age_min, 1)
+                    exit_signals["stale_trade_pnl_pct"] = round(pnl_pct, 2)
+                    exit_reasons[symbol] = build_composite_close_reason(exit_signals)
+                    log_event("exit", "stale_trade_exit", 
+                             symbol=symbol,
+                             age_minutes=round(age_min, 1),
+                             pnl_pct=round(pnl_pct, 2),
+                             momentum_threshold=Config.STALE_TRADE_MOMENTUM_THRESH_PCT * 100,
                              reason=exit_reasons[symbol])
                     to_close.append(symbol)
                     continue
