@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-12-29T17:08:08.061311+00:00",
+  "timestamp": "2025-12-29T17:13:47.332961+00:00",
   "checks": {
     "market_hours": {
       "is_market_hours": true,
       "is_weekend": false,
-      "current_time": "2025-12-29T17:08:08.061349+00:00",
+      "current_time": "2025-12-29T17:13:47.332987+00:00",
       "hour_utc": 17,
       "weekday": 0
     },
@@ -31,7 +31,7 @@
     },
     "uw_cache": {
       "exists": true,
-      "age_minutes": 0.44047240416208905,
+      "age_minutes": 0.032602850596110025,
       "tickers_in_cache": 53,
       "tickers_with_data": 53,
       "is_fresh": true
