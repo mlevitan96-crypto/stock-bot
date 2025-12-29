@@ -5003,15 +5003,8 @@ def audit_seg(name, phase, extra=None):
 # =========================
 def run_once():
     try:
-        # CRITICAL: Ensure StateFiles is available (check globals first to avoid NameError)
-        if 'StateFiles' not in globals():
-            try:
-                from config.registry import StateFiles
-                print(f"DEBUG: StateFiles imported in run_once", flush=True)
-            except ImportError as import_error:
-                print(f"DEBUG: Failed to import StateFiles: {import_error}", flush=True)
-                log_event("self_healing", "import_failed", error=str(import_error))
-                return {"clusters": 0, "orders": 0, "error": "import_failed", "healed": False}
+        # CRITICAL: Import StateFiles at function start to avoid UnboundLocalError
+        from config.registry import StateFiles
         
         global ZERO_ORDER_CYCLE_COUNT
         alerts_this_cycle = []
