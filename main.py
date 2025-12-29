@@ -5827,8 +5827,7 @@ def run_once():
             print(f"DEBUG: Self-heal failed: {heal_error}", flush=True)
             log_event("self_healing", "import_reload_failed", error=str(heal_error), original_error=error_msg)
             # If reload fails, trigger worker restart
-            global watchdog
-            if watchdog and hasattr(watchdog, 'state'):
+            if 'watchdog' in globals() and watchdog and hasattr(watchdog, 'state'):
                 watchdog.state.fail_count += 1
                 if watchdog.state.fail_count >= 3:
                     print(f"DEBUG: Too many import errors ({watchdog.state.fail_count}), triggering worker restart", flush=True)
@@ -5844,8 +5843,7 @@ def run_once():
         log_event("run_once", "error", error=str(e), trace=traceback.format_exc())
         
         # For other exceptions, increment fail counter and potentially restart
-        global watchdog
-        if watchdog and hasattr(watchdog, 'state'):
+        if 'watchdog' in globals() and watchdog and hasattr(watchdog, 'state'):
             watchdog.state.fail_count += 1
             if watchdog.state.fail_count >= 5:
                 print(f"DEBUG: Too many errors ({watchdog.state.fail_count}), triggering worker restart", flush=True)
