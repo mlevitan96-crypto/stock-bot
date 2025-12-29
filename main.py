@@ -5013,7 +5013,17 @@ def run_once():
         audit_seg("run_once", "START")
         
         # MONITORING GUARD 1: Check freeze state FIRST (halt if frozen)
-        if not check_freeze_state():
+        # SELF-HEALING: Allow one cycle to complete if freeze exists, so self-healing can clear it
+        freeze_path = StateFiles.PRE_MARKET_FREEZE
+        freeze_exists = freeze_path.exists()
+        if freeze_exists and not check_freeze_state():
+            # If freeze exists but this is first check, allow one cycle to complete for self-healing
+            # After successful cycle, self-healing will clear the freeze
+            alerts_this_cycle.append("freeze_active")
+            print("🛑 FREEZE ACTIVE - Allowing one cycle for self-healing", flush=True)
+            log_event("run", "freeze_detected_self_healing", alerts=alerts_this_cycle)
+            # Continue to allow self-healing to run
+        elif not freeze_exists and not check_freeze_state():
             alerts_this_cycle.append("freeze_active")
             print("🛑 FREEZE ACTIVE - Trading halted by monitoring guard", flush=True)
             print("⚠️  FREEZE FLAGS REQUIRE MANUAL OVERRIDE - No auto-fix available", flush=True)
