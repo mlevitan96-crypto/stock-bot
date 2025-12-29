@@ -5422,8 +5422,9 @@ def run_once():
                         log_event("cache_update", "error", error=str(e))
                 
                 # Use V3 scoring with all expanded intelligence (congress, shorts, institutional, etc.)
+                # NOTE: market_regime is computed later, use "mixed" as default for now
                 symbols_processed += 1
-                composite = uw_v2.compute_composite_score_v3(ticker, enriched, market_regime)
+                composite = uw_v2.compute_composite_score_v3(ticker, enriched, "mixed")
                 if composite is None:
                     print(f"DEBUG: Composite scoring returned None for {ticker} - skipping", flush=True)
                     continue  # skip invalid data safely
