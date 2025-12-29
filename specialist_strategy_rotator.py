@@ -361,8 +361,8 @@ def log_specialist_audit(ticker: str, score: float, threshold: float, bias_data:
 # ==========================================
 def compute_synthetic_squeeze(gex: float, flow_conviction: float, iv_skew: float) -> Dict[str, Any]:
     """
-    Proactively detects squeeze potential when official data is missing.
-    Logic: Negative Gamma + High Bullish Flow + Call Skew = Squeeze Risk
+    Detects squeeze potential from mechanical Greeks interaction.
+    Logic: Negative Gamma (GEX) + High Conviction Flow + Call Skew = Squeeze Risk
     
     NOTE: This is a simplified version. The full implementation exists in
     uw_enrichment_v2.py::_compute_synthetic_squeeze() which uses OI change,
@@ -377,17 +377,17 @@ def compute_synthetic_squeeze(gex: float, flow_conviction: float, iv_skew: float
     Returns:
         Dict with detected, score, and reason
     """
-    # Logic: Negative Gamma + High Bullish Flow + Call Skew = Squeeze Risk
+    # Logic: Negative Gamma (GEX) + High Conviction Flow + Call Skew = Squeeze Risk
     if gex < 0 and flow_conviction > 0.70 and iv_skew > 0.05:
         return {
             "detected": True, 
             "score": 0.85, 
-            "reason": "Structural Vanna/Gamma Squeeze"
+            "reason": "Negative GEX accelerator paired with aggressive Call skew."
         }
     return {
         "detected": False, 
         "score": 0.0, 
-        "reason": "Neutral Structure"
+        "reason": "Structural Neutrality."
     }
 
 
@@ -434,8 +434,8 @@ def log_specialist_audit(ticker: str, score: float, threshold: float, bias_data:
 # ==========================================
 def compute_synthetic_squeeze(gex: float, flow_conviction: float, iv_skew: float) -> Dict[str, Any]:
     """
-    Proactively detects squeeze potential when official data is missing.
-    Logic: Negative Gamma + High Bullish Flow + Call Skew = Squeeze Risk
+    Detects squeeze potential from mechanical Greeks interaction.
+    Logic: Negative Gamma (GEX) + High Conviction Flow + Call Skew = Squeeze Risk
     
     NOTE: This is a simplified version. The full implementation exists in
     uw_enrichment_v2.py::_compute_synthetic_squeeze() which uses OI change,
@@ -450,16 +450,16 @@ def compute_synthetic_squeeze(gex: float, flow_conviction: float, iv_skew: float
     Returns:
         Dict with detected, score, and reason
     """
-    # Logic: Negative Gamma + High Bullish Flow + Call Skew = Squeeze Risk
+    # Logic: Negative Gamma (GEX) + High Conviction Flow + Call Skew = Squeeze Risk
     if gex < 0 and flow_conviction > 0.70 and iv_skew > 0.05:
         return {
             "detected": True, 
             "score": 0.85, 
-            "reason": "Structural Vanna/Gamma Squeeze"
+            "reason": "Negative GEX accelerator paired with aggressive Call skew."
         }
     return {
         "detected": False, 
         "score": 0.0, 
-        "reason": "Neutral Structure"
+        "reason": "Structural Neutrality."
     }
 
