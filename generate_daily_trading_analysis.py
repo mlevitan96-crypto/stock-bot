@@ -280,6 +280,111 @@ def get_signal_performance(trades: List[Dict]) -> Dict:
     
     return dict(signal_stats)
 
+def get_counter_intelligence_analysis(executed: List[Dict], blocked: List[Dict]) -> Dict:
+    """Counter-intelligence analysis: patterns in what we did vs didn't do"""
+    analysis = {
+        "blocking_patterns": {},
+        "score_distribution": {
+            "executed": [],
+            "blocked": []
+        },
+        "gate_effectiveness": {},
+        "timing_patterns": {},
+        "symbol_patterns": {}
+    }
+    
+    # Analyze blocking reasons
+    blocking_reasons = defaultdict(int)
+    for b in blocked:
+        reason = b.get("reason") or b.get("block_reason", "unknown")
+        blocking_reasons[reason] += 1
+    analysis["blocking_patterns"] = dict(blocking_reasons)
+    
+    # Score distribution
+    for trade in executed:
+        context = trade.get("context", {})
+        score = context.get("entry_score", 0.0)
+        if score:
+            analysis["score_distribution"]["executed"].append(score)
+    
+    for b in blocked:
+        score = b.get("score", 0.0)
+        if score:
+            analysis["score_distribution"]["blocked"].append(score)
+    
+    # Gate effectiveness (which gates blocked what)
+    gate_blocked = defaultdict(lambda: {"count": 0, "avg_score": 0.0, "symbols": set()})
+    for b in blocked:
+        reason = b.get("reason") or b.get("block_reason", "unknown")
+        gate_blocked[reason]["count"] += 1
+        gate_blocked[reason]["avg_score"] += b.get("score", 0.0)
+        gate_blocked[reason]["symbols"].add(b.get("symbol", "unknown"))
+    
+    for gate, data in gate_blocked.items():
+        analysis["gate_effectiveness"][gate] = {
+            "count": data["count"],
+            "avg_score": data["avg_score"] / data["count"] if data["count"] > 0 else 0.0,
+            "unique_symbols": len(data["symbols"])
+        }
+    
+    # Timing patterns (hour of day)
+    executed_hours = defaultdict(int)
+    blocked_hours = defaultdict(int)
+    
+    for trade in executed:
+        ts_str = trade.get("ts", "")
+        if ts_str:
+            try:
+                if isinstance(ts_str, (int, float)):
+                    dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                else:
+                    dt = datetime.fromisoformat(str(ts_str).replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                executed_hours[dt.hour] += 1
+            except:
+                pass
+    
+    for b in blocked:
+        ts_str = b.get("timestamp") or b.get("ts", "")
+        if ts_str:
+            try:
+                if isinstance(ts_str, (int, float)):
+                    dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                else:
+                    dt = datetime.fromisoformat(str(ts_str).replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                blocked_hours[dt.hour] += 1
+            except:
+                pass
+    
+    analysis["timing_patterns"] = {
+        "executed_by_hour": dict(executed_hours),
+        "blocked_by_hour": dict(blocked_hours)
+    }
+    
+    # Symbol patterns
+    executed_symbols = defaultdict(int)
+    blocked_symbols = defaultdict(int)
+    
+    for trade in executed:
+        symbol = trade.get("symbol")
+        if symbol:
+            executed_symbols[symbol] += 1
+    
+    for b in blocked:
+        symbol = b.get("symbol")
+        if symbol:
+            blocked_symbols[symbol] += 1
+    
+    analysis["symbol_patterns"] = {
+        "most_executed": dict(sorted(executed_symbols.items(), key=lambda x: x[1], reverse=True)[:10]),
+        "most_blocked": dict(sorted(blocked_symbols.items(), key=lambda x: x[1], reverse=True)[:10])
+    }
+    
+    return analysis
+
 def generate_summary_report(analysis: Dict) -> str:
     """Generate summary report"""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
