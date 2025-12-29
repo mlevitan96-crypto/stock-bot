@@ -6062,8 +6062,10 @@ class Watchdog:
                 
                 if self.state.fail_count >= 5:
                     freeze_path = StateFiles.PRE_MARKET_FREEZE
-                    freeze_path.write_text("too_many_failures")
-                    log_event("worker_error", "freeze_activated", reason="too_many_failures", fail_count=self.state.fail_count)
+                    # Only set freeze if it doesn't exist (avoid overwriting manual clears)
+                    if not freeze_path.exists():
+                        freeze_path.write_text("too_many_failures")
+                        log_event("worker_error", "freeze_activated", reason="too_many_failures", fail_count=self.state.fail_count)
                     self.state.backoff_sec = 300
                 else:
                     self.state.backoff_sec = min(5 * self.state.fail_count, Config.BACKOFF_MAX_SEC)
