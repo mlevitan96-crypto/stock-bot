@@ -205,13 +205,17 @@ def test_recent_changes_impact():
         if "def build_composite_close_reason" in content:
             print("[OK] build_composite_close_reason function exists")
             
-            # Check if stale_trade is handled
-            if "stale_trade" in content and "build_composite_close_reason" in content:
-                stale_trade_section = content[content.find("def build_composite_close_reason"):content.find("def build_composite_close_reason") + 2000]
-                if "stale_trade" in stale_trade_section:
-                    print("[OK] stale_trade exit reason handling found")
+            # Check if stale_trade is handled - look for the specific pattern
+            func_start = content.find("def build_composite_close_reason")
+            if func_start >= 0:
+                # Look for stale_trade in the function (check next 3000 chars)
+                func_section = content[func_start:func_start + 3000]
+                if "stale_trade" in func_section and "stale_trade_age_min" in func_section:
+                    print("[OK] stale_trade exit reason handling found in build_composite_close_reason")
                 else:
-                    print("[WARN] stale_trade not found in build_composite_close_reason")
+                    print("[WARN] stale_trade not found in build_composite_close_reason function section")
+            else:
+                print("[WARN] Could not locate build_composite_close_reason function")
         else:
             print("[WARN] build_composite_close_reason function not found")
         
