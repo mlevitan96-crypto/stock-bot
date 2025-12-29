@@ -5003,6 +5003,29 @@ def audit_seg(name, phase, extra=None):
 # =========================
 def run_once():
     try:
+        # CRITICAL: Pre-check that all required imports are available
+        # This prevents NameError crashes and enables self-healing
+        try:
+            # Verify StateFiles is available
+            _ = StateFiles.BOT_HEARTBEAT
+        except (NameError, AttributeError) as import_check_error:
+            # Self-heal: Reload imports if missing
+            print(f"DEBUG: Pre-check failed - {type(import_check_error).__name__}: {import_check_error}", flush=True)
+            try:
+                import importlib
+                import sys
+                if 'config.registry' in sys.modules:
+                    importlib.reload(sys.modules['config.registry'])
+                # Re-import to ensure it's in scope
+                from config.registry import StateFiles
+                print(f"DEBUG: Pre-check self-heal successful - StateFiles reloaded", flush=True)
+                log_event("self_healing", "pre_check_heal_success", error=str(import_check_error))
+            except Exception as heal_error:
+                print(f"DEBUG: Pre-check self-heal failed: {heal_error}", flush=True)
+                log_event("self_healing", "pre_check_heal_failed", error=str(heal_error), original=str(import_check_error))
+                # Return early to prevent crash
+                return {"clusters": 0, "orders": 0, "error": "import_check_failed", "healed": False}
+        
         global ZERO_ORDER_CYCLE_COUNT
         alerts_this_cycle = []
         fixes_applied_list = []  # V3.0: Track auto-fixes
@@ -5770,10 +5793,68 @@ def run_once():
         audit_seg("run_once", "COMPLETE_SUCCESS", {"clusters": len(clusters), "orders": len(orders)})
         log_event("run", "complete", clusters=len(clusters), orders=len(orders), metrics=metrics)
         return {"clusters": len(clusters), "orders": len(orders), **metrics}
+    except (NameError, ImportError) as e:
+        # CRITICAL: Self-healing for import/name errors
+        error_msg = str(e)
+        error_type = type(e).__name__
+        print(f"DEBUG: EXCEPTION in run_once: {error_type}: {error_msg}", flush=True)
+        audit_seg("run_once", "ERROR", {"error": error_msg, "type": error_type})
+        log_event("run_once", "import_error", error=error_msg, type=error_type, trace=traceback.format_exc())
+        
+        # Self-healing: Reload imports
+        try:
+            print(f"DEBUG: Attempting self-heal for {error_type}...", flush=True)
+            import importlib
+            import sys
+            
+            # Reload config.registry module
+            if 'config.registry' in sys.modules:
+                importlib.reload(sys.modules['config.registry'])
+                # Re-import StateFiles
+                from config.registry import StateFiles
+                print(f"DEBUG: Successfully reloaded config.registry and StateFiles", flush=True)
+                log_event("self_healing", "import_reload_success", module="config.registry", error_type=error_type)
+                
+                # Don't raise - allow next cycle to proceed with reloaded imports
+                return {"clusters": 0, "orders": 0, "error": "import_reload", "healed": True}
+            else:
+                # Module not loaded - try importing fresh
+                from config.registry import StateFiles
+                print(f"DEBUG: Successfully imported StateFiles fresh", flush=True)
+                log_event("self_healing", "import_fresh_success", module="config.registry", error_type=error_type)
+                return {"clusters": 0, "orders": 0, "error": "import_fresh", "healed": True}
+        except Exception as heal_error:
+            print(f"DEBUG: Self-heal failed: {heal_error}", flush=True)
+            log_event("self_healing", "import_reload_failed", error=str(heal_error), original_error=error_msg)
+            # If reload fails, trigger worker restart
+            global watchdog
+            if watchdog and hasattr(watchdog, 'state'):
+                watchdog.state.fail_count += 1
+                if watchdog.state.fail_count >= 3:
+                    print(f"DEBUG: Too many import errors ({watchdog.state.fail_count}), triggering worker restart", flush=True)
+                    log_event("self_healing", "worker_restart_triggered", fail_count=watchdog.state.fail_count)
+                    watchdog.stop()
+                    time.sleep(2)
+                    watchdog.start()
+                    watchdog.state.fail_count = 0
+            raise
     except Exception as e:
         print(f"DEBUG: EXCEPTION in run_once: {type(e).__name__}: {str(e)}", flush=True)
         audit_seg("run_once", "ERROR", {"error": str(e), "type": type(e).__name__})
         log_event("run_once", "error", error=str(e), trace=traceback.format_exc())
+        
+        # For other exceptions, increment fail counter and potentially restart
+        global watchdog
+        if watchdog and hasattr(watchdog, 'state'):
+            watchdog.state.fail_count += 1
+            if watchdog.state.fail_count >= 5:
+                print(f"DEBUG: Too many errors ({watchdog.state.fail_count}), triggering worker restart", flush=True)
+                log_event("self_healing", "worker_restart_triggered", fail_count=watchdog.state.fail_count, error_type=type(e).__name__)
+                watchdog.stop()
+                time.sleep(2)
+                watchdog.start()
+                watchdog.state.fail_count = 0
+        
         raise
 
 # =========================
