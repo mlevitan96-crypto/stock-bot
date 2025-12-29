@@ -444,7 +444,7 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str =
     
     return round(component, 4), notes
 
-def compute_calendar_component(calendar_data: Optional[Dict], symbol: str) -> tuple:
+def compute_calendar_component(calendar_data: Optional[Dict], symbol: str, regime: str = "neutral") -> tuple:
     """
     Calculate calendar catalyst component (earnings, FDA, economic events)
     
