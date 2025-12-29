@@ -60,10 +60,13 @@ def test_xai_logger():
         # Test log_threshold_adjustment
         try:
             logger.log_threshold_adjustment(
-                old_threshold=2.0,
-                new_threshold=2.5,
-                why="Raised threshold after 3 consecutive losses",
-                status={"last_3_trades": "loss,loss,loss"}
+                symbol="TEST",
+                base_threshold=2.0,
+                adjusted_threshold=2.5,
+                adjustment=0.5,
+                reason="Raised threshold after 3 consecutive losses",
+                consecutive_losses=3,
+                status={"is_activated": True, "last_3_trades": "loss,loss,loss"}
             )
             print("[OK] log_threshold_adjustment works")
         except Exception as e:
