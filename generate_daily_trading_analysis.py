@@ -336,6 +336,18 @@ def generate_summary_report(analysis: Dict) -> str:
     for signal_name, stats in sorted(sorted_signals, key=lambda x: x[1]['total_pnl'])[:5]:
         lines.append(f"{signal_name}: ${stats['total_pnl']:.2f} ({stats['count']} trades, {stats['win_rate']:.1f}% win rate)")
     
+    # Counter-intelligence insights
+    if analysis.get('counter_intelligence'):
+        ci = analysis['counter_intelligence']
+        lines.extend([
+            "",
+            "COUNTER-INTELLIGENCE ANALYSIS",
+            "-" * 80,
+            f"Most Common Blocking Reason: {max(ci.get('blocking_patterns', {}).items(), key=lambda x: x[1], default=('N/A', 0))[0]}",
+            f"Avg Score (Executed): {sum(ci['score_distribution']['executed']) / len(ci['score_distribution']['executed']) if ci['score_distribution']['executed'] else 'N/A':.2f}",
+            f"Avg Score (Blocked): {sum(ci['score_distribution']['blocked']) / len(ci['score_distribution']['blocked']) if ci['score_distribution']['blocked'] else 'N/A':.2f}",
+        ])
+    
     lines.extend([
         "",
         "=" * 80,
@@ -423,7 +435,58 @@ def generate_detailed_report(analysis: Dict) -> str:
                 "",
             ])
     
+    # Counter-Intelligence Analysis
+    if analysis.get('counter_intelligence'):
+        ci = analysis['counter_intelligence']
+        lines.extend([
+            "COUNTER-INTELLIGENCE ANALYSIS",
+            "=" * 80,
+            "",
+            "GATE EFFECTIVENESS",
+            "-" * 80,
+        ])
+        
+        for gate, data in sorted(ci.get('gate_effectiveness', {}).items(), key=lambda x: x[1]['count'], reverse=True)[:10]:
+            lines.append(f"{gate}: {data['count']} blocks, avg score: {data['avg_score']:.2f}, symbols: {data['unique_symbols']}")
+        
+        lines.extend([
+            "",
+            "TIMING PATTERNS",
+            "-" * 80,
+            "Executed trades by hour:",
+        ])
+        
+        for hour, count in sorted(ci.get('timing_patterns', {}).get('executed_by_hour', {}).items()):
+            lines.append(f"  {hour:02d}:00 - {count} trades")
+        
+        lines.extend([
+            "",
+            "Blocked trades by hour:",
+        ])
+        
+        for hour, count in sorted(ci.get('timing_patterns', {}).get('blocked_by_hour', {}).items())[:10]:
+            lines.append(f"  {hour:02d}:00 - {count} blocks")
+        
+        lines.extend([
+            "",
+            "SYMBOL PATTERNS",
+            "-" * 80,
+            "Most executed symbols:",
+        ])
+        
+        for symbol, count in list(ci.get('symbol_patterns', {}).get('most_executed', {}).items())[:10]:
+            lines.append(f"  {symbol}: {count} trades")
+        
+        lines.extend([
+            "",
+            "Most blocked symbols:",
+        ])
+        
+        for symbol, count in list(ci.get('symbol_patterns', {}).get('most_blocked', {}).items())[:10]:
+            lines.append(f"  {symbol}: {count} blocks")
+    
     lines.extend([
+        "",
         "=" * 80,
         f"Generated: {datetime.now(timezone.utc).isoformat()}",
         "=" * 80,
@@ -456,6 +519,9 @@ def main():
     
     print("Analyzing signal performance...")
     signal_perf = get_signal_performance(executed)
+    
+    print("Performing counter-intelligence analysis...")
+    counter_intel = get_counter_intelligence_analysis(executed, blocked)
     
     # Calculate executed trade stats
     total_pnl = sum(float(t.get("pnl_usd", 0)) for t in executed)
@@ -493,7 +559,8 @@ def main():
         "missed_opportunities": missed,
         "learning": learning,
         "weights": weights,
-        "signal_performance": signal_perf
+        "signal_performance": signal_perf,
+        "counter_intelligence": counter_intel
     }
     
     # Generate reports
