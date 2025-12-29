@@ -5003,28 +5003,15 @@ def audit_seg(name, phase, extra=None):
 # =========================
 def run_once():
     try:
-        # CRITICAL: Pre-check that all required imports are available
-        # This prevents NameError crashes and enables self-healing
-        try:
-            # Verify StateFiles is available
-            _ = StateFiles.BOT_HEARTBEAT
-        except (NameError, AttributeError) as import_check_error:
-            # Self-heal: Reload imports if missing
-            print(f"DEBUG: Pre-check failed - {type(import_check_error).__name__}: {import_check_error}", flush=True)
+        # CRITICAL: Ensure StateFiles is available (check globals first to avoid NameError)
+        if 'StateFiles' not in globals():
             try:
-                import importlib
-                import sys
-                if 'config.registry' in sys.modules:
-                    importlib.reload(sys.modules['config.registry'])
-                # Re-import to ensure it's in scope
                 from config.registry import StateFiles
-                print(f"DEBUG: Pre-check self-heal successful - StateFiles reloaded", flush=True)
-                log_event("self_healing", "pre_check_heal_success", error=str(import_check_error))
-            except Exception as heal_error:
-                print(f"DEBUG: Pre-check self-heal failed: {heal_error}", flush=True)
-                log_event("self_healing", "pre_check_heal_failed", error=str(heal_error), original=str(import_check_error))
-                # Return early to prevent crash
-                return {"clusters": 0, "orders": 0, "error": "import_check_failed", "healed": False}
+                print(f"DEBUG: StateFiles imported in run_once", flush=True)
+            except ImportError as import_error:
+                print(f"DEBUG: Failed to import StateFiles: {import_error}", flush=True)
+                log_event("self_healing", "import_failed", error=str(import_error))
+                return {"clusters": 0, "orders": 0, "error": "import_failed", "healed": False}
         
         global ZERO_ORDER_CYCLE_COUNT
         alerts_this_cycle = []
