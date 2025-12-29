@@ -528,6 +528,25 @@ def main():
     # Print summary
     print(summary)
     
+    # Commit to Git
+    try:
+        import subprocess
+        subprocess.run(["git", "add", str(summary_file), str(detailed_file), str(json_file)], 
+                      check=False, capture_output=True)
+        subprocess.run(["git", "commit", "-m", f"Daily trading analysis for {today}"], 
+                      check=False, capture_output=True)
+        subprocess.run(["git", "push", "origin", "main"], 
+                      check=False, capture_output=True)
+        print()
+        print("=" * 80)
+        print("REPORTS COMMITTED TO GIT")
+        print("=" * 80)
+        print(f"Files committed and pushed to origin/main")
+        print(f"You can now export from Git repository")
+    except Exception as e:
+        print(f"[WARN] Failed to commit to Git: {e}")
+        print("Reports saved locally - commit manually if needed")
+    
     return 0
 
 if __name__ == "__main__":
