@@ -128,15 +128,18 @@ class SpecialistStrategyRotator:
         if self.explainable_logger:
             try:
                 # Use existing explainable logger format
-                # Note: log_threshold_adjustment expects base_threshold, adjusted_threshold, adjustment
-                adjustment = threshold - self.base_threshold
+                # Note: log_threshold_adjustment expects base_threshold, adjusted_threshold, reason, status
+                status = {
+                    "consecutive_losses": 0,  # Not from loss streak, from temporal gating
+                    "is_activated": False,
+                    "adjustment": threshold - self.base_threshold
+                }
                 self.explainable_logger.log_threshold_adjustment(
                     symbol=ticker,
                     base_threshold=self.base_threshold,
                     adjusted_threshold=threshold,
-                    adjustment=adjustment,
                     reason=f"Temporal liquidity gate + {bias} strategy in {self.regime} regime",
-                    consecutive_losses=0  # Not from loss streak, from temporal gating
+                    status=status
                 )
             except Exception as e:
                 logging.warning(f"Could not log to explainable logger: {e}")
