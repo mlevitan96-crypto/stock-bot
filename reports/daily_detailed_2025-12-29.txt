@@ -26154,6 +26154,53 @@ Score: 2.218
 Reason: expectancy_blocked:ev_below_floor_bootstrap
 Threshold: N/A
 
+COUNTER-INTELLIGENCE ANALYSIS
 ================================================================================
-Generated: 2025-12-29T22:57:27.373695+00:00
+
+GATE EFFECTIVENESS
+--------------------------------------------------------------------------------
+max_positions_reached: 2934 blocks, avg score: 5.23, symbols: 16
+expectancy_blocked:ev_below_floor_bootstrap: 804 blocks, avg score: 2.21, symbols: 7
+expectancy_blocked:score_floor_breach: 511 blocks, avg score: 1.71, symbols: 6
+symbol_on_cooldown: 88 blocks, avg score: 2.85, symbols: 2
+
+TIMING PATTERNS
+--------------------------------------------------------------------------------
+Executed trades by hour:
+  16:00 - 2 trades
+  20:00 - 16 trades
+
+Blocked trades by hour:
+  18:00 - 360 blocks
+  19:00 - 2266 blocks
+  20:00 - 1711 blocks
+
+SYMBOL PATTERNS
+--------------------------------------------------------------------------------
+Most executed symbols:
+  V: 2 trades
+  AAPL: 2 trades
+  AMD: 1 trades
+  TSLA: 1 trades
+  QQQ: 1 trades
+  XLP: 1 trades
+  TGT: 1 trades
+  NIO: 1 trades
+  COIN: 1 trades
+  BA: 1 trades
+
+Most blocked symbols:
+  SPY: 1251 blocks
+  GOOGL: 259 blocks
+  NVDA: 250 blocks
+  TLT: 227 blocks
+  COP: 224 blocks
+  NFLX: 198 blocks
+  MRNA: 198 blocks
+  F: 190 blocks
+  BABA: 188 blocks
+  INTC: 186 blocks
+
+================================================================================
+Generated: 2025-12-29T23:00:27.267192+00:00
 ================================================================================
