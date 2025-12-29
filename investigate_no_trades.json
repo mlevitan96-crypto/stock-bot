@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-12-29T17:25:16.635913+00:00",
+  "timestamp": "2025-12-29T22:57:26.239873+00:00",
   "checks": {
     "market_hours": {
-      "is_market_hours": true,
+      "is_market_hours": false,
       "is_weekend": false,
-      "current_time": "2025-12-29T17:25:16.635982+00:00",
-      "hour_utc": 17,
+      "current_time": "2025-12-29T22:57:26.239906+00:00",
+      "hour_utc": 22,
       "weekday": 0
     },
     "services": {
@@ -31,7 +31,7 @@
     },
     "uw_cache": {
       "exists": true,
-      "age_minutes": 0.42853082418441774,
+      "age_minutes": 0.16859682003657023,
       "tickers_in_cache": 53,
       "tickers_with_data": 53,
       "is_fresh": true
@@ -39,6 +39,7 @@
   },
   "summary": {
     "issues": [
+      "Market is not open",
       "Execution cycles: No trading log found"
     ],
     "recommendations": [],
