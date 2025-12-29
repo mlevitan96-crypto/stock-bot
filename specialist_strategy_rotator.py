@@ -34,7 +34,20 @@ class SpecialistStrategyRotator:
     def __init__(self, current_regime: str = "mixed", min_exec_score: float = 2.0):
         self.regime = current_regime
         self.base_threshold = min_exec_score
-        self.now = datetime.now(timezone.utc).time()
+        
+        # Proactive EST-aligned time check
+        self.now_utc = datetime.now(timezone.utc)
+        try:
+            # Use pytz for proper timezone handling if available
+            import pytz
+            est_tz = pytz.timezone('US/Eastern')
+            self.now_est = self.now_utc.astimezone(est_tz)
+        except ImportError:
+            # Fallback: EST is UTC-5 (or UTC-4 during DST)
+            # Simple approximation: assume EST = UTC-5
+            from datetime import timedelta
+            est_offset = timedelta(hours=-5)
+            self.now_est = self.now_utc + est_offset
         
         # Get structural intelligence if available
         if STRUCTURAL_INTELLIGENCE_AVAILABLE:
@@ -60,17 +73,14 @@ class SpecialistStrategyRotator:
         Tightens gates during Mid-Day liquidity gaps (11:30-13:30 EST).
         Returns adjusted threshold based on temporal liquidity conditions.
         """
-        # Convert to EST (UTC-5) for market hours
-        est_offset = timezone.utc.utcoffset(datetime.now(timezone.utc))
-        est_now = (datetime.now(timezone.utc) + est_offset).time()
-        
         mid_day_start = time(11, 30)
         mid_day_end = time(13, 30)
         
+        current_time = self.now_est.time()
         threshold = self.base_threshold
         
-        # Proactive increase to filter mid-day 'chop'
-        if mid_day_start <= est_now <= mid_day_end:
+        # Proactive increase to filter mid-day 'chop' when liquidity is thin
+        if mid_day_start <= current_time <= mid_day_end:
             threshold += 0.75
             logging.info(f"[Temporal Liquidity Gate] Threshold increased to {threshold:.2f} (mid-day liquidity gap: 11:30-13:30 EST)")
         
@@ -300,6 +310,85 @@ def calculate_atr_size(ticker_data, account_size: float = 100000.0, risk_pct: fl
 #   - Regime-specific multipliers per component
 #
 # No duplicate implementation needed - use existing system.
+
+
+# ==========================================
+# REGIME-AWARE XAI LOGGING
+# ==========================================
+def log_specialist_audit(ticker: str, score: float, threshold: float, bias_data: Dict[str, Any]) -> None:
+    """
+    Generates proactive audit log for XAI dashboard.
+    Simpler interface than log_specialist_decision() for direct use.
+    
+    Args:
+        ticker: Symbol being evaluated
+        score: Composite score
+        threshold: Entry threshold (may be adjusted)
+        bias_data: Strategy bias dict from get_strategy_bias()
+    """
+    style = bias_data.get('style', 'NEUTRAL')
+    desc = bias_data.get('desc') or bias_data.get('description', 'Standard strategy')
+    
+    msg = (
+        f"[AUDIT] {ticker} | Score: {score:.2f} (Gate: {threshold:.2f}) | "
+        f"Specialist Mode: {style} | Logic: {desc}"
+    )
+    logging.info(msg)
+    
+    # Also log to explainable logger if available
+    try:
+        from xai.explainable_logger import get_explainable_logger
+        logger = get_explainable_logger()
+        if logger:
+            status = {
+                "consecutive_losses": 0,
+                "is_activated": False,
+                "adjustment": threshold - 2.0  # Assuming base threshold of 2.0
+            }
+            logger.log_threshold_adjustment(
+                symbol=ticker,
+                base_threshold=2.0,
+                adjusted_threshold=threshold,
+                reason=f"Specialist {style} mode: {desc}",
+                status=status
+            )
+    except Exception:
+        pass  # Explainable logger not available, continue with standard logging
+
+
+# ==========================================
+# SYNTHETIC SQUEEZE CALCULATION
+# ==========================================
+def compute_synthetic_squeeze(gex: float, flow_conviction: float, iv_skew: float) -> Dict[str, Any]:
+    """
+    Proactively detects squeeze potential when official data is missing.
+    Logic: Negative Gamma + High Bullish Flow + Call Skew = Squeeze Risk
+    
+    NOTE: This is a simplified version. The full implementation exists in
+    uw_enrichment_v2.py::_compute_synthetic_squeeze() which uses OI change,
+    gamma exposure, and flow sentiment. This function provides a quick check
+    using pre-computed values.
+    
+    Args:
+        gex: Gamma exposure (negative = squeeze setup)
+        flow_conviction: Flow conviction score (0-1, >0.70 = high)
+        iv_skew: IV skew (positive = call skew, >0.05 = significant)
+    
+    Returns:
+        Dict with detected, score, and reason
+    """
+    # Logic: Negative Gamma + High Bullish Flow + Call Skew = Squeeze Risk
+    if gex < 0 and flow_conviction > 0.70 and iv_skew > 0.05:
+        return {
+            "detected": True, 
+            "score": 0.85, 
+            "reason": "Structural Vanna/Gamma Squeeze"
+        }
+    return {
+        "detected": False, 
+        "score": 0.0, 
+        "reason": "Neutral Structure"
+    }
 
 
 # ==========================================
