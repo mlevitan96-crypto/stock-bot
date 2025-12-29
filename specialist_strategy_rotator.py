@@ -78,32 +78,36 @@ class SpecialistStrategyRotator:
 
     def get_regime_strategy_bias(self) -> Dict[str, Any]:
         """
-        Defines the 'Why' for entry/exit based on Market Physics.
+        Switches behavior based on Market Regime.
         Returns strategy bias configuration for current regime.
         """
         biases = {
             "RISK_ON": {
                 "style": "MOMENTUM", 
                 "exit_gravity": 1.0,
-                "description": "Standard Whale Flow - momentum-driven entries"
+                "desc": "Prioritize aggressive whale flow."
             },
             "MIXED": {
                 "style": "MEAN_REVERSION", 
-                "exit_gravity": 0.8,
-                "description": "Tighten stops near Gamma Walls - mean reversion focus"
+                "exit_gravity": 0.85,
+                "desc": "Tighten stops near Gamma Walls."
             },
             "RISK_OFF": {
                 "style": "VANNA_SQUEEZE", 
-                "exit_gravity": 1.2,
-                "description": "Prioritize IV-driven moves - vanna/charm mechanics"
+                "exit_gravity": 1.15,
+                "desc": "Prioritize IV-driven explosive moves."
             },
             "NEUTRAL": {
                 "style": "MEAN_REVERSION",
                 "exit_gravity": 0.9,
-                "description": "Balanced approach with gamma wall awareness"
+                "desc": "Balanced approach with gamma wall awareness"
             }
         }
         return biases.get(self.regime, biases["MIXED"])
+    
+    def get_strategy_bias(self) -> Dict[str, Any]:
+        """Alias for get_regime_strategy_bias() for backward compatibility."""
+        return self.get_regime_strategy_bias()
 
     def log_specialist_decision(self, ticker: str, score: float, threshold: float, 
                                 strategy: Optional[Dict[str, Any]] = None) -> None:
@@ -143,6 +147,82 @@ class SpecialistStrategyRotator:
                 )
             except Exception as e:
                 logging.warning(f"Could not log to explainable logger: {e}")
+
+
+def calculate_atr_adjusted_qty(ticker: str, price: float, atr: float, 
+                                account_equity: float = 100000.0, risk_pct: float = 0.01) -> int:
+    """
+    Sizes positions so a 1.5x ATR move equals risk_pct of the account.
+    Reduces exposure in high volatility markets automatically.
+    
+    Args:
+        ticker: Symbol name (for logging)
+        price: Current price per share
+        atr: Average True Range value
+        account_equity: Total account equity
+        risk_pct: Percentage of account to risk per trade (default 1%)
+    
+    Returns:
+        Quantity (shares) to trade
+    """
+    try:
+        if not atr or atr <= 0:
+            return max(1, int(500 / price))  # Fallback to flat dollar sizing
+            
+        risk_amount = account_equity * risk_pct
+        stop_dist = 1.5 * atr  # Use 1.5x ATR for stop distance
+        
+        # Qty = Risk Amount / Risk Per Share
+        qty = int(risk_amount / stop_dist)
+        
+        # Overload Protection: Cap size if VIX/Volatility is extreme
+        max_notional = account_equity * 0.05  # Max 5% notional per trade
+        if (qty * price) > max_notional:
+            qty = int(max_notional / price)
+            logging.info(f"[ATR Sizing] Capped {ticker} size to 5% max notional: {qty} shares")
+            
+        return max(1, qty)
+    except Exception as e:
+        logging.error(f"[ATR Sizing] Failed for {ticker}: {e}")
+        return max(1, int(500 / price))
+
+
+def calculate_atr_adjusted_qty(ticker: str, price: float, atr: float, 
+                                account_equity: float = 100000.0, risk_pct: float = 0.01) -> int:
+    """
+    Sizes positions so a 1.5x ATR move equals risk_pct of the account.
+    Reduces exposure in high volatility markets automatically.
+    
+    Args:
+        ticker: Symbol name (for logging)
+        price: Current price per share
+        atr: Average True Range value
+        account_equity: Total account equity
+        risk_pct: Percentage of account to risk per trade (default 1%)
+    
+    Returns:
+        Quantity (shares) to trade
+    """
+    try:
+        if not atr or atr <= 0:
+            return max(1, int(500 / price))  # Fallback to flat dollar sizing
+            
+        risk_amount = account_equity * risk_pct
+        stop_dist = 1.5 * atr  # Use 1.5x ATR for stop distance
+        
+        # Qty = Risk Amount / Risk Per Share
+        qty = int(risk_amount / stop_dist)
+        
+        # Overload Protection: Cap size if VIX/Volatility is extreme
+        max_notional = account_equity * 0.05  # Max 5% notional per trade
+        if (qty * price) > max_notional:
+            qty = int(max_notional / price)
+            logging.info(f"[ATR Sizing] Capped {ticker} size to 5% max notional: {qty} shares")
+            
+        return max(1, qty)
+    except Exception as e:
+        logging.error(f"[ATR Sizing] Failed for {ticker}: {e}")
+        return max(1, int(500 / price))
 
 
 def calculate_atr_size(ticker_data, account_size: float = 100000.0, risk_pct: float = 0.01) -> int:
@@ -220,4 +300,77 @@ def calculate_atr_size(ticker_data, account_size: float = 100000.0, risk_pct: fl
 #   - Regime-specific multipliers per component
 #
 # No duplicate implementation needed - use existing system.
+
+
+# ==========================================
+# REGIME-AWARE XAI LOGGING
+# ==========================================
+def log_specialist_audit(ticker: str, score: float, threshold: float, bias_data: Dict[str, Any]) -> None:
+    """
+    Generates proactive audit log for XAI dashboard.
+    Simpler interface than log_specialist_decision() for direct use.
+    """
+    style = bias_data.get('style', 'NEUTRAL')
+    desc = bias_data.get('desc') or bias_data.get('description', 'Standard strategy')
+    
+    msg = (
+        f"[AUDIT] {ticker} | Score: {score:.2f} (Gate: {threshold:.2f}) | "
+        f"Specialist Mode: {style} | Logic: {desc}"
+    )
+    logging.info(msg)
+    
+    # Also log to explainable logger if available
+    try:
+        from xai.explainable_logger import get_explainable_logger
+        logger = get_explainable_logger()
+        if logger:
+            status = {
+                "consecutive_losses": 0,
+                "is_activated": False,
+                "adjustment": threshold - 2.0  # Assuming base threshold of 2.0
+            }
+            logger.log_threshold_adjustment(
+                symbol=ticker,
+                base_threshold=2.0,
+                adjusted_threshold=threshold,
+                reason=f"Specialist {style} mode: {desc}",
+                status=status
+            )
+    except Exception:
+        pass  # Explainable logger not available, continue with standard logging
+
+
+# ==========================================
+# SYNTHETIC SQUEEZE CALCULATION
+# ==========================================
+def compute_synthetic_squeeze(gex: float, flow_conviction: float, iv_skew: float) -> Dict[str, Any]:
+    """
+    Proactively detects squeeze potential when official data is missing.
+    Logic: Negative Gamma + High Bullish Flow + Call Skew = Squeeze Risk
+    
+    NOTE: This is a simplified version. The full implementation exists in
+    uw_enrichment_v2.py::_compute_synthetic_squeeze() which uses OI change,
+    gamma exposure, and flow sentiment. This function provides a quick check
+    using pre-computed values.
+    
+    Args:
+        gex: Gamma exposure (negative = squeeze setup)
+        flow_conviction: Flow conviction score (0-1, >0.70 = high)
+        iv_skew: IV skew (positive = call skew, >0.05 = significant)
+    
+    Returns:
+        Dict with detected, score, and reason
+    """
+    # Logic: Negative Gamma + High Bullish Flow + Call Skew = Squeeze Risk
+    if gex < 0 and flow_conviction > 0.70 and iv_skew > 0.05:
+        return {
+            "detected": True, 
+            "score": 0.85, 
+            "reason": "Structural Vanna/Gamma Squeeze"
+        }
+    return {
+        "detected": False, 
+        "score": 0.0, 
+        "reason": "Neutral Structure"
+    }
 
