@@ -35,7 +35,7 @@ class SpecialistStrategyRotator:
         self.regime = current_regime
         self.base_threshold = min_exec_score
         
-        # Proactive EST-aligned time check
+        # Proactive EST-aligned time check for liquidity gaps
         self.now_utc = datetime.now(timezone.utc)
         try:
             # Use pytz for proper timezone handling if available
@@ -43,11 +43,15 @@ class SpecialistStrategyRotator:
             est_tz = pytz.timezone('US/Eastern')
             self.now_est = self.now_utc.astimezone(est_tz)
         except ImportError:
-            # Fallback: EST is UTC-5 (or UTC-4 during DST)
-            # Simple approximation: assume EST = UTC-5
-            from datetime import timedelta
-            est_offset = timedelta(hours=-5)
-            self.now_est = self.now_utc + est_offset
+            # Fallback: Try to use system timezone
+            try:
+                self.now_est = self.now_utc.astimezone(datetime.now().astimezone().tzinfo)
+            except Exception:
+                # Final fallback: EST is UTC-5 (or UTC-4 during DST)
+                # Simple approximation: assume EST = UTC-5
+                from datetime import timedelta
+                est_offset = timedelta(hours=-5)
+                self.now_est = self.now_utc + est_offset
         
         # Get structural intelligence if available
         if STRUCTURAL_INTELLIGENCE_AVAILABLE:
@@ -79,40 +83,36 @@ class SpecialistStrategyRotator:
         current_time = self.now_est.time()
         threshold = self.base_threshold
         
-        # Proactive increase to filter mid-day 'chop' when liquidity is thin
+        # Proactive increase to filter mid-day 'chop' when institutional volume fades
         if mid_day_start <= current_time <= mid_day_end:
             threshold += 0.75
-            logging.info(f"[Temporal Liquidity Gate] Threshold increased to {threshold:.2f} (mid-day liquidity gap: 11:30-13:30 EST)")
+            logging.info(f"Temporal Liquidity Gate: Threshold increased to {threshold:.2f} for Mid-Day gap.")
         
         return threshold
 
     def get_regime_strategy_bias(self) -> Dict[str, Any]:
         """
-        Switches behavior based on Market Regime.
+        Switches behavior based on Market Physics and Dealer Hedging.
         Returns strategy bias configuration for current regime.
         """
         biases = {
             "RISK_ON": {
                 "style": "MOMENTUM", 
                 "exit_gravity": 1.0,
-                "desc": "Prioritize aggressive whale flow."
+                "desc": "Prioritize aggressive whale flow in high-liquidity trend."
             },
             "MIXED": {
                 "style": "MEAN_REVERSION", 
                 "exit_gravity": 0.85,
-                "desc": "Tighten stops near Gamma Walls."
+                "desc": "Focus on mean reversion; tighten stops near Gamma Walls."
             },
             "RISK_OFF": {
                 "style": "VANNA_SQUEEZE", 
                 "exit_gravity": 1.15,
-                "desc": "Prioritize IV-driven explosive moves."
-            },
-            "NEUTRAL": {
-                "style": "MEAN_REVERSION",
-                "exit_gravity": 0.9,
-                "desc": "Balanced approach with gamma wall awareness"
+                "desc": "Prioritize IV-crush and Vanna-driven explosive moves."
             }
         }
+        # Default to MIXED logic if regime is unknown or neutral
         return biases.get(self.regime, biases["MIXED"])
     
     def get_strategy_bias(self) -> Dict[str, Any]:
@@ -318,7 +318,7 @@ def calculate_atr_size(ticker_data, account_size: float = 100000.0, risk_pct: fl
 def log_specialist_audit(ticker: str, score: float, threshold: float, bias_data: Dict[str, Any]) -> None:
     """
     Generates proactive audit log for XAI dashboard.
-    Simpler interface than log_specialist_decision() for direct use.
+    This string is stored in explainable_logs.jsonl for dashboard consumption.
     
     Args:
         ticker: Symbol being evaluated
@@ -335,7 +335,7 @@ def log_specialist_audit(ticker: str, score: float, threshold: float, bias_data:
     )
     logging.info(msg)
     
-    # Also log to explainable logger if available
+    # Also log to explainable logger if available (for dashboard integration)
     try:
         from xai.explainable_logger import get_explainable_logger
         logger = get_explainable_logger()
