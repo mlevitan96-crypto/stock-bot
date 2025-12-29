@@ -266,7 +266,7 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     
     return round(component, 4), notes
 
-def compute_shorts_component(shorts_data: Dict, flow_sign: int) -> tuple:
+def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "neutral") -> tuple:
     """
     Calculate short interest & squeeze potential component
     
@@ -326,7 +326,7 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int) -> tuple:
     
     return round(component, 4), "; ".join(notes_parts)
 
-def compute_institutional_component(insider_data: Dict, flow_sign: int) -> tuple:
+def compute_institutional_component(insider_data: Dict, flow_sign: int, regime: str = "neutral") -> tuple:
     """
     Calculate institutional activity component from insider/institutional data
     
@@ -380,7 +380,7 @@ def compute_institutional_component(insider_data: Dict, flow_sign: int) -> tuple
     
     return round(component, 4), notes
 
-def compute_market_tide_component(tide_data: Dict, flow_sign: int) -> tuple:
+def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str = "neutral") -> tuple:
     """
     Calculate market tide (options sentiment) component
     
@@ -648,17 +648,17 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         all_notes.append(congress_notes)
     
     # 12. Short interest & squeeze
-    shorts_component, shorts_notes = compute_shorts_component(shorts_data, flow_sign)
+    shorts_component, shorts_notes = compute_shorts_component(shorts_data, flow_sign, regime)
     if shorts_notes:
         all_notes.append(shorts_notes)
     
     # 13. Institutional activity (enhanced from insider)
-    inst_component, inst_notes = compute_institutional_component(ins, flow_sign)
+    inst_component, inst_notes = compute_institutional_component(ins, flow_sign, regime)
     if inst_notes:
         all_notes.append(inst_notes)
     
     # 14. Market tide
-    tide_component, tide_notes = compute_market_tide_component(tide_data, flow_sign)
+    tide_component, tide_notes = compute_market_tide_component(tide_data, flow_sign, regime)
     if tide_notes:
         all_notes.append(tide_notes)
     
