@@ -219,25 +219,8 @@ def check_freeze_state() -> bool:
     if not check_performance_freeze():
         return False  # Performance freeze active
     
-    # Two freeze mechanisms exist in the codebase:
-    # - `state/governor_freezes.json` (operator/system-level freezes)
-    # - `state/pre_market_freeze.flag` (watchdog crash-loop safety freeze)
-    # Treat either as a hard stop for new entries.
+    # Check only governor_freezes.json (pre_market_freeze.flag mechanism removed)
     freeze_path = Path("state/governor_freezes.json")
-    pre_market_freeze_path = Path("state/pre_market_freeze.flag")
-
-    if pre_market_freeze_path.exists():
-        try:
-            reason = pre_market_freeze_path.read_text().strip() or "unknown"
-        except Exception:
-            reason = "unreadable"
-        log_alert("freeze_active", {
-            "active_flags": ["pre_market_freeze.flag"],
-            "count": 1,
-            "reason": reason,
-            "path": str(pre_market_freeze_path)
-        }, severity="CRITICAL")
-        return False
     
     if not freeze_path.exists():
         return True  # No freeze file = no freezes

@@ -5012,25 +5012,12 @@ def run_once():
         
         audit_seg("run_once", "START")
         
-        # MONITORING GUARD 1: Check freeze state FIRST (halt if frozen)
-        # SELF-HEALING: Allow one cycle to complete if freeze exists, so self-healing can clear it
-        freeze_path = StateFiles.PRE_MARKET_FREEZE
-        freeze_exists = freeze_path.exists()
-        if freeze_exists and not check_freeze_state():
-            # If freeze exists but this is first check, allow one cycle to complete for self-healing
-            # After successful cycle, self-healing will clear the freeze
-            alerts_this_cycle.append("freeze_active")
-            print("🛑 FREEZE ACTIVE - Allowing one cycle for self-healing", flush=True)
-            log_event("run", "freeze_detected_self_healing", alerts=alerts_this_cycle)
-            # Continue to allow self-healing to run
-        elif not freeze_exists and not check_freeze_state():
+        # MONITORING GUARD 1: Check freeze state (governor_freezes.json only, no pre_market_freeze.flag)
+        # NOTE: pre_market_freeze.flag mechanism removed - it was causing more problems than it solved
+        if not check_freeze_state():
             alerts_this_cycle.append("freeze_active")
             print("🛑 FREEZE ACTIVE - Trading halted by monitoring guard", flush=True)
-            print("⚠️  FREEZE FLAGS REQUIRE MANUAL OVERRIDE - No auto-fix available", flush=True)
             log_event("run", "halted_freeze", alerts=alerts_this_cycle)
-            
-            # V3.0 SAFETY: Freeze flags are NEVER auto-cleared - require manual override
-            # No auto_heal_on_alert() call here - freezes must be investigated by human
             
             # Still track zero-order cycles and generate monitoring summary on freeze path
             ZERO_ORDER_CYCLE_COUNT += 1
@@ -5044,15 +5031,15 @@ def run_once():
                 trading_mode=Config.TRADING_MODE
             )
             
-            # Generate monitoring summary for freeze cycle (no fixes/optimizations for freeze)
+            # Generate monitoring summary for freeze cycle
             summary = generate_cycle_monitoring_summary(
                 clusters=[],
                 orders_placed=0,
                 positions_count=0,
                 alerts_triggered=alerts_this_cycle,
                 zero_order_cycles=ZERO_ORDER_CYCLE_COUNT,
-                fixes_applied=[],  # No auto-fixes for freeze - manual override required
-                optimizations_applied=[]  # V3.1: No optimizations during freeze
+                fixes_applied=[],
+                optimizations_applied=[]
             )
             
             # HALT: Return early - trading will NOT resume until freeze flags manually cleared
