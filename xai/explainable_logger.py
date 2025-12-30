@@ -278,7 +278,7 @@ class ExplainableLogger:
         return why_sentence
     
     def get_recent_logs(self, limit: int = 100, log_type: Optional[str] = None) -> List[Dict]:
-        """Get recent explainable logs"""
+        """Get recent explainable logs - sorted by timestamp (newest first)"""
         if not self.log_file.exists():
             return []
         
@@ -293,8 +293,11 @@ class ExplainableLogger:
                     except:
                         continue
         
-        # Return most recent first
-        return logs[-limit:][::-1]
+        # Sort by timestamp (newest first)
+        logs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        
+        # Return most recent
+        return logs[:limit]
     
     def get_trade_explanations(self, symbol: Optional[str] = None, limit: int = 50) -> List[Dict]:
         """Get trade explanations (entries and exits) - filters out test symbols"""
