@@ -144,7 +144,7 @@ WEIGHTS_V3 = {
     "whale_persistence": 0.7,
     "event_alignment": 0.4,
     "toxicity_penalty": -0.9,
-    "temporal_motif": 0.5,
+    "temporal_motif": 0.6,  # Increased to favor staircase patterns showing early success
     "regime_modifier": 0.3,
     
     # V3 NEW: Expanded Intelligence Signals

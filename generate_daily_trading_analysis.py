@@ -209,6 +209,10 @@ def get_xai_logs() -> Dict:
         "threshold_adjustments": []
     }
     
+    # Also check if entries might be in attribution logs (backup)
+    attribution_file = LOGS_DIR / "attribution.jsonl"
+    attribution_entries = []
+    
     for record in load_jsonl(xai_file):
         # Filter out TEST symbols
         if "TEST" in str(record.get("symbol", "")).upper():
@@ -238,6 +242,27 @@ def get_xai_logs() -> Dict:
                     xai_logs["threshold_adjustments"].append(record)
         except:
             continue
+    
+    # If no XAI entries found, try to match executed trades with attribution logs
+    # to create synthetic entry explanations
+    if len(xai_logs["entries"]) == 0 and attribution_file.exists():
+        executed_trades = get_today_trades()
+        for trade in executed_trades:
+            context = trade.get("context", {})
+            symbol = trade.get("symbol", "")
+            if "TEST" in symbol.upper():
+                continue
+            
+            # Create synthetic entry explanation from attribution data
+            entry_explanation = {
+                "type": "trade_entry",
+                "symbol": symbol,
+                "timestamp": trade.get("ts"),
+                "score": context.get("entry_score", context.get("score", 0.0)),
+                "direction": context.get("direction", "unknown"),
+                "why": f"Entered {symbol} with score {context.get('entry_score', context.get('score', 0.0)):.2f} in {context.get('market_regime', 'unknown')} regime"
+            }
+            xai_logs["entries"].append(entry_explanation)
     
     return {
         "total_entries": len(xai_logs["entries"]),
@@ -328,16 +353,17 @@ def get_signal_performance(trades: List[Dict]) -> Dict:
     
     for trade in trades:
         context = trade.get("context", {})
-        signals = context.get("signals", {}) or context.get("component_scores", {})
+        # Attribution logs use "components" not "signals" or "component_scores"
+        components = context.get("components", {})
         
-        if not signals:
+        if not components:
             continue
         
         pnl_usd = float(trade.get("pnl_usd", 0.0))
         
-        # Find top contributing signals
-        sorted_signals = sorted(signals.items(), key=lambda x: abs(x[1]), reverse=True)
-        top_signals = [s[0] for s in sorted_signals[:3]]  # Top 3
+        # Find top contributing signals (components with highest absolute values)
+        sorted_components = sorted(components.items(), key=lambda x: abs(float(x[1]) if isinstance(x[1], (int, float)) else 0), reverse=True)
+        top_signals = [s[0] for s in sorted_components[:5]]  # Top 5 components
         
         for signal_name in top_signals:
             stat = signal_stats[signal_name]
@@ -353,7 +379,7 @@ def get_signal_performance(trades: List[Dict]) -> Dict:
                 "timestamp": trade.get("ts")
             })
     
-    # Calculate win rates
+    # Calculate win rates and averages
     for signal_name, stat in signal_stats.items():
         total = stat["wins"] + stat["losses"]
         stat["win_rate"] = (stat["wins"] / total * 100) if total > 0 else 0.0

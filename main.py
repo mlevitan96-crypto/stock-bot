@@ -3929,12 +3929,17 @@ class AlpacaExecutor:
                     to_close.append(symbol)
                     continue
 
+            # SPECIALIST LOGIC: Tighten trailing stop to 1.0% in MIXED regimes to protect against mid-day drift
+            trailing_stop_pct = Config.TRAILING_STOP_PCT
+            if current_regime_global == "MIXED" or current_regime_global == "mixed":
+                trailing_stop_pct = 0.01  # 1.0% for MIXED regimes
+            
             if "trail_dist" in info and info["trail_dist"] is not None:
                 info["high_water"] = max(info.get("high_water", current_price), current_price)
                 trail_stop = info["high_water"] - info["trail_dist"]
             else:
                 self.high_water[symbol] = max(self.high_water.get(symbol, current_price), current_price)
-                trail_stop = self.high_water[symbol] * (1 - Config.TRAILING_STOP_PCT)
+                trail_stop = self.high_water[symbol] * (1 - trailing_stop_pct)
 
             stop_hit = current_price <= trail_stop
             time_hit = age_min >= Config.TIME_EXIT_MINUTES
