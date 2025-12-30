@@ -5,8 +5,8 @@ from pathlib import Path
 import json
 from config.registry import CacheFiles, StateFiles
 
-# Check cache
-cache_file = CacheFiles.UW_CACHE
+# Check cache - use UW_FLOW_CACHE which is the actual cache file
+cache_file = CacheFiles.UW_FLOW_CACHE
 print(f"Cache file: {cache_file}")
 print(f"Exists: {cache_file.exists()}")
 
