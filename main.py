@@ -1119,6 +1119,7 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
 
         # XAI: Log explainable trade exit
         try:
+            from xai.explainable_logger import get_explainable_logger
             explainable = get_explainable_logger()
             
             # Get regime
