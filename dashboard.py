@@ -670,7 +670,7 @@ DASHBOARD_HTML = """
                             <td class="symbol">${trade.symbol}</td>
                             <td>${trade.type || 'N/A'}</td>
                             <td style="max-width: 400px; word-wrap: break-word;">${trade.why || 'N/A'}</td>
-                            <td>${trade.regime || 'N/A'}</td>
+                            <td>${trade.regime && trade.regime !== 'unknown' ? trade.regime.toUpperCase() : 'N/A'}</td>
                             <td class="${pnlClass}">${pnl !== null && pnl !== undefined ? (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%' : 'N/A'}</td>
                         </tr>
                     `;
