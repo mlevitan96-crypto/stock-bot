@@ -651,7 +651,12 @@ DASHBOARD_HTML = """
                             <tbody>
             `;
             
-            const trades = data.trades || [];
+            // Filter out TEST symbols
+            const trades = (data.trades || []).filter(t => {
+                const symbol = String(t.symbol || '').toUpperCase();
+                return symbol && !symbol.includes('TEST');
+            });
+            
             if (trades.length === 0) {
                 html += '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No trade explanations yet</td></tr>';
             } else {
@@ -696,7 +701,12 @@ DASHBOARD_HTML = """
                             <tbody>
             `;
             
-            const weights = data.weights || [];
+            // Filter out TEST symbols from weights (if any)
+            const weights = (data.weights || []).filter(w => {
+                const component = String(w.component || '').toUpperCase();
+                return component && !component.includes('TEST');
+            });
+            
             if (weights.length === 0) {
                 html += '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No weight adjustments yet</td></tr>';
             } else {
