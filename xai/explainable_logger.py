@@ -297,9 +297,12 @@ class ExplainableLogger:
         return logs[-limit:][::-1]
     
     def get_trade_explanations(self, symbol: Optional[str] = None, limit: int = 50) -> List[Dict]:
-        """Get trade explanations (entries and exits)"""
+        """Get trade explanations (entries and exits) - filters out test symbols"""
         logs = self.get_recent_logs(limit * 2)
         trade_logs = [log for log in logs if log.get("type") in ("trade_entry", "trade_exit")]
+        
+        # CRITICAL: Filter out test symbols (TEST, FAKE, etc.)
+        trade_logs = [log for log in trade_logs if log.get("symbol") and "TEST" not in str(log.get("symbol", "")).upper()]
         
         if symbol:
             trade_logs = [log for log in trade_logs if log.get("symbol") == symbol]
