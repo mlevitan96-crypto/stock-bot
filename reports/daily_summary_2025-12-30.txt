@@ -28,6 +28,17 @@ LEARNING INSIGHTS
 Learning Cycles: 0
 Weight Adjustments: 0
 
+XAI (EXPLAINABLE AI) LOGS
+--------------------------------------------------------------------------------
+Trade Entries Explained: 0
+Trade Exits Explained: 180
+Weight Adjustments Explained: 0
+Threshold Adjustments Explained: 0
+
+GATE EVENTS
+--------------------------------------------------------------------------------
+Total Gate Events: 6274
+
 TOP PERFORMING SIGNALS
 --------------------------------------------------------------------------------
 
@@ -41,5 +52,5 @@ Avg Score (Executed): 5.26
 Avg Score (Blocked): 1.54
 
 ================================================================================
-Generated: 2025-12-30T23:13:43.081915+00:00
+Generated: 2025-12-30T23:14:01.975627+00:00
 ================================================================================
