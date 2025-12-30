@@ -195,6 +195,87 @@ def get_learning_insights() -> Dict:
         "details": insights
     }
 
+def get_xai_logs() -> Dict:
+    """Get XAI (Explainable AI) logs from today"""
+    xai_file = DATA_DIR / "explainable_logs.jsonl"
+    if not xai_file.exists():
+        return {}
+    
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    xai_logs = {
+        "entries": [],
+        "exits": [],
+        "weight_adjustments": [],
+        "threshold_adjustments": []
+    }
+    
+    for record in load_jsonl(xai_file):
+        # Filter out TEST symbols
+        if "TEST" in str(record.get("symbol", "")).upper():
+            continue
+            
+        ts_str = record.get("timestamp") or record.get("ts")
+        if not ts_str:
+            continue
+        
+        try:
+            if isinstance(ts_str, (int, float)):
+                log_time = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+            else:
+                log_time = datetime.fromisoformat(str(ts_str).replace("Z", "+00:00"))
+                if log_time.tzinfo is None:
+                    log_time = log_time.replace(tzinfo=timezone.utc)
+            
+            if log_time >= today_start:
+                log_type = record.get("type", "")
+                if log_type == "trade_entry":
+                    xai_logs["entries"].append(record)
+                elif log_type == "trade_exit":
+                    xai_logs["exits"].append(record)
+                elif log_type == "weight_adjustment":
+                    xai_logs["weight_adjustments"].append(record)
+                elif log_type == "threshold_adjustment":
+                    xai_logs["threshold_adjustments"].append(record)
+        except:
+            continue
+    
+    return {
+        "total_entries": len(xai_logs["entries"]),
+        "total_exits": len(xai_logs["exits"]),
+        "total_weight_adjustments": len(xai_logs["weight_adjustments"]),
+        "total_threshold_adjustments": len(xai_logs["threshold_adjustments"]),
+        "details": xai_logs
+    }
+
+def get_gate_events() -> List[Dict]:
+    """Get gate blocking events from today"""
+    gate_file = LOGS_DIR / "gate.jsonl"
+    if not gate_file.exists():
+        return []
+    
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    gate_events = []
+    
+    for record in load_jsonl(gate_file):
+        ts_str = record.get("ts") or record.get("timestamp")
+        if not ts_str:
+            continue
+        
+        try:
+            if isinstance(ts_str, (int, float)):
+                event_time = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+            else:
+                event_time = datetime.fromisoformat(str(ts_str).replace("Z", "+00:00"))
+                if event_time.tzinfo is None:
+                    event_time = event_time.replace(tzinfo=timezone.utc)
+            
+            if event_time >= today_start:
+                gate_events.append(record)
+        except:
+            continue
+    
+    return sorted(gate_events, key=lambda x: x.get("ts") or x.get("timestamp", ""), reverse=True)
+
 def get_weight_adjustments() -> Dict:
     """Get weight adjustments from today"""
     weights_file = STATE_DIR / "signal_weights.json"
@@ -420,6 +501,17 @@ def generate_summary_report(analysis: Dict) -> str:
         f"Learning Cycles: {analysis['learning']['total_insights']}",
         f"Weight Adjustments: {analysis['weights']['total_adjustments']}",
         "",
+        "XAI (EXPLAINABLE AI) LOGS",
+        "-" * 80,
+        f"Trade Entries Explained: {analysis['xai_logs'].get('total_entries', 0)}",
+        f"Trade Exits Explained: {analysis['xai_logs'].get('total_exits', 0)}",
+        f"Weight Adjustments Explained: {analysis['xai_logs'].get('total_weight_adjustments', 0)}",
+        f"Threshold Adjustments Explained: {analysis['xai_logs'].get('total_threshold_adjustments', 0)}",
+        "",
+        "GATE EVENTS",
+        "-" * 80,
+        f"Total Gate Events: {analysis['gate_events']['total']}",
+        "",
         "TOP PERFORMING SIGNALS",
         "-" * 80,
     ]
@@ -622,6 +714,12 @@ def main():
     print("Collecting weight adjustments...")
     weights = get_weight_adjustments()
     
+    print("Collecting XAI logs...")
+    xai_logs = get_xai_logs()
+    
+    print("Collecting gate events...")
+    gate_events = get_gate_events()
+    
     print("Analyzing signal performance...")
     signal_perf = get_signal_performance(executed)
     
@@ -664,6 +762,11 @@ def main():
         "missed_opportunities": missed,
         "learning": learning,
         "weights": weights,
+        "xai_logs": xai_logs,
+        "gate_events": {
+            "total": len(gate_events),
+            "details": gate_events
+        },
         "signal_performance": signal_perf,
         "counter_intelligence": counter_intel
     }
