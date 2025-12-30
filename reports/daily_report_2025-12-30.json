@@ -1,0 +1,317 @@
+{
+  "date": "2025-12-30",
+  "attribution": {
+    "AVGO": {
+      "trades": 9,
+      "pnl": 15.689999999999996
+    },
+    "COST": {
+      "trades": 1,
+      "pnl": -11.78
+    },
+    "GOOG": {
+      "trades": 1,
+      "pnl": 0.88
+    },
+    "IBIT": {
+      "trades": 1,
+      "pnl": 4.64
+    },
+    "IWM": {
+      "trades": 190,
+      "pnl": 3.95
+    },
+    "LULU": {
+      "trades": 1,
+      "pnl": 2.79
+    },
+    "MJ": {
+      "trades": 1,
+      "pnl": -27.12
+    },
+    "MSTR": {
+      "trades": 5,
+      "pnl": 14.57
+    },
+    "NFLX": {
+      "trades": 7,
+      "pnl": 3.67
+    },
+    "NVDA": {
+      "trades": 15,
+      "pnl": -4.62
+    },
+    "QQQ": {
+      "trades": 319,
+      "pnl": 6.170000000000001
+    },
+    "SMH": {
+      "trades": 1,
+      "pnl": -0.94
+    },
+    "SNOW": {
+      "trades": 1,
+      "pnl": 0.81
+    },
+    "SPY": {
+      "trades": 301,
+      "pnl": 14.370000000000001
+    },
+    "SQQQ": {
+      "trades": 1,
+      "pnl": 5.37
+    },
+    "TSLA": {
+      "trades": 64,
+      "pnl": -16.790000000000006
+    },
+    "TLT": {
+      "trades": 5,
+      "pnl": 2.06
+    },
+    "JBL": {
+      "trades": 2,
+      "pnl": -0.83
+    },
+    "ASTS": {
+      "trades": 2,
+      "pnl": -0.19
+    },
+    "CRWV": {
+      "trades": 4,
+      "pnl": 2.0999999999999996
+    },
+    "NNE": {
+      "trades": 2,
+      "pnl": 15.21
+    },
+    "WING": {
+      "trades": 2,
+      "pnl": -1.59
+    },
+    "ENTG": {
+      "trades": 2,
+      "pnl": 0.4
+    },
+    "NUGT": {
+      "trades": 2,
+      "pnl": -0.91
+    },
+    "APP": {
+      "trades": 4,
+      "pnl": -17.68
+    },
+    "NBIS": {
+      "trades": 2,
+      "pnl": -8.06
+    },
+    "PLTR": {
+      "trades": 5,
+      "pnl": -5.61
+    },
+    "TLN": {
+      "trades": 2,
+      "pnl": -1.0
+    },
+    "CVNA": {
+      "trades": 4,
+      "pnl": 3.46
+    },
+    "ORCL": {
+      "trades": 4,
+      "pnl": 3.91
+    },
+    "ECH": {
+      "trades": 2,
+      "pnl": 0.22
+    },
+    "QBTS": {
+      "trades": 2,
+      "pnl": -1.43
+    },
+    "EWJ": {
+      "trades": 2,
+      "pnl": 15.24
+    },
+    "SNDK": {
+      "trades": 2,
+      "pnl": -0.71
+    },
+    "AMD": {
+      "trades": 9,
+      "pnl": -8.15
+    },
+    "COIN": {
+      "trades": 8,
+      "pnl": -7.359999999999999
+    },
+    "SLV": {
+      "trades": 4,
+      "pnl": -7.91
+    },
+    "LLY": {
+      "trades": 2,
+      "pnl": -0.05
+    },
+    "PRM": {
+      "trades": 2,
+      "pnl": 0.08
+    },
+    "GLD": {
+      "trades": 131,
+      "pnl": 2.3200000000000003
+    },
+    "META": {
+      "trades": 8,
+      "pnl": 7.85
+    },
+    "BE": {
+      "trades": 2,
+      "pnl": -6.64
+    },
+    "TQQQ": {
+      "trades": 2,
+      "pnl": -4.8
+    },
+    "NOW": {
+      "trades": 2,
+      "pnl": -7.68
+    },
+    "MU": {
+      "trades": 4,
+      "pnl": -4.84
+    },
+    "TLRY": {
+      "trades": 2,
+      "pnl": 6.2
+    },
+    "MSOS": {
+      "trades": 2,
+      "pnl": -34.3
+    },
+    "VEEV": {
+      "trades": 2,
+      "pnl": -1.31
+    },
+    "AFRM": {
+      "trades": 2,
+      "pnl": -5.69
+    },
+    "FEZ": {
+      "trades": 2,
+      "pnl": 2.52
+    },
+    "AAPL": {
+      "trades": 19,
+      "pnl": 6.559999999999999
+    },
+    "MSFT": {
+      "trades": 13,
+      "pnl": -10.82
+    },
+    "MA": {
+      "trades": 12,
+      "pnl": -6.93
+    },
+    "AMZN": {
+      "trades": 6,
+      "pnl": -1.42
+    },
+    "INTC": {
+      "trades": 6,
+      "pnl": -4.930000000000001
+    },
+    "XLE": {
+      "trades": 3,
+      "pnl": 0.65
+    },
+    "JPM": {
+      "trades": 3,
+      "pnl": -3.04
+    },
+    "GOOGL": {
+      "trades": 48,
+      "pnl": -6.95
+    },
+    "MS": {
+      "trades": 3,
+      "pnl": -0.76
+    },
+    "WFC": {
+      "trades": 6,
+      "pnl": -4.460000000000001
+    },
+    "XLI": {
+      "trades": 9,
+      "pnl": -2.86
+    },
+    "DIA": {
+      "trades": 6,
+      "pnl": -1.21
+    },
+    "BAC": {
+      "trades": 7,
+      "pnl": -5.630000000000001
+    },
+    "MRNA": {
+      "trades": 12,
+      "pnl": 89.95
+    },
+    "V": {
+      "trades": 11,
+      "pnl": -1.2699999999999998
+    },
+    "SLB": {
+      "trades": 3,
+      "pnl": -1.24
+    },
+    "GM": {
+      "trades": 6,
+      "pnl": -0.43
+    },
+    "JNJ": {
+      "trades": 6,
+      "pnl": 2.42
+    },
+    "TGT": {
+      "trades": 3,
+      "pnl": 2.34
+    },
+    "NIO": {
+      "trades": 3,
+      "pnl": -11.3
+    },
+    "BA": {
+      "trades": 5,
+      "pnl": -5.13
+    },
+    "XLP": {
+      "trades": 5,
+      "pnl": 0.020000000000000018
+    },
+    "F": {
+      "trades": 3,
+      "pnl": -0.44
+    },
+    "COP": {
+      "trades": 3,
+      "pnl": -5.13
+    },
+    "HD": {
+      "trades": 3,
+      "pnl": 5.39
+    },
+    "WMT": {
+      "trades": 3,
+      "pnl": 0.25
+    },
+    "SOFI": {
+      "trades": 117,
+      "pnl": -1.68
+    }
+  },
+  "theme_exposure": {
+    "general": 1599.3798
+  },
+  "shadow_lab": []
+}
