@@ -30,7 +30,7 @@ Weight Adjustments: 0
 
 XAI (EXPLAINABLE AI) LOGS
 --------------------------------------------------------------------------------
-Trade Entries Explained: 0
+Trade Entries Explained: 23
 Trade Exits Explained: 180
 Weight Adjustments Explained: 0
 Threshold Adjustments Explained: 0
@@ -41,9 +41,19 @@ Total Gate Events: 6274
 
 TOP PERFORMING SIGNALS
 --------------------------------------------------------------------------------
+iv_skew: $9.66 (3 trades, 100.0% win rate)
+toxicity_penalty: $1.94 (1 trades, 100.0% win rate)
+net_premium: $1.52 (2 trades, 100.0% win rate)
+flow_count: $0.00 (8 trades, 50.0% win rate)
+gamma: $0.00 (8 trades, 50.0% win rate)
 
 BOTTOM PERFORMING SIGNALS
 --------------------------------------------------------------------------------
+dark_pool: $-18.41 (8 trades, 25.0% win rate)
+market_tide: $-6.81 (12 trades, 50.0% win rate)
+freshness_factor: $-6.81 (12 trades, 50.0% win rate)
+flow: $-6.81 (12 trades, 50.0% win rate)
+event: $-6.81 (12 trades, 50.0% win rate)
 
 COUNTER-INTELLIGENCE ANALYSIS
 --------------------------------------------------------------------------------
@@ -52,5 +62,5 @@ Avg Score (Executed): 5.26
 Avg Score (Blocked): 1.54
 
 ================================================================================
-Generated: 2025-12-30T23:14:01.975627+00:00
+Generated: 2025-12-30T23:22:39.810517+00:00
 ================================================================================
