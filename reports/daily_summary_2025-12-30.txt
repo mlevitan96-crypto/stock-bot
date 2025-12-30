@@ -1,0 +1,45 @@
+================================================================================
+DAILY TRADING ANALYSIS SUMMARY - 2025-12-30
+================================================================================
+
+EXECUTED TRADES
+--------------------------------------------------------------------------------
+Total Trades: 23
+Winning Trades: 12
+Losing Trades: 11
+Win Rate: 52.2%
+Total P&L: $-7.96
+Average P&L per Trade: $-0.35
+
+BLOCKED TRADES
+--------------------------------------------------------------------------------
+Total Blocked: 2504
+Reasons: expectancy_blocked:score_floor_breach, expectancy_blocked:ev_below_floor_bootstrap, symbol_on_cooldown, max_positions_reached
+
+MISSED OPPORTUNITIES
+--------------------------------------------------------------------------------
+Total Missed: 0
+Theoretical P&L: $0.00
+Missed Wins: 0
+Avoided Losses: 0
+
+LEARNING INSIGHTS
+--------------------------------------------------------------------------------
+Learning Cycles: 0
+Weight Adjustments: 0
+
+TOP PERFORMING SIGNALS
+--------------------------------------------------------------------------------
+
+BOTTOM PERFORMING SIGNALS
+--------------------------------------------------------------------------------
+
+COUNTER-INTELLIGENCE ANALYSIS
+--------------------------------------------------------------------------------
+Most Common Blocking Reason: expectancy_blocked:score_floor_breach
+Avg Score (Executed): 5.26
+Avg Score (Blocked): 1.54
+
+================================================================================
+Generated: 2025-12-30T23:13:43.081915+00:00
+================================================================================
