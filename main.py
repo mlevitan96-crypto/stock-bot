@@ -3940,10 +3940,32 @@ class AlpacaExecutor:
                     to_close.append(symbol)
                     continue
 
-            # SPECIALIST LOGIC: Tighten trailing stop to 1.0% in MIXED regimes to protect against mid-day drift
+            # PROFIT-TAKING ACCELERATION: Tighten trailing stop to 0.5% after 30 minutes of profitability
+            # Refined stale exit based on backtest: Alpha Decay is 303 minutes but P&L is flat at 90 minutes
+            # Move trailing stop to 0.5% after first 30 minutes if position is profitable
             trailing_stop_pct = Config.TRAILING_STOP_PCT
-            if current_regime_global == "MIXED" or current_regime_global == "mixed":
-                trailing_stop_pct = 0.01  # 1.0% for MIXED regimes
+            profit_acceleration_active = False
+            
+            if age_min >= 30 and pnl_pct > 0:  # 30 minutes and profitable
+                # Check if this is the first time we're applying acceleration (avoid resetting each cycle)
+                if "profit_acceleration_applied" not in info:
+                    trailing_stop_pct = 0.005  # 0.5% after 30 min profit
+                    info["profit_acceleration_applied"] = True
+                    profit_acceleration_active = True
+                    log_event("exit", "profit_taking_acceleration", symbol=symbol,
+                             age_minutes=round(age_min, 1),
+                             pnl_pct=round(pnl_pct, 2),
+                             new_trail_stop_pct=trailing_stop_pct * 100)
+                elif info.get("profit_acceleration_applied"):
+                    # Already applied - keep using tighter stop
+                    trailing_stop_pct = 0.005
+                    profit_acceleration_active = True
+            
+            # SPECIALIST LOGIC: Tighten trailing stop to 1.0% in MIXED regimes to protect against mid-day drift
+            # (Only if profit acceleration not already active)
+            if not profit_acceleration_active:
+                if current_regime_global == "MIXED" or current_regime_global == "mixed":
+                    trailing_stop_pct = 0.01  # 1.0% for MIXED regimes
             
             if "trail_dist" in info and info["trail_dist"] is not None:
                 info["high_water"] = max(info.get("high_water", current_price), current_price)
@@ -4614,6 +4636,40 @@ class StrategyEngine:
             except Exception as exp_error:
                 log_event("risk_management", "exposure_check_error", symbol=symbol, error=str(exp_error))
                 # Continue on error - don't block trading if exposure checks fail
+
+            # MOMENTUM IGNITION FILTER: Check price movement before entry
+            # Ensures price is actually moving (+0.2% in 2 minutes) before executing Whale signal
+            try:
+                from momentum_ignition_filter import check_momentum_before_entry
+                momentum_check = check_momentum_before_entry(
+                    symbol=symbol,
+                    signal_direction=c.get("direction", "bullish"),
+                    current_price=ref_price_check
+                )
+                
+                if not momentum_check.get("passed", True):  # Fail open if API unavailable
+                    print(f"DEBUG {symbol}: BLOCKED by momentum_ignition_filter - {momentum_check.get('reason', 'no_momentum')}", flush=True)
+                    log_event("gate", "momentum_ignition_blocked", symbol=symbol,
+                             direction=c.get("direction"),
+                             price_change_pct=momentum_check.get("price_change_pct", 0.0),
+                             reason=momentum_check.get("reason", "unknown"))
+                    log_blocked_trade(symbol, "momentum_ignition_filter", score,
+                                      direction=c.get("direction"),
+                                      decision_price=ref_price_check,
+                                      components=comps,
+                                      price_change_pct=momentum_check.get("price_change_pct", 0.0),
+                                      reason=momentum_check.get("reason", "unknown"))
+                    continue
+                else:
+                    log_event("gate", "momentum_ignition_passed", symbol=symbol,
+                             price_change_pct=momentum_check.get("price_change_pct", 0.0),
+                             reason=momentum_check.get("reason", "confirmed"))
+            except ImportError:
+                # Momentum filter not available - continue without check (fail open)
+                log_event("gate", "momentum_ignition_unavailable", symbol=symbol)
+            except Exception as momentum_error:
+                log_event("gate", "momentum_ignition_error", symbol=symbol, error=str(momentum_error))
+                # Fail open on error - don't block trades due to filter errors
 
             print(f"DEBUG {symbol}: PASSED ALL GATES! Calling submit_entry...", flush=True)
             
