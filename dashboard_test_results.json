@@ -1,0 +1,183 @@
+{
+  "timestamp": "2025-12-29T10:23:43.117587",
+  "tabs": {
+    "positions": {
+      "status": "ERROR",
+      "endpoints_tested": [],
+      "endpoints_failed": [
+        "/api/positions",
+        "/api/health_status"
+      ],
+      "missing_keys": [],
+      "warnings": []
+    },
+    "sre": {
+      "status": "ERROR",
+      "endpoints_tested": [],
+      "endpoints_failed": [
+        "/api/sre/health"
+      ],
+      "missing_keys": [],
+      "warnings": []
+    },
+    "executive": {
+      "status": "OK",
+      "endpoints_tested": [
+        "/api/executive_summary"
+      ],
+      "endpoints_failed": [],
+      "missing_keys": [],
+      "warnings": []
+    },
+    "xai": {
+      "status": "ERROR",
+      "endpoints_tested": [
+        "/api/xai/auditor"
+      ],
+      "endpoints_failed": [
+        "/api/xai/export"
+      ],
+      "missing_keys": [],
+      "warnings": []
+    },
+    "failure_points": {
+      "status": "OK",
+      "endpoints_tested": [
+        "/api/failure_points"
+      ],
+      "endpoints_failed": [],
+      "missing_keys": [],
+      "warnings": []
+    }
+  },
+  "endpoints": {
+    "positions": {
+      "status": "ERROR",
+      "error": "Dashboard test failed: No module named 'flask', Direct API failed: No module named 'alpaca_trade_api'",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 47, in test_positions_endpoint\n    from dashboard import app\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\dashboard.py\", line 14, in <module>\n    from flask import Flask, render_template_string, jsonify, Response\nModuleNotFoundError: No module named 'flask'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 57, in test_positions_endpoint\n    import alpaca_trade_api as tradeapi\nModuleNotFoundError: No module named 'alpaca_trade_api'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 27, in test_endpoint\n    result = test_func()\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 82, in test_positions_endpoint\n    raise Exception(f\"Dashboard test failed: {e}, Direct API failed: {e2}\")\nException: Dashboard test failed: No module named 'flask', Direct API failed: No module named 'alpaca_trade_api'\n"
+    },
+    "sre_health": {
+      "status": "ERROR",
+      "error": "SRE health failed: No module named 'requests'",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 87, in test_sre_health_endpoint\n    from sre_monitoring import get_sre_health\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\sre_monitoring.py\", line 19, in <module>\n    import requests\nModuleNotFoundError: No module named 'requests'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 27, in test_endpoint\n    result = test_func()\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 90, in test_sre_health_endpoint\n    raise Exception(f\"SRE health failed: {e}\")\nException: SRE health failed: No module named 'requests'\n"
+    },
+    "executive_summary": {
+      "status": "OK",
+      "data_keys": [
+        "timestamp",
+        "trades",
+        "total_trades",
+        "pnl_metrics",
+        "signal_analysis",
+        "learning_insights",
+        "written_summary"
+      ],
+      "has_data": true,
+      "sample": "{'timestamp': '2025-12-29T17:23:43.122269+00:00', 'trades': [], 'total_trades': 0, 'pnl_metrics': {'pnl_2d': 0.0, 'pnl_5d': 0.0, 'trades_2d': 0, 'trades_5d': 0, 'win_rate_2d': 0.0, 'win_rate_5d': 0.0}"
+    },
+    "xai_auditor": {
+      "status": "OK",
+      "data_keys": [
+        "trades",
+        "weights"
+      ],
+      "has_data": true,
+      "sample": "{'trades': [{'type': 'trade_exit', 'symbol': 'TEST', 'entry_price': 100.0, 'exit_price': 105.0, 'pnl_pct': 5.0, 'hold_minutes': 120, 'exit_reason': 'profit_target', 'regime': 'RISK_ON', 'gamma_walls':"
+    },
+    "failure_points": {
+      "status": "OK",
+      "data_keys": [
+        "readiness",
+        "color",
+        "critical_count",
+        "warning_count",
+        "total_checked",
+        "failure_points",
+        "critical_fps",
+        "warning_fps"
+      ],
+      "has_data": true,
+      "sample": "{'readiness': 'BLOCKED', 'color': 'red', 'critical_count': 9, 'warning_count': 0, 'total_checked': 12, 'failure_points': {'FP-1.1': {'id': 'FP-1.1', 'name': 'UW Daemon Running', 'category': 'Data & Si"
+    },
+    "health_status": {
+      "status": "ERROR",
+      "error": "Health status failed: No module named 'flask'",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 134, in test_health_status_endpoint\n    from dashboard import app\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\dashboard.py\", line 14, in <module>\n    from flask import Flask, render_template_string, jsonify, Response\nModuleNotFoundError: No module named 'flask'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 27, in test_endpoint\n    result = test_func()\n  File \"C:\\Users\\markl\\OneDrive\\Documents\\Cursor\\stock-bot\\test_dashboard_complete.py\", line 141, in test_health_status_endpoint\n    raise Exception(f\"Health status failed: {e}\")\nException: Health status failed: No module named 'flask'\n"
+    }
+  },
+  "data_sources": {
+    "attribution": {
+      "status": "MISSING",
+      "paths_checked": [
+        "logs\\attribution.jsonl",
+        "data\\attribution.jsonl"
+      ],
+      "exists": false
+    },
+    "explainable_logs": {
+      "status": "OK",
+      "path": "data\\explainable_logs.jsonl",
+      "exists": true,
+      "readable": true,
+      "line_count": 6
+    },
+    "signal_weights": {
+      "status": "OK",
+      "path": "state\\signal_weights.json",
+      "exists": true,
+      "readable": true,
+      "line_count": "N/A"
+    },
+    "comprehensive_learning": {
+      "status": "MISSING",
+      "paths_checked": [
+        "data\\comprehensive_learning.jsonl"
+      ],
+      "exists": false
+    },
+    "counterfactual_results": {
+      "status": "MISSING",
+      "paths_checked": [
+        "data\\counterfactual_results.jsonl"
+      ],
+      "exists": false
+    },
+    "uw_flow_cache": {
+      "status": "MISSING",
+      "paths_checked": [
+        "data\\uw_flow_cache.json"
+      ],
+      "exists": false
+    },
+    "orders": {
+      "status": "MISSING",
+      "paths_checked": [
+        "data\\live_orders.jsonl",
+        "logs\\orders.jsonl"
+      ],
+      "exists": false
+    },
+    "heartbeat": {
+      "status": "MISSING",
+      "paths_checked": [
+        "state\\bot_heartbeat.json",
+        "state\\doctor_state.json",
+        "state\\system_heartbeat.json"
+      ],
+      "exists": false
+    }
+  },
+  "errors": [
+    "positions: Dashboard test failed: No module named 'flask', Direct API failed: No module named 'alpaca_trade_api'",
+    "sre_health: SRE health failed: No module named 'requests'",
+    "health_status: Health status failed: No module named 'flask'"
+  ],
+  "warnings": [
+    "attribution: No data file found",
+    "comprehensive_learning: No data file found",
+    "counterfactual_results: No data file found",
+    "uw_flow_cache: No data file found",
+    "orders: No data file found",
+    "heartbeat: No data file found"
+  ]
+}
