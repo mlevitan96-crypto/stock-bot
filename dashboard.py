@@ -1704,12 +1704,13 @@ def api_xai_auditor():
         from xai.explainable_logger import get_explainable_logger
         explainable = get_explainable_logger()
         
-        # Get trades with error handling
+        # Get trades from XAI logs
+        xai_trades = []
         try:
-            trades = explainable.get_trade_explanations(limit=500)  # Increased limit to show more trades
+            xai_trades = explainable.get_trade_explanations(limit=1000)  # Get more to merge with attribution
         except Exception as e:
-            errors.append(f"Failed to get trade explanations: {str(e)}")
-            # Fallback: Try reading directly from log file
+            errors.append(f"Failed to get XAI trade explanations: {str(e)}")
+            # Fallback: Try reading directly from XAI log file
             try:
                 from pathlib import Path
                 import json
@@ -1723,17 +1724,215 @@ def api_xai_auditor():
                                     if rec.get("type") in ("trade_entry", "trade_exit"):
                                         symbol = str(rec.get("symbol", "")).upper()
                                         if symbol and "TEST" not in symbol:
-                                            trades.append(rec)
+                                            xai_trades.append(rec)
                                 except:
                                     continue
-                    # Sort by timestamp (newest first)
-                    try:
-                        trades.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-                    except:
-                        pass
-                    trades = trades[:500]  # Increased limit
             except Exception as fallback_e:
-                errors.append(f"Fallback also failed: {str(fallback_e)}")
+                errors.append(f"XAI fallback also failed: {str(fallback_e)}")
+        
+        # CRITICAL: Also read from attribution.jsonl to get ALL trades (Executive Summary source)
+        # This ensures XAI Auditor shows the same trades as Executive Summary
+        attribution_trades = []
+        try:
+            from pathlib import Path
+            import json
+            from datetime import datetime, timezone, timedelta
+            
+            # Try multiple possible locations (same as executive_summary_generator)
+            attribution_files = [
+                Path("logs/attribution.jsonl"),
+                Path("data/attribution.jsonl"),
+            ]
+            
+            attribution_file = None
+            for path in attribution_files:
+                if path.exists():
+                    attribution_file = path
+                    break
+            
+            if attribution_file:
+                cutoff_time = datetime.now(timezone.utc) - timedelta(days=90)  # Last 90 days
+                with attribution_file.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        if line.strip():
+                            try:
+                                rec = json.loads(line.strip())
+                                if rec.get("type") != "attribution":
+                                    continue
+                                
+                                # Skip open trades (same filter as executive summary)
+                                trade_id = rec.get("trade_id", "")
+                                if trade_id and trade_id.startswith("open_"):
+                                    continue
+                                
+                                symbol = str(rec.get("symbol", "")).upper()
+                                if not symbol or "TEST" in symbol:
+                                    continue
+                                
+                                # Only process closed trades (have P&L or close_reason)
+                                context = rec.get("context", {})
+                                pnl_usd = float(rec.get("pnl_usd", 0.0))
+                                close_reason = context.get("close_reason", "") or rec.get("close_reason", "")
+                                if pnl_usd == 0.0 and (not close_reason or close_reason in ["unknown", "N/A", ""]):
+                                    continue
+                                
+                                # Get timestamp - try multiple fields
+                                ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
+                                if not ts_str:
+                                    # If no timestamp, skip (can't sort properly)
+                                    continue
+                                
+                                try:
+                                    if isinstance(ts_str, (int, float)):
+                                        trade_time = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
+                                    elif isinstance(ts_str, str):
+                                        # Try ISO format first
+                                        if 'T' in ts_str or '-' in ts_str:
+                                            trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                                            if trade_time.tzinfo is None:
+                                                trade_time = trade_time.replace(tzinfo=timezone.utc)
+                                        else:
+                                            # Try as timestamp string
+                                            trade_time = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
+                                    else:
+                                        continue
+                                except Exception as ts_err:
+                                    # Skip if timestamp parsing fails
+                                    continue
+                                
+                                if trade_time < cutoff_time:
+                                    continue
+                                
+                                # Convert attribution format to XAI trade_exit format
+                                entry_price = float(context.get("entry_price", 0.0))
+                                exit_price = float(context.get("exit_price", 0.0))
+                                pnl_pct = float(rec.get("pnl_pct", 0.0))
+                                hold_minutes = float(rec.get("hold_minutes", 0.0))
+                                
+                                # Build "why" explanation from context (same format as XAI logger)
+                                why_parts = []
+                                
+                                # Exit reason
+                                if close_reason and close_reason not in ["unknown", "N/A", ""]:
+                                    if "gamma_call_wall" in close_reason.lower():
+                                        why_parts.append("reached Gamma Call Wall (structural physics exit)")
+                                    elif "liquidity_exhaustion" in close_reason.lower():
+                                        why_parts.append("bid-side liquidity exhausted (structural physics exit)")
+                                    elif "profit_target" in close_reason.lower():
+                                        why_parts.append("profit target reached")
+                                    elif "stop_loss" in close_reason.lower() or "trail" in close_reason.lower():
+                                        why_parts.append("stop loss triggered")
+                                    elif "time_exit" in close_reason.lower() or "time_or_trail" in close_reason.lower():
+                                        why_parts.append("maximum hold time reached")
+                                    else:
+                                        why_parts.append(f"exit reason: {close_reason}")
+                                
+                                # Regime
+                                market_regime = context.get("market_regime", "unknown")
+                                if market_regime and market_regime != "unknown":
+                                    regime_desc = {
+                                        "RISK_ON": "bullish",
+                                        "RISK_OFF": "bearish",
+                                        "NEUTRAL": "neutral",
+                                        "PANIC": "panic"
+                                    }.get(market_regime.upper(), market_regime.lower())
+                                    why_parts.append(f"market in {regime_desc} regime")
+                                
+                                # P&L
+                                pnl_desc = "profit" if pnl_pct > 0 else "loss"
+                                why_parts.append(f"{pnl_desc} of {abs(pnl_pct):.2f}% over {hold_minutes:.0f} minutes")
+                                
+                                why_sentence = f"Exited {symbol} because: " + ". ".join(why_parts) + "."
+                                
+                                # Normalize regime
+                                regime_normalized = market_regime
+                                if not regime_normalized or regime_normalized == "unknown":
+                                    regime_normalized = "NEUTRAL"
+                                else:
+                                    regime_upper = str(regime_normalized).upper()
+                                    if regime_upper in ["RISK_ON", "RISK_OFF", "NEUTRAL", "PANIC"]:
+                                        regime_normalized = regime_upper
+                                    else:
+                                        regime_normalized = "NEUTRAL"
+                                
+                                # Create XAI format trade_exit record
+                                xai_record = {
+                                    "type": "trade_exit",
+                                    "symbol": symbol,
+                                    "entry_price": entry_price,
+                                    "exit_price": exit_price,
+                                    "pnl_pct": pnl_pct,
+                                    "hold_minutes": hold_minutes,
+                                    "exit_reason": close_reason or "unknown",
+                                    "regime": regime_normalized,
+                                    "why": why_sentence,
+                                    "timestamp": trade_time.isoformat(),
+                                    "trade_id": trade_id,  # Keep original trade_id for reference
+                                    "_from_attribution": True  # Flag to indicate source
+                                }
+                                attribution_trades.append(xai_record)
+                            except Exception as e:
+                                continue
+        except Exception as e:
+            errors.append(f"Failed to read attribution.jsonl: {str(e)}")
+        
+        # Merge XAI trades and attribution trades, removing duplicates
+        # Use symbol + timestamp as key for deduplication (more reliable than trade_id)
+        trades_dict = {}  # Key: (symbol, timestamp_normalized)
+        
+        # Add XAI trades first (these are the "official" XAI logs - prefer these)
+        for trade in xai_trades:
+            symbol = str(trade.get("symbol", "")).upper()
+            timestamp = trade.get("timestamp", "")
+            if symbol and timestamp:
+                # Normalize timestamp for comparison (remove microseconds, timezone)
+                try:
+                    if isinstance(timestamp, str):
+                        ts_normalized = timestamp.split('.')[0].replace('Z', '').replace('+00:00', '')
+                    else:
+                        ts_normalized = str(timestamp)
+                    key = (symbol, ts_normalized)
+                    if key not in trades_dict:  # XAI logs take precedence
+                        trades_dict[key] = trade
+                except:
+                    # If timestamp parsing fails, use trade_id as fallback
+                    trade_id = trade.get("trade_id") or f"{trade.get('type')}_{symbol}_{timestamp}"
+                    if trade_id:
+                        key = (symbol, trade_id)
+                        if key not in trades_dict:
+                            trades_dict[key] = trade
+        
+        # Add attribution trades (only if not already in XAI logs)
+        for trade in attribution_trades:
+            symbol = str(trade.get("symbol", "")).upper()
+            timestamp = trade.get("timestamp", "")
+            if symbol and timestamp:
+                try:
+                    # Normalize timestamp for comparison
+                    if isinstance(timestamp, str):
+                        ts_normalized = timestamp.split('.')[0].replace('Z', '').replace('+00:00', '')
+                    else:
+                        ts_normalized = str(timestamp)
+                    key = (symbol, ts_normalized)
+                    if key not in trades_dict:  # Only add if not already present
+                        trades_dict[key] = trade
+                except:
+                    # If timestamp parsing fails, use trade_id as fallback
+                    trade_id = trade.get("trade_id", "")
+                    if trade_id:
+                        key = (symbol, trade_id)
+                        if key not in trades_dict:
+                            trades_dict[key] = trade
+        
+        # Convert back to list and sort by timestamp (newest first)
+        trades = list(trades_dict.values())
+        try:
+            trades.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        except:
+            pass
+        
+        # Limit to 500 most recent
+        trades = trades[:500]
         
         # Normalize regime field for all trades (extract from top-level or context)
         for trade in trades:
