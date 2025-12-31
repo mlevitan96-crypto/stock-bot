@@ -162,8 +162,8 @@
       "etf_flow": 0.0,
       "squeeze_score": 0.0
     },
-    "atr_mult": 1.5,
-    "size_scale": 1.0,
+    "atr_mult": 1.0,
+    "size_scale": 1.5,
     "confidence": 0.0,
     "samples": 0
   },
