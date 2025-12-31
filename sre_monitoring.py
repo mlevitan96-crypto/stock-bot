@@ -625,6 +625,7 @@ class SREMonitoringEngine:
         }
         
         # Check if daemon is running FIRST (before checking endpoints)
+        import subprocess
         daemon_running = False
         try:
             result_check = subprocess.run(["pgrep", "-f", "uw_flow_daemon"], capture_output=True, timeout=2)
