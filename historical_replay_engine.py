@@ -99,10 +99,12 @@ class AlpacaHistoricalDataClient:
         Initialize Alpaca API client for historical data.
         Uses same credential loading pattern as main.py (Config.ALPACA_KEY/ALPACA_SECRET).
         """
-        # Get credentials from environment (same pattern as main.py)
-        # Load from environment variables (ALPACA_KEY or ALPACA_API_KEY, ALPACA_SECRET or ALPACA_API_SECRET)
-        self.api_key = api_key or os.getenv("ALPACA_KEY") or os.getenv("ALPACA_API_KEY", "")
-        self.api_secret = api_secret or os.getenv("ALPACA_SECRET") or os.getenv("ALPACA_API_SECRET", "")
+        # Get credentials from environment (same pattern as main.py - uses get_env helper)
+        # Import get_env from config.registry (same as main.py uses)
+        from config.registry import get_env
+        
+        self.api_key = api_key or get_env("ALPACA_KEY") or get_env("ALPACA_API_KEY", "")
+        self.api_secret = api_secret or get_env("ALPACA_SECRET") or get_env("ALPACA_API_SECRET", "")
         
         # Use data API base URL (https://data.alpaca.markets) for historical data
         self.base_url = APIConfig.ALPACA_DATA_URL  # https://data.alpaca.markets
@@ -176,8 +178,8 @@ class AlpacaHistoricalDataClient:
         limit: int = 10000
     ) -> List[Dict[str, Any]]:
         """
-        Fetch historical bar data from Alpaca API.
-        Uses alpaca_trade_api library (same as bot) for proper authentication.
+        Fetch historical bar data from Alpaca Data API v2.
+        Uses direct REST API calls (same format as curl command).
         
         Args:
             symbol: Stock symbol
@@ -189,48 +191,62 @@ class AlpacaHistoricalDataClient:
         Returns:
             List of bar records with fields: t (timestamp), o, h, l, c (OHLC), v (volume)
         """
-        # Use alpaca_trade_api library (same authentication pattern as bot)
+        if not self.api_key or not self.api_secret:
+            return []
+        
+        # Use Alpaca Data API v2 endpoint (same as curl example)
+        url = "https://data.alpaca.markets/v2/stocks/bars"
+        
+        # Format timestamps for API
+        start_str = start.strftime("%Y-%m-%dT%H:%M:%S-00:00")
+        end_str = end.strftime("%Y-%m-%dT%H:%M:%S-00:00")
+        
+        params = {
+            "symbols": symbol,
+            "timeframe": timeframe,
+            "start": start_str,
+            "end": end_str,
+            "limit": min(limit, 10000),  # API limit is 10000
+            "adjustment": "raw",
+            "feed": "sip",
+            "sort": "asc"
+        }
+        
         try:
-            import alpaca_trade_api as tradeapi
+            response = requests.get(url, headers=self.headers, params=params, timeout=30)
+            response.raise_for_status()
             
-            if not self.api_key or not self.api_secret:
+            data = response.json()
+            bars = data.get("bars", {}).get(symbol, [])
+            
+            if not bars:
                 return []
             
-            # Use trading API endpoint - it provides access to historical data
-            trading_base_url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
-            api = tradeapi.REST(self.api_key, self.api_secret, trading_base_url, api_version='v2')
-            
-            # Get bars using the SDK (handles authentication automatically)
-            bars = api.get_bars(
-                symbol,
-                timeframe,
-                start=start.isoformat(),
-                end=end.isoformat(),
-                limit=limit
-            ).df
-            
-            if bars.empty:
-                return []
-            
-            # Convert DataFrame to list of dicts
+            # Convert API response to list of dicts
             result = []
-            for idx, row in bars.iterrows():
+            for bar in bars:
                 result.append({
-                    "t": idx.isoformat() if hasattr(idx, 'isoformat') else str(idx),
-                    "o": float(row['open']),
-                    "h": float(row['high']),
-                    "l": float(row['low']),
-                    "c": float(row['close']),
-                    "v": int(row['volume'])
+                    "t": bar["t"],  # ISO timestamp string
+                    "o": float(bar["o"]),
+                    "h": float(bar["h"]),
+                    "l": float(bar["l"]),
+                    "c": float(bar["c"]),
+                    "v": int(bar["v"])
                 })
             
             return result
             
-        except ImportError:
-            print("[WARNING] alpaca_trade_api not available - cannot fetch historical data")
+        except requests.exceptions.RequestException as e:
+            print(f"[WARNING] Failed to fetch bars for {symbol}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_detail = e.response.json()
+                    print(f"[WARNING] API error response: {error_detail}")
+                except:
+                    print(f"[WARNING] HTTP status: {e.response.status_code}")
             return []
         except Exception as e:
-            print(f"[WARNING] Failed to fetch bars for {symbol} via alpaca_trade_api: {e}")
+            print(f"[WARNING] Error processing bars for {symbol}: {e}")
             return []
     
     def get_price_at_time(
