@@ -24,6 +24,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
 
+# Load environment variables from .env file (per memory bank - bot uses load_dotenv)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available, will use environment variables directly
+
 try:
     import pytz
     PYTZ_AVAILABLE = True
