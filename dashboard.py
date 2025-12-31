@@ -620,15 +620,50 @@ DASHBOARD_HTML = """
                 })
                 .catch(error => {
                     console.error('XAI Auditor error:', error);
-                    xaiContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading Natural Language Auditor: ${error.message}</div>`;
+                    xaiContent.innerHTML = `
+                        <div class="loading" style="color: #ef4444; padding: 20px;">
+                            <h3>⚠️ Error loading Natural Language Auditor</h3>
+                            <p>${error.message}</p>
+                            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                                The system will retry automatically. If this persists, check the dashboard logs.
+                            </p>
+                            <button onclick="loadXAIAuditor()" style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                🔄 Retry
+                            </button>
+                        </div>`;
                 });
         }
         
         function renderXAIAuditor(data, container) {
+            // Handle errors gracefully
+            if (data.error) {
+                container.innerHTML = `
+                    <div class="loading" style="color: #ef4444; padding: 20px;">
+                        <h3>⚠️ Error loading data</h3>
+                        <p>${data.error}</p>
+                        <button onclick="loadXAIAuditor()" style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            🔄 Retry
+                        </button>
+                    </div>`;
+                return;
+            }
+            
+            // Show status if partial
+            let statusHtml = '';
+            if (data.status === 'partial' && data.errors) {
+                statusHtml = `<div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                    <strong>⚠️ Partial data loaded:</strong> Some data may be missing. Errors: ${data.errors.join(', ')}
+                </div>`;
+            }
+            
             let html = `
                 <div class="stat-card" style="margin-bottom: 20px; border: 3px solid #667eea;">
                     <h2 style="color: #667eea; margin-bottom: 15px;">🧠 Natural Language Auditor</h2>
                     <p style="color: #666; margin-bottom: 15px;">Explainable AI (XAI) logs showing natural language "Why" sentences for every trade and weight adjustment.</p>
+                    ${statusHtml}
+                    <div style="margin-bottom: 10px;">
+                        <span style="color: #666;">Trades: ${data.trade_count || 0} | Weights: ${data.weight_count || 0}</span>
+                    </div>
                     <button onclick="exportXAI()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
                         📥 Export All Logs
                     </button>
@@ -1660,24 +1695,151 @@ def api_sre_health():
 
 @app.route("/api/xai/auditor", methods=["GET"])
 def api_xai_auditor():
-    """Get XAI explainable logs for Natural Language Auditor"""
+    """Get XAI explainable logs for Natural Language Auditor - HARDENED VERSION"""
+    trades = []
+    weights = []
+    errors = []
+    
     try:
         from xai.explainable_logger import get_explainable_logger
         explainable = get_explainable_logger()
         
-        trades = explainable.get_trade_explanations(limit=100)
-        weights = explainable.get_weight_explanations(limit=100)
+        # Get trades with error handling
+        try:
+            trades = explainable.get_trade_explanations(limit=100)
+        except Exception as e:
+            errors.append(f"Failed to get trade explanations: {str(e)}")
+            # Fallback: Try reading directly from log file
+            try:
+                from pathlib import Path
+                import json
+                log_file = Path("data/explainable_logs.jsonl")
+                if log_file.exists():
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            if line.strip():
+                                try:
+                                    rec = json.loads(line)
+                                    if rec.get("type") in ("trade_entry", "trade_exit"):
+                                        symbol = str(rec.get("symbol", "")).upper()
+                                        if symbol and "TEST" not in symbol:
+                                            trades.append(rec)
+                                except:
+                                    continue
+                    trades = trades[:100]  # Limit
+            except Exception as fallback_e:
+                errors.append(f"Fallback also failed: {str(fallback_e)}")
         
-        return jsonify({
+        # Get weights with error handling
+        try:
+            weights = explainable.get_weight_explanations(limit=100)
+        except Exception as e:
+            errors.append(f"Failed to get weight explanations: {str(e)}")
+            # Fallback: Try reading directly from log file
+            try:
+                from pathlib import Path
+                import json
+                log_file = Path("data/explainable_logs.jsonl")
+                if log_file.exists():
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            if line.strip():
+                                try:
+                                    rec = json.loads(line)
+                                    if rec.get("type") == "weight_adjustment":
+                                        weights.append(rec)
+                                except:
+                                    continue
+                    weights = weights[:100]  # Limit
+            except Exception as fallback_e:
+                errors.append(f"Weight fallback also failed: {str(fallback_e)}")
+        
+        # Always return 200, even with errors (so frontend can display partial data)
+        response = {
             "trades": trades,
-            "weights": weights
-        })
+            "weights": weights,
+            "status": "ok" if not errors else "partial",
+            "trade_count": len(trades),
+            "weight_count": len(weights)
+        }
+        
+        if errors:
+            response["errors"] = errors
+        
+        return jsonify(response), 200
+        
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"[Dashboard] XAI Auditor error: {error_details}", flush=True)
+        
+        # Return empty but valid response so frontend doesn't break
         return jsonify({
             "error": str(e),
             "trades": [],
-            "weights": []
-        }), 500
+            "weights": [],
+            "status": "error",
+            "trade_count": 0,
+            "weight_count": 0
+        }), 200  # Return 200 so frontend can display error message
+
+@app.route("/api/xai/health", methods=["GET"])
+def api_xai_health():
+    """Health check for XAI system"""
+    health = {
+        "status": "ok",
+        "log_file_exists": False,
+        "log_file_size": 0,
+        "recent_entries": 0,
+        "recent_exits": 0,
+        "recent_weights": 0,
+        "errors": []
+    }
+    
+    try:
+        from pathlib import Path
+        import json
+        from datetime import datetime, timedelta
+        
+        log_file = Path("data/explainable_logs.jsonl")
+        health["log_file_exists"] = log_file.exists()
+        
+        if log_file.exists():
+            health["log_file_size"] = log_file.stat().st_size
+            
+            # Count recent entries (last 24 hours)
+            cutoff = (datetime.now() - timedelta(days=1)).isoformat()
+            with open(log_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            rec = json.loads(line)
+                            ts = rec.get("timestamp", "")
+                            if ts >= cutoff:
+                                if rec.get("type") == "trade_entry":
+                                    health["recent_entries"] += 1
+                                elif rec.get("type") == "trade_exit":
+                                    health["recent_exits"] += 1
+                                elif rec.get("type") == "weight_adjustment":
+                                    health["recent_weights"] += 1
+                        except:
+                            continue
+        
+        # Check if XAI logger can be imported
+        try:
+            from xai.explainable_logger import get_explainable_logger
+            explainable = get_explainable_logger()
+            health["logger_available"] = True
+        except Exception as e:
+            health["logger_available"] = False
+            health["errors"].append(f"Logger import failed: {str(e)}")
+            health["status"] = "degraded"
+        
+    except Exception as e:
+        health["status"] = "error"
+        health["errors"].append(str(e))
+    
+    return jsonify(health), 200
 
 @app.route("/api/xai/export", methods=["GET"])
 def api_xai_export():

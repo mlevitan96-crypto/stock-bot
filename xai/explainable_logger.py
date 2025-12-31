@@ -25,10 +25,46 @@ class ExplainableLogger:
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
     
     def _append_log(self, record: Dict):
-        """Append record to explainable log"""
-        record["timestamp"] = datetime.now(timezone.utc).isoformat()
-        with open(self.log_file, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(record) + "\n")
+        """Append record to explainable log - HARDENED with error handling"""
+        try:
+            # Ensure directory exists
+            self._ensure_dir()
+            
+            # Add timestamp if missing
+            if "timestamp" not in record:
+                record["timestamp"] = datetime.now(timezone.utc).isoformat()
+            
+            # Validate required fields
+            if record.get("type") in ("trade_entry", "trade_exit"):
+                if not record.get("symbol"):
+                    print(f"[XAI] WARNING: Missing symbol in {record.get('type')} log", flush=True)
+                if not record.get("why"):
+                    print(f"[XAI] WARNING: Missing 'why' explanation in {record.get('type')} log", flush=True)
+            
+            # Write with retry logic
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    with open(self.log_file, 'a', encoding='utf-8') as f:
+                        f.write(json.dumps(record) + "\n")
+                        f.flush()  # Ensure immediate write
+                    return  # Success
+                except (IOError, OSError) as e:
+                    if attempt < max_retries - 1:
+                        import time
+                        time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+                        continue
+                    else:
+                        # Final attempt failed - log to stderr as fallback
+                        print(f"[XAI] CRITICAL: Failed to write log after {max_retries} attempts: {e}", flush=True)
+                        print(f"[XAI] Fallback log entry: {json.dumps(record)}", flush=True)
+                        raise
+        except Exception as e:
+            # Never fail silently - always log errors
+            print(f"[XAI] ERROR in _append_log: {e}", flush=True)
+            import traceback
+            print(f"[XAI] Traceback: {traceback.format_exc()}", flush=True)
+            # Don't raise - allow execution to continue
     
     def log_trade_entry(self, symbol: str, direction: str, score: float, 
                        components: Dict, regime: str, macro_yield: Optional[float],
@@ -278,26 +314,42 @@ class ExplainableLogger:
         return why_sentence
     
     def get_recent_logs(self, limit: int = 100, log_type: Optional[str] = None) -> List[Dict]:
-        """Get recent explainable logs - sorted by timestamp (newest first)"""
+        """Get recent explainable logs - sorted by timestamp (newest first) - HARDENED"""
         if not self.log_file.exists():
             return []
         
         logs = []
-        with open(self.log_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                if line.strip():
-                    try:
-                        rec = json.loads(line)
-                        if log_type is None or rec.get("type") == log_type:
-                            logs.append(rec)
-                    except:
-                        continue
-        
-        # Sort by timestamp (newest first)
-        logs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-        
-        # Return most recent
-        return logs[:limit]
+        try:
+            with open(self.log_file, 'r', encoding='utf-8') as f:
+                for line_num, line in enumerate(f, 1):
+                    if line.strip():
+                        try:
+                            rec = json.loads(line)
+                            if log_type is None or rec.get("type") == log_type:
+                                logs.append(rec)
+                        except json.JSONDecodeError as e:
+                            # Log but continue - don't fail on corrupt lines
+                            print(f"[XAI] WARNING: JSON decode error at line {line_num}: {e}", flush=True)
+                            continue
+                        except Exception as e:
+                            print(f"[XAI] WARNING: Error parsing line {line_num}: {e}", flush=True)
+                            continue
+            
+            # Sort by timestamp (newest first) with error handling
+            try:
+                logs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+            except Exception as e:
+                print(f"[XAI] WARNING: Error sorting logs: {e}", flush=True)
+                # Return unsorted if sorting fails
+                pass
+            
+            # Return most recent
+            return logs[:limit]
+        except Exception as e:
+            print(f"[XAI] ERROR in get_recent_logs: {e}", flush=True)
+            import traceback
+            print(f"[XAI] Traceback: {traceback.format_exc()}", flush=True)
+            return []  # Return empty list on error
     
     def get_trade_explanations(self, symbol: Optional[str] = None, limit: int = 50) -> List[Dict]:
         """Get trade explanations (entries and exits) - filters out test symbols"""
