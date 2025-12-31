@@ -99,12 +99,10 @@ class AlpacaHistoricalDataClient:
         Initialize Alpaca API client for historical data.
         Uses same credential loading pattern as main.py (Config.ALPACA_KEY/ALPACA_SECRET).
         """
-        # Get credentials from environment (same pattern as main.py - uses get_env helper)
-        # Import get_env from config.registry (same as main.py uses)
-        from config.registry import get_env
-        
-        self.api_key = api_key or get_env("ALPACA_KEY") or get_env("ALPACA_API_KEY", "")
-        self.api_secret = api_secret or get_env("ALPACA_SECRET") or get_env("ALPACA_API_SECRET", "")
+        # Get credentials from environment (same pattern as main.py)
+        # Use os.getenv directly since we've already loaded .env via load_dotenv() at module level
+        self.api_key = api_key or os.getenv("ALPACA_KEY") or os.getenv("ALPACA_API_KEY", "")
+        self.api_secret = api_secret or os.getenv("ALPACA_SECRET") or os.getenv("ALPACA_API_SECRET", "")
         
         # Use data API base URL (https://data.alpaca.markets) for historical data
         self.base_url = APIConfig.ALPACA_DATA_URL  # https://data.alpaca.markets
