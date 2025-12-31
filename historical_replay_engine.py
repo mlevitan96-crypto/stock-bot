@@ -97,13 +97,39 @@ class AlpacaHistoricalDataClient:
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
         """
         Initialize Alpaca API client for historical data.
-        Uses APIConfig from registry per memory bank standards.
+        Uses alpaca_trade_api library like the bot does (per counterfactual_analyzer.py pattern).
         """
-        # Use APIConfig from registry (per memory bank - centralized config)
+        # Use alpaca_trade_api library (same as bot uses - per memory bank)
+        try:
+            import alpaca_trade_api as tradeapi
+            self.tradeapi = tradeapi
+        except ImportError:
+            self.tradeapi = None
+            print("[WARNING] alpaca_trade_api not available - will use REST API directly")
+        
+        # Get credentials from environment (loaded via load_dotenv() above)
         headers = APIConfig.get_alpaca_headers()
-        self.api_key = api_key or headers.get("APCA-API-KEY-ID", "")
-        self.api_secret = api_secret or headers.get("APCA-API-SECRET-KEY", "")
-        self.base_url = APIConfig.ALPACA_DATA_URL  # Use data API endpoint
+        self.api_key = api_key or headers.get("APCA-API-KEY-ID", "") or os.getenv("ALPACA_KEY", "")
+        self.api_secret = api_secret or headers.get("APCA-API-SECRET-KEY", "") or os.getenv("ALPACA_SECRET", "")
+        self.base_url = APIConfig.ALPACA_BASE_URL  # Trading API base URL
+        self.data_url = APIConfig.ALPACA_DATA_URL  # Data API base URL
+        
+        # Initialize REST API client if available
+        if self.tradeapi and self.api_key and self.api_secret:
+            try:
+                self.api = self.tradeapi.REST(
+                    self.api_key,
+                    self.api_secret,
+                    self.base_url,
+                    api_version='v2'
+                )
+            except Exception as e:
+                print(f"[WARNING] Failed to initialize Alpaca REST client: {e}")
+                self.api = None
+        else:
+            self.api = None
+        
+        # Also keep REST headers for direct API calls if needed
         self.headers = {
             "APCA-API-KEY-ID": self.api_key,
             "APCA-API-SECRET-KEY": self.api_secret
