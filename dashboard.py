@@ -1730,6 +1730,26 @@ def api_xai_auditor():
             except Exception as fallback_e:
                 errors.append(f"Fallback also failed: {str(fallback_e)}")
         
+        # Normalize regime field for all trades (extract from top-level or context)
+        for trade in trades:
+            # Regime might be at top level (from XAI logs) or in context.market_regime (from attribution logs)
+            regime = trade.get("regime")
+            if not regime or regime == "unknown" or regime == "":
+                # Try to extract from context
+                context = trade.get("context", {})
+                if isinstance(context, dict):
+                    market_regime = context.get("market_regime")
+                    if market_regime and market_regime != "unknown" and market_regime != "":
+                        trade["regime"] = market_regime
+                    else:
+                        trade["regime"] = "unknown"
+                else:
+                    # If still not found, default to "unknown" (frontend will show "N/A")
+                    trade["regime"] = "unknown"
+            # Ensure regime is always a string
+            if not isinstance(trade.get("regime"), str):
+                trade["regime"] = "unknown"
+        
         # Get weights with error handling
         try:
             weights = explainable.get_weight_explanations(limit=100)
