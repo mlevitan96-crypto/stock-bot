@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-26 (UW API Endpoints Verified - All Correct Per Official Docs)  
+**Last Updated:** 2025-12-26 (Dashboard Regime Display Fix - Normalize regime field from XAI logs and attribution context)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ## ✅ UW API ENDPOINTS - VERIFIED AND DOCUMENTED
