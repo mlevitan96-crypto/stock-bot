@@ -1423,6 +1423,24 @@ tail -50 logs/supervisor.jsonl | grep -i error
 - `DEPLOY_OVERFITTING_FIXES.md`: Deployment guide
 - `LEARNING_SYSTEM_COMPLETE.md`: Complete learning system overview
 
+### 2025-12-26: Dashboard Regime Display Fix
+
+1. **Regime Field Normalization**: Fixed regime display in XAI Auditor tab showing "N/A"
+   - **Problem**: Regime field was missing or not normalized in `/api/xai/auditor` endpoint
+   - **Root Cause**: Regime stored in different locations:
+     - XAI logs: `regime` at top level
+     - Attribution logs: `context.market_regime` nested
+   - **Fix Applied**: Added normalization logic in `dashboard.py` `/api/xai/auditor` endpoint:
+     - Extracts regime from top-level `regime` field (XAI logs)
+     - Falls back to `context.market_regime` (attribution logs)
+     - Ensures regime is always a string
+     - Defaults to "unknown" if missing (frontend shows "N/A")
+   - **Status**: ✅ Fixed and deployed to git
+   - **Commit**: `eec5850 Fix regime display on dashboard - normalize regime field from XAI logs and attribution context`
+
+**Files Modified:**
+- `dashboard.py` (lines 1733-1751): Added regime normalization logic
+
 ### 2025-12-19: Learning Pipeline Verification
 
 1. **SRE Monitoring Freshness**: Fixed `data_freshness_sec` always being null
