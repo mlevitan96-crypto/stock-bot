@@ -705,7 +705,7 @@ DASHBOARD_HTML = """
                             <td class="symbol">${trade.symbol}</td>
                             <td>${trade.type || 'N/A'}</td>
                             <td style="max-width: 400px; word-wrap: break-word;">${trade.why || 'N/A'}</td>
-                            <td>${trade.regime && trade.regime !== 'unknown' ? trade.regime.toUpperCase() : 'N/A'}</td>
+                            <td>${trade.regime && trade.regime !== 'unknown' && trade.regime !== '' ? trade.regime.toUpperCase() : 'NEUTRAL'}</td>
                             <td class="${pnlClass}">${pnl !== null && pnl !== undefined ? (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%' : 'N/A'}</td>
                         </tr>
                     `;
@@ -1706,7 +1706,7 @@ def api_xai_auditor():
         
         # Get trades with error handling
         try:
-            trades = explainable.get_trade_explanations(limit=100)
+            trades = explainable.get_trade_explanations(limit=500)  # Increased limit to show more trades
         except Exception as e:
             errors.append(f"Failed to get trade explanations: {str(e)}")
             # Fallback: Try reading directly from log file
@@ -1726,7 +1726,12 @@ def api_xai_auditor():
                                             trades.append(rec)
                                 except:
                                     continue
-                    trades = trades[:100]  # Limit
+                    # Sort by timestamp (newest first)
+                    try:
+                        trades.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+                    except:
+                        pass
+                    trades = trades[:500]  # Increased limit
             except Exception as fallback_e:
                 errors.append(f"Fallback also failed: {str(fallback_e)}")
         
@@ -1734,21 +1739,41 @@ def api_xai_auditor():
         for trade in trades:
             # Regime might be at top level (from XAI logs) or in context.market_regime (from attribution logs)
             regime = trade.get("regime")
+            
+            # If regime is missing or "unknown", try to get from context
             if not regime or regime == "unknown" or regime == "":
-                # Try to extract from context
                 context = trade.get("context", {})
                 if isinstance(context, dict):
                     market_regime = context.get("market_regime")
                     if market_regime and market_regime != "unknown" and market_regime != "":
-                        trade["regime"] = market_regime
+                        regime = market_regime
                     else:
-                        trade["regime"] = "unknown"
+                        regime = None  # Will default below
                 else:
-                    # If still not found, default to "unknown" (frontend will show "N/A")
-                    trade["regime"] = "unknown"
+                    regime = None
+            
+            # Normalize regime value - convert common variations
+            if regime:
+                regime_upper = str(regime).upper()
+                # Map common regime names
+                if regime_upper in ["RISK_ON", "BULL", "BULLISH"]:
+                    trade["regime"] = "RISK_ON"
+                elif regime_upper in ["RISK_OFF", "BEAR", "BEARISH"]:
+                    trade["regime"] = "RISK_OFF"
+                elif regime_upper in ["NEUTRAL", "MIXED"]:
+                    trade["regime"] = "NEUTRAL"
+                elif regime_upper in ["PANIC", "HIGH_VOL"]:
+                    trade["regime"] = "PANIC"
+                else:
+                    # Keep original if it's a valid regime name
+                    trade["regime"] = regime_upper if regime_upper in ["RISK_ON", "RISK_OFF", "NEUTRAL", "PANIC"] else "NEUTRAL"
+            else:
+                # Default to NEUTRAL instead of unknown (frontend will show NEUTRAL instead of N/A)
+                trade["regime"] = "NEUTRAL"
+            
             # Ensure regime is always a string
             if not isinstance(trade.get("regime"), str):
-                trade["regime"] = "unknown"
+                trade["regime"] = "NEUTRAL"
         
         # Get weights with error handling
         try:

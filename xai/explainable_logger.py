@@ -353,7 +353,8 @@ class ExplainableLogger:
     
     def get_trade_explanations(self, symbol: Optional[str] = None, limit: int = 50) -> List[Dict]:
         """Get trade explanations (entries and exits) - filters out test symbols"""
-        logs = self.get_recent_logs(limit * 2)
+        # Get more logs to ensure we have enough after filtering
+        logs = self.get_recent_logs(limit * 4)  # Increased multiplier to get more logs
         trade_logs = [log for log in logs if log.get("type") in ("trade_entry", "trade_exit")]
         
         # CRITICAL: Filter out test symbols (TEST, FAKE, etc.)
@@ -361,6 +362,12 @@ class ExplainableLogger:
         
         if symbol:
             trade_logs = [log for log in trade_logs if log.get("symbol") == symbol]
+        
+        # Ensure sorted by timestamp (newest first) - get_recent_logs should already do this, but double-check
+        try:
+            trade_logs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        except:
+            pass  # If sorting fails, return as-is
         
         return trade_logs[:limit]
     

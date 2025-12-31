@@ -1122,8 +1122,19 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
             from xai.explainable_logger import get_explainable_logger
             explainable = get_explainable_logger()
             
-            # Get regime
+            # Get regime - try current regime detector first, then fall back to stored
             regime_name = context.get("market_regime", "unknown")
+            if not regime_name or regime_name == "unknown":
+                try:
+                    from structural_intelligence.regime_detector import get_current_regime
+                    current_regime, _ = get_current_regime()
+                    if current_regime and current_regime != "unknown":
+                        regime_name = current_regime
+                except:
+                    pass
+            # Final fallback
+            if not regime_name or regime_name == "unknown":
+                regime_name = "NEUTRAL"  # Default to NEUTRAL instead of unknown
             
             # Get gamma walls at exit
             gamma_walls = None
