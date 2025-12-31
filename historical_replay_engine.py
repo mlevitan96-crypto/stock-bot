@@ -97,43 +97,33 @@ class AlpacaHistoricalDataClient:
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
         """
         Initialize Alpaca API client for historical data.
-        Uses alpaca_trade_api library like the bot does (per counterfactual_analyzer.py pattern).
+        Uses same credential loading pattern as main.py (Config.ALPACA_KEY/ALPACA_SECRET).
         """
-        # Use alpaca_trade_api library (same as bot uses - per memory bank)
-        try:
-            import alpaca_trade_api as tradeapi
-            self.tradeapi = tradeapi
-        except ImportError:
-            self.tradeapi = None
-            print("[WARNING] alpaca_trade_api not available - will use REST API directly")
+        # Get credentials from environment (same pattern as main.py)
+        # Load from environment variables (ALPACA_KEY or ALPACA_API_KEY, ALPACA_SECRET or ALPACA_API_SECRET)
+        self.api_key = api_key or os.getenv("ALPACA_KEY") or os.getenv("ALPACA_API_KEY", "")
+        self.api_secret = api_secret or os.getenv("ALPACA_SECRET") or os.getenv("ALPACA_API_SECRET", "")
         
-        # Get credentials from environment (loaded via load_dotenv() above)
-        headers = APIConfig.get_alpaca_headers()
-        self.api_key = api_key or headers.get("APCA-API-KEY-ID", "") or os.getenv("ALPACA_KEY", "")
-        self.api_secret = api_secret or headers.get("APCA-API-SECRET-KEY", "") or os.getenv("ALPACA_SECRET", "")
-        self.base_url = APIConfig.ALPACA_BASE_URL  # Trading API base URL
-        self.data_url = APIConfig.ALPACA_DATA_URL  # Data API base URL
+        # Use data API base URL (https://data.alpaca.markets) for historical data
+        self.base_url = APIConfig.ALPACA_DATA_URL  # https://data.alpaca.markets
         
-        # Initialize REST API client if available
-        if self.tradeapi and self.api_key and self.api_secret:
-            try:
-                self.api = self.tradeapi.REST(
-                    self.api_key,
-                    self.api_secret,
-                    self.base_url,
-                    api_version='v2'
-                )
-            except Exception as e:
-                print(f"[WARNING] Failed to initialize Alpaca REST client: {e}")
-                self.api = None
-        else:
-            self.api = None
-        
-        # Also keep REST headers for direct API calls if needed
+        # Headers for REST API calls (required format per Alpaca docs)
         self.headers = {
             "APCA-API-KEY-ID": self.api_key,
             "APCA-API-SECRET-KEY": self.api_secret
         }
+        
+        # Verify credentials are loaded
+        if not self.api_key or not self.api_secret:
+            print(f"[ERROR] Alpaca API credentials not found. Check .env file for ALPACA_KEY and ALPACA_SECRET")
+            print(f"[ERROR] API Key present: {bool(self.api_key)}, Secret present: {bool(self.api_secret)}")
+            print(f"[ERROR] Headers: {list(self.headers.keys())}")
+        else:
+            # Verify headers are correct format
+            if len(self.api_key) < 10 or len(self.api_secret) < 10:
+                print(f"[WARNING] API credentials seem invalid (too short)")
+            else:
+                print(f"[INFO] Alpaca credentials loaded successfully (key length: {len(self.api_key)}, secret length: {len(self.api_secret)})")
         
     def get_historical_trades(
         self, 
