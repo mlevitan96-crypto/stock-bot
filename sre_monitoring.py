@@ -624,32 +624,34 @@ class SREMonitoringEngine:
             "overall_health": "unknown"
         }
         
-        # Check UW API endpoints
-        uw_health = self.check_uw_api_health()
-        # Check if daemon is running
+        # Check if daemon is running FIRST (before checking endpoints)
         daemon_running = False
         try:
             result_check = subprocess.run(["pgrep", "-f", "uw_flow_daemon"], capture_output=True, timeout=2)
-            daemon_running = result_check.returncode == 0 and result_check.stdout.strip() != ""
+            daemon_running = result_check.returncode == 0 and bool(result_check.stdout.strip())
         except:
             pass
         
         if not daemon_running:
             try:
                 result_check = subprocess.run(["pgrep", "-f", "uw_integration_full"], capture_output=True, timeout=2)
-                daemon_running = result_check.returncode == 0 and result_check.stdout.strip() != ""
+                daemon_running = result_check.returncode == 0 and bool(result_check.stdout.strip())
             except:
                 pass
         
+        # Check UW API endpoints
+        uw_health = self.check_uw_api_health()
+        
+        # Override status if daemon is running but endpoint check says not running
         result["uw_api_endpoints"] = {
             name: {
                 "endpoint": h.endpoint,  # Include the actual endpoint URL
-                "status": h.status if (h.status != "daemon_not_running" or daemon_running) else "daemon_not_running",  # Fix status if daemon is running
+                "status": "healthy" if daemon_running and h.status == "daemon_not_running" else h.status,  # Fix status if daemon is actually running
                 "error_rate_1h": h.error_rate_1h,
                 "avg_latency_ms": h.avg_latency_ms,
                 "rate_limit_remaining": h.rate_limit_remaining,
                 "last_success_age_sec": h.last_success_age_sec,
-                "last_error": h.last_error if (h.status != "daemon_not_running" or not daemon_running) else None,  # Clear error if daemon is running
+                "last_error": None if daemon_running and h.status == "daemon_not_running" else h.last_error,  # Clear error if daemon is running
                 "daemon_status": "running" if daemon_running else "not_running"  # Add daemon status
             }
             for name, h in uw_health.items()
