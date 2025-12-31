@@ -127,6 +127,12 @@ class SREMonitoringEngine:
             health.last_error = "UW daemon process not running (checked: uw_flow_daemon, uw_integration_full) - endpoints cannot be fresh"
             return health
         
+        # Daemon is running - ensure status reflects this
+        # If status was set to "daemon_not_running" earlier but daemon is now running, fix it
+        if health.status == "daemon_not_running":
+            health.status = "healthy"  # Daemon is running, so endpoints should be healthy
+            health.last_error = None
+        
         # Check cache freshness - if cache is fresh, endpoints are working
         cache_file = DATA_DIR / "uw_flow_cache.json"
         if cache_file.exists():
@@ -624,26 +630,26 @@ class SREMonitoringEngine:
         daemon_running = False
         try:
             result_check = subprocess.run(["pgrep", "-f", "uw_flow_daemon"], capture_output=True, timeout=2)
-            daemon_running = result_check.returncode == 0
+            daemon_running = result_check.returncode == 0 and result_check.stdout.strip() != ""
         except:
             pass
         
         if not daemon_running:
             try:
                 result_check = subprocess.run(["pgrep", "-f", "uw_integration_full"], capture_output=True, timeout=2)
-                daemon_running = result_check.returncode == 0
+                daemon_running = result_check.returncode == 0 and result_check.stdout.strip() != ""
             except:
                 pass
         
         result["uw_api_endpoints"] = {
             name: {
                 "endpoint": h.endpoint,  # Include the actual endpoint URL
-                "status": h.status,
+                "status": h.status if (h.status != "daemon_not_running" or daemon_running) else "daemon_not_running",  # Fix status if daemon is running
                 "error_rate_1h": h.error_rate_1h,
                 "avg_latency_ms": h.avg_latency_ms,
                 "rate_limit_remaining": h.rate_limit_remaining,
                 "last_success_age_sec": h.last_success_age_sec,
-                "last_error": h.last_error,
+                "last_error": h.last_error if (h.status != "daemon_not_running" or not daemon_running) else None,  # Clear error if daemon is running
                 "daemon_status": "running" if daemon_running else "not_running"  # Add daemon status
             }
             for name, h in uw_health.items()
