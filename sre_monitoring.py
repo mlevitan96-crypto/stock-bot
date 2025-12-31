@@ -118,7 +118,7 @@ class SREMonitoringEngine:
         if not daemon_running:
             try:
                 result = subprocess.run(["pgrep", "-f", "uw_integration_full"], capture_output=True, timeout=2)
-                daemon_running = result.returncode == 0
+                daemon_running = result.returncode == 0 and bool(result.stdout.strip())
             except:
                 pass
         
