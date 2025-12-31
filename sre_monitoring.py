@@ -656,7 +656,6 @@ class SREMonitoringEngine:
                 "last_success_age_sec": h.last_success_age_sec,
                 "last_error": None if daemon_running and h.status == "daemon_not_running" else h.last_error,  # Clear error if daemon is running
                 "daemon_status": daemon_status_value  # CRITICAL: Use the stored value, not re-evaluated expression
-                "daemon_status": "running" if daemon_running else "not_running",  # CRITICAL: Set based on actual daemon check
             }
             for name, h in uw_health.items()
         }
