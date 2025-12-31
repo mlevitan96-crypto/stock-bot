@@ -620,6 +620,21 @@ class SREMonitoringEngine:
         
         # Check UW API endpoints
         uw_health = self.check_uw_api_health()
+        # Check if daemon is running
+        daemon_running = False
+        try:
+            result_check = subprocess.run(["pgrep", "-f", "uw_flow_daemon"], capture_output=True, timeout=2)
+            daemon_running = result_check.returncode == 0
+        except:
+            pass
+        
+        if not daemon_running:
+            try:
+                result_check = subprocess.run(["pgrep", "-f", "uw_integration_full"], capture_output=True, timeout=2)
+                daemon_running = result_check.returncode == 0
+            except:
+                pass
+        
         result["uw_api_endpoints"] = {
             name: {
                 "endpoint": h.endpoint,  # Include the actual endpoint URL
@@ -628,7 +643,8 @@ class SREMonitoringEngine:
                 "avg_latency_ms": h.avg_latency_ms,
                 "rate_limit_remaining": h.rate_limit_remaining,
                 "last_success_age_sec": h.last_success_age_sec,
-                "last_error": h.last_error
+                "last_error": h.last_error,
+                "daemon_status": "running" if daemon_running else "not_running"  # Add daemon status
             }
             for name, h in uw_health.items()
         }
