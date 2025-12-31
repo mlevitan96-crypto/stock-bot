@@ -134,61 +134,38 @@ class AlpacaHistoricalDataClient:
     ) -> List[Dict[str, Any]]:
         """
         Fetch historical trade data (tick-level) from Alpaca API v2.
+        Uses alpaca_trade_api library for authentication (same as bot).
         
-        Args:
-            symbol: Stock symbol
-            start: Start timestamp (UTC)
-            end: End timestamp (UTC)
-            limit: Maximum number of trades to return
-            
-        Returns:
-            List of trade records with fields: t (timestamp), p (price), s (size), etc.
+        Note: Alpaca's Data API may require a subscription. Falls back to bars if unavailable.
         """
-        url = f"{self.base_url}/v2/stocks/{symbol}/trades"
-        
-        # Format timestamps in RFC-3339 format
-        start_str = start.strftime("%Y-%m-%dT%H:%M:%S-00:00")
-        end_str = end.strftime("%Y-%m-%dT%H:%M:%S-00:00")
-        
-        params = {
-            "start": start_str,
-            "end": end_str,
-            "limit": limit
-        }
-        
-        all_trades = []
-        page_token = None
-        
+        # Try using alpaca_trade_api library first (same auth as bot)
         try:
-            while True:
-                if page_token:
-                    params["page_token"] = page_token
-                
-                response = requests.get(url, headers=self.headers, params=params, timeout=30)
-                response.raise_for_status()
-                
-                data = response.json()
-                trades = data.get("trades", [])
-                all_trades.extend(trades)
-                
-                # Check for pagination
-                page_token = data.get("next_page_token")
-                if not page_token or len(trades) == 0:
-                    break
-                    
-                # Respect limit
-                if len(all_trades) >= limit:
-                    all_trades = all_trades[:limit]
-                    break
-                    
-                # Rate limiting: small delay between pages
-                time.sleep(0.1)
-                
-        except requests.exceptions.RequestException as e:
-            print(f"[WARNING] Failed to fetch trades for {symbol}: {e}")
-            return []
+            import alpaca_trade_api as tradeapi
             
-        return all_trades
+            # Initialize API client with same credentials as bot
+            if not self.api_key or not self.api_secret:
+                return []
+            
+            # Use trading API endpoint (paper-api.alpaca.markets) - it has access to data too
+            trading_base_url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+            api = tradeapi.REST(self.api_key, self.api_secret, trading_base_url, api_version='v2')
+            
+            # Try to get trades via the API
+            # Note: get_trades() may not be available in all versions, so we fall back to bars
+            try:
+                trades = api.get_trades(symbol, start=start.isoformat(), end=end.isoformat(), limit=limit)
+                if trades:
+                    return [{"t": t.t.isoformat(), "p": float(t.price), "s": int(t.size)} for t in trades]
+            except (AttributeError, TypeError):
+                # get_trades() not available, will fall back to bars
+                pass
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"[WARNING] Failed to fetch trades via alpaca_trade_api for {symbol}: {e}")
+        
+        # Fallback: Return empty list (will use bars instead)
+        return []
     
     def get_historical_bars(
         self,
@@ -199,8 +176,8 @@ class AlpacaHistoricalDataClient:
         limit: int = 10000
     ) -> List[Dict[str, Any]]:
         """
-        Fetch historical bar data from Alpaca API v2.
-        Falls back to bars if tick data is not available.
+        Fetch historical bar data from Alpaca API.
+        Uses alpaca_trade_api library (same as bot) for proper authentication.
         
         Args:
             symbol: Stock symbol
@@ -210,50 +187,51 @@ class AlpacaHistoricalDataClient:
             limit: Maximum number of bars
             
         Returns:
-            List of bar records
+            List of bar records with fields: t (timestamp), o, h, l, c (OHLC), v (volume)
         """
-        url = f"{self.base_url}/v2/stocks/{symbol}/bars"
-        
-        start_str = start.strftime("%Y-%m-%dT%H:%M:%S-00:00")
-        end_str = end.strftime("%Y-%m-%dT%H:%M:%S-00:00")
-        
-        params = {
-            "start": start_str,
-            "end": end_str,
-            "timeframe": timeframe,
-            "limit": limit
-        }
-        
-        all_bars = []
-        page_token = None
-        
+        # Use alpaca_trade_api library (same authentication pattern as bot)
         try:
-            while True:
-                if page_token:
-                    params["page_token"] = page_token
-                
-                response = requests.get(url, headers=self.headers, params=params, timeout=30)
-                response.raise_for_status()
-                
-                data = response.json()
-                bars = data.get("bars", [])
-                all_bars.extend(bars)
-                
-                page_token = data.get("next_page_token")
-                if not page_token or len(bars) == 0:
-                    break
-                    
-                if len(all_bars) >= limit:
-                    all_bars = all_bars[:limit]
-                    break
-                    
-                time.sleep(0.1)
-                
-        except requests.exceptions.RequestException as e:
-            print(f"[WARNING] Failed to fetch bars for {symbol}: {e}")
-            return []
+            import alpaca_trade_api as tradeapi
             
-        return all_bars
+            if not self.api_key or not self.api_secret:
+                return []
+            
+            # Use trading API endpoint - it provides access to historical data
+            trading_base_url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+            api = tradeapi.REST(self.api_key, self.api_secret, trading_base_url, api_version='v2')
+            
+            # Get bars using the SDK (handles authentication automatically)
+            bars = api.get_bars(
+                symbol,
+                timeframe,
+                start=start.isoformat(),
+                end=end.isoformat(),
+                limit=limit
+            ).df
+            
+            if bars.empty:
+                return []
+            
+            # Convert DataFrame to list of dicts
+            result = []
+            for idx, row in bars.iterrows():
+                result.append({
+                    "t": idx.isoformat() if hasattr(idx, 'isoformat') else str(idx),
+                    "o": float(row['open']),
+                    "h": float(row['high']),
+                    "l": float(row['low']),
+                    "c": float(row['close']),
+                    "v": int(row['volume'])
+                })
+            
+            return result
+            
+        except ImportError:
+            print("[WARNING] alpaca_trade_api not available - cannot fetch historical data")
+            return []
+        except Exception as e:
+            print(f"[WARNING] Failed to fetch bars for {symbol} via alpaca_trade_api: {e}")
+            return []
     
     def get_price_at_time(
         self,
@@ -263,7 +241,7 @@ class AlpacaHistoricalDataClient:
     ) -> Optional[float]:
         """
         Get the best available price at a specific time.
-        Uses tick data if available, otherwise falls back to bar data.
+        Uses 1-minute bars (most reliable with alpaca_trade_api).
         
         Args:
             symbol: Stock symbol
@@ -276,40 +254,46 @@ class AlpacaHistoricalDataClient:
         start = target_time - timedelta(minutes=window_minutes)
         end = target_time + timedelta(minutes=window_minutes)
         
-        # Try tick-level trades first
-        trades = self.get_historical_trades(symbol, start, end, limit=1000)
-        
-        if trades:
-            # Find closest trade to target time
-            target_ts = target_time.timestamp()
-            closest_trade = min(
-                trades,
-                key=lambda t: abs(
-                    datetime.fromisoformat(t["t"].replace("Z", "+00:00")).timestamp() - target_ts
-                )
-            )
-            return float(closest_trade["p"])
-        
-        # Fall back to 1-minute bars
+        # Use 1-minute bars (most reliable via alpaca_trade_api)
         bars = self.get_historical_bars(symbol, start, end, timeframe="1Min", limit=100)
         
         if bars:
-            # Find bar that contains target time
-            for bar in bars:
-                bar_time = datetime.fromisoformat(bar["t"].replace("Z", "+00:00"))
-                if bar_time <= target_time < bar_time + timedelta(minutes=1):
-                    # Use close price of the bar
-                    return float(bar["c"])
-            
-            # If no exact match, use closest bar
+            # Find bar that contains target time or closest bar
             target_ts = target_time.timestamp()
-            closest_bar = min(
-                bars,
-                key=lambda b: abs(
-                    datetime.fromisoformat(b["t"].replace("Z", "+00:00")).timestamp() - target_ts
-                )
-            )
-            return float(closest_bar["c"])
+            best_bar = None
+            min_diff = float('inf')
+            
+            for bar in bars:
+                try:
+                    # Parse timestamp
+                    bar_time_str = bar["t"]
+                    if isinstance(bar_time_str, str):
+                        if bar_time_str.endswith("Z"):
+                            bar_time_str = bar_time_str.replace("Z", "+00:00")
+                        bar_time = datetime.fromisoformat(bar_time_str)
+                    else:
+                        continue
+                    
+                    # Convert to timestamp if needed
+                    if bar_time.tzinfo is None:
+                        bar_time = bar_time.replace(tzinfo=timezone.utc)
+                    
+                    bar_ts = bar_time.timestamp()
+                    diff = abs(bar_ts - target_ts)
+                    
+                    # Prefer bar at or before target time
+                    if bar_time <= target_time and diff < min_diff:
+                        min_diff = diff
+                        best_bar = bar
+                    elif best_bar is None and diff < min_diff:
+                        # Fallback: use closest bar if no bar before target
+                        min_diff = diff
+                        best_bar = bar
+                except Exception:
+                    continue
+            
+            if best_bar:
+                return float(best_bar["c"])  # Use close price
         
         return None
 
