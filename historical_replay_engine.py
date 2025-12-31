@@ -25,11 +25,23 @@ from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
 
 # Load environment variables from .env file (per memory bank - bot uses load_dotenv)
+# CRITICAL: Must load .env BEFORE importing config.registry
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    from pathlib import Path
+    # Try multiple .env locations (current dir, project root)
+    env_paths = [Path(".env"), Path(__file__).parent / ".env", Path(__file__).parent.parent / ".env"]
+    for env_path in env_paths:
+        if env_path.exists():
+            load_dotenv(dotenv_path=env_path, override=False)
+            break
+    else:
+        # Fallback: try default location
+        load_dotenv(override=False)
 except ImportError:
     pass  # dotenv not available, will use environment variables directly
+except Exception as e:
+    print(f"[WARNING] Could not load .env file: {e}")
 
 try:
     import pytz
