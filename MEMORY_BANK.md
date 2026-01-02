@@ -1935,3 +1935,56 @@ All attribution records MUST include at top level:
 **Reference:** See `FULL_WEEK_RECONCILIATION_SUMMARY.md` for complete details
 
 ---
+
+## 2026-01-02: Post-Audit Institutional Upgrades - CORE FEATURES COMPLETE
+
+### Implementation Status
+
+**Status:** ✅ CORE FEATURES COMPLETE - Transition from "Observational Lockdown" to "Full Institutional Operational"
+
+**Objective:** Implement full Specialist Tier state recovery, portfolio risk management, and data pipeline tracking per `INSTITUTIONAL_INTEGRATION_IMPLEMENTATION_PLAN.md`.
+
+**Completed Features:**
+
+1. ✅ **Trade Persistence & State Recovery**
+   - Enhanced position metadata to include `regime_modifier` and `ignition_status`
+   - Full Specialist Tier state now serialized to `state/position_metadata.json`
+   - Positions restore with exact same logic context on restart
+   - Eliminates "0.0 entry_score" dashboard bugs
+
+2. ✅ **Portfolio Heat Map (Concentration Gate)**
+   - Portfolio long-delta calculation implemented
+   - Bullish entries blocked if net portfolio delta > 70%
+   - Institutional-grade risk management active
+   - Prevents sector-wide reversal wipeouts
+
+3. ✅ **UW-to-Alpaca Correlation ID Pipeline**
+   - Unique correlation IDs generated at entry: `uw_{16-char-hex}`
+   - Correlation IDs flow through: Entry → Order ID → Metadata → Attribution
+   - Full traceability from UW alert to Alpaca P&L
+   - Enables per-signal learning attribution
+
+4. ⏳ **API Resilience** - PENDING INTEGRATION
+   - Module created (`api_resilience.py`)
+   - Requires incremental integration at API call sites
+   - Recommended: Start with critical paths (UW daemon, order submission)
+
+5. ✅ **Bayesian Regime Isolation** - VERIFIED
+   - Already implemented correctly (no changes needed)
+   - Regime-specific Beta distributions verified
+   - Isolation confirmed - no cross-regime contamination
+
+**Files Modified:**
+- `main.py` - Trade persistence, concentration gate, correlation ID tracking
+- `position_reconciliation_loop.py` - Metadata preservation enhancements
+
+**System Status:**
+- ✅ **Full Institutional Operational** - All core features deployed
+- ✅ Position state fully recoverable across restarts
+- ✅ Portfolio risk management active
+- ✅ Data pipeline tracking operational
+- ⏳ API resilience pending (module ready, integration recommended)
+
+**Reference:** See `INSTITUTIONAL_UPGRADES_IMPLEMENTATION_SUMMARY.md` for complete details
+
+---

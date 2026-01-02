@@ -351,7 +351,7 @@ class PositionReconcilerV2:
                 
                 # Update metadata if missing or incomplete
                 if symbol not in position_metadata or position_metadata[symbol].get("entry_score", 0.0) == 0.0:
-                    # Try to preserve existing metadata if available
+                    # Try to preserve existing metadata if available (V4.0: Preserve all fields including regime_modifier and ignition_status)
                     existing_meta = position_metadata.get(symbol, {})
                     position_metadata[symbol] = {
                         "entry_ts": existing_meta.get("entry_ts", datetime.utcnow().isoformat() + "Z"),
@@ -362,6 +362,8 @@ class PositionReconcilerV2:
                         "components": existing_meta.get("components", {}),
                         "market_regime": existing_meta.get("market_regime", "unknown"),
                         "direction": existing_meta.get("direction", "unknown"),
+                        "regime_modifier": existing_meta.get("regime_modifier", 1.0),  # V4.0: Preserve regime modifier
+                        "ignition_status": existing_meta.get("ignition_status", "unknown"),  # V4.0: Preserve ignition status
                         "updated_at": datetime.utcnow().isoformat() + "Z",
                         "reconciled": True  # Flag to indicate this was created via reconciliation
                     }

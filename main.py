@@ -1102,6 +1102,9 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
             context["components"] = metadata.get("components", {})
         context["market_regime"] = metadata.get("market_regime", context["market_regime"])
         context["direction"] = metadata.get("direction", context["direction"])
+        # V4.0: Include correlation_id in context for UW-to-Alpaca pipeline tracking
+        if metadata.get("correlation_id"):
+            context["correlation_id"] = metadata.get("correlation_id")
     
     # CRITICAL: Extract stealth_flow_boost_applied from components/notes
     stealth_boost_applied = False
@@ -3645,7 +3648,7 @@ class AlpacaExecutor:
             log_event("displacement", "failed", symbol=symbol, error=str(e))
             return False
 
-    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown"):
+    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown"):
         # VALIDATION: Warn if entry_score is 0.0 (should not happen in normal flow)
         if entry_score <= 0.0:
             print(f"WARNING {symbol}: mark_open called with entry_score={entry_score:.2f} - this may indicate a bug", flush=True)
@@ -3669,6 +3672,8 @@ class AlpacaExecutor:
             "components": components or {},  # V2.0: Store signal components for ML learning
             "market_regime": market_regime,
             "direction": direction,
+            "regime_modifier": regime_modifier,  # V4.0: Store regime multiplier applied to composite score
+            "ignition_status": ignition_status,  # V4.0: Store momentum filter status
         }
         if atr_mult is not None and Config.ENABLE_PER_TICKER_LEARNING:
             atr = compute_atr(self.api, symbol, Config.ATR_LOOKBACK)
@@ -3678,12 +3683,18 @@ class AlpacaExecutor:
         self.high_water[symbol] = entry_price
         self.cooldowns[symbol] = now + timedelta(minutes=Config.COOLDOWN_MINUTES_PER_TICKER)
         
-        self._persist_position_metadata(symbol, entry_ts=now, entry_price=entry_price, qty=qty, side=side, entry_score=entry_score, components=components, market_regime=market_regime, direction=direction)
+        # V4.0: Extract correlation_id from opens dict if available
+        correlation_id = None
+        if symbol in self.opens and "correlation_id" in self.opens[symbol]:
+            correlation_id = self.opens[symbol]["correlation_id"]
+        
+        self._persist_position_metadata(symbol, entry_ts=now, entry_price=entry_price, qty=qty, side=side, entry_score=entry_score, components=components, market_regime=market_regime, direction=direction, regime_modifier=regime_modifier, ignition_status=ignition_status, correlation_id=correlation_id)
     
-    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown"):
+    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None):
         """Persist position metadata to durable file for restart recovery with atomic write.
         
         V2.0: Now stores all 21 signal components for ML learning when trade closes.
+        V4.0: Stores regime_modifier and ignition_status for full Specialist Tier state recovery.
         """
         metadata_path = StateFiles.POSITION_METADATA
         try:
@@ -3699,6 +3710,9 @@ class AlpacaExecutor:
                 "components": components or {},  # V2.0: Store all 21 signal components for ML
                 "market_regime": market_regime,
                 "direction": direction,
+                "regime_modifier": regime_modifier,  # V4.0: Store regime multiplier applied to composite score
+                "ignition_status": ignition_status,  # V4.0: Store momentum filter status
+                "correlation_id": correlation_id,  # V4.0: Store UW-to-Alpaca correlation ID for tracking
                 "updated_at": datetime.utcnow().isoformat()
             }
             
@@ -3772,6 +3786,11 @@ class AlpacaExecutor:
                             self.opens[symbol]["entry_score"] = meta.get("entry_score", 0.0)
                         if "components" not in self.opens[symbol] or not self.opens[symbol]["components"]:
                             self.opens[symbol]["components"] = meta.get("components", {})
+                        # V4.0: Restore regime_modifier and ignition_status
+                        if "regime_modifier" not in self.opens[symbol]:
+                            self.opens[symbol]["regime_modifier"] = meta.get("regime_modifier", 1.0)
+                        if "ignition_status" not in self.opens[symbol]:
+                            self.opens[symbol]["ignition_status"] = meta.get("ignition_status", "unknown")
                         # V3.0: Restore targets from metadata if available
                         if "targets" in meta and meta["targets"]:
                             self.opens[symbol]["targets"] = meta["targets"]
@@ -3796,6 +3815,8 @@ class AlpacaExecutor:
                     components = meta.get("components", {})
                     market_regime = meta.get("market_regime", "unknown")
                     direction = meta.get("direction", "unknown")
+                    regime_modifier = meta.get("regime_modifier", 1.0)  # V4.0: Restore regime modifier
+                    ignition_status = meta.get("ignition_status", "unknown")  # V4.0: Restore ignition status
                     
                     try:
                         entry_ts = datetime.fromisoformat(meta.get("entry_ts", ""))
@@ -3823,6 +3844,8 @@ class AlpacaExecutor:
                         "components": components,  # Restore components from metadata
                         "market_regime": market_regime,
                         "direction": direction,
+                        "regime_modifier": regime_modifier,  # V4.0: Restore regime modifier
+                        "ignition_status": ignition_status,  # V4.0: Restore ignition status
                         "targets": targets_state
                     }
                     self.high_water[symbol] = current_price
@@ -4284,6 +4307,30 @@ class StrategyEngine:
         except Exception:
             pass
         
+        # V4.0: PORTFOLIO CONCENTRATION GATE - Calculate net long-delta exposure
+        net_delta_pct = 0.0
+        try:
+            account = self.executor.api.get_account()
+            account_equity = float(account.equity)
+            
+            # Calculate net portfolio delta (long positions - short positions)
+            net_delta = 0.0
+            for pos in open_positions:
+                qty = float(getattr(pos, "qty", 0))
+                market_value = float(getattr(pos, "market_value", 0))
+                if qty > 0:  # Long position
+                    net_delta += market_value
+                elif qty < 0:  # Short position
+                    net_delta -= abs(market_value)
+            
+            net_delta_pct = (net_delta / account_equity * 100) if account_equity > 0 else 0.0
+            log_event("concentration_gate", "portfolio_delta_calculated", 
+                     net_delta_pct=round(net_delta_pct, 2), net_delta_usd=round(net_delta, 2),
+                     account_equity=round(account_equity, 2))
+        except Exception as conc_error:
+            log_event("concentration_gate", "calculation_error", error=str(conc_error))
+            # Fail open - continue if calculation fails
+        
         # V3.2: Load Bayesian profiles once per cycle
         bayes_profiles = v32.AdaptiveWeighting.load_profiles()
         system_stage = v32.get_system_stage(bayes_profiles)
@@ -4313,6 +4360,19 @@ class StrategyEngine:
             
             if Config.ENABLE_REGIME_GATING and not regime_gate_ticker(prof, market_regime):
                 log_event("gate", "regime_blocked", symbol=symbol, regime=market_regime)
+                continue
+            
+            # V4.0: PORTFOLIO CONCENTRATION GATE - Block bullish entries if >70% long-delta
+            if net_delta_pct > 70.0 and c.get("direction") == "bullish":
+                print(f"DEBUG {symbol}: BLOCKED by concentration_gate - net_delta_pct={net_delta_pct:.2f}% > 70%", flush=True)
+                log_event("gate", "concentration_blocked_bullish",
+                         symbol=symbol, net_delta_pct=round(net_delta_pct, 2),
+                         reason="portfolio_already_70pct_long_delta")
+                log_blocked_trade(symbol, "concentration_gate", score,
+                                 direction=c.get("direction"),
+                                 decision_price=ref_price_check if 'ref_price_check' in locals() else 0.0,
+                                 components=comps if 'comps' in locals() else {},
+                                 net_delta_pct=net_delta_pct)
                 continue
             
             if Config.ENABLE_THEME_RISK:
@@ -4730,8 +4790,9 @@ class StrategyEngine:
                 log_event("risk_management", "exposure_check_error", symbol=symbol, error=str(exp_error))
                 # Continue on error - don't block trading if exposure checks fail
 
-            # MOMENTUM IGNITION FILTER: Check price movement before entry
+                # MOMENTUM IGNITION FILTER: Check price movement before entry
             # Ensures price is actually moving (+0.2% in 2 minutes) before executing Whale signal
+            ignition_status = "unknown"
             try:
                 from momentum_ignition_filter import check_momentum_before_entry
                 momentum_check = check_momentum_before_entry(
@@ -4741,6 +4802,7 @@ class StrategyEngine:
                 )
                 
                 if not momentum_check.get("passed", True):  # Fail open if API unavailable
+                    ignition_status = "blocked"
                     print(f"DEBUG {symbol}: BLOCKED by momentum_ignition_filter - {momentum_check.get('reason', 'no_momentum')}", flush=True)
                     log_event("gate", "momentum_ignition_blocked", symbol=symbol,
                              direction=c.get("direction"),
@@ -4754,13 +4816,16 @@ class StrategyEngine:
                                       reason=momentum_check.get("reason", "unknown"))
                     continue
                 else:
+                    ignition_status = "passed"
                     log_event("gate", "momentum_ignition_passed", symbol=symbol,
                              price_change_pct=momentum_check.get("price_change_pct", 0.0),
                              reason=momentum_check.get("reason", "confirmed"))
             except ImportError:
                 # Momentum filter not available - continue without check (fail open)
+                ignition_status = "not_checked"
                 log_event("gate", "momentum_ignition_unavailable", symbol=symbol)
             except Exception as momentum_error:
+                ignition_status = "error"
                 log_event("gate", "momentum_ignition_error", symbol=symbol, error=str(momentum_error))
                 # Fail open on error - don't block trades due to filter errors
 
@@ -4795,13 +4860,22 @@ class StrategyEngine:
             
             old_mode = Config.ENTRY_MODE
             
-            # Generate idempotency key using risk management function
+            # V4.0: Generate correlation ID for UW-to-Alpaca pipeline tracking
+            import uuid
+            correlation_id = f"uw_{uuid.uuid4().hex[:16]}"  # 16-char hex ID
+            
+            # Generate idempotency key using risk management function, including correlation_id
             try:
                 from risk_management import generate_idempotency_key
                 client_order_id_base = generate_idempotency_key(symbol, side, qty)
+                # Append correlation_id to client_order_id_base for tracking
+                if client_order_id_base and "-" not in correlation_id:
+                    client_order_id_base = f"{client_order_id_base}-{correlation_id}"
             except ImportError:
-                # Fallback to existing method
+                # Fallback to existing method, include correlation_id
                 client_order_id_base = build_client_order_id(symbol, side, c)
+                if client_order_id_base and "-" not in correlation_id:
+                    client_order_id_base = f"{client_order_id_base}-{correlation_id}"
             
             try:
                 
@@ -5012,8 +5086,30 @@ class StrategyEngine:
                                           reason="entry_score must be > 0.0")
                         continue  # Skip this position - don't enter with invalid score
                     
+                    # V4.0: Pass regime_modifier, ignition_status, and correlation_id for full Specialist Tier state recovery
+                    # Store correlation_id in position metadata for attribution tracking
+                    correlation_id_for_metadata = correlation_id if 'correlation_id' in locals() else None
+                    if correlation_id_for_metadata:
+                        # Store correlation_id in opens dict for later use
+                        if symbol not in self.executor.opens:
+                            self.executor.opens[symbol] = {}
+                        self.executor.opens[symbol]["correlation_id"] = correlation_id_for_metadata
+                    
+                    # Call _persist_position_metadata directly to include correlation_id
                     self.executor.mark_open(symbol, exec_price, atr_mult, side, exec_qty, entry_score=score,
-                                            components=comps, market_regime=market_regime, direction=c["direction"])
+                                            components=comps, market_regime=market_regime, direction=c["direction"],
+                                            regime_modifier=regime_modifier, ignition_status=ignition_status)
+                    # Update metadata with correlation_id after mark_open
+                    if correlation_id_for_metadata:
+                        try:
+                            metadata_path = StateFiles.POSITION_METADATA
+                            if metadata_path.exists():
+                                metadata = load_metadata_with_lock(metadata_path)
+                                if symbol in metadata:
+                                    metadata[symbol]["correlation_id"] = correlation_id_for_metadata
+                                    atomic_write_json(metadata_path, metadata)
+                        except Exception as e:
+                            log_event("correlation_id", "metadata_update_failed", symbol=symbol, error=str(e))
                 else:
                     # Order was submitted but not yet filled - reconciliation will handle it
                     # For now, we accept the order submission as successful
