@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2026-01-02 (TSLA Position Entry Score Fix - Complete fix for dashboard display, reconciliation loop, and validation)  
+**Last Updated:** 2026-01-02 (Panic Regime Strategy Fix - Changed from penalizing bullish entries to buy-the-dip strategy)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ## ✅ UW API ENDPOINTS - VERIFIED AND DOCUMENTED
@@ -1422,6 +1422,31 @@ tail -50 logs/supervisor.jsonl | grep -i error
 - `LEARNING_SCHEDULE_AND_PROFITABILITY.md`: Learning schedule and profitability tracking
 - `DEPLOY_OVERFITTING_FIXES.md`: Deployment guide
 - `LEARNING_SYSTEM_COMPLETE.md`: Complete learning system overview
+
+### 2026-01-02: Panic Regime Trading Strategy Fix
+
+1. **Buy the Dip Strategy in Panic Regimes**: Fixed panic regime logic to allow bullish entries
+   - **Problem**: Panic regime was heavily penalizing bullish entries (0.5x multiplier = cuts score in half)
+   - **User Observation**: "The last exits show the market regime in panic. Shouldn't that lend itself to entering positions and making some money?"
+   - **Root Cause**: `structural_intelligence/regime_detector.py` had conservative logic that penalized bullish signals in panic
+   - **Fix Applied**: Changed panic regime multiplier from 0.5x/1.2x to 1.2x/0.9x (buy the dip strategy)
+     - **Before**: Bullish signals in PANIC: 0.5x multiplier (heavily penalized)
+     - **After**: Bullish signals in PANIC: 1.2x multiplier (boosted, same as RISK_ON)
+   - **Rationale**: 
+     - Panic creates buying opportunities (buy when there's blood in the streets)
+     - If positions are being exited in panic, new entry opportunities emerge
+     - Options flow signals can be particularly strong during panic (institutional buying)
+     - High volatility creates opportunities for quick reversals
+   - **Status**: ✅ Fixed and deployed to Git
+   - **Commit**: `b7b0ec5 Fix panic regime: Allow bullish entries (buy the dip strategy)`
+   - **Impact**: Panic regimes now allow and encourage bullish entries instead of blocking them
+
+**Files Modified:**
+- `structural_intelligence/regime_detector.py` (lines 218-238): Changed PANIC regime multiplier
+
+**Documentation:**
+- `PANIC_REGIME_STRATEGY_ANALYSIS.md`: Complete analysis of panic regime strategy
+- `PANIC_REGIME_FIX_SUMMARY.md`: Fix summary and impact analysis
 
 ### 2026-01-02: TSLA Position Entry Score Fix
 
