@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-01-02T18:58:58.127524+00:00",
+  "issues": [],
+  "warnings": [],
+  "findings": [
+    "Checking for look-forward bias...",
+    "\u2705 Uses 3-minute lookback window (end_time - 3 minutes) - NO look-forward bias",
+    "\u2705 Uses most recent bar close price for current price",
+    "\u2705 Uses oldest bar (2 minutes ago) for comparison - NO look-forward bias",
+    "\nChecking execution lag...",
+    "\u2705 API timeout set to 5 seconds - reasonable for real-time execution",
+    "\u2705 Filter fails open on API errors - prevents blocking trades due to API issues",
+    "\u2705 Momentum threshold: 0.2% (20 basis points) - reasonable for 2-minute window",
+    "\u2705 Lookback window: 2 minutes - prevents stale signal entries",
+    "\u2705 Uses Professional SIP feed - best available data"
+  ],
+  "potential_issues": [
+    {
+      "issue": "2-minute lookback may cause late entries",
+      "impact": "Signal detected at T=0, but price movement checked from T=-2min. If price moved between T=-2min and T=0, entry may be late.",
+      "recommendation": "Consider shorter lookback (1 minute) or verify that 2 minutes is appropriate for signal latency"
+    }
+  ],
+  "code_analysis": {
+    "uses_future_data": false,
+    "lookback_minutes": 2,
+    "momentum_threshold_pct": 0.002,
+    "api_timeout_seconds": 5,
+    "fails_open_on_error": true,
+    "feed_type": "sip"
+  },
+  "verdict": {
+    "has_look_forward_bias": false,
+    "has_execution_lag": "MINIMAL (2-minute lookback is appropriate)",
+    "recommendation": "Filter appears correct. 2-minute lookback prevents stale entries without causing excessive delay."
+  }
+}

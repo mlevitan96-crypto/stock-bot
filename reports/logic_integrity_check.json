@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-01-02T18:58:57.698546+00:00",
+  "issues": [],
+  "warnings": [
+    "No regime-specific Beta distributions found - weights may not be regime-aware",
+    "No attribution records found - learning system has no data to learn from",
+    "No learning log found - weight updates may not be happening"
+  ],
+  "findings": [
+    "Weight state file exists with 0 base weights",
+    "MIN_SAMPLES threshold: 15 (reduced from 30 for faster learning)",
+    "MIN_DAYS_BETWEEN_UPDATES: 1 (allows daily updates for faster learning)"
+  ],
+  "potential_issues": [],
+  "weights_state_exists": true,
+  "attribution_records_count": 0,
+  "learning_records_count": 0
+}

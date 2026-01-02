@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-01-02T18:58:58.539752+00:00",
+  "panic_boost_check": {
+    "panic_boost_detected": true,
+    "findings": [
+      "\u2705 Regime modifier component exists in composite scoring",
+      "\u2705 Panic regime multiplier: 1.2x for bullish (buy the dip strategy)"
+    ],
+    "issues": []
+  },
+  "stealth_flow_check": {
+    "stealth_flow_detected": true,
+    "findings": [
+      "\u2705 Stealth flow boost logic exists in uw_composite_v2.py",
+      "\u2705 Stealth flow boost is logged in notes field",
+      "\u2705 Stealth flow boost value: +0.2 (applied when flow_magnitude == 'LOW')"
+    ],
+    "issues": []
+  },
+  "attribution_log_audit": {
+    "stats": {
+      "total_trades": 0,
+      "trades_with_components": 0,
+      "trades_with_notes": 0,
+      "trades_with_panic_regime": 0,
+      "trades_with_stealth_flow": 0,
+      "trades_with_regime_modifier": 0
+    },
+    "findings": [],
+    "issues": [
+      "No trades have component data - modifiers cannot be verified"
+    ]
+  },
+  "summary": {
+    "panic_boost_logged": true,
+    "stealth_flow_logged": true,
+    "attribution_logs_examined": 0
+  }
+}
