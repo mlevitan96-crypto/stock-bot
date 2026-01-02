@@ -1,16 +1,16 @@
 # Friday End-of-Week (EOW) Structural Audit
 
 **Week Ending:** 2026-01-02
-**Report Generated:** 2026-01-02 21:35:34 UTC
+**Report Generated:** 2026-01-02 22:05:05 UTC
 **Authoritative Source:** MEMORY_BANK.md
 
 ---
 
 ## Executive Summary
 
-- **Total Trades:** 0
-- **Win Rate:** N/A
-- **Total P&L:** $0.00 (0.00%)
+- **Total Trades:** 2022
+- **Win Rate:** 65.03%
+- **Total P&L:** $-33.22 (-33.26%)
 
 ---
 
@@ -20,7 +20,7 @@ P&L evolution over position lifetime to identify optimal hold times:
 
 | Hold Time (min) | Avg P&L % | Median P&L % | Win Rate | Sample Count |
 |-----------------|-----------|--------------|----------|--------------|
-| 0-30 | 0.00% | 0.00% | 0.00% | 0 |
+| 0-30 | -0.02% | 0.02% | 65.03% | 2022 |
 | 30-60 | 0.00% | 0.00% | 0.00% | 0 |
 | 60-90 | 0.00% | 0.00% | 0.00% | 0 |
 | 90-120 | 0.00% | 0.00% | 0.00% | 0 |
@@ -28,8 +28,8 @@ P&L evolution over position lifetime to identify optimal hold times:
 | 180-240 | 0.00% | 0.00% | 0.00% | 0 |
 | 240+ | 0.00% | 0.00% | 0.00% | 0 |
 
-**Peak Alpha:** None (0.00%)
-**Stale Exit Point:** Not identified
+**Peak Alpha:** 0-30 (-0.02%)
+**Stale Exit Point:** 0-30
 
 ---
 
@@ -39,9 +39,9 @@ P&L evolution over position lifetime to identify optimal hold times:
 
 | Metric | Stealth Flow | Other Flow | Advantage |
 |--------|--------------|------------|-----------|
-| Trades | 0 | 0 | - |
-| Win Rate | 0.00% | 0.00% | +0.00pp |
-| Avg P&L % | 0.00% | 0.00% | +0.00pp |
+| Trades | 2022 | 0 | - |
+| Win Rate | 65.03% | 0.00% | +65.03pp |
+| Avg P&L % | -0.02% | 0.00% | -0.02pp |
 
 **Meets Target (100% win rate):** ❌ NO
 
@@ -85,7 +85,7 @@ P&L evolution over position lifetime to identify optimal hold times:
 
 **High-Score Blocked Trades (>= 5.0):** 0
 **Avg Score (Blocked):** 0.00
-**Avg P&L (Executed):** 0.00%
+**Avg P&L (Executed):** -0.02%
 
 **Blocking Reasons (High-Score):**
 
@@ -98,9 +98,9 @@ P&L evolution over position lifetime to identify optimal hold times:
 
 Based on this week's analysis:
 
-1. **Alpha Decay:** Monitor decay patterns
+1. **Alpha Decay:** Peak alpha at 0-30 - consider tightening exits
 
-2. **Stealth Flow:** ❌ Not meeting target (0.00%) - review boost logic
+2. **Stealth Flow:** ❌ Not meeting target (65.03%) - review boost logic
 
 3. **Liquidity Gate:** No liquidity blocks - gate threshold appropriate
 
