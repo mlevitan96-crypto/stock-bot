@@ -464,16 +464,18 @@ def analyze_greeks_decay(trades: List[Dict]) -> Dict[str, Any]:
     
     gamma_related_trades = []
     for trade in trades:
-        context = trade.get("context", {})
-        close_reason = context.get("close_reason", "").lower()
-        components = context.get("components", {})
+        # Support both flat and nested schema
+        context = trade.get("context", {}) if isinstance(trade.get("context"), dict) else {}
+        close_reason = extract_trade_field(trade, "close_reason", "") or context.get("close_reason", "")
+        close_reason = str(close_reason).lower()
+        components = context.get("components", {}) if isinstance(context, dict) else {}
         
         # Check if gamma-related
         has_gamma = "gamma" in close_reason or "gamma" in str(components).lower()
         
         if has_gamma:
-            pnl_pct = trade.get("pnl_pct", 0.0) or context.get("pnl_pct", 0.0)
-            hold_minutes = context.get("hold_minutes", 0.0)
+            pnl_pct = extract_trade_field(trade, "pnl_pct", 0.0) or extract_trade_field(trade, "exit_pnl", 0.0)
+            hold_minutes = extract_trade_field(trade, "hold_minutes", 0.0)
             gamma_related_trades.append({
                 "pnl_pct": pnl_pct,
                 "hold_minutes": hold_minutes,
