@@ -92,6 +92,38 @@ This is the **primary reference document** for all bot operations. It contains:
 
 ---
 
+## **📋 DEPLOYMENT WORKFLOW (CURSOR → GIT → DROPLET)**
+
+**CRITICAL: Cursor (AI Assistant) is responsible for ALL deployment operations**
+- ✅ **Cursor ALWAYS pushes code to Git** (user never needs to do this manually)
+- ✅ **Cursor ALWAYS triggers droplet deployment** via `EXECUTE_DROPLET_DEPLOYMENT_NOW.py`
+- ✅ **Cursor ALWAYS pulls results from Git** after droplet deployment completes
+- ✅ **User NEVER needs to manually copy/paste or run deployment commands**
+
+**Standard Operating Procedure**: When making code changes, Cursor always:
+1. Make changes locally
+2. Commit and push to Git
+3. Deploy to droplet using `EXECUTE_DROPLET_DEPLOYMENT_NOW.py`
+4. Verify deployment succeeded
+5. Pull results from Git and verify
+
+**Deployment Command** (executed by Cursor):
+```bash
+cd c:\Users\markl\OneDrive\Documents\Cursor\stock-bot
+python EXECUTE_DROPLET_DEPLOYMENT_NOW.py
+```
+
+**What it does**:
+- Ensures code is pushed to Git
+- Connects to droplet via SSH
+- Pulls latest code on droplet
+- Runs deployment verification script
+- Reports status
+
+**Note**: Deployment script may show encoding warnings on Windows (Unicode characters), but code deployment succeeds. Check Git commit hash to verify.
+
+---
+
 ## **🚀 SYSTEMD SERVICE MANAGEMENT (STANDARD - BEST PRACTICE)**
 
 **CRITICAL: The bot MUST run under systemd. This is the production standard and best practice for SDLC.**
@@ -1447,6 +1479,31 @@ tail -50 logs/supervisor.jsonl | grep -i error
 **Documentation:**
 - `PANIC_REGIME_STRATEGY_ANALYSIS.md`: Complete analysis of panic regime strategy
 - `PANIC_REGIME_FIX_SUMMARY.md`: Fix summary and impact analysis
+- `COMPLETE_PANIC_REGIME_FIX_REVIEW.md`: Complete review of all changes
+- `FINAL_PANIC_REGIME_FIX_REPORT.md`: Final deployment report
+
+### 2026-01-02: Pre-Market-Close Health Check Script
+
+1. **Pre-Market-Close Structural Health Check**: Added automated health check script
+   - **Purpose**: Verify key system metrics before market close (panic regime activity, current regime/threshold, position capacity)
+   - **Script**: `pre_market_close_health_check.sh` - Executable bash script with error handling
+   - **Features**:
+     - Checks for panic regime activity in explainable logs
+     - Gets current regime from structural intelligence regime detector
+     - Calculates active threshold (including mid-day liquidity adjustments)
+     - Reports position capacity (active vs max 16 positions)
+   - **Usage**: Run on droplet before market close (3:30-4:00 PM EST)
+     ```bash
+     cd ~/stock-bot
+     bash pre_market_close_health_check.sh
+     ```
+   - **Documentation**: `PRE_MARKET_CLOSE_HEALTH_CHECK.md` - Complete usage guide and troubleshooting
+   - **Status**: ✅ Created, tested, and deployed to Git
+   - **Commit**: `914b6cd Add pre-market-close health check script`, `c2bcfa4 Add pre-market-close health check documentation`
+
+**Files Created:**
+- `pre_market_close_health_check.sh`: Health check script
+- `PRE_MARKET_CLOSE_HEALTH_CHECK.md`: Documentation
 
 ### 2026-01-02: TSLA Position Entry Score Fix
 
