@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2025-12-26 (Dashboard Regime Display Fix - Normalize regime field from XAI logs and attribution context)  
+**Last Updated:** 2026-01-02 (TSLA Position Entry Score Fix - Complete fix for dashboard display, reconciliation loop, and validation)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ## ✅ UW API ENDPOINTS - VERIFIED AND DOCUMENTED
@@ -1422,6 +1422,37 @@ tail -50 logs/supervisor.jsonl | grep -i error
 - `LEARNING_SCHEDULE_AND_PROFITABILITY.md`: Learning schedule and profitability tracking
 - `DEPLOY_OVERFITTING_FIXES.md`: Deployment guide
 - `LEARNING_SYSTEM_COMPLETE.md`: Complete learning system overview
+
+### 2026-01-02: TSLA Position Entry Score Fix
+
+1. **Complete Entry Score Tracking Fix**: Fixed TSLA position showing 0.00 entry_score
+   - **Problem**: Dashboard showed 0.00 entry_score for TSLA position, unclear if display error or actual issue
+   - **Root Causes Identified**:
+     1. Dashboard API endpoint didn't load position metadata
+     2. Reconciliation loop didn't create metadata for positions
+     3. Missing validation to prevent 0.0 entry_score positions
+     4. Metadata not restored properly on reconciliation
+   - **Fixes Applied**:
+     - **Dashboard API** (`main.py`): Loads `StateFiles.POSITION_METADATA` and includes `entry_score` in response
+     - **Dashboard Display** (`dashboard.py`): Added "Entry Score" column with red highlighting for 0.00 scores
+     - **Reconciliation Loop** (`position_reconciliation_loop.py`): Creates metadata for positions entered via reconciliation
+     - **Entry Validation** (`main.py`): Validates `entry_score > 0.0` before entering positions
+     - **Mark Open Warning** (`main.py`): Warns when `mark_open()` called with 0.0 entry_score
+     - **Reconcile Positions** (`main.py`): Restores entry_score from metadata when reconciling
+     - **Reload Positions** (`main.py`): Restores entry_score when reloading from metadata
+   - **Status**: ✅ All fixes applied, tested, and deployed to Git
+   - **Commits**: `94c8e0b`, `b324433`
+   - **Impact**: Dashboard now shows actual entry_score, validation prevents invalid entries, all positions have metadata
+
+**Files Modified:**
+- `main.py`: API endpoint, validation, restoration logic (~100 lines)
+- `dashboard.py`: Display column, update logic (~50 lines)
+- `position_reconciliation_loop.py`: Metadata creation (~50 lines)
+
+**Documentation:**
+- `TSLA_POSITION_FIX_SUMMARY.md`: Detailed fix summary
+- `COMPLETE_TSLA_POSITION_FIX_REVIEW.md`: Complete review of all fixes
+- `FINAL_TSLA_POSITION_FIX_REPORT.md`: Final deployment report
 
 ### 2025-12-26: Dashboard Regime Display Fix
 
