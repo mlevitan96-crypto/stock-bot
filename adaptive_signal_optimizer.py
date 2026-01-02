@@ -91,6 +91,87 @@ class WeightBand:
 
 
 @dataclass
+class RegimeBetaDistribution:
+    """
+    Beta distribution for a component in a specific market regime.
+    Maintains separate success/failure probability bands per regime.
+    """
+    alpha: float = 1.0  # Successes (conjugate prior: Beta(1,1) = uniform)
+    beta: float = 1.0   # Failures
+    wins: int = 0
+    losses: int = 0
+    total_pnl: float = 0.0
+    sample_count: int = 0
+    last_updated: int = 0
+    
+    def update(self, is_win: bool, pnl: float = 0.0):
+        """Update Beta distribution with outcome"""
+        if is_win:
+            self.alpha += 1.0
+            self.wins += 1
+        else:
+            self.beta += 1.0
+            self.losses += 1
+        
+        self.total_pnl += pnl
+        self.sample_count += 1
+        self.last_updated = int(time.time())
+    
+    def get_mean(self) -> float:
+        """Get mean of Beta distribution (success probability)"""
+        total = self.alpha + self.beta
+        if total == 0:
+            return 0.5  # Uniform prior
+        return self.alpha / total
+    
+    def sample_weight_multiplier(self) -> float:
+        """
+        Sample a weight multiplier from Beta distribution.
+        Maps success probability (0-1) to multiplier range (0.25-2.5).
+        
+        Uses mean of Beta distribution to determine multiplier.
+        Higher success probability -> higher multiplier.
+        """
+        mean = self.get_mean()
+        
+        # Map [0, 1] success probability to [0.25, 2.5] multiplier
+        # Linear mapping: 0.0 -> 0.25, 0.5 -> 1.0 (neutral), 1.0 -> 2.5
+        if mean <= 0.5:
+            # Below neutral: map [0, 0.5] -> [0.25, 1.0]
+            multiplier = 0.25 + (mean / 0.5) * 0.75
+        else:
+            # Above neutral: map [0.5, 1.0] -> [1.0, 2.5]
+            multiplier = 1.0 + ((mean - 0.5) / 0.5) * 1.5
+        
+        return max(0.25, min(2.5, multiplier))
+    
+    def to_dict(self) -> Dict:
+        """Serialize to dictionary"""
+        return {
+            "alpha": self.alpha,
+            "beta": self.beta,
+            "wins": self.wins,
+            "losses": self.losses,
+            "total_pnl": self.total_pnl,
+            "sample_count": self.sample_count,
+            "last_updated": self.last_updated
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'RegimeBetaDistribution':
+        """Deserialize from dictionary"""
+        return cls(
+            alpha=data.get("alpha", 1.0),
+            beta=data.get("beta", 1.0),
+            wins=data.get("wins", 0),
+            losses=data.get("losses", 0),
+            total_pnl=data.get("total_pnl", 0.0),
+            sample_count=data.get("sample_count", 0),
+            last_updated=data.get("last_updated", 0)
+        )
+
+
+@dataclass
 class SignalReading:
     """Individual signal reading with polarity"""
     component: str
@@ -105,8 +186,13 @@ class SignalReading:
 
 class SignalWeightModel:
     """
-    Manages continuous weight bands for all signal components.
+    Manages continuous weight bands for all signal components with regime-specific Beta distributions.
     Weights range from 0.25x (heavily penalized) to 2.5x (heavily boosted).
+    
+    V2.0: Regime-Specific Bayesian Weighting
+    - Each component maintains separate Beta distributions per regime (RISK_ON, MIXED, RISK_OFF)
+    - Component's weight in RISK_ON is independent of its performance in MIXED
+    - Uses Beta(alpha, beta) where alpha = successes, beta = failures
     """
     
     DEFAULT_BASE_WEIGHTS = {
@@ -133,13 +219,19 @@ class SignalWeightModel:
         "squeeze_score": 0.2,
     }
     
+    # Valid market regimes for regime-specific weighting
+    VALID_REGIMES = ["RISK_ON", "RISK_OFF", "MIXED", "NEUTRAL", "mixed", "neutral"]
+    
     def __init__(self):
         self.base_weights = self.DEFAULT_BASE_WEIGHTS.copy()
         self.weight_bands: Dict[str, WeightBand] = {}
+        # Regime-specific Beta distributions: {component: {regime: RegimeBetaDistribution}}
+        self.regime_beta_distributions: Dict[str, Dict[str, RegimeBetaDistribution]] = {}
         self._init_bands()
+        self._init_regime_distributions()
         
     def _init_bands(self):
-        """Initialize weight bands for all components"""
+        """Initialize weight bands for all components (legacy global multipliers)"""
         for component in SIGNAL_COMPONENTS:
             self.weight_bands[component] = WeightBand(
                 min_weight=0.25,
@@ -148,39 +240,76 @@ class SignalWeightModel:
                 current=1.0
             )
     
+    def _init_regime_distributions(self):
+        """Initialize regime-specific Beta distributions for all components"""
+        for component in SIGNAL_COMPONENTS:
+            self.regime_beta_distributions[component] = {}
+            for regime in ["RISK_ON", "RISK_OFF", "MIXED"]:
+                self.regime_beta_distributions[component][regime] = RegimeBetaDistribution()
+    
+    def _normalize_regime(self, regime: str) -> str:
+        """Normalize regime name to standard format"""
+        regime_upper = regime.upper()
+        if regime_upper == "NEUTRAL":
+            return "MIXED"  # Treat NEUTRAL as MIXED for regime-specific weighting
+        if regime_upper in ["RISK_ON", "RISK_OFF", "MIXED"]:
+            return regime_upper
+        # Default to MIXED for unknown regimes
+        return "MIXED"
+    
     def get_effective_weight(self, component: str, regime: str = "neutral") -> float:
         """
-        Get current effective weight for a component, regime-aware.
+        Get current effective weight for a component, using regime-specific Beta distribution.
         
         Args:
             component: Signal component name
             regime: Market regime ("RISK_ON", "RISK_OFF", "NEUTRAL", "mixed")
         
         Returns:
-            Effective weight = base_weight * global_multiplier * regime_multiplier
+            Effective weight = base_weight * regime_specific_multiplier (from Beta distribution)
+        
+        V2.0: Uses regime-specific Beta distribution to determine multiplier independently per regime.
         """
         base = self.base_weights.get(component, 0.5)
+        normalized_regime = self._normalize_regime(regime)
+        
+        # Get regime-specific Beta distribution
+        regime_beta = None
+        if component in self.regime_beta_distributions:
+            regime_dict = self.regime_beta_distributions[component]
+            if normalized_regime in regime_dict:
+                regime_beta = regime_dict[normalized_regime]
+        
+        # If regime-specific distribution exists and has samples, use it
+        if regime_beta and regime_beta.sample_count > 0:
+            # Sample multiplier from Beta distribution
+            regime_mult = regime_beta.sample_weight_multiplier()
+            return base * regime_mult
+        
+        # Fallback: Use global multiplier if no regime-specific data
         band = self.weight_bands.get(component)
-        if not band:
-            return base
+        if band:
+            return base * band.current
         
-        # Get global multiplier
-        global_mult = band.current
+        return base
+    
+    def get_regime_beta_distribution(self, component: str, regime: str) -> Optional[RegimeBetaDistribution]:
+        """Get regime-specific Beta distribution for a component"""
+        normalized_regime = self._normalize_regime(regime)
+        if component in self.regime_beta_distributions:
+            return self.regime_beta_distributions[component].get(normalized_regime)
+        return None
+    
+    def update_regime_beta(self, component: str, regime: str, is_win: bool, pnl: float = 0.0):
+        """Update regime-specific Beta distribution for a component"""
+        normalized_regime = self._normalize_regime(regime)
+        if component not in self.regime_beta_distributions:
+            self.regime_beta_distributions[component] = {}
+        if normalized_regime not in self.regime_beta_distributions[component]:
+            self.regime_beta_distributions[component][normalized_regime] = RegimeBetaDistribution()
         
-        # Get regime-specific multiplier (if available)
-        regime_mult = 1.0
-        if hasattr(self, "regime_multipliers") and component in self.regime_multipliers:
-            regime_mult = self.regime_multipliers[component].get(regime, 1.0)
-        elif hasattr(self, "regime_multipliers"):
-            # Initialize if not exists
-            if not hasattr(self, "regime_multipliers"):
-                self.regime_multipliers = {}
-            if component not in self.regime_multipliers:
-                self.regime_multipliers[component] = {}
-            self.regime_multipliers[component][regime] = 1.0
-        
-        # Effective weight = base * global_mult * regime_mult
-        return base * global_mult * regime_mult
+        beta_dist = self.regime_beta_distributions[component][normalized_regime]
+        beta_dist.update(is_win, pnl)
     
     def get_all_effective_weights(self) -> Dict[str, float]:
         """Get all current effective weights"""
@@ -199,9 +328,16 @@ class SignalWeightModel:
     
     def to_dict(self) -> Dict:
         """Serialize to dictionary"""
+        regime_beta_dict = {}
+        for component, regimes in self.regime_beta_distributions.items():
+            regime_beta_dict[component] = {
+                regime: dist.to_dict() for regime, dist in regimes.items()
+            }
+        
         return {
             "base_weights": self.base_weights,
             "weight_bands": {k: asdict(v) for k, v in self.weight_bands.items()},
+            "regime_beta_distributions": regime_beta_dict,
             "updated_at": int(time.time())
         }
     
@@ -215,6 +351,14 @@ class SignalWeightModel:
                     for field_name, field_val in v.items():
                         if hasattr(self.weight_bands[k], field_name):
                             setattr(self.weight_bands[k], field_name, field_val)
+        
+        # Load regime-specific Beta distributions (V2.0)
+        if "regime_beta_distributions" in data:
+            for component, regimes in data["regime_beta_distributions"].items():
+                if component not in self.regime_beta_distributions:
+                    self.regime_beta_distributions[component] = {}
+                for regime, dist_data in regimes.items():
+                    self.regime_beta_distributions[component][regime] = RegimeBetaDistribution.from_dict(dist_data)
 
 
 class DirectionalConvictionEngine:
@@ -582,6 +726,10 @@ class LearningOrchestrator:
             else:
                 reg_perf["losses"] += 1
             reg_perf["pnl"] += pnl
+            
+            # V2.0: Update regime-specific Beta distribution
+            # This maintains separate success/failure probability bands per regime
+            self.entry_model.update_regime_beta(component, regime, win, pnl)
         
         self.learning_history.append({
             "ts": int(time.time()),
@@ -702,47 +850,27 @@ class LearningOrchestrator:
                     "win_rate": round(wins/total, 3) if total > 0 else 0
                 })
             
-            # REGIME-AWARE LEARNING: Update weights per regime
-            # Check if we have enough samples per regime to update regime-specific weights
+            # V2.0: REGIME-SPECIFIC BAYESIAN LEARNING
+            # Beta distributions are updated in record_trade_outcome() - no separate update needed here.
+            # The get_effective_weight() method uses the Beta distribution directly.
+            # Log regime-specific Beta distribution stats for monitoring
             regime_perf = perf.get("regime_performance", {})
-            
             for regime, reg_perf in regime_perf.items():
-                reg_wins = reg_perf.get("wins", 0)
-                reg_losses = reg_perf.get("losses", 0)
-                reg_total = reg_wins + reg_losses
-                
+                reg_total = reg_perf.get("wins", 0) + reg_perf.get("losses", 0)
                 if reg_total >= self.MIN_SAMPLES:
-                    # We have enough samples for this regime - update regime-specific weight
-                    reg_wr = reg_wins / reg_total if reg_total > 0 else 0.5
-                    reg_pnl = reg_perf.get("pnl", 0.0) / reg_total if reg_total > 0 else 0.0
-                    
-                    # Initialize regime multipliers if not exists
-                    if not hasattr(self.entry_model, "regime_multipliers"):
-                        self.entry_model.regime_multipliers = {}
-                    if component not in self.entry_model.regime_multipliers:
-                        self.entry_model.regime_multipliers[component] = {}
-                    if regime not in self.entry_model.regime_multipliers[component]:
-                        self.entry_model.regime_multipliers[component][regime] = 1.0
-                    
-                    reg_current = self.entry_model.regime_multipliers[component][regime]
-                    reg_new = reg_current
-                    
-                    # Apply same logic as global, but regime-specific
-                    if reg_wr > 0.55 and reg_pnl > 0:
-                        reg_new = min(2.5, reg_current + self.UPDATE_STEP)
-                    elif reg_wr < 0.45 or reg_pnl < -0.01:
-                        reg_new = max(0.25, reg_current - self.UPDATE_STEP)
-                    
-                    if reg_new != reg_current:
-                        self.entry_model.regime_multipliers[component][regime] = reg_new
+                    beta_dist = self.entry_model.get_regime_beta_distribution(component, regime)
+                    if beta_dist:
+                        mean_success_prob = beta_dist.get_mean()
+                        current_mult = beta_dist.sample_weight_multiplier()
                         adjustments.append({
                             "component": component,
                             "regime": regime,
-                            "old_mult": reg_current,
-                            "new_mult": reg_new,
-                            "reason": f"regime_specific(wr={reg_wr:.3f},pnl={reg_pnl:.3f})",
-                            "samples": reg_total,
-                            "win_rate": reg_wr
+                            "regime_beta_alpha": beta_dist.alpha,
+                            "regime_beta_beta": beta_dist.beta,
+                            "regime_success_prob": round(mean_success_prob, 3),
+                            "regime_multiplier": round(current_mult, 3),
+                            "samples": beta_dist.sample_count,
+                            "reason": f"regime_specific_beta_distribution"
                         })
         
         # Update last update timestamp if we made adjustments
@@ -980,12 +1108,23 @@ class AdaptiveSignalOptimizer:
             "learning_samples": len(self.learner.learning_history)
         }
     
-    def get_weights_for_composite(self) -> Dict[str, float]:
+    def get_weights_for_composite(self, regime: str = "neutral") -> Dict[str, float]:
         """
         Export weights in format compatible with uw_composite_v2.py
         This is the bridge between the optimizer and existing scoring.
+        
+        V2.0: Returns regime-specific weights using Beta distributions.
+        
+        Args:
+            regime: Market regime for regime-specific weighting
+        
+        Returns:
+            Dictionary of component -> effective weight (base_weight * regime_multiplier)
         """
-        return self.entry_weights.get_all_effective_weights()
+        weights = {}
+        for component in SIGNAL_COMPONENTS:
+            weights[component] = self.entry_weights.get_effective_weight(component, regime)
+        return weights
     
     def get_multipliers_only(self) -> Dict[str, float]:
         """

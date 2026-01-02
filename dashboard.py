@@ -1089,10 +1089,12 @@ DASHBOARD_HTML = """
                         // Full rebuild only when structure changes
                         let html = '<table><thead><tr>';
                         html += '<th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
-                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th></tr></thead><tbody>';
+                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry Score</th></tr></thead><tbody>';
                         
                         data.positions.forEach(pos => {
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
+                            const entryScore = pos.entry_score !== undefined && pos.entry_score !== null ? pos.entry_score.toFixed(2) : '0.00';
+                            const scoreClass = pos.entry_score > 0 ? '' : 'warning';
                             html += '<tr data-symbol="' + pos.symbol + '">';
                             html += '<td class="symbol">' + pos.symbol + '</td>';
                             html += '<td><span class="side ' + pos.side + '">' + pos.side.toUpperCase() + '</span></td>';
@@ -1102,6 +1104,7 @@ DASHBOARD_HTML = """
                             html += '<td>' + formatCurrency(pos.market_value) + '</td>';
                             html += '<td class="' + pnlClass + '">' + formatCurrency(pos.unrealized_pnl) + '</td>';
                             html += '<td class="' + pnlClass + '">' + formatPercent(pos.unrealized_pnl_pct) + '</td>';
+                            html += '<td class="' + scoreClass + '" style="' + (pos.entry_score === 0 ? 'color: #ef4444; font-weight: bold;' : '') + '">' + entryScore + '</td>';
                             html += '</tr>';
                         });
                         
@@ -1118,7 +1121,7 @@ DASHBOARD_HTML = """
                             const cells = row.querySelectorAll('td');
                             
                             // Only update cells that changed (skip symbol, side as they don't change)
-                            if (cells.length >= 8) {
+                            if (cells.length >= 9) {
                                 cells[2].textContent = pos.qty;
                                 cells[3].textContent = formatCurrency(pos.avg_entry_price);
                                 cells[4].textContent = formatCurrency(pos.current_price);
@@ -1127,6 +1130,15 @@ DASHBOARD_HTML = """
                                 cells[6].className = pnlClass;
                                 cells[7].textContent = formatPercent(pos.unrealized_pnl_pct);
                                 cells[7].className = pnlClass;
+                                const entryScore = pos.entry_score !== undefined && pos.entry_score !== null ? pos.entry_score.toFixed(2) : '0.00';
+                                cells[8].textContent = entryScore;
+                                if (pos.entry_score === 0) {
+                                    cells[8].style.color = '#ef4444';
+                                    cells[8].style.fontWeight = 'bold';
+                                } else {
+                                    cells[8].style.color = '';
+                                    cells[8].style.fontWeight = '';
+                                }
                             }
                         });
                     }

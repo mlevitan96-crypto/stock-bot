@@ -110,7 +110,7 @@ class ExplainableLogger:
             if wall_distance is not None and wall_distance < 0.05:
                 why_parts.append(f"Near Gamma Call Wall ({wall_distance*100:.1f}% away, ${wall_gamma:,.0f} exposure)")
         
-        # Component scores
+        # Component scores with regime-specific weight indication
         top_components = sorted(
             [(k, v) for k, v in components.items() if v > 0],
             key=lambda x: x[1],
@@ -118,8 +118,19 @@ class ExplainableLogger:
         )[:3]
         
         if top_components:
-            comp_descs = [f"{name} ({val:.2f})" for name, val in top_components]
-            why_parts.append(f"Top signals: {', '.join(comp_descs)}")
+            # Include regime information in component descriptions
+            try:
+                from uw_composite_v2 import get_weight
+                comp_descs = []
+                for name, val in top_components:
+                    # Get the weight being used for this component in this regime
+                    weight_used = get_weight(name, regime or "neutral")
+                    comp_descs.append(f"{name} ({val:.2f}, using {regime or 'neutral'} weight={weight_used:.2f})")
+                why_parts.append(f"Top signals: {', '.join(comp_descs)}")
+            except Exception:
+                # Fallback if weight lookup fails
+                comp_descs = [f"{name} ({val:.2f})" for name, val in top_components]
+                why_parts.append(f"Top signals: {', '.join(comp_descs)}")
         
         # Composite score
         why_parts.append(f"Composite score: {composite_score:.2f}")
@@ -284,15 +295,16 @@ class ExplainableLogger:
             pnl_desc = "positive" if pnl_contribution > 0 else "negative"
             why_parts.append(f"{pnl_desc} P&L contribution: {pnl_contribution:.2f}%")
         
-        # Regime context
+        # Regime context (V2.0: Show which regime-specific weight is being used)
         if regime:
             regime_desc = {
                 "RISK_ON": "bullish",
                 "RISK_OFF": "bearish",
                 "NEUTRAL": "neutral",
+                "MIXED": "mixed",
                 "PANIC": "panic"
-            }.get(regime, regime)
-            why_parts.append(f"regime: {regime_desc}")
+            }.get(regime.upper(), regime)
+            why_parts.append(f"Using {regime_desc.upper()} regime-specific weight (component performance in {regime_desc} regime is independent)")
         
         why_sentence = f"Adjusted {component} weight because: " + ". ".join(why_parts) + "."
         

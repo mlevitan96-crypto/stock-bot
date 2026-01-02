@@ -41,11 +41,21 @@ def _get_adaptive_optimizer():
             _adaptive_optimizer = None
     return _adaptive_optimizer
 
-def get_adaptive_weights() -> Dict[str, float]:
-    """Get current adaptive weights from optimizer, falls back to static"""
+def get_adaptive_weights(regime: str = "neutral") -> Dict[str, float]:
+    """
+    Get current adaptive weights from optimizer, falls back to static.
+    
+    V2.0: Now accepts regime parameter for regime-specific weights.
+    
+    Args:
+        regime: Market regime ("RISK_ON", "RISK_OFF", "MIXED", "NEUTRAL")
+    
+    Returns:
+        Dictionary of component -> effective weight, or None if optimizer not available
+    """
     optimizer = _get_adaptive_optimizer()
     if optimizer:
-        return optimizer.get_weights_for_composite()
+        return optimizer.get_weights_for_composite(regime)
     return None
 
 _cached_weights: Dict[str, float] = {}
@@ -252,8 +262,9 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     # Alignment bonus: congress trading same direction as flow = confirmation
     aligned = (congress_sign == flow_sign) and congress_sign != 0
     opposing = (congress_sign != 0 and flow_sign != 0 and congress_sign != flow_sign)
-    
-    w = get_weight("congress")
+
+    # V2.0: Use regime-aware weight (though congress component doesn't take regime parameter, use NEUTRAL)
+    w = get_weight("congress", "neutral")
     if aligned:
         component = w * (0.6 + activity_strength * 0.4) * (1.0 + conviction_boost)
         notes = f"congress_confirm({buys}B/{sells}S)"
@@ -510,11 +521,12 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     Returns comprehensive result with all components for learning
     """
     
-    # V3.1: Get adaptive weights if available
+    # V3.1: Get adaptive weights if available (V2.0: regime-specific)
     weights = WEIGHTS_V3.copy()
     adaptive_active = False
     if use_adaptive_weights:
-        adaptive_weights = get_adaptive_weights()
+        # V2.0: Get regime-specific adaptive weights
+        adaptive_weights = get_adaptive_weights(regime)
         if adaptive_weights:
             weights.update(adaptive_weights)
             adaptive_active = True
@@ -565,9 +577,21 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         all_notes.append("adaptive_weights_active")
     
     # 1. Options flow (primary)
-    flow_component = weights.get("options_flow", 2.4) * flow_conv
+    # CAUSAL INSIGHT: Low Magnitude Flow (Stealth Flow) has 100% win rate
+    # Apply +0.2 points base conviction boost for LOW flow magnitude (< 0.3)
+    flow_magnitude = "LOW" if flow_conv < 0.3 else ("MEDIUM" if flow_conv < 0.7 else "HIGH")
+    stealth_flow_boost = 0.2 if flow_magnitude == "LOW" else 0.0
+    flow_conv_adjusted = min(1.0, flow_conv + stealth_flow_boost)  # Cap at 1.0
     
-    # 2. Dark pool
+    # Use regime-aware weight for options_flow component
+    flow_weight = get_weight("options_flow", regime)
+    flow_component = flow_weight * flow_conv_adjusted
+    
+    # Track if stealth flow boost was applied (for logging)
+    if stealth_flow_boost > 0:
+        all_notes.append(f"stealth_flow_boost(+{stealth_flow_boost:.1f})")
+    
+    # 2. Dark pool (use regime-aware weight)
     dp_strength = 0.0
     if dp_sent in ("BULLISH", "BEARISH"):
         mag = max(1.0, dp_prem)
@@ -575,48 +599,56 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         dp_strength = 0.5 + log_factor
     else:
         dp_strength = 0.2
-    dp_component = weights.get("dark_pool", 1.3) * dp_strength
+    dp_weight = get_weight("dark_pool", regime)
+    dp_component = dp_weight * dp_strength
     
-    # 3. Insider (baseline V2)
+    # 3. Insider (use regime-aware weight)
     ins_sent = ins.get("sentiment", "NEUTRAL")
     ins_mod = _to_num(ins.get("conviction_modifier", 0.0))
+    insider_weight = get_weight("insider", regime)
     if ins_sent == "BULLISH":
-        insider_component = weights.get("insider", 0.5) * (0.50 + ins_mod)
+        insider_component = insider_weight * (0.50 + ins_mod)
     elif ins_sent == "BEARISH":
-        insider_component = weights.get("insider", 0.5) * (0.50 - abs(ins_mod))
+        insider_component = insider_weight * (0.50 - abs(ins_mod))
     else:
-        insider_component = weights.get("insider", 0.5) * 0.25
+        insider_component = insider_weight * 0.25
     
-    # 4. IV term skew
+    # 4. IV term skew (use regime-aware weight)
     iv_aligned = (iv_skew > 0 and flow_sign == +1) or (iv_skew < 0 and flow_sign == -1)
-    iv_component = weights.get("iv_term_skew", 0.6) * abs(iv_skew) * (1.3 if iv_aligned else 0.7)
+    iv_weight = get_weight("iv_term_skew", regime)
+    iv_component = iv_weight * abs(iv_skew) * (1.3 if iv_aligned else 0.7)
     
-    # 5. Smile slope
-    smile_component = weights.get("smile_slope", 0.35) * abs(smile_slope)
+    # 5. Smile slope (use regime-aware weight)
+    smile_weight = get_weight("smile_slope", regime)
+    smile_component = smile_weight * abs(smile_slope)
     
-    # 6. Whale persistence
+    # 6. Whale persistence (use regime-aware weight)
     whale_detected = motif_whale.get("detected", False)
     whale_score = 0.0
     if whale_detected:
         avg_conv = motif_whale.get("avg_conviction", 0.0)
-        whale_score = weights.get("whale_persistence", 0.7) * avg_conv
+        whale_weight = get_weight("whale_persistence", regime)
+        whale_score = whale_weight * avg_conv
     
-    # 7. Event alignment
-    event_component = weights.get("event_alignment", 0.4) * event_align
+    # 7. Event alignment (use regime-aware weight)
+    event_weight = get_weight("event_alignment", regime)
+    event_component = event_weight * event_align
     
-    # 8. Temporal motif bonus
+    # 8. Temporal motif bonus (use regime-aware weight)
+    motif_weight = get_weight("temporal_motif", regime)
     motif_bonus = 0.0
     if motif_staircase.get("detected"):
-        motif_bonus += weights.get("temporal_motif", 0.5) * motif_staircase.get("slope", 0.0) * 3.0
+        motif_bonus += motif_weight * motif_staircase.get("slope", 0.0) * 3.0
         all_notes.append(f"staircase({motif_staircase.get('steps', 0)} steps)")
     if motif_burst.get("detected"):
         intensity = motif_burst.get("intensity", 0.0)
-        motif_bonus += weights.get("temporal_motif", 0.5) * min(1.0, intensity / 2.0)
+        motif_bonus += motif_weight * min(1.0, intensity / 2.0)
         all_notes.append(f"burst({motif_burst.get('count', 0)} updates)")
     
     # 9. Toxicity penalty - FIXED: Apply penalty starting at 0.5 (was 0.85)
     # CRITICAL: Ensure toxicity weight is NEGATIVE (it's a penalty, not a boost)
-    raw_tox_weight = weights.get("toxicity_penalty", -0.9)
+    # Use regime-aware weight
+    raw_tox_weight = get_weight("toxicity_penalty", regime)
     tox_weight = raw_tox_weight if raw_tox_weight < 0 else -abs(raw_tox_weight)  # Force negative
     toxicity_component = 0.0
     if toxicity > 0.5:
@@ -638,7 +670,8 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     elif regime == "mixed" or regime == "NEUTRAL":
         # FIXED: Mixed/neutral regime - slight positive contribution for balanced conditions
         regime_factor = 1.02  # Small boost for neutral/mixed conditions
-    regime_component = weights.get("regime_modifier", 0.3) * (regime_factor - 1.0) * 2.0
+    regime_weight = get_weight("regime_modifier", regime)
+    regime_component = regime_weight * (regime_factor - 1.0) * 2.0
     
     # ============ V3 NEW COMPONENTS ============
     
@@ -662,8 +695,8 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     if tide_notes:
         all_notes.append(tide_notes)
     
-    # 15. Calendar catalysts
-    calendar_component, calendar_notes = compute_calendar_component(calendar_data, symbol)
+    # 15. Calendar catalysts (component function uses get_weight internally with regime)
+    calendar_component, calendar_notes = compute_calendar_component(calendar_data, symbol, regime)
     if calendar_notes:
         all_notes.append(calendar_notes)
     

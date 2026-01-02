@@ -310,18 +310,69 @@ class PositionReconcilerV2:
         self.alpaca_positions_path.write_text(json.dumps(alpaca_data, indent=2))
         
         # Sync executor.opens if provided
+        # Also create/update position metadata for positions missing entry_score
+        metadata_path = Path("state/position_metadata.json")
+        position_metadata = {}
+        if metadata_path.exists():
+            try:
+                position_metadata = json.loads(metadata_path.read_text())
+            except Exception:
+                position_metadata = {}
+        
         if executor_opens is not None:
             executor_opens.clear()
             for pos in alpaca_data.get("positions", []):
                 symbol = pos["symbol"]
+                
+                # Check if metadata exists for this position
+                meta = position_metadata.get(symbol, {})
+                entry_score = meta.get("entry_score", 0.0)
+                
+                # If entry_score is missing (0.0) and position is new, log warning
+                if entry_score == 0.0 and symbol not in position_metadata:
+                    # This is a position that was entered via reconciliation without proper metadata
+                    # We can't determine the original entry_score, so we set a default
+                    # This should be rare - normal entries go through mark_open() which sets entry_score
+                    self.audit_log("position_missing_entry_score", {
+                        "symbol": symbol,
+                        "action": "defaulted_to_zero",
+                        "note": "Position entered via reconciliation without metadata - entry_score unknown"
+                    })
+                
                 executor_opens[symbol] = {
                     "entry_price": pos["avg_entry_price"],
                     "qty": abs(pos["qty"]),
                     "side": pos["side"],
                     "ts": datetime.utcnow(),
                     "trail_dist": None,
-                    "high_water": pos["current_price"]
+                    "high_water": pos["current_price"],
+                    "entry_score": entry_score  # Include entry_score in executor state
                 }
+                
+                # Update metadata if missing or incomplete
+                if symbol not in position_metadata or position_metadata[symbol].get("entry_score", 0.0) == 0.0:
+                    # Try to preserve existing metadata if available
+                    existing_meta = position_metadata.get(symbol, {})
+                    position_metadata[symbol] = {
+                        "entry_ts": existing_meta.get("entry_ts", datetime.utcnow().isoformat() + "Z"),
+                        "entry_price": pos["avg_entry_price"],
+                        "qty": abs(pos["qty"]),
+                        "side": pos["side"],
+                        "entry_score": entry_score,  # Preserve existing or default to 0.0
+                        "components": existing_meta.get("components", {}),
+                        "market_regime": existing_meta.get("market_regime", "unknown"),
+                        "direction": existing_meta.get("direction", "unknown"),
+                        "updated_at": datetime.utcnow().isoformat() + "Z",
+                        "reconciled": True  # Flag to indicate this was created via reconciliation
+                    }
+        
+        # Save updated metadata
+        if position_metadata:
+            try:
+                metadata_path.parent.mkdir(exist_ok=True, parents=True)
+                metadata_path.write_text(json.dumps(position_metadata, indent=2))
+            except Exception as e:
+                self.audit_log("metadata_save_failed", {"error": str(e)})
         
         # Save executor state
         executor_state = {

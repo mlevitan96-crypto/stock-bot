@@ -2821,6 +2821,12 @@ class AlpacaExecutor:
                     entry_ts = now_aware
                     log_event("reconcile", "timestamp_unknown_resetting_timer", symbol=symbol)
                 
+                # Restore entry_score from metadata if available
+                entry_score = metadata.get(symbol, {}).get("entry_score", 0.0)
+                components = metadata.get(symbol, {}).get("components", {})
+                market_regime = metadata.get(symbol, {}).get("market_regime", "unknown")
+                direction = metadata.get(symbol, {}).get("direction", "unknown")
+                
                 self.opens[symbol] = {
                     "ts": entry_ts,
                     "entry_price": avg_entry,
@@ -2828,6 +2834,8 @@ class AlpacaExecutor:
                     "side": side,
                     "trail_dist": None,
                     "high_water": current_price,
+                    "entry_score": entry_score,  # Restore entry_score from metadata
+                    "components": components,  # Restore components from metadata
                     "targets": [
                         {"pct": 0.02, "fraction": 0.30, "hit": False},
                         {"pct": 0.05, "fraction": 0.30, "hit": False},
@@ -2841,7 +2849,8 @@ class AlpacaExecutor:
                 age_min = (now_aware - entry_ts).total_seconds() / 60.0
                 log_event("reconcile", "position_restored", 
                          symbol=symbol, qty=abs(qty), side=side, 
-                         entry=avg_entry, current=current_price, age_min=round(age_min, 1))
+                         entry=avg_entry, current=current_price, age_min=round(age_min, 1),
+                         entry_score=entry_score, has_metadata=bool(metadata.get(symbol)))
             
             if positions:
                 log_event("reconcile", "complete", positions_restored=len(positions))
@@ -3569,6 +3578,12 @@ class AlpacaExecutor:
             return False
 
     def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown"):
+        # VALIDATION: Warn if entry_score is 0.0 (should not happen in normal flow)
+        if entry_score <= 0.0:
+            print(f"WARNING {symbol}: mark_open called with entry_score={entry_score:.2f} - this may indicate a bug", flush=True)
+            log_event("position", "mark_open_zero_score_warning", symbol=symbol, entry_score=entry_score,
+                     side=side, qty=qty, market_regime=market_regime, direction=direction)
+        
         now = datetime.utcnow()
         targets_state = [
             {"pct": t, "hit": False, "fraction": Config.SCALE_OUT_FRACTIONS[i] if i < len(Config.SCALE_OUT_FRACTIONS) else 0.0}
@@ -3702,6 +3717,8 @@ class AlpacaExecutor:
             # Add any positions in metadata that aren't in self.opens
             for symbol, meta in metadata.items():
                 if symbol not in self.opens and symbol in current_positions:
+                    # Restore entry_score from metadata
+                    entry_score = meta.get("entry_score", 0.0)
                     pos = current_positions[symbol]
                     qty = int(float(getattr(pos, "qty", 0)))
                     avg_entry = float(getattr(pos, "avg_entry_price", 0.0))
@@ -4906,6 +4923,19 @@ class StrategyEngine:
                     # Order was immediately filled - process normally
                     exec_qty = int(filled_qty)
                     exec_price = float(fill_price) if fill_price is not None else self.executor.get_quote_price(symbol)
+                    
+                    # VALIDATION: Ensure entry_score is valid before marking position open
+                    if score <= 0.0:
+                        print(f"ERROR {symbol}: Attempted to enter position with invalid entry_score={score:.2f} - BLOCKING ENTRY", flush=True)
+                        log_event("gate", "invalid_entry_score_blocked", symbol=symbol, score=score, 
+                                 direction=c.get("direction"), components=comps)
+                        log_blocked_trade(symbol, "invalid_entry_score", score,
+                                          direction=c.get("direction"),
+                                          decision_price=ref_price_check,
+                                          components=comps,
+                                          reason="entry_score must be > 0.0")
+                        continue  # Skip this position - don't enter with invalid score
+                    
                     self.executor.mark_open(symbol, exec_price, atr_mult, side, exec_qty, entry_score=score,
                                             components=comps, market_regime=market_regime, direction=c["direction"])
                 else:
@@ -6687,23 +6717,54 @@ def api_positions():
     try:
         engine = StrategyEngine()
         pos = engine.executor.api.list_positions()
+        
+        # Load position metadata to get entry_score and other details
+        metadata_path = StateFiles.POSITION_METADATA
+        position_metadata = {}
+        if metadata_path.exists():
+            try:
+                position_metadata = load_metadata_with_lock(metadata_path)
+            except Exception as e:
+                print(f"WARNING: Failed to load position metadata: {e}", flush=True)
+        
         out = []
         for p in pos:
+            symbol = getattr(p, "symbol", None) or getattr(p, "asset_id", "unknown")
+            meta = position_metadata.get(symbol, {})
+            
+            # Get entry_score from metadata, default to 0.0 if not found
+            entry_score = meta.get("entry_score", 0.0)
+            
             out.append({
-                "symbol": getattr(p, "symbol", None) or getattr(p, "asset_id", "unknown"),
+                "symbol": symbol,
                 "qty": _safe_float(getattr(p, "qty", 0), 0),
                 "market_value": _safe_float(getattr(p, "market_value", 0.0), 0.0),
                 "avg_entry_price": _safe_float(getattr(p, "avg_entry_price", 0.0), 0.0),
-                "unrealized_pl": _safe_float(getattr(p, "unrealized_pl", 0.0), 0.0),
-                "unrealized_plpc": _safe_float(getattr(p, "unrealized_plpc", 0.0), 0.0),
-                "side": getattr(p, "side", "")
+                "current_price": _safe_float(getattr(p, "current_price", 0.0), 0.0) if hasattr(p, "current_price") else _safe_float(getattr(p, "avg_entry_price", 0.0), 0.0),
+                "unrealized_pnl": _safe_float(getattr(p, "unrealized_pl", 0.0), 0.0),
+                "unrealized_pnl_pct": _safe_float(getattr(p, "unrealized_plpc", 0.0), 0.0),
+                "side": getattr(p, "side", "").lower(),
+                "entry_score": entry_score,  # Include entry_score from metadata
+                "entry_ts": meta.get("entry_ts"),  # Include entry timestamp
+                "market_regime": meta.get("market_regime", "unknown"),  # Include market regime
+                "direction": meta.get("direction", "unknown")  # Include direction
             })
         theme_map = load_theme_map() if Config.ENABLE_THEME_RISK else {}
         by_theme = {}
         for row in out:
             theme = theme_map.get(row["symbol"], "general")
             by_theme[theme] = by_theme.get(theme, 0.0) + row["market_value"]
-        return jsonify({"positions": out, "theme_exposure": {k: round(v, 2) for k, v in by_theme.items()}}), 200
+        
+        # Calculate totals
+        total_value = sum(p["market_value"] for p in out)
+        unrealized_pnl = sum(p["unrealized_pnl"] for p in out)
+        
+        return jsonify({
+            "positions": out, 
+            "total_value": total_value,
+            "unrealized_pnl": unrealized_pnl,
+            "theme_exposure": {k: round(v, 2) for k, v in by_theme.items()}
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e), "positions": [], "theme_exposure": {}}), 200
 
