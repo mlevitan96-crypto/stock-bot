@@ -2035,3 +2035,61 @@ All attribution records MUST include at top level:
 **Reference:** See `API_RESILIENCE_AND_PRE_MARKET_COMPLETE.md` for complete implementation details
 
 ---
+
+### Phase 6: Self-Healing Guardian for Cron Jobs - COMPLETE
+
+**Date:** 2026-01-02  
+**Status:** ✅ DEPLOYED - Guardian wrapper provides automatic recovery from health check failures
+
+**Objective:** Deploy a self-healing layer to automatically resolve errors found during pre-market and post-market audits.
+
+**Completed:**
+
+1. ✅ **Guardian Wrapper Script - COMPLETE**
+   - Script: `guardian_wrapper.sh`
+   - Wraps Python scripts in a self-healing layer
+   - Catches exit codes 1 (Degraded) and 2 (Unhealthy)
+   - Automatically performs recovery actions
+
+2. ✅ **Recovery Actions - COMPLETE**
+   - **UW Socket Fail:** Force kills `uw_flow_daemon.py` and restarts it
+   - **Alpaca SIP Delay:** Logs critical alert and re-initializes Alpaca Client
+   - **Stale Metadata Lock:** Deletes all `.lock` files in `state/` directory
+   - **Re-verification:** Re-runs health check after recovery to confirm success
+
+3. ✅ **Cron Integration - READY**
+   - Crontab entry configured for pre-market health check (9:15 AM ET / 14:15 UTC)
+   - Guardian wrapper automatically handles failures
+   - Comprehensive logging to `logs/guardian.log`
+
+**Recovery Logic:**
+- Exit code 0 (Healthy): No action
+- Exit code 1 (Degraded): Recovery triggered
+- Exit code 2 (Unhealthy): Recovery triggered + re-verification
+- Output analysis for specific failure patterns (UW failures, SIP delays)
+
+**Process Management Compatibility:**
+- ✅ process-compose (preferred - uses `process-compose restart`)
+- ✅ deploy_supervisor.py (uses `pkill` - supervisor auto-restarts)
+- ✅ systemd (via service restart)
+
+**Files Created:**
+- `guardian_wrapper.sh` - Main guardian script (263 lines)
+- `SELF_HEALING_GUARDIAN_DEPLOYMENT.md` - Complete deployment guide
+- Updated `DROPLET_PULL_INSTRUCTIONS.md` - Guardian setup instructions
+
+**Crontab Setup:**
+```bash
+# Pre-market health check with guardian (9:15 AM ET / 14:15 UTC, Mon-Fri)
+15 14 * * 1-5 cd /root/stock-bot && bash guardian_wrapper.sh pre_market_health_check.py >> logs/pre_market.log 2>&1
+```
+
+**System Status:**
+- ✅ Self-healing layer operational
+- ✅ Automatic recovery from common failures
+- ✅ Comprehensive logging and monitoring
+- ✅ Ready for production use
+
+**Reference:** See `SELF_HEALING_GUARDIAN_DEPLOYMENT.md` for complete deployment guide and troubleshooting
+
+---
