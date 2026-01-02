@@ -218,7 +218,7 @@ class RegimeDetector:
     def get_regime_multiplier(self, signal_direction: str = "bullish") -> float:
         """
         Get composite score multiplier based on regime.
-        Penalizes bullish tech in High-Yield/Panic states.
+        Buy the dip strategy: Panic regimes allow bullish entries (buy when there's blood in the streets).
         """
         regime = self.current_regime
         
@@ -232,8 +232,9 @@ class RegimeDetector:
             # Bear market - favor bearish
             return 0.8 if signal_direction == "bullish" else 1.1
         elif regime == "PANIC":
-            # Panic - heavily penalize bullish
-            return 0.5 if signal_direction == "bullish" else 1.2
+            # Panic - buy the dip strategy: allow bullish entries (panic creates buying opportunities)
+            # High volatility creates opportunities, but still require strong signals
+            return 1.2 if signal_direction == "bullish" else 0.9
         else:
             return 1.0
 
