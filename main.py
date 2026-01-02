@@ -3717,13 +3717,17 @@ class AlpacaExecutor:
             # Add any positions in metadata that aren't in self.opens
             for symbol, meta in metadata.items():
                 if symbol not in self.opens and symbol in current_positions:
-                    # Restore entry_score from metadata
-                    entry_score = meta.get("entry_score", 0.0)
                     pos = current_positions[symbol]
                     qty = int(float(getattr(pos, "qty", 0)))
                     avg_entry = float(getattr(pos, "avg_entry_price", 0.0))
                     current_price = float(getattr(pos, "current_price", avg_entry))
                     side = "buy" if qty > 0 else "sell"
+                    
+                    # Restore entry_score and other metadata
+                    entry_score = meta.get("entry_score", 0.0)
+                    components = meta.get("components", {})
+                    market_regime = meta.get("market_regime", "unknown")
+                    direction = meta.get("direction", "unknown")
                     
                     try:
                         entry_ts = datetime.fromisoformat(meta.get("entry_ts", ""))
@@ -3747,10 +3751,14 @@ class AlpacaExecutor:
                         "side": side,
                         "trail_dist": None,
                         "high_water": current_price,
+                        "entry_score": entry_score,  # Restore entry_score from metadata
+                        "components": components,  # Restore components from metadata
+                        "market_regime": market_regime,
+                        "direction": direction,
                         "targets": targets_state
                     }
                     self.high_water[symbol] = current_price
-                    log_event("reload", "position_added_from_metadata", symbol=symbol)
+                    log_event("reload", "position_added_from_metadata", symbol=symbol, entry_score=entry_score)
             
             # Remove any positions from self.opens that aren't in Alpaca
             for symbol in list(self.opens.keys()):
