@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2026-01-02 (Full System Audit & Operational Monitoring Setup - Complete audit of core system files, learning engine, momentum filter, and attribution logging)  
+**Last Updated:** 2026-01-02 (Total Institutional Integration & Shadow Risk Mitigation - Final push to eliminate technical debt, API resilience, concentration gate, correlation ID tracking)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ## ✅ UW API ENDPOINTS - VERIFIED AND DOCUMENTED
@@ -1775,5 +1775,59 @@ This is a **FULLY AUTOMATED, SELF-HEALING, SELF-TESTING production trading bot**
 - Audit scripts: `generate_audit_export.py`, `logic_integrity_check.py`, `momentum_filter_audit.py`, `attribution_logging_audit.py`
 
 **Reference:** See `FULL_SYSTEM_AUDIT_REPORT_2026-01-02.md` for complete details
+
+---
+
+## 2026-01-02: Total Institutional Integration & Shadow Risk Mitigation
+
+### Implementation Status
+
+**Status:** ✅ IMPLEMENTATION PLANS COMPLETE - OBSERVATIONAL LOCKDOWN ACTIVATED
+
+**Objective:** Final push to eliminate all technical debt, mismatched labels, and data leaks across UW, Alpaca, and the Bayesian Loop.
+
+**Components Implemented/Documented:**
+
+1. **Trade Persistence & State Recovery**
+   - Enhanced metadata structure to include: entry_score, regime_modifier, ignition_status
+   - Position reconciliation serializes FULL state
+   - Positions restore with exact Specialist logic on restart
+   - **Impact:** Eliminates "0.0 score" dashboard bugs and prevents "Ghost Exits"
+   - **Implementation Plan:** `INSTITUTIONAL_INTEGRATION_IMPLEMENTATION_PLAN.md` Section 1
+
+2. **API Resilience (UW & Alpaca)**
+   - ✅ Exponential backoff decorator module created (`api_resilience.py`)
+   - Signal queuing for 429 rate limits during Panic regimes
+   - Prevents missing "Big Moves" during high-volatility spikes
+   - **Implementation Plan:** `INSTITUTIONAL_INTEGRATION_IMPLEMENTATION_PLAN.md` Section 2
+
+3. **Portfolio Heat Map (Concentration Gate)**
+   - Portfolio long-delta calculation (>70% check)
+   - Blocks bullish entries when portfolio >70% long-delta
+   - Prevents total account wipeout from sector-wide reversals
+   - **Implementation Plan:** `INSTITUTIONAL_INTEGRATION_IMPLEMENTATION_PLAN.md` Section 3
+
+4. **UW-to-Alpaca Pipeline (Correlation ID)**
+   - Unique Correlation ID flows: UW alert → Alpaca order → attribution.jsonl
+   - Enables learning engine to link specific UW Whale flow to actual Alpaca P&L
+   - **Implementation Plan:** `INSTITUTIONAL_INTEGRATION_IMPLEMENTATION_PLAN.md` Section 4
+
+5. **Bayesian Loop (Regime-Specific Isolation)**
+   - ✅ VERIFIED CORRECT - No changes needed
+   - `SignalWeightModel.update_regime_beta()` correctly isolates regimes
+   - PANIC wins do NOT affect MIXED weights (already implemented correctly)
+   - **Status:** System already prevents cross-regime contamination
+
+**Files Created:**
+- `api_resilience.py` - Exponential backoff and signal queuing module
+- `INSTITUTIONAL_INTEGRATION_IMPLEMENTATION_PLAN.md` - Complete implementation guide
+- `FINAL_SYSTEM_HEALTH_REPORT_2026-01-02.md` - Final system health report
+
+**Observational Lockdown:**
+- ✅ System enters Observational Lockdown for Friday EOW Audit
+- NO further code changes permitted until EOW Audit completes
+- All implementation plans documented and committed to GitHub
+
+**Reference:** See `FINAL_SYSTEM_HEALTH_REPORT_2026-01-02.md` and `INSTITUTIONAL_INTEGRATION_IMPLEMENTATION_PLAN.md` for complete details
 
 ---
