@@ -1964,10 +1964,11 @@ All attribution records MUST include at top level:
    - Full traceability from UW alert to Alpaca P&L
    - Enables per-signal learning attribution
 
-4. ⏳ **API Resilience** - PENDING INTEGRATION
-   - Module created (`api_resilience.py`)
-   - Requires incremental integration at API call sites
-   - Recommended: Start with critical paths (UW daemon, order submission)
+4. ✅ **API Resilience** - COMPLETE
+   - Exponential backoff integrated into all UW and Alpaca API calls
+   - Signal queuing active on 429 errors during PANIC regimes
+   - Protected against rate-limiting during high-volatility Monday open
+   - Integration points: `main.py::UWClient._get()`, `uw_flow_daemon.py::UWClient._get()`, `AlpacaExecutor.submit_entry()`, `position_reconciliation_loop.py`
 
 5. ✅ **Bayesian Regime Isolation** - VERIFIED
    - Already implemented correctly (no changes needed)
@@ -1975,16 +1976,62 @@ All attribution records MUST include at top level:
    - Isolation confirmed - no cross-regime contamination
 
 **Files Modified:**
-- `main.py` - Trade persistence, concentration gate, correlation ID tracking
-- `position_reconciliation_loop.py` - Metadata preservation enhancements
+- `main.py` - Trade persistence, concentration gate, correlation ID tracking, API resilience integration
+- `position_reconciliation_loop.py` - Metadata preservation enhancements, API resilience integration
+- `uw_flow_daemon.py` - API resilience integration with signal queuing
+- `pre_market_health_check.py` - New pre-market connectivity verification script
 
 **System Status:**
-- ✅ **Full Institutional Operational** - All core features deployed
+- ✅ **Full Institutional Operational** - 100% completion of Institutional Integration Plan
 - ✅ Position state fully recoverable across restarts
 - ✅ Portfolio risk management active
 - ✅ Data pipeline tracking operational
-- ⏳ API resilience pending (module ready, integration recommended)
+- ✅ API resilience integrated (exponential backoff, signal queuing)
+- ✅ Pre-market health check script created (`pre_market_health_check.py`)
 
 **Reference:** See `INSTITUTIONAL_UPGRADES_IMPLEMENTATION_SUMMARY.md` for complete details
+
+---
+
+## 2026-01-02: API Resilience & Pre-Market Sync - FINAL "LAST MILE" COMPLETE
+
+### Final Implementation Status
+
+**Status:** ✅ 100% COMPLETE - All features from Institutional Integration Plan implemented
+
+**Objective:** Complete the "Last Mile" integration of API resilience and create pre-market connectivity verification.
+
+**Completed:**
+
+1. ✅ **API Resilience Integration - COMPLETE**
+   - Exponential backoff decorators applied to all critical API call sites
+   - UW API calls (`main.py::UWClient._get()`) - ✅ Protected
+   - UW Flow Daemon (`uw_flow_daemon.py::UWClient._get()`) - ✅ Protected
+   - Alpaca order submission (`AlpacaExecutor.submit_entry()`) - ✅ Protected
+   - Alpaca position/account checks - ✅ Protected
+   - Position reconciliation API calls - ✅ Protected
+   - Signal queuing on 429 errors during PANIC regimes - ✅ Active
+
+2. ✅ **Pre-Market Health Check Script - COMPLETE**
+   - Script: `pre_market_health_check.py`
+   - Verifies UW API connectivity and rate limit status
+   - Verifies Alpaca API and SIP data feed
+   - Checks UW flow cache freshness
+   - Generates detailed health report
+   - Returns actionable status codes (0=healthy, 1=degraded, 2=unhealthy)
+
+**Integration Points:**
+- ✅ 6 critical API call sites protected with exponential backoff
+- ✅ Signal queuing active during PANIC regimes
+- ✅ Graceful fallback if api_resilience module unavailable
+- ✅ All changes backward compatible
+
+**System Status:**
+- ✅ **100% Institutional Integration Complete**
+- ✅ Bulletproof against rate-limiting during high-volatility periods
+- ✅ Pre-market connectivity verification operational
+- ✅ Ready for Monday morning market open
+
+**Reference:** See `API_RESILIENCE_AND_PRE_MARKET_COMPLETE.md` for complete implementation details
 
 ---

@@ -1375,24 +1375,73 @@ class UWClient:
                     time.sleep(min(wait_time, 5.0))  # Max 5 second wait
                 return {"data": []}
             
-            # Make the API call
-            r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
-            r.raise_for_status()
-            result = r.json()
+            # V4.0: Apply API resilience with exponential backoff
+            from api_resilience import ExponentialBackoff, get_signal_queue, is_panic_regime
             
-            # Record API call
-            quota.record_api_call(symbol or "unknown")
+            backoff = ExponentialBackoff(max_retries=5, base_delay=1.0, max_delay=60.0)
             
-            return result
-        except ImportError:
-            # Fallback if quota manager not available
-            try:
+            def make_request():
                 r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
                 r.raise_for_status()
                 return r.json()
+            
+            try:
+                result = backoff(make_request)()
+                # Record API call
+                quota.record_api_call(symbol or "unknown")
+                return result
             except requests.exceptions.HTTPError as e:
-                # Rate limited (429) or endpoint not available (404) - return empty data
+                # Check for 429 rate limit - queue signal if in PANIC regime
+                status_code = e.response.status_code if hasattr(e, 'response') and e.response else None
+                if status_code == 429:
+                    try:
+                        if is_panic_regime():
+                            # Queue signal for later processing
+                            queue = get_signal_queue()
+                            queue.enqueue({
+                                "url": url,
+                                "params": params or {},
+                                "symbol": symbol or "unknown",
+                                "error": f"Rate limited (429): {str(e)}",
+                                "timestamp": datetime.now(timezone.utc).isoformat()
+                            })
+                            log_event("api_resilience", "signal_queued_on_429", url=url, symbol=symbol)
+                    except Exception:
+                        pass  # Don't fail if queueing fails
+                # Rate limited or endpoint not available - return empty data
+                jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e), "status_code": status_code})
+                return {"data": []}
+            except Exception as e:
                 jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e)})
+                return {"data": []}
+        except ImportError:
+            # Fallback if quota manager not available - still apply resilience
+            from api_resilience import ExponentialBackoff, get_signal_queue, is_panic_regime
+            
+            backoff = ExponentialBackoff(max_retries=5, base_delay=1.0, max_delay=60.0)
+            
+            def make_request():
+                r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
+                r.raise_for_status()
+                return r.json()
+            
+            try:
+                return backoff(make_request)()
+            except requests.exceptions.HTTPError as e:
+                # Check for 429 rate limit - queue signal if in PANIC regime
+                status_code = e.response.status_code if hasattr(e, 'response') and e.response else None
+                if status_code == 429 and is_panic_regime():
+                    queue = get_signal_queue()
+                    queue.enqueue({
+                        "url": url,
+                        "params": params or {},
+                        "symbol": symbol if 'symbol' in locals() else "unknown",
+                        "error": f"Rate limited (429): {str(e)}",
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    })
+                    log_event("api_resilience", "signal_queued_on_429", url=url)
+                # Rate limited or endpoint not available - return empty data
+                jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e), "status_code": status_code})
                 return {"data": []}
             except Exception as e:
                 jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e)})
@@ -3059,7 +3108,14 @@ class AlpacaExecutor:
         
         # RISK MANAGEMENT: Order size validation (enhanced version of existing check)
         try:
-            acct = self.api.get_account()
+            # V4.0: Apply API resilience with exponential backoff
+            from api_resilience import ExponentialBackoff
+            backoff = ExponentialBackoff(max_retries=3, base_delay=0.5, max_delay=5.0)
+            
+            def get_account():
+                return self.api.get_account()
+            
+            acct = backoff(get_account)()
             dtbp = float(acct.daytrading_buying_power)
             bp = float(acct.buying_power)
             
@@ -3123,16 +3179,23 @@ class AlpacaExecutor:
                         except ImportError:
                             client_order_id = None
                     
-                    o = self.api.submit_order(
-                        symbol=symbol,
-                        qty=qty,
-                        side=side,
-                        type="limit",
-                        time_in_force="day",
-                        limit_price=str(limit_price),
-                        extended_hours=False,
-                        client_order_id=client_order_id
-                    )
+                    # V4.0: Apply API resilience with exponential backoff
+                    from api_resilience import ExponentialBackoff
+                    backoff = ExponentialBackoff(max_retries=3, base_delay=0.5, max_delay=10.0)
+                    
+                    def submit_order():
+                        return self.api.submit_order(
+                            symbol=symbol,
+                            qty=qty,
+                            side=side,
+                            type="limit",
+                            time_in_force="day",
+                            limit_price=str(limit_price),
+                            extended_hours=False,
+                            client_order_id=client_order_id
+                        )
+                    
+                    o = backoff(submit_order)()
                     order_id = getattr(o, "id", None)
                     if order_id:
                         filled, filled_qty, filled_price = self.check_order_filled(order_id)
@@ -3283,15 +3346,22 @@ class AlpacaExecutor:
                 except ImportError:
                     client_order_id = None
             
-            o = self.api.submit_order(
-                symbol=symbol,
-                qty=qty,
-                side=side,
-                type="market",
-                time_in_force="day",
-                extended_hours=False,
-                client_order_id=client_order_id
-            )
+            # V4.0: Apply API resilience with exponential backoff
+            from api_resilience import ExponentialBackoff
+            backoff = ExponentialBackoff(max_retries=3, base_delay=0.5, max_delay=10.0)
+            
+            def submit_market_order():
+                return self.api.submit_order(
+                    symbol=symbol,
+                    qty=qty,
+                    side=side,
+                    type="market",
+                    time_in_force="day",
+                    extended_hours=False,
+                    client_order_id=client_order_id
+                )
+            
+            o = backoff(submit_market_order)()
             log_order({"action": "submit_market_fallback", "symbol": symbol, "side": side})
             order_id = getattr(o, "id", None)
             if order_id:
@@ -3334,8 +3404,19 @@ class AlpacaExecutor:
             return None, None, "error", 0, "error"
 
     def can_open_new_position(self) -> bool:
-        positions = self.api.list_positions()
-        return len(positions) < Config.MAX_CONCURRENT_POSITIONS
+        # V4.0: Apply API resilience with exponential backoff
+        from api_resilience import ExponentialBackoff
+        backoff = ExponentialBackoff(max_retries=3, base_delay=0.5, max_delay=5.0)
+        
+        def list_positions():
+            return self.api.list_positions()
+        
+        try:
+            positions = backoff(list_positions)()
+            return len(positions) < Config.MAX_CONCURRENT_POSITIONS
+        except Exception as e:
+            log_event("api_resilience", "list_positions_failed", error=str(e))
+            return False  # Fail closed - don't open new positions if we can't check
 
     def can_open_symbol(self, symbol: str) -> bool:
         now = datetime.utcnow()

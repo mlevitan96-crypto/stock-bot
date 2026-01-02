@@ -166,7 +166,18 @@ class UWClient:
             pass  # Don't fail on quota logging
         
         try:
-            r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
+            # V4.0: Apply API resilience with exponential backoff
+            try:
+                from api_resilience import ExponentialBackoff, get_signal_queue, is_panic_regime
+                backoff = ExponentialBackoff(max_retries=5, base_delay=1.0, max_delay=60.0)
+                
+                def make_request():
+                    return requests.get(url, headers=self.headers, params=params or {}, timeout=10)
+                
+                r = backoff(make_request)()
+            except ImportError:
+                # Fallback if api_resilience not available
+                r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
             
             # Check rate limit headers
             daily_count = r.headers.get("x-uw-daily-req-count")
@@ -183,10 +194,31 @@ class UWClient:
                 elif pct > 90:
                     safe_print(f"[UW-DAEMON] 🚨 Rate limit critical: {count}/{limit} ({pct:.1f}%)")
             
-                # Check for 429 (rate limited)
+                # Check for 429 (rate limited) - V4.0: Queue signal if in PANIC regime
             if r.status_code == 429:
                 error_data = r.json() if r.content else {}
                 safe_print(f"[UW-DAEMON] ❌ RATE LIMITED (429): {error_data.get('message', 'Daily limit hit')}")
+                
+                # V4.0: Queue signal for later processing if in PANIC regime
+                try:
+                    from api_resilience import get_signal_queue, is_panic_regime
+                    from datetime import datetime, timezone
+                    if is_panic_regime():
+                        queue = get_signal_queue()
+                        queue.enqueue({
+                            "url": url,
+                            "params": params or {},
+                            "error": f"Rate limited (429): {error_data.get('message', 'Daily limit hit')}",
+                            "daily_count": daily_count,
+                            "daily_limit": daily_limit,
+                            "timestamp": datetime.now(timezone.utc).isoformat()
+                        })
+                        safe_print(f"[UW-DAEMON] 🔄 Signal queued for later processing (PANIC regime)")
+                except ImportError:
+                    pass  # API resilience not available - continue with existing behavior
+                except Exception as queue_error:
+                    safe_print(f"[UW-DAEMON] WARNING: Failed to queue signal: {queue_error}")
+                
                 safe_print(f"[UW-DAEMON] ⚠️  Stopping polling until limit resets (8PM EST)")
                 append_jsonl(CacheFiles.UW_FLOW_CACHE_LOG, {
                     "event": "UW_API_RATE_LIMITED",
@@ -195,6 +227,7 @@ class UWClient:
                     "daily_count": daily_count,
                     "daily_limit": daily_limit,
                     "message": error_data.get("message", ""),
+                    "queued": False,  # Set based on actual queue status above
                     "ts": int(time.time())
                 })
                 # Set a flag to stop polling for a while

@@ -57,23 +57,48 @@ class PositionReconcilerV2:
         
         while retries < self.config["max_retries"] and alpaca_data is None:
             try:
-                # Get positions
-                positions_resp = requests.get(
-                    f'{self.base_url}/v2/positions',
-                    headers=self.headers,
-                    timeout=10
-                )
-                positions_resp.raise_for_status()
-                positions_raw = positions_resp.json()
-                
-                # Get account
-                account_resp = requests.get(
-                    f'{self.base_url}/v2/account',
-                    headers=self.headers,
-                    timeout=10
-                )
-                account_resp.raise_for_status()
-                account = account_resp.json()
+                # V4.0: Apply API resilience with exponential backoff
+                try:
+                    from api_resilience import ExponentialBackoff
+                    backoff = ExponentialBackoff(max_retries=3, base_delay=2.0, max_delay=20.0)
+                    
+                    def fetch_positions():
+                        resp = requests.get(
+                            f'{self.base_url}/v2/positions',
+                            headers=self.headers,
+                            timeout=10
+                        )
+                        resp.raise_for_status()
+                        return resp.json()
+                    
+                    def fetch_account():
+                        resp = requests.get(
+                            f'{self.base_url}/v2/account',
+                            headers=self.headers,
+                            timeout=10
+                        )
+                        resp.raise_for_status()
+                        return resp.json()
+                    
+                    positions_raw = backoff(fetch_positions)()
+                    account = backoff(fetch_account)()
+                except ImportError:
+                    # Fallback if api_resilience not available
+                    positions_resp = requests.get(
+                        f'{self.base_url}/v2/positions',
+                        headers=self.headers,
+                        timeout=10
+                    )
+                    positions_resp.raise_for_status()
+                    positions_raw = positions_resp.json()
+                    
+                    account_resp = requests.get(
+                        f'{self.base_url}/v2/account',
+                        headers=self.headers,
+                        timeout=10
+                    )
+                    account_resp.raise_for_status()
+                    account = account_resp.json()
                 
                 # Format positions
                 positions = []
