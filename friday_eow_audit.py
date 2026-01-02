@@ -28,12 +28,54 @@ REPORTS_DIR = BASE_DIR / "reports"
 STATE_DIR = BASE_DIR / "state"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Data files
-ATTRIBUTION_LOG = LOG_DIR / "attribution.jsonl"
+# CRITICAL: Use standardized data path from config/registry.py
+try:
+    from config.registry import LogFiles
+    ATTRIBUTION_LOG = LogFiles.ATTRIBUTION
+    print(f"[EOW Audit] Using standardized path: {ATTRIBUTION_LOG}", file=sys.stderr)
+except ImportError:
+    # Fallback to local path if registry not available
+    ATTRIBUTION_LOG = LOG_DIR / "attribution.jsonl"
+    print(f"[EOW Audit] WARNING: Using fallback path: {ATTRIBUTION_LOG}", file=sys.stderr)
+
 GATE_LOG = LOG_DIR / "gate.jsonl"
 BLOCKED_TRADES_LOG = STATE_DIR / "blocked_trades.jsonl"
 ORDERS_LOG = LOG_DIR / "orders.jsonl"
 DISPLACEMENT_LOG = LOG_DIR / "displacement.jsonl" if (LOG_DIR / "displacement.jsonl").exists() else GATE_LOG
+
+
+def fuzzy_search_attribution_log() -> List[Path]:
+    """
+    Fuzzy search for attribution.jsonl across all log directories.
+    Returns list of candidate paths found.
+    """
+    candidates = []
+    
+    # Primary path (standardized)
+    if ATTRIBUTION_LOG.exists():
+        candidates.append(ATTRIBUTION_LOG)
+    
+    # Search common alternative locations
+    search_paths = [
+        BASE_DIR / "logs" / "attribution.jsonl",
+        BASE_DIR / "data" / "attribution.jsonl",
+        BASE_DIR / "state" / "attribution.jsonl",
+        Path("logs") / "attribution.jsonl",
+        Path("data") / "attribution.jsonl",
+        Path(".") / "logs" / "attribution.jsonl",
+    ]
+    
+    for path in search_paths:
+        if path.exists() and path not in candidates:
+            candidates.append(path)
+    
+    # Also search parent directories (in case script is run from subdirectory)
+    for parent in [BASE_DIR.parent, BASE_DIR.parent.parent]:
+        alt_path = parent / "logs" / "attribution.jsonl"
+        if alt_path.exists() and alt_path not in candidates:
+            candidates.append(alt_path)
+    
+    return candidates
 
 
 def load_jsonl(file_path: Path) -> List[Dict]:
@@ -58,6 +100,45 @@ def load_jsonl(file_path: Path) -> List[Dict]:
     return records
 
 
+def load_attribution_with_fuzzy_search() -> Tuple[List[Dict], Path]:
+    """
+    Load attribution log with fuzzy search fallback.
+    Returns (records, actual_path_used)
+    """
+    # Try primary path first
+    if ATTRIBUTION_LOG.exists():
+        records = load_jsonl(ATTRIBUTION_LOG)
+        if records:
+            return records, ATTRIBUTION_LOG
+    
+    # Primary path empty or missing - try fuzzy search
+    candidates = fuzzy_search_attribution_log()
+    
+    if candidates:
+        # Use first candidate that has data
+        for candidate_path in candidates:
+            records = load_jsonl(candidate_path)
+            if records:
+                print(f"[EOW Audit] WARNING: Primary path empty, found data at: {candidate_path}", file=sys.stderr)
+                print(f"[EOW Audit] Data source: {candidate_path} ({len(records)} records)", file=sys.stderr)
+                return records, candidate_path
+        # If we found paths but they're empty, report that
+        if candidates:
+            print(f"[EOW Audit] WARNING: Found attribution log files but all are empty:", file=sys.stderr)
+            for c in candidates:
+                print(f"  - {c}", file=sys.stderr)
+            return [], candidates[0]  # Return empty list but indicate we found the path
+    
+    # No candidates found
+    print(f"[EOW Audit] CRITICAL ERROR: Attribution log not found at primary path: {ATTRIBUTION_LOG}", file=sys.stderr)
+    print(f"[EOW Audit] Searched paths:", file=sys.stderr)
+    print(f"  - Primary: {ATTRIBUTION_LOG}", file=sys.stderr)
+    for alt in [BASE_DIR / "logs" / "attribution.jsonl", BASE_DIR / "data" / "attribution.jsonl"]:
+        print(f"  - Alternative: {alt} (exists: {alt.exists()})", file=sys.stderr)
+    
+    return [], ATTRIBUTION_LOG  # Return empty list with primary path for error reporting
+
+
 def parse_timestamp(ts: Any) -> Optional[datetime]:
     """Parse various timestamp formats to datetime"""
     if ts is None:
@@ -76,27 +157,68 @@ def parse_timestamp(ts: Any) -> Optional[datetime]:
     return None
 
 
-def get_week_trades(friday_date: datetime) -> List[Dict]:
-    """Get all trades from Monday-Friday of the week"""
+def get_week_trades(friday_date: datetime) -> Tuple[List[Dict], Path]:
+    """
+    Get all trades from Monday-Friday of the week.
+    Returns (trades_list, data_source_path)
+    """
     # Find Monday of the week
     days_since_monday = friday_date.weekday()
     monday = friday_date - timedelta(days=days_since_monday)
     monday_start = monday.replace(hour=0, minute=0, second=0, microsecond=0)
     saturday_start = monday_start + timedelta(days=5)
     
+    # Use fuzzy search to find attribution log
+    records, data_source_path = load_attribution_with_fuzzy_search()
+    
     trades = []
-    for record in load_jsonl(ATTRIBUTION_LOG):
+    for record in records:
         if record.get("type") != "attribution":
             continue
         
+        # CRITICAL: Support both flat schema (mandatory fields) and nested schema (backward compatibility)
+        # Flat schema: symbol, entry_score, exit_pnl, market_regime, stealth_boost_applied at top level
+        # Nested schema: fields in context dict
+        
+        # Extract entry timestamp - try multiple locations
+        entry_ts_str = None
         context = record.get("context", {})
-        entry_ts_str = context.get("entry_ts") or record.get("ts") or record.get("timestamp")
+        
+        # Try context first (nested schema)
+        if isinstance(context, dict):
+            entry_ts_str = context.get("entry_ts") or context.get("entry_timestamp")
+        
+        # Try top level (flat schema)
+        if not entry_ts_str:
+            entry_ts_str = record.get("entry_ts") or record.get("ts") or record.get("timestamp")
+        
         entry_dt = parse_timestamp(entry_ts_str)
         
         if entry_dt and monday_start <= entry_dt < saturday_start:
             trades.append(record)
     
-    return trades
+    return trades, data_source_path
+
+
+def extract_trade_field(trade: Dict, field_name: str, default: Any = None) -> Any:
+    """
+    Extract field from trade record supporting both flat and nested schemas.
+    Tries: top-level field -> context.field -> default
+    """
+    # Try top level first (flat schema)
+    if field_name in trade:
+        value = trade[field_name]
+        if value is not None and value != "":
+            return value
+    
+    # Try context dict (nested schema)
+    context = trade.get("context", {})
+    if isinstance(context, dict) and field_name in context:
+        value = context[field_name]
+        if value is not None and value != "":
+            return value
+    
+    return default
 
 
 def calculate_alpha_decay_curves(trades: List[Dict]) -> Dict[str, Any]:
@@ -116,9 +238,9 @@ def calculate_alpha_decay_curves(trades: List[Dict]) -> Dict[str, Any]:
     }
     
     for trade in trades:
-        context = trade.get("context", {})
-        hold_minutes = context.get("hold_minutes", 0.0)
-        pnl_pct = trade.get("pnl_pct", 0.0) or context.get("pnl_pct", 0.0)
+        # Support both flat and nested schemas
+        hold_minutes = extract_trade_field(trade, "hold_minutes", 0.0)
+        pnl_pct = extract_trade_field(trade, "pnl_pct", 0.0) or extract_trade_field(trade, "exit_pnl", 0.0)
         
         if hold_minutes < 30:
             hold_time_bins["0-30"].append(pnl_pct)
@@ -181,37 +303,54 @@ def analyze_stealth_flow_effectiveness(trades: List[Dict]) -> Dict[str, Any]:
     """
     Analyze Stealth Flow (Low Magnitude Flow) effectiveness.
     Target: 100% win rate for flow_conv < 0.3
+    
+    CRITICAL: Supports both flat schema (stealth_boost_applied field) and nested schema (flow_conv check)
     """
     stealth_trades = []
     other_trades = []
     
     for trade in trades:
+        # CRITICAL: Check stealth_boost_applied field first (flat schema)
+        stealth_boost_applied = extract_trade_field(trade, "stealth_boost_applied", False)
+        
+        # Also check flow_magnitude from context (backward compatibility)
+        flow_magnitude = extract_trade_field(trade, "flow_magnitude", "")
         context = trade.get("context", {})
-        components = context.get("components", {})
+        components = context.get("components", {}) if isinstance(context, dict) else {}
         
-        # Check flow magnitude
-        flow_comp = components.get("flow") or components.get("options_flow")
-        if isinstance(flow_comp, dict):
-            flow_conv = flow_comp.get("conviction", 0.0)
-        elif isinstance(flow_comp, (int, float)):
-            flow_conv = float(flow_comp)
+        # Determine if this is a stealth flow trade
+        is_stealth = False
+        if stealth_boost_applied:
+            is_stealth = True
+        elif flow_magnitude == "LOW":
+            is_stealth = True
         else:
-            flow_conv = 0.0
+            # Fallback: Check flow_conv from components
+            flow_comp = components.get("flow") or components.get("options_flow")
+            if isinstance(flow_comp, dict):
+                flow_conv = flow_comp.get("conviction", 0.0)
+            elif isinstance(flow_comp, (int, float)):
+                flow_conv = float(flow_comp)
+            else:
+                flow_conv = 0.0
+            
+            if flow_conv < 0.3:
+                is_stealth = True
         
-        pnl_pct = trade.get("pnl_pct", 0.0) or context.get("pnl_pct", 0.0)
+        # Extract P&L (support both flat and nested schema)
+        pnl_pct = extract_trade_field(trade, "pnl_pct", 0.0) or extract_trade_field(trade, "exit_pnl", 0.0)
         
-        if flow_conv < 0.3:
+        if is_stealth:
             stealth_trades.append({
                 "pnl_pct": pnl_pct,
-                "flow_conv": flow_conv,
-                "symbol": trade.get("symbol", ""),
-                "win": pnl_pct > 0
+                "symbol": extract_trade_field(trade, "symbol", ""),
+                "win": pnl_pct > 0,
+                "stealth_boost_applied": stealth_boost_applied
             })
         else:
             other_trades.append({
                 "pnl_pct": pnl_pct,
-                "flow_conv": flow_conv,
-                "symbol": trade.get("symbol", ""),
+                "symbol": extract_trade_field(trade, "symbol", ""),
                 "win": pnl_pct > 0
             })
     
@@ -271,11 +410,12 @@ def analyze_temporal_liquidity_gate_impact(trades: List[Dict], gates: List[Dict]
     
     # Match trades to orders to get spread info
     for trade in trades:
-        context = trade.get("context", {})
-        symbol = trade.get("symbol", "")
-        entry_ts_str = context.get("entry_ts")
+        # Support both flat and nested schema
+        symbol = extract_trade_field(trade, "symbol", "")
+        context = trade.get("context", {}) if isinstance(trade.get("context"), dict) else {}
+        entry_ts_str = extract_trade_field(trade, "entry_ts", None) or context.get("entry_ts")
         entry_dt = parse_timestamp(entry_ts_str)
-        pnl_pct = trade.get("pnl_pct", 0.0) or context.get("pnl_pct", 0.0)
+        pnl_pct = extract_trade_field(trade, "pnl_pct", 0.0) or extract_trade_field(trade, "exit_pnl", 0.0)
         
         # Find matching order
         for order in orders:
@@ -412,7 +552,7 @@ def analyze_opportunity_cost(blocked_trades: List[Dict], executed_trades: List[D
     # For now, just report counts and scores
     
     # Get P&L of executed trades for comparison
-    executed_pnl = [t.get("pnl_pct", 0.0) or t.get("context", {}).get("pnl_pct", 0.0) for t in executed_trades]
+    executed_pnl = [extract_trade_field(t, "pnl_pct", 0.0) or extract_trade_field(t, "exit_pnl", 0.0) for t in executed_trades]
     avg_executed_pnl = sum(executed_pnl) / len(executed_pnl) if executed_pnl else 0.0
     
     return {
@@ -448,7 +588,15 @@ def generate_eow_audit(friday_date: Optional[datetime] = None) -> str:
     if days_since_friday != 0:
         friday_date = friday_date - timedelta(days=days_since_friday)
     
-    week_trades = get_week_trades(friday_date)
+    week_trades, data_source_path = get_week_trades(friday_date)
+    
+    # Report data source location
+    if not week_trades:
+        print(f"[EOW Audit] WARNING: No trades found for week ending {friday_date.strftime('%Y-%m-%d')}", file=sys.stderr)
+        print(f"[EOW Audit] Data source path: {data_source_path} (exists: {data_source_path.exists() if hasattr(data_source_path, 'exists') else False})", file=sys.stderr)
+    else:
+        print(f"[EOW Audit] Found {len(week_trades)} trades from data source: {data_source_path}", file=sys.stderr)
+    
     gates = load_jsonl(GATE_LOG)
     blocked_trades = load_jsonl(BLOCKED_TRADES_LOG)
     
@@ -471,11 +619,11 @@ def generate_eow_audit(friday_date: Optional[datetime] = None) -> str:
     capacity_efficiency = analyze_capacity_efficiency(week_gates)
     opportunity_cost = analyze_opportunity_cost(blocked_trades, week_trades)
     
-    # Overall week stats
+    # Overall week stats (support both flat and nested schema)
     total_trades = len(week_trades)
-    total_wins = sum(1 for t in week_trades if (t.get("pnl_pct", 0.0) or t.get("context", {}).get("pnl_pct", 0.0)) > 0)
-    total_pnl_usd = sum(t.get("pnl_usd", 0.0) or t.get("context", {}).get("pnl_usd", 0.0) for t in week_trades)
-    total_pnl_pct = sum(t.get("pnl_pct", 0.0) or t.get("context", {}).get("pnl_pct", 0.0) for t in week_trades)
+    total_wins = sum(1 for t in week_trades if (extract_trade_field(t, "pnl_pct", 0.0) or extract_trade_field(t, "exit_pnl", 0.0)) > 0)
+    total_pnl_usd = sum(extract_trade_field(t, "pnl_usd", 0.0) for t in week_trades)
+    total_pnl_pct = sum(extract_trade_field(t, "pnl_pct", 0.0) or extract_trade_field(t, "exit_pnl", 0.0) for t in week_trades)
     
     # Generate Markdown report
     report_lines = [

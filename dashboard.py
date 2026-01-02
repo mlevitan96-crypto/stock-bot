@@ -1750,17 +1750,34 @@ def api_xai_auditor():
             import json
             from datetime import datetime, timezone, timedelta
             
-            # Try multiple possible locations (same as executive_summary_generator)
-            attribution_files = [
-                Path("logs/attribution.jsonl"),
-                Path("data/attribution.jsonl"),
-            ]
-            
-            attribution_file = None
-            for path in attribution_files:
-                if path.exists():
-                    attribution_file = path
-                    break
+            # CRITICAL: Use standardized path from config/registry.py
+            try:
+                from config.registry import LogFiles
+                attribution_file = LogFiles.ATTRIBUTION
+                if not attribution_file.exists():
+                    # Fallback to alternative locations if standardized path doesn't exist
+                    attribution_files = [
+                        Path("logs/attribution.jsonl"),
+                        Path("data/attribution.jsonl"),
+                    ]
+                    for path in attribution_files:
+                        if path.exists():
+                            attribution_file = path
+                            print(f"[Dashboard] WARNING: Using fallback path: {path}", flush=True, file=sys.stderr)
+                            break
+                    else:
+                        attribution_file = None
+            except ImportError:
+                # Fallback to local paths if registry not available
+                attribution_files = [
+                    Path("logs/attribution.jsonl"),
+                    Path("data/attribution.jsonl"),
+                ]
+                attribution_file = None
+                for path in attribution_files:
+                    if path.exists():
+                        attribution_file = path
+                        break
             
             if attribution_file:
                 cutoff_time = datetime.now(timezone.utc) - timedelta(days=90)  # Last 90 days
@@ -1815,9 +1832,33 @@ def api_xai_auditor():
                                 if trade_time < cutoff_time:
                                     continue
                                 
+                                # CRITICAL: Support both flat schema (mandatory fields) and nested schema (backward compatibility)
+                                # Flat schema: symbol, entry_score, exit_pnl, market_regime, stealth_boost_applied at top level
+                                
+                                # Extract entry_score - try flat schema first, then nested
+                                entry_score_flat = rec.get("entry_score")
+                                entry_score_nested = context.get("entry_score", 0.0) if isinstance(context, dict) else 0.0
+                                entry_score = entry_score_flat if entry_score_flat is not None else entry_score_nested
+                                
+                                # CRITICAL ERROR: Log if entry_score is missing (should never be 0.0 or missing)
+                                if entry_score == 0.0 or entry_score is None:
+                                    print(f"[Dashboard] CRITICAL_ERROR: Missing entry_score for trade {rec.get('trade_id', 'unknown')} symbol {rec.get('symbol', 'unknown')}", flush=True, file=sys.stderr)
+                                    # Still continue but log the error
+                                
+                                # Extract market_regime - try flat schema first, then nested
+                                market_regime_flat = rec.get("market_regime")
+                                market_regime_nested = context.get("market_regime", "unknown") if isinstance(context, dict) else "unknown"
+                                market_regime = market_regime_flat if market_regime_flat is not None else market_regime_nested
+                                
+                                # Extract exit_pnl/pnl_pct - try flat schema first, then nested
+                                exit_pnl_flat = rec.get("exit_pnl")
+                                pnl_pct_flat = rec.get("pnl_pct")
+                                pnl_pct_nested = context.get("pnl_pct", 0.0) if isinstance(context, dict) else 0.0
+                                pnl_pct = exit_pnl_flat if exit_pnl_flat is not None else (pnl_pct_flat if pnl_pct_flat is not None else pnl_pct_nested)
+                                
                                 # Convert attribution format to XAI trade_exit format
-                                entry_price = float(context.get("entry_price", 0.0))
-                                exit_price = float(context.get("exit_price", 0.0))
+                                entry_price = float(context.get("entry_price", 0.0) if isinstance(context, dict) else 0.0)
+                                exit_price = float(context.get("exit_price", 0.0) if isinstance(context, dict) else 0.0)
                                 pnl_pct = float(rec.get("pnl_pct", 0.0))
                                 hold_minutes = float(rec.get("hold_minutes", 0.0))
                                 
@@ -1840,7 +1881,7 @@ def api_xai_auditor():
                                         why_parts.append(f"exit reason: {close_reason}")
                                 
                                 # Regime
-                                market_regime = context.get("market_regime", "unknown")
+                                # market_regime already extracted above with flat/nested schema support
                                 if market_regime and market_regime != "unknown":
                                     regime_desc = {
                                         "RISK_ON": "bullish",
@@ -1868,11 +1909,16 @@ def api_xai_auditor():
                                         regime_normalized = "NEUTRAL"
                                 
                                 # Create XAI format trade_exit record
+                                # Add flat schema fields to xai_record for consistency
                                 xai_record = {
                                     "type": "trade_exit",
                                     "symbol": symbol,
                                     "entry_price": entry_price,
                                     "exit_price": exit_price,
+                                    # CRITICAL: Ensure mandatory flat fields are at top level
+                                    "entry_score": entry_score,
+                                    "exit_pnl": pnl_pct,
+                                    "market_regime": market_regime,
                                     "pnl_pct": pnl_pct,
                                     "hold_minutes": hold_minutes,
                                     "exit_reason": close_reason or "unknown",
@@ -1882,6 +1928,15 @@ def api_xai_auditor():
                                     "trade_id": trade_id,  # Keep original trade_id for reference
                                     "_from_attribution": True  # Flag to indicate source
                                 }
+                                # Add flat schema fields to xai_record for consistency
+                                xai_record["entry_score"] = entry_score  # Ensure entry_score is at top level
+                                xai_record["market_regime"] = market_regime  # Ensure market_regime is at top level
+                                xai_record["exit_pnl"] = pnl_pct  # Add exit_pnl for consistency
+                                
+                                # Extract stealth_boost_applied if available
+                                stealth_boost = rec.get("stealth_boost_applied", False)
+                                xai_record["stealth_boost_applied"] = stealth_boost
+                                
                                 attribution_trades.append(xai_record)
                             except Exception as e:
                                 continue

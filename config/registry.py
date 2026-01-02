@@ -116,6 +116,9 @@ class StateFiles:
 class LogFiles:
     """All log files - single source of truth."""
     
+    # CRITICAL: Attribution log path - MUST be used by all components (main.py, friday_eow_audit.py, dashboard.py)
+    ATTRIBUTION = Directories.LOGS / "attribution.jsonl"
+    
     TRADING = Directories.LOGS / "trading.jsonl"
     ORDERS = Directories.LOGS / "orders.jsonl"
     POSITIONS = Directories.LOGS / "positions.jsonl"

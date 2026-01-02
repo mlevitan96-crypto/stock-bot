@@ -31,6 +31,8 @@ from config.registry import (
     Directories, CacheFiles, StateFiles, LogFiles, ConfigFiles, Thresholds, APIConfig,
     read_json, atomic_write_json, append_jsonl
 )
+# CRITICAL: Standardized data path - MUST be used by all components (main.py, friday_eow_audit.py, dashboard.py)
+ATTRIBUTION_LOG_PATH = LogFiles.ATTRIBUTION
 
 # Institutional-grade modules
 from signals.uw import (
@@ -467,6 +469,16 @@ class Config:
     LIQUIDITY_REGIME_MIN_VOL = float(get_env("LIQUIDITY_REGIME_MIN_VOL", "1000000"))
 
 LOG_DIR = "logs"
+# Ensure log directory exists
+os.makedirs(LOG_DIR, exist_ok=True)
+# CRITICAL: Ensure attribution log path directory exists
+try:
+    if hasattr(ATTRIBUTION_LOG_PATH, 'parent'):
+        ATTRIBUTION_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        os.makedirs(os.path.dirname(str(ATTRIBUTION_LOG_PATH)), exist_ok=True)
+except Exception:
+    pass  # Directory may already exist
 REPORT_DIR = "reports"
 WEIGHTS_PATH = "weights.json"
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -524,7 +536,11 @@ def get_position_qty(api, symbol: str) -> int:
     return 0
 
 def jsonl_write(name, record):
-    path = os.path.join(LOG_DIR, f"{name}.jsonl")
+    # CRITICAL: Use standardized path for attribution log
+    if name == "attribution":
+        path = str(ATTRIBUTION_LOG_PATH)
+    else:
+        path = os.path.join(LOG_DIR, f"{name}.jsonl")
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps({"ts": now_iso(), **record}) + "\n")
 
@@ -1087,15 +1103,67 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
         context["market_regime"] = metadata.get("market_regime", context["market_regime"])
         context["direction"] = metadata.get("direction", context["direction"])
     
-    jsonl_write("attribution", {
+    # CRITICAL: Extract stealth_flow_boost_applied from components/notes
+    stealth_boost_applied = False
+    if isinstance(context.get("components"), dict):
+        # Check if stealth flow boost was applied (flow_magnitude == "LOW")
+        if context.get("flow_magnitude") == "LOW":
+            stealth_boost_applied = True
+        # Also check notes/composite_meta if available
+        components = context.get("components", {})
+        if isinstance(components.get("notes"), str) and "stealth_flow" in components.get("notes", "").lower():
+            stealth_boost_applied = True
+    
+    # CRITICAL: Enforce mandatory flat schema - all required fields at top level
+    # Schema: [symbol, entry_score, exit_pnl, market_regime, stealth_boost_applied]
+    entry_score_flat = context.get("entry_score", 0.0)
+    market_regime_flat = context.get("market_regime", "unknown")
+    
+    # Validate required fields - log CRITICAL ERROR if missing
+    if entry_score_flat == 0.0:
+        log_event("data_integrity", "CRITICAL_ERROR_missing_entry_score", 
+                 symbol=symbol, trade_id=f"close_{symbol}_{now_iso()}")
+    
+    if market_regime_flat == "unknown":
+        log_event("data_integrity", "WARNING_missing_market_regime", 
+                 symbol=symbol, trade_id=f"close_{symbol}_{now_iso()}")
+    
+    # Write attribution with mandatory flat fields at top level
+    attribution_record = {
         "type": "attribution",
         "trade_id": f"close_{symbol}_{now_iso()}",
+        # MANDATORY FLAT FIELDS (per user requirement)
         "symbol": symbol,
+        "entry_score": entry_score_flat,
+        "exit_pnl": round(pnl_pct, 4),  # exit_pnl is pnl_pct
+        "market_regime": market_regime_flat,
+        "stealth_boost_applied": stealth_boost_applied,
+        # Additional fields (preserved for backward compatibility)
         "pnl_usd": round(pnl_usd, 2),
         "pnl_pct": round(pnl_pct, 4),
         "hold_minutes": round(hold_minutes, 1),
-        "context": context
-    })
+        "context": context  # Full context preserved for detailed analysis
+    }
+    
+    jsonl_write("attribution", attribution_record)
+    
+    # DATA INTEGRITY CHECK: Verify log was written successfully
+    try:
+        import os
+        if ATTRIBUTION_LOG_PATH.exists():
+            # Check if file was recently modified (within last 5 seconds)
+            import time
+            file_mtime = os.path.getmtime(str(ATTRIBUTION_LOG_PATH))
+            if time.time() - file_mtime < 5:
+                log_event("data_integrity", "attribution_log_verified", symbol=symbol)
+            else:
+                log_event("data_integrity", "WARNING_attribution_log_not_updated", 
+                         symbol=symbol, file_age_sec=time.time() - file_mtime)
+        else:
+            log_event("data_integrity", "CRITICAL_ERROR_attribution_log_missing", symbol=symbol)
+    except Exception as integrity_error:
+        log_event("data_integrity", "ERROR_integrity_check_failed", 
+                 symbol=symbol, error=str(integrity_error))
     
     log_event("exit", "attribution_logged", 
               symbol=symbol, 

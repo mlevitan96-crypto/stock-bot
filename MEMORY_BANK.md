@@ -1831,3 +1831,79 @@ This is a **FULLY AUTOMATED, SELF-HEALING, SELF-TESTING production trading bot**
 **Reference:** See `FINAL_SYSTEM_HEALTH_REPORT_2026-01-02.md` and `INSTITUTIONAL_INTEGRATION_IMPLEMENTATION_PLAN.md` for complete details
 
 ---
+
+## 2026-01-02: Data Path Fragmentation & Standardized Audit Labels - FIX COMPLETE
+
+### Problem Identified
+
+The Friday EOW audit returned 0 trades because:
+1. **Data path fragmentation:** `main.py` and `friday_eow_audit.py` used different path resolution methods
+2. **Schema mismatch:** Attribution logging used nested schema while audit expected flat schema
+3. **Missing mandatory fields:** `stealth_boost_applied` not tracked, `entry_score` could be missing
+4. **Silent failures:** Audit succeeded but returned zero results without reporting WHERE it looked
+
+### Fixes Implemented
+
+1. **Standardized Data Path** ✅
+   - Added `LogFiles.ATTRIBUTION` constant to `config/registry.py`
+   - All components (`main.py`, `friday_eow_audit.py`, `dashboard.py`) now use single constant
+   - **Path:** `logs/attribution.jsonl` (relative to project root)
+   - **Status:** Single source of truth established
+
+2. **Metadata Schema Enforcement** ✅
+   - Updated `log_exit_attribution()` to enforce mandatory flat schema
+   - **Mandatory fields at top level:** `symbol`, `entry_score`, `exit_pnl`, `market_regime`, `stealth_boost_applied`
+   - **Validation:** CRITICAL ERROR logged if `entry_score == 0.0` or missing
+   - **Backward compatibility:** Nested schema preserved in `context` dict
+
+3. **Audit Script Logic Repair** ✅
+   - Added `fuzzy_search_attribution_log()` to search across log directories
+   - Added `load_attribution_with_fuzzy_search()` with data source reporting
+   - Added `extract_trade_field()` helper supporting both flat and nested schemas
+   - **Never silently returns zero results** - always reports WHERE it looked
+
+4. **Dashboard Label Sync** ✅
+   - Updated to use `LogFiles.ATTRIBUTION` from config/registry
+   - Supports both flat and nested schemas
+   - **CRITICAL ERROR logged** if `entry_score == 0.0` or missing
+   - Extracts `stealth_boost_applied` field
+
+5. **Data Integrity Check** ✅
+   - Added verification after each trade log write
+   - Confirms log was written successfully
+   - Logs WARNING if file not updated within 5 seconds
+
+### Standardized Data Path Map (Finalized, Immutable)
+
+**Single Source of Truth:** `config/registry.py::LogFiles.ATTRIBUTION`  
+**Path:** `logs/attribution.jsonl` (relative to project root)
+
+**All Components MUST Use:**
+```python
+from config.registry import LogFiles
+ATTRIBUTION_LOG = LogFiles.ATTRIBUTION
+```
+
+**Components Updated:**
+- ✅ `main.py` - Uses `ATTRIBUTION_LOG_PATH = LogFiles.ATTRIBUTION`
+- ✅ `friday_eow_audit.py` - Uses `LogFiles.ATTRIBUTION`
+- ✅ `dashboard.py` - Uses `LogFiles.ATTRIBUTION`
+
+### Mandatory Schema Fields
+
+All attribution records MUST include at top level:
+- `symbol` (string) - Trade symbol
+- `entry_score` (float) - **CRITICAL ERROR if 0.0 or missing**
+- `exit_pnl` (float) - Exit P&L percentage (alias for pnl_pct)
+- `market_regime` (string) - **WARNING if "unknown"**
+- `stealth_boost_applied` (boolean) - Whether stealth flow boost was applied
+
+**Files Modified:**
+- `config/registry.py` - Added `LogFiles.ATTRIBUTION`
+- `main.py` - Standardized path, enforced schema, added integrity check
+- `friday_eow_audit.py` - Standardized path, fuzzy search, flat schema support
+- `dashboard.py` - Standardized path, flat schema support, error logging
+
+**Reference:** See `DATA_PATH_FRAGMENTATION_FIX_SUMMARY.md` for complete details
+
+---
