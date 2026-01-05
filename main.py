@@ -3189,10 +3189,18 @@ class AlpacaExecutor:
                             client_order_id = None
                     
                     # V4.0: Apply API resilience with exponential backoff
+                    # CRITICAL FIX: Generate unique client_order_id for each backoff retry
                     from api_resilience import ExponentialBackoff
                     backoff = ExponentialBackoff(max_retries=3, base_delay=0.5, max_delay=10.0)
                     
+                    backoff_attempt = [0]  # Counter for backoff retries
                     def submit_order():
+                        backoff_attempt[0] += 1
+                        # Generate unique client_order_id for each backoff retry to avoid "must be unique" error
+                        if backoff_attempt[0] > 1:
+                            unique_client_order_id = f"{client_order_id}-retry{backoff_attempt[0]}"
+                        else:
+                            unique_client_order_id = client_order_id
                         return self.api.submit_order(
                             symbol=symbol,
                             qty=qty,
@@ -3201,7 +3209,7 @@ class AlpacaExecutor:
                             time_in_force="day",
                             limit_price=str(limit_price),
                             extended_hours=False,
-                            client_order_id=client_order_id
+                            client_order_id=unique_client_order_id
                         )
                     
                     o = backoff(submit_order)()
@@ -3477,10 +3485,18 @@ class AlpacaExecutor:
                     client_order_id = None
             
             # V4.0: Apply API resilience with exponential backoff
+            # CRITICAL FIX: Generate unique client_order_id for each backoff retry
             from api_resilience import ExponentialBackoff
             backoff = ExponentialBackoff(max_retries=3, base_delay=0.5, max_delay=10.0)
             
+            backoff_attempt = [0]  # Counter for backoff retries
             def submit_market_order():
+                backoff_attempt[0] += 1
+                # Generate unique client_order_id for each backoff retry to avoid "must be unique" error
+                if backoff_attempt[0] > 1:
+                    unique_client_order_id = f"{client_order_id}-retry{backoff_attempt[0]}" if client_order_id else None
+                else:
+                    unique_client_order_id = client_order_id
                 return self.api.submit_order(
                     symbol=symbol,
                     qty=qty,
@@ -3488,7 +3504,7 @@ class AlpacaExecutor:
                     type="market",
                     time_in_force="day",
                     extended_hours=False,
-                    client_order_id=client_order_id
+                    client_order_id=unique_client_order_id
                 )
             
             o = backoff(submit_market_order)()
@@ -3546,14 +3562,49 @@ class AlpacaExecutor:
                                 return existing, filled_price, "market", filled_qty, "filled"
                 except Exception:
                     pass
-            log_order({"action": "market_fail", "symbol": symbol, "side": side, "error": str(e)})
+            # CRITICAL: Log RAW API error response for forensic analysis
+            error_details = {
+                "symbol": symbol,
+                "qty": qty,
+                "side": side,
+                "client_order_id": client_order_id if 'client_order_id' in locals() else None,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "error_args": e.args if hasattr(e, 'args') else None
+            }
+            # Capture HTTP error details if available
+            if hasattr(e, 'status_code'):
+                error_details["status_code"] = e.status_code
+            if hasattr(e, 'response'):
+                try:
+                    error_details["response_body"] = e.response.text if hasattr(e.response, 'text') else str(e.response)
+                    if hasattr(e.response, 'json'):
+                        try:
+                            error_details["response_json"] = e.response.json()
+                        except:
+                            error_details["response_json"] = None
+                except:
+                    pass
+            # Log to dedicated critical API failure log
+            try:
+                from pathlib import Path
+                log_file = Path("logs/critical_api_failure.log")
+                log_file.parent.mkdir(exist_ok=True)
+                import json
+                with log_file.open("a") as lf:
+                    lf.write(f"{datetime.now(timezone.utc).isoformat()} | market_fail | {json.dumps(error_details, default=str)}\\n")
+            except Exception as log_err:
+                pass  # Don't fail on logging error
+            
+            log_event("critical_api_failure", "market_fail", **error_details)
+            log_order({"action": "market_fail", "symbol": symbol, "side": side, "error": str(e), "error_details": error_details})
             # Track execution failure for learning
             try:
                 from tca_data_manager import track_execution_failure
                 track_execution_failure(symbol, "market_fail", {"error": str(e)})
             except ImportError:
                 pass
-            return None, None, "error", 0, "error"
+            return None, None, "error", 0, str(e)
 
     def can_open_new_position(self) -> bool:
         # V4.0: Apply API resilience with exponential backoff
