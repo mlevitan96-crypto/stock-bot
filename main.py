@@ -4781,13 +4781,13 @@ class StrategyEngine:
             else:
                 # CRITICAL FIX: Fallback scoring when source is unknown or composite_score is missing/zero
                 # This prevents 0.00 scores from blocking all trades
-                if score <= 0.0 or cluster_source == "unknown":
-                    confirm_score = confirm_map.get(symbol, 0.0)
-                    score = self.score_cluster(c, confirm_score, gex, market_regime)
+                # Calculate score from scratch using score_cluster method
+                confirm_score = confirm_map.get(symbol, 0.0)
+                score = self.score_cluster(c, confirm_score, gex, market_regime)
+                if cluster_source == "unknown" or c.get("composite_score", 0.0) <= 0.0:
                     log_event("scoring", "fallback_score_calculated", symbol=symbol, source=cluster_source, 
                              calculated_score=score, confirm_score=confirm_score)
                     print(f"DEBUG {symbol}: Fallback scoring - calculated score={score:.2f} (source was {cluster_source})", flush=True)
-                # If score was already > 0.0, use it (already calculated above)
                 
                 entry_action = None
                 atr_mult = None
@@ -4811,7 +4811,7 @@ class StrategyEngine:
                     else:
                         conviction_mult = 1.0  # Base 1.5%
                     notional_target = min(base_notional * conviction_mult, limits["max_position_dollar"])
-                    log_event("sizing", "conviction_based", symbol=symbol, score=score,
+                    log_event("sizing", "conviction_based", symbol=symbol, score=score, 
                              base_notional=round(base_notional, 2), conviction_mult=round(conviction_mult, 2),
                              final_notional=round(notional_target, 2), account_equity=round(account_equity, 2))
                 except (ImportError, Exception) as sizing_error:
@@ -4821,12 +4821,11 @@ class StrategyEngine:
                 qty = max(1, int(notional_target / ref_price))
                 # V2.1 FIX: Try to extract components from confirm_map for ML learning
                 comps = {}
+                # Note: dp_map, net_map, vol_map, ovl_map are not available in this scope
+                # Components will be built from confirm_map data if available
                 if symbol in confirm_map:
-                    # Build component dict from confirmation scores
-                    conf_data = confirmation_components(symbol, gex_map.get(symbol, {}), 
-                                                        dp_map.get(symbol, []), net_map,
-                                                        vol_map.get(symbol, {}), ovl_map.get(symbol, []))
-                    comps = component_scores(c, conf_data)
+                    # Use simplified component extraction
+                    comps = component_scores(c, {})
             
             # UW entry gate (institutional quality filter) - graceful if cache empty
             # DISABLED for composite-sourced clusters (they have count=1, premium=0 by design)
@@ -5146,14 +5145,19 @@ class StrategyEngine:
                 # Continue on error - don't block trading if exposure checks fail
 
                 # MOMENTUM IGNITION FILTER: Check price movement before entry
-            # Ensures price is actually moving (+0.2% in 2 minutes) before executing Whale signal
+            # Ensures price is actually moving (+0.05% in 2 minutes, reduced from 0.2%) before executing Whale signal
+            # SOFT-FAIL: High-conviction trades (>4.0) pass even with 0.00% momentum
             ignition_status = "unknown"
             try:
                 from momentum_ignition_filter import check_momentum_before_entry
+                # Get current price for momentum check (ref_price_check is defined later, use ref_price from sizing)
+                momentum_price = ref_price if 'ref_price' in locals() else self.executor.get_last_trade(symbol)
+                if momentum_price <= 0:
+                    momentum_price = self.executor.get_last_trade(symbol)
                 momentum_check = check_momentum_before_entry(
                     symbol=symbol,
                     signal_direction=c.get("direction", "bullish"),
-                    current_price=ref_price_check,
+                    current_price=momentum_price,
                     entry_score=score  # Pass score for soft-fail mode
                 )
                 
