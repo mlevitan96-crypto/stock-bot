@@ -93,6 +93,21 @@ This is the **primary reference document** for all bot operations. It contains:
 - **Fix:** Changed to count only symbol keys (excluding metadata keys): `cache_symbol_count = len([k for k in uw_cache.keys() if not k.startswith("_")])` and `use_composite = cache_symbol_count > 0`
 - **Lesson:** Always validate data structure contents, not just presence. Check for actual data keys, not just dict length.
 
+**2026-01-05 Root Cause Fix - UW Signal Parser Metadata Loss (Systemic Blindness):**
+- **Problem:** 10,909 signals marked as 'unknown', gate events showing 'unknown', metadata fields (flow_conv, flow_magnitude) not extracted from UW API JSON
+- **Root Causes:**
+  1. `_normalize_flow_trade()` was not extracting `flow_conv` and `flow_magnitude` fields from UW API JSON payload
+  2. `signal_type` field was never created from `flow_type` + `direction` combination
+  3. Gate event logs didn't include `gate_type` field, causing analysis scripts to see 'unknown'
+  4. signal_type not preserved in clusters, so gate events couldn't access it
+- **Fixes Applied:**
+  1. Enhanced `_normalize_flow_trade()` to extract `flow_conv`, `flow_magnitude`, and create `signal_type` (e.g., "BULLISH_SWEEP", "BEARISH_BLOCK")
+  2. Enhanced `cluster_signals()` to preserve `signal_type` in clusters
+  3. Added `gate_type` and `signal_type` parameters to all `log_event("gate", ...)` calls
+  4. Verified composite scoring has access to raw UW components via cache/enrichment pipeline
+- **Impact:** Signals now have full metadata, gate events are properly labeled, analysis scripts can see actual signal types instead of 'unknown'
+- **Lesson:** Always extract ALL available fields from API responses, create composite identifiers (signal_type) for easier analysis, ensure metadata flows through entire pipeline (normalize → cluster → gate events)
+
 ---
 
 # 🚀 COMPLETE WORKFLOW: User → Cursor → Git → Droplet → Git → Cursor → User
