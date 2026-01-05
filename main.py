@@ -6271,19 +6271,12 @@ def run_once():
                      passed=len(clusters), rejection_rate=1.0 - (len(clusters) / max(symbols_processed, 1)))
             print(f"DEBUG: Composite filter complete, {len(clusters)} clusters passed gate", flush=True)
         else:
-            # CRITICAL FIX: If composite scoring should run but doesn't, clear clusters to prevent unscored signals
-            # Composite scoring requires cache - if cache exists but composite didn't run, something is wrong
-            # Clear clusters to prevent logging unscored flow_clusters (which have score=0.00)
-            if len(uw_cache) > 0:
-                print(f"⚠️  WARNING: Cache exists ({len(uw_cache)} symbols) but composite scoring didn't run - clearing clusters to prevent unscored signals", flush=True)
-                log_event("composite_scoring", "should_run_but_didnt", cache_symbols=len(uw_cache), flow_clusters=len(flow_clusters))
-                clusters = []  # Clear to prevent unscored signals
-            else:
-                # Cache is empty - composite scoring can't run, so flow_clusters are expected
-                # BUT we still shouldn't log unscored clusters - clear them
-                print(f"⚠️  WARNING: Cache empty - composite scoring cannot run. Clearing unscored flow_clusters ({len(flow_clusters)} clusters) to prevent logging signals with score=0.00", flush=True)
-                log_event("composite_scoring", "cache_empty_no_composite", flow_clusters=len(flow_clusters))
-                clusters = []  # Clear unscored clusters
+            # CRITICAL FIX: Composite scoring didn't run - clear clusters to prevent logging unscored signals
+            # When composite scoring doesn't run, clusters stays as flow_clusters (which have no composite_score)
+            # These would appear as score=0.00 in signals.jsonl - prevent this by clearing clusters
+            print(f"⚠️  WARNING: Composite scoring did not run (use_composite={use_composite}, cache_symbols={len(uw_cache)}) - clearing {len(flow_clusters)} unscored flow_clusters to prevent signals with score=0.00", flush=True)
+            log_event("composite_scoring", "not_run_clearing_clusters", use_composite=use_composite, cache_symbols=len(uw_cache), flow_clusters=len(flow_clusters))
+            clusters = []  # Clear unscored clusters - prevent logging signals with score=0.00
 
         audit_seg("run_once", "clusters_filtered", {"cluster_count": len(clusters)})
         
