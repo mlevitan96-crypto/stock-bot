@@ -1501,11 +1501,22 @@ class UWClient:
         ticker = t.get("ticker") or t.get("symbol")
         timestamp = t.get("created_at") or t.get("timestamp")
         
+        # ROOT CAUSE FIX: Extract flow_conv and flow_magnitude from UW API JSON payload
+        flow_conv = float(t.get("flow_conv") or t.get("flow_conviction") or t.get("conviction") or 0.0)
+        flow_magnitude_raw = t.get("flow_magnitude") or t.get("magnitude") or ""
+        flow_magnitude = flow_magnitude_raw.upper() if isinstance(flow_magnitude_raw, str) else "UNKNOWN"
+        
+        # ROOT CAUSE FIX: Create signal_type from flow_type + direction (e.g., BULLISH_SWEEP, BEARISH_BLOCK)
+        signal_type = f"{direction.upper()}_{flow_type.upper()}" if flow_type and direction else "UNKNOWN"
+        
         return {
             "ticker": ticker,
             "timestamp": self._to_iso(timestamp),
             "flow_type": flow_type,
             "direction": direction,
+            "signal_type": signal_type,  # ROOT CAUSE FIX: e.g., BULLISH_SWEEP, BEARISH_BLOCK
+            "flow_conv": flow_conv,  # ROOT CAUSE FIX: Extract from UW API JSON
+            "flow_magnitude": flow_magnitude,  # ROOT CAUSE FIX: Extract from UW API JSON (LOW/MEDIUM/HIGH)
             "premium_usd": float(t.get("total_premium") or t.get("premium") or 0),
             "strike": float(t.get("strike") or 0),
             "expiry": t.get("expiry") or t.get("expiration"),
@@ -1628,9 +1639,14 @@ def cluster_signals(trades: list) -> list:
                     else:
                         break
                 if len(cluster) >= Config.CLUSTER_MIN_SWEEPS:
+                    # ROOT CAUSE FIX: Extract signal_type from trades (use most common or first)
+                    signal_types = [c.get("signal_type", "UNKNOWN") for c in cluster if c.get("signal_type")]
+                    signal_type = max(set(signal_types), key=signal_types.count) if signal_types else (cluster[0].get("signal_type", "UNKNOWN") if cluster else "UNKNOWN")
+                    
                     clusters.append({
                         "ticker": ticker,
                         "direction": direction,
+                        "signal_type": signal_type,  # ROOT CAUSE FIX: Preserve signal_type in cluster (e.g., BULLISH_SWEEP)
                         "count": len(cluster),
                         "start_ts": cluster[0]["timestamp"],
                         "end_ts": cluster[-1]["timestamp"],
@@ -4664,7 +4680,7 @@ class StrategyEngine:
             prof = get_or_init_profile(self.profiles, symbol) if Config.ENABLE_PER_TICKER_LEARNING else {}
             
             if Config.ENABLE_REGIME_GATING and not regime_gate_ticker(prof, market_regime):
-                log_event("gate", "regime_blocked", symbol=symbol, regime=market_regime)
+                log_event("gate", "regime_blocked", symbol=symbol, regime=market_regime, gate_type="regime_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 continue
             
             # V4.0: PORTFOLIO CONCENTRATION GATE - Block bullish entries if >70% long-delta
@@ -4672,7 +4688,7 @@ class StrategyEngine:
                 print(f"DEBUG {symbol}: BLOCKED by concentration_gate - net_delta_pct={net_delta_pct:.2f}% > 70%", flush=True)
                 log_event("gate", "concentration_blocked_bullish",
                          symbol=symbol, net_delta_pct=round(net_delta_pct, 2),
-                         reason="portfolio_already_70pct_long_delta")
+                         reason="portfolio_already_70pct_long_delta", gate_type="concentration_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 log_blocked_trade(symbol, "concentration_gate", score,
                                  direction=c.get("direction"),
                                  decision_price=ref_price_check if 'ref_price_check' in locals() else 0.0,
@@ -4684,7 +4700,7 @@ class StrategyEngine:
                 violations = correlated_exposure_guard(open_positions, self.theme_map, Config.MAX_THEME_NOTIONAL_USD)
                 sym_theme = self.theme_map.get(symbol, "general")
                 if sym_theme in violations:
-                    log_event("gate", "theme_exposure_blocked", symbol=symbol, theme=sym_theme, notional=violations[sym_theme])
+                    log_event("gate", "theme_exposure_blocked", symbol=symbol, theme=sym_theme, notional=violations[sym_theme], gate_type="theme_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                     continue
             
             # PRIORITIZE COMPOSITE SCORE: If cluster has pre-calculated composite_score, always use it
@@ -4951,7 +4967,7 @@ class StrategyEngine:
                         continue
                 elif symbol in self.executor.opens and not should_flip:
                     # We already have a position in same direction - skip (no need to add more)
-                    log_event("gate", "already_positioned", symbol=symbol, existing_side=existing_side)
+                    log_event("gate", "already_positioned", symbol=symbol, existing_side=existing_side, gate_type="position_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                     continue
             
             # V3.2 CHECKPOINT: POST_SCORING - Expectancy Gate
@@ -5006,7 +5022,7 @@ class StrategyEngine:
             
             if not should_trade:
                 log_event("gate", "expectancy_blocked", symbol=symbol, 
-                         expectancy=expectancy, reason=gate_reason, stage=system_stage)
+                         expectancy=expectancy, reason=gate_reason, stage=system_stage, gate_type="expectancy_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 
                 # SHADOW LOGGER: Track rejected signal
                 try:
@@ -5029,7 +5045,7 @@ class StrategyEngine:
             # V3.2.1: Check cycle position limit
             if new_positions_this_cycle >= MAX_NEW_POSITIONS_PER_CYCLE:
                 log_event("gate", "max_new_positions_per_cycle_reached", symbol=symbol, 
-                         cycle_count=new_positions_this_cycle, max_allowed=MAX_NEW_POSITIONS_PER_CYCLE)
+                         cycle_count=new_positions_this_cycle, max_allowed=MAX_NEW_POSITIONS_PER_CYCLE, gate_type="capacity_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 log_blocked_trade(symbol, "max_new_positions_per_cycle", score,
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
@@ -5078,7 +5094,7 @@ class StrategyEngine:
             
             if score < min_score:
                 print(f"DEBUG {symbol}: BLOCKED by score_below_min ({score} < {min_score}, stage={system_stage})", flush=True)
-                log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=min_score, stage=system_stage)
+                log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=min_score, stage=system_stage, gate_type="score_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 
                 # SHADOW LOGGER: Track rejected signal
                 try:

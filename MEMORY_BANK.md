@@ -64,15 +64,20 @@ This is the **primary reference document** for all bot operations. It contains:
 
 **User Directive (2025-12-26):** "The goal of the dashboard health isn't to trick me into not having health data. We aren't trying to just clear errors. We are trying to fix them. I need to know if there are errors. DO NOT JUST FIX THE NOTIFICATION. Fix the error causing the notification. This is sloppy and unacceptable."
 
+**User Directive (2026-01-05):** "Fucking figure it out! The goal is to fix this, not tell me it is broken... I want to make sure you aren't doing a lazy workaround and you are actually fixing the root cause. We need signals to work...all of them. This isn't about figuring out a way to get the bot to trade without good signals. This is about getting the signals to work flawlessly so we can trade in order to make money."
+
 **MANDATORY RULE:**
 - ❌ **NEVER** store empty structures just to make dashboard show "healthy"
+- ❌ **NEVER** mask symptoms with workarounds (e.g., clearing clusters when composite scoring fails)
 - ✅ **ALWAYS** investigate WHY signals aren't populating with real data
 - ✅ **ALWAYS** fix the root cause (API endpoints, data processing, normalization)
 - ✅ **ALWAYS** ensure real intelligence flows into trade data
 - ✅ **ALWAYS** verify APIs return real data before considering it "fixed"
+- ✅ **ALWAYS** fix the actual logic bug, not the symptom
 
 **Example of WRONG approach:**
 - Storing `{}` for signals that return empty just to make dashboard show "healthy"
+- Clearing clusters when composite scoring doesn't run (masks the problem instead of fixing it)
 - This masks the real problem: APIs aren't returning data or normalization is failing
 
 **Example of CORRECT approach:**
@@ -81,6 +86,12 @@ This is the **primary reference document** for all bot operations. It contains:
 - Verify normalization function works with real data
 - Fix the actual data flow issue
 - Only then is the signal truly "healthy"
+
+**2026-01-05 Root Cause Fix - Composite Scoring Logic Bug:**
+- **Mistake:** Used `len(uw_cache) > 0` to determine if composite scoring should run
+- **Root Cause:** Cache can have metadata keys (starting with "_") but no actual symbol keys. `len(uw_cache) > 0` would be True even with only metadata, causing composite scoring to attempt to run but produce no valid signals (0.00 scores).
+- **Fix:** Changed to count only symbol keys (excluding metadata keys): `cache_symbol_count = len([k for k in uw_cache.keys() if not k.startswith("_")])` and `use_composite = cache_symbol_count > 0`
+- **Lesson:** Always validate data structure contents, not just presence. Check for actual data keys, not just dict length.
 
 ---
 
