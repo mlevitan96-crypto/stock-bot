@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2026-01-02 (Total Institutional Integration & Shadow Risk Mitigation - Final push to eliminate technical debt, API resilience, concentration gate, correlation ID tracking)  
+**Last Updated:** 2026-01-05 (Dynamic & Conviction-Based Position Sizing - Replaced fixed $500 sizing with 1.5% equity-based sizing, added conviction scaling, deployed to droplet)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ## ✅ UW API ENDPOINTS - VERIFIED AND DOCUMENTED
@@ -2038,10 +2038,58 @@ All attribution records MUST include at top level:
 
 ### Phase 6: Self-Healing Guardian for Cron Jobs - COMPLETE
 
-**Date:** 2026-01-02  
+**Date:** 2026-01-02
 **Status:** ✅ DEPLOYED - Guardian wrapper provides automatic recovery from health check failures
 
 **Objective:** Deploy a self-healing layer to automatically resolve errors found during pre-market and post-market audits.
+
+---
+
+### Phase 7: Dynamic & Conviction-Based Position Sizing - COMPLETE
+
+**Date:** 2026-01-05
+**Status:** ✅ DEPLOYED - Dynamic position sizing with conviction-based scaling now live on droplet
+
+**Objective:** Replace fixed dollar sizing ($500) with dynamic equity-based sizing that scales with signal conviction while respecting the 1.5% risk ceiling.
+
+**Implementation:**
+1. **Dynamic Base Sizing:** Position sizes now calculated as 1.5% of current account equity
+   - Paper account ($55k): Base $825 per position (was $500)
+   - Live account ($10k): Base $150 per position (was $500)
+   - Scales dynamically as equity changes
+
+2. **Conviction-Based Scaling:**
+   - Entry score > 4.5: Scales to 2.0% of equity (capped at max_position_dollar = $825 for paper)
+   - Entry score 3.5-4.5: Base 1.5% of equity
+   - Entry score < 3.5: Scales down to 1.0% of equity
+
+3. **Attribution Logging:** Added `account_equity_at_entry` and `position_size_usd` to attribution context for analysis
+
+4. **Safety Checks:** 
+   - Concentration gate (blocks >70% long-delta) - ✅ Active
+   - Liquidity limits (buying power, position limits) - ✅ Active  
+   - Entry score validation (blocks <= 0.0) - ✅ Active
+
+**Files Modified:**
+- `main.py`: Updated all three sizing locations (composite, per-ticker-learning, default) to use `risk_management.calculate_position_size()`
+- Added conviction scaling logic with proper capping at `max_position_dollar`
+- Enhanced attribution logging with position sizing metrics
+
+**Deployment:**
+- Committed: `f7101ba` - "Implement dynamic & conviction-based position sizing"
+- Deployed to droplet: 2026-01-05
+- Service restarted: Trading bot service restarted on droplet
+
+**Expected Behavior:**
+- High-conviction signals (score > 4.5) attempt larger positions but respect $825 cap
+- Base signals (3.5-4.5) use standard 1.5% sizing
+- Low-conviction signals (score < 3.5) use smaller 1.0% sizing
+- All positions scale dynamically with account equity changes
+
+**Verification:**
+- Check `logs/attribution.jsonl` for `position_size_usd` and `account_equity_at_entry` fields
+- Monitor actual position sizes vs. expected sizes based on entry scores
+- Verify positions are capped at risk management limits
 
 **Completed:**
 
