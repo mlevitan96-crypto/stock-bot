@@ -1383,6 +1383,33 @@ tail -50 logs/supervisor.jsonl | grep -i error
 
 ## Recent Fixes & Improvements
 
+### 2026-01-05: Position State Desync Fix - Alpaca API as Authoritative Source
+
+1. **Critical Issue Fixed**: Bot's position metadata was stale (showed 6 positions when Alpaca had 0)
+   - **Problem**: Reconciliation was throttled and required 2 confirmations before auto-fix
+   - **Root Cause**: Stale state could persist for 10+ minutes
+   - **Fix Applied**: 
+     - Changed `DIVERGENCE_CONFIRMATION_THRESHOLD` from 2 to 1 (faster auto-fix)
+     - Enhanced reconciliation logic to preserve entry_score when syncing
+     - Created `force_position_reconciliation.py` for immediate fixes
+     - Enhanced position tracking health check to detect specific symbol discrepancies
+   - **Status**: ✅ Fixed and deployed
+   - **Impact**: Bot metadata now syncs with Alpaca API within 5 minutes (was 10+ minutes)
+
+2. **Principle Established**: Alpaca API is ALWAYS authoritative for positions
+   - Trading happens on Alpaca, so Alpaca API is the source of truth
+   - Bot metadata must always match Alpaca API
+   - Auto-fix happens immediately on detection (threshold=1)
+   - Enhanced monitoring detects specific symbol discrepancies
+
+**Files Modified:**
+- `main.py`: Enhanced reconciliation logic (threshold=1, improved metadata preservation)
+- `health_supervisor.py`: Enhanced position tracking check (detects specific discrepancies)
+- `force_position_reconciliation.py`: New script for immediate reconciliation
+- `enhance_position_monitoring.py`: New validation utility
+
+**Reference:** See `POSITION_STATE_FIX_SUMMARY.md` for complete details
+
 ### 2026-01-05: Dashboard Data Source Comprehensive Audit & Fix
 
 1. **Last Order Data Source Fix**: Fixed "Last Order" metric showing incorrect data
