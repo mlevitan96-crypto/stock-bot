@@ -4821,11 +4821,8 @@ class StrategyEngine:
                 qty = max(1, int(notional_target / ref_price))
                 # V2.1 FIX: Try to extract components from confirm_map for ML learning
                 comps = {}
-                # Note: dp_map, net_map, vol_map, ovl_map are not available in this scope
-                # Components will be built from confirm_map data if available
-                if symbol in confirm_map:
-                    # Use simplified component extraction
-                    comps = component_scores(c, {})
+                # Components extraction - simplified since dp_map, net_map, etc. not in scope
+                # comps will be empty dict, which is acceptable for fallback scoring path
             
             # UW entry gate (institutional quality filter) - graceful if cache empty
             # DISABLED for composite-sourced clusters (they have count=1, premium=0 by design)
@@ -5148,16 +5145,14 @@ class StrategyEngine:
             # Ensures price is actually moving (+0.05% in 2 minutes, reduced from 0.2%) before executing Whale signal
             # SOFT-FAIL: High-conviction trades (>4.0) pass even with 0.00% momentum
             ignition_status = "unknown"
+            # Get ref_price_check early for momentum check (will be recalculated later for notional check)
+            ref_price_check = self.executor.get_last_trade(symbol)
             try:
                 from momentum_ignition_filter import check_momentum_before_entry
-                # Get current price for momentum check (ref_price_check is defined later, use ref_price from sizing)
-                momentum_price = ref_price if 'ref_price' in locals() else self.executor.get_last_trade(symbol)
-                if momentum_price <= 0:
-                    momentum_price = self.executor.get_last_trade(symbol)
                 momentum_check = check_momentum_before_entry(
                     symbol=symbol,
                     signal_direction=c.get("direction", "bullish"),
-                    current_price=momentum_price,
+                    current_price=ref_price_check,
                     entry_score=score  # Pass score for soft-fail mode
                 )
                 
