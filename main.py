@@ -4502,7 +4502,28 @@ class StrategyEngine:
                 if ref_price <= 0:
                     log_event("sizing", "bad_ref_price", symbol=symbol, ref_price=ref_price)
                     continue
-                notional_target = Config.SIZE_BASE_USD
+                # V5.0: Dynamic & Conviction-Based Position Sizing
+                try:
+                    from risk_management import calculate_position_size, get_risk_limits
+                    account = self.executor.api.get_account()
+                    account_equity = float(account.equity)
+                    base_notional = calculate_position_size(account_equity)  # 1.5% base
+                    limits = get_risk_limits()
+                    # Conviction-based scaling: >4.5 -> 2.0%, <3.5 -> 1.0%, base 1.5%
+                    if score > 4.5:
+                        conviction_mult = 2.0 / 1.5  # Scale to 2.0% (1.33x)
+                    elif score < 3.5:
+                        conviction_mult = 1.0 / 1.5  # Scale to 1.0% (0.67x)
+                    else:
+                        conviction_mult = 1.0  # Base 1.5%
+                    notional_target = min(base_notional * conviction_mult, limits["max_position_dollar"])
+                    log_event("sizing", "conviction_based", symbol=symbol, score=score, 
+                             base_notional=round(base_notional, 2), conviction_mult=round(conviction_mult, 2),
+                             final_notional=round(notional_target, 2), account_equity=round(account_equity, 2))
+                except (ImportError, Exception) as sizing_error:
+                    # Fallback to fixed sizing if risk management not available
+                    log_event("sizing", "fallback_to_fixed", symbol=symbol, error=str(sizing_error))
+                    notional_target = Config.SIZE_BASE_USD
                 qty = max(1, int(notional_target / ref_price))
                 # V2.1 FIX: Extract signal components from composite_meta for ML learning
                 # This enables the learning system to understand WHY trades succeeded or failed
@@ -4529,7 +4550,28 @@ class StrategyEngine:
                 if ref_price <= 0:
                     log_event("sizing", "bad_ref_price", symbol=symbol, ref_price=ref_price)
                     continue
-                notional_target = Config.SIZE_BASE_USD * size_scale
+                # V5.0: Dynamic & Conviction-Based Position Sizing
+                try:
+                    from risk_management import calculate_position_size, get_risk_limits
+                    account = self.executor.api.get_account()
+                    account_equity = float(account.equity)
+                    base_notional = calculate_position_size(account_equity)  # 1.5% base
+                    limits = get_risk_limits()
+                    # Conviction-based scaling: >4.5 -> 2.0%, <3.5 -> 1.0%, base 1.5%
+                    if score > 4.5:
+                        conviction_mult = 2.0 / 1.5  # Scale to 2.0% (1.33x)
+                    elif score < 3.5:
+                        conviction_mult = 1.0 / 1.5  # Scale to 1.0% (0.67x)
+                    else:
+                        conviction_mult = 1.0  # Base 1.5%
+                    notional_target = min(base_notional * conviction_mult * size_scale, limits["max_position_dollar"])
+                    log_event("sizing", "conviction_based", symbol=symbol, score=score,
+                             base_notional=round(base_notional, 2), conviction_mult=round(conviction_mult, 2),
+                             size_scale=size_scale, final_notional=round(notional_target, 2), account_equity=round(account_equity, 2))
+                except (ImportError, Exception) as sizing_error:
+                    # Fallback to fixed sizing if risk management not available
+                    log_event("sizing", "fallback_to_fixed", symbol=symbol, error=str(sizing_error))
+                    notional_target = Config.SIZE_BASE_USD * size_scale
                 qty = max(1, int(notional_target / ref_price))
             else:
                 # Calculate score from scratch
@@ -4543,7 +4585,28 @@ class StrategyEngine:
                 if ref_price <= 0:
                     log_event("sizing", "bad_ref_price", symbol=symbol, ref_price=ref_price)
                     continue
-                notional_target = Config.SIZE_BASE_USD
+                # V5.0: Dynamic & Conviction-Based Position Sizing
+                try:
+                    from risk_management import calculate_position_size, get_risk_limits
+                    account = self.executor.api.get_account()
+                    account_equity = float(account.equity)
+                    base_notional = calculate_position_size(account_equity)  # 1.5% base
+                    limits = get_risk_limits()
+                    # Conviction-based scaling: >4.5 -> 2.0%, <3.5 -> 1.0%, base 1.5%
+                    if score > 4.5:
+                        conviction_mult = 2.0 / 1.5  # Scale to 2.0% (1.33x)
+                    elif score < 3.5:
+                        conviction_mult = 1.0 / 1.5  # Scale to 1.0% (0.67x)
+                    else:
+                        conviction_mult = 1.0  # Base 1.5%
+                    notional_target = min(base_notional * conviction_mult, limits["max_position_dollar"])
+                    log_event("sizing", "conviction_based", symbol=symbol, score=score,
+                             base_notional=round(base_notional, 2), conviction_mult=round(conviction_mult, 2),
+                             final_notional=round(notional_target, 2), account_equity=round(account_equity, 2))
+                except (ImportError, Exception) as sizing_error:
+                    # Fallback to fixed sizing if risk management not available
+                    log_event("sizing", "fallback_to_fixed", symbol=symbol, error=str(sizing_error))
+                    notional_target = Config.SIZE_BASE_USD
                 qty = max(1, int(notional_target / ref_price))
                 # V2.1 FIX: Try to extract components from confirm_map for ML learning
                 comps = {}
@@ -4916,9 +4979,14 @@ class StrategyEngine:
             print(f"DEBUG {symbol}: Side determined: {side}, qty={qty}, ref_price={ref_price_check}", flush=True)
             
             # RISK MANAGEMENT: Validate order size before submission (qty already calculated above)
+            # V5.0: Capture account_equity and position_size_usd for attribution logging
+            account_equity_at_entry = None
+            position_size_usd = None
             try:
                 from risk_management import validate_order_size
                 account = self.executor.api.get_account()
+                account_equity_at_entry = float(account.equity)
+                position_size_usd = qty * ref_price_check
                 buying_power = float(account.buying_power)
                 current_price = ref_price_check
                 
@@ -5238,6 +5306,11 @@ class StrategyEngine:
                     "score": score,
                     "order_type": order_type
                 }
+                # V5.0: Add position sizing and account equity to attribution context
+                if account_equity_at_entry is not None:
+                    context["account_equity_at_entry"] = round(account_equity_at_entry, 2)
+                if position_size_usd is not None:
+                    context["position_size_usd"] = round(position_size_usd, 2)
                 if Config.ENABLE_PER_TICKER_LEARNING and decisions_map:
                     context.update({
                         "confirm_score": None,
