@@ -46,9 +46,26 @@ def check_recent_signals(hours: int = 2) -> Dict[str, Any]:
 
 def check_recent_orders(hours: int = 2) -> Dict[str, Any]:
     """Check recent order submissions"""
-    order_log = Path("logs/order.jsonl")
+    # CORRECT PATH: Use logs/orders.jsonl (plural) per config/registry.py LogFiles.ORDERS
+    # For total orders/trades, count from logs/attribution.jsonl as authoritative source
+    order_log = Path("logs/orders.jsonl")
+    attribution_log = Path("logs/attribution.jsonl")
     cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
     
+    # Count total trades from attribution.jsonl (authoritative source)
+    total_trades_all_time = 0
+    if attribution_log.exists():
+        with open(attribution_log, 'r') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        data = json.loads(line)
+                        if data.get('type') == 'attribution':
+                            total_trades_all_time += 1
+                    except:
+                        pass
+    
+    # Check recent order events from orders.jsonl
     orders = []
     if order_log.exists():
         with open(order_log, 'r') as f:
@@ -78,6 +95,7 @@ def check_recent_orders(hours: int = 2) -> Dict[str, Any]:
     filled = [o for o in orders if o['status'] in ('FILLED', 'filled')]
     
     return {
+        'total_trades_all_time': total_trades_all_time,  # From attribution.jsonl (authoritative)
         'total_recent': len(orders),
         'filled_count': len(filled),
         'orders': orders[-10:],
@@ -268,10 +286,11 @@ def main():
     print()
     
     # 4. Orders
-    print("4. ORDER SUBMISSIONS (last 2 hours):")
+    print("4. ORDER SUBMISSIONS:")
     orders = check_recent_orders()
-    print(f"   Total orders: {orders.get('total_recent', 0)}")
-    print(f"   Filled orders: {orders.get('filled_count', 0)}")
+    print(f"   Total trades (all time): {orders.get('total_trades_all_time', 0)} (from attribution.jsonl)")
+    print(f"   Recent order events (last 2 hours): {orders.get('total_recent', 0)} (from orders.jsonl)")
+    print(f"   Filled orders (last 2 hours): {orders.get('filled_count', 0)}")
     if orders.get('orders'):
         print("   Recent orders:")
         for order in orders['orders'][-5:]:
@@ -308,7 +327,7 @@ def main():
         bot_status.get('running', False) and
         run_activity.get('active', False) and
         signals.get('has_recent', False) and
-        orders.get('total_recent', 0) > 0
+        orders.get('total_trades_all_time', 0) > 0  # Check total trades from attribution.jsonl
     )
     
     if workflow_ok:
@@ -316,7 +335,8 @@ def main():
         print(f"   - Bot running: {bot_status.get('running', False)}")
         print(f"   - Run_once active: {run_activity.get('active', False)}")
         print(f"   - Signals generating: {signals.get('has_recent', False)} ({signals.get('total_recent', 0)} signals)")
-        print(f"   - Orders submitting: {orders.get('total_recent', 0)} orders ({orders.get('filled_count', 0)} filled)")
+        print(f"   - Total trades (all time): {orders.get('total_trades_all_time', 0)} (from attribution.jsonl)")
+        print(f"   - Recent order events: {orders.get('total_recent', 0)} orders ({orders.get('filled_count', 0)} filled)")
         print(f"   - Positions: {positions.get('count', 0)}")
     else:
         print("⚠️  WORKFLOW ISSUES DETECTED")
@@ -326,8 +346,8 @@ def main():
             print("   ❌ Run_once not active")
         if not signals.get('has_recent', False):
             print("   ❌ No recent signals")
-        if orders.get('total_recent', 0) == 0:
-            print("   ❌ No recent orders")
+        if orders.get('total_trades_all_time', 0) == 0:
+            print("   ❌ No trades found in attribution.jsonl")
     
     print("="*80)
 

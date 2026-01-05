@@ -32,8 +32,9 @@ def check_status():
     print()
     
     # 2. Check recent order submissions
+    # CORRECT PATH: Use logs/orders.jsonl (plural) per config/registry.py LogFiles.ORDERS
     print("2. Recent Order Submissions:")
-    r = c.execute_command('cd ~/stock-bot && tail -50 logs/order.jsonl 2>&1 | tail -10', timeout=20)
+    r = c.execute_command('cd ~/stock-bot && tail -50 logs/orders.jsonl 2>&1 | tail -10', timeout=20)
     if r['stdout']:
         for line in r['stdout'].strip().split('\n'):
             if line.strip():

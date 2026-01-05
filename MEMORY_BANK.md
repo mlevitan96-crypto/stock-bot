@@ -982,9 +982,9 @@ pkill -f "python.*dashboard.py"
 ### Log Files (in `logs/` directory)
 - `run.jsonl`: Execution cycles
 - `signals.jsonl`: Signal generation
-- `orders.jsonl`: Order execution
+- `orders.jsonl`: Order execution (**NOTE: Use plural "orders.jsonl", NOT "order.jsonl"**)
 - `exit.jsonl`: Position exits
-- `attribution.jsonl`: Trade attribution (P&L, components, exit reasons)
+- `attribution.jsonl`: Trade attribution (P&L, components, exit reasons) (**AUTHORITATIVE SOURCE for total trade counts**)
 - `displacement.jsonl`: Displacement events
 - `gate.jsonl`: Gate blocks
 - `worker.jsonl`: Worker thread events
