@@ -3206,6 +3206,29 @@ class AlpacaExecutor:
                     
                     o = backoff(submit_order)()
                     order_id = getattr(o, "id", None)
+                    # CRITICAL: Log if order was submitted but has no ID (API rejection)
+                    if not order_id and o is not None:
+                        try:
+                            from pathlib import Path
+                            import json
+                            log_file = Path("logs/critical_api_failure.log")
+                            log_file.parent.mkdir(exist_ok=True)
+                            error_details = {
+                                "symbol": symbol,
+                                "qty": qty,
+                                "side": side,
+                                "limit_price": limit_price,
+                                "client_order_id": client_order_id,
+                                "order_object_type": type(o).__name__,
+                                "order_object_str": str(o),
+                                "order_object_dict": o.__dict__ if hasattr(o, '__dict__') else None,
+                                "error": "submit_order_returned_no_id"
+                            }
+                            with log_file.open("a") as lf:
+                                lf.write(f"{datetime.now(timezone.utc).isoformat()} | submit_order_no_id | {json.dumps(error_details, default=str)}\\n")
+                            log_event("critical_api_failure", "submit_order_no_id", **error_details)
+                        except Exception:
+                            pass  # Don't fail on logging error
                     if order_id:
                         filled, filled_qty, filled_price = self.check_order_filled(order_id)
                         if filled and filled_qty > 0:
@@ -3237,6 +3260,46 @@ class AlpacaExecutor:
                     log_order({"action": "limit_not_filled", "symbol": symbol, "side": side,
                                "limit_price": limit_price, "attempt": attempt})
                 except Exception as e:
+                    # CRITICAL: Log RAW API error response for forensic analysis
+                    error_details = {
+                        "symbol": symbol,
+                        "qty": qty,
+                        "side": side,
+                        "limit_price": limit_price,
+                        "client_order_id": client_order_id if 'client_order_id' in locals() else None,
+                        "attempt": attempt,
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                        "error_args": e.args if hasattr(e, 'args') else None
+                    }
+                    # Capture HTTP error details if available
+                    if hasattr(e, 'status_code'):
+                        error_details["status_code"] = e.status_code
+                    if hasattr(e, 'response'):
+                        try:
+                            error_details["response_body"] = e.response.text if hasattr(e.response, 'text') else str(e.response)
+                            if hasattr(e.response, 'json'):
+                                try:
+                                    error_details["response_json"] = e.response.json()
+                                except:
+                                    error_details["response_json"] = None
+                        except:
+                            pass
+                    # Log to dedicated critical API failure log
+                    try:
+                        from pathlib import Path
+                        log_file = Path("logs/critical_api_failure.log")
+                        log_file.parent.mkdir(exist_ok=True)
+                        import json
+                        with log_file.open("a") as lf:
+                            lf.write(f"{datetime.now(timezone.utc).isoformat()} | limit_retry_failed | {json.dumps(error_details, default=str)}\\n")
+                    except Exception as log_err:
+                        pass  # Don't fail on logging error
+                    
+                    log_event("critical_api_failure", "limit_retry_failed", **error_details)
+                    log_order({"action": "limit_retry_failed", "symbol": symbol, "side": side,
+                               "limit_price": limit_price, "attempt": attempt, "error": str(e), "error_details": error_details})
+                    
                     # Idempotency: if the client_order_id already exists, fetch the existing order.
                     if client_order_id_base:
                         try:
@@ -3249,8 +3312,6 @@ class AlpacaExecutor:
                                         return existing, filled_price, "limit", filled_qty, "filled"
                         except Exception:
                             pass
-                    log_order({"action": "limit_retry_failed", "symbol": symbol, "side": side,
-                               "limit_price": limit_price, "attempt": attempt, "error": str(e)})
                     # Track execution failure for learning
                     try:
                         from tca_data_manager import track_execution_failure
@@ -3293,6 +3354,29 @@ class AlpacaExecutor:
                     client_order_id=client_order_id
                 )
                 order_id = getattr(o, "id", None)
+                # CRITICAL: Log if order was submitted but has no ID (API rejection)
+                if not order_id and o is not None:
+                    try:
+                        from pathlib import Path
+                        import json
+                        log_file = Path("logs/critical_api_failure.log")
+                        log_file.parent.mkdir(exist_ok=True)
+                        error_details = {
+                            "symbol": symbol,
+                            "qty": qty,
+                            "side": side,
+                            "limit_price": limit_price,
+                            "client_order_id": client_order_id if 'client_order_id' in locals() else None,
+                            "order_object_type": type(o).__name__,
+                            "order_object_str": str(o),
+                            "order_object_dict": o.__dict__ if hasattr(o, '__dict__') else None,
+                            "error": "submit_order_returned_no_id"
+                        }
+                        with log_file.open("a") as lf:
+                            lf.write(f"{datetime.now(timezone.utc).isoformat()} | submit_order_final_no_id | {json.dumps(error_details, default=str)}\\n")
+                        log_event("critical_api_failure", "submit_order_final_no_id", **error_details)
+                    except Exception:
+                        pass  # Don't fail on logging error
                 if order_id:
                     filled, filled_qty, filled_price = self.check_order_filled(order_id)
                     if filled and filled_qty > 0:
@@ -3323,6 +3407,43 @@ class AlpacaExecutor:
                 log_order({"action": "limit_final_not_filled", "symbol": symbol, "side": side,
                            "limit_price": limit_price})
             except Exception as e:
+                # CRITICAL: Log RAW API error response for forensic analysis
+                error_details = {
+                    "symbol": symbol,
+                    "qty": qty,
+                    "side": side,
+                    "limit_price": limit_price,
+                    "client_order_id": client_order_id if 'client_order_id' in locals() else None,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "error_args": e.args if hasattr(e, 'args') else None
+                }
+                # Capture HTTP error details if available
+                if hasattr(e, 'status_code'):
+                    error_details["status_code"] = e.status_code
+                if hasattr(e, 'response'):
+                    try:
+                        error_details["response_body"] = e.response.text if hasattr(e.response, 'text') else str(e.response)
+                        if hasattr(e.response, 'json'):
+                            try:
+                                error_details["response_json"] = e.response.json()
+                            except:
+                                error_details["response_json"] = None
+                    except:
+                        pass
+                # Log to dedicated critical API failure log
+                try:
+                    from pathlib import Path
+                    log_file = Path("logs/critical_api_failure.log")
+                    log_file.parent.mkdir(exist_ok=True)
+                    import json
+                    with log_file.open("a") as lf:
+                        lf.write(f"{datetime.now(timezone.utc).isoformat()} | limit_final_failed | {json.dumps(error_details, default=str)}\\n")
+                except Exception as log_err:
+                    pass  # Don't fail on logging error
+                
+                log_event("critical_api_failure", "limit_final_failed", **error_details)
+                
                 if client_order_id_base:
                     try:
                         existing = self._get_order_by_client_order_id(f"{client_order_id_base}-lpfinal")
@@ -3335,7 +3456,7 @@ class AlpacaExecutor:
                     except Exception:
                         pass
                 log_order({"action": "limit_final_failed", "symbol": symbol, "side": side,
-                           "limit_price": limit_price, "error": str(e)})
+                           "limit_price": limit_price, "error": str(e), "error_details": error_details})
                 # Track execution failure for learning
                 try:
                     from tca_data_manager import track_execution_failure
@@ -3373,6 +3494,28 @@ class AlpacaExecutor:
             o = backoff(submit_market_order)()
             log_order({"action": "submit_market_fallback", "symbol": symbol, "side": side})
             order_id = getattr(o, "id", None)
+            # CRITICAL: Log if order was submitted but has no ID (API rejection)
+            if not order_id and o is not None:
+                try:
+                    from pathlib import Path
+                    import json
+                    log_file = Path("logs/critical_api_failure.log")
+                    log_file.parent.mkdir(exist_ok=True)
+                    error_details = {
+                        "symbol": symbol,
+                        "qty": qty,
+                        "side": side,
+                        "client_order_id": client_order_id if 'client_order_id' in locals() else None,
+                        "order_object_type": type(o).__name__,
+                        "order_object_str": str(o),
+                        "order_object_dict": o.__dict__ if hasattr(o, '__dict__') else None,
+                        "error": "submit_order_market_returned_no_id"
+                    }
+                    with log_file.open("a") as lf:
+                        lf.write(f"{datetime.now(timezone.utc).isoformat()} | submit_order_market_no_id | {json.dumps(error_details, default=str)}\\n")
+                    log_event("critical_api_failure", "submit_order_market_no_id", **error_details)
+                except Exception:
+                    pass  # Don't fail on logging error
             if order_id:
                 filled, filled_qty, filled_price = self.check_order_filled(order_id, max_wait_sec=1.0)
                 if filled and filled_qty > 0:
