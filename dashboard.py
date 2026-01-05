@@ -877,6 +877,8 @@ DASHBOARD_HTML = """
                 trades.forEach(trade => {
                     const pnlClass = trade.pnl_usd >= 0 ? 'positive' : 'negative';
                     const timeStr = trade.timestamp ? new Date(trade.timestamp).toLocaleString() : 'N/A';
+                    // Defensive: Handle missing entry_score (should never happen, but safe)
+                    const entryScore = trade.entry_score !== undefined && trade.entry_score !== null ? trade.entry_score.toFixed(2) : '0.00';
                     html += `
                         <tr>
                             <td>${timeStr}</td>
@@ -884,7 +886,7 @@ DASHBOARD_HTML = """
                             <td class="${pnlClass}">${formatCurrency(trade.pnl_usd)}</td>
                             <td class="${pnlClass}">${trade.pnl_pct >= 0 ? '+' : ''}${trade.pnl_pct.toFixed(2)}%</td>
                             <td>${Math.round(trade.hold_minutes)}m</td>
-                            <td>${trade.entry_score.toFixed(2)}</td>
+                            <td>${entryScore}</td>
                             <td>${trade.close_reason}</td>
                         </tr>
                     `;
