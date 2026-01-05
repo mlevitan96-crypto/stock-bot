@@ -260,7 +260,10 @@ class HealthSupervisor:
             return False
     
     def _check_position_tracking(self) -> Dict[str, Any]:
-        """Verify position metadata is being tracked correctly."""
+        """
+        Enhanced position tracking check - Alpaca API is AUTHORITATIVE.
+        Compares bot metadata with Alpaca API to detect specific symbol discrepancies.
+        """
         metadata_file = STATE_DIR / "position_metadata.json"
         
         try:
@@ -274,25 +277,35 @@ class HealthSupervisor:
             
             api = tradeapi.REST(api_key, api_secret, base_url)
             alpaca_positions = api.list_positions()
+            alpaca_symbols = {getattr(p, 'symbol') for p in alpaca_positions}
             alpaca_count = len(alpaca_positions)
             
+            # Get bot metadata symbols (exclude metadata keys starting with _)
+            metadata_symbols = set()
             metadata_count = 0
             if metadata_file.exists():
                 metadata = json.loads(metadata_file.read_text())
-                metadata_count = len(metadata)
+                metadata_symbols = {k for k in metadata.keys() if not k.startswith('_')}
+                metadata_count = len(metadata_symbols)
             
-            discrepancy = abs(alpaca_count - metadata_count)
+            # Detect specific discrepancies
+            only_in_bot = metadata_symbols - alpaca_symbols  # Stale positions in bot
+            only_in_alpaca = alpaca_symbols - metadata_symbols  # Missing from bot
+            discrepancy = len(only_in_bot) > 0 or len(only_in_alpaca) > 0
             
-            if discrepancy > 0:
+            if discrepancy:
                 return {
                     "healthy": False,
-                    "reason": "position_count_mismatch",
+                    "reason": "position_state_mismatch",
                     "alpaca_count": alpaca_count,
                     "metadata_count": metadata_count,
-                    "discrepancy": discrepancy
+                    "only_in_bot": list(only_in_bot),  # Stale - should be removed
+                    "only_in_alpaca": list(only_in_alpaca),  # Missing - should be added
+                    "alpaca_is_authoritative": True,
+                    "message": f"Position state desync: {len(only_in_bot)} stale in bot, {len(only_in_alpaca)} missing from bot"
                 }
             
-            return {"healthy": True, "position_count": alpaca_count}
+            return {"healthy": True, "position_count": alpaca_count, "alpaca_is_authoritative": True}
         except Exception as e:
             return {"healthy": False, "reason": "check_failed", "error": str(e)}
     
