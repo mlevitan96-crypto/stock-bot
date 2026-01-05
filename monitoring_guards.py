@@ -63,40 +63,78 @@ def log_alert(alert_type: str, details: Dict[str, Any], severity: str = "HIGH"):
 
 def check_composite_score_floor(clusters: List[Dict[str, Any]]) -> bool:
     """
-    Guard: Alert if composite scores are suspiciously low.
+    Guard: Alert if composite scores are suspiciously low OR if all clusters have score=0.00.
     
-    This detects if the scoring logic bug returns (scores being recalculated
-    instead of using pre-computed composite_score).
+    CRITICAL FIX: Now checks ALL clusters, not just composite ones.
+    Detects when unscored clusters (source=unknown, score=0.00) are being used.
     
     Returns:
         True if scores are healthy, False if degraded
     """
-    composite_clusters = [c for c in clusters if c.get("source") == "composite"]
+    if len(clusters) == 0:
+        return True  # No clusters to check
     
-    if len(composite_clusters) == 0:
-        return True  # No composite clusters to check
+    # CRITICAL: Check ALL clusters, not just composite ones
+    all_scores = [c.get("composite_score", 0.0) for c in clusters]
+    all_sources = [c.get("source", "unknown") for c in clusters]
     
-    scores = [c.get("composite_score", 0.0) for c in composite_clusters]
-    avg_score = sum(scores) / len(scores)
-    min_score = min(scores)
-    
-    # Alert if average below 1.5 OR minimum below 0.6
-    # (Healthy range: 2.0-5.0, Bug range: 0.4-0.6)
-    if avg_score < 1.5 or min_score < 0.6:
-        log_alert("composite_score_floor_breach", {
-            "avg_score": round(avg_score, 2),
-            "min_score": round(min_score, 2),
-            "max_score": round(max(scores), 2),
-            "total_composite_clusters": len(composite_clusters),
-            "below_floor_count": len([s for s in scores if s < 0.6]),
-            "score_distribution": {
-                "0.0-0.5": len([s for s in scores if s < 0.5]),
-                "0.5-1.0": len([s for s in scores if 0.5 <= s < 1.0]),
-                "1.0-2.0": len([s for s in scores if 1.0 <= s < 2.0]),
-                "2.0+": len([s for s in scores if s >= 2.0])
-            }
+    # Check 1: Are ALL scores 0.00? (CRITICAL FAILURE)
+    zero_score_count = sum(1 for s in all_scores if s == 0.0)
+    if zero_score_count == len(clusters) and len(clusters) > 0:
+        log_alert("all_scores_zero_critical", {
+            "total_clusters": len(clusters),
+            "zero_score_count": zero_score_count,
+            "sources": {s: all_sources.count(s) for s in set(all_sources)},
+            "issue": "ALL clusters have score=0.00 - scoring engine is broken"
         }, severity="CRITICAL")
         return False
+    
+    # Check 2: Are ALL sources "unknown"? (CRITICAL FAILURE)
+    unknown_source_count = sum(1 for s in all_sources if s == "unknown")
+    if unknown_source_count == len(clusters) and len(clusters) > 0:
+        log_alert("all_sources_unknown_critical", {
+            "total_clusters": len(clusters),
+            "unknown_source_count": unknown_source_count,
+            "issue": "ALL clusters have source=unknown - composite scoring not working"
+        }, severity="CRITICAL")
+        return False
+    
+    # Check 3: Composite scoring should create clusters with source="composite_v3"
+    # If we have clusters but none are composite_v3, that's a problem
+    composite_v3_count = sum(1 for s in all_sources if s in ("composite", "composite_v3"))
+    if len(clusters) > 0 and composite_v3_count == 0:
+        log_alert("no_composite_clusters_warning", {
+            "total_clusters": len(clusters),
+            "sources": {s: all_sources.count(s) for s in set(all_sources)},
+            "issue": "Composite scoring active but no clusters have source=composite_v3"
+        }, severity="HIGH")
+        # Don't return False here - may be using fallback scoring
+    
+    # Check 4: For composite clusters, check score floor (original logic)
+    composite_clusters = [c for c in clusters if c.get("source") in ("composite", "composite_v3")]
+    
+    if len(composite_clusters) > 0:
+        composite_scores = [c.get("composite_score", 0.0) for c in composite_clusters]
+        avg_score = sum(composite_scores) / len(composite_scores)
+        min_score = min(composite_scores)
+        
+        # Alert if average below 1.5 OR minimum below 0.6
+        # (Healthy range: 2.0-5.0, Bug range: 0.4-0.6)
+        if avg_score < 1.5 or min_score < 0.6:
+            log_alert("composite_score_floor_breach", {
+                "avg_score": round(avg_score, 2),
+                "min_score": round(min_score, 2),
+                "max_score": round(max(composite_scores), 2),
+                "total_composite_clusters": len(composite_clusters),
+                "below_floor_count": len([s for s in composite_scores if s < 0.6]),
+                "score_distribution": {
+                    "0.0-0.5": len([s for s in composite_scores if s < 0.5]),
+                    "0.5-1.0": len([s for s in composite_scores if 0.5 <= s < 1.0]),
+                    "1.0-2.0": len([s for s in composite_scores if 1.0 <= s < 2.0]),
+                    "2.0+": len([s for s in composite_scores if s >= 2.0])
+                }
+            }, severity="CRITICAL")
+            return False
     
     return True
 
