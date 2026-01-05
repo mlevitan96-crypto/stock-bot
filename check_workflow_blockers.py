@@ -257,6 +257,9 @@ def main():
         print("  - Concentration limits")
         print("  - Expectancy gate")
     print()
+    print("="*80)
+    print("DIAGNOSIS COMPLETE")
+    print("="*80)
 
 if __name__ == "__main__":
     main()

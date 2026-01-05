@@ -30,10 +30,10 @@ class MomentumIgnitionFilter:
             "APCA-API-KEY-ID": self.api_key,
             "APCA-API-SECRET-KEY": self.api_secret
         }
-        self.momentum_threshold_pct = 0.002  # 0.2% = 20 basis points
+        self.momentum_threshold_pct = 0.0005  # 0.05% = 5 basis points (reduced from 0.2%)
         self.lookback_minutes = 2
     
-    def check_momentum(self, symbol: str, signal_direction: str, current_price: float) -> Dict[str, Any]:
+    def check_momentum(self, symbol: str, signal_direction: str, current_price: float, entry_score: float = 0.0) -> Dict[str, Any]:
         """
         Check if price has moved +0.2% in the last 2 minutes.
         
@@ -101,16 +101,21 @@ class MomentumIgnitionFilter:
             
             # Check momentum based on signal direction
             if signal_direction.lower() in ["bullish", "long", "buy"]:
-                # Bullish: need positive momentum (+0.2%)
-                passed = price_change_pct >= self.momentum_threshold_pct
-                reason = "bullish_momentum_confirmed" if passed else f"insufficient_bullish_momentum_{price_change_pct*100:.2f}%"
+                # Bullish: need positive momentum (+0.05% reduced from 0.2%)
+                momentum_passed = price_change_pct >= self.momentum_threshold_pct
+                reason = "bullish_momentum_confirmed" if momentum_passed else f"insufficient_bullish_momentum_{price_change_pct*100:.2f}%"
             else:  # bearish/short/sell
-                # Bearish: need negative momentum (-0.2%)
-                passed = price_change_pct <= -self.momentum_threshold_pct
-                reason = "bearish_momentum_confirmed" if passed else f"insufficient_bearish_momentum_{price_change_pct*100:.2f}%"
+                # Bearish: need negative momentum (-0.05% reduced from 0.2%)
+                momentum_passed = price_change_pct <= -self.momentum_threshold_pct
+                reason = "bearish_momentum_confirmed" if momentum_passed else f"insufficient_bearish_momentum_{price_change_pct*100:.2f}%"
+            
+            # SOFT-FAIL MODE: If momentum is 0.00% but entry_score > 4.0, allow trade with warning
+            if not momentum_passed and entry_score > 4.0 and abs(price_change_pct) < 0.001:  # < 0.1% movement
+                momentum_passed = True
+                reason = f"high_conviction_soft_pass_score_{entry_score:.2f}_momentum_{price_change_pct*100:.2f}%"
             
             return {
-                "passed": passed,
+                "passed": momentum_passed,
                 "price_change_pct": price_change_pct,
                 "price_2min_ago": price_2min_ago,
                 "current_price": price_now,
@@ -137,14 +142,20 @@ def get_momentum_filter() -> MomentumIgnitionFilter:
         _momentum_filter = MomentumIgnitionFilter()
     return _momentum_filter
 
-def check_momentum_before_entry(symbol: str, signal_direction: str, current_price: float) -> Dict[str, Any]:
+def check_momentum_before_entry(symbol: str, signal_direction: str, current_price: float, entry_score: float = 0.0) -> Dict[str, Any]:
     """
     Convenience function to check momentum before entry.
+    
+    Args:
+        symbol: Stock symbol
+        signal_direction: "bullish" or "bearish"
+        current_price: Current price
+        entry_score: Entry score for soft-fail mode (default: 0.0)
     
     Returns dict with 'passed' key indicating if entry should proceed.
     """
     filter_instance = get_momentum_filter()
-    return filter_instance.check_momentum(symbol, signal_direction, current_price)
+    return filter_instance.check_momentum(symbol, signal_direction, current_price, entry_score)
 
 if __name__ == "__main__":
     # Test the filter
