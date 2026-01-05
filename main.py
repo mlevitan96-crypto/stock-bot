@@ -7039,6 +7039,17 @@ if __name__ == "__main__":
                 time.sleep(3600)  # Retry after 1 hour on error
     
     comprehensive_learning_thread = threading.Thread(target=run_comprehensive_learning_periodic, daemon=True, name="ComprehensiveLearning")
+    
+    # SRE Sentinel: Mock signal injection loop (every 15 minutes)
+    try:
+        from mock_signal_injection import run_mock_signal_loop
+        mock_signal_thread = threading.Thread(target=run_mock_signal_loop, daemon=True, name="MockSignalInjection")
+        mock_signal_thread.start()
+        log_event("system", "mock_signal_injection_started")
+        print("[MAIN] Mock signal injection loop started", flush=True)
+    except Exception as e:
+        log_event("system", "mock_signal_injection_start_failed", error=str(e))
+        print(f"WARNING: Mock signal injection failed to start: {e}", flush=True)
     comprehensive_learning_thread.start()
 
 @app.route("/", methods=["GET"])

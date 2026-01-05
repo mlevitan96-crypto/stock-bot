@@ -314,6 +314,29 @@ DASHBOARD_HTML = """
             const healthClass = overallHealth === 'healthy' ? 'healthy' : 
                               overallHealth === 'degraded' ? 'degraded' : 'critical';
             
+            // Extract SRE metrics
+            const sreMetrics = data.sre_metrics || {};
+            const logicHeartbeat = sreMetrics.logic_heartbeat || 0;
+            const mockSignalSuccessPct = sreMetrics.mock_signal_success_pct || 100.0;
+            const parserHealthIndex = sreMetrics.parser_health_index || 100.0;
+            const autoFixCount = sreMetrics.auto_fix_count || 0;
+            
+            // Determine health color for metrics (GREEN > 95%, YELLOW 80-95%, RED < 80%)
+            function getMetricHealthColor(value) {
+                if (value >= 95) return '#10b981';  // GREEN
+                if (value >= 80) return '#f59e0b';  // YELLOW
+                return '#ef4444';  // RED
+            }
+            
+            const mockSignalHealthColor = getMetricHealthColor(mockSignalSuccessPct);
+            const parserHealthColor = getMetricHealthColor(parserHealthIndex);
+            
+            // Format timestamp
+            const heartbeatTime = logicHeartbeat > 0 ? new Date(logicHeartbeat * 1000).toLocaleString() : 'Never';
+            
+            // Recent RCA fixes
+            const recentFixes = data.recent_rca_fixes || [];
+            
             let html = `
                 <div class="stat-card" style="border: 3px solid ${healthClass === 'healthy' ? '#10b981' : healthClass === 'degraded' ? '#f59e0b' : '#ef4444'}; margin-bottom: 20px;">
                     <h2 style="color: ${healthClass === 'healthy' ? '#10b981' : healthClass === 'degraded' ? '#f59e0b' : '#ef4444'}; margin-bottom: 10px;">
@@ -325,6 +348,68 @@ DASHBOARD_HTML = """
                     ${data.critical_issues ? '<p style="color: #ef4444; margin-top: 10px;"><strong>Critical:</strong> ' + data.critical_issues.join(', ') + '</p>' : ''}
                     ${data.warnings ? '<p style="color: #f59e0b; margin-top: 10px;"><strong>Warnings:</strong> ' + data.warnings.join(', ') + '</p>' : ''}
                 </div>
+                
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">🔍 SRE System Health Panel</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div class="stat-card">
+                            <div class="stat-label">Logic Heartbeat</div>
+                            <div class="stat-value" style="font-size: 1.2em;">${heartbeatTime}</div>
+                        </div>
+                        <div class="stat-card" style="border-left: 4px solid ${mockSignalHealthColor};">
+                            <div class="stat-label">Mock Signal Success %</div>
+                            <div class="stat-value" style="color: ${mockSignalHealthColor}; font-size: 1.8em;">${mockSignalSuccessPct.toFixed(1)}%</div>
+                            ${sreMetrics.last_mock_signal_score !== undefined ? 
+                                `<div style="font-size: 0.85em; color: #666; margin-top: 5px;">Last score: ${sreMetrics.last_mock_signal_score.toFixed(2)}</div>` : ''}
+                        </div>
+                        <div class="stat-card" style="border-left: 4px solid ${parserHealthColor};">
+                            <div class="stat-label">Parser Health Index</div>
+                            <div class="stat-value" style="color: ${parserHealthColor}; font-size: 1.8em;">${parserHealthIndex.toFixed(1)}%</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Auto-Fix Count</div>
+                            <div class="stat-value" style="font-size: 1.8em;">${autoFixCount}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                ${recentFixes.length > 0 ? `
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">🔧 Real-Time Diagnostic Feed (Recent RCA Fixes)</h2>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Trigger</th>
+                                    <th>Status</th>
+                                    <th>Fixes Applied</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                ` + recentFixes.map(fix => {
+                    const timeStr = fix.time ? new Date(fix.time).toLocaleString() : (fix.timestamp ? new Date(fix.timestamp * 1000).toLocaleString() : 'N/A');
+                    const statusColor = fix.overall_status === 'OK' ? '#10b981' : fix.overall_status === 'WARNING' ? '#f59e0b' : '#ef4444';
+                    const fixesApplied = fix.fixes_applied && fix.fixes_applied.length > 0 ? fix.fixes_applied.join(', ') : 'None';
+                    return `
+                        <tr>
+                            <td>${timeStr}</td>
+                            <td>${fix.trigger || 'N/A'}</td>
+                            <td style="color: ${statusColor}; font-weight: bold;">${fix.overall_status || 'N/A'}</td>
+                            <td>${fixesApplied}</td>
+                            <td style="font-size: 0.9em; color: #666;">
+                                ${fix.checks && fix.checks.length > 0 ? 
+                                    fix.checks.map(c => `${c.check_name}: ${c.status}`).join(', ') : 'N/A'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('') + `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                ` : ''}
                 
                 <div class="positions-table" style="margin-bottom: 20px;">
                     <h2 style="margin-bottom: 15px;">📊 Signal Components</h2>
@@ -1708,7 +1793,19 @@ def api_sre_health():
         try:
             resp = requests.get("http://localhost:8081/api/sre/health", timeout=2)
             if resp.status_code == 200:
-                return jsonify(resp.json()), 200
+                health_data = resp.json()
+                # Enhance with SRE metrics and RCA fixes
+                try:
+                    from sre_diagnostics import get_sre_metrics, SREDiagnostics
+                    metrics = get_sre_metrics()
+                    health_data["sre_metrics"] = metrics
+                    
+                    diag = SREDiagnostics()
+                    recent_fixes = diag.get_recent_fixes(limit=5)
+                    health_data["recent_rca_fixes"] = recent_fixes
+                except:
+                    pass
+                return jsonify(health_data), 200
         except:
             pass
         
@@ -1716,6 +1813,19 @@ def api_sre_health():
         try:
             from sre_monitoring import get_sre_health
             health = get_sre_health()
+            
+            # Enhance with SRE metrics and RCA fixes
+            try:
+                from sre_diagnostics import get_sre_metrics, SREDiagnostics
+                metrics = get_sre_metrics()
+                health["sre_metrics"] = metrics
+                
+                diag = SREDiagnostics()
+                recent_fixes = diag.get_recent_fixes(limit=5)
+                health["recent_rca_fixes"] = recent_fixes
+            except:
+                pass
+            
             return jsonify(health), 200
         except Exception as e:
             return jsonify({"error": f"Failed to load SRE health: {str(e)}"}), 500
