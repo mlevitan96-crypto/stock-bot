@@ -7405,7 +7405,7 @@ _last_reconcile_check_ts = 0
 _consecutive_divergence_count = 0
 _last_divergence_symbols = set()
 RECONCILE_CHECK_INTERVAL_SEC = 300  # Check every 5 minutes
-DIVERGENCE_CONFIRMATION_THRESHOLD = 2  # Require 2 consecutive checks before auto-fix
+DIVERGENCE_CONFIRMATION_THRESHOLD = 1  # CRITICAL: Require only 1 confirmation before auto-fix (Alpaca is authoritative)
 
 def atomic_write_json(path: Path, data: dict):
     """Atomic write with file locking to prevent corruption"""
@@ -7446,11 +7446,13 @@ def continuous_position_health_check():
     """
     CONTINUOUS: Check for position divergence between bot and Alpaca.
     Runs every 5 minutes during trading loop.
-    Auto-fixes divergence after 2 consecutive confirmations (prevents alert spam).
+    CRITICAL: Alpaca API is AUTHORITATIVE - auto-fixes immediately on detection.
+    
+    IMPORTANT: Position metadata must always match Alpaca API exactly since we trade there.
     """
     global _last_reconcile_check_ts, _consecutive_divergence_count, _last_divergence_symbols
     
-    # Throttle to every 5 minutes
+    # Throttle to every 5 minutes (prevents API spam)
     now = time.time()
     if (now - _last_reconcile_check_ts) < RECONCILE_CHECK_INTERVAL_SEC:
         return {"skipped": True, "reason": "throttled"}
@@ -7510,28 +7512,37 @@ def continuous_position_health_check():
             _last_divergence_symbols = set()
             return health_check_result
         
-        # AUTO-FIX: Only after N consecutive confirmations to prevent false positives
+        # AUTO-FIX: Alpaca API is AUTHORITATIVE - fix immediately on detection (threshold=1)
+        # CRITICAL: Position state must match Alpaca API exactly - we trade there, so it's the source of truth
         if _consecutive_divergence_count >= DIVERGENCE_CONFIRMATION_THRESHOLD:
             log_event("health_check", "position_divergence_confirmed_fixing", 
                      alpaca=alpaca_count, bot=local_count,
                      missing=list(missing_in_bot), orphaned=list(orphaned_in_bot),
                      confirmations=_consecutive_divergence_count)
             
+            # CRITICAL: Alpaca API is AUTHORITATIVE - sync metadata to match Alpaca exactly
             # Add missing positions from Alpaca
             if missing_in_bot:
                 for symbol in missing_in_bot:
                     alpaca_pos = next((p for p in alpaca_positions if getattr(p, 'symbol') == symbol), None)
                     if alpaca_pos:
+                        # Preserve existing entry_score if available, but use Alpaca data as base
+                        existing_metadata = local_metadata.get(symbol, {})
                         local_metadata[symbol] = {
-                            "entry_ts": datetime.utcnow().isoformat() + "Z",
+                            "entry_ts": existing_metadata.get("entry_ts") or datetime.utcnow().isoformat() + "Z",
                             "entry_price": float(getattr(alpaca_pos, 'avg_entry_price', 0)),
                             "qty": int(getattr(alpaca_pos, 'qty', 0)),
                             "side": "short" if int(getattr(alpaca_pos, 'qty', 0)) < 0 else "long",
                             "recovered_from": "continuous_health_check",
-                            "unrealized_pl": float(getattr(alpaca_pos, 'unrealized_pl', 0))
+                            "unrealized_pl": float(getattr(alpaca_pos, 'unrealized_pl', 0)),
+                            "reconciled_at": datetime.utcnow().isoformat() + "Z"
                         }
+                        # Preserve entry_score if it exists
+                        if "entry_score" in existing_metadata:
+                            local_metadata[symbol]["entry_score"] = existing_metadata["entry_score"]
             
-            # Remove orphaned positions
+            # Remove orphaned positions (positions in bot metadata but not in Alpaca)
+            # CRITICAL: Alpaca is authoritative - if position doesn't exist in Alpaca, remove from metadata
             if orphaned_in_bot:
                 for symbol in orphaned_in_bot:
                     if symbol in local_metadata:
