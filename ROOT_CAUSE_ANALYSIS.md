@@ -1,69 +1,35 @@
-# Root Cause Analysis - Execution Bridge Failure
+# Root Cause Analysis - Score 0.00 Issue
 
-## Status: ✅ ROOT CAUSE IDENTIFIED
+## Finding
+
+Signals are logged at line 4636 in `decide_and_execute()`:
+```python
+for c in clusters_sorted:
+    log_signal(c)  # Line 4636 - logs ALL clusters passed to decide_and_execute
+```
 
 ## The Problem
 
-**User Report:** ZERO trades in Alpaca portal, but logs claim trades are executing.
+Looking at the code flow:
 
-## Root Cause: "client_order_id must be unique" Error
+1. Line 6075: `clusters = flow_clusters` (initialized)
+2. Line 6081: `if use_composite and len(uw_cache) > 0:` - composite scoring runs IF cache exists
+3. Line 6265: `clusters = filtered_clusters` - ONLY if composite scoring ran
+4. Line 4636: `log_signal(c)` logs ALL clusters
 
-### Error Details from `logs/critical_api_failure.log`:
+**The Issue:**
+- If composite scoring runs but `filtered_clusters` is empty (all symbols rejected), `clusters = filtered_clusters` makes clusters empty
+- BUT signals with score=0.00 ARE being logged, which means flow_clusters are being logged
+- This means composite scoring is either NOT running, OR there's a bug where flow_clusters are logged even when composite scoring ran
 
-```
-Status Code: 422
-Error: "client_order_id must be unique"
-Error Code: 40010001
-```
+## Hypothesis
 
-### What's Happening:
+Composite scoring is NOT running because:
+- `use_composite` is False, OR
+- `uw_cache` is empty
 
-1. **Orders ARE being submitted to Alpaca** ✅
-2. **Alpaca REJECTS them** because `client_order_id` is not unique ❌
-3. **Bot retries with SAME client_order_id** ❌
-4. **Alpaca rejects again** (same ID) ❌
-5. **Loop continues** - orders never succeed ❌
+When composite scoring doesn't run, `clusters` stays as `flow_clusters` (line 6075), which don't have composite_score or source fields, so they appear as score=0.00 and source=unknown.
 
-### Example from Logs:
+## Solution
 
-```
-Symbol: IWM, Side: sell
-Client Order ID: "uwbot-IWM-sell-1767387515-lpo-a1"
-Attempt: 1
-Error: "client_order_id must be unique"
-Status: 422
-
-Then retries with SAME client_order_id multiple times - all rejected
-```
-
-### Why This Happens:
-
-1. **First submission** with `client_order_id` fails (network error, timeout, etc.)
-2. **Alpaca remembers** the `client_order_id` was used (even if order failed)
-3. **Bot retries** with the SAME `client_order_id` 
-4. **Alpaca rejects** - "client_order_id must be unique"
-5. **Retry loop continues** with same ID
-
-### The Fix Needed:
-
-1. **Generate NEW client_order_id for each retry attempt** (not just append suffix)
-2. **OR check if order exists** before retrying (code already has `_get_order_by_client_order_id` but may not be working)
-3. **OR use timestamp/random component** to ensure uniqueness
-
-### Current Code Issue:
-
-The code generates client_order_id like:
-- Base: `uwbot-IWM-sell-1767387515`
-- Retry suffix: `-lpo-a1`, `-lpo-a2`, `-lpo-a3`
-
-But the base ID uses a timestamp (`1767387515`) which is the same for all retries of the same signal, causing collisions.
-
-### Next Steps:
-
-1. Fix client_order_id generation to include retry attempt in base ID
-2. OR ensure retry logic properly checks for existing orders
-3. OR use UUID/random component for uniqueness
-
----
-
-**Status:** Root cause identified. Fix needed for client_order_id generation/retry logic.
+Need to ensure composite scoring runs when cache exists, OR prevent flow_clusters from being logged when composite scoring should run but doesn't.
