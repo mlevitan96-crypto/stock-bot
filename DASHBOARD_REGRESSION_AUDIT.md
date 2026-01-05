@@ -48,9 +48,10 @@ After fixing the entry_score display issue in the dashboard, this audit ensures:
 
 #### 2. `/api/executive_summary` - **PASSED**
 - **Status:** ✅ Working correctly
-- **Entry Score Display:** Uses `trade.entry_score.toFixed(2)` at line 887
-- **Error Handling:** Executive summary generator handles missing entry_score (returns 0.0 default)
+- **Entry Score Display:** Uses defensive check: `trade.entry_score !== undefined && trade.entry_score !== null ? trade.entry_score.toFixed(2) : '0.00'` (line 880)
+- **Error Handling:** Executive summary generator handles missing entry_score (returns 0.0 default), JavaScript also has defensive check
 - **Note:** Executive summary reads from `attribution.jsonl`, not position metadata
+- **Safety Enhancement:** Added defensive null/undefined check to prevent JavaScript errors (even though generator always provides numeric value)
 
 #### 3. `/api/sre/health` - **PASSED**
 - **Status:** ✅ No changes - unaffected

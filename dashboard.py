@@ -2232,35 +2232,67 @@ def api_health_status():
         import time
         import json
         from pathlib import Path
+        from datetime import datetime, timezone
         
-        # Get last order from multiple possible files (CRITICAL FIX)
+        # CRITICAL FIX: Query Alpaca API directly for most recent order (most reliable source)
         last_order_ts = None
         last_order_age_sec = None
-        orders_files = [
-            Path("data/live_orders.jsonl"),
-            Path("logs/orders.jsonl"),
-            Path("logs/trading.jsonl")
-        ]
         
-        for orders_file in orders_files:
-            if orders_file.exists():
-                try:
-                    with orders_file.open("r") as f:
-                        lines = f.readlines()
-                        for line in lines[-500:]:
-                            try:
-                                event = json.loads(line.strip())
-                                event_ts = event.get("_ts", 0)
-                                event_type = event.get("event", "")
-                                if event_ts > (last_order_ts or 0) and event_type in ["MARKET_FILLED", "LIMIT_FILLED", "ORDER_SUBMITTED"]:
-                                    last_order_ts = event_ts
-                            except:
-                                pass
-                except:
-                    pass
+        # Try Alpaca API first (most authoritative source)
+        if _alpaca_api is not None:
+            try:
+                # Get most recent order from Alpaca
+                orders = _alpaca_api.list_orders(status='all', limit=1, direction='desc', nested=False)
+                if orders and len(orders) > 0:
+                    order = orders[0]
+                    # Use submitted_at (when order was submitted) or created_at as fallback
+                    submitted_at = getattr(order, 'submitted_at', None) or getattr(order, 'created_at', None)
+                    if submitted_at:
+                        try:
+                            # Parse ISO timestamp string to unix timestamp
+                            if isinstance(submitted_at, str):
+                                # Handle ISO format: '2025-01-05T10:30:00.123456Z' or '2025-01-05T10:30:00.123456-05:00'
+                                dt = datetime.fromisoformat(submitted_at.replace('Z', '+00:00'))
+                                if dt.tzinfo is None:
+                                    dt = dt.replace(tzinfo=timezone.utc)
+                                last_order_ts = dt.timestamp()
+                            else:
+                                last_order_ts = float(submitted_at)
+                            
+                            if last_order_ts:
+                                last_order_age_sec = time.time() - last_order_ts
+                        except Exception as e:
+                            print(f"[Dashboard] Warning: Failed to parse order timestamp: {e}", flush=True)
+            except Exception as e:
+                print(f"[Dashboard] Warning: Failed to query Alpaca API for last order: {e}", flush=True)
         
-        if last_order_ts:
-            last_order_age_sec = time.time() - last_order_ts
+        # Fallback to log files if Alpaca API unavailable or failed
+        if last_order_ts is None:
+            orders_files = [
+                Path("data/live_orders.jsonl"),
+                Path("logs/orders.jsonl"),
+                Path("logs/trading.jsonl")
+            ]
+            
+            for orders_file in orders_files:
+                if orders_file.exists():
+                    try:
+                        with orders_file.open("r") as f:
+                            lines = f.readlines()
+                            for line in lines[-500:]:
+                                try:
+                                    event = json.loads(line.strip())
+                                    event_ts = event.get("_ts", 0)
+                                    event_type = event.get("event", "")
+                                    if event_ts > (last_order_ts or 0) and event_type in ["MARKET_FILLED", "LIMIT_FILLED", "ORDER_SUBMITTED"]:
+                                        last_order_ts = event_ts
+                                except:
+                                    pass
+                    except:
+                        pass
+            
+            if last_order_ts:
+                last_order_age_sec = time.time() - last_order_ts
         
         # Get Doctor/heartbeat from file
         # CRITICAL: Check bot_heartbeat.json FIRST (main.py writes here)
