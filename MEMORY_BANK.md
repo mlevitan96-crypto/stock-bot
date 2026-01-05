@@ -741,6 +741,52 @@ Droplet is configured with:
 4. **Deploy Supervisor** (`deploy_supervisor.py`): Process manager for all services
 5. **SRE Monitoring** (`sre_monitoring.py`): Health monitoring for signals, APIs, execution
 6. **Health Supervisor** (`health_supervisor.py`): **FULLY AUTOMATED** self-healing system
+
+### Self-Healing Thresholds & Semantic Watchdog (2026-01-05)
+
+**Status:** ✅ Deployed and Active
+
+The semantic watchdog system detects and auto-heals "Silent Logic Failures" where execution deviates from signal volume:
+
+#### Logic Stagnation Detector (`logic_stagnation_detector.py`)
+
+- **Zero Score Threshold**: Triggers soft reset after 20 consecutive signals with `score=0.00`
+- **Momentum Block Threshold**: Triggers soft reset after 10 consecutive momentum filter blocks
+- **Soft Reset Cooldown**: 5 minutes between resets to prevent rapid cycling
+- **Actions**: Automatically re-initializes `uw_composite_v2.py` weights when stagnation detected
+- **State File**: `state/logic_stagnation_state.json`
+- **Log File**: `logs/logic_stagnation.jsonl`
+
+#### Automated Score Validation (`score_validation.py`)
+
+- **Zero Score Detection**: Logs `CRITICAL_LOGIC_EXCEPTION` when `composite_v3` returns `<= 0.0`
+- **Reinitialization**: Attempts to re-initialize scoring weights with 1-minute cooldown
+- **Logging**: All exceptions logged to `logs/critical_logic_exceptions.jsonl`
+
+#### Dynamic Momentum Scaling (`momentum_ignition_filter.py`)
+
+- **PANIC Regime Detection**: Automatically detects PANIC market regime
+- **Block Tracking**: Tracks 100% trade blocks over 30-minute windows
+- **Threshold Adjustment**: Automatically reduces threshold by 25% when all trades blocked
+- **Minimum Threshold**: Never goes below 0.01% (1 basis point)
+- **Auto-Reset**: Returns to base threshold when a trade is captured
+- **State File**: `state/momentum_scaling_state.json`
+- **Log File**: `logs/momentum_scaling.jsonl`
+
+#### Pre-Market Logic Integrity Test (`pre_market_health_check.py`)
+
+- **Mock Signal Test**: Tests score validation with 5.0 score mock signal
+- **Zero Score Detection Test**: Validates that zero scores trigger exception logging
+- **Status Reporting**: Reports validation status in health check output
+
+**Integration Points:**
+- `main.py` line ~4644: Records signals in `decide_and_execute()`
+- `main.py` line ~4703: Validates scores in composite_score path
+- `main.py` line ~4797: Validates scores in fallback scoring path
+- `main.py` line ~5161: Records momentum blocks
+- `main.py` line ~5150: Passes `market_regime` to momentum check
+
+**Reference:** See `SEMANTIC_WATCHDOG_DEPLOYMENT_COMPLETE.md` for complete documentation
    - **AUTOMATED**: Runs continuously in background thread, NO manual intervention needed
    - **Self-Healing**: Automatically detects and fixes architecture issues every hour
    - **Auto-Testing**: Runs regression tests after healing to ensure no breakage
