@@ -6258,11 +6258,12 @@ def run_once():
                              freshness=freshness,
                              rejection_reason=reason_str)
             
-            # CRITICAL FIX: MERGE flow_trades clusters with composite clusters
-            # Flow_trades clusters are from actual API trades, composite clusters are from cache signals
-            # Both should be included - don't discard flow_trades clusters!
-            all_clusters = flow_clusters + filtered_clusters
-            clusters = all_clusters
+            # CRITICAL FIX: When composite scoring is active, ONLY use composite-scored clusters
+            # Flow_trades clusters don't have composite_score, so they appear as score=0.00
+            # Composite-scored clusters have proper scores and source="composite_v3"
+            # REPLACE flow_clusters with filtered_clusters to ensure ALL clusters have scores
+            clusters = filtered_clusters
+            print(f"DEBUG: Using ONLY composite-scored clusters ({len(filtered_clusters)} clusters with scores), discarding {len(flow_clusters)} unscored flow_clusters", flush=True)
             print(f"DEBUG: Composite scoring complete: {symbols_processed} symbols processed, {symbols_with_signals} passed gate, {len(filtered_clusters)} composite clusters, {len(flow_clusters)} flow clusters, {len(clusters)} total clusters", flush=True)
             log_event("composite_filter", "applied", cache_symbols=len(uw_cache), 
                      symbols_processed=symbols_processed,
