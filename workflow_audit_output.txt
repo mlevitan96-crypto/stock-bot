@@ -1,0 +1,40 @@
+================================================================================
+FULL WORKFLOW AUDIT
+================================================================================
+
+1. BOT STATUS:
+   Running: False
+
+2. RUN_ONCE ACTIVITY (last 2 hours):
+   Count: 0
+   Active: False
+
+3. SIGNAL GENERATION (last 2 hours):
+   Total signals: 0
+   Signals active: False
+
+4. ORDER SUBMISSIONS (last 2 hours):
+   Total orders: 0
+   Filled orders: 0
+
+5. ALPACA POSITIONS:
+   Count: 0
+   Error: No module named 'alpaca_trade_api'
+
+6. BLOCKED TRADES (last 2 hours):
+   Total blocks: 0
+
+================================================================================
+AUDIT SUMMARY
+================================================================================
+Traceback (most recent call last):
+  File "C:\Users\markl\OneDrive\Documents\Cursor\stock-bot\check_workflow_audit.py", line 335, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\markl\OneDrive\Documents\Cursor\stock-bot\check_workflow_audit.py", line 322, in main
+    print("\u26a0\ufe0f  WORKFLOW ISSUES DETECTED")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\markl\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
