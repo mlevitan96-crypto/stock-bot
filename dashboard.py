@@ -1632,17 +1632,32 @@ def api_positions():
         positions = _alpaca_api.list_positions()
         account = _alpaca_api.get_account()
         
+        # CRITICAL FIX: Load entry scores from position metadata
+        metadata = {}
+        try:
+            from config.registry import StateFiles, read_json
+            metadata_path = StateFiles.POSITION_METADATA
+            if metadata_path.exists():
+                metadata = read_json(metadata_path, default={})
+        except Exception as e:
+            print(f"[Dashboard] Warning: Failed to load position metadata: {e}", flush=True)
+        
         pos_list = []
         for p in positions:
+            symbol = p.symbol
+            # Get entry_score from metadata (default to 0.0 if missing - dashboard will highlight)
+            entry_score = metadata.get(symbol, {}).get("entry_score", 0.0) if metadata else 0.0
+            
             pos_list.append({
-                "symbol": p.symbol,
+                "symbol": symbol,
                 "side": "long" if float(p.qty) > 0 else "short",
                 "qty": abs(float(p.qty)),
                 "avg_entry_price": float(p.avg_entry_price),
                 "current_price": float(p.current_price),
                 "market_value": abs(float(p.market_value)),
                 "unrealized_pnl": float(p.unrealized_pl),
-                "unrealized_pnl_pct": float(p.unrealized_plpc) * 100
+                "unrealized_pnl_pct": float(p.unrealized_plpc) * 100,
+                "entry_score": float(entry_score)  # CRITICAL: Include entry_score from metadata
             })
         
         return jsonify({

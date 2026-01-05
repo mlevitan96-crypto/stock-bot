@@ -2947,6 +2947,15 @@ class AlpacaExecutor:
                 market_regime = metadata.get(symbol, {}).get("market_regime", "unknown")
                 direction = metadata.get(symbol, {}).get("direction", "unknown")
                 
+                # CRITICAL VALIDATION: Log warning if entry_score is 0.0 (should never happen)
+                if entry_score <= 0.0:
+                    log_event("reconcile", "WARNING_zero_entry_score_reconciled", 
+                             symbol=symbol, entry_score=entry_score,
+                             has_metadata=bool(metadata.get(symbol)),
+                             note="Position restored with 0.0 entry_score - metadata may be corrupted or missing")
+                    print(f"WARNING {symbol}: Position reconciled with entry_score={entry_score:.2f} - this should never happen", flush=True)
+                    # Continue anyway (don't force close) but log the issue for investigation
+                
                 self.opens[symbol] = {
                     "ts": entry_ts,
                     "entry_price": avg_entry,
