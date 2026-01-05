@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2026-01-05 (Dynamic & Conviction-Based Position Sizing - Replaced fixed $500 sizing with 1.5% equity-based sizing, added conviction scaling, deployed to droplet)  
+**Last Updated:** 2026-01-05 (Dashboard Data Source Audit - Fixed "Last Order" to use Alpaca API directly, verified all dashboard endpoints use correct data sources)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ## ✅ UW API ENDPOINTS - VERIFIED AND DOCUMENTED
@@ -1382,6 +1382,47 @@ tail -50 logs/supervisor.jsonl | grep -i error
 ---
 
 ## Recent Fixes & Improvements
+
+### 2026-01-05: Dashboard Data Source Comprehensive Audit & Fix
+
+1. **Last Order Data Source Fix**: Fixed "Last Order" metric showing incorrect data
+   - **Problem**: `/api/health_status` endpoint was reading from log files (`data/live_orders.jsonl`, `logs/orders.jsonl`, `logs/trading.jsonl`) which could be stale or incorrect
+   - **User Concern**: "Last order is incorrect. I am sure all health areas can't be working if they are tied to incorrect trade time data."
+   - **Root Cause**: Log files are not authoritative source - Alpaca API is the source of truth for order data
+   - **Fix Applied**: Modified `dashboard.py` `/api/health_status` endpoint (lines 2228-2290):
+     - **PRIMARY:** Now queries Alpaca API directly using `_alpaca_api.list_orders(status='all', limit=1, direction='desc')`
+     - Uses `submitted_at` timestamp (or `created_at` as fallback) from most recent order
+     - Converts ISO timestamp to Unix timestamp for age calculation
+     - **FALLBACK:** If Alpaca API unavailable, falls back to log files (for backward compatibility)
+   - **Status**: ✅ Fixed and deployed to Git
+   - **Impact**: Dashboard now shows accurate "Last Order" timestamp from authoritative Alpaca API source
+
+2. **Comprehensive Dashboard Data Source Audit**: Verified all dashboard endpoints use correct data sources
+   - **Audit Scope**: Reviewed all 7 dashboard API endpoints:
+     1. `/api/positions` - ✅ Uses Alpaca API directly + position metadata
+     2. `/api/health_status` - ✅ FIXED - Now uses Alpaca API for Last Order
+     3. `/api/executive_summary` - ✅ Uses `logs/attribution.jsonl` (authoritative record)
+     4. `/api/sre/health` - ✅ Uses monitoring data (appropriate for SRE)
+     5. `/api/xai/auditor` - ✅ Uses XAI log files (correct source)
+     6. `/api/failure_points` - ✅ Uses system state checks (real-time)
+     7. `/api/closed_positions` - ✅ Uses `state/closed_positions.json` (correct source)
+   - **Findings**: All endpoints verified to use appropriate and accurate data sources
+     - Real-time data (positions, orders): Query APIs directly ✅
+     - Historical data (executive summary, XAI logs): Use log files ✅
+     - State data (metadata, heartbeat): Use state files ✅
+   - **Status**: ✅ All data sources verified and corrected
+   - **Documentation**: `DASHBOARD_DATA_SOURCE_COMPREHENSIVE_AUDIT.md` - Complete audit details
+
+**Files Modified:**
+- `dashboard.py` (lines 2228-2290): `/api/health_status` endpoint - Changed Last Order to query Alpaca API directly
+
+**Key Improvements:**
+- Last Order now uses authoritative Alpaca API source (most reliable)
+- All dashboard endpoints verified to use correct data sources
+- No incorrect data sources found (except Last Order, which is now fixed)
+- Comprehensive audit ensures data accuracy across all dashboard tabs
+
+**Reference:** See `DASHBOARD_DATA_SOURCE_COMPREHENSIVE_AUDIT.md` for complete audit details and verification results
 
 ### 2025-12-21: Multi-Timeframe Learning Automation
 
