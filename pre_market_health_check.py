@@ -237,6 +237,53 @@ def check_uw_cache() -> Dict[str, Any]:
     return result
 
 
+def check_logic_integrity() -> Dict[str, Any]:
+    """Logic Integrity Test using mock 5.0 score signal"""
+    result = {
+        "status": "unknown",
+        "message": "",
+        "test_score": 5.0,
+        "validation_passed": False
+    }
+    
+    try:
+        # Test score validation with mock signal
+        from score_validation import get_score_validator
+        validator = get_score_validator()
+        
+        # Create mock cluster with high score
+        mock_cluster = {
+            "ticker": "TEST",
+            "direction": "bullish",
+            "count": 10,
+            "avg_premium": 1000000
+        }
+        
+        # Test validation with valid score (should pass)
+        validation_result = validator.validate_score("TEST", 5.0, "composite_v3", mock_cluster)
+        if validation_result.get("valid", False):
+            result["status"] = "ok"
+            result["message"] = "Logic integrity test passed (5.0 score validated correctly)"
+            result["validation_passed"] = True
+        else:
+            result["status"] = "warning"
+            result["message"] = f"Logic integrity test warning: {validation_result.get('warning', 'unknown')}"
+            
+        # Test with zero score (should trigger exception logging)
+        zero_validation = validator.validate_score("TEST", 0.0, "unknown", mock_cluster)
+        if not zero_validation.get("valid", True):
+            result["zero_score_detection"] = "working"
+        
+    except ImportError:
+        result["status"] = "error"
+        result["message"] = "Score validation module not available"
+    except Exception as e:
+        result["status"] = "error"
+        result["message"] = f"Logic integrity test failed: {str(e)}"
+    
+    return result
+
+
 def main():
     """Run pre-market health check"""
     print("[Pre-Market Health Check] Starting...", flush=True)
@@ -256,6 +303,7 @@ def main():
         "uw_api": check_uw_api(),
         "alpaca_api": check_alpaca_api(),
         "uw_cache": check_uw_cache(),
+        "logic_integrity": check_logic_integrity(),
         "overall_status": "unknown"
     }
     
@@ -263,7 +311,8 @@ def main():
     statuses = [
         results["uw_api"]["status"],
         results["alpaca_api"]["status"],
-        results["uw_cache"]["status"]
+        results["uw_cache"]["status"],
+        results["logic_integrity"]["status"]
     ]
     
     if all(s == "ok" for s in statuses):
@@ -293,6 +342,10 @@ def main():
     print(f"\n  UW Cache: {results['uw_cache']['status']} - {results['uw_cache']['message']}", flush=True)
     if results['uw_cache'].get('size_bytes', 0) > 0:
         print(f"    Size: {results['uw_cache']['size_bytes']} bytes", flush=True)
+    
+    print(f"\n  Logic Integrity: {results['logic_integrity']['status']} - {results['logic_integrity']['message']}", flush=True)
+    if results['logic_integrity'].get('validation_passed'):
+        print(f"    Test Score: {results['logic_integrity'].get('test_score', 'N/A')}", flush=True)
     
     # Save results to file
     try:

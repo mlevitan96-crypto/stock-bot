@@ -4640,6 +4640,25 @@ class StrategyEngine:
             score = c.get("composite_score", 0.0)
             cluster_source = c.get("source", "unknown")
             print(f"DEBUG {symbol}: Processing cluster - direction={direction}, initial_score={score:.2f}, source={cluster_source}", flush=True)
+            
+            # LOGIC STAGNATION DETECTOR: Record signal for monitoring
+            try:
+                from logic_stagnation_detector import get_stagnation_detector
+                detector = get_stagnation_detector()
+                detector.record_signal(symbol, score, cluster_source)
+                
+                # Check for stagnation and trigger soft reset if needed
+                stagnation = detector.check_stagnation()
+                if stagnation and stagnation.get("detected"):
+                    if detector.trigger_soft_reset():
+                        log_event("logic_stagnation", "soft_reset_triggered", 
+                                 reason=stagnation.get("reason"),
+                                 zero_score_count=stagnation.get("zero_score_count", 0),
+                                 momentum_blocks=stagnation.get("consecutive_momentum_blocks", 0))
+            except ImportError:
+                pass
+            except Exception as e:
+                log_event("logic_stagnation", "error", error=str(e))
             gex = gex_map.get(symbol, {"gamma_regime": "unknown"})
             
             prof = get_or_init_profile(self.profiles, symbol) if Config.ENABLE_PER_TICKER_LEARNING else {}
@@ -4700,6 +4719,21 @@ class StrategyEngine:
                     log_event("structural_intelligence", "error", symbol=symbol, error=str(e))
                 
                 log_event("scoring", "using_composite_score", symbol=symbol, score=score)
+                
+                # AUTOMATED SCORE VALIDATION: Sanity check post-scoring
+                try:
+                    from score_validation import get_score_validator
+                    validator = get_score_validator()
+                    validation_result = validator.validate_score(symbol, score, cluster_source, c)
+                    if not validation_result.get("valid", True):
+                        log_event("scoring", "score_validation_failed", symbol=symbol, 
+                                 score=score, action=validation_result.get("action_taken"),
+                                 warning=validation_result.get("warning"))
+                except ImportError:
+                    pass
+                except Exception as e:
+                    log_event("scoring", "score_validation_error", symbol=symbol, error=str(e))
+                
                 entry_action = None
                 atr_mult = None
                 size_scale = 1.0
@@ -4788,6 +4822,20 @@ class StrategyEngine:
                     log_event("scoring", "fallback_score_calculated", symbol=symbol, source=cluster_source, 
                              calculated_score=score, confirm_score=confirm_score)
                     print(f"DEBUG {symbol}: Fallback scoring - calculated score={score:.2f} (source was {cluster_source})", flush=True)
+                
+                # AUTOMATED SCORE VALIDATION: Sanity check post-scoring (fallback path)
+                try:
+                    from score_validation import get_score_validator
+                    validator = get_score_validator()
+                    validation_result = validator.validate_score(symbol, score, cluster_source, c)
+                    if not validation_result.get("valid", True):
+                        log_event("scoring", "score_validation_failed", symbol=symbol, 
+                                 score=score, action=validation_result.get("action_taken"),
+                                 warning=validation_result.get("warning"))
+                except ImportError:
+                    pass
+                except Exception as e:
+                    log_event("scoring", "score_validation_error", symbol=symbol, error=str(e))
                 
                 entry_action = None
                 atr_mult = None
@@ -5153,28 +5201,51 @@ class StrategyEngine:
                     symbol=symbol,
                     signal_direction=c.get("direction", "bullish"),
                     current_price=ref_price_check,
-                    entry_score=score  # Pass score for soft-fail mode
+                    entry_score=score,  # Pass score for soft-fail mode
+                    market_regime=market_regime  # Pass regime for dynamic scaling
                 )
                 
                 if not momentum_check.get("passed", True):  # Fail open if API unavailable
                     ignition_status = "blocked"
-                    print(f"DEBUG {symbol}: BLOCKED by momentum_ignition_filter - {momentum_check.get('reason', 'no_momentum')}", flush=True)
+                    block_reason = momentum_check.get('reason', 'no_momentum')
+                    print(f"DEBUG {symbol}: BLOCKED by momentum_ignition_filter - {block_reason}", flush=True)
                     log_event("gate", "momentum_ignition_blocked", symbol=symbol,
                              direction=c.get("direction"),
                              price_change_pct=momentum_check.get("price_change_pct", 0.0),
-                             reason=momentum_check.get("reason", "unknown"))
+                             reason=block_reason)
                     log_blocked_trade(symbol, "momentum_ignition_filter", score,
                                       direction=c.get("direction"),
                                       decision_price=ref_price_check,
                                       components=comps,
                                       price_change_pct=momentum_check.get("price_change_pct", 0.0),
-                                      reason=momentum_check.get("reason", "unknown"))
+                                      reason=block_reason)
+                    
+                    # LOGIC STAGNATION DETECTOR: Record momentum block
+                    try:
+                        from logic_stagnation_detector import get_stagnation_detector
+                        detector = get_stagnation_detector()
+                        detector.record_momentum_block(symbol, block_reason)
+                    except ImportError:
+                        pass
+                    except Exception as e:
+                        log_event("logic_stagnation", "error", error=str(e))
+                    
                     continue
                 else:
                     ignition_status = "passed"
                     log_event("gate", "momentum_ignition_passed", symbol=symbol,
                              price_change_pct=momentum_check.get("price_change_pct", 0.0),
                              reason=momentum_check.get("reason", "confirmed"))
+                    
+                    # LOGIC STAGNATION DETECTOR: Record momentum pass (resets counter)
+                    try:
+                        from logic_stagnation_detector import get_stagnation_detector
+                        detector = get_stagnation_detector()
+                        detector.record_momentum_pass()
+                    except ImportError:
+                        pass
+                    except Exception as e:
+                        log_event("logic_stagnation", "error", error=str(e))
             except ImportError:
                 # Momentum filter not available - continue without check (fail open)
                 ignition_status = "not_checked"
