@@ -5800,10 +5800,13 @@ def run_once():
         audit_seg("run_once", "cache_read")
         uw_cache = read_uw_cache()
         adaptive_gate = AdaptiveGate()
-        use_composite = len(uw_cache) > 0
+        # ROOT CAUSE FIX: Check for actual symbol keys (not metadata keys starting with "_")
+        # Only enable composite scoring if cache has real symbol data, not just metadata
+        cache_symbol_count = len([k for k in uw_cache.keys() if not k.startswith("_")])
+        use_composite = cache_symbol_count > 0
         
-        log_event("run_once", "started", use_composite=use_composite, cache_symbols=len(uw_cache))
-        audit_seg("run_once", "init_complete", {"cache_symbols": len(uw_cache)})
+        log_event("run_once", "started", use_composite=use_composite, cache_symbols=cache_symbol_count, cache_total_keys=len(uw_cache))
+        audit_seg("run_once", "init_complete", {"cache_symbols": cache_symbol_count, "cache_total_keys": len(uw_cache)})
         
         # POSITION RECONCILIATION LOOP V2: Autonomous self-healing sync
         print("DEBUG: Running autonomous position reconciliation V2...", flush=True)
@@ -6076,12 +6079,13 @@ def run_once():
         
         print(f"DEBUG: Initial flow_trades clusters={len(flow_clusters)}, use_composite={use_composite}", flush=True)
         
-        # CRITICAL FIX: Always run composite scoring when cache exists, even if flow_trades is empty
+        # ROOT CAUSE FIX: Always run composite scoring when cache has symbol data
         # Composite scoring uses sentiment, conviction, dark_pool, insider - doesn't need flow_trades
-        if use_composite and len(uw_cache) > 0:
+        # use_composite already checks for symbol keys (not metadata), so we can use it directly
+        if use_composite:
             # Generate synthetic signals from cache instead of waiting for live API
             # CRITICAL: This works even when flow_trades is empty - uses sentiment, conviction, dark_pool, insider
-            print(f"DEBUG: Running composite scoring for {len(uw_cache)} symbols (flow_trades may be empty)", flush=True)
+            print(f"DEBUG: Running composite scoring for {cache_symbol_count} symbols (flow_trades may be empty)", flush=True)
             market_regime = compute_market_regime(gex_map, net_map, vol_map)
             filtered_clusters = []
             
@@ -6265,18 +6269,19 @@ def run_once():
             clusters = filtered_clusters
             print(f"DEBUG: Using ONLY composite-scored clusters ({len(filtered_clusters)} clusters with scores), discarding {len(flow_clusters)} unscored flow_clusters", flush=True)
             print(f"DEBUG: Composite scoring complete: {symbols_processed} symbols processed, {symbols_with_signals} passed gate, {len(filtered_clusters)} composite clusters, {len(flow_clusters)} flow clusters, {len(clusters)} total clusters", flush=True)
-            log_event("composite_filter", "applied", cache_symbols=len(uw_cache), 
+            log_event("composite_filter", "applied", cache_symbols=cache_symbol_count, cache_total_keys=len(uw_cache), 
                      symbols_processed=symbols_processed,
                      symbols_with_signals=symbols_with_signals,
                      passed=len(clusters), rejection_rate=1.0 - (len(clusters) / max(symbols_processed, 1)))
             print(f"DEBUG: Composite filter complete, {len(clusters)} clusters passed gate", flush=True)
         else:
-            # CRITICAL FIX: Composite scoring didn't run - clear clusters to prevent logging unscored signals
-            # When composite scoring doesn't run, clusters stays as flow_clusters (which have no composite_score)
-            # These would appear as score=0.00 in signals.jsonl - prevent this by clearing clusters
-            print(f"⚠️  WARNING: Composite scoring did not run (use_composite={use_composite}, cache_symbols={len(uw_cache)}) - clearing {len(flow_clusters)} unscored flow_clusters to prevent signals with score=0.00", flush=True)
-            log_event("composite_scoring", "not_run_clearing_clusters", use_composite=use_composite, cache_symbols=len(uw_cache), flow_clusters=len(flow_clusters))
-            clusters = []  # Clear unscored clusters - prevent logging signals with score=0.00
+            # ROOT CAUSE FIX: Composite scoring doesn't run when cache has no symbol keys
+            # This is expected behavior - cache may only have metadata keys (starting with "_")
+            # In this case, use flow_clusters (unscored) as fallback
+            print(f"DEBUG: Cache has no symbol keys ({cache_symbol_count} symbols, {len(uw_cache)} total keys) - composite scoring cannot run, using flow_clusters", flush=True)
+            log_event("composite_scoring", "no_symbol_keys_using_flow_clusters", cache_symbol_count=cache_symbol_count, cache_total_keys=len(uw_cache), flow_clusters=len(flow_clusters))
+            # Use flow_clusters when cache has no symbol data (expected behavior)
+            clusters = flow_clusters  # Use flow_clusters when cache has no symbol keys
 
         audit_seg("run_once", "clusters_filtered", {"cluster_count": len(clusters)})
         
