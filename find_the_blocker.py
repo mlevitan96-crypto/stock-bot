@@ -49,7 +49,15 @@ if not enriched:
 
 print(f"Enriched sentiment: {enriched.get('sentiment')}")
 print(f"Enriched conviction: {enriched.get('conviction')}")
-print(f"Enriched freshness: {enriched.get('freshness')}")
+print(f"Enriched freshness (before adjustment): {enriched.get('freshness')}")
+
+# Apply freshness adjustment (like main.py does)
+original_freshness = enriched.get("freshness", 1.0)
+if original_freshness < 0.5:
+    enriched["freshness"] = 0.9
+elif original_freshness < 0.8:
+    enriched["freshness"] = 0.95
+print(f"Enriched freshness (after adjustment): {enriched.get('freshness')}")
 
 # 4. Test scoring
 import uw_composite_v2 as uw_v2
@@ -76,6 +84,13 @@ if score < threshold:
 # 5. Test gate
 gate_result = uw_v2.should_enter_v2(composite, symbol, "base")
 print(f"\nGate result: {gate_result}")
+
+# Check thresholds and MIN_EXEC_SCORE
+from main import Config
+from v3_2_features import STAGE_CONFIGS
+print(f"MIN_EXEC_SCORE: {Config.MIN_EXEC_SCORE}")
+print(f"Expectancy Floor: {STAGE_CONFIGS['bootstrap']['entry_ev_floor']}")
+print(f"Score >= MIN_EXEC: {score >= Config.MIN_EXEC_SCORE}")
 
 if not gate_result:
     toxicity = composite.get("toxicity", 0.0)
