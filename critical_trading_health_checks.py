@@ -273,6 +273,40 @@ class CriticalTradingHealthChecks:
                 f"Error checking scores: {e}"
             )
     
+    def check_adaptive_weights_not_killing_scores(self) -> HealthCheckResult:
+        """Check if adaptive weights are killing scores (flow weight too low)."""
+        try:
+            import uw_composite_v2
+            
+            flow_weight = uw_composite_v2.get_weight("options_flow", "mixed")
+            expected_weight = uw_composite_v2.WEIGHTS_V3.get("options_flow", 2.4)
+            
+            if flow_weight < expected_weight * 0.5:  # Less than 50% of expected
+                return HealthCheckResult(
+                    "adaptive_weights_killing_scores",
+                    "CRITICAL",
+                    f"Flow weight is {flow_weight:.3f} instead of {expected_weight}. This kills all scores!",
+                    can_auto_fix=True
+                )
+            elif flow_weight < expected_weight * 0.8:  # Less than 80% of expected
+                return HealthCheckResult(
+                    "adaptive_weights_killing_scores",
+                    "WARNING",
+                    f"Flow weight is low: {flow_weight:.3f} (expected {expected_weight})"
+                )
+            else:
+                return HealthCheckResult(
+                    "adaptive_weights_killing_scores",
+                    "OK",
+                    f"Flow weight OK: {flow_weight:.3f}"
+                )
+        except Exception as e:
+            return HealthCheckResult(
+                "adaptive_weights_killing_scores",
+                "WARNING",
+                f"Error checking weights: {e}"
+            )
+    
     def check_zero_trades_due_to_scores(self) -> HealthCheckResult:
         """Check if zero trades due to low scores (detect freshness/threshold issues)."""
         try:
@@ -386,7 +420,16 @@ class CriticalTradingHealthChecks:
         results["freshness_killing_scores"] = result
         self.log_check(result)  # Freshness fix is in main.py, already applied
         
-        # Check 5: Zero trades due to scores
+        # Check 5: Adaptive weights killing scores
+        result = self.check_adaptive_weights_not_killing_scores()
+        results["adaptive_weights_killing_scores"] = result
+        if auto_fix and result.can_auto_fix and result.status == "CRITICAL":
+            # The fix is in uw_composite_v2.py (force default weight)
+            # Just log that it needs a restart
+            result.message = "Fix applied in code - restart required"
+        self.log_check(result)
+        
+        # Check 6: Zero trades due to scores
         result = self.check_zero_trades_due_to_scores()
         results["zero_trades_scores"] = result
         self.log_check(result)
