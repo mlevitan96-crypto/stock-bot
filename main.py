@@ -6833,13 +6833,43 @@ class Watchdog:
                     market_open = False  # Default to closed on error
                 
                 if market_open:
-                    metrics = run_once()
+                    print(f"DEBUG: Market is OPEN - calling run_once()", flush=True)
+                    try:
+                        metrics = run_once()
+                        print(f"DEBUG: run_once() returned: clusters={metrics.get('clusters', 0)}, orders={metrics.get('orders', 0)}", flush=True)
+                        # CRITICAL: Ensure run.jsonl is written even for successful cycles
+                        jsonl_write("run", {
+                            "ts": datetime.now(timezone.utc).isoformat(),
+                            "_ts": int(time.time()),
+                            "msg": "complete",
+                            "clusters": metrics.get("clusters", 0),
+                            "orders": metrics.get("orders", 0),
+                            "market_open": True,
+                            "metrics": metrics
+                        })
+                    except Exception as run_err:
+                        print(f"ERROR: run_once() raised exception: {run_err}", flush=True)
+                        import traceback
+                        traceback.print_exc()
+                        metrics = {"clusters": 0, "orders": 0, "error": str(run_err)}
+                        jsonl_write("run", {
+                            "ts": datetime.now(timezone.utc).isoformat(),
+                            "_ts": int(time.time()),
+                            "msg": "complete",
+                            "clusters": 0,
+                            "orders": 0,
+                            "market_open": True,
+                            "error": str(run_err)[:200],
+                            "metrics": metrics
+                        })
+                        raise  # Re-raise to be caught by outer exception handler
                 else:
                     # Market closed - still log cycle but skip trading
+                    print(f"DEBUG: Market is CLOSED - skipping trading", flush=True)
                     metrics = {"market_open": False, "clusters": 0, "orders": 0}
                     # CRITICAL: Always log cycles to run.jsonl for visibility
                     jsonl_write("run", {
-                        "ts": int(time.time()),
+                        "ts": datetime.now(timezone.utc).isoformat(),
                         "_ts": int(time.time()),
                         "msg": "cycle_complete",
                         "clusters": 0,
@@ -6896,10 +6926,13 @@ class Watchdog:
             elapsed = time.time() - start
             target = Config.RUN_INTERVAL_SEC if self.state.fail_count == 0 else self.state.backoff_sec
             sleep_for = max(0.0, target - elapsed)
+            print(f"DEBUG: Worker sleeping for {sleep_for:.1f}s (target={target:.1f}s, elapsed={elapsed:.1f}s)", flush=True)
             self._stop_evt.wait(timeout=sleep_for)
+            print(f"DEBUG: Worker woke up, stop_evt.is_set()={self._stop_evt.is_set()}", flush=True)
         
         self.state.running = False
         log_event("worker", "stopped_clean")
+        print(f"DEBUG: Worker loop EXITING (stop_evt was set)", flush=True)
 
     def start(self):
         if self.thread and self.thread.is_alive():
