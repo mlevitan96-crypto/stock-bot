@@ -202,9 +202,9 @@ WEIGHTS_V2 = {
 # Restored to original reasonable thresholds to allow signals to trade
 # Thresholds can be adjusted via hierarchical threshold file if needed
 ENTRY_THRESHOLDS = {
-    "base": 2.7,      # Restored from 3.5 - allows signals to trade
-    "canary": 2.9,    # Restored from 3.8
-    "champion": 3.2   # Restored from 4.2
+    "base": 1.5,      # TEMPORARILY LOWERED from 2.7 to verify trades can execute
+    "canary": 2.0,    # TEMPORARILY LOWERED from 2.9
+    "champion": 2.5   # TEMPORARILY LOWERED from 3.2
 }
 
 # Sizing Overlays
