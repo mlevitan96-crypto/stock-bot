@@ -145,6 +145,15 @@ class HealthSupervisor:
             severity="INFO",
             remediation_fn=self._heal_architecture_issues
         ))
+        
+        # CRITICAL: Add checks for today's trading issues
+        self.checks.append(HealthCheck(
+            name="critical_trading_health",
+            check_fn=self._check_critical_trading_issues,
+            interval_sec=300,  # Every 5 minutes
+            severity="CRITICAL",
+            remediation_fn=self._fix_critical_trading_issues
+        ))
     
     def _check_architecture_health(self) -> Dict[str, Any]:
         """Check architecture mapping health and auto-heal issues"""
@@ -165,6 +174,47 @@ class HealthSupervisor:
                 "status": "error",
                 "error": str(e)
             }
+    
+    def _check_critical_trading_issues(self) -> Dict[str, Any]:
+        """Check for critical trading issues found today."""
+        try:
+            from critical_trading_health_checks import CriticalTradingHealthChecks
+            checker = CriticalTradingHealthChecks()
+            results = checker.run_all_checks(auto_fix=False)  # Just check, don't auto-fix here
+            
+            # Determine overall status
+            has_critical = any(r.status == "CRITICAL" for r in results.values())
+            has_warning = any(r.status == "WARNING" for r in results.values())
+            
+            issues = []
+            for name, result in results.items():
+                if result.status != "OK":
+                    issues.append(f"{name}: {result.message}")
+            
+            return {
+                "status": "critical" if has_critical else ("warning" if has_warning else "healthy"),
+                "issues": issues,
+                "check_results": {name: {"status": r.status, "message": r.message} 
+                                for name, r in results.items()}
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    def _fix_critical_trading_issues(self) -> bool:
+        """Auto-fix critical trading issues."""
+        try:
+            from critical_trading_health_checks import CriticalTradingHealthChecks
+            checker = CriticalTradingHealthChecks()
+            results = checker.run_all_checks(auto_fix=True)
+            
+            # Return True if any fixes were applied
+            return any(r.fix_applied for r in results.values())
+        except Exception as e:
+            print(f"[HEALTH-SUPERVISOR] Error fixing critical issues: {e}", flush=True)
+            return False
     
     def _heal_architecture_issues(self) -> bool:
         """Automatically heal architecture issues"""

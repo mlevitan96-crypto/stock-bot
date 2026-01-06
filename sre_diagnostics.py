@@ -106,11 +106,11 @@ class SREDiagnostics:
                     if isinstance(weights, dict) and len(weights) > 0:
                         return RCAResult("composite_weights", "OK", f"Weights file exists with {len(weights)} entries", None, False)
                     else:
-                        return RCAResult("composite_weights", "WARNING", "Weights file exists but is empty", None, False)
+                        return RCAResult("composite_weights", "WARNING", "Weights file exists but is empty", "create_weights_file", False)
                 except json.JSONDecodeError:
-                    return RCAResult("composite_weights", "FAIL", "Weights file exists but is invalid JSON", "clear_weights_lock", False)
+                    return RCAResult("composite_weights", "FAIL", "Weights file exists but is invalid JSON", "create_weights_file", False)
             else:
-                return RCAResult("composite_weights", "WARNING", "Weights file does not exist (will use defaults)", None, False)
+                return RCAResult("composite_weights", "WARNING", "Weights file does not exist (will use defaults)", "create_weights_file", False)
         except Exception as e:
             return RCAResult("composite_weights", "FAIL", f"Error checking weights: {e}", None, False)
     
@@ -172,7 +172,28 @@ class SREDiagnostics:
     def apply_fix(self, fix_name: str) -> bool:
         """Apply a specific fix based on RCA findings."""
         try:
-            if fix_name == "clear_weights_lock":
+            if fix_name == "create_weights_file":
+                # Create weights file with default WEIGHTS_V3 values
+                try:
+                    import uw_composite_v2
+                    weights = uw_composite_v2.WEIGHTS_V3.copy()
+                    
+                    weights_file = DATA_DIR / "uw_weights.json"
+                    weights_file.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    # Atomic write
+                    tmp_file = weights_file.with_suffix(".json.tmp")
+                    with tmp_file.open("w") as f:
+                        json.dump(weights, f, indent=2)
+                    tmp_file.replace(weights_file)
+                    
+                    print(f"[SRE-DIAG] Created {weights_file} with {len(weights)} default weights", flush=True)
+                    return True
+                except Exception as e:
+                    print(f"[SRE-DIAG] Error creating weights file: {e}", flush=True)
+                    return False
+            
+            elif fix_name == "clear_weights_lock":
                 # Clear corrupted weights file (will regenerate)
                 weights_file = DATA_DIR / "uw_weights.json"
                 if weights_file.exists():
@@ -181,6 +202,21 @@ class SREDiagnostics:
                     print(f"[SRE-DIAG] Cleared corrupted weights file (backed up to {backup_file})", flush=True)
                     return True
                 return False
+            
+            elif fix_name == "reset_entry_thresholds":
+                # Reset entry thresholds to safe values
+                try:
+                    import uw_composite_v2
+                    uw_composite_v2.ENTRY_THRESHOLDS = {
+                        "base": 2.7,
+                        "canary": 2.9,
+                        "champion": 3.2
+                    }
+                    print(f"[SRE-DIAG] Reset entry thresholds to {uw_composite_v2.ENTRY_THRESHOLDS}", flush=True)
+                    return True
+                except Exception as e:
+                    print(f"[SRE-DIAG] Error resetting thresholds: {e}", flush=True)
+                    return False
             
             elif fix_name == "clear_cache_lock":
                 # Remove stale lock files
@@ -205,11 +241,80 @@ class SREDiagnostics:
             print(f"[SRE-DIAG] Error applying fix {fix_name}: {e}", flush=True)
             return False
     
+    def check_entry_thresholds(self) -> RCAResult:
+        """Check if entry thresholds are too high (blocking trades)."""
+        try:
+            import uw_composite_v2
+            thresholds = uw_composite_v2.ENTRY_THRESHOLDS
+            
+            base_threshold = thresholds.get("base", 2.7)
+            
+            if base_threshold > 3.0:
+                return RCAResult("entry_thresholds", "FAIL", 
+                                f"Entry thresholds too high: base={base_threshold} (should be <=2.7). This blocks all trades!",
+                                "reset_entry_thresholds", False)
+            elif base_threshold > 2.8:
+                return RCAResult("entry_thresholds", "WARNING",
+                                f"Entry thresholds high: base={base_threshold} (may block trades)",
+                                None, False)
+            else:
+                return RCAResult("entry_thresholds", "OK",
+                                f"Entry thresholds OK: base={base_threshold}",
+                                None, False)
+        except Exception as e:
+            return RCAResult("entry_thresholds", "WARNING",
+                            f"Error checking thresholds: {e}",
+                            None, False)
+    
+    def check_freshness_killing_scores(self) -> RCAResult:
+        """Check if freshness is killing scores."""
+        try:
+            attr_path = DATA_DIR / "uw_attribution.jsonl"
+            if not attr_path.exists():
+                return RCAResult("freshness_scores", "OK", "No attribution records yet", None, False)
+            
+            records = []
+            with open(attr_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            records.append(json.loads(line))
+                        except:
+                            pass
+            
+            if len(records) < 10:
+                return RCAResult("freshness_scores", "OK", "Not enough records to analyze", None, False)
+            
+            recent = records[-20:]
+            scores = [r.get("score", 0.0) for r in recent]
+            avg_score = sum(scores) / len(scores) if scores else 0.0
+            max_score = max(scores) if scores else 0.0
+            
+            if avg_score < 0.5 and max_score < 1.0:
+                return RCAResult("freshness_scores", "FAIL",
+                                f"Scores extremely low: avg={avg_score:.2f}, max={max_score:.2f}. Freshness may be killing scores!",
+                                None, False)  # Fix is in main.py, already applied
+            elif avg_score < 1.5:
+                return RCAResult("freshness_scores", "WARNING",
+                                f"Scores low: avg={avg_score:.2f}. Check freshness decay.",
+                                None, False)
+            else:
+                return RCAResult("freshness_scores", "OK",
+                                f"Score range normal: avg={avg_score:.2f}",
+                                None, False)
+        except Exception as e:
+            return RCAResult("freshness_scores", "WARNING",
+                            f"Error checking scores: {e}",
+                            None, False)
+    
     def run_rca(self, trigger: str = "manual") -> RCASession:
         """Run complete Root Cause Analysis and apply fixes."""
         checks = [
             self.check_uw_parser_integrity(),
             self.check_composite_weights(),
+            self.check_entry_thresholds(),
+            self.check_freshness_killing_scores(),
             self.check_alpaca_latency(),
             self.check_cache_lock(),
         ]
