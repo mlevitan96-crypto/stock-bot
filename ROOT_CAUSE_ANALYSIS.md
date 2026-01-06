@@ -194,12 +194,53 @@ The trading bot was not executing orders due to **EIGHT critical root causes** t
 
 ---
 
-## STATUS: ALL ISSUES RESOLVED
+## CURRENT STATUS & INVESTIGATION
 
-All eight root causes have been identified, fixed, and deployed. The trading bot should now:
-- ✅ Generate signals with correct composite scores
-- ✅ Pass entry thresholds
-- ✅ Execute orders when signals are valid
-- ✅ Log all cycle activity for monitoring
+**Status as of latest check:**
+- ✅ Cycles completing without errors (no more UnboundLocalError)
+- ✅ Bot process running normally
+- ✅ Worker loop executing iterations
+- ⚠️ **Clusters = 0** - No signals/clusters being generated
+- ⚠️ **Orders = 0** - No orders executing
 
-**Next Step:** Monitor `logs/run.jsonl`, `logs/signals.jsonl`, and `logs/order.jsonl` to confirm trading has resumed.
+### Current Issue: Zero Clusters
+
+**Symptoms:**
+- Cycles complete successfully (`"clusters": 0, "orders": 0`)
+- No errors in run.jsonl
+- Gate events show signals being blocked:
+  - `score_floor_breach` (score < MIN_EXEC_SCORE which is 1.5)
+  - `momentum_ignition_error`
+  - `insufficient_bullish_momentum`
+
+**Possible Root Causes:**
+
+1. **Composite Scoring Not Running:**
+   - `use_composite` may be False if cache has no symbol keys
+   - Cache may only have metadata keys (starting with "_")
+   - Need to verify cache contains symbol data
+
+2. **Signals Generated But Not Passing Gate:**
+   - Composite scores still below entry threshold (2.7)
+   - All scoring fixes may not be fully effective yet
+   - Scores may be passing threshold but failing other gates
+
+3. **Clusters Created But Filtered Out:**
+   - Clusters passing composite gate but blocked by momentum filter
+   - Score floor breach (< 1.5) preventing execution
+   - Other downstream gates blocking execution
+
+**Investigation Steps:**
+1. Verify cache contains symbol data (not just metadata)
+2. Test composite scoring directly to see actual scores
+3. Check why signals are being blocked at gate level
+4. Verify all fixes are active in running code
+
+## STATUS: INVESTIGATING ZERO CLUSTERS
+
+All previous 9 root causes have been fixed, but cycles are completing with 0 clusters. This indicates either:
+- Composite scoring isn't running (cache issue)
+- Signals generated but blocked by gates (scoring/gate issue)
+- Clusters created but filtered out (downstream issue)
+
+**Next Steps:** Diagnose why clusters = 0 despite all fixes being in place.
