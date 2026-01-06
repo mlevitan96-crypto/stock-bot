@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-01-05T22:09:41.022073+00:00",
+  "timestamp": "2026-01-06T00:28:04.584882+00:00",
   "checks": {
     "market_hours": {
       "is_market_hours": false,
       "is_weekend": false,
-      "current_time": "2026-01-05T22:09:41.022107+00:00",
-      "hour_utc": 22,
-      "weekday": 0
+      "current_time": "2026-01-06T00:28:04.584924+00:00",
+      "hour_utc": 0,
+      "weekday": 1
     },
     "services": {
       "services": {
@@ -31,7 +31,7 @@
     },
     "uw_cache": {
       "exists": true,
-      "age_minutes": 0.24723039070765176,
+      "age_minutes": 0.5536737640698751,
       "tickers_in_cache": 53,
       "tickers_with_data": 53,
       "is_fresh": true
