@@ -5759,20 +5759,8 @@ def audit_seg(name, phase, extra=None):
 # CORE ITERATION (pull all UW layers, score, execute)
 # =========================
 def run_once():
-    # CRITICAL: Import StateFiles at module level to avoid import errors
-    try:
-        from config.registry import StateFiles
-    except (NameError, ImportError) as import_err:
-        print(f"CRITICAL: Failed to import StateFiles: {import_err}", flush=True)
-        import traceback
-        traceback.print_exc()
-        # Re-import at module level
-        import importlib
-        import sys
-        if 'config.registry' in sys.modules:
-            importlib.reload(sys.modules['config.registry'])
-        from config.registry import StateFiles
-    
+    # StateFiles is already imported at module level (line 30-32)
+    # No redundant import needed
     try:
         
         global ZERO_ORDER_CYCLE_COUNT
