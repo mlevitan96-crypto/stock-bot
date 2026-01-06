@@ -77,12 +77,22 @@ def get_weight(component: str, regime: str = "neutral") -> float:
     """
     global _cached_weights, _weights_cache_ts
     
+    # CRITICAL FIX: Temporarily disable adaptive weights for options_flow
+    # The adaptive system learned a bad weight (0.612 instead of 2.4), killing all scores
+    # TODO: Re-enable once we have better learning data
+    if component == "options_flow":
+        # Force use default weight to restore trading
+        return WEIGHTS_V3.get(component, 0.0)
+    
     # Try to get regime-aware weight from optimizer
     optimizer = _get_adaptive_optimizer()
     if optimizer and hasattr(optimizer, 'entry_model'):
         try:
             # Get regime-aware effective weight
             effective_weight = optimizer.entry_model.get_effective_weight(component, regime)
+            # Safety check: Don't let options_flow drop below 1.5 (still too low, but better than 0.6)
+            if component == "options_flow" and effective_weight < 1.5:
+                return WEIGHTS_V3.get(component, 2.4)
             return effective_weight
         except Exception:
             pass
