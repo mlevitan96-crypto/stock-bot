@@ -11,7 +11,7 @@ echo ""
 # 1. Check if bot is running
 echo "1. Checking bot process..."
 if pgrep -f "python.*main.py" > /dev/null; then
-    echo "✅ Bot process is running"
+    echo "OK: Bot process is running"
     ps aux | grep "python.*main.py" | grep -v grep | head -1
 else
     echo "❌ Bot process NOT running!"
@@ -39,11 +39,11 @@ if freeze_file.exists():
             data[key]["active"] = False
             data[key]["cleared_at"] = datetime.now(timezone.utc).isoformat()
         json.dump(data, open(freeze_file, 'w'), indent=2)
-        print(f"✅ Cleared freezes: {active}")
+        print(f"OK: Cleared freezes: {active}")
     else:
-        print("✅ No active freezes")
+        print("OK: No active freezes")
 else:
-    print("✅ No freeze file")
+    print("OK: No freeze file")
 EOF
 else
     echo "✅ No freeze file"
@@ -73,7 +73,7 @@ print(f"Threshold: {threshold:.2f} (expected 2.7)")
 print(f"Flow weight: {flow_weight:.3f} (expected 2.4)")
 
 if abs(threshold - 2.7) < 0.1 and abs(flow_weight - 2.4) < 0.1:
-    print("✅ All fixes verified")
+    print("OK: All fixes verified")
 else:
     print("❌ Fixes not working correctly!")
 EOF
