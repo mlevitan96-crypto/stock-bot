@@ -6553,6 +6553,17 @@ def run_once():
         print(f"DEBUG: RUN_ONCE COMPLETE! clusters={len(clusters)}, orders={len(orders)}", flush=True)
         audit_seg("run_once", "COMPLETE_SUCCESS", {"clusters": len(clusters), "orders": len(orders)})
         log_event("run", "complete", clusters=len(clusters), orders=len(orders), metrics=metrics)
+        
+        # CRITICAL FIX: Write to run.jsonl (was missing!)
+        jsonl_write("run", {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "_ts": int(time.time()),
+            "msg": "complete",
+            "clusters": len(clusters),
+            "orders": len(orders),
+            "metrics": metrics
+        })
+        
         return {"clusters": len(clusters), "orders": len(orders), **metrics}
     except (NameError, ImportError) as e:
         # CRITICAL: Self-healing for import/name errors
