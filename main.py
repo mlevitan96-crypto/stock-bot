@@ -6809,11 +6809,16 @@ class Watchdog:
         self.state.running = True
         log_event("worker", "started", thread_id=threading.current_thread().ident, 
                  fail_count=self.state.fail_count)
+        print(f"DEBUG: Worker loop STARTED (thread {threading.current_thread().ident})", flush=True)
         
         SIMULATE_MARKET_OPEN = os.getenv("SIMULATE_MARKET_OPEN", "false").lower() == "true"
+        print(f"DEBUG: SIMULATE_MARKET_OPEN={SIMULATE_MARKET_OPEN}, stop_evt.is_set()={self._stop_evt.is_set()}", flush=True)
         
+        iteration_count = 0
         while not self._stop_evt.is_set():
+            iteration_count += 1
             start = time.time()
+            print(f"DEBUG: Worker loop iteration {iteration_count} (iter_count={self.state.iter_count})", flush=True)
             try:
                 log_event("worker", "iter_start", iter=self.state.iter_count + 1)
                 print(f"DEBUG WORKER: Starting iteration {self.state.iter_count + 1}", flush=True)
