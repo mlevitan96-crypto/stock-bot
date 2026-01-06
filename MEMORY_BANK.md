@@ -1,7 +1,7 @@
 # Trading Bot Memory Bank
 ## Comprehensive Knowledge Base for Future Conversations
 
-**Last Updated:** 2026-01-05 (Dashboard Data Source Audit - Fixed "Last Order" to use Alpaca API directly, verified all dashboard endpoints use correct data sources)  
+**Last Updated:** 2026-01-06 (Entry Threshold Fix + enrich_signal Missing Fields Fix)  
 **Purpose:** Centralized knowledge base for all project details, common issues, solutions, and best practices.
 
 ## ✅ UW API ENDPOINTS - VERIFIED AND DOCUMENTED
@@ -2279,5 +2279,47 @@ All attribution records MUST include at top level:
 - ✅ Ready for production use
 
 **Reference:** See `SELF_HEALING_GUARDIAN_DEPLOYMENT.md` for complete deployment guide and troubleshooting
+
+---
+
+## Entry Threshold Too High + enrich_signal Missing Fields (2026-01-06)
+
+### Problem
+Bot was not trading despite market being open. Run logs showed `clusters: 0, orders: 0` consistently. Gate logs showed scores were very low (0.17, 0.72, 0.56) even with threshold fix.
+
+### Root Causes
+
+**1. Entry Thresholds Too High**
+- Thresholds were raised to 3.5/3.8/4.2 (from 2.7/2.9/3.2)
+- This blocked ALL signals because scores rarely reach 3.5+
+- **Fix:** Restored thresholds to 2.7/2.9/3.2
+
+**2. enrich_signal Missing Critical Fields** ⭐ **ROOT CAUSE**
+- `enrich_signal()` was not copying `sentiment` and `conviction` from cache to enriched output
+- `compute_composite_score_v3()` expects `enriched_data.get("sentiment")` and `enriched_data.get("conviction")`
+- When missing, `flow_conv = 0.0`, causing `flow_component = flow_weight * 0.0 = 0.0`
+- This made composite_raw scores very low (0.5-1.0 instead of 2.5-4.0)
+- **Fix:** Added `enriched_symbol["sentiment"]` and `enriched_symbol["conviction"]` to `enrich_signal()`
+
+### Impact
+- All signals had `flow_component = 0.0` because `flow_conv = 0.0`
+- Composite scores were 0.1-0.8 instead of 2.5-4.0
+- Even with threshold fix, scores were too low to pass gate
+
+### Fixes Applied
+1. ✅ Restored entry thresholds: 2.7/2.9/3.2 (from 3.5/3.8/4.2)
+2. ✅ Fixed `enrich_signal()` to include `sentiment` and `conviction` from cache
+
+### Lesson Learned
+**CRITICAL:** When enrichment functions create new dicts, ensure ALL required fields from source data are copied. Missing fields cause silent failures (0.0 values) that are hard to debug.
+
+**Best Practice:**
+- Always verify enrichment functions include all fields needed by downstream scoring
+- Test enrichment output with sample data to ensure fields are present
+- Add explicit field copying rather than relying on `enrich_symbol()` to include everything
+
+### Files Modified
+- `uw_composite_v2.py`: Restored `ENTRY_THRESHOLDS` to 2.7/2.9/3.2
+- `uw_enrichment_v2.py`: Added `sentiment` and `conviction` to `enrich_signal()` output
 
 ---

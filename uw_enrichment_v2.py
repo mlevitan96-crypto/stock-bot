@@ -391,6 +391,9 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     
     # CRITICAL: Include all cache data fields in enriched output for composite scoring
     # These are needed by compute_composite_score_v3
+    # ROOT CAUSE FIX: Must include sentiment and conviction - these are required for flow_component calculation
+    enriched_symbol["sentiment"] = data.get("sentiment", "NEUTRAL")
+    enriched_symbol["conviction"] = data.get("conviction", 0.0)
     enriched_symbol["dark_pool"] = data.get("dark_pool", {})
     enriched_symbol["insider"] = data.get("insider", {})
     enriched_symbol["market_tide"] = data.get("market_tide", {})
