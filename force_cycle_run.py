@@ -5,8 +5,14 @@ import sys
 import os
 sys.path.insert(0, '/root/stock-bot')
 
-# Set environment
+# Set environment  
 os.chdir('/root/stock-bot')
+
+# Activate venv
+activate_this = '/root/stock-bot/venv/bin/activate_this.py'
+if os.path.exists(activate_this):
+    with open(activate_this) as f:
+        exec(f.read(), {'__file__': activate_this})
 
 print("Forcing cycle run...")
 
