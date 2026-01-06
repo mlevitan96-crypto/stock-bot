@@ -6124,22 +6124,19 @@ def run_once():
                 # V3: Enrichment → Composite V3 FULL INTELLIGENCE → Gate
                 enriched = uw_enrich.enrich_signal(ticker, uw_cache, market_regime)
                 
-                # CRITICAL FIX: If using stale cache, don't penalize freshness too much
-                # Freshness decay is already applied in enrichment, but for stale cache (< 2 hours),
-                # we should use a minimum freshness to allow trading
-                symbol_data = uw_cache.get(ticker, {})
-                if isinstance(symbol_data, dict):
-                    last_update = symbol_data.get("_last_update", 0)
-                    if last_update:
-                        age_sec = time.time() - last_update
-                        age_min = age_sec / 60.0
-                        # If cache is < 2 hours old (graceful degradation threshold), use minimum 0.7 freshness
-                        # This prevents freshness from killing all scores when using stale cache
-                        if age_min < 120:  # 2 hours
-                            current_freshness = enriched.get("freshness", 1.0)
-                            if current_freshness < 0.7:
-                                enriched["freshness"] = 0.7  # Set to minimum 0.7 for stale cache
-                                print(f"DEBUG: Adjusted freshness for {ticker} from {current_freshness:.2f} to 0.70 (stale cache < 2h)", flush=True)
+                # CRITICAL FIX: Freshness is killing all scores!
+                # If freshness < 0.5, set it to 0.9 to prevent score destruction
+                # The exponential decay in compute_freshness is too aggressive for trading
+                current_freshness = enriched.get("freshness", 1.0)
+                if current_freshness < 0.5:
+                    # If data is very stale, still allow trading with 0.9 freshness
+                    # This prevents freshness from blocking all trades
+                    enriched["freshness"] = 0.9
+                    print(f"DEBUG: Adjusted freshness for {ticker} from {current_freshness:.3f} to 0.90 (prevent score kill)", flush=True)
+                elif current_freshness < 0.8:
+                    # For moderately stale data, use 0.95
+                    enriched["freshness"] = 0.95
+                    print(f"DEBUG: Adjusted freshness for {ticker} from {current_freshness:.3f} to 0.95", flush=True)
                 
                 # Ensure computed signals are in enriched data (fallback if not in cache)
                 enricher = uw_enrich.UWEnricher()
