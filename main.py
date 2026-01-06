@@ -6606,10 +6606,10 @@ def run_once():
         except:
             print(f"WARNING: Could not reload imports, but continuing anyway", flush=True)
         
-        # CRITICAL: Don't return early - continue the cycle
-        # Return empty results so cycle completes but signal processing continues
-        # The actual issue is probably elsewhere - this is just a safety check
-        pass
+        # CRITICAL: Return empty results - function can't continue after exception
+        # But log the error so we know what happened
+        # The cycle will complete with 0 clusters/orders, which is better than crashing
+        return {"clusters": 0, "orders": 0, "error": f"import_error_{error_type}", "error_msg": error_msg[:100]}
     except Exception as e:
         print(f"DEBUG: EXCEPTION in run_once: {type(e).__name__}: {str(e)}", flush=True)
         audit_seg("run_once", "ERROR", {"error": str(e), "type": type(e).__name__})
