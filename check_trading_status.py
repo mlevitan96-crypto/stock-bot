@@ -1,82 +1,103 @@
 #!/usr/bin/env python3
-"""Check trading status: signals, decisions, and execution"""
+"""Check why trading isn't happening"""
 
-from droplet_client import DropletClient
 import json
-from datetime import datetime, timedelta
+from pathlib import Path
+from datetime import datetime
+try:
+    import pytz
+except ImportError:
+    pytz = None
 
-def check_trading_status():
-    c = DropletClient()
-    
-    print("="*80)
-    print("TRADING STATUS CHECK")
-    print("="*80)
-    print()
-    
-    # 1. Check recent signals/clusters
-    print("1. Checking recent signal generation...")
-    r = c.execute_command('cd ~/stock-bot && tail -200 logs/system.jsonl 2>&1 | grep -E "run_once|clusters|signal" | tail -15', timeout=20)
-    if r['stdout']:
-        print(r['stdout'][:1000])
-    else:
-        print("  No recent signal logs")
-    print()
-    
-    # 2. Check recent trade decisions
-    print("2. Checking recent trade decisions...")
-    r = c.execute_command('cd ~/stock-bot && tail -200 logs/trading.jsonl 2>&1 | grep -E "decide|should_trade|gate|blocked" | tail -20', timeout=20)
-    if r['stdout']:
-        print(r['stdout'][:1500])
-    else:
-        print("  No recent decision logs")
-    print()
-    
-    # 3. Check recent orders/executions
-    print("3. Checking recent orders/executions...")
-    r = c.execute_command('cd ~/stock-bot && tail -100 logs/attribution.jsonl 2>&1 | tail -15', timeout=20)
-    if r['stdout']:
-        print(r['stdout'][:1500])
-    else:
-        print("  No recent order logs")
-    print()
-    
-    # 4. Check current positions
-    print("4. Checking current positions from Alpaca...")
-    r = c.execute_command('cd ~/stock-bot && source venv/bin/activate && python3 -c "from alpaca_trade_api import REST; import os; from dotenv import load_dotenv; load_dotenv(); api = REST(os.getenv(\'ALPACA_KEY\'), os.getenv(\'ALPACA_SECRET\'), os.getenv(\'ALPACA_BASE_URL\'), api_version=\'v2\'); positions = api.list_positions(); print(f\'Positions: {len(positions)}\'); [print(f\"  {p.symbol}: {p.qty} @ {p.avg_entry_price}\") for p in positions]" 2>&1', timeout=30)
-    if r['stdout']:
-        print(r['stdout'][:500])
-    else:
-        print("  Could not check positions")
-    print()
-    
-    # 5. Check bot metadata positions
-    print("5. Checking bot metadata positions...")
-    r = c.execute_command('cd ~/stock-bot && python3 -c "import json; d=json.load(open(\'state/position_metadata.json\')) if __import__(\'os\').path.exists(\'state/position_metadata.json\') else {}; positions = {k:v for k,v in d.items() if not k.startswith(\'_\')}; print(f\'Metadata positions: {len(positions)}\'); [print(f\"  {k}\") for k in positions.keys()]" 2>&1', timeout=20)
-    if r['stdout']:
-        print(r['stdout'][:500])
-    else:
-        print("  Could not check metadata")
-    print()
-    
-    # 6. Check freeze state
-    print("6. Checking freeze/block state...")
-    r = c.execute_command('cd ~/stock-bot && test -f state/freeze_active.json && echo "Freeze file exists" || echo "No freeze file"', timeout=15)
-    if r['stdout']:
-        print(f"  {r['stdout'].strip()}")
-    r2 = c.execute_command('cd ~/stock-bot && tail -50 logs/trading.jsonl 2>&1 | grep -i freeze | tail -5', timeout=20)
-    if r2['stdout']:
-        print(f"  Recent freeze logs:\n{r2['stdout'][:400]}")
-    print()
-    
-    # 7. Check last run timestamp
-    print("7. Checking last bot activity...")
-    r = c.execute_command('cd ~/stock-bot && tail -5 logs/system.jsonl 2>&1 | tail -2', timeout=15)
-    if r['stdout']:
-        print(r['stdout'][:500])
-    print()
-    
-    c.close()
-    print("="*80)
+print("=" * 80)
+print("TRADING STATUS CHECK")
+print("=" * 80)
+print()
 
-if __name__ == "__main__":
-    check_trading_status()
+# 1. Check weights file
+weights_file = Path("data/uw_weights.json")
+if weights_file.exists():
+    w = json.load(weights_file.open())
+    print(f"✅ Weights file: {len(w.get('weights', {}))} components")
+else:
+    print("❌ Weights file: MISSING")
+
+# 2. Check today's signals
+signals_file = Path("logs/signals.jsonl")
+today_signals = []
+if signals_file.exists():
+    with signals_file.open() as f:
+        for line in f:
+            try:
+                data = json.loads(line)
+                if "2026-01-06" in data.get("ts", ""):
+                    today_signals.append(data)
+            except:
+                continue
+print(f"\n📊 Signals today: {len(today_signals)}")
+if today_signals:
+    for sig in today_signals[-5:]:
+        ticker = sig.get("cluster", {}).get("ticker", "UNK")
+        ts = sig.get("ts", "")[:19]
+        print(f"   {ticker} at {ts}")
+
+# 3. Check today's gate events
+gates_file = Path("logs/gate.jsonl")
+today_gates = []
+if gates_file.exists():
+    with gates_file.open() as f:
+        for line in f:
+            try:
+                data = json.loads(line)
+                if "2026-01-06" in data.get("ts", ""):
+                    today_gates.append(data)
+            except:
+                continue
+print(f"\n🚪 Gate events today: {len(today_gates)}")
+if today_gates:
+    for gate in today_gates[-10:]:
+        symbol = gate.get("symbol", "UNK")
+        msg = gate.get("msg", "unknown")
+        print(f"   {symbol}: {msg}")
+
+# 4. Check run cycles
+run_file = Path("logs/run.jsonl")
+today_runs = []
+if run_file.exists():
+    with run_file.open() as f:
+        for line in f:
+            try:
+                data = json.loads(line)
+                if "2026-01-06" in data.get("ts", ""):
+                    today_runs.append(data)
+            except:
+                continue
+print(f"\n🔄 Run cycles today: {len(today_runs)}")
+if today_runs:
+    for run in today_runs[-5:]:
+        clusters = run.get("clusters", 0)
+        orders = run.get("orders", 0)
+        market_open = run.get("market_open", False)
+        print(f"   clusters={clusters}, orders={orders}, market_open={market_open}")
+
+# 5. Check UW cache
+cache_file = Path("data/uw_flow_cache.json")
+if cache_file.exists():
+    cache = json.load(cache_file.open())
+    symbols = [k for k in cache.keys() if not k.startswith("_")]
+    print(f"\n💾 UW cache: {len(symbols)} symbols")
+    if symbols:
+        print(f"   Sample: {', '.join(symbols[:5])}")
+else:
+    print("\n❌ UW cache: FILE MISSING")
+
+# 6. Check market status
+try:
+    now = datetime.now(pytz.timezone("America/New_York"))
+    is_open = (9 <= now.hour < 16) and (now.weekday() < 5)
+    print(f"\n📈 Market status: {'OPEN' if is_open else 'CLOSED'}")
+    print(f"   ET time: {now.strftime('%H:%M')}")
+except Exception as e:
+    print(f"\n⚠️  Market status check failed: {e}")
+
+print("\n" + "=" * 80)
