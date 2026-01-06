@@ -6796,8 +6796,16 @@ class Watchdog:
             start = time.time()
             try:
                 log_event("worker", "iter_start", iter=self.state.iter_count + 1)
+                print(f"DEBUG WORKER: Starting iteration {self.state.iter_count + 1}", flush=True)
                 
-                market_open = is_market_open_now() or SIMULATE_MARKET_OPEN
+                # CRITICAL FIX: Wrap market check in try/except to prevent silent failures
+                try:
+                    market_open = is_market_open_now() or SIMULATE_MARKET_OPEN
+                    print(f"DEBUG WORKER: Market open check: {market_open}", flush=True)
+                except Exception as market_err:
+                    print(f"ERROR WORKER: Market check failed: {market_err}", flush=True)
+                    log_event("worker_error", "market_check_failed", error=str(market_err))
+                    market_open = False  # Default to closed on error
                 
                 if market_open:
                     metrics = run_once()
