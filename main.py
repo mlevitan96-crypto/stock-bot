@@ -6162,6 +6162,9 @@ def run_once():
                 enricher = uw_enrich.UWEnricher()
                 cache_updated = False
                 
+                # CRITICAL FIX: Get symbol_data from cache before using it
+                symbol_data = uw_cache.get(ticker, {})
+                
                 if isinstance(symbol_data, dict):
                     # Compute missing signals on-the-fly
                     if not enriched.get("iv_term_skew") and symbol_data.get("iv_term_skew") is None:
