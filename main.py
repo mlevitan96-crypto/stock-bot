@@ -6599,15 +6599,17 @@ def run_once():
         log_event("run_once", "import_error_ignored", error=error_msg, type=error_type, action="continuing_cycle")
         
         # Try to heal if possible, but don't abort cycle
+        # NOTE: Don't re-import StateFiles here - it's already imported at module level
+        # Re-importing would create a local variable shadowing the module-level import
         try:
             import importlib
             import sys
             if 'config.registry' in sys.modules:
                 importlib.reload(sys.modules['config.registry'])
-            from config.registry import StateFiles
-            print(f"DEBUG: Successfully reloaded imports", flush=True)
-        except:
-            print(f"WARNING: Could not reload imports, but continuing anyway", flush=True)
+            # DON'T re-import StateFiles - it's already available at module level
+            print(f"DEBUG: Successfully reloaded config.registry module", flush=True)
+        except Exception as heal_err:
+            print(f"WARNING: Could not reload registry module: {heal_err}, but continuing anyway", flush=True)
         
         # CRITICAL: Return empty results - function can't continue after exception
         # But log the error so we know what happened
