@@ -1,51 +1,65 @@
 #!/usr/bin/env python3
-"""
-Reset all adaptive weight multipliers to 1.0 (neutral)
-For high-velocity learning after component bug fixes
-"""
+"""Reset adaptive weights that are killing scores"""
 
 import json
+import sys
 from pathlib import Path
 
-def reset_multipliers():
-    """Reset all multipliers in signal_weights.json to 1.0"""
-    state_file = Path("state/signal_weights.json")
-    
-    if not state_file.exists():
-        print(f"[WARN] State file not found: {state_file}")
-        return False
-    
-    # Load current state
-    with state_file.open() as f:
-        state = json.load(f)
-    
-    # Reset all multipliers to 1.0
-    weight_bands = state.get("weight_bands", {})
-    reset_count = 0
-    
-    for component, band in weight_bands.items():
-        if isinstance(band, dict):
-            old_mult = band.get("current", 1.0)
-            band["current"] = 1.0
-            band["last_updated"] = 0  # Reset update timestamp
-            reset_count += 1
-            print(f"  {component:25} = {old_mult:6.3f} -> 1.000")
-    
-    # Save updated state
-    state["reset_at"] = int(time.time())
-    state["reset_reason"] = "High-velocity learning: reset after component bug fixes"
-    
-    with state_file.open("w") as f:
-        json.dump(state, f, indent=2)
-    
-    print(f"\n[OK] Reset {reset_count} multipliers to 1.0")
-    return True
+sys.path.insert(0, str(Path(__file__).parent))
 
-if __name__ == "__main__":
-    import time
-    print("=" * 80)
-    print("RESET ADAPTIVE WEIGHTS TO 1.0")
-    print("=" * 80)
-    print()
-    reset_multipliers()
-
+# Check entry_model state
+try:
+    from adaptive_signal_optimizer import AdaptiveSignalOptimizer
+    optimizer = AdaptiveSignalOptimizer()
+    
+    if hasattr(optimizer, 'entry_model'):
+        print("Found entry_model")
+        
+        # Check current weight
+        current_weight = optimizer.entry_model.get_effective_weight("options_flow", "mixed")
+        print(f"Current options_flow weight: {current_weight}")
+        
+        # Reset to default
+        if hasattr(optimizer.entry_model, 'reset_component_weight'):
+            optimizer.entry_model.reset_component_weight("options_flow")
+            print("Reset options_flow weight")
+        elif hasattr(optimizer.entry_model, 'set_weight'):
+            optimizer.entry_model.set_weight("options_flow", 2.4)
+            print("Set options_flow weight to 2.4")
+        else:
+            # Try to clear the state
+            state_file = Path("state/adaptive_entry_weights.json")
+            if state_file.exists():
+                state_file.unlink()
+                print(f"Deleted {state_file}")
+            
+            # Also try signal_weights.json
+            weights_file = Path("data/signal_weights.json")
+            if weights_file.exists():
+                data = json.load(open(weights_file))
+                if "options_flow" in data:
+                    del data["options_flow"]
+                    json.dump(data, open(weights_file, 'w'), indent=2)
+                    print(f"Removed options_flow from {weights_file}")
+        
+        # Verify reset
+        new_weight = optimizer.entry_model.get_effective_weight("options_flow", "mixed")
+        print(f"New options_flow weight: {new_weight}")
+    else:
+        print("No entry_model found")
+        
+except Exception as e:
+    print(f"Error: {e}")
+    import traceback
+    traceback.print_exc()
+    
+    # Fallback: Delete adaptive weight files
+    print("\nTrying fallback: Delete adaptive weight files")
+    for path in [
+        Path("state/adaptive_entry_weights.json"),
+        Path("data/signal_weights.json"),
+        Path("state/entry_model_state.json"),
+    ]:
+        if path.exists():
+            path.unlink()
+            print(f"Deleted {path}")
