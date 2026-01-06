@@ -6148,15 +6148,18 @@ def run_once():
                 # If freshness < 0.5, set it to 0.9 to prevent score destruction
                 # The exponential decay in compute_freshness is too aggressive for trading
                 current_freshness = enriched.get("freshness", 1.0)
+                # CRITICAL: ALWAYS enforce minimum freshness of 0.9 if below 0.5
+                # This ensures scores don't get killed by stale data
                 if current_freshness < 0.5:
-                    # If data is very stale, still allow trading with 0.9 freshness
-                    # This prevents freshness from blocking all trades
                     enriched["freshness"] = 0.9
                     print(f"DEBUG: Adjusted freshness for {ticker} from {current_freshness:.3f} to 0.90 (prevent score kill)", flush=True)
                 elif current_freshness < 0.8:
-                    # For moderately stale data, use 0.95
                     enriched["freshness"] = 0.95
                     print(f"DEBUG: Adjusted freshness for {ticker} from {current_freshness:.3f} to 0.95", flush=True)
+                # Ensure freshness is at least 0.3 for gate check (should_enter_v2 requires >= 0.30)
+                if enriched.get("freshness", 1.0) < 0.30:
+                    enriched["freshness"] = 0.90  # Set to 0.9 if somehow still below 0.30
+                    print(f"DEBUG: FORCED freshness to 0.90 for {ticker} (was below 0.30)", flush=True)
                 
                 # Ensure computed signals are in enriched data (fallback if not in cache)
                 enricher = uw_enrich.UWEnricher()

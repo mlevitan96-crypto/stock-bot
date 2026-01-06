@@ -1241,8 +1241,10 @@ def should_enter_v2(composite: Dict, symbol: str, mode: str = "base") -> bool:
         return False
     
     # Don't enter if freshness too low (stale data)
+    # CRITICAL FIX: Allow freshness as low as 0.25 if score is good
+    # The freshness floor in main.py sets minimum to 0.9, so this should rarely trigger
     freshness = composite.get("freshness", 1.0)
-    if freshness < 0.3:
+    if freshness < 0.25:  # Lowered from 0.30 to 0.25 to match freshness floor fix
         return False
     
     return score >= threshold
