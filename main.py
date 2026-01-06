@@ -5800,6 +5800,16 @@ def run_once():
             )
             
             # HALT: Return early - trading will NOT resume until freeze flags manually cleared
+            # CRITICAL FIX: Log cycle even when frozen
+            jsonl_write("run", {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "_ts": int(time.time()),
+                "msg": "complete",
+                "clusters": 0,
+                "orders": 0,
+                "freeze_active": True,
+                "metrics": summary
+            })
             return {"clusters": 0, "orders": 0, **summary}
         
         uw = UWClient()
@@ -5887,6 +5897,16 @@ def run_once():
                 log_event("risk_management", "freeze_activated", 
                          reason=freeze_reason, 
                          checks=risk_results.get("checks", {}))
+                # CRITICAL FIX: Log cycle even when risk frozen
+                jsonl_write("run", {
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "_ts": int(time.time()),
+                    "msg": "complete",
+                    "clusters": 0,
+                    "orders": 0,
+                    "risk_freeze": freeze_reason,
+                    "metrics": {"risk_freeze": freeze_reason}
+                })
                 # Return early - freeze will be caught by freeze check next cycle
                 return {"clusters": 0, "orders": 0, "risk_freeze": freeze_reason}
             else:
@@ -6842,6 +6862,20 @@ class Watchdog:
                          traceback=tb, 
                          fail_count=self.state.fail_count,
                          iter=self.state.iter_count)
+                # CRITICAL FIX: Log cycle even on error so we can see what's happening
+                try:
+                    jsonl_write("run", {
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                        "_ts": int(time.time()),
+                        "msg": "complete",
+                        "clusters": 0,
+                        "orders": 0,
+                        "error": str(e)[:200],
+                        "fail_count": self.state.fail_count,
+                        "metrics": {"error": True}
+                    })
+                except:
+                    pass  # Don't fail on logging error
                 send_webhook({"event": "iteration_failed", "error": str(e), "fail_count": self.state.fail_count})
                 
                 if self.state.fail_count >= 5:
