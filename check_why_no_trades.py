@@ -1,75 +1,55 @@
 #!/usr/bin/env python3
-"""Check why trades aren't happening"""
-
 import json
 from pathlib import Path
-from datetime import datetime
+import sys
+sys.path.insert(0, '/root/stock-bot')
 
-print("="*80)
 print("CHECKING WHY NO TRADES")
-print("="*80)
+print("=" * 80)
 
-# Check recent signals
-attribution_file = Path("data/uw_attribution.jsonl")
-if not attribution_file.exists():
-    attribution_file = Path("logs/attribution.jsonl")
-
-if attribution_file.exists():
-    signals = []
-    with attribution_file.open() as f:
-        for line in f:
-            try:
-                s = json.loads(line.strip())
-                if s.get("type") == "attribution":
-                    signals.append(s)
-            except:
-                continue
-    
-    print(f"\nLast 10 signals:")
-    for s in signals[-10:]:
-        symbol = s.get("symbol", "N/A")
-        score = s.get("score", 0)
-        decision = s.get("decision", "unknown")
-        print(f"  {symbol}: score={score:.2f}, decision={decision}")
+# 1. Check cache
+cache_file = Path("data/uw_flow_cache.json")
+if cache_file.exists():
+    cache = json.load(open(cache_file))
+    syms = [k for k in cache.keys() if not k.startswith("_")]
+    print(f"Cache: {len(syms)} symbols")
+    if syms:
+        s = syms[0]
+        d = cache[s]
+        print(f"Sample {s}: sentiment={d.get('sentiment')}, conviction={d.get('conviction')}")
+        print(f"  has dark_pool: {bool(d.get('dark_pool'))}")
+        print(f"  has insider: {bool(d.get('insider'))}")
+        
+        # Test scoring
+        import uw_enrichment_v2 as uw_enrich
+        import uw_composite_v2 as uw_v2
+        
+        enriched = uw_enrich.enrich_signal(s, cache, "mixed")
+        composite = uw_v2.compute_composite_score_v3(s, enriched, "mixed")
+        
+        if composite:
+            score = composite.get("score", 0.0)
+            threshold = uw_v2.get_threshold(s, "base")
+            toxicity = composite.get("toxicity", 0.0)
+            freshness = composite.get("freshness", 1.0)
+            passed = score >= threshold and toxicity <= 0.90 and freshness >= 0.30
+            
+            print(f"\nScoring test for {s}:")
+            print(f"  Score: {score:.2f}")
+            print(f"  Threshold: {threshold:.2f}")
+            print(f"  Toxicity: {toxicity:.2f} (max 0.90)")
+            print(f"  Freshness: {freshness:.2f} (min 0.30)")
+            print(f"  Would pass gate: {passed}")
 else:
-    print("\nNo attribution file found")
+    print("Cache file missing!")
 
-# Check run.jsonl for cycles
+# 2. Check recent run logs
 run_file = Path("logs/run.jsonl")
 if run_file.exists():
-    cycles = []
-    with run_file.open() as f:
-        for line in f:
-            try:
-                c = json.loads(line.strip())
-                cycles.append(c)
-            except:
-                continue
-    
-    print(f"\nLast 5 cycles:")
-    for c in cycles[-5:]:
-        ts = c.get("ts", 0)
-        dt = datetime.fromtimestamp(ts).strftime("%H:%M:%S") if ts else "N/A"
-        clusters = c.get("clusters", 0)
-        orders = c.get("orders", 0)
-        print(f"  {dt}: clusters={clusters}, orders={orders}")
-else:
-    print("\nNo run.jsonl file found")
+    with open(run_file) as f:
+        lines = f.readlines()
+        if lines:
+            last = json.loads(lines[-1])
+            print(f"\nLast cycle: clusters={last.get('clusters')}, orders={last.get('orders')}")
 
-# Check MIN_EXEC_SCORE
-import os
-from dotenv import load_dotenv
-load_dotenv()
-min_score = float(os.getenv("MIN_EXEC_SCORE", "2.0"))
-print(f"\nMIN_EXEC_SCORE: {min_score}")
-
-# Check freeze state
-freeze_path = Path("state/pre_market_freeze.flag")
-if freeze_path.exists():
-    reason = freeze_path.read_text().strip()
-    print(f"\n[ERROR] FREEZE ACTIVE: {reason}")
-else:
-    print("\n[OK] No freeze flag")
-
-print("\n" + "="*80)
-
+print("=" * 80)
