@@ -33,23 +33,46 @@ def inject_perfect_whale_signal():
         from uw_composite_v2 import compute_composite_score_v3
         
         # Create perfect whale signal data
+        # CRITICAL: Must include all fields that composite scoring expects
         perfect_signal = {
             "sentiment": "BULLISH",
             "conviction": 0.95,
             "dark_pool": {
                 "sentiment": "BULLISH",
                 "total_premium": 5_000_000.0,  # High premium
+                "total_notional": 5_000_000.0,  # Also include total_notional
                 "print_count": 10
             },
             "insider": {
                 "sentiment": "BULLISH",
                 "net_buys": 1000,
                 "net_sells": 100,
-                "total_usd": 10_000_000.0
+                "total_usd": 10_000_000.0,
+                "conviction_modifier": 0.3  # Add modifier for higher insider component
             },
             "flow_conv": 0.95,
             "flow_magnitude": "HIGH",
-            "signal_type": "BULLISH_SWEEP"
+            "signal_type": "BULLISH_SWEEP",
+            # Add missing computed signals
+            "iv_term_skew": 0.15,  # Positive skew aligned with bullish
+            "smile_slope": 0.12,   # Positive smile
+            "freshness": 1.0,      # Perfect freshness
+            "toxicity": 0.0,       # No toxicity
+            "event_alignment": 0.8,  # High event alignment
+            # Add motif data for whale_persistence
+            "motif_whale": {
+                "detected": True,
+                "avg_conviction": 0.95
+            },
+            "motif_staircase": {
+                "detected": False
+            },
+            "motif_burst": {
+                "detected": False
+            },
+            "motif_sweep_block": {
+                "detected": False
+            }
         }
         
         # Score the perfect signal
