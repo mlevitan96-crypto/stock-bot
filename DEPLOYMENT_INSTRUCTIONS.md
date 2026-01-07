@@ -1,192 +1,42 @@
-# Deployment Instructions - Audit Fixes
+# Deployment Instructions - Hardened Code
 
-## Current Status
+## Quick Deploy
 
-✅ **All fixes are committed locally**  
-⚠️ **GitHub push is blocked** due to secrets in old commits (not current files)  
-✅ **Manual deployment scripts are ready**
-
----
-
-## Quick Deployment (Recommended)
-
-### On Droplet:
-
+Run on droplet:
 ```bash
-cd ~/stock-bot
-
-# Copy and run the manual fix script
-# (Copy contents of APPLY_FIXES_MANUAL.sh from local repo)
-cat > APPLY_FIXES_MANUAL.sh << 'SCRIPT_EOF'
-[paste script content here]
-SCRIPT_EOF
-
-chmod +x APPLY_FIXES_MANUAL.sh
-bash APPLY_FIXES_MANUAL.sh
+cd /root/stock-bot
+git pull origin main
+systemctl restart trading-bot.service
+python3 check_current_status.py
 ```
 
-The script will:
-- ✅ Fix hardcoded paths
-- ✅ Fix hardcoded API endpoints
-- ✅ Add missing endpoint polling (insider, calendar, congress, institutional)
-- ✅ Verify syntax
+## What Was Fixed
 
----
+1. ✅ **Portfolio Delta Gate** - Fixed to allow trading with 0 positions
+2. ✅ **All API calls** - Hardened with error handling
+3. ✅ **All state files** - Corruption handling + self-healing
+4. ✅ **All divisions** - Guarded against divide by zero
+5. ✅ **All type conversions** - Validated with safe defaults
+6. ✅ **All dict/list access** - Made safe with .get() and length checks
+7. ✅ **Syntax errors** - Fixed indentation issues
 
-## Alternative: Manual Application
+## Expected Behavior After Deployment
 
-If the script doesn't work, apply fixes manually:
-
-### 1. Fix `signals/uw_adaptive.py`
-```python
-# Add import at top:
-from config.registry import StateFiles
-
-# Change:
-STATE_FILE = Path("data/adaptive_gate_state.json")
-# To:
-STATE_FILE = StateFiles.ADAPTIVE_GATE_STATE
-```
-
-### 2. Fix `uw_flow_daemon.py`
-```python
-# Add import near top:
-from config.registry import APIConfig
-
-# In UWClient.__init__, change:
-self.base = "https://api.unusualwhales.com"
-# To:
-self.base = APIConfig.UW_BASE_URL
-```
-
-### 3. Fix `main.py`
-```python
-# Add import at top:
-from config.registry import APIConfig
-
-# In Config class, change:
-ALPACA_BASE_URL = get_env("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
-# To:
-ALPACA_BASE_URL = get_env("ALPACA_BASE_URL", APIConfig.ALPACA_BASE_URL)
-```
-
-### 4. Add Missing Endpoints to `uw_flow_daemon.py`
-
-Add these methods to `UWClient` class (after `get_max_pain`):
-```python
-def get_insider(self, ticker: str) -> Dict:
-    raw = self._get(f"/api/insider/{ticker}")
-    data = raw.get("data", {})
-    if isinstance(data, list) and len(data) > 0:
-        data = data[0]
-    return data if isinstance(data, dict) else {}
-
-def get_calendar(self, ticker: str) -> Dict:
-    raw = self._get(f"/api/calendar/{ticker}")
-    data = raw.get("data", {})
-    if isinstance(data, list) and len(data) > 0:
-        data = data[0]
-    return data if isinstance(data, dict) else {}
-
-def get_congress(self, ticker: str) -> Dict:
-    raw = self._get(f"/api/congress/{ticker}")
-    data = raw.get("data", {})
-    if isinstance(data, list) and len(data) > 0:
-        data = data[0]
-    return data if isinstance(data, dict) else {}
-
-def get_institutional(self, ticker: str) -> Dict:
-    raw = self._get(f"/api/institutional/{ticker}")
-    data = raw.get("data", {})
-    if isinstance(data, list) and len(data) > 0:
-        data = data[0]
-    return data if isinstance(data, dict) else {}
-```
-
-Add to `SmartPoller.intervals`:
-```python
-"insider": 1800,          # 30 min
-"calendar": 3600,         # 60 min
-"congress": 1800,         # 30 min
-"institutional": 1800,    # 30 min
-```
-
-Add polling calls in `_poll_ticker()` (after max_pain polling):
-```python
-# Poll insider
-if self.poller.should_poll("insider"):
-    try:
-        insider_data = self.client.get_insider(ticker)
-        if insider_data:
-            self._update_cache(ticker, {"insider": insider_data})
-            print(f"[UW-DAEMON] Updated insider for {ticker}", flush=True)
-    except Exception as e:
-        print(f"[UW-DAEMON] Error fetching insider: {e}", flush=True)
-
-# Poll calendar
-if self.poller.should_poll("calendar"):
-    try:
-        calendar_data = self.client.get_calendar(ticker)
-        if calendar_data:
-            self._update_cache(ticker, {"calendar": calendar_data})
-            print(f"[UW-DAEMON] Updated calendar for {ticker}", flush=True)
-    except Exception as e:
-        print(f"[UW-DAEMON] Error fetching calendar: {e}", flush=True)
-
-# Poll congress
-if self.poller.should_poll("congress"):
-    try:
-        congress_data = self.client.get_congress(ticker)
-        if congress_data:
-            self._update_cache(ticker, {"congress": congress_data})
-            print(f"[UW-DAEMON] Updated congress for {ticker}", flush=True)
-    except Exception as e:
-        print(f"[UW-DAEMON] Error fetching congress: {e}", flush=True)
-
-# Poll institutional
-if self.poller.should_poll("institutional"):
-    try:
-        institutional_data = self.client.get_institutional(ticker)
-        if institutional_data:
-            self._update_cache(ticker, {"institutional": institutional_data})
-            print(f"[UW-DAEMON] Updated institutional for {ticker}", flush=True)
-    except Exception as e:
-        print(f"[UW-DAEMON] Error fetching institutional: {e}", flush=True)
-```
-
----
+- ✅ Bot should NOT be blocked by `portfolio_already_70pct_long_delta` when there are 0 positions
+- ✅ Bot should continue operating even if API calls fail
+- ✅ Bot should process signals and place orders if quality thresholds are met
+- ✅ Bot should self-heal from state file corruption
 
 ## Verification
 
-After applying fixes:
-
+After deployment, check:
 ```bash
-# Test syntax
-python3 -m py_compile signals/uw_adaptive.py uw_flow_daemon.py main.py
+# Check recent gate events - should NOT see portfolio_delta blocking with 0 positions
+tail -30 logs/gate.jsonl | grep portfolio_already_70pct_long_delta
 
-# Should show no errors
+# Check recent cycles for orders
+tail -10 logs/run.jsonl | jq -r '.clusters, .orders'
+
+# Check recent orders
+tail -20 logs/orders.jsonl | jq -r '.symbol, .action'
 ```
-
----
-
-## Deploy
-
-```bash
-# Stop existing
-pkill -f "deploy_supervisor|uw.*daemon"
-sleep 3
-
-# Start supervisor
-cd ~/stock-bot
-source venv/bin/activate
-nohup python3 deploy_supervisor.py > logs/supervisor.log 2>&1 &
-
-# Wait and verify
-sleep 15
-pgrep -f "deploy_supervisor" && echo "✅ Supervisor running"
-pgrep -f "uw_flow_daemon" && echo "✅ Daemon running"
-```
-
----
-
-**All fixes are ready - apply manually on droplet using the script or manual steps above!**
