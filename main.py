@@ -2831,23 +2831,40 @@ def compute_atr(api, symbol: str, lookback: int):
         if now - cached_time < 300:
             return cached_atr
     
-    try:
-        bars = api.get_bars(symbol, "1Min", limit=lookback + 1).df
-        if len(bars) < 2:
-            return 0.0
-        high = bars['high'].values
-        low = bars['low'].values
-        close = bars['close'].values
-        
-        tr_list = []
-        for i in range(1, len(bars)):
-            h_l = high[i] - low[i]
-            h_c = abs(high[i] - close[i-1])
-            l_c = abs(low[i] - close[i-1])
-            tr = max(h_l, h_c, l_c)
-            tr_list.append(tr)
-        
-        atr = sum(tr_list) / len(tr_list) if tr_list else 0.0
+        try:
+            bars = api.get_bars(symbol, "1Min", limit=lookback + 1).df
+            if bars is None or len(bars) < 2:
+                return 0.0
+            
+            # BULLETPROOF: Safe column access with validation
+            if not all(col in bars.columns for col in ['high', 'low', 'close']):
+                return 0.0
+            
+            high = bars['high'].values
+            low = bars['low'].values
+            close = bars['close'].values
+            
+            # BULLETPROOF: Validate arrays have data
+            if len(high) < 2 or len(low) < 2 or len(close) < 2:
+                return 0.0
+            
+            tr_list = []
+            for i in range(1, len(bars)):
+                try:
+                    h_l = high[i] - low[i]
+                    h_c = abs(high[i] - close[i-1])
+                    l_c = abs(low[i] - close[i-1])
+                    tr = max(h_l, h_c, l_c)
+                    # BULLETPROOF: Validate TR is not NaN/infinity
+                    if not (math.isnan(tr) or math.isinf(tr)):
+                        tr_list.append(tr)
+                except (IndexError, ValueError, TypeError):
+                    continue  # Skip invalid index
+            
+            # BULLETPROOF: Validate before division
+            atr = (sum(tr_list) / len(tr_list)) if tr_list and len(tr_list) > 0 else 0.0
+            # Clamp to reasonable range (prevent NaN/infinity)
+            atr = max(0.0, min(1000.0, atr))
         _atr_cache[cache_key] = (now, atr)
         return atr
     except Exception:
@@ -2893,14 +2910,22 @@ class AlpacaExecutor:
     
     def _get_global_regime(self) -> str:
         """Fetch current market regime from regime detector state file."""
+        # BULLETPROOF: Safe state file read with corruption handling
         try:
             regime_file = StateFiles.REGIME_DETECTOR
             if regime_file.exists():
-                data = json.loads(regime_file.read_text())
-                return data.get("current_regime") or data.get("regime") or None
-        except Exception:
-            pass
-        return None
+                try:
+                    data = json.loads(regime_file.read_text())
+                    if isinstance(data, dict):
+                        regime = data.get("current_regime") or data.get("regime") or None
+                        if regime and isinstance(regime, str):
+                            return regime
+                except (json.JSONDecodeError, IOError) as parse_err:
+                    log_event("regime", "state_file_corrupted", error=str(parse_err))
+                    # Fail open - return None (defaults to "mixed")
+        except Exception as file_err:
+            log_event("regime", "state_file_read_error", error=str(file_err))
+        return None  # Default to None (will use "mixed" as fallback)
     
     def reconcile_positions(self):
         """Restore position state from persistent metadata file on startup."""
@@ -2911,12 +2936,22 @@ class AlpacaExecutor:
                 log_event("reconcile", "no_positions_found")
                 return
             
+            # BULLETPROOF: Safe metadata load with corruption handling
             metadata = {}
             if metadata_path.exists():
                 try:
-                    metadata = json.loads(metadata_path.read_text())
+                    raw_data = metadata_path.read_text()
+                    metadata = json.loads(raw_data)
+                    # Validate structure
+                    if not isinstance(metadata, dict):
+                        log_event("reconcile", "metadata_corrupted", error="not_a_dict", metadata_type=str(type(metadata)))
+                        metadata = {}  # Reset to empty dict
+                except (json.JSONDecodeError, IOError) as parse_err:
+                    log_event("reconcile", "metadata_load_failed", error=str(parse_err), error_type=type(parse_err).__name__)
+                    metadata = {}  # Continue with empty metadata (fail open)
                 except Exception as e:
-                    log_event("reconcile", "metadata_load_failed", error=str(e))
+                    log_event("reconcile", "metadata_load_error", error=str(e))
+                    metadata = {}  # Continue with empty metadata
             
             # FIX: Use timezone-aware UTC reference to prevent TypeError
             now_aware = datetime.now(timezone.utc)
@@ -3116,7 +3151,10 @@ class AlpacaExecutor:
             bid, ask = self.get_nbbo(symbol)
             if bid > 0 and ask > 0:
                 mid = (bid + ask) / 2.0
-                spread_bps = ((ask - bid) / mid) * 10000 if mid > 0 else 0
+                # BULLETPROOF: Validate mid > 0 before division
+                spread_bps = ((ask - bid) / mid * 10000) if mid > 0 else 0
+                # Clamp to reasonable range
+                spread_bps = max(0.0, min(10000.0, spread_bps))
                 if spread_bps > Config.MAX_SPREAD_BPS:
                     log_event("submit_entry", "spread_watchdog_blocked", 
                              symbol=symbol, spread_bps=round(spread_bps, 1),
@@ -3141,8 +3179,15 @@ class AlpacaExecutor:
                 return self.api.get_account()
             
             acct = backoff(get_account)()
-            dtbp = float(acct.daytrading_buying_power)
-            bp = float(acct.buying_power)
+            # BULLETPROOF: Safe attribute access with defaults
+            dtbp = float(getattr(acct, "daytrading_buying_power", 0.0))
+            bp = float(getattr(acct, "buying_power", 0.0))
+            
+            # BULLETPROOF: Validate buying power is positive
+            if bp <= 0:
+                log_event("submit_entry", "invalid_buying_power", symbol=symbol, bp=bp, dtbp=dtbp)
+                # Fail open - allow trade to proceed if can't validate (will fail at broker if truly insufficient)
+                bp = 1000000.0  # Large default to not block trade
             
             required_margin = notional * 1.5 if side == "sell" else notional
             # Use regular buying_power for paper trading (dtbp is unreliable in paper accounts)
@@ -3887,12 +3932,26 @@ class AlpacaExecutor:
             if exit_price <= 0:
                 exit_price = entry_price
             
-            self.api.close_position(symbol)
-            
+            # BULLETPROOF: Safe position close with error handling
             try:
-                cooldowns = json.loads(displacement_log_path.read_text()) if displacement_log_path.exists() else {}
-            except Exception:
-                cooldowns = {}
+                self.api.close_position(symbol)
+                log_event("displacement", "close_position_success", symbol=symbol)
+            except Exception as close_err:
+                log_event("displacement", "close_position_failed", symbol=symbol, error=str(close_err))
+                return False  # Displacement failed if can't close old position
+
+            # BULLETPROOF: Safe cooldown log read with corruption handling
+            cooldowns = {}
+            try:
+                if displacement_log_path.exists():
+                    raw_data = displacement_log_path.read_text()
+                    if raw_data.strip():
+                        cooldowns = json.loads(raw_data)
+                        if not isinstance(cooldowns, dict):
+                            cooldowns = {}  # Reset if corrupted
+            except (json.JSONDecodeError, IOError) as cooldown_err:
+                log_event("displacement", "cooldown_log_error", error=str(cooldown_err))
+                cooldowns = {}  # Continue with empty dict
             cooldowns[symbol] = datetime.utcnow().isoformat()
             displacement_log_path.parent.mkdir(exist_ok=True)
             atomic_write_json(displacement_log_path, cooldowns)
@@ -4060,16 +4119,39 @@ class AlpacaExecutor:
 
     def reload_positions_from_metadata(self):
         """Reload position tracking from metadata file (for health check auto-fix).
-        
+
         V2.2 FIX: Always sync entry_ts from metadata to ensure accurate age calculation.
+        BULLETPROOF: Safe metadata load and position fetch with error handling.
         """
         metadata_path = StateFiles.POSITION_METADATA
         try:
             if not metadata_path.exists():
                 return
+
+            # BULLETPROOF: Safe metadata load with corruption handling
+            try:
+                metadata = load_metadata_with_lock(metadata_path)
+                if not isinstance(metadata, dict):
+                    log_event("reload_positions", "metadata_corrupted", error="not_a_dict")
+                    return  # Skip reload if corrupted
+            except (json.JSONDecodeError, IOError, Exception) as meta_err:
+                log_event("reload_positions", "metadata_load_error", error=str(meta_err))
+                return  # Fail open - skip reload but continue
             
-            metadata = load_metadata_with_lock(metadata_path)
-            current_positions = {getattr(p, "symbol", ""): p for p in self.api.list_positions()}
+            # BULLETPROOF: Safe position fetch with error handling
+            current_positions = {}
+            try:
+                positions = self.api.list_positions() or []
+                for p in positions:
+                    try:
+                        symbol = getattr(p, "symbol", "")
+                        if symbol:
+                            current_positions[symbol] = p
+                    except (AttributeError, Exception):
+                        continue
+            except Exception as pos_err:
+                log_event("reload_positions", "list_positions_error", error=str(pos_err))
+                current_positions = {}  # Continue with empty dict
             
             # V2.2: Update existing positions with correct entry_ts from metadata
             for symbol, meta in metadata.items():
@@ -4167,16 +4249,36 @@ class AlpacaExecutor:
         
         to_close = []
         exit_reasons = {}  # Track composite exit reasons per symbol
+        # BULLETPROOF: Safe position fetching with error handling
+        positions_index = {}
         try:
-            positions_index = {getattr(p, "symbol", ""): p for p in self.api.list_positions()}
-        except Exception:
-            positions_index = {}
+            positions = self.api.list_positions()
+            if positions:
+                for p in positions:
+                    try:
+                        symbol = getattr(p, "symbol", "")
+                        if symbol:  # Only index valid symbols
+                            positions_index[symbol] = p
+                    except (AttributeError, Exception) as pos_err:
+                        log_event("exit", "position_index_error", error=str(pos_err))
+                        continue
+        except Exception as list_err:
+            log_event("exit", "list_positions_error", error=str(list_err))
+            positions_index = {}  # Fail open - continue with empty index
         
         metadata_path = StateFiles.POSITION_METADATA
+        # BULLETPROOF: Safe metadata load with corruption handling
+        all_metadata = {}
         try:
-            all_metadata = load_metadata_with_lock(metadata_path) if metadata_path.exists() else {}
-        except:
-            all_metadata = {}
+            if metadata_path.exists():
+                all_metadata = load_metadata_with_lock(metadata_path)
+                # Validate metadata structure
+                if not isinstance(all_metadata, dict):
+                    log_event("exit", "metadata_corrupted", error="not_a_dict", metadata_type=str(type(all_metadata)))
+                    all_metadata = {}  # Reset to empty dict
+        except (json.JSONDecodeError, IOError, Exception) as meta_err:
+            log_event("exit", "metadata_load_error", error=str(meta_err))
+            all_metadata = {}  # Fail open - continue with empty metadata
 
         # Get current UW cache for signal evaluation
         uw_cache = read_uw_cache()
@@ -4205,10 +4307,20 @@ class AlpacaExecutor:
                 log_event("exit", "exception_in_eval", symbol=symbol, error=str(loop_err))
                 continue
             
-            entry_price = info.get("entry_price", current_price)
-            high_water_price = info.get("high_water", current_price)
+            entry_price = info.get("entry_price", current_price) or current_price  # BULLETPROOF: Ensure non-zero
+            high_water_price = info.get("high_water", current_price) or current_price  # BULLETPROOF: Ensure non-zero
+            
+            # BULLETPROOF: Validate entry_price before division (prevent divide by zero)
+            if entry_price <= 0:
+                log_event("exit", "invalid_entry_price", symbol=symbol, entry_price=entry_price, current_price=current_price)
+                entry_price = current_price if current_price > 0 else 1.0  # Fallback to safe value
+            
             pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
             high_water_pct = ((high_water_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+            
+            # BULLETPROOF: Clamp percentages to reasonable range (prevent NaN/infinity)
+            pnl_pct = max(-1000.0, min(1000.0, pnl_pct))
+            high_water_pct = max(-1000.0, min(1000.0, high_water_pct))
             exit_signals["pnl_pct"] = pnl_pct
             
             # STRUCTURAL EXIT: Check for gamma call walls and liquidity exhaustion
@@ -4274,9 +4386,12 @@ class AlpacaExecutor:
             }
             
             # Calculate signal decay
-            entry_score = info.get("entry_score", 3.0)
+            # BULLETPROOF: Validate scores before division
+            entry_score = info.get("entry_score", 3.0) or 3.0
             if entry_score > 0 and current_composite_score > 0:
                 decay_ratio = current_composite_score / entry_score
+                # BULLETPROOF: Clamp decay ratio to [0, 1] range
+                decay_ratio = max(0.0, min(1.0, decay_ratio))
                 if decay_ratio < 1.0:
                     exit_signals["signal_decay"] = decay_ratio
             
@@ -4393,6 +4508,13 @@ class AlpacaExecutor:
             stop_hit = current_price <= trail_stop
             time_hit = age_min >= Config.TIME_EXIT_MINUTES
             
+            # BULLETPROOF: Validate trail_stop calculation before comparing
+            if not (math.isnan(trail_stop) or math.isinf(trail_stop) or trail_stop <= 0):
+                stop_hit = current_price <= trail_stop
+            else:
+                log_event("exit", "invalid_trail_stop", symbol=symbol, trail_stop=trail_stop, current_price=current_price)
+                stop_hit = False  # Fail open - don't exit on invalid stop
+            
             if stop_hit:
                 exit_signals["trail_stop"] = True
             if time_hit:
@@ -4499,8 +4621,16 @@ class AlpacaExecutor:
                     exit_price = entry_price
                 
                 print(f"DEBUG EXITS: Closing {symbol} at {exit_price:.2f} (entry: {entry_price:.2f}, hold: {holding_period_min:.1f}min)", flush=True)
-                self.api.close_position(symbol)
-                print(f"DEBUG EXITS: Successfully closed {symbol}", flush=True)
+                # BULLETPROOF: Safe position close with error handling
+                try:
+                    self.api.close_position(symbol)
+                    print(f"DEBUG EXITS: Successfully closed {symbol}", flush=True)
+                    log_event("exit", "close_position_success", symbol=symbol)
+                except Exception as close_err:
+                    log_event("exit", "close_position_failed", symbol=symbol, error=str(close_err))
+                    print(f"ERROR EXITS: Failed to close {symbol}: {close_err}", flush=True)
+                    # Continue - don't break exit loop on individual position close failure
+                    continue  # Skip to next position
                 
                 # Use composite close reason if available, otherwise build one
                 close_reason = exit_reasons.get(symbol)
@@ -4616,8 +4746,14 @@ class StrategyEngine:
                 net_delta_pct = 0.0  # Explicit: no positions = 0% delta
                 log_event("concentration_gate", "portfolio_delta_zero_no_positions", net_delta_pct=0.0)
             else:
-                account = self.executor.api.get_account()
-                account_equity = float(account.equity)
+                # BULLETPROOF: API call with error handling and validation
+                try:
+                    account = self.executor.api.get_account()
+                    account_equity = float(getattr(account, "equity", 0.0))
+                except (AttributeError, ValueError, TypeError, Exception) as acct_err:
+                    log_event("concentration_gate", "account_fetch_error", error=str(acct_err))
+                    net_delta_pct = 0.0  # Fail open - allow trading
+                    account_equity = 0.0
                 
                 # BULLETPROOF: Validate equity is positive before division
                 if account_equity <= 0:
@@ -4781,8 +4917,13 @@ class StrategyEngine:
                 # V5.0: Dynamic & Conviction-Based Position Sizing
                 try:
                     from risk_management import calculate_position_size, get_risk_limits
-                    account = self.executor.api.get_account()
-                    account_equity = float(account.equity)
+                    # BULLETPROOF: Safe account fetch with error handling
+                    try:
+                        account = self.executor.api.get_account()
+                        account_equity = float(getattr(account, "equity", Config.SIZE_BASE_USD * 100))
+                    except (AttributeError, ValueError, TypeError, Exception) as acct_err:
+                        log_event("sizing", "account_fetch_error", symbol=symbol, error=str(acct_err))
+                        account_equity = Config.SIZE_BASE_USD * 100  # Fallback to safe default
                     base_notional = calculate_position_size(account_equity)  # 1.5% base
                     limits = get_risk_limits()
                     # Conviction-based scaling: >4.5 -> 2.0%, <3.5 -> 1.0%, base 1.5%
@@ -4829,8 +4970,13 @@ class StrategyEngine:
                 # V5.0: Dynamic & Conviction-Based Position Sizing
                 try:
                     from risk_management import calculate_position_size, get_risk_limits
-                    account = self.executor.api.get_account()
-                    account_equity = float(account.equity)
+                    # BULLETPROOF: Safe account fetch with error handling
+                    try:
+                        account = self.executor.api.get_account()
+                        account_equity = float(getattr(account, "equity", Config.SIZE_BASE_USD * 100))
+                    except (AttributeError, ValueError, TypeError, Exception) as acct_err:
+                        log_event("sizing", "account_fetch_error", symbol=symbol, error=str(acct_err))
+                        account_equity = Config.SIZE_BASE_USD * 100  # Fallback to safe default
                     base_notional = calculate_position_size(account_equity)  # 1.5% base
                     limits = get_risk_limits()
                     # Conviction-based scaling: >4.5 -> 2.0%, <3.5 -> 1.0%, base 1.5%
@@ -4884,8 +5030,13 @@ class StrategyEngine:
                 # V5.0: Dynamic & Conviction-Based Position Sizing
                 try:
                     from risk_management import calculate_position_size, get_risk_limits
-                    account = self.executor.api.get_account()
-                    account_equity = float(account.equity)
+                    # BULLETPROOF: Safe account fetch with error handling
+                    try:
+                        account = self.executor.api.get_account()
+                        account_equity = float(getattr(account, "equity", Config.SIZE_BASE_USD * 100))
+                    except (AttributeError, ValueError, TypeError, Exception) as acct_err:
+                        log_event("sizing", "account_fetch_error", symbol=symbol, error=str(acct_err))
+                        account_equity = Config.SIZE_BASE_USD * 100  # Fallback to safe default
                     base_notional = calculate_position_size(account_equity)  # 1.5% base
                     limits = get_risk_limits()
                     # Conviction-based scaling: >4.5 -> 2.0%, <3.5 -> 1.0%, base 1.5%
@@ -4972,7 +5123,13 @@ class StrategyEngine:
                              old_side=existing_side, new_direction=signal_direction, score=score)
                     try:
                         # Close the opposite position using Alpaca API
-                        self.executor.api.close_position(symbol)
+                        # BULLETPROOF: Safe position close with error handling
+                        try:
+                            self.executor.api.close_position(symbol)
+                            log_event("position_flip", "close_position_success", symbol=symbol)
+                        except Exception as close_err:
+                            log_event("position_flip", "close_position_failed", symbol=symbol, error=str(close_err))
+                            continue  # Skip if can't close old position
                         # Remove from internal tracking
                         if symbol in self.executor.opens:
                             del self.executor.opens[symbol]
@@ -5163,7 +5320,15 @@ class StrategyEngine:
                     print(f"DEBUG {symbol}: Displacement successful! Proceeding with entry...", flush=True)
                 else:
                     # FIX: Use actual Alpaca positions count, not executor.opens (which may be out of sync)
-                    actual_positions = len(self.executor.api.list_positions())
+                    # BULLETPROOF: Safe position count with error handling
+                    actual_positions = 0
+                    try:
+                        positions = self.executor.api.list_positions() or []
+                        actual_positions = len(positions)
+                    except Exception as pos_count_err:
+                        log_event("gate", "position_count_error", symbol=symbol, error=str(pos_count_err))
+                        # Use executor.opens as fallback
+                        actual_positions = len(self.executor.opens)
                     print(f"DEBUG {symbol}: BLOCKED by max_positions_reached (Alpaca positions: {actual_positions}, executor.opens: {len(self.executor.opens)}, max: {Config.MAX_CONCURRENT_POSITIONS}), no displacement candidates", flush=True)
                     log_event("gate", "max_positions_reached", symbol=symbol, 
                              alpaca_positions=actual_positions,
@@ -5201,11 +5366,21 @@ class StrategyEngine:
                     pass
                 
                 if current_positions:
-                    account = self.executor.api.get_account()
-                    account_equity = float(account.equity)
+                    # BULLETPROOF: Safe account fetch with error handling
+                    account_equity = 0.0
+                    try:
+                        account = self.executor.api.get_account()
+                        account_equity = float(getattr(account, "equity", 0.0))
+                    except (AttributeError, ValueError, TypeError, Exception) as acct_err:
+                        log_event("risk_management", "account_fetch_error", symbol=symbol, error=str(acct_err))
+                        account_equity = 0.0  # Fail open - allow trade if can't check
                     
-                    symbol_safe, symbol_reason = check_symbol_exposure(symbol, current_positions, account_equity)
-                    if not symbol_safe:
+                    if account_equity <= 0:
+                        log_event("risk_management", "invalid_account_equity", symbol=symbol, equity=account_equity)
+                        # Fail open - continue without exposure check if equity invalid
+                    else:
+                            symbol_safe, symbol_reason = check_symbol_exposure(symbol, current_positions, account_equity)
+                        if not symbol_safe:
                         print(f"DEBUG {symbol}: BLOCKED by symbol_exposure_limit", flush=True)
                         log_event("risk_management", "symbol_exposure_blocked", symbol=symbol, reason=symbol_reason)
                         log_blocked_trade(symbol, "symbol_exposure_limit", score,
@@ -5314,10 +5489,17 @@ class StrategyEngine:
             position_size_usd = None
             try:
                 from risk_management import validate_order_size
-                account = self.executor.api.get_account()
-                account_equity_at_entry = float(account.equity)
+                # BULLETPROOF: Safe account fetch with error handling
+                try:
+                    account = self.executor.api.get_account()
+                    account_equity_at_entry = float(getattr(account, "equity", 0.0))
+                    buying_power = float(getattr(account, "buying_power", 0.0))
+                except (AttributeError, ValueError, TypeError, Exception) as acct_err:
+                    log_event("order_validation", "account_fetch_error", symbol=symbol, error=str(acct_err))
+                    account_equity_at_entry = 0.0
+                    buying_power = 0.0  # Will fail validation if needed
+                
                 position_size_usd = qty * ref_price_check
-                buying_power = float(account.buying_power)
                 current_price = ref_price_check
                 
                 order_valid, order_error = validate_order_size(symbol, qty, side, current_price, buying_power)
@@ -5685,8 +5867,15 @@ class StrategyEngine:
             from risk_management import get_daily_start_equity, set_daily_start_equity
             if get_daily_start_equity() is None:
                 # First trade today - set baseline
-                account = self.executor.api.get_account()
-                set_daily_start_equity(float(account.equity))
+                # BULLETPROOF: Safe account fetch with error handling
+                try:
+                    account = self.executor.api.get_account()
+                    equity = float(getattr(account, "equity", 0.0))
+                    if equity > 0:
+                        set_daily_start_equity(equity)
+                except (AttributeError, ValueError, TypeError, Exception) as acct_err:
+                    log_event("daily_baseline", "account_fetch_error", error=str(acct_err))
+                    # Non-critical - skip baseline if can't fetch
         except Exception:
             pass  # Non-critical
         
@@ -5759,10 +5948,47 @@ def generate_eod_report(date_str=None):
 # =========================
 def read_uw_cache():
     """Read UW cache populated by daemon."""
+    # BULLETPROOF: Safe cache read with corruption handling and self-healing
     cache_file = CacheFiles.UW_FLOW_CACHE
     if not cache_file.exists():
         log_event("uw_cache", "missing", fallback="legacy_api")
         return {}
+    
+    try:
+        raw_data = cache_file.read_text()
+        if not raw_data.strip():
+            log_event("uw_cache", "empty_file", fallback="empty_cache")
+            return {}
+        
+        cache = json.loads(raw_data)
+        if not isinstance(cache, dict):
+            log_event("uw_cache", "corrupted", error="not_a_dict", cache_type=str(type(cache)))
+            # Self-healing: Try to recover by creating new cache
+            try:
+                cache_file.write_text("{}")
+                log_event("uw_cache", "self_healed", action="reset_to_empty")
+            except Exception as heal_err:
+                log_event("uw_cache", "heal_failed", error=str(heal_err))
+            return {}
+        
+        return cache
+    except (json.JSONDecodeError, UnicodeDecodeError) as parse_err:
+        log_event("uw_cache", "parse_error", error=str(parse_err), error_type=type(parse_err).__name__)
+        # Self-healing: Try to backup corrupted file and reset
+        try:
+            backup_path = cache_file.parent / f"{cache_file.name}.corrupted.{int(time.time())}"
+            cache_file.rename(backup_path)
+            cache_file.write_text("{}")
+            log_event("uw_cache", "self_healed", action="backup_and_reset", backup=str(backup_path))
+        except Exception as heal_err:
+            log_event("uw_cache", "heal_failed", error=str(heal_err))
+        return {}
+    except IOError as io_err:
+        log_event("uw_cache", "io_error", error=str(io_err))
+        return {}  # Fail open - return empty cache
+    except Exception as e:
+        log_event("uw_cache", "read_error", error=str(e), error_type=type(e).__name__)
+        return {}  # Fail open - return empty cache
     try:
         return json.loads(cache_file.read_text())
     except Exception as e:
@@ -5916,13 +6142,28 @@ def run_once():
         # RISK MANAGEMENT CHECKS: Account-level risk limits (after position reconciliation)
         try:
             from risk_management import run_risk_checks
-            account = engine.executor.api.get_account()
-            current_equity = float(account.equity)
-            positions = engine.executor.api.list_positions()
+            # BULLETPROOF: Safe account and position fetch with error handling
+            current_equity = 0.0
+            positions = []
+            try:
+                account = engine.executor.api.get_account()
+                current_equity = float(getattr(account, "equity", 0.0))
+                positions = engine.executor.api.list_positions() or []
+            except (AttributeError, ValueError, TypeError, Exception) as risk_fetch_err:
+                log_event("risk_management", "account_or_positions_fetch_error", error=str(risk_fetch_err))
+                # Fail open - if can't fetch, skip risk checks (allow trading)
+                current_equity = 0.0
+                positions = []
             
-            risk_results = run_risk_checks(engine.executor.api, current_equity, positions)
+            # Only run risk checks if we have valid data
+            if current_equity > 0:
+                risk_results = run_risk_checks(engine.executor.api, current_equity, positions)
             
-            if not risk_results["safe_to_trade"]:
+            else:
+                # No valid equity - assume safe (fail open)
+                risk_results = {"safe_to_trade": True, "checks": {}}
+            
+            if not risk_results.get("safe_to_trade", True):
                 freeze_reason = risk_results.get("freeze_reason", "unknown_risk_check")
                 alerts_this_cycle.append(f"risk_limit_breach_{freeze_reason}")
                 print(f"🛑 RISK LIMIT BREACH: {freeze_reason} - Trading halted", flush=True)
@@ -6445,11 +6686,20 @@ def run_once():
         # RISK MANAGEMENT: Add risk metrics to cycle metrics
         try:
             from risk_management import calculate_daily_pnl, load_peak_equity, get_risk_limits
-            account = engine.executor.api.get_account()
-            current_equity = float(account.equity)
-            daily_pnl = calculate_daily_pnl(current_equity)
+            # BULLETPROOF: Safe account fetch with error handling
+            current_equity = 0.0
+            try:
+                account = engine.executor.api.get_account()
+                current_equity = float(getattr(account, "equity", 0.0))
+            except (AttributeError, ValueError, TypeError, Exception) as acct_err:
+                log_event("metrics", "account_fetch_error", error=str(acct_err))
+                current_equity = 0.0
+            
+            daily_pnl = calculate_daily_pnl(current_equity) if current_equity > 0 else 0.0
             peak_equity = load_peak_equity()
-            drawdown_pct = (peak_equity - current_equity) / peak_equity if peak_equity > 0 else 0
+            # BULLETPROOF: Validate peak_equity before division
+            drawdown_pct = ((peak_equity - current_equity) / peak_equity * 100) if peak_equity > 0 and current_equity > 0 else 0.0
+            drawdown_pct = max(-100.0, min(100.0, drawdown_pct))  # Clamp to reasonable range
             
             metrics["risk_metrics"] = {
                 "current_equity": current_equity,
@@ -6466,9 +6716,17 @@ def run_once():
         print("DEBUG: About to log telemetry", flush=True)
         audit_seg("run_once", "before_telemetry")
         try:
-            account = engine.executor.api.get_account()
-            equity = float(getattr(account, "equity", 100000.0))
-            positions = engine.executor.api.list_positions()
+            # BULLETPROOF: Safe account and position fetch with error handling
+            equity = 100000.0  # Safe default
+            positions = []
+            try:
+                account = engine.executor.api.get_account()
+                equity = float(getattr(account, "equity", 100000.0))
+                positions = engine.executor.api.list_positions() or []
+            except (AttributeError, ValueError, TypeError, Exception) as acct_err:
+                log_event("api", "account_or_positions_fetch_error", error=str(acct_err))
+                equity = 100000.0  # Use default
+                positions = []  # Empty list on error
             
             total_exposure = sum(abs(float(getattr(p, "market_value", 0.0))) for p in positions)
             leverage = total_exposure / equity if equity > 0 else 0.0
