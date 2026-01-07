@@ -16,11 +16,18 @@ syms = [k for k in cache.keys() if not k.startswith("_")][:10]
 import uw_enrichment_v2 as e
 import uw_composite_v2 as c2
 from v3_2_features import STAGE_CONFIGS, ExpectancyGate, get_system_stage
-from main import Config
+
+# Get MIN_EXEC_SCORE without importing main
+MIN_EXEC_SCORE = 1.5  # Default from Config - check if overridden
+try:
+    import os
+    MIN_EXEC_SCORE = float(os.getenv("MIN_EXEC_SCORE", "1.5"))
+except:
+    pass
 
 print(f"\nTesting {len(syms)} symbols...")
 print(f"Threshold: {c2.ENTRY_THRESHOLDS['base']}")
-print(f"MIN_EXEC_SCORE: {Config.MIN_EXEC_SCORE}")
+print(f"MIN_EXEC_SCORE: {MIN_EXEC_SCORE}")
 print(f"Expectancy Floor: {STAGE_CONFIGS['bootstrap']['entry_ev_floor']}")
 
 clusters_passing = []
@@ -73,7 +80,7 @@ for sym in syms:
             regime="mixed",
             tca_modifier=0.0,
             freeze_active=False,
-            score_floor_breach=(score < Config.MIN_EXEC_SCORE),
+            score_floor_breach=(score < MIN_EXEC_SCORE),
             broker_health_degraded=False
         )
         
@@ -88,7 +95,7 @@ for sym in syms:
             "threshold": threshold,
             "expectancy": round(expectancy, 4),
             "ev_floor": ev_floor,
-            "min_exec": Config.MIN_EXEC_SCORE,
+            "min_exec": MIN_EXEC_SCORE,
             "gate1_should_enter": gate1_result,
             "gate2_expectancy": gate2_result,
             "gate3_min_exec": gate3_result,
@@ -103,7 +110,7 @@ for sym in syms:
         if not gate2_result:
             result["blockers"].append(f"expectancy gate: {gate2_reason}")
         if not gate3_result:
-            result["blockers"].append(f"MIN_EXEC_SCORE: {score} < {Config.MIN_EXEC_SCORE}")
+            result["blockers"].append(f"MIN_EXEC_SCORE: {score} < {MIN_EXEC_SCORE}")
         
         if all_gates:
             clusters_passing.append(result)
