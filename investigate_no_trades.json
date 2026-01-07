@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-01-07T15:16:42.804064+00:00",
+  "timestamp": "2026-01-07T15:40:22.202091+00:00",
   "checks": {
     "market_hours": {
       "is_market_hours": true,
       "is_weekend": false,
-      "current_time": "2026-01-07T15:16:42.804105+00:00",
+      "current_time": "2026-01-07T15:40:22.202129+00:00",
       "hour_utc": 15,
       "weekday": 2
     },
@@ -31,9 +31,9 @@
     },
     "uw_cache": {
       "exists": true,
-      "age_minutes": 0.388947077592214,
+      "age_minutes": 0.08997223774592082,
       "tickers_in_cache": 53,
-      "tickers_with_data": 48,
+      "tickers_with_data": 49,
       "is_fresh": true
     }
   },
