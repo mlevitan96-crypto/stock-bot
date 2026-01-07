@@ -709,9 +709,30 @@ class SREMonitoringEngine:
                 "note": "Could not check v2 orchestrator health"
             }
         
+        # Add signal funnel metrics
+        try:
+            from signal_funnel_tracker import get_funnel_tracker
+            funnel = get_funnel_tracker()
+            funnel_metrics = funnel.get_funnel_metrics()
+            result["signal_funnel"] = funnel_metrics
+            
+            # Check for stagnation
+            stagnation = funnel.check_stagnation(result.get("market_status", "mixed"))
+            if stagnation and stagnation.get("detected"):
+                result["stagnation_alert"] = {
+                    "status": "STAGNATION",
+                    "alerts_30m": stagnation.get("alerts_30m", 0),
+                    "orders_30m": stagnation.get("orders_30m", 0),
+                    "reason": stagnation.get("reason")
+                }
+                warnings.append(f"Logic stagnation detected: {stagnation.get('alerts_30m', 0)} alerts but {stagnation.get('orders_30m', 0)} trades in 30min")
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        
         # Determine overall health
         critical_issues = []
-        warnings = []
         
         # Calculate signal health summary
         healthy_signals = sum(1 for s in signal_health.values() if s.status == "healthy" and not s.name.startswith("_"))

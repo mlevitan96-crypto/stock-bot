@@ -90,9 +90,9 @@ class LogicStagnationDetector:
         """Record a momentum filter pass (resets consecutive counter)"""
         self.consecutive_momentum_blocks = 0
     
-    def check_stagnation(self) -> Optional[Dict[str, Any]]:
+    def check_stagnation(self, market_regime: str = "mixed") -> Optional[Dict[str, Any]]:
         """
-        Check if logic stagnation is detected.
+        Check if logic stagnation is detected (including funnel-based detection).
         
         Returns:
             Dict with stagnation details if detected, None otherwise
@@ -118,14 +118,32 @@ class LogicStagnationDetector:
             stagnation_reason = f"momentum_block_stagnation_{self.consecutive_momentum_blocks}_blocks"
             self.state["momentum_block_detections"] = self.state.get("momentum_block_detections", 0) + 1
         
+        # NEW: Check funnel-based stagnation (Alerts > 50 AND Trades == 0 in 30min during RISK_ON)
+        try:
+            from signal_funnel_tracker import get_funnel_tracker
+            funnel = get_funnel_tracker()
+            funnel_stagnation = funnel.check_stagnation(market_regime)
+            if funnel_stagnation and funnel_stagnation.get("detected"):
+                stagnation_detected = True
+                stagnation_reason = "funnel_stagnation"
+                self.state["funnel_stagnation_detections"] = self.state.get("funnel_stagnation_detections", 0) + 1
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        
         if stagnation_detected:
-            return {
+            result = {
                 "detected": True,
                 "reason": stagnation_reason,
                 "zero_score_count": self.zero_score_count,
                 "consecutive_momentum_blocks": self.consecutive_momentum_blocks,
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
+            # Add funnel metrics if available
+            if stagnation_reason == "funnel_stagnation" and funnel_stagnation:
+                result.update(funnel_stagnation)
+            return result
         
         return None
     
@@ -178,6 +196,102 @@ class LogicStagnationDetector:
             pass
         except Exception as e:
             raise
+    
+    def trigger_warm_reload(self) -> bool:
+        """
+        Perform a 'Warm Reload' of critical modules (uw_parser.py and uw_composite_v2.py).
+        This is the 'Logic Defibrillator' that reloads modules without full restart.
+        
+        Returns:
+            True if warm reload was triggered, False otherwise
+        """
+        now = time.time()
+        
+        # Check cooldown
+        if now - self.last_soft_reset_ts < SOFT_RESET_COOLDOWN_SEC:
+            return False
+        
+        try:
+            # Log LOGIC_STAGNATION_DETECTED
+            self._log_logic_stagnation_detected()
+            
+            # Run sre_diagnostics.py RCA
+            try:
+                from sre_diagnostics import SREDiagnostics
+                diag = SREDiagnostics()
+                rca_session = diag.run_full_rca(trigger="logic_stagnation_detected")
+                if rca_session:
+                    diag.log_rca_fix(rca_session)
+            except Exception as e:
+                self._log_error(f"RCA failed: {e}")
+            
+            # Warm reload: Reload modules
+            reloaded = []
+            
+            # Reload uw_parser (main.py has the parser logic)
+            try:
+                import importlib
+                import sys
+                # Remove from cache to force reload
+                modules_to_reload = []
+                for module_name in list(sys.modules.keys()):
+                    if 'uw_parser' in module_name or 'uw_composite' in module_name:
+                        modules_to_reload.append(module_name)
+                
+                for module_name in modules_to_reload:
+                    if module_name in sys.modules:
+                        importlib.reload(sys.modules[module_name])
+                        reloaded.append(module_name)
+                
+                # Also try to reload main modules directly
+                try:
+                    import uw_composite_v2
+                    importlib.reload(uw_composite_v2)
+                    reloaded.append("uw_composite_v2")
+                except:
+                    pass
+                
+                self._log_warm_reload(reloaded)
+                self.last_soft_reset_ts = now
+                self.state["last_soft_reset_ts"] = now
+                self.state["warm_reload_count"] = self.state.get("warm_reload_count", 0) + 1
+                self._save_state()
+                return True
+            except Exception as e:
+                self._log_error(f"Warm reload failed: {e}")
+                return False
+        except Exception as e:
+            self._log_error(f"trigger_warm_reload error: {e}")
+            return False
+    
+    def _log_logic_stagnation_detected(self):
+        """Log LOGIC_STAGNATION_DETECTED event"""
+        log_file = LOGS_DIR / "logic_stagnation.jsonl"
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        
+        record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event": "LOGIC_STAGNATION_DETECTED",
+            "zero_score_count": self.zero_score_count,
+            "consecutive_momentum_blocks": self.consecutive_momentum_blocks
+        }
+        
+        with open(log_file, 'a') as f:
+            f.write(json.dumps(record) + "\n")
+    
+    def _log_warm_reload(self, modules_reloaded: list):
+        """Log warm reload event"""
+        log_file = LOGS_DIR / "logic_stagnation.jsonl"
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        
+        record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event": "warm_reload_triggered",
+            "modules_reloaded": modules_reloaded
+        }
+        
+        with open(log_file, 'a') as f:
+            f.write(json.dumps(record) + "\n")
     
     def _log_soft_reset(self):
         """Log soft reset event"""

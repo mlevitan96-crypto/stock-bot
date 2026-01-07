@@ -4818,10 +4818,18 @@ class StrategyEngine:
                 detector = get_stagnation_detector()
                 detector.record_signal(symbol, score, cluster_source)
                 
-                # Check for stagnation and trigger soft reset if needed
-                stagnation = detector.check_stagnation()
+                # Check for stagnation and trigger warm reload (defibrillator) if needed
+                stagnation = detector.check_stagnation(market_regime)
                 if stagnation and stagnation.get("detected"):
-                    if detector.trigger_soft_reset():
+                    # If funnel stagnation detected, trigger warm reload (autonomous defibrillator)
+                    if stagnation.get("reason") == "funnel_stagnation":
+                        if detector.trigger_warm_reload():
+                            log_event("logic_stagnation", "warm_reload_triggered", 
+                                     reason="funnel_stagnation",
+                                     alerts_30m=stagnation.get("alerts_30m", 0),
+                                     orders_30m=stagnation.get("orders_30m", 0),
+                                     regime=market_regime)
+                    elif detector.trigger_soft_reset():
                         log_event("logic_stagnation", "soft_reset_triggered", 
                                  reason=stagnation.get("reason"),
                                  zero_score_count=stagnation.get("zero_score_count", 0),
@@ -4830,6 +4838,18 @@ class StrategyEngine:
                 pass
             except Exception as e:
                 log_event("logic_stagnation", "error", error=str(e))
+            
+            # SIGNAL FUNNEL TRACKER: Record scored signal
+            try:
+                from signal_funnel_tracker import get_funnel_tracker
+                funnel = get_funnel_tracker()
+                # Record scored signal (score > 2.7 threshold)
+                if score > 2.7:
+                    funnel.record_scored_signal(symbol, score)
+            except ImportError:
+                pass
+            except Exception as e:
+                log_event("funnel", "record_scored_error", error=str(e))
             gex = gex_map.get(symbol, {"gamma_regime": "unknown"})
             
             prof = get_or_init_profile(self.profiles, symbol) if Config.ENABLE_PER_TICKER_LEARNING else {}
@@ -6083,6 +6103,23 @@ def run_once():
         
         audit_seg("run_once", "cache_read")
         uw_cache = read_uw_cache()
+        
+        # SIGNAL FUNNEL TRACKER: Count incoming UW alerts (symbols in cache = alerts received)
+        try:
+            from signal_funnel_tracker import get_funnel_tracker
+            funnel = get_funnel_tracker()
+            # Count each symbol in cache as an incoming UW alert
+            cache_symbols = [k for k in uw_cache.keys() if not k.startswith("_")]
+            for symbol in cache_symbols:
+                cache_data = uw_cache.get(symbol, {})
+                # Count alerts based on cache updates (each symbol with data = alert)
+                if cache_data and not cache_data.get("simulated"):
+                    funnel.record_uw_alert(symbol, "cache_update")
+        except ImportError:
+            pass
+        except Exception as e:
+            log_event("funnel", "record_alerts_error", error=str(e))
+        
         adaptive_gate = AdaptiveGate()
         # ROOT CAUSE FIX: Check for actual symbol keys (not metadata keys starting with "_")
         # Only enable composite scoring if cache has real symbol data, not just metadata

@@ -314,12 +314,19 @@ DASHBOARD_HTML = """
             const healthClass = overallHealth === 'healthy' ? 'healthy' : 
                               overallHealth === 'degraded' ? 'degraded' : 'critical';
             
+            // Check for stagnation alert
+            const stagnationAlert = data.stagnation_alert || {};
+            const isStagnating = stagnationAlert.status === 'STAGNATION';
+            
             // Extract SRE metrics
             const sreMetrics = data.sre_metrics || {};
             const logicHeartbeat = sreMetrics.logic_heartbeat || 0;
             const mockSignalSuccessPct = sreMetrics.mock_signal_success_pct || 100.0;
             const parserHealthIndex = sreMetrics.parser_health_index || 100.0;
             const autoFixCount = sreMetrics.auto_fix_count || 0;
+            
+            // Extract funnel metrics
+            const funnelMetrics = data.signal_funnel || {};
             
             // Determine health color for metrics (GREEN > 95%, YELLOW 80-95%, RED < 80%)
             function getMetricHealthColor(value) {
@@ -345,9 +352,51 @@ DASHBOARD_HTML = """
                     <p>Market: <span style="padding: 4px 8px; background: ${data.market_open ? '#10b981' : '#64748b'}; color: white; border-radius: 4px;">
                         ${data.market_status || 'unknown'}
                     </span></p>
+                    ${isStagnating ? '<p style="color: #ef4444; margin-top: 10px; font-weight: bold; font-size: 1.1em;"><strong>⚠️ STAGNATION DETECTED:</strong> ' + stagnationAlert.alerts_30m + ' alerts but ' + stagnationAlert.orders_30m + ' trades in 30min</p>' : ''}
                     ${data.critical_issues ? '<p style="color: #ef4444; margin-top: 10px;"><strong>Critical:</strong> ' + data.critical_issues.join(', ') + '</p>' : ''}
                     ${data.warnings ? '<p style="color: #f59e0b; margin-top: 10px;"><strong>Warnings:</strong> ' + data.warnings.join(', ') + '</p>' : ''}
                 </div>
+                
+                ${funnelMetrics.alerts !== undefined ? `
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">📊 Signal-to-Trade Funnel (Last 30 Minutes)</h2>
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white;">
+                            <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 10px;">Incoming UW Alerts</div>
+                            <div style="font-size: 2.5em; font-weight: bold;">${funnelMetrics.alerts || 0}</div>
+                        </div>
+                        <div style="text-align: center; font-size: 2em; color: #667eea;">↓</div>
+                        <div style="background: ${funnelMetrics.parsed > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'}; padding: 20px; border-radius: 10px; color: white;">
+                            <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 10px;">Parsed Signals</div>
+                            <div style="font-size: 2.5em; font-weight: bold;">${funnelMetrics.parsed || 0}</div>
+                            <div style="font-size: 0.9em; margin-top: 5px; opacity: 0.9;">${funnelMetrics.parsed_rate_pct || 0}% conversion</div>
+                        </div>
+                        <div style="text-align: center; font-size: 2em; color: #667eea;">↓</div>
+                        <div style="background: ${funnelMetrics.scored_above_threshold > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'}; padding: 20px; border-radius: 10px; color: white;">
+                            <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 10px;">Scored Signals > 2.7</div>
+                            <div style="font-size: 2.5em; font-weight: bold;">${funnelMetrics.scored_above_threshold || 0}</div>
+                            <div style="font-size: 0.9em; margin-top: 5px; opacity: 0.9;">${funnelMetrics.scored_rate_pct || 0}% conversion</div>
+                        </div>
+                        <div style="text-align: center; font-size: 2em; color: #667eea;">↓</div>
+                        <div style="background: ${funnelMetrics.orders_sent > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'}; padding: 20px; border-radius: 10px; color: white;">
+                            <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 10px;">Orders Sent</div>
+                            <div style="font-size: 2.5em; font-weight: bold;">${funnelMetrics.orders_sent || 0}</div>
+                            <div style="font-size: 0.9em; margin-top: 5px; opacity: 0.9;">${funnelMetrics.order_rate_pct || 0}% conversion</div>
+                        </div>
+                        ${funnelMetrics.alerts > 0 ? `
+                        <div style="margin-top: 15px; padding: 15px; background: #f3f4f6; border-radius: 8px;">
+                            <div style="font-weight: bold; margin-bottom: 10px;">Overall Conversion Rate</div>
+                            <div style="font-size: 1.5em; color: ${funnelMetrics.overall_conversion_pct > 5 ? '#10b981' : funnelMetrics.overall_conversion_pct > 0 ? '#f59e0b' : '#ef4444'};">
+                                ${funnelMetrics.overall_conversion_pct || 0}%
+                            </div>
+                            <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
+                                ${funnelMetrics.orders_sent || 0} orders from ${funnelMetrics.alerts || 0} alerts
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
                 
                 <div class="positions-table" style="margin-bottom: 20px;">
                     <h2 style="margin-bottom: 15px;">🔍 SRE System Health Panel</h2>
