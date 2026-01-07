@@ -2831,42 +2831,42 @@ def compute_atr(api, symbol: str, lookback: int):
         if now - cached_time < 300:
             return cached_atr
     
-        try:
-            bars = api.get_bars(symbol, "1Min", limit=lookback + 1).df
-            if bars is None or len(bars) < 2:
-                return 0.0
-            
-            # BULLETPROOF: Safe column access with validation
-            if not all(col in bars.columns for col in ['high', 'low', 'close']):
-                return 0.0
-            
-            high = bars['high'].values
-            low = bars['low'].values
-            close = bars['close'].values
-            
-            # BULLETPROOF: Validate arrays have data
-            if len(high) < 2 or len(low) < 2 or len(close) < 2:
-                return 0.0
-            
-            tr_list = []
-            for i in range(1, len(bars)):
-                try:
-                    h_l = high[i] - low[i]
-                    h_c = abs(high[i] - close[i-1])
-                    l_c = abs(low[i] - close[i-1])
-                    tr = max(h_l, h_c, l_c)
-                    # BULLETPROOF: Validate TR is not NaN/infinity
-                    if not (math.isnan(tr) or math.isinf(tr)):
-                        tr_list.append(tr)
-                except (IndexError, ValueError, TypeError):
-                    continue  # Skip invalid index
-            
-            # BULLETPROOF: Validate before division
-            atr = (sum(tr_list) / len(tr_list)) if tr_list and len(tr_list) > 0 else 0.0
-            # Clamp to reasonable range (prevent NaN/infinity)
-            atr = max(0.0, min(1000.0, atr))
-            _atr_cache[cache_key] = (now, atr)
-            return atr
+    try:
+        bars = api.get_bars(symbol, "1Min", limit=lookback + 1).df
+        if bars is None or len(bars) < 2:
+            return 0.0
+        
+        # BULLETPROOF: Safe column access with validation
+        if not all(col in bars.columns for col in ['high', 'low', 'close']):
+            return 0.0
+        
+        high = bars['high'].values
+        low = bars['low'].values
+        close = bars['close'].values
+        
+        # BULLETPROOF: Validate arrays have data
+        if len(high) < 2 or len(low) < 2 or len(close) < 2:
+            return 0.0
+        
+        tr_list = []
+        for i in range(1, len(bars)):
+            try:
+                h_l = high[i] - low[i]
+                h_c = abs(high[i] - close[i-1])
+                l_c = abs(low[i] - close[i-1])
+                tr = max(h_l, h_c, l_c)
+                # BULLETPROOF: Validate TR is not NaN/infinity
+                if not (math.isnan(tr) or math.isinf(tr)):
+                    tr_list.append(tr)
+            except (IndexError, ValueError, TypeError):
+                continue  # Skip invalid index
+        
+        # BULLETPROOF: Validate before division
+        atr = (sum(tr_list) / len(tr_list)) if tr_list and len(tr_list) > 0 else 0.0
+        # Clamp to reasonable range (prevent NaN/infinity)
+        atr = max(0.0, min(1000.0, atr))
+        _atr_cache[cache_key] = (now, atr)
+        return atr
     except Exception:
         return 0.0
 
