@@ -44,7 +44,7 @@ SAFETY_CAPS = {
 # ============================================================================
 STAGE_CONFIGS = {
     "bootstrap": {
-        "entry_ev_floor": -0.30,  # TEMPORARILY LOWERED from -0.02 to allow trades to execute
+        "entry_ev_floor": -0.15,  # Adjusted from -0.02 (too strict) and -0.30 (too permissive) - balanced for bootstrap learning
         "size_multiplier_cap": 0.6,
         "exploration_quota_per_day": 12,
         "unlock_criteria": {"fills": 20, "win_rate": 0.50}
