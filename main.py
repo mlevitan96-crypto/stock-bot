@@ -8107,8 +8107,9 @@ def atomic_write_json(path: Path, data: dict):
     temp_path.replace(path)
 
 def load_metadata_with_lock(path: Path) -> dict:
-    """Load metadata with file locking"""
+    """Load metadata with file locking - BULLETPROOF: Corruption handling and self-healing"""
     import fcntl
+    # BULLETPROOF: Safe load with corruption handling
     if not path.exists():
         return {}
     
@@ -8116,11 +8117,37 @@ def load_metadata_with_lock(path: Path) -> dict:
         with open(path, 'r') as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_SH)
             try:
-                return json.load(f)
-            finally:
+                data = json.load(f)
+                # BULLETPROOF: Validate structure (must be dict)
+                if not isinstance(data, dict):
+                    # Corrupted - return empty dict (self-healing will happen in caller)
+                    log_event("metadata", "corrupted_structure", path=str(path), data_type=str(type(data)))
+                    return {}
+                return data
+            except (json.JSONDecodeError, UnicodeDecodeError) as parse_err:
+                # Self-healing: Backup and reset corrupted file
+                log_event("metadata", "parse_error", path=str(path), error=str(parse_err), error_type=type(parse_err).__name__)
+                # Release lock before healing
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-    except:
-        return {}
+                try:
+                    backup_path = path.with_suffix(f".corrupted.{int(time.time())}.json")
+                    path.rename(backup_path)
+                    atomic_write_json(path, {})
+                    log_event("metadata", "self_healed", path=str(path), backup=str(backup_path))
+                except Exception as heal_err:
+                    log_event("metadata", "heal_failed", path=str(path), error=str(heal_err))
+                return {}  # Return empty dict (fail open)
+            finally:
+                try:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                except Exception:
+                    pass  # Lock may already be released
+    except (IOError, OSError) as io_err:
+        log_event("metadata", "io_error", path=str(path), error=str(io_err))
+        return {}  # Fail open - return empty dict
+    except Exception as e:
+        log_event("metadata", "load_error", path=str(path), error=str(e), error_type=type(e).__name__)
+        return {}  # Fail open - return empty dict
 
 def continuous_position_health_check():
     """
