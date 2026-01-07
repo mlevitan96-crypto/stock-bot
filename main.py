@@ -4605,7 +4605,7 @@ class StrategyEngine:
         try:
             open_positions = self.executor.api.list_positions()
         except Exception:
-            pass
+            open_positions = []  # FIX: Initialize to empty list if API call fails
         
         # V4.0: PORTFOLIO CONCENTRATION GATE - Calculate net long-delta exposure
         net_delta_pct = 0.0
@@ -4684,7 +4684,8 @@ class StrategyEngine:
                 continue
             
             # V4.0: PORTFOLIO CONCENTRATION GATE - Block bullish entries if >70% long-delta
-            if net_delta_pct > 70.0 and c.get("direction") == "bullish":
+            # Only block if we actually have positions (net_delta_pct only meaningful with positions)
+            if net_delta_pct > 70.0 and c.get("direction") == "bullish" and len(open_positions) > 0:
                 print(f"DEBUG {symbol}: BLOCKED by concentration_gate - net_delta_pct={net_delta_pct:.2f}% > 70%", flush=True)
                 log_event("gate", "concentration_blocked_bullish",
                          symbol=symbol, net_delta_pct=round(net_delta_pct, 2),
