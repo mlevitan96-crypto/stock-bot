@@ -30,7 +30,7 @@ if meta_file.exists():
         
         # Check if exit conditions are configured
         if "targets" in data:
-            print(f"  Exit targets configured: ✅")
+            print(f"  Exit targets configured: YES")
         else:
             print(f"  Exit targets: Not found")
 

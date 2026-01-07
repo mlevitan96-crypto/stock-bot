@@ -153,11 +153,14 @@ print("\n[4] ENTRY GATE VERIFICATION")
 print("-"*80)
 
 from v3_2_features import ExpectancyGate, get_system_stage, STAGE_CONFIGS
-from main import Config
+
+# Get config without importing main
+import os
+MIN_EXEC_SCORE = float(os.getenv("MIN_EXEC_SCORE", "0.5"))
 
 stage = get_system_stage()
 ev_floor = STAGE_CONFIGS[stage]["entry_ev_floor"]
-min_exec = Config.MIN_EXEC_SCORE
+min_exec = MIN_EXEC_SCORE
 threshold = c2.ENTRY_THRESHOLDS["base"]
 
 results["entry_gates"]["threshold"] = threshold
