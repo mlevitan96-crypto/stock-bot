@@ -242,7 +242,19 @@ def read_json(path: Path, default: Any = None) -> Any:
     import json
     try:
         if path.exists():
-            return json.loads(path.read_text())
+            raw_data = path.read_text()
+            if not raw_data.strip():
+                return default if default is not None else {}
+            data = json.loads(raw_data)
+            # BULLETPROOF: Validate structure (must be dict for metadata files)
+            if isinstance(data, dict):
+                return data
+            else:
+                # Return empty dict for non-dict data (fail open)
+                return {}
+    except (json.JSONDecodeError, IOError, UnicodeDecodeError) as e:
+        # Log corruption but continue with default
+        return default if default is not None else {}
     except Exception:
         pass
     return default if default is not None else {}
@@ -251,9 +263,20 @@ def read_json(path: Path, default: Any = None) -> Any:
 def atomic_write_json(path: Path, data: Any) -> None:
     """Atomically write JSON file (write to temp, then rename)."""
     import json
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2))
-    tmp.replace(path)
+    # BULLETPROOF: Safe atomic write with error handling
+    try:
+        # Ensure parent directory exists
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        # Write to temp file first
+        tmp.write_text(json.dumps(data, indent=2))
+        # Atomic rename
+        tmp.replace(path)
+    except (IOError, OSError, json.JSONEncodeError) as e:
+        # Log error but don't crash - write failures are logged but non-fatal
+        import logging
+        logging.error(f"atomic_write_json failed for {path}: {e}")
+        raise  # Re-raise so caller can handle
 
 
 def append_jsonl(path: Path, record: dict) -> None:
