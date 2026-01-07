@@ -187,23 +187,23 @@ print("\n" + "="*80)
 print("VERIFICATION SUMMARY")
 print("="*80)
 
-print(f"\n✅ Signal Generation: {'OK' if symbols_with_valid_signals > 10 else 'LIMITED'}")
-print(f"✅ Composite Scoring: {'OK' if not issues else 'ISSUES FOUND'}")
-print(f"✅ Entry Gates: Threshold={threshold}, MIN_EXEC={min_exec}, EV_Floor={ev_floor}")
+print(f"\nSignal Generation: {'OK' if symbols_with_valid_signals > 10 else 'LIMITED'}")
+print(f"Composite Scoring: {'OK' if not issues else 'ISSUES FOUND'}")
+print(f"Entry Gates: Threshold={threshold}, MIN_EXEC={min_exec}, EV_Floor={ev_floor}")
 
 if issues:
-    print(f"\n❌ CRITICAL ISSUES: {len(issues)}")
+    print(f"\nCRITICAL ISSUES: {len(issues)}")
     for issue in issues:
         print(f"  - {issue}")
 
 if warnings:
-    print(f"\n⚠️  WARNINGS: {len(warnings)}")
+    print(f"\nWARNINGS: {len(warnings)}")
     for w in warnings:
         print(f"  - {w}")
 
 if not issues and len(warnings) < 3:
-    print("\n✅ SIGNAL QUALITY: GOOD - Components calculating correctly, scores reasonable")
+    print("\nSIGNAL QUALITY: GOOD - Components calculating correctly, scores reasonable")
 else:
-    print("\n⚠️  SIGNAL QUALITY: NEEDS REVIEW - Some issues or warnings detected")
+    print("\nSIGNAL QUALITY: NEEDS REVIEW - Some issues or warnings detected")
 
 print("\n" + "="*80)
