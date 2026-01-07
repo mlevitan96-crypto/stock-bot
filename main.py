@@ -5379,14 +5379,14 @@ class StrategyEngine:
                         log_event("risk_management", "invalid_account_equity", symbol=symbol, equity=account_equity)
                         # Fail open - continue without exposure check if equity invalid
                     else:
-                            symbol_safe, symbol_reason = check_symbol_exposure(symbol, current_positions, account_equity)
+                        symbol_safe, symbol_reason = check_symbol_exposure(symbol, current_positions, account_equity)
                         if not symbol_safe:
-                        print(f"DEBUG {symbol}: BLOCKED by symbol_exposure_limit", flush=True)
-                        log_event("risk_management", "symbol_exposure_blocked", symbol=symbol, reason=symbol_reason)
-                        log_blocked_trade(symbol, "symbol_exposure_limit", score,
-                                         direction=c.get("direction"),
-                                         decision_price=ref_price_check,
-                                         components=comps, reason=symbol_reason)
+                            print(f"DEBUG {symbol}: BLOCKED by symbol_exposure_limit", flush=True)
+                                log_event("risk_management", "symbol_exposure_blocked", symbol=symbol, reason=symbol_reason)
+                            log_blocked_trade(symbol, "symbol_exposure_limit", score,
+                                             direction=c.get("direction"),
+                                             decision_price=ref_price_check,
+                                             components=comps, reason=symbol_reason)
                         continue
                     
                     sector_safe, sector_reason = check_sector_exposure(current_positions, account_equity)
