@@ -33,7 +33,7 @@ class MomentumIgnitionFilter:
             "APCA-API-KEY-ID": self.api_key,
             "APCA-API-SECRET-KEY": self.api_secret
         }
-        self.base_momentum_threshold_pct = 0.0005  # 0.05% = 5 basis points (reduced from 0.2%)
+        self.base_momentum_threshold_pct = 0.0001  # 0.01% = 1 basis point (TEMPORARILY LOWERED to allow trades)
         self.momentum_threshold_pct = self.base_momentum_threshold_pct
         self.lookback_minutes = 2
         

@@ -5225,32 +5225,39 @@ class StrategyEngine:
                     market_regime=market_regime  # Pass regime for dynamic scaling
                 )
                 
-                if not momentum_check.get("passed", True):  # Fail open if API unavailable
-                    ignition_status = "blocked"
-                    block_reason = momentum_check.get('reason', 'no_momentum')
-                    print(f"DEBUG {symbol}: BLOCKED by momentum_ignition_filter - {block_reason}", flush=True)
-                    log_event("gate", "momentum_ignition_blocked", symbol=symbol,
-                             direction=c.get("direction"),
-                             price_change_pct=momentum_check.get("price_change_pct", 0.0),
-                             reason=block_reason)
-                    log_blocked_trade(symbol, "momentum_ignition_filter", score,
-                                      direction=c.get("direction"),
-                                      decision_price=ref_price_check,
-                                      components=comps,
-                                      price_change_pct=momentum_check.get("price_change_pct", 0.0),
-                                      reason=block_reason)
-                    
-                    # LOGIC STAGNATION DETECTOR: Record momentum block
-                    try:
-                        from logic_stagnation_detector import get_stagnation_detector
-                        detector = get_stagnation_detector()
-                        detector.record_momentum_block(symbol, block_reason)
-                    except ImportError:
-                        pass
-                    except Exception as e:
-                        log_event("logic_stagnation", "error", error=str(e))
-                    
-                    continue
+                # TEMPORARILY BYPASS: Allow trades if score >= 1.5 even without momentum
+                # This prevents momentum filter from blocking all trades during low volatility
+                if not momentum_check.get("passed", True):
+                    # Check if score is high enough to bypass momentum
+                    if score >= 1.5:
+                        print(f"DEBUG {symbol}: Momentum check failed but allowing entry (score={score:.2f} >= 1.5)", flush=True)
+                        ignition_status = "bypassed_high_score"
+                    else:
+                        ignition_status = "blocked"
+                        block_reason = momentum_check.get('reason', 'no_momentum')
+                        print(f"DEBUG {symbol}: BLOCKED by momentum_ignition_filter - {block_reason}", flush=True)
+                        log_event("gate", "momentum_ignition_blocked", symbol=symbol,
+                                 direction=c.get("direction"),
+                                 price_change_pct=momentum_check.get("price_change_pct", 0.0),
+                                 reason=block_reason)
+                        log_blocked_trade(symbol, "momentum_ignition_filter", score,
+                                          direction=c.get("direction"),
+                                          decision_price=ref_price_check,
+                                          components=comps,
+                                          price_change_pct=momentum_check.get("price_change_pct", 0.0),
+                                          reason=block_reason)
+                        
+                        # LOGIC STAGNATION DETECTOR: Record momentum block
+                        try:
+                            from logic_stagnation_detector import get_stagnation_detector
+                            detector = get_stagnation_detector()
+                            detector.record_momentum_block(symbol, block_reason)
+                        except ImportError:
+                            pass
+                        except Exception as e:
+                            log_event("logic_stagnation", "error", error=str(e))
+                        
+                        continue
                 else:
                     ignition_status = "passed"
                     log_event("gate", "momentum_ignition_passed", symbol=symbol,
