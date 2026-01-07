@@ -4966,9 +4966,13 @@ class StrategyEngine:
                         # Skip this symbol - can't flip if close failed
                         continue
                 elif symbol in self.executor.opens and not should_flip:
-                    # We already have a position in same direction - skip (no need to add more)
-                    log_event("gate", "already_positioned", symbol=symbol, existing_side=existing_side, gate_type="position_gate", signal_type=c.get("signal_type", "UNKNOWN"))
-                    continue
+                    # TEMPORARILY ALLOW: We already have a position but allow new entries for higher scores
+                    # This prevents stale positions from blocking all trading
+                    if score >= 2.0:  # Allow entries even if already positioned if score is good
+                        print(f"DEBUG {symbol}: Already positioned but allowing entry (score={score:.2f} >= 2.0)", flush=True)
+                    else:
+                        log_event("gate", "already_positioned", symbol=symbol, existing_side=existing_side, gate_type="position_gate", signal_type=c.get("signal_type", "UNKNOWN"))
+                        continue
             
             # V3.2 CHECKPOINT: POST_SCORING - Expectancy Gate
             # Calculate expectancy from multiple inputs
