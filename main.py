@@ -2865,8 +2865,8 @@ def compute_atr(api, symbol: str, lookback: int):
             atr = (sum(tr_list) / len(tr_list)) if tr_list and len(tr_list) > 0 else 0.0
             # Clamp to reasonable range (prevent NaN/infinity)
             atr = max(0.0, min(1000.0, atr))
-        _atr_cache[cache_key] = (now, atr)
-        return atr
+            _atr_cache[cache_key] = (now, atr)
+            return atr
     except Exception:
         return 0.0
 
