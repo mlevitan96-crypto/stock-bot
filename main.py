@@ -4608,28 +4608,47 @@ class StrategyEngine:
             open_positions = []  # FIX: Initialize to empty list if API call fails
         
         # V4.0: PORTFOLIO CONCENTRATION GATE - Calculate net long-delta exposure
+        # BULLETPROOF: Always initialize to safe defaults, fail open on any error
         net_delta_pct = 0.0
         try:
-            account = self.executor.api.get_account()
-            account_equity = float(account.equity)
-            
-            # Calculate net portfolio delta (long positions - short positions)
-            net_delta = 0.0
-            for pos in open_positions:
-                qty = float(getattr(pos, "qty", 0))
-                market_value = float(getattr(pos, "market_value", 0))
-                if qty > 0:  # Long position
-                    net_delta += market_value
-                elif qty < 0:  # Short position
-                    net_delta -= abs(market_value)
-            
-            net_delta_pct = (net_delta / account_equity * 100) if account_equity > 0 else 0.0
-            log_event("concentration_gate", "portfolio_delta_calculated", 
-                     net_delta_pct=round(net_delta_pct, 2), net_delta_usd=round(net_delta, 2),
-                     account_equity=round(account_equity, 2))
+            # Safety check: Only calculate if we have positions
+            if len(open_positions) == 0:
+                net_delta_pct = 0.0  # Explicit: no positions = 0% delta
+                log_event("concentration_gate", "portfolio_delta_zero_no_positions", net_delta_pct=0.0)
+            else:
+                account = self.executor.api.get_account()
+                account_equity = float(account.equity)
+                
+                # BULLETPROOF: Validate equity is positive before division
+                if account_equity <= 0:
+                    log_event("concentration_gate", "invalid_account_equity", equity=account_equity)
+                    net_delta_pct = 0.0  # Fail open - allow trading
+                else:
+                    # Calculate net portfolio delta (long positions - short positions)
+                    net_delta = 0.0
+                    for pos in open_positions:
+                        try:
+                            qty = float(getattr(pos, "qty", 0))
+                            market_value = float(getattr(pos, "market_value", 0))
+                            if qty > 0:  # Long position
+                                net_delta += market_value
+                            elif qty < 0:  # Short position
+                                net_delta -= abs(market_value)
+                        except (AttributeError, ValueError, TypeError) as pos_err:
+                            # Individual position error shouldn't break entire calculation
+                            log_event("concentration_gate", "position_calc_error", error=str(pos_err))
+                            continue
+                    
+                    net_delta_pct = (net_delta / account_equity * 100) if account_equity > 0 else 0.0
+                    # BULLETPROOF: Clamp to reasonable range (prevent NaN/infinity)
+                    net_delta_pct = max(-100.0, min(100.0, net_delta_pct))
+                    log_event("concentration_gate", "portfolio_delta_calculated", 
+                             net_delta_pct=round(net_delta_pct, 2), net_delta_usd=round(net_delta, 2),
+                             account_equity=round(account_equity, 2), positions_count=len(open_positions))
         except Exception as conc_error:
-            log_event("concentration_gate", "calculation_error", error=str(conc_error))
-            # Fail open - continue if calculation fails
+            # BULLETPROOF: Fail open - never block trading due to calculation errors
+            log_event("concentration_gate", "calculation_error", error=str(conc_error), traceback=repr(conc_error))
+            net_delta_pct = 0.0  # Explicitly set to 0 - allow trading to continue
         
         # V3.2: Load Bayesian profiles once per cycle
         bayes_profiles = v32.AdaptiveWeighting.load_profiles()
@@ -4684,8 +4703,9 @@ class StrategyEngine:
                 continue
             
             # V4.0: PORTFOLIO CONCENTRATION GATE - Block bullish entries if >70% long-delta
-            # Only block if we actually have positions (net_delta_pct only meaningful with positions)
-            if net_delta_pct > 70.0 and c.get("direction") == "bullish" and len(open_positions) > 0:
+            # BULLETPROOF: Only block if we actually have positions AND delta is calculated correctly
+            # Safeguard: Always allow trading if no positions exist (net_delta_pct = 0.0)
+            if len(open_positions) > 0 and net_delta_pct > 70.0 and c.get("direction") == "bullish":
                 print(f"DEBUG {symbol}: BLOCKED by concentration_gate - net_delta_pct={net_delta_pct:.2f}% > 70%", flush=True)
                 log_event("gate", "concentration_blocked_bullish",
                          symbol=symbol, net_delta_pct=round(net_delta_pct, 2),
