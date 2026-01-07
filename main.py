@@ -284,7 +284,7 @@ class Config:
     CONFIRM_DARKPOOL_W = float(get_env("CONFIRM_DARKPOOL_W", "0.25"))
     CONFIRM_NET_PREMIUM_W = float(get_env("CONFIRM_NET_PREMIUM_W", "0.25"))
     CONFIRM_VOL_W = float(get_env("CONFIRM_VOL_W", "0.1"))
-    MIN_EXEC_SCORE = float(get_env("MIN_EXEC_SCORE", "1.5"))  # TEMPORARILY LOWERED from 2.0 to 1.5 for verification
+    MIN_EXEC_SCORE = float(get_env("MIN_EXEC_SCORE", "0.5"))  # TEMPORARILY LOWERED from 1.5 to 0.5 to allow all trades
 
     # Confirmation thresholds
     DARKPOOL_OFFLIT_MIN = float(get_env("DARKPOOL_OFFLIT_MIN", "1000000"))
