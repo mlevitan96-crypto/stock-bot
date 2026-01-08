@@ -1,0 +1,76 @@
+{
+  "report_date": "2026-01-08",
+  "report_timestamp": "2026-01-08T20:30:02.514780+00:00",
+  "report_type": "daily_alpha_audit",
+  "authoritative_source": "MEMORY_BANK.md",
+  "today_summary": {
+    "total_trades": 54,
+    "total_wins": 2,
+    "total_losses": 7,
+    "win_rate": 0.037,
+    "total_pnl_usd": -54.14,
+    "total_pnl_pct": -9.7547,
+    "avg_pnl_pct": -0.1806
+  },
+  "regime_performance": {
+    "today": {
+      "MIXED": {
+        "trades": 54,
+        "wins": 2,
+        "losses": 7,
+        "win_rate": 0.037,
+        "total_pnl_usd": -54.14,
+        "total_pnl_pct": -9.7547,
+        "avg_pnl_pct": -0.1806,
+        "avg_pnl_usd": -1.0,
+        "avg_hold_minutes": 23.5
+      }
+    },
+    "weekly_average": {
+      "UNKNOWN": 0.2857,
+      "MIXED": 0.0017
+    },
+    "comparison": {
+      "UNKNOWN": {
+        "today_win_rate": 0.0,
+        "weekly_avg_win_rate": 0.2857,
+        "divergence_pct": -28.57,
+        "today_trades": 0,
+        "today_avg_pnl_pct": 0.0
+      },
+      "MIXED": {
+        "today_win_rate": 0.037,
+        "weekly_avg_win_rate": 0.0017,
+        "divergence_pct": 3.53,
+        "today_trades": 54,
+        "today_avg_pnl_pct": -0.1806
+      }
+    }
+  },
+  "vwap_deviation": {
+    "avg_deviation_pct": 0.0,
+    "median_deviation_pct": 0.0,
+    "positive_deviations": 0,
+    "negative_deviations": 0,
+    "sample_count": 10,
+    "std_deviation_pct": 0.0
+  },
+  "momentum_lead_time": {
+    "avg_lead_time_seconds": 0.01,
+    "median_lead_time_seconds": 0.01,
+    "min_lead_time_seconds": 0.01,
+    "max_lead_time_seconds": 0.03,
+    "sample_count": 10
+  },
+  "liquidity_metrics": {
+    "avg_spread_bps": 0.0,
+    "avg_hour_spread_bps": 0.0,
+    "avg_deviation_from_hour_avg": 0.0,
+    "sample_count": 0
+  },
+  "data_quality": {
+    "today_trades_analyzed": 54,
+    "weekly_trades_analyzed": 2326,
+    "orders_analyzed": 3576
+  }
+}
