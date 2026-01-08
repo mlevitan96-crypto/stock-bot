@@ -1909,8 +1909,15 @@ def api_sre_health():
                 try:
                     stagnation_data = _calculate_stagnation_watchdog()
                     health["stagnation_watchdog"] = stagnation_data
-                except:
-                    pass
+                except Exception as e:
+                    print(f"[Dashboard] Warning: Failed to calculate stagnation watchdog: {e}", flush=True)
+                    # Still add a default structure so frontend doesn't break
+                    health["stagnation_watchdog"] = {
+                        "status": "OK",
+                        "alerts_received": 0,
+                        "trades_executed": 0,
+                        "stagnation_detected": False
+                    }
             except:
                 pass
             
@@ -2184,6 +2191,43 @@ def _calculate_stagnation_watchdog():
             try:
                 from pathlib import Path
                 import json
+                from datetime import datetime, timezone
+                log_file = Path("logs/stagnation_watchdog.jsonl")
+                log_file.parent.mkdir(exist_ok=True)
+                log_rec = {
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "status": "STAGNATION",
+                    "alerts_received": alerts_received,
+                    "trades_executed": trades_executed,
+                    "action": "parser_warm_reload_required",
+                    "message": "Detected braindead behavior: >50 alerts but 0 trades"
+                }
+                with log_file.open("a") as f:
+                    f.write(json.dumps(log_rec) + "\n")
+                print(f"[Dashboard] STAGNATION DETECTED: {alerts_received} alerts but {trades_executed} trades in 30min", flush=True)
+            except:
+                pass
+        
+        return {
+            "status": status,
+            "alerts_received": alerts_received,
+            "trades_executed": trades_executed,
+            "stagnation_detected": (status == "STAGNATION"),
+            "parser_reload_triggered": parser_reload_triggered
+        }
+    except Exception as e:
+        print(f"[Dashboard] Error calculating stagnation watchdog: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        # Return default structure on error
+        return {
+            "status": "OK",
+            "alerts_received": 0,
+            "trades_executed": 0,
+            "stagnation_detected": False,
+            "parser_reload_triggered": False,
+            "error": str(e)
+        }
                 from datetime import datetime, timezone
                 log_file = Path("logs/stagnation_watchdog.jsonl")
                 log_file.parent.mkdir(exist_ok=True)
