@@ -1,0 +1,27 @@
+====================================================================================================
+COMPREHENSIVE TRADING REVIEW - 2026-01-08
+====================================================================================================
+Generated: 2026-01-08T21:26:37.410963+00:00
+Data Source: Droplet (Production Server)
+
+EXECUTIVE SUMMARY
+----------------------------------------------------------------------------------------------------
+Executed Trades: 65
+  Win Rate: 4.6% (3W / 9L)
+  Total P&L: $-59.71 (-10.58%)
+  Average P&L per Trade: -0.16%
+
+BLOCKED TRADES: 7 total
+Blocked by Reason:
+  order_validation_failed: 7
+
+GATE EVENTS: 27 total
+Gate Events by Type:
+  unknown: 27
+
+SIGNALS: 62 generated
+Execution Rate: 104.8%
+
+UW ATTRIBUTION: 2000 total, 1996 blocked
+
+====================================================================================================
