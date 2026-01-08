@@ -61,23 +61,29 @@ class SREMonitoringEngine:
         
     def is_market_open(self) -> Tuple[bool, str]:
         """Check if US market is currently open (9:30 AM - 4:00 PM ET)."""
-        now_utc = datetime.now(timezone.utc)
-        now_et = now_utc.astimezone(timezone(timedelta(hours=-5)))  # EST/EDT approximation
-        
-        # Check if weekday (Monday=0, Sunday=6)
-        if now_et.weekday() >= 5:  # Saturday or Sunday
-            return False, "market_closed_weekend"
-        
-        # Market hours: 9:30 AM - 4:00 PM ET
-        market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
-        market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
-        
-        if market_open <= now_et <= market_close:
-            return True, "market_open"
-        elif now_et < market_open:
-            return False, "market_closed_pre_market"
-        else:
-            return False, "market_closed_after_hours"
+        try:
+            now_utc = datetime.now(timezone.utc)
+            # EST is UTC-5, EDT is UTC-4. Use UTC-5 as default (EST)
+            # More accurate: check if DST is in effect
+            now_et = now_utc.astimezone(timezone(timedelta(hours=-5)))  # EST/EDT approximation
+            
+            # Check if weekday (Monday=0, Sunday=6)
+            if now_et.weekday() >= 5:  # Saturday or Sunday
+                return False, "market_closed_weekend"
+            
+            # Market hours: 9:30 AM - 4:00 PM ET
+            market_open_time = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+            market_close_time = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+            
+            if market_open_time <= now_et <= market_close_time:
+                return True, "market_open"
+            elif now_et < market_open_time:
+                return False, "market_closed_pre_market"
+            else:
+                return False, "market_closed_after_hours"
+        except Exception as e:
+            # Fallback: assume market closed if we can't determine
+            return False, f"market_status_error: {str(e)}"
     
     def get_last_order_timestamp(self) -> Optional[float]:
         """Get the actual last order timestamp from live_orders.jsonl."""
@@ -731,6 +737,14 @@ class SREMonitoringEngine:
         except Exception:
             pass
         
+        # Update logic heartbeat if bot is running
+        try:
+            if bot_process.get("running"):
+                from sre_diagnostics import update_sre_metrics
+                update_sre_metrics({"logic_heartbeat": time.time()})
+        except:
+            pass
+        
         # Determine overall health
         critical_issues = []
         
@@ -791,14 +805,24 @@ class SREMonitoringEngine:
         # Enriched signals are optional - don't warn about them
         # They're only present if enrichment service is running
         
+        # Determine overall health - NEVER return "unknown"
         if critical_issues:
             result["overall_health"] = "critical"
             result["critical_issues"] = critical_issues
         elif warnings:
             result["overall_health"] = "degraded"
             result["warnings"] = warnings
+        elif not bot_process.get("running", False):
+            result["overall_health"] = "degraded"
+            if "warnings" not in result:
+                result["warnings"] = []
+            result["warnings"].append("Bot process not running")
         else:
             result["overall_health"] = "healthy"
+        
+        # Ensure overall_health is never None or "unknown"
+        if not result.get("overall_health") or result["overall_health"] == "unknown":
+            result["overall_health"] = "degraded"  # Default to degraded instead of unknown
         
         return result
 

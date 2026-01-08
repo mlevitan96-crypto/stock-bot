@@ -310,7 +310,8 @@ DASHBOARD_HTML = """
         }
         
         function renderSREContent(data, container) {
-            const overallHealth = data.overall_health || 'unknown';
+            // NEVER show 'unknown' - default to 'degraded' if not set
+            const overallHealth = (data.overall_health && data.overall_health !== 'unknown') ? data.overall_health : 'degraded';
             const healthClass = overallHealth === 'healthy' ? 'healthy' : 
                               overallHealth === 'degraded' ? 'degraded' : 'critical';
             
@@ -338,8 +339,20 @@ DASHBOARD_HTML = """
             const mockSignalHealthColor = getMetricHealthColor(mockSignalSuccessPct);
             const parserHealthColor = getMetricHealthColor(parserHealthIndex);
             
-            // Format timestamp
-            const heartbeatTime = logicHeartbeat > 0 ? new Date(logicHeartbeat * 1000).toLocaleString() : 'Never';
+            // Format timestamp - show relative time if recent
+            let heartbeatTime = 'Never';
+            if (logicHeartbeat > 0) {
+                const heartbeatDate = new Date(logicHeartbeat * 1000);
+                const now = new Date();
+                const ageSeconds = (now - heartbeatDate) / 1000;
+                if (ageSeconds < 60) {
+                    heartbeatTime = `${Math.floor(ageSeconds)}s ago`;
+                } else if (ageSeconds < 3600) {
+                    heartbeatTime = `${Math.floor(ageSeconds / 60)}m ago`;
+                } else {
+                    heartbeatTime = heartbeatDate.toLocaleString();
+                }
+            }
             
             // Recent RCA fixes
             const recentFixes = data.recent_rca_fixes || [];

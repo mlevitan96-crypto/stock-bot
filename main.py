@@ -6037,6 +6037,13 @@ def audit_seg(name, phase, extra=None):
 # CORE ITERATION (pull all UW layers, score, execute)
 # =========================
 def run_once():
+    # Update logic heartbeat for SRE monitoring
+    try:
+        from sre_diagnostics import update_sre_metrics
+        update_sre_metrics({"logic_heartbeat": time.time()})
+    except:
+        pass
+    
     # StateFiles is already imported at module level (line 30-32)
     # No redundant import needed
     try:
