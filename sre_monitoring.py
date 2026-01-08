@@ -745,8 +745,9 @@ class SREMonitoringEngine:
         except:
             pass
         
-        # Determine overall health
+        # Determine overall health - initialize lists
         critical_issues = []
+        warnings = []  # Initialize warnings list
         
         # Calculate signal health summary
         healthy_signals = sum(1 for s in signal_health.values() if s.status == "healthy" and not s.name.startswith("_"))
