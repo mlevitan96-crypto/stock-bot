@@ -1,0 +1,47 @@
+================================================================================
+DAILY TRADING REPORT - 2025-12-30
+================================================================================
+Generated: 2026-01-08T21:11:21.932824+00:00
+
+EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+Executed Trades: 1476
+  Total P&L: $-19.76 (-0.20%)
+  Win Rate: 71.5% (1055W / 421L)
+  Avg P&L per Trade: -0.00%
+  Largest Win: EWJ (0.08%)
+  Largest Loss: MJ (-0.27%)
+
+Blocked Trades: 0
+  Avg Score: 0.00
+
+Signal Execution Rate: 0.0%
+  Signals Generated: 0
+  Signals Executed: 1476
+  Signals Blocked: 0
+
+COUNTER-INTELLIGENCE ANALYSIS
+--------------------------------------------------------------------------------
+UW Blocked Entries: 0
+Shadow Trades: 0
+Gate Events: 0
+
+TOP TRADED SYMBOLS
+--------------------------------------------------------------------------------
+  QQQ: 319 trades
+  SPY: 301 trades
+  IWM: 190 trades
+  GLD: 131 trades
+  SOFI: 117 trades
+  TSLA: 64 trades
+  GOOGL: 48 trades
+  AAPL: 19 trades
+  NVDA: 15 trades
+  MSFT: 13 trades
+
+RECOMMENDATIONS
+--------------------------------------------------------------------------------
+⚠️  Very low execution rate (0.0%) - May be blocking too many opportunities
+⚠️  Negative total P&L (-0.20%) - Review strategy
+
+================================================================================
