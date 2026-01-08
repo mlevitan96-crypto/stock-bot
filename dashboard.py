@@ -1927,106 +1927,152 @@ def _calculate_signal_funnel():
     from datetime import datetime, timezone, timedelta
     
     try:
+        # Use config.registry for file paths (consistent with rest of codebase)
+        from config.registry import LogFiles
+        
         # Count UW alerts (from UW logs)
         alerts_count = 0
         parsed_count = 0
         scored_above_3 = 0
         orders_sent = 0
         
-        # Get data from last 24 hours
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        # Get data from last 30 minutes (as per dashboard display requirement)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
         
-        # Count UW alerts
-        try:
-            uw_log = Path("logs/uw_flow.jsonl")
+        # Count UW alerts from multiple possible sources
+        from config.registry import CacheFiles
+        uw_logs = [
+            CacheFiles.UW_ATTRIBUTION if hasattr(CacheFiles, 'UW_ATTRIBUTION') else Path("data/uw_attribution.jsonl"),
+            Path("logs/uw_flow.jsonl"),
+            CacheFiles.UW_FLOW_CACHE_LOG if hasattr(CacheFiles, 'UW_FLOW_CACHE_LOG') else Path("data/uw_flow_cache.log.jsonl")
+        ]
+        
+        for uw_log in uw_logs:
+            if isinstance(uw_log, str):
+                uw_log = Path(uw_log)
             if uw_log.exists():
-                with uw_log.open('r', encoding='utf-8') as f:
-                    for line in f:
-                        try:
-                            rec = json.loads(line.strip())
-                            ts_str = rec.get("ts") or rec.get("timestamp")
-                            if ts_str:
-                                try:
-                                    if isinstance(ts_str, (int, float)):
-                                        ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
-                                    else:
-                                        ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
-                                    if ts_dt >= cutoff:
-                                        alerts_count += 1
-                                except:
-                                    pass
-                        except:
-                            continue
-        except:
-            pass
-        
-        # Count parsed signals (from gate logs or attribution)
-        try:
-            gate_log = Path("logs/gate.jsonl")
-            if gate_log.exists():
-                with gate_log.open('r', encoding='utf-8') as f:
-                    for line in f:
-                        try:
-                            rec = json.loads(line.strip())
-                            ts_str = rec.get("ts") or rec.get("timestamp")
-                            if ts_str:
-                                try:
-                                    if isinstance(ts_str, (int, float)):
-                                        ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
-                                    else:
-                                        ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
-                                    if ts_dt >= cutoff:
-                                        parsed_count += 1
-                                        # Check if scored > 3.0
-                                        score = rec.get("signal_score") or rec.get("score") or 0.0
-                                        if float(score) >= 3.0:
-                                            scored_above_3 += 1
-                                except:
-                                    pass
-                        except:
-                            continue
-        except:
-            pass
-        
-        # Count orders sent
-        try:
-            orders_log = Path("logs/orders.jsonl")
-            if orders_log.exists():
-                with orders_log.open('r', encoding='utf-8') as f:
-                    for line in f:
-                        try:
-                            rec = json.loads(line.strip())
-                            action = rec.get("action", "")
-                            if "submit" in action.lower() or "entry" in action.lower():
-                                ts_str = rec.get("ts") or rec.get("timestamp")
+                try:
+                    with uw_log.open('r', encoding='utf-8') as f:
+                        for line in f:
+                            try:
+                                rec = json.loads(line.strip())
+                                ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
                                 if ts_str:
                                     try:
                                         if isinstance(ts_str, (int, float)):
-                                            ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                                            ts_dt = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
                                         else:
                                             ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                            if ts_dt.tzinfo is None:
+                                                ts_dt = ts_dt.replace(tzinfo=timezone.utc)
                                         if ts_dt >= cutoff:
-                                            orders_sent += 1
+                                            alerts_count += 1
                                     except:
                                         pass
-                        except:
-                            continue
-        except:
-            pass
+                            except:
+                                continue
+                except:
+                    pass
+        
+        # Count parsed signals (from gate logs or attribution)
+        gate_logs = [
+            Path("logs/gate.jsonl"),
+            LogFiles.ATTRIBUTION,
+            LogFiles.COMPOSITE_ATTRIBUTION if hasattr(LogFiles, 'COMPOSITE_ATTRIBUTION') else Path("logs/composite_attribution.jsonl")
+        ]
+        
+        for gate_log in gate_logs:
+            if isinstance(gate_log, str):
+                gate_log = Path(gate_log)
+            if gate_log.exists():
+                try:
+                    with gate_log.open('r', encoding='utf-8') as f:
+                        for line in f:
+                            try:
+                                rec = json.loads(line.strip())
+                                ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
+                                if ts_str:
+                                    try:
+                                        if isinstance(ts_str, (int, float)):
+                                            ts_dt = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
+                                        else:
+                                            ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                            if ts_dt.tzinfo is None:
+                                                ts_dt = ts_dt.replace(tzinfo=timezone.utc)
+                                        if ts_dt >= cutoff:
+                                            parsed_count += 1
+                                            # Check if scored > 3.0
+                                            score = rec.get("signal_score") or rec.get("score") or rec.get("entry_score") or 0.0
+                                            try:
+                                                if float(score) >= 3.0:
+                                                    scored_above_3 += 1
+                                            except:
+                                                pass
+                                    except:
+                                        pass
+                            except:
+                                continue
+                except:
+                    pass
+        
+        # Count orders sent (from attribution or orders logs)
+        orders_logs = [
+            LogFiles.ATTRIBUTION,
+            LogFiles.ORDERS,
+            Path("data/live_orders.jsonl")
+        ]
+        
+        for orders_log in orders_logs:
+            if isinstance(orders_log, str):
+                orders_log = Path(orders_log)
+            if orders_log.exists():
+                try:
+                    with orders_log.open('r', encoding='utf-8') as f:
+                        for line in f:
+                            try:
+                                rec = json.loads(line.strip())
+                                # Check for order submission events
+                                action = rec.get("action", "") or rec.get("event", "") or rec.get("type", "")
+                                if "submit" in str(action).lower() or "entry" in str(action).lower() or rec.get("type") == "order":
+                                    ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
+                                    if ts_str:
+                                        try:
+                                            if isinstance(ts_str, (int, float)):
+                                                ts_dt = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
+                                            else:
+                                                ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                                if ts_dt.tzinfo is None:
+                                                    ts_dt = ts_dt.replace(tzinfo=timezone.utc)
+                                            if ts_dt >= cutoff:
+                                                orders_sent += 1
+                                        except:
+                                            pass
+                            except:
+                                continue
+                except:
+                    pass
+                if orders_sent > 0:
+                    break  # Found orders, no need to check other files
         
         # Calculate conversion rates
         parsed_rate = (parsed_count / alerts_count * 100) if alerts_count > 0 else 0
         scored_rate = (scored_above_3 / alerts_count * 100) if alerts_count > 0 else 0
         order_rate = (orders_sent / alerts_count * 100) if alerts_count > 0 else 0
+        overall_conversion = order_rate  # Overall: alerts -> orders
         
         return {
             "alerts": alerts_count,
             "parsed": parsed_count,
             "scored_above_3": scored_above_3,
+            "scored_above_threshold": scored_above_3,  # Frontend expects this name
             "orders_sent": orders_sent,
             "parsed_rate": round(parsed_rate, 2),
+            "parsed_rate_pct": round(parsed_rate, 2),  # Frontend expects _pct suffix
             "scored_rate": round(scored_rate, 2),
+            "scored_rate_pct": round(scored_rate, 2),  # Frontend expects _pct suffix
             "order_rate": round(order_rate, 2),
+            "order_rate_pct": round(order_rate, 2),  # Frontend expects _pct suffix
+            "overall_conversion_pct": round(overall_conversion, 2),  # Frontend expects this
             "conversion_healthy": order_rate >= 2.0  # Healthy if > 2% conversion
         }
     except Exception as e:
@@ -2045,61 +2091,87 @@ def _calculate_stagnation_watchdog():
     from datetime import datetime, timezone, timedelta
     
     try:
+        from config.registry import LogFiles
+        
         alerts_received = 0
         trades_executed = 0
         parser_reload_triggered = False
         
-        # Check last 1 hour
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+        # Check last 30 minutes (matching dashboard display)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
         
-        # Count alerts
-        try:
-            uw_log = Path("logs/uw_flow.jsonl")
+        # Count alerts from multiple UW log sources
+        from config.registry import CacheFiles
+        uw_logs = [
+            CacheFiles.UW_ATTRIBUTION if hasattr(CacheFiles, 'UW_ATTRIBUTION') else Path("data/uw_attribution.jsonl"),
+            Path("logs/uw_flow.jsonl"),
+            CacheFiles.UW_FLOW_CACHE_LOG if hasattr(CacheFiles, 'UW_FLOW_CACHE_LOG') else Path("data/uw_flow_cache.log.jsonl")
+        ]
+        
+        for uw_log in uw_logs:
+            if isinstance(uw_log, str):
+                uw_log = Path(uw_log)
             if uw_log.exists():
-                with uw_log.open('r', encoding='utf-8') as f:
-                    for line in f:
-                        try:
-                            rec = json.loads(line.strip())
-                            ts_str = rec.get("ts") or rec.get("timestamp")
-                            if ts_str:
-                                try:
-                                    if isinstance(ts_str, (int, float)):
-                                        ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
-                                    else:
-                                        ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
-                                    if ts_dt >= cutoff:
-                                        alerts_received += 1
-                                except:
-                                    pass
-                        except:
-                            continue
-        except:
-            pass
-        
-        # Count trades (from attribution or orders)
-        try:
-            attribution_log = Path("logs/attribution.jsonl")
-            if attribution_log.exists():
-                with attribution_log.open('r', encoding='utf-8') as f:
-                    for line in f:
-                        try:
-                            rec = json.loads(line.strip())
-                            if rec.get("type") == "attribution":
-                                ts_str = rec.get("ts") or rec.get("timestamp")
+                try:
+                    with uw_log.open('r', encoding='utf-8') as f:
+                        for line in f:
+                            try:
+                                rec = json.loads(line.strip())
+                                ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
                                 if ts_str:
                                     try:
                                         if isinstance(ts_str, (int, float)):
-                                            ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                                            ts_dt = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
                                         else:
                                             ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                            if ts_dt.tzinfo is None:
+                                                ts_dt = ts_dt.replace(tzinfo=timezone.utc)
                                         if ts_dt >= cutoff:
-                                            trades_executed += 1
+                                            alerts_received += 1
                                     except:
                                         pass
-                        except:
-                            continue
-        except:
-            pass
+                            except:
+                                continue
+                except:
+                    pass
+        
+        # Count trades (from attribution - only closed trades count as executed)
+        attribution_logs = [
+            LogFiles.ATTRIBUTION
+        ]
+        
+        for attribution_log in attribution_logs:
+            if isinstance(attribution_log, str):
+                attribution_log = Path(attribution_log)
+            if attribution_log.exists():
+                try:
+                    with attribution_log.open('r', encoding='utf-8') as f:
+                        for line in f:
+                            try:
+                                rec = json.loads(line.strip())
+                                # Only count closed trades (have P&L or close_reason, not open_ trade_ids)
+                                trade_id = rec.get("trade_id", "")
+                                if trade_id and trade_id.startswith("open_"):
+                                    continue  # Skip open positions
+                                
+                                if rec.get("type") == "attribution" and (rec.get("pnl_usd") or rec.get("context", {}).get("close_reason")):
+                                    ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
+                                    if ts_str:
+                                        try:
+                                            if isinstance(ts_str, (int, float)):
+                                                ts_dt = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
+                                            else:
+                                                ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                                if ts_dt.tzinfo is None:
+                                                    ts_dt = ts_dt.replace(tzinfo=timezone.utc)
+                                            if ts_dt >= cutoff:
+                                                trades_executed += 1
+                                        except:
+                                            pass
+                            except:
+                                continue
+                except:
+                    pass
         
         # Check if stagnation detected (>50 alerts, 0 trades)
         status = "STAGNATION" if (alerts_received > 50 and trades_executed == 0) else "OK"
