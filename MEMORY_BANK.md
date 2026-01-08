@@ -75,6 +75,108 @@ This is the **primary reference document** for all bot operations. It contains:
 - ✅ **ALWAYS** verify APIs return real data before considering it "fixed"
 - ✅ **ALWAYS** fix the actual logic bug, not the symptom
 
+---
+
+## 🚨 CRITICAL: REPORT GENERATION DATA SOURCE RULE
+
+**User Directive (2026-01-08):** "The issue of not finding trades has happened multiple times. I want an RCA and plan for how this will never happen again."
+
+**MANDATORY RULE: ALL TRADING REPORTS MUST FETCH DATA FROM DROPLET, NEVER FROM LOCAL FILES**
+
+### Why This Rule Exists
+
+**Root Cause:** Reports have shown 0 trades multiple times because scripts read from local files instead of production server.
+
+**Problem:**
+- Bot runs on Droplet (`/root/stock-bot`)
+- Logs are written on Droplet (`/root/stock-bot/logs/attribution.jsonl`)
+- Local files (`logs/`, `state/`, `data/`) may be:
+  - Outdated (not synced with production)
+  - Empty (no local bot running)
+  - Non-existent (local environment doesn't have production data)
+
+**Historical Failures:**
+- 2026-01-08: Report showed 0 trades, actual was 65 trades on Droplet
+- Multiple previous occurrences due to local file assumption
+
+### MANDATORY Requirements
+
+1. **ALWAYS Use `ReportDataFetcher` Module**
+   - **File:** `report_data_fetcher.py`
+   - **Usage:** `from report_data_fetcher import ReportDataFetcher`
+   - **Behavior:** Automatically fetches from Droplet, never uses local files
+   - **Example:**
+     ```python
+     from report_data_fetcher import ReportDataFetcher
+     
+     fetcher = ReportDataFetcher(date="2026-01-08")
+     trades = fetcher.get_executed_trades()  # Always from Droplet
+     blocked = fetcher.get_blocked_trades()  # Always from Droplet
+     ```
+
+2. **ALWAYS Validate Data Before Committing**
+   - **File:** `report_data_validator.py`
+   - **Usage:** `from report_data_validator import validate_report_data`
+   - **Behavior:** Raises exception if data is invalid (e.g., 0 trades)
+   - **Example:**
+     ```python
+     from report_data_validator import validate_report_data, validate_data_source
+     
+     # Validate data quality
+     validate_report_data(trades, blocked, signals, date="2026-01-08")
+     
+     # Validate data source
+     validate_data_source(fetcher.get_data_source_info())
+     ```
+
+3. **ALWAYS Include Data Source in Report**
+   - Report MUST list "Droplet Production Server" or "Droplet" as data source
+   - Report MUST include fetch timestamp
+   - Report MUST NOT say "local files" or "logs/attribution.jsonl"
+
+4. **NEVER Commit Reports with 0 Trades**
+   - Exception: Market was explicitly closed (document in report)
+   - Always validate trade count before committing
+   - If 0 trades found, verify:
+     1. Data was fetched from Droplet (not local files)
+     2. Date is correct (market was open)
+     3. Bot was running (check Droplet status)
+
+### Prohibited Practices
+
+- ❌ **NEVER** read directly from `logs/attribution.jsonl` in local filesystem
+- ❌ **NEVER** assume local files contain production data
+- ❌ **NEVER** commit reports without validating data source
+- ❌ **NEVER** commit reports with 0 trades without explicit validation
+- ❌ **NEVER** skip checking Memory Bank for data location requirements
+
+### Standard Operating Procedure
+
+See `SOP_GENERATING_TRADING_REPORTS.md` for complete procedure.
+
+**Quick Checklist:**
+1. ✅ Use `ReportDataFetcher(date="YYYY-MM-DD")`
+2. ✅ Fetch all data: trades, blocked, signals, orders, gates
+3. ✅ Validate with `validate_report_data()`
+4. ✅ Validate data source with `validate_data_source()`
+5. ✅ Include data source info in report metadata
+6. ✅ Review report for obvious errors (0 trades = red flag)
+7. ✅ Never commit if validation fails
+
+### Verification
+
+**Before committing any report, verify:**
+- Report lists "Droplet" or "Production Server" as data source
+- Trade count > 0 (or explicit reason for 0)
+- Fetch timestamp is recent (< 1 hour old)
+- Data validation passed without errors
+
+**If validation fails:**
+- DO NOT commit report
+- Fix data source issue first
+- Re-run report generation
+- Verify data is correct before committing
+
 **Example of WRONG approach:**
 - Storing `{}` for signals that return empty just to make dashboard show "healthy"
 - Clearing clusters when composite scoring doesn't run (masks the problem instead of fixing it)
