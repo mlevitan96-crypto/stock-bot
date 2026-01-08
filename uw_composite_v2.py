@@ -1225,15 +1225,24 @@ def get_threshold(symbol: str, mode: str = "base") -> float:
     
     return ENTRY_THRESHOLDS[mode]
 
-def should_enter_v2(composite: Dict, symbol: str, mode: str = "base") -> bool:
+def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) -> bool:
     """
-    V2 entry decision with hierarchical thresholds
+    V3.0 Predatory Entry Filter: V2 entry decision with hierarchical thresholds + Exhaustion Check
+    
+    Industrial Upgrade:
+    - MIN_EXEC_SCORE increased to 3.0 (quality gate)
+    - Exhaustion Check: Block entries where price > 2.5 ATRs from 20-period EMA
+      (avoids buying the 'top' of a spike)
     """
     if not composite:
         return False
     
     score = composite.get("score", 0.0)
     threshold = get_threshold(symbol, mode)
+    
+    # V3.0: Score must be >= 3.0 (MIN_EXEC_SCORE from config)
+    if score < threshold:
+        return False
     
     # Additional gating: don't enter if toxicity too high
     toxicity = composite.get("toxicity", 0.0)
@@ -1246,6 +1255,81 @@ def should_enter_v2(composite: Dict, symbol: str, mode: str = "base") -> bool:
     freshness = composite.get("freshness", 1.0)
     if freshness < 0.25:  # Lowered from 0.30 to 0.25 to match freshness floor fix
         return False
+    
+    # V3.0 EXHAUSTION CHECK: Block entries where price is > 2.5 ATRs from 20-period EMA
+    # Purpose: Filter out noise and avoid buying the 'top' of a spike
+    if api is not None:
+        try:
+            from main import compute_atr
+            import pandas as pd
+            
+            # Get current price
+            try:
+                current_price = float(api.get_last_trade(symbol).price) if hasattr(api.get_last_trade(symbol), 'price') else None
+                if not current_price:
+                    last_trade = api.get_last_trade(symbol)
+                    current_price = float(last_trade) if isinstance(last_trade, (int, float)) else None
+            except:
+                # Fallback: try getting quote
+                try:
+                    quote = api.get_quote(symbol)
+                    current_price = (float(quote.bid) + float(quote.ask)) / 2.0
+                except:
+                    current_price = None
+            
+            if current_price and current_price > 0:
+                # Compute ATR (14-period is standard, but we'll use what's available)
+                atr = compute_atr(api, symbol, lookback=20)
+                
+                # Compute 20-period EMA
+                try:
+                    bars = api.get_bars(symbol, "1Min", limit=25).df
+                    if len(bars) >= 20:
+                        # Calculate EMA
+                        ema_20 = bars['close'].ewm(span=20, adjust=False).mean().iloc[-1]
+                        
+                        if atr > 0 and ema_20 > 0:
+                            # Check if price is > 2.5 ATRs above EMA
+                            distance_from_ema = current_price - ema_20
+                            atr_distance = distance_from_ema / atr if atr > 0 else 0
+                            
+                            if atr_distance > 2.5:
+                                # EXHAUSTION DETECTED: Price too extended from EMA
+                                # Log the block
+                                try:
+                                    from pathlib import Path
+                                    log_file = Path("logs/gate.jsonl")
+                                    log_file.parent.mkdir(exist_ok=True)
+                                    import json
+                                    from datetime import datetime, timezone
+                                    log_rec = {
+                                        "ts": datetime.now(timezone.utc).isoformat(),
+                                        "symbol": symbol,
+                                        "decision": "blocked",
+                                        "gate_name": "exhaustion_filter",
+                                        "reason": "price_extended_from_ema",
+                                        "current_price": current_price,
+                                        "ema_20": float(ema_20),
+                                        "atr": atr,
+                                        "atr_distance": round(atr_distance, 2),
+                                        "threshold": 2.5,
+                                        "signal_score": score,
+                                        "status": "rejected"
+                                    }
+                                    with log_file.open("a") as f:
+                                        f.write(json.dumps(log_rec) + "\n")
+                                except:
+                                    pass
+                                
+                                return False  # Block exhausted entry
+                except Exception as e:
+                    # If EMA calculation fails, fail open (allow trade)
+                    # Log error but don't block
+                    pass
+        except Exception as e:
+            # If exhaustion check fails, fail open (allow trade)
+            # This ensures we don't block trades due to technical indicator errors
+            pass
     
     return score >= threshold
 

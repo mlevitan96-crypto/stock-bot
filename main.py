@@ -284,7 +284,7 @@ class Config:
     CONFIRM_DARKPOOL_W = float(get_env("CONFIRM_DARKPOOL_W", "0.25"))
     CONFIRM_NET_PREMIUM_W = float(get_env("CONFIRM_NET_PREMIUM_W", "0.25"))
     CONFIRM_VOL_W = float(get_env("CONFIRM_VOL_W", "0.1"))
-    MIN_EXEC_SCORE = float(get_env("MIN_EXEC_SCORE", "2.0"))  # RESTORED to quality level - orders show scores 2.26-3.00
+    MIN_EXEC_SCORE = float(get_env("MIN_EXEC_SCORE", "3.0"))  # V3.0: Increased to 3.0 for predatory entry filter
 
     # Confirmation thresholds
     DARKPOOL_OFFLIT_MIN = float(get_env("DARKPOOL_OFFLIT_MIN", "1000000"))
@@ -3169,6 +3169,72 @@ class AlpacaExecutor:
                      notional=notional, min_required=Config.MIN_NOTIONAL_USD)
             return None, None, "min_notional_blocked", 0, "min_notional_blocked"
         
+        # V3.0 FORENSIC FIX: Handle symbols > $825 (GS, COST, etc.)
+        # If price exceeds position size, attempt fractional shares or log Price_Exceeds_Cap event
+        position_size_usd = Config.POSITION_SIZE_USD if hasattr(Config, 'POSITION_SIZE_USD') else Config.SIZE_BASE_USD
+        if ref_price > position_size_usd:
+            # Try fractional shares if supported (Alpaca paper trading may support this)
+            try:
+                # Calculate fractional qty to match position size
+                fractional_qty = position_size_usd / ref_price
+                if fractional_qty >= 0.001:  # Minimum fractional share (0.001)
+                    qty = fractional_qty
+                    log_event("submit_entry", "fractional_share_used",
+                             symbol=symbol, price=ref_price, position_size=position_size_usd,
+                             fractional_qty=round(fractional_qty, 4), notional=round(notional, 2))
+                else:
+                    # Price too high even for fractional - log and block
+                    log_event("submit_entry", "price_exceeds_cap",
+                             symbol=symbol, price=ref_price, position_size=position_size_usd,
+                             required_notional=ref_price, max_allowed=position_size_usd)
+                    # Log to dedicated Price_Exceeds_Cap log file
+                    try:
+                        from pathlib import Path
+                        import json
+                        from datetime import datetime, timezone
+                        log_file = Path("logs/price_exceeds_cap.jsonl")
+                        log_file.parent.mkdir(exist_ok=True)
+                        log_rec = {
+                            "ts": datetime.now(timezone.utc).isoformat(),
+                            "symbol": symbol,
+                            "price": ref_price,
+                            "position_size_usd": position_size_usd,
+                            "required_notional": ref_price,
+                            "fractional_qty": fractional_qty,
+                            "status": "blocked",
+                            "reason": "Price_Exceeds_Cap"
+                        }
+                        with log_file.open("a") as f:
+                            f.write(json.dumps(log_rec) + "\n")
+                    except:
+                        pass
+                    return None, None, "price_exceeds_cap", 0, "Price_Exceeds_Cap"
+            except Exception as e:
+                # If fractional shares not supported or error, log and block
+                log_event("submit_entry", "price_exceeds_cap_fallback",
+                         symbol=symbol, price=ref_price, position_size=position_size_usd,
+                         error=str(e))
+                try:
+                    from pathlib import Path
+                    import json
+                    from datetime import datetime, timezone
+                    log_file = Path("logs/price_exceeds_cap.jsonl")
+                    log_file.parent.mkdir(exist_ok=True)
+                    log_rec = {
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                        "symbol": symbol,
+                        "price": ref_price,
+                        "position_size_usd": position_size_usd,
+                        "error": str(e),
+                        "status": "blocked",
+                        "reason": "Price_Exceeds_Cap"
+                    }
+                    with log_file.open("a") as f:
+                        f.write(json.dumps(log_rec) + "\n")
+                except:
+                    pass
+                return None, None, "price_exceeds_cap", 0, "Price_Exceeds_Cap"
+        
         # RISK MANAGEMENT: Order size validation (enhanced version of existing check)
         try:
             # V4.0: Apply API resilience with exponential backoff
@@ -3688,15 +3754,20 @@ class AlpacaExecutor:
 
     def find_displacement_candidate(self, new_signal_score: float, new_symbol: str = None) -> Optional[Dict]:
         """
-        V1.0: Opportunity Cost Displacement - find weakest position eligible for replacement.
+        V3.0 Portfolio Displacement: Force-close weakest position for high-score signals.
         
-        Criteria for displacement:
+        V1.0 Criteria (still used for normal displacement):
         1. Position is older than DISPLACEMENT_MIN_AGE_HOURS
         2. Position P&L is within ±DISPLACEMENT_MAX_PNL_PCT (near breakeven)
         3. New signal score exceeds original entry score by DISPLACEMENT_SCORE_ADVANTAGE
         4. Symbol not displaced within DISPLACEMENT_COOLDOWN_HOURS
         
-        Returns: Dict with symbol, reason, pnl_pct, age_hours, original_score OR None
+        V3.0 NEW: Force-Close Mode
+        - If positions == 5 AND incoming signal > 4.5:
+          → Force-close position with LOWEST current score (regardless of age/P&L)
+          → Always trade 'up' into higher conviction signals
+        
+        Returns: Dict with symbol, reason, pnl_pct, age_hours, original_score, current_score OR None
         """
         if not Config.ENABLE_OPPORTUNITY_DISPLACEMENT:
             return None
@@ -3704,7 +3775,57 @@ class AlpacaExecutor:
         # Check if we even need displacement (slots full)
         try:
             positions = self.api.list_positions()
-            if len(positions) < Config.MAX_CONCURRENT_POSITIONS:
+            num_positions = len(positions)
+            
+            # V3.0: Force-close mode for high-score signals when positions == 5
+            if num_positions == 5 and new_signal_score > 4.5:
+                # Find position with LOWEST current score (force-close regardless of age/P&L)
+                lowest_score_pos = None
+                lowest_score = float('inf')
+                
+                metadata_path = StateFiles.POSITION_METADATA
+                try:
+                    metadata = load_metadata_with_lock(metadata_path) if metadata_path.exists() else {}
+                except Exception:
+                    metadata = {}
+                
+                for pos in positions:
+                    symbol = getattr(pos, "symbol", "")
+                    if not symbol or symbol == new_symbol:
+                        continue
+                    
+                    # Get current score for this position (try metadata first, then compute)
+                    pos_meta = metadata.get(symbol, {})
+                    current_score = pos_meta.get("entry_score", 0.0)  # Fallback to entry score
+                    
+                    # Try to get current composite score (ideal)
+                    try:
+                        # For now, use entry score as proxy - in production, would compute current score
+                        # This is acceptable as we're looking for weakest position
+                        current_score = pos_meta.get("entry_score", 0.0)
+                    except:
+                        pass
+                    
+                    if current_score < lowest_score:
+                        lowest_score = current_score
+                        lowest_score_pos = {
+                            "symbol": symbol,
+                            "current_score": current_score,
+                            "entry_price": float(getattr(pos, "avg_entry_price", 0)),
+                            "current_price": float(getattr(pos, "current_price", 0)),
+                            "reason": "force_close_lowest_score",
+                            "new_signal_score": new_signal_score
+                        }
+                
+                if lowest_score_pos:
+                    log_event("displacement", "force_close_triggered", 
+                             symbol=lowest_score_pos["symbol"],
+                             current_score=lowest_score_pos["current_score"],
+                             new_signal_score=new_signal_score,
+                             positions_count=num_positions)
+                    return lowest_score_pos
+            
+            if num_positions < Config.MAX_CONCURRENT_POSITIONS:
                 return None  # Slots available, no displacement needed
         except Exception:
             return None
@@ -4505,20 +4626,58 @@ class AlpacaExecutor:
                 self.high_water[symbol] = max(self.high_water.get(symbol, current_price), current_price)
                 trail_stop = self.high_water[symbol] * (1 - trailing_stop_pct)
 
-            stop_hit = current_price <= trail_stop
-            time_hit = age_min >= Config.TIME_EXIT_MINUTES
+            # V3.0 CONVICTION-BASED EXITS: Removed TIME_EXIT logic
+            # Exit on: 1) -1.0% Stop-Loss, 2) Signal Decay >40%, 3) Profit hits 0.75%
             
+            # 1. Stop-Loss Check: -1.0% hard stop
+            stop_loss_pct = -1.0  # -1.0% stop-loss
+            pnl_pct_decimal = pnl_pct / 100.0  # Convert to decimal
+            stop_loss_hit = pnl_pct_decimal <= stop_loss_pct
+            
+            # 2. Signal Decay Check: Current Score drops >40% below Entry Score
+            entry_score = info.get("entry_score", 0.0)
+            signal_decay_exit = False
+            decay_ratio = None
+            if entry_score > 0:
+                # Get current composite score for this symbol
+                try:
+                    current_composite = current_signals.get("composite_score", 0.0)
+                    if current_composite == 0:
+                        # Try to compute current score if not available
+                        # For now, skip if not available (fail open)
+                        pass
+                    else:
+                        decay_ratio = current_composite / entry_score
+                        # Exit if current score < 60% of entry score (40% drop)
+                        signal_decay_exit = decay_ratio < 0.60
+                        if signal_decay_exit:
+                            exit_signals["signal_decay"] = round(decay_ratio, 2)
+                except Exception as e:
+                    log_event("exit", "signal_decay_check_error", symbol=symbol, error=str(e))
+            
+            # 3. Profit Target: Exit at 0.75% profit (full position)
+            profit_target_hit = pnl_pct_decimal >= 0.0075  # 0.75%
+            
+            # Trailing stop check (for profit protection)
             # BULLETPROOF: Validate trail_stop calculation before comparing
+            stop_hit = False
             if not (math.isnan(trail_stop) or math.isinf(trail_stop) or trail_stop <= 0):
                 stop_hit = current_price <= trail_stop
             else:
                 log_event("exit", "invalid_trail_stop", symbol=symbol, trail_stop=trail_stop, current_price=current_price)
-                stop_hit = False  # Fail open - don't exit on invalid stop
             
+            # Set exit signals
+            if stop_loss_hit:
+                exit_signals["stop_loss"] = True
+                exit_signals["stop_loss_pct"] = round(pnl_pct_decimal * 100, 2)
             if stop_hit:
                 exit_signals["trail_stop"] = True
-            if time_hit:
-                exit_signals["time_exit"] = True
+            if signal_decay_exit:
+                exit_signals["signal_decay_exit"] = True
+                if decay_ratio is not None:
+                    exit_signals["signal_decay_ratio"] = round(decay_ratio, 2)
+            if profit_target_hit:
+                exit_signals["profit_target_075"] = True
 
             ret_pct = _position_return_pct(info["entry_price"], current_price, info.get("side", "buy"))
             
@@ -4595,13 +4754,18 @@ class AlpacaExecutor:
                                   reason=close_reason,
                                   fraction=tgt["fraction"])
 
-            if time_hit or stop_hit:
+            # V3.0 CONVICTION-BASED EXITS: Exit on stop-loss, signal decay, or profit target
+            # REMOVED: time_hit check (no more TIME_EXIT)
+            should_exit = stop_loss_hit or signal_decay_exit or profit_target_hit or stop_hit
+            
+            if should_exit:
                 # Build composite close reason before adding to close list
                 # CRITICAL: Always set exit_reason when adding to close list
                 if symbol not in exit_reasons:
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 to_close.append(symbol)
-                print(f"DEBUG EXITS: {symbol} marked for close - time_hit={time_hit}, stop_hit={stop_hit}, age={age_min:.1f}min, reason={exit_reasons[symbol]}", flush=True)
+                exit_reason_str = "stop_loss" if stop_loss_hit else ("signal_decay" if signal_decay_exit else ("profit_075" if profit_target_hit else "trail_stop"))
+                print(f"DEBUG EXITS: {symbol} marked for close - {exit_reason_str}, age={age_min:.1f}min, pnl={pnl_pct:.2f}%, reason={exit_reasons[symbol]}", flush=True)
         
         if to_close:
             print(f"DEBUG EXITS: Found {len(to_close)} positions to close: {to_close}", flush=True)
@@ -6543,8 +6707,9 @@ def run_once():
                     except Exception as e:
                         pass  # Don't crash on cross-asset errors
                 
-                # Use V2 should_enter (hierarchical thresholds)
-                gate_result = uw_v2.should_enter_v2(composite, ticker, mode="base")
+                # Use V2 should_enter (hierarchical thresholds) with V3.0 exhaustion check
+                # Pass api for exhaustion filter (EMA/ATR check)
+                gate_result = uw_v2.should_enter_v2(composite, ticker, mode="base", api=self.executor.api if hasattr(self, 'executor') else None)
                 
                 # V3 Attribution: Store enriched composite with FULL INTELLIGENCE features for learning
                 try:

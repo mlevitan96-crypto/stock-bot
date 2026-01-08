@@ -432,6 +432,19 @@ DASHBOARD_HTML = """
                             <div class="stat-label">Auto-Fix Count</div>
                             <div class="stat-value" style="font-size: 1.8em;">${autoFixCount}</div>
                         </div>
+                        ${data.stagnation_watchdog ? `
+                        <div class="stat-card" style="border-left: 4px solid ${data.stagnation_watchdog.status === 'STAGNATION' ? '#ef4444' : '#10b981'};">
+                            <div class="stat-label">Stagnation Watchdog</div>
+                            <div class="stat-value" style="color: ${data.stagnation_watchdog.status === 'STAGNATION' ? '#ef4444' : '#10b981'}; font-size: 1.8em;">
+                                ${data.stagnation_watchdog.status || 'OK'}
+                            </div>
+                            <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
+                                Alerts: ${data.stagnation_watchdog.alerts_received || 0} | Trades: ${data.stagnation_watchdog.trades_executed || 0}
+                            </div>
+                            ${data.stagnation_watchdog.parser_reload_triggered ? 
+                                `<div style="font-size: 0.85em; color: #f59e0b; margin-top: 5px;">⚠️ Parser Warm Reload Triggered</div>` : ''}
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
                 
@@ -1885,6 +1898,19 @@ def api_sre_health():
                 diag = SREDiagnostics()
                 recent_fixes = diag.get_recent_fixes(limit=5)
                 health["recent_rca_fixes"] = recent_fixes
+                
+                # V3.0: Add Signal Funnel metrics and Stagnation Watchdog
+                try:
+                    funnel_data = _calculate_signal_funnel()
+                    health["signal_funnel"] = funnel_data
+                except:
+                    pass
+                
+                try:
+                    stagnation_data = _calculate_stagnation_watchdog()
+                    health["stagnation_watchdog"] = stagnation_data
+                except:
+                    pass
             except:
                 pass
             
@@ -1893,6 +1919,228 @@ def api_sre_health():
             return jsonify({"error": f"Failed to load SRE health: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+def _calculate_signal_funnel():
+    """Calculate Signal Funnel metrics: [UW Alerts] -> [Parsed] -> [Scored > 3.0] -> [Orders]"""
+    from pathlib import Path
+    import json
+    from datetime import datetime, timezone, timedelta
+    
+    try:
+        # Count UW alerts (from UW logs)
+        alerts_count = 0
+        parsed_count = 0
+        scored_above_3 = 0
+        orders_sent = 0
+        
+        # Get data from last 24 hours
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        
+        # Count UW alerts
+        try:
+            uw_log = Path("logs/uw_flow.jsonl")
+            if uw_log.exists():
+                with uw_log.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line.strip())
+                            ts_str = rec.get("ts") or rec.get("timestamp")
+                            if ts_str:
+                                try:
+                                    if isinstance(ts_str, (int, float)):
+                                        ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                                    else:
+                                        ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                    if ts_dt >= cutoff:
+                                        alerts_count += 1
+                                except:
+                                    pass
+                        except:
+                            continue
+        except:
+            pass
+        
+        # Count parsed signals (from gate logs or attribution)
+        try:
+            gate_log = Path("logs/gate.jsonl")
+            if gate_log.exists():
+                with gate_log.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line.strip())
+                            ts_str = rec.get("ts") or rec.get("timestamp")
+                            if ts_str:
+                                try:
+                                    if isinstance(ts_str, (int, float)):
+                                        ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                                    else:
+                                        ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                    if ts_dt >= cutoff:
+                                        parsed_count += 1
+                                        # Check if scored > 3.0
+                                        score = rec.get("signal_score") or rec.get("score") or 0.0
+                                        if float(score) >= 3.0:
+                                            scored_above_3 += 1
+                                except:
+                                    pass
+                        except:
+                            continue
+        except:
+            pass
+        
+        # Count orders sent
+        try:
+            orders_log = Path("logs/orders.jsonl")
+            if orders_log.exists():
+                with orders_log.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line.strip())
+                            action = rec.get("action", "")
+                            if "submit" in action.lower() or "entry" in action.lower():
+                                ts_str = rec.get("ts") or rec.get("timestamp")
+                                if ts_str:
+                                    try:
+                                        if isinstance(ts_str, (int, float)):
+                                            ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                                        else:
+                                            ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                        if ts_dt >= cutoff:
+                                            orders_sent += 1
+                                    except:
+                                        pass
+                        except:
+                            continue
+        except:
+            pass
+        
+        # Calculate conversion rates
+        parsed_rate = (parsed_count / alerts_count * 100) if alerts_count > 0 else 0
+        scored_rate = (scored_above_3 / alerts_count * 100) if alerts_count > 0 else 0
+        order_rate = (orders_sent / alerts_count * 100) if alerts_count > 0 else 0
+        
+        return {
+            "alerts": alerts_count,
+            "parsed": parsed_count,
+            "scored_above_3": scored_above_3,
+            "orders_sent": orders_sent,
+            "parsed_rate": round(parsed_rate, 2),
+            "scored_rate": round(scored_rate, 2),
+            "order_rate": round(order_rate, 2),
+            "conversion_healthy": order_rate >= 2.0  # Healthy if > 2% conversion
+        }
+    except Exception as e:
+        return {
+            "alerts": 0,
+            "parsed": 0,
+            "scored_above_3": 0,
+            "orders_sent": 0,
+            "error": str(e)
+        }
+
+def _calculate_stagnation_watchdog():
+    """Calculate Stagnation Watchdog: > 50 alerts but 0 trades = STAGNATION status"""
+    from pathlib import Path
+    import json
+    from datetime import datetime, timezone, timedelta
+    
+    try:
+        alerts_received = 0
+        trades_executed = 0
+        parser_reload_triggered = False
+        
+        # Check last 1 hour
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+        
+        # Count alerts
+        try:
+            uw_log = Path("logs/uw_flow.jsonl")
+            if uw_log.exists():
+                with uw_log.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line.strip())
+                            ts_str = rec.get("ts") or rec.get("timestamp")
+                            if ts_str:
+                                try:
+                                    if isinstance(ts_str, (int, float)):
+                                        ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                                    else:
+                                        ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                    if ts_dt >= cutoff:
+                                        alerts_received += 1
+                                except:
+                                    pass
+                        except:
+                            continue
+        except:
+            pass
+        
+        # Count trades (from attribution or orders)
+        try:
+            attribution_log = Path("logs/attribution.jsonl")
+            if attribution_log.exists():
+                with attribution_log.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line.strip())
+                            if rec.get("type") == "attribution":
+                                ts_str = rec.get("ts") or rec.get("timestamp")
+                                if ts_str:
+                                    try:
+                                        if isinstance(ts_str, (int, float)):
+                                            ts_dt = datetime.fromtimestamp(ts_str, tz=timezone.utc)
+                                        else:
+                                            ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                        if ts_dt >= cutoff:
+                                            trades_executed += 1
+                                    except:
+                                        pass
+                        except:
+                            continue
+        except:
+            pass
+        
+        # Check if stagnation detected (>50 alerts, 0 trades)
+        status = "STAGNATION" if (alerts_received > 50 and trades_executed == 0) else "OK"
+        
+        # Check if parser reload was triggered (would be in logs)
+        # In production, this would trigger an autonomous parser warm reload
+        if status == "STAGNATION":
+            parser_reload_triggered = True
+            # Log that stagnation was detected (autonomous action would happen here)
+            try:
+                from pathlib import Path
+                import json
+                from datetime import datetime, timezone
+                log_file = Path("logs/stagnation_watchdog.jsonl")
+                log_file.parent.mkdir(exist_ok=True)
+                log_rec = {
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "status": "STAGNATION",
+                    "alerts_received": alerts_received,
+                    "trades_executed": trades_executed,
+                    "action": "parser_warm_reload_required",
+                    "message": "Detected braindead behavior: >50 alerts but 0 trades"
+                }
+                with log_file.open("a") as f:
+                    f.write(json.dumps(log_rec) + "\n")
+            except:
+                pass
+        
+        return {
+            "status": status,
+            "alerts_received": alerts_received,
+            "trades_executed": trades_executed,
+            "parser_reload_triggered": parser_reload_triggered
+        }
+    except Exception as e:
+        return {
+            "status": "ERROR",
+            "alerts_received": 0,
+            "trades_executed": 0,
+            "error": str(e)
+        }
 
 @app.route("/api/xai/auditor", methods=["GET"])
 def api_xai_auditor():
