@@ -1911,6 +1911,8 @@ def api_sre_health():
                     health["stagnation_watchdog"] = stagnation_data
                 except Exception as e:
                     print(f"[Dashboard] Warning: Failed to calculate stagnation watchdog: {e}", flush=True)
+                    import traceback
+                    traceback.print_exc()
                     # Still add a default structure so frontend doesn't break
                     health["stagnation_watchdog"] = {
                         "status": "OK",
@@ -1918,8 +1920,19 @@ def api_sre_health():
                         "trades_executed": 0,
                         "stagnation_detected": False
                     }
-            except:
-                pass
+            except Exception as outer_e:
+                print(f"[Dashboard] Warning: Error in SRE health enhancement: {outer_e}", flush=True)
+                # Ensure stagnation watchdog is added even if other enhancements fail
+                try:
+                    stagnation_data = _calculate_stagnation_watchdog()
+                    health["stagnation_watchdog"] = stagnation_data
+                except:
+                    health["stagnation_watchdog"] = {
+                        "status": "OK",
+                        "alerts_received": 0,
+                        "trades_executed": 0,
+                        "stagnation_detected": False
+                    }
             
             return jsonify(health), 200
         except Exception as e:
