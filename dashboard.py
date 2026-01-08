@@ -2228,35 +2228,6 @@ def _calculate_stagnation_watchdog():
             "parser_reload_triggered": False,
             "error": str(e)
         }
-                from datetime import datetime, timezone
-                log_file = Path("logs/stagnation_watchdog.jsonl")
-                log_file.parent.mkdir(exist_ok=True)
-                log_rec = {
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                    "status": "STAGNATION",
-                    "alerts_received": alerts_received,
-                    "trades_executed": trades_executed,
-                    "action": "parser_warm_reload_required",
-                    "message": "Detected braindead behavior: >50 alerts but 0 trades"
-                }
-                with log_file.open("a") as f:
-                    f.write(json.dumps(log_rec) + "\n")
-            except:
-                pass
-        
-        return {
-            "status": status,
-            "alerts_received": alerts_received,
-            "trades_executed": trades_executed,
-            "parser_reload_triggered": parser_reload_triggered
-        }
-    except Exception as e:
-        return {
-            "status": "ERROR",
-            "alerts_received": 0,
-            "trades_executed": 0,
-            "error": str(e)
-        }
 
 @app.route("/api/xai/auditor", methods=["GET"])
 def api_xai_auditor():
