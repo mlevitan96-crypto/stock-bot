@@ -1,21 +1,21 @@
 {
-  "timestamp": "2026-01-07T21:03:54.721464+00:00",
+  "timestamp": "2026-01-08T00:33:03.917615+00:00",
   "checks": {
     "market_hours": {
       "is_market_hours": false,
       "is_weekend": false,
-      "current_time": "2026-01-07T21:03:54.721506+00:00",
-      "hour_utc": 21,
-      "weekday": 2
+      "current_time": "2026-01-08T00:33:03.917647+00:00",
+      "hour_utc": 0,
+      "weekday": 3
     },
     "services": {
       "services": {
         "deploy_supervisor": true,
-        "main.py": false,
+        "main.py": true,
         "dashboard.py": true,
         "uw_flow_daemon": true
       },
-      "all_running": false
+      "all_running": true
     },
     "execution_cycles": {
       "error": "No trading log found"
@@ -31,7 +31,7 @@
     },
     "uw_cache": {
       "exists": true,
-      "age_minutes": 0.685150420665741,
+      "age_minutes": 0.2960395654042562,
       "tickers_in_cache": 53,
       "tickers_with_data": 51,
       "is_fresh": true
@@ -40,12 +40,9 @@
   "summary": {
     "issues": [
       "Market is not open",
-      "Services not running: main.py",
       "Execution cycles: No trading log found"
     ],
-    "recommendations": [
-      "Restart missing services"
-    ],
+    "recommendations": [],
     "status": "critical"
   }
 }
