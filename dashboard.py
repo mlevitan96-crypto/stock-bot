@@ -713,6 +713,7 @@ DASHBOARD_HTML = """
                     html += '<th>Final Score</th>';
                     html += '<th>Sector</th>';
                     html += '<th>Persistence</th>';
+                    html += '<th>Virtual P&L</th>';
                     html += '<th>ATR Mult</th>';
                     html += '<th>Momentum %</th>';
                     html += '<th>Momentum Req %</th>';
@@ -728,6 +729,8 @@ DASHBOARD_HTML = """
                         const sector = signal.sector || 'Unknown';
                         const persistenceCount = signal.persistence_count || 0;
                         const sectorTideCount = signal.sector_tide_count || 0;
+                        const virtualPnl = (signal.virtual_pnl !== undefined && signal.virtual_pnl !== null) ? signal.virtual_pnl : null;
+                        const shadowCreated = signal.shadow_created || false;
                         const atrMult = (signal.atr_multiplier !== undefined && signal.atr_multiplier !== null) ? signal.atr_multiplier.toFixed(2) : 'N/A';
                         const momentumPct = (signal.momentum_pct !== undefined && signal.momentum_pct !== null) ? signal.momentum_pct.toFixed(4) : '0.0000';
                         const momentumReqPct = (signal.momentum_required_pct !== undefined && signal.momentum_required_pct !== null) ? signal.momentum_required_pct.toFixed(4) : '0.0000';
@@ -743,6 +746,16 @@ DASHBOARD_HTML = """
                         let persistenceDisplay = persistenceCount.toString();
                         if (persistenceCount >= 5) {
                             persistenceDisplay = `<strong style="color: #10b981;">${persistenceCount} ⚡</strong>`;
+                        }
+                        
+                        // Format Virtual P&L
+                        let virtualPnlDisplay = 'N/A';
+                        if (shadowCreated && virtualPnl !== null) {
+                            const pnlValue = parseFloat(virtualPnl);
+                            const pnlColor = pnlValue > 0 ? '#10b981' : pnlValue < 0 ? '#ef4444' : '#666';
+                            virtualPnlDisplay = `<span style="color: ${pnlColor}; font-weight: ${Math.abs(pnlValue) > 1 ? 'bold' : 'normal'}">${pnlValue >= 0 ? '+' : ''}${pnlValue.toFixed(2)}%</span>`;
+                        } else if (shadowCreated) {
+                            virtualPnlDisplay = '<span style="color: #666;">Tracking...</span>';
                         }
                         
                         // Color code decision
@@ -773,6 +786,7 @@ DASHBOARD_HTML = """
                         html += `<td>${finalScore}</td>`;
                         html += `<td>${sectorDisplay}</td>`;
                         html += `<td>${persistenceDisplay}</td>`;
+                        html += `<td>${virtualPnlDisplay}</td>`;
                         html += `<td>${atrMult}</td>`;
                         html += `<td>${momentumPct}%</td>`;
                         html += `<td>${momentumReqPct}%</td>`;
@@ -3132,34 +3146,51 @@ def api_failure_points():
             "warning_count": 0
         }), 500
 
-@app.route("/api/signal_history", methods=["GET"])
-def api_signal_history():
-    """Get the last 50 signal processing events for Signal Review tab"""
-    try:
-        from signal_history_storage import get_signal_history, get_last_signal_timestamp
-        
-        signals = get_signal_history(limit=50)
-        last_signal_ts = get_last_signal_timestamp()
-        
-        return jsonify({
-            "signals": signals,
-            "last_signal_timestamp": last_signal_ts,
-            "count": len(signals)
-        }), 200
-    except ImportError:
-        return jsonify({
-            "signals": [],
-            "last_signal_timestamp": "",
-            "count": 0,
-            "error": "signal_history_storage module not available"
-        }), 200
-    except Exception as e:
-        return jsonify({
-            "signals": [],
-            "last_signal_timestamp": "",
-            "count": 0,
-            "error": str(e)
-        }), 500
+    @app.route("/api/signal_history", methods=["GET"])
+    def api_signal_history():
+        """Get the last 50 signal processing events for Signal Review tab"""
+        try:
+            from signal_history_storage import get_signal_history, get_last_signal_timestamp
+            from shadow_tracker import get_shadow_tracker
+            
+            signals = get_signal_history(limit=50)
+            last_signal_ts = get_last_signal_timestamp()
+            
+            # Update virtual P&L from shadow positions
+            try:
+                shadow_tracker = get_shadow_tracker()
+                for signal in signals:
+                    symbol = signal.get("symbol")
+                    if symbol and signal.get("shadow_created"):
+                        shadow_pos = shadow_tracker.get_position(symbol)
+                        if shadow_pos:
+                            # Update virtual P&L with current max profit
+                            signal["virtual_pnl"] = shadow_pos.max_profit_pct
+                            if shadow_pos.closed:
+                                signal["shadow_closed"] = True
+                                signal["shadow_close_reason"] = shadow_pos.close_reason
+            except Exception:
+                pass  # Fail silently if shadow tracker unavailable
+            
+            return jsonify({
+                "signals": signals,
+                "last_signal_timestamp": last_signal_ts,
+                "count": len(signals)
+            }), 200
+        except ImportError:
+            return jsonify({
+                "signals": [],
+                "last_signal_timestamp": "",
+                "count": 0,
+                "error": "signal_history_storage module not available"
+            }), 200
+        except Exception as e:
+            return jsonify({
+                "signals": [],
+                "last_signal_timestamp": "",
+                "count": 0,
+                "error": str(e)
+            }), 500
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))

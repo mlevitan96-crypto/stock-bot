@@ -7197,6 +7197,8 @@ def run_once():
                         from signal_history_storage import append_signal_history
                         from risk_management import get_sector
                         from persistence_tracker import get_persistence_tracker
+                        from shadow_tracker import get_shadow_tracker
+                        from alpha_signature_capture import capture_alpha_signature
                         
                         # Get direction from enriched data
                         flow_sentiment_raw = enriched.get("sentiment", "NEUTRAL")
@@ -7222,6 +7224,36 @@ def run_once():
                         if sector_tide_info:
                             sector_tide_active = sector_tide_info.get("count", 0) >= 3
                             sector_tide_count = sector_tide_info.get("count", 0)
+                        
+                        # Capture alpha signature (RVOL, RSI, Put/Call Ratio)
+                        alpha_signature = {}
+                        try:
+                            if hasattr(engine, 'executor') and hasattr(engine.executor, 'api'):
+                                alpha_signature = capture_alpha_signature(engine.executor.api, ticker, uw_cache)
+                        except Exception as e:
+                            print(f"DEBUG: Failed to capture alpha signature for {ticker}: {e}", flush=True)
+                        
+                        # Create shadow position if score > 2.3
+                        shadow_created = False
+                        virtual_pnl = None
+                        try:
+                            if score >= 2.3:
+                                entry_price = engine.executor.get_last_trade(ticker) if hasattr(engine, 'executor') else 0.0
+                                if entry_price > 0:
+                                    shadow_tracker = get_shadow_tracker()
+                                    shadow_created = shadow_tracker.create_shadow_position(
+                                        symbol=ticker,
+                                        direction=direction,
+                                        entry_price=entry_price,
+                                        entry_score=score
+                                    )
+                                    if shadow_created:
+                                        # Get initial virtual P&L (should be 0.0 at creation)
+                                        shadow_pos = shadow_tracker.get_position(ticker)
+                                        if shadow_pos:
+                                            virtual_pnl = shadow_pos.max_profit_pct
+                        except Exception as e:
+                            print(f"DEBUG: Failed to create shadow position for {ticker}: {e}", flush=True)
                         
                         # Determine rejection reason with sector/persistence context
                         decision_reason = f"Blocked: score_too_low"
@@ -7255,6 +7287,8 @@ def run_once():
                             "sector": sector,
                             "persistence_count": persistence_count,
                             "sector_tide_count": sector_tide_count,
+                            "virtual_pnl": virtual_pnl if virtual_pnl is not None else 0.0,
+                            "shadow_created": shadow_created,
                             "metadata": {
                                 "threshold_used": threshold_used,
                                 "toxicity": toxicity,
@@ -7264,7 +7298,8 @@ def run_once():
                                 "sector_tide_active": sector_tide_active,
                                 "persistence_active": persistence_active,
                                 "sector_tide_boost": sector_tide_info.get("boost", 0.0) if sector_tide_info else 0.0,
-                                "persistence_boost": persistence_info.get("boost", 0.0) if persistence_info else 0.0
+                                "persistence_boost": persistence_info.get("boost", 0.0) if persistence_info else 0.0,
+                                "alpha_signature": alpha_signature
                             }
                         })
                     except ImportError:
@@ -7855,6 +7890,45 @@ class Watchdog:
                         "metrics": metrics
                     })
                     log_event("run", "complete", clusters=0, orders=0, metrics=metrics, market_open=False)
+                
+                # Update shadow positions with live prices (even when market closed, for after-hours tracking)
+                try:
+                    from shadow_tracker import get_shadow_tracker
+                    shadow_tracker = get_shadow_tracker()
+                    shadow_positions = shadow_tracker.get_all_positions()
+                    
+                    if shadow_positions:
+                        for symbol, shadow_pos in shadow_positions.items():
+                            if not shadow_pos.closed:
+                                try:
+                                    current_price = engine.executor.get_last_trade(symbol) if hasattr(engine, 'executor') else 0.0
+                                    if current_price > 0:
+                                        update_result = shadow_tracker.update_position(symbol, current_price)
+                                        if update_result and update_result.get("closed"):
+                                            # Shadow position closed - update signal history with final P&L
+                                            try:
+                                                from signal_history_storage import get_signal_history
+                                                signals = get_signal_history(limit=50)
+                                                # Find most recent signal for this symbol
+                                                for signal in reversed(signals):
+                                                    if signal.get("symbol") == symbol and signal.get("shadow_created"):
+                                                        # Update virtual P&L
+                                                        signal["virtual_pnl"] = shadow_pos.max_profit_pct
+                                                        signal["shadow_closed"] = True
+                                                        signal["shadow_close_reason"] = update_result.get("close_reason")
+                                                        # Re-write to history (this is a simple approach)
+                                                        break
+                                            except Exception:
+                                                pass
+                                except Exception as e:
+                                    print(f"DEBUG: Failed to update shadow position for {symbol}: {e}", flush=True)
+                    
+                    # Cleanup expired positions
+                    shadow_tracker.cleanup_expired()
+                except ImportError:
+                    pass  # Shadow tracker not available
+                except Exception as e:
+                    print(f"DEBUG: Shadow position update error: {e}", flush=True)
                 
                 daily_and_weekly_tasks_if_needed()
                 self.state.iter_count += 1
