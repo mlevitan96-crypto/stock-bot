@@ -296,23 +296,47 @@ class TradingWorkflowAuditor:
                 
                 # Check age
                 entry_ts = exec_info.get("ts")
+                age_hours = 0.0
                 if entry_ts:
-                    if isinstance(entry_ts, str):
-                        try:
-                            entry_ts = datetime.fromisoformat(entry_ts.replace("Z", "+00:00"))
-                        except:
-                            entry_ts = None
-                    
-                    if entry_ts:
-                        now = datetime.now(timezone.utc)
-                        if entry_ts.tzinfo is None:
-                            entry_ts = entry_ts.replace(tzinfo=timezone.utc)
-                        age_hours = (now - entry_ts).total_seconds() / 3600
-                        self.info.append(
-                            f"📊 {symbol}: qty={alpaca_qty}, entry=${alpaca_entry:.2f}, "
-                            f"current=${pos['current_price']:.2f}, P&L={pos['unrealized_plpc']:.2f}%, "
-                            f"age={age_hours:.1f}h, entry_score={entry_score:.2f}"
-                        )
+                    try:
+                        if isinstance(entry_ts, str):
+                            # Try ISO format first
+                            try:
+                                entry_ts_parsed = datetime.fromisoformat(entry_ts.replace("Z", "+00:00"))
+                            except:
+                                # Try timestamp format
+                                try:
+                                    entry_ts_parsed = datetime.fromtimestamp(float(entry_ts), tz=timezone.utc)
+                                except:
+                                    entry_ts_parsed = None
+                        elif isinstance(entry_ts, (int, float)):
+                            entry_ts_parsed = datetime.fromtimestamp(entry_ts, tz=timezone.utc)
+                        else:
+                            entry_ts_parsed = entry_ts  # Already a datetime object
+                        
+                        if entry_ts_parsed:
+                            now = datetime.now(timezone.utc)
+                            if hasattr(entry_ts_parsed, 'tzinfo') and entry_ts_parsed.tzinfo is None:
+                                entry_ts_parsed = entry_ts_parsed.replace(tzinfo=timezone.utc)
+                            age_hours = (now - entry_ts_parsed).total_seconds() / 3600
+                    except Exception as age_err:
+                        # If age calculation fails, try to get from metadata
+                        meta_entry_ts = metadata.get(symbol, {}).get("entry_ts")
+                        if meta_entry_ts:
+                            try:
+                                meta_ts = datetime.fromisoformat(meta_entry_ts.replace("Z", "+00:00"))
+                                if meta_ts.tzinfo is None:
+                                    meta_ts = meta_ts.replace(tzinfo=timezone.utc)
+                                now = datetime.now(timezone.utc)
+                                age_hours = (now - meta_ts).total_seconds() / 3600
+                            except:
+                                pass
+                
+                self.info.append(
+                    f"📊 {symbol}: qty={alpaca_qty}, entry=${alpaca_entry:.2f}, "
+                    f"current=${pos['current_price']:.2f}, P&L={pos['unrealized_plpc']:.2f}%, "
+                    f"age={age_hours:.1f}h, entry_score={entry_score:.2f}"
+                )
     
     def check_exit_evaluation_activity(self, exits: List[Dict]):
         """Check if exit evaluation is running."""
