@@ -7073,6 +7073,11 @@ def run_once():
                     threshold_used = get_threshold(ticker, 'base')
                     toxicity = composite.get("toxicity", 0.0)
                     freshness = composite.get("freshness", 1.0)
+                    whale_boost = composite.get("whale_conviction_boost", 0.0)
+                    
+                    # Extract raw score (before whale boost) for signal history
+                    raw_score = score - whale_boost if whale_boost > 0 else score
+                    final_score = score
                     
                     # Determine actual rejection reason
                     rejection_reasons = []
@@ -7091,6 +7096,44 @@ def run_once():
                              toxicity=toxicity,
                              freshness=freshness,
                              rejection_reason=reason_str)
+                    
+                    # SIGNAL HISTORY: Log rejected signal from composite scoring
+                    # This ensures user can see why signals like AAPL (2.48) are being rejected
+                    try:
+                        from signal_history_storage import append_signal_history
+                        # Get direction from enriched data
+                        flow_sentiment_raw = enriched.get("sentiment", "NEUTRAL")
+                        direction = flow_sentiment_raw.lower() if flow_sentiment_raw in ("BULLISH", "BEARISH") else "neutral"
+                        
+                        # Get ATR multiplier (not available at this stage, set to None)
+                        atr_multiplier = None
+                        
+                        # Get momentum data (not available at composite scoring stage)
+                        momentum_pct = 0.0
+                        momentum_required_pct = 0.0
+                        
+                        append_signal_history({
+                            "symbol": ticker,
+                            "direction": direction,
+                            "raw_score": round(raw_score, 3),
+                            "whale_boost": round(whale_boost, 3),
+                            "final_score": round(final_score, 3),
+                            "atr_multiplier": None,
+                            "momentum_pct": 0.0,
+                            "momentum_required_pct": 0.0,
+                            "decision": f"Blocked: score_too_low" if score < threshold_used else f"Blocked: {reason_str}",
+                            "metadata": {
+                                "threshold_used": threshold_used,
+                                "toxicity": toxicity,
+                                "freshness": freshness,
+                                "rejection_reason": reason_str,
+                                "stage": "composite_scoring"
+                            }
+                        })
+                    except ImportError:
+                        pass  # Signal history module not available
+                    except Exception as e:
+                        print(f"DEBUG: Failed to log rejected signal to history: {e}", flush=True)
             
             # CRITICAL FIX: When composite scoring is active, ONLY use composite-scored clusters
             # Flow_trades clusters don't have composite_score, so they appear as score=0.00
