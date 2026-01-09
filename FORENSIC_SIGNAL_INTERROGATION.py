@@ -70,7 +70,7 @@ def trace_enrichment_pipeline(symbol: str, uw_cache: Dict) -> Dict[str, Any]:
     print(f"\nExpected Fields by enrich_signal():")
     for field in expected_fields:
         present = field in raw_data if raw_data else False
-        status = "✓" if present else "✗ MISSING"
+        status = "[OK]" if present else "[MISSING]"
         print(f"  {field}: {status}")
     
     # Check for field name mismatches
@@ -86,25 +86,25 @@ def trace_enrichment_pipeline(symbol: str, uw_cache: Dict) -> Dict[str, Any]:
         mismatches.append(("sent", "sentiment"))
     
     if mismatches:
-        print(f"  ⚠️  POTENTIAL MISMATCHES FOUND:")
+        print(f"  [WARN] POTENTIAL MISMATCHES FOUND:")
         for old, new in mismatches:
             print(f"    '{old}' found but expected '{new}'")
     else:
-        print(f"  ✓ No obvious field name mismatches")
+        print(f"  [OK] No obvious field name mismatches")
     
     # Run enrichment
     try:
         enriched = enrich_signal(symbol, uw_cache, "NEUTRAL")
         print(f"\nEnrichment Result:")
         if enriched:
-            print(f"  ✓ Enrichment successful ({len(enriched)} fields)")
+            print(f"  [OK] Enrichment successful ({len(enriched)} fields)")
             # Check if score would be 0.00
             if enriched.get("conviction", 0.0) == 0.0 and enriched.get("sentiment") == "NEUTRAL":
-                print(f"  ⚠️  WARNING: conviction=0.0 and sentiment=NEUTRAL - may cause 0.00 score")
+                print(f"  [WARN] WARNING: conviction=0.0 and sentiment=NEUTRAL - may cause 0.00 score")
         else:
-            print(f"  ✗ Enrichment returned empty dict")
+            print(f"  [FAIL] Enrichment returned empty dict")
     except Exception as e:
-        print(f"  ✗ Enrichment failed: {e}")
+        print(f"  [FAIL] Enrichment failed: {e}")
         enriched = {}
     
     return {
@@ -148,7 +148,7 @@ def trace_atr_exhaustion_gate(symbol: str, price: float, enriched: Dict) -> Dict
         
         if not momentum_result.get('passed', False):
             dist_from_threshold = abs(momentum_result.get('price_change_pct', 0.0)) - momentum_result.get('threshold_used', 0.0)
-            print(f"\n  ⚠️  BLOCKED: Price change ({momentum_result.get('price_change_pct', 0.0)*100:.4f}%) is {dist_from_threshold*100:.4f}% away from threshold ({momentum_result.get('threshold_used', 0.0)*100:.4f}%)")
+            print(f"\n  [BLOCKED] Price change ({momentum_result.get('price_change_pct', 0.0)*100:.4f}%) is {dist_from_threshold*100:.4f}% away from threshold ({momentum_result.get('threshold_used', 0.0)*100:.4f}%)")
         
         return {
             "momentum_passed": momentum_result.get('passed', False),
@@ -157,10 +157,10 @@ def trace_atr_exhaustion_gate(symbol: str, price: float, enriched: Dict) -> Dict
             "reason": momentum_result.get('reason', 'unknown')
         }
     except ImportError:
-        print(f"  ⚠️  Momentum filter not available")
+        print(f"  [WARN] Momentum filter not available")
         return {"momentum_passed": True, "reason": "filter_unavailable"}
     except Exception as e:
-        print(f"  ✗ Momentum check failed: {e}")
+        print(f"  [FAIL] Momentum check failed: {e}")
         return {"momentum_passed": True, "reason": f"error_{str(e)[:50]}"}
 
 def trace_score_consistency(symbol: str, enriched: Dict, entry_score: float) -> Dict[str, Any]:
@@ -186,10 +186,10 @@ def trace_score_consistency(symbol: str, enriched: Dict, entry_score: float) -> 
         # Check if they match
         score_diff = abs(current_score - entry_score)
         if score_diff > 0.1:
-            print(f"\n  ⚠️  SCORE MISMATCH: Entry ({entry_score:.3f}) vs Current ({current_score:.3f}) = {score_diff:.3f} difference")
+            print(f"\n  [WARN] SCORE MISMATCH: Entry ({entry_score:.3f}) vs Current ({current_score:.3f}) = {score_diff:.3f} difference")
             print(f"  This could cause phantom stagnations if dashboard and bot use different versions")
         else:
-            print(f"\n  ✓ Scores consistent (diff: {score_diff:.3f})")
+            print(f"\n  [OK] Scores consistent (diff: {score_diff:.3f})")
         
         # Check components
         entry_components = enriched.get("components", {}) if isinstance(enriched, dict) else {}
@@ -206,7 +206,7 @@ def trace_score_consistency(symbol: str, enriched: Dict, entry_score: float) -> 
                 entry_val = entry_components.get(comp, 0.0)
                 current_val = current_components.get(comp, 0.0)
                 if abs(entry_val - current_val) > 0.01:
-                    print(f"    ⚠️  {comp}: Entry={entry_val:.3f}, Current={current_val:.3f}")
+                    print(f"    [WARN] {comp}: Entry={entry_val:.3f}, Current={current_val:.3f}")
         
         return {
             "entry_score": entry_score,
@@ -216,7 +216,7 @@ def trace_score_consistency(symbol: str, enriched: Dict, entry_score: float) -> 
             "consistent": score_diff <= 0.1
         }
     except Exception as e:
-        print(f"  ✗ Score calculation failed: {e}")
+        print(f"  [FAIL] Score calculation failed: {e}")
         import traceback
         traceback.print_exc()
         return {"error": str(e)}
@@ -357,9 +357,9 @@ def main():
         print(f"{'='*80}")
         print(f"  Score: {entry_score:.3f}")
         print(f"  Blocking Gate: {blocking_gate}")
-        print(f"  Enrichment: {'✓' if enrichment_trace.get('enrichment_success') else '✗'}")
-        print(f"  Momentum: {'✓' if momentum_trace.get('momentum_passed') else '✗'}")
-        print(f"  Score Consistent: {'✓' if score_trace.get('consistent') else '✗'}")
+        print(f"  Enrichment: {'[OK]' if enrichment_trace.get('enrichment_success') else '[FAIL]'}")
+        print(f"  Momentum: {'[OK]' if momentum_trace.get('momentum_passed') else '[BLOCKED]'}")
+        print(f"  Score Consistent: {'[OK]' if score_trace.get('consistent') else '[MISMATCH]'}")
         
         traced += 1
     
@@ -375,8 +375,8 @@ def main():
         print(f"\n{i}. {item['symbol']}")
         print(f"   Score: {item['score']:.3f}")
         print(f"   Blocking Gate: {item['blocking_gate']}")
-        print(f"   Enrichment: {'✓' if item['enrichment_success'] else '✗'}")
-        print(f"   Momentum: {'✓' if item['momentum_passed'] else '✗'}")
+        print(f"   Enrichment: {'[OK]' if item['enrichment_success'] else '[FAIL]'}")
+        print(f"   Momentum: {'[OK]' if item['momentum_passed'] else '[BLOCKED]'}")
     
     # Statistics
     print(f"\n{'='*80}")

@@ -41,9 +41,11 @@ def run_forensic():
         
         # Handle encoding for Windows terminal
         try:
-            stdout_safe = stdout.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+            # Replace Unicode checkmarks and other special chars
+            stdout_safe = stdout.replace('✓', '[OK]').replace('✗', '[FAIL]').replace('⚠', '[WARN]')
+            stdout_safe = stdout_safe.encode('ascii', errors='replace').decode('ascii', errors='replace')
         except:
-            stdout_safe = stdout
+            stdout_safe = stdout.replace('✓', '[OK]').replace('✗', '[FAIL]').replace('⚠', '[WARN]')
         
         print(stdout_safe)
         
