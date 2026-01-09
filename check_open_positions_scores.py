@@ -15,10 +15,9 @@ from typing import Dict, List, Optional
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from config.registry import StateFiles, LogFiles, get_env, APIConfig
+    from config.registry import StateFiles, LogFiles, get_env, APIConfig, CacheFiles, read_json
     import alpaca_trade_api as tradeapi
     import uw_composite_v2 as uw_v2
-    from uw_enrichment_v2 import read_uw_cache
 except ImportError as e:
     print(f"ERROR: Failed to import required modules: {e}")
     print("Make sure you're running from the project root directory")
@@ -93,8 +92,14 @@ def check_open_positions_scores():
         except Exception:
             pass
     
-    # Load UW cache
-    uw_cache = read_uw_cache()
+    # Load UW cache (same way as main.py and dashboard)
+    uw_cache = {}
+    try:
+        cache_file = CacheFiles.UW_FLOW_CACHE
+        if cache_file.exists():
+            uw_cache = read_json(cache_file, default={})
+    except Exception as e:
+        print(f"WARNING: Failed to load UW cache: {e}")
     
     # Get current regime
     current_regime = get_global_regime()

@@ -1841,12 +1841,14 @@ def api_positions():
         except Exception as e:
             print(f"[Dashboard] Warning: Failed to load position metadata: {e}", flush=True)
         
-        # Load UW cache for current score calculation
+        # Load UW cache for current score calculation (same way as main.py)
         uw_cache = {}
         current_regime = "mixed"
         try:
-            from uw_enrichment_v2 import read_uw_cache
-            uw_cache = read_uw_cache()
+            from config.registry import CacheFiles, read_json
+            cache_file = CacheFiles.UW_FLOW_CACHE
+            if cache_file.exists():
+                uw_cache = read_json(cache_file, default={})
             
             # Get current regime
             try:
