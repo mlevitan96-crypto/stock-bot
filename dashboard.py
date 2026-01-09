@@ -753,7 +753,9 @@ DASHBOARD_HTML = """
                         if (shadowCreated && virtualPnl !== null) {
                             const pnlValue = parseFloat(virtualPnl);
                             const pnlColor = pnlValue > 0 ? '#10b981' : pnlValue < 0 ? '#ef4444' : '#666';
-                            virtualPnlDisplay = `<span style="color: ${pnlColor}; font-weight: ${Math.abs(pnlValue) > 1 ? 'bold' : 'normal'}">${pnlValue >= 0 ? '+' : ''}${pnlValue.toFixed(2)}%</span>`;
+                            const fontWeight = Math.abs(pnlValue) > 1 ? 'bold' : 'normal';
+                            const pnlSign = pnlValue >= 0 ? '+' : '';
+                            virtualPnlDisplay = '<span style="color: ' + pnlColor + '; font-weight: ' + fontWeight + '">' + pnlSign + pnlValue.toFixed(2) + '%</span>';
                         } else if (shadowCreated) {
                             virtualPnlDisplay = '<span style="color: #666;">Tracking...</span>';
                         }

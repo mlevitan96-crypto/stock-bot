@@ -203,11 +203,86 @@ def analyze_signal_performance(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     top_signals = dict(sorted_signals[:5])  # Top 5
     bottom_signals = dict(sorted_signals[-5:])  # Bottom 5
     
+    # SHADOW TRACKING ANALYSIS: Analyze missed opportunities from rejected signals
+    shadow_analysis = analyze_shadow_performance()
+    
     return {
         "top_signals": top_signals,
         "bottom_signals": bottom_signals,
-        "all_signals": signal_analysis
+        "all_signals": signal_analysis,
+        "shadow_analysis": shadow_analysis
     }
+
+def analyze_shadow_performance() -> Dict[str, Any]:
+    """Analyze shadow positions to identify missed profit opportunities."""
+    try:
+        from shadow_tracker import get_shadow_tracker
+        from signal_history_storage import get_signal_history
+        
+        shadow_tracker = get_shadow_tracker()
+        shadow_positions = shadow_tracker.get_all_positions()
+        
+        # Also get closed shadow positions from signal history
+        signals = get_signal_history(limit=200)
+        shadow_signals = [s for s in signals if s.get("shadow_created")]
+        
+        total_missed_profit = 0.0
+        total_missed_loss = 0.0
+        profitable_rejections = 0
+        unprofitable_rejections = 0
+        shadow_count = 0
+        
+        # Analyze active shadow positions
+        for symbol, shadow_pos in shadow_positions.items():
+            shadow_count += 1
+            max_profit = shadow_pos.max_profit_pct
+            max_loss = shadow_pos.max_loss_pct
+            
+            if max_profit > 0:
+                total_missed_profit += max_profit
+                profitable_rejections += 1
+            if max_loss < 0:
+                total_missed_loss += max_loss
+                unprofitable_rejections += 1
+        
+        # Analyze closed shadow positions from signal history
+        for signal in shadow_signals:
+            virtual_pnl = signal.get("virtual_pnl")
+            if virtual_pnl is not None:
+                shadow_count += 1
+                if virtual_pnl > 0:
+                    total_missed_profit += virtual_pnl
+                    profitable_rejections += 1
+                elif virtual_pnl < 0:
+                    total_missed_loss += virtual_pnl
+                    unprofitable_rejections += 1
+        
+        # Calculate statistics
+        avg_missed_profit = total_missed_profit / profitable_rejections if profitable_rejections > 0 else 0.0
+        avg_missed_loss = total_missed_loss / unprofitable_rejections if unprofitable_rejections > 0 else 0.0
+        rejection_accuracy = (unprofitable_rejections / shadow_count * 100) if shadow_count > 0 else 0.0
+        
+        return {
+            "total_shadow_positions": shadow_count,
+            "profitable_rejections": profitable_rejections,
+            "unprofitable_rejections": unprofitable_rejections,
+            "total_missed_profit_pct": round(total_missed_profit, 2),
+            "total_missed_loss_pct": round(total_missed_loss, 2),
+            "avg_missed_profit_pct": round(avg_missed_profit, 2),
+            "avg_missed_loss_pct": round(avg_missed_loss, 2),
+            "rejection_accuracy_pct": round(rejection_accuracy, 1),
+            "net_missed_opportunity_pct": round(total_missed_profit + total_missed_loss, 2)
+        }
+    except ImportError:
+        return {
+            "error": "shadow_tracker module not available",
+            "total_shadow_positions": 0
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "total_shadow_positions": 0
+        }
 
 
 def get_learning_insights() -> Dict[str, Any]:
