@@ -12,7 +12,9 @@ from typing import Dict, List, Optional, Any
 from collections import defaultdict
 
 STATE_FILE = Path("state/shadow_positions.json")
-SHADOW_MIN_SCORE = 2.3  # Minimum score to create shadow position
+SHADOW_OUTCOMES_FILE = Path("reports/shadow_outcomes.jsonl")
+SHADOW_MIN_SCORE = 2.3  # Minimum score to create shadow position (for rejected signals)
+SHADOW_MIN_SCORE_CAPACITY = 3.0  # Minimum score for capacity_limit blocks
 SHADOW_DURATION_SEC = 3600  # Track for 60 minutes
 SHADOW_STOP_PCT = 0.02  # 2% stop loss
 SHADOW_PROFIT_PCT = 0.05  # 5% profit target
@@ -97,6 +99,10 @@ class ShadowPosition:
             self.close_reason = "duration_expired"
             self.close_time = current_time
         
+        # Log final outcome when closed
+        if self.closed and self.close_time == current_time:
+            self._log_shadow_close()
+        
         return {
             "closed": self.closed,
             "pnl_pct": pnl_pct,
@@ -104,6 +110,28 @@ class ShadowPosition:
             "max_loss_pct": self.max_loss_pct,
             "close_reason": self.close_reason
         }
+    
+    def _log_shadow_close(self):
+        """Log shadow position close to reports/shadow_outcomes.jsonl"""
+        try:
+            SHADOW_OUTCOMES_FILE.parent.mkdir(parents=True, exist_ok=True)
+            outcome = {
+                "timestamp": datetime.fromtimestamp(self.close_time, tz=timezone.utc).isoformat(),
+                "symbol": self.symbol,
+                "direction": self.direction,
+                "entry_price": self.entry_price,
+                "entry_score": self.entry_score,
+                "exit_price": self.current_price,
+                "close_reason": self.close_reason,
+                "max_profit_pct": self.max_profit_pct,
+                "max_loss_pct": self.max_loss_pct,
+                "final_pnl_pct": self.max_profit_pct if self.max_profit_pct > abs(self.max_loss_pct) else self.max_loss_pct,
+                "status": "closed"
+            }
+            with SHADOW_OUTCOMES_FILE.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(outcome) + "\n")
+        except Exception:
+            pass  # Fail silently
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -121,6 +149,28 @@ class ShadowPosition:
             "close_time": self.close_time,
             "last_update_time": self.last_update_time
         }
+    
+    def _log_shadow_close(self):
+        """Log shadow position close to reports/shadow_outcomes.jsonl"""
+        try:
+            SHADOW_OUTCOMES_FILE.parent.mkdir(parents=True, exist_ok=True)
+            outcome = {
+                "timestamp": datetime.fromtimestamp(self.close_time, tz=timezone.utc).isoformat(),
+                "symbol": self.symbol,
+                "direction": self.direction,
+                "entry_price": self.entry_price,
+                "entry_score": self.entry_score,
+                "exit_price": self.current_price,
+                "close_reason": self.close_reason,
+                "max_profit_pct": self.max_profit_pct,
+                "max_loss_pct": self.max_loss_pct,
+                "final_pnl_pct": self.max_profit_pct if self.max_profit_pct > abs(self.max_loss_pct) else self.max_loss_pct,
+                "status": "closed"
+            }
+            with SHADOW_OUTCOMES_FILE.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(outcome) + "\n")
+        except Exception:
+            pass  # Fail silently
 
 class ShadowTracker:
     """Tracks shadow positions for rejected signals."""
@@ -175,7 +225,8 @@ class ShadowTracker:
             pass  # Fail silently
     
     def create_shadow_position(self, symbol: str, direction: str, entry_price: float,
-                               entry_score: float, entry_time: Optional[float] = None) -> bool:
+                               entry_score: float, entry_time: Optional[float] = None,
+                               block_reason: Optional[str] = None) -> bool:
         """
         Create a shadow position for a rejected signal.
         
@@ -185,12 +236,15 @@ class ShadowTracker:
             entry_price: Entry price at rejection time
             entry_score: Score that was rejected
             entry_time: Unix timestamp (defaults to now)
+            block_reason: Reason for rejection (e.g., "capacity_limit", "score_too_low")
         
         Returns:
             True if shadow position created, False if score too low or already exists
         """
-        if entry_score < SHADOW_MIN_SCORE:
-            return False  # Only track signals > 2.3
+        # Track signals > 3.0 blocked by capacity_limit, or signals > 2.3 blocked by other reasons
+        min_score = SHADOW_MIN_SCORE_CAPACITY if block_reason == "capacity_limit" else SHADOW_MIN_SCORE
+        if entry_score < min_score:
+            return False  # Only track signals above threshold
         
         if entry_time is None:
             entry_time = time.time()
@@ -215,7 +269,30 @@ class ShadowTracker:
         )
         self.positions[symbol] = pos
         self._save_state()
+        
+        # Log to shadow_outcomes.jsonl
+        self._log_shadow_outcome(symbol, direction, entry_price, entry_score, entry_time, block_reason)
+        
         return True
+    
+    def _log_shadow_outcome(self, symbol: str, direction: str, entry_price: float,
+                           entry_score: float, entry_time: float, block_reason: Optional[str]):
+        """Log shadow position creation to reports/shadow_outcomes.jsonl"""
+        try:
+            SHADOW_OUTCOMES_FILE.parent.mkdir(parents=True, exist_ok=True)
+            outcome = {
+                "timestamp": datetime.fromtimestamp(entry_time, tz=timezone.utc).isoformat(),
+                "symbol": symbol,
+                "direction": direction,
+                "entry_price": entry_price,
+                "entry_score": entry_score,
+                "block_reason": block_reason or "unknown",
+                "status": "created"
+            }
+            with SHADOW_OUTCOMES_FILE.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(outcome) + "\n")
+        except Exception:
+            pass  # Fail silently
     
     def update_position(self, symbol: str, current_price: float, 
                        current_time: Optional[float] = None) -> Optional[Dict[str, Any]]:

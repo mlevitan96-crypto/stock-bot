@@ -664,6 +664,23 @@ def log_signal_to_history(symbol: str, direction: str, raw_score: float, whale_b
             except:
                 sector_tide_count = 0
         
+        # Get virtual P&L if shadow position exists
+        virtual_pnl = None
+        shadow_created = False
+        try:
+            from shadow_tracker import get_shadow_tracker
+            shadow_tracker = get_shadow_tracker()
+            shadow_pos = shadow_tracker.get_position(symbol)
+            if shadow_pos:
+                virtual_pnl = shadow_pos.max_profit_pct
+                shadow_created = True
+        except Exception:
+            pass
+        
+        # Extract shadow_created from metadata if present
+        if metadata and metadata.get("shadow_created") is not None:
+            shadow_created = metadata.get("shadow_created", False)
+        
         append_signal_history({
             "symbol": symbol,
             "direction": direction,
@@ -677,6 +694,8 @@ def log_signal_to_history(symbol: str, direction: str, raw_score: float, whale_b
             "sector": sector,
             "persistence_count": persistence_count,
             "sector_tide_count": sector_tide_count,
+            "virtual_pnl": virtual_pnl if virtual_pnl is not None else (metadata.get("virtual_pnl") if metadata else 0.0),
+            "shadow_created": shadow_created,
             "metadata": metadata or {}
         })
     except ImportError:
@@ -3839,6 +3858,12 @@ class AlpacaExecutor:
           → Force-close position with LOWEST current score (regardless of age/P&L)
           → Always trade 'up' into higher conviction signals
         
+        V4.0 COMPETITIVE DISPLACEMENT (Survival of the Fittest):
+        - If new signal > 4.0 AND portfolio is full:
+          → Calculate Score Delta = (New Signal Score - Lowest Active Position Score)
+          → If Score Delta > 1.0, force-exit the weak position to enter the elite one
+          → Always prioritize capital for highest-conviction leaders
+        
         Returns: Dict with symbol, reason, pnl_pct, age_hours, original_score, current_score OR None
         """
         if not Config.ENABLE_OPPORTUNITY_DISPLACEMENT:
@@ -3849,7 +3874,70 @@ class AlpacaExecutor:
             positions = self.api.list_positions()
             num_positions = len(positions)
             
-            # V3.0: Force-close mode for high-score signals when positions == 5
+            # V4.0 COMPETITIVE DISPLACEMENT: If new signal > 4.0 and portfolio full
+            if num_positions >= Config.MAX_CONCURRENT_POSITIONS and new_signal_score > 4.0:
+                # Find position with LOWEST current score
+                lowest_score_pos = None
+                lowest_score = float('inf')
+                
+                metadata_path = StateFiles.POSITION_METADATA
+                try:
+                    metadata = load_metadata_with_lock(metadata_path) if metadata_path.exists() else {}
+                except Exception:
+                    metadata = {}
+                
+                # Get current scores for all positions
+                for pos in positions:
+                    symbol = getattr(pos, "symbol", "")
+                    if not symbol or symbol == new_symbol:
+                        continue
+                    
+                    # Get current score for this position
+                    pos_meta = metadata.get(symbol, {})
+                    # Try to get current composite score, fallback to entry score
+                    current_score = pos_meta.get("current_score", pos_meta.get("entry_score", 0.0))
+                    
+                    # If current_score not available, compute it from cache
+                    if current_score == 0.0 or current_score == pos_meta.get("entry_score", 0.0):
+                        try:
+                            from config.registry import CacheFiles, read_json
+                            uw_cache = read_json(CacheFiles.UW_FLOW_CACHE, default={})
+                            if symbol in uw_cache:
+                                enriched = uw_cache.get(symbol, {})
+                                if enriched:
+                                    import uw_composite_v2 as uw_v2
+                                    composite = uw_v2.compute_composite_score_v3(symbol, enriched, "mixed")
+                                    if composite:
+                                        current_score = composite.get("score", pos_meta.get("entry_score", 0.0))
+                        except Exception:
+                            pass  # Use entry score as fallback
+                    
+                    if current_score < lowest_score:
+                        lowest_score = current_score
+                        entry_price = float(getattr(pos, "avg_entry_price", 0))
+                        current_price = float(getattr(pos, "current_price", 0))
+                        lowest_score_pos = {
+                            "symbol": symbol,
+                            "current_score": current_score,
+                            "entry_score": pos_meta.get("entry_score", current_score),
+                            "entry_price": entry_price,
+                            "current_price": current_price,
+                            "new_signal_score": new_signal_score,
+                            "score_delta": new_signal_score - current_score
+                        }
+                
+                # V4.0: Check if score delta > 1.0 (competitive displacement threshold)
+                if lowest_score_pos and lowest_score_pos["score_delta"] > 1.0:
+                    lowest_score_pos["reason"] = "competitive_displacement"
+                    log_event("displacement", "competitive_displacement_triggered", 
+                             symbol=lowest_score_pos["symbol"],
+                             current_score=lowest_score_pos["current_score"],
+                             new_signal_score=new_signal_score,
+                             score_delta=lowest_score_pos["score_delta"],
+                             positions_count=num_positions)
+                    return lowest_score_pos
+            
+            # V3.0: Legacy force-close mode for high-score signals when positions == 5
             if num_positions == 5 and new_signal_score > 4.5:
                 # Find position with LOWEST current score (force-close regardless of age/P&L)
                 lowest_score_pos = None
@@ -5592,7 +5680,63 @@ class StrategyEngine:
                                   decision_price=ref_price_check,
                                   components=comps,
                                   cycle_count=new_positions_this_cycle)
-                # SIGNAL HISTORY: Log blocked signal
+                
+                # SHADOW TRACKING: Create shadow position for signals > 3.0 blocked by capacity_limit
+                try:
+                    from shadow_tracker import get_shadow_tracker
+                    from alpha_signature_capture import capture_alpha_signature
+                    from risk_management import get_sector
+                    from persistence_tracker import get_persistence_tracker
+                    from sector_tide_tracker import get_sector_tide_tracker
+                    
+                    if final_score >= 3.0:
+                        shadow_tracker = get_shadow_tracker()
+                        entry_price = ref_price_check
+                        shadow_created = shadow_tracker.create_shadow_position(
+                            symbol=symbol,
+                            direction=direction,
+                            entry_price=entry_price,
+                            entry_score=final_score,
+                            block_reason="capacity_limit"
+                        )
+                        
+                        # Capture alpha signature
+                        alpha_signature = {}
+                        try:
+                            if hasattr(engine, 'executor') and hasattr(engine.executor, 'api'):
+                                # Get UW cache for alpha signature
+                                from config.registry import CacheFiles, read_json
+                                uw_cache = read_json(CacheFiles.UW_FLOW_CACHE, default={})
+                                alpha_signature = capture_alpha_signature(engine.executor.api, symbol, uw_cache)
+                        except Exception:
+                            pass
+                        
+                        # Get sector and persistence info
+                        sector = get_sector(symbol)
+                        persistence_count = 0
+                        sector_tide_count = 0
+                        try:
+                            persistence_tracker = get_persistence_tracker()
+                            persistence_check = persistence_tracker.check_persistence(symbol)
+                            persistence_count = persistence_check.get("count", 0)
+                            
+                            tide_tracker = get_sector_tide_tracker()
+                            tide_info = tide_tracker.check_sector_tide(symbol)
+                            sector_tide_count = tide_info.get("count", 0)
+                        except Exception:
+                            pass
+                        
+                        if shadow_created:
+                            print(f"DEBUG {symbol}: Shadow position created for capacity_limit block (score={final_score:.2f})", flush=True)
+                    else:
+                        shadow_created = False
+                except ImportError:
+                    shadow_created = False
+                except Exception as e:
+                    print(f"DEBUG: Failed to create shadow position for {symbol}: {e}", flush=True)
+                    shadow_created = False
+                
+                # SIGNAL HISTORY: Log blocked signal with alpha signature
                 log_signal_to_history(
                     symbol=symbol,
                     direction=direction,
@@ -5603,7 +5747,15 @@ class StrategyEngine:
                     momentum_pct=momentum_pct,
                     momentum_required_pct=momentum_required_pct,
                     decision="Blocked: capacity_limit",
-                    metadata={"cycle_count": new_positions_this_cycle, "max_allowed": MAX_NEW_POSITIONS_PER_CYCLE}
+                    metadata={
+                        "cycle_count": new_positions_this_cycle,
+                        "max_allowed": MAX_NEW_POSITIONS_PER_CYCLE,
+                        "shadow_created": shadow_created if 'shadow_created' in locals() else False,
+                        "alpha_signature": alpha_signature if 'alpha_signature' in locals() else {},
+                        "sector": sector if 'sector' in locals() else "Unknown",
+                        "persistence_count": persistence_count if 'persistence_count' in locals() else 0,
+                        "sector_tide_count": sector_tide_count if 'sector_tide_count' in locals() else 0
+                    }
                 )
                 continue
             
@@ -5741,7 +5893,60 @@ class StrategyEngine:
                                       alpaca_positions=actual_positions,
                                       executor_opens=len(self.executor.opens),
                                       max_positions=Config.MAX_CONCURRENT_POSITIONS)
-                    # SIGNAL HISTORY: Log blocked signal
+                    # SHADOW TRACKING: Create shadow position for signals > 3.0 blocked by capacity_limit
+                    shadow_created = False
+                    alpha_signature = {}
+                    sector = "Unknown"
+                    persistence_count = 0
+                    sector_tide_count = 0
+                    try:
+                        from shadow_tracker import get_shadow_tracker
+                        from alpha_signature_capture import capture_alpha_signature
+                        from risk_management import get_sector
+                        from persistence_tracker import get_persistence_tracker
+                        from sector_tide_tracker import get_sector_tide_tracker
+                        
+                        if final_score >= 3.0:
+                            shadow_tracker = get_shadow_tracker()
+                            entry_price = ref_price_check
+                            shadow_created = shadow_tracker.create_shadow_position(
+                                symbol=symbol,
+                                direction=direction,
+                                entry_price=entry_price,
+                                entry_score=final_score,
+                                block_reason="capacity_limit"
+                            )
+                            
+                            # Capture alpha signature
+                            try:
+                                if hasattr(engine, 'executor') and hasattr(engine.executor, 'api'):
+                                    from config.registry import CacheFiles, read_json
+                                    uw_cache = read_json(CacheFiles.UW_FLOW_CACHE, default={})
+                                    alpha_signature = capture_alpha_signature(engine.executor.api, symbol, uw_cache)
+                            except Exception:
+                                pass
+                            
+                            # Get sector and persistence info
+                            sector = get_sector(symbol)
+                            try:
+                                persistence_tracker = get_persistence_tracker()
+                                persistence_check = persistence_tracker.check_persistence(symbol)
+                                persistence_count = persistence_check.get("count", 0)
+                                
+                                tide_tracker = get_sector_tide_tracker()
+                                tide_info = tide_tracker.check_sector_tide(symbol)
+                                sector_tide_count = tide_info.get("count", 0)
+                            except Exception:
+                                pass
+                            
+                            if shadow_created:
+                                print(f"DEBUG {symbol}: Shadow position created for capacity_limit block (score={final_score:.2f})", flush=True)
+                    except ImportError:
+                        pass
+                    except Exception as e:
+                        print(f"DEBUG: Failed to create shadow position for {symbol}: {e}", flush=True)
+                    
+                    # SIGNAL HISTORY: Log blocked signal with alpha signature
                     log_signal_to_history(
                         symbol=symbol,
                         direction=direction,
@@ -5752,7 +5957,15 @@ class StrategyEngine:
                         momentum_pct=momentum_pct,
                         momentum_required_pct=momentum_required_pct,
                         decision="Blocked: capacity_limit",
-                        metadata={"alpaca_positions": actual_positions, "max": Config.MAX_CONCURRENT_POSITIONS}
+                        metadata={
+                            "alpaca_positions": actual_positions,
+                            "max": Config.MAX_CONCURRENT_POSITIONS,
+                            "shadow_created": shadow_created,
+                            "alpha_signature": alpha_signature,
+                            "sector": sector,
+                            "persistence_count": persistence_count,
+                            "sector_tide_count": sector_tide_count
+                        }
                     )
                     continue
             if not self.executor.can_open_symbol(symbol):
