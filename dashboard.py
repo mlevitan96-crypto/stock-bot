@@ -291,7 +291,7 @@ DASHBOARD_HTML = """
             } else if (tabName === 'signal_review') {
                 loadSignalReview();
             } else if (tabName === 'positions') {
-                // Refresh positions when switching back
+                // Refresh positions when switching back - force fresh data
                 updateDashboard();
             }
         }
@@ -1337,8 +1337,13 @@ DASHBOARD_HTML = """
             const positionsContent = document.getElementById('positions-content');
             const scrollTop = positionsContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
             
-            // Fetch positions
-            fetch('/api/positions')
+            // Fetch positions - always get fresh data (no browser cache)
+            fetch('/api/positions', {
+                cache: 'no-store',  // Ensure browser doesn't cache the response
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
@@ -1974,20 +1979,25 @@ def api_positions():
             print(f"[Dashboard] Warning: Failed to load position metadata: {e}", flush=True)
         
         # Load UW cache for current score calculation (same way as main.py)
+        # CRITICAL: Always re-read cache file on each request to ensure fresh current_score
         uw_cache = {}
         current_regime = "mixed"
         try:
             from config.registry import CacheFiles, read_json
+            import json as json_module
             cache_file = CacheFiles.UW_FLOW_CACHE
+            # Force fresh read - re-read file on every API call (no caching)
             if cache_file.exists():
+                # Read directly to ensure fresh data (read_json already does this, but being explicit)
                 uw_cache = read_json(cache_file, default={})
             
-            # Get current regime
+            # Get current regime (also re-read fresh on each request)
             try:
                 from config.registry import StateFiles
                 regime_file = StateFiles.REGIME_DETECTOR
                 if regime_file.exists():
-                    regime_data = json.loads(regime_file.read_text())
+                    # Re-read regime file fresh on each request
+                    regime_data = json_module.loads(regime_file.read_text())
                     if isinstance(regime_data, dict):
                         current_regime = regime_data.get("current_regime") or regime_data.get("regime") or "mixed"
             except:
@@ -2002,12 +2012,14 @@ def api_positions():
             entry_score = metadata.get(symbol, {}).get("entry_score", 0.0) if metadata else 0.0
             
             # Calculate current composite score (same logic as exit evaluation)
+            # CRITICAL: Recalculate on every API call to ensure fresh current_score
             current_score = 0.0
             try:
                 if uw_cache and symbol in uw_cache:
                     enriched = uw_cache.get(symbol, {})
                     if enriched:
                         import uw_composite_v2 as uw_v2
+                        # Always recalculate composite score from fresh cache data
                         composite = uw_v2.compute_composite_score_v3(symbol, enriched, current_regime)
                         if composite:
                             current_score = composite.get("score", 0.0)
