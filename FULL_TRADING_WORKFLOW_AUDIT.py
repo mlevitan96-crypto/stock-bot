@@ -135,7 +135,8 @@ class TradingWorkflowAuditor:
     
     def check_recent_exits(self) -> List[Dict]:
         """Check recent exit events."""
-        exit_log = LogFiles.EXITS
+        # log_event("exit", ...) writes to logs/exit.jsonl (not exits.jsonl)
+        exit_log = Path("logs/exit.jsonl")
         exits = []
         if exit_log.exists():
             try:
