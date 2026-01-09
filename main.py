@@ -628,10 +628,42 @@ def log_signal_to_history(symbol: str, direction: str, raw_score: float, whale_b
         momentum_pct: Actual price change %
         momentum_required_pct: Required threshold %
         decision: "Ordered" or "Blocked:reason" or "Rejected:reason"
-        metadata: Additional context dict
+        metadata: Additional context dict (may include sector, persistence_count, sector_tide_count)
     """
     try:
         from signal_history_storage import append_signal_history
+        from risk_management import get_sector
+        from persistence_tracker import get_persistence_tracker
+        
+        # Get sector if not in metadata
+        sector = metadata.get("sector") if metadata else None
+        if not sector:
+            try:
+                sector = get_sector(symbol)
+            except:
+                sector = "Unknown"
+        
+        # Get persistence count if not in metadata
+        persistence_count = metadata.get("persistence_count") if metadata else None
+        if persistence_count is None:
+            try:
+                persistence_tracker = get_persistence_tracker()
+                persistence_check = persistence_tracker.check_persistence(symbol)
+                persistence_count = persistence_check.get("count", 0)
+            except:
+                persistence_count = 0
+        
+        # Get sector tide count if not in metadata
+        sector_tide_count = metadata.get("sector_tide_count") if metadata else None
+        if sector_tide_count is None:
+            try:
+                from sector_tide_tracker import get_sector_tide_tracker
+                tide_tracker = get_sector_tide_tracker()
+                tide_info = tide_tracker.check_sector_tide(symbol)
+                sector_tide_count = tide_info.get("count", 0)
+            except:
+                sector_tide_count = 0
+        
         append_signal_history({
             "symbol": symbol,
             "direction": direction,
@@ -642,6 +674,9 @@ def log_signal_to_history(symbol: str, direction: str, raw_score: float, whale_b
             "momentum_pct": round(momentum_pct * 100, 4) if momentum_pct else 0.0,  # Convert to percentage
             "momentum_required_pct": round(momentum_required_pct * 100, 4) if momentum_required_pct else 0.0,
             "decision": decision,
+            "sector": sector,
+            "persistence_count": persistence_count,
+            "sector_tide_count": sector_tide_count,
             "metadata": metadata or {}
         })
     except ImportError:
@@ -7016,6 +7051,65 @@ def run_once():
                     except Exception as e:
                         pass  # Don't crash on cross-asset errors
                 
+                # SECTOR TIDE BOOST: Apply +0.3 if sector has >= 3 symbols in 15-minute window
+                sector_tide_boost = 0.0
+                sector_tide_info = {}
+                try:
+                    from sector_tide_tracker import get_sector_tide_tracker
+                    tide_tracker = get_sector_tide_tracker()
+                    # Record this signal for sector tracking
+                    tide_tracker.record_signal(ticker)
+                    # Check if sector tide is active
+                    tide_info = tide_tracker.check_sector_tide(ticker)
+                    if tide_info.get("active"):
+                        sector_tide_boost = tide_info.get("boost", 0.0)
+                        sector_tide_info = {
+                            "sector": tide_info.get("sector"),
+                            "count": tide_info.get("count"),
+                            "boost": sector_tide_boost
+                        }
+                        original_score = composite.get("score", 0.0)
+                        composite["score"] = original_score + sector_tide_boost
+                        composite["sector_tide_boost"] = sector_tide_boost
+                        composite["sector_tide_info"] = sector_tide_info
+                        print(f"DEBUG: Sector Tide boost applied to {ticker}: +{sector_tide_boost:.2f} (sector={tide_info.get('sector')}, count={tide_info.get('count')})", flush=True)
+                except ImportError:
+                    pass  # Sector tide tracker not available
+                except Exception as e:
+                    print(f"DEBUG: Sector tide check failed for {ticker}: {e}", flush=True)
+                
+                # PERSISTENCE BOOST: Apply +0.5 if ticker appears > 5 times in 15 minutes
+                persistence_boost = 0.0
+                persistence_info = {}
+                try:
+                    from persistence_tracker import get_persistence_tracker
+                    persistence_tracker = get_persistence_tracker()
+                    # Record this signal for persistence tracking
+                    persistence_tracker.record_signal(ticker)
+                    # Check if persistence is detected
+                    persistence_check = persistence_tracker.check_persistence(ticker)
+                    if persistence_check.get("active"):
+                        persistence_boost = persistence_check.get("boost", 0.0)
+                        persistence_info = {
+                            "count": persistence_check.get("count"),
+                            "whale_motif": persistence_check.get("whale_motif", False),
+                            "boost": persistence_boost
+                        }
+                        # Apply persistence boost (same as whale boost)
+                        original_score = composite.get("score", 0.0)
+                        composite["score"] = original_score + persistence_boost
+                        composite["persistence_boost"] = persistence_boost
+                        composite["persistence_info"] = persistence_info
+                        # Mark as whale motif if persistence detected
+                        if persistence_check.get("whale_motif"):
+                            composite["whale_conviction_boost"] = persistence_boost  # Override whale boost
+                            composite["whale_motif_from_persistence"] = True
+                        print(f"DEBUG: Persistence boost applied to {ticker}: +{persistence_boost:.2f} (count={persistence_check.get('count')}, whale_motif={persistence_check.get('whale_motif')})", flush=True)
+                except ImportError:
+                    pass  # Persistence tracker not available
+                except Exception as e:
+                    print(f"DEBUG: Persistence check failed for {ticker}: {e}", flush=True)
+                
                 # Use V2 should_enter (hierarchical thresholds) with V3.0 exhaustion check
                 # Pass api for exhaustion filter (EMA/ATR check)
                 gate_result = uw_v2.should_enter_v2(composite, ticker, mode="base", api=engine.executor.api if hasattr(engine, 'executor') and hasattr(engine.executor, 'api') else None)
@@ -7101,9 +7195,45 @@ def run_once():
                     # This ensures user can see why signals like AAPL (2.48) are being rejected
                     try:
                         from signal_history_storage import append_signal_history
+                        from risk_management import get_sector
+                        from persistence_tracker import get_persistence_tracker
+                        
                         # Get direction from enriched data
                         flow_sentiment_raw = enriched.get("sentiment", "NEUTRAL")
                         direction = flow_sentiment_raw.lower() if flow_sentiment_raw in ("BULLISH", "BEARISH") else "neutral"
+                        
+                        # Get sector information
+                        sector = get_sector(ticker)
+                        
+                        # Get persistence information
+                        persistence_count = 0
+                        persistence_active = False
+                        try:
+                            persistence_tracker = get_persistence_tracker()
+                            persistence_check = persistence_tracker.check_persistence(ticker)
+                            persistence_count = persistence_check.get("count", 0)
+                            persistence_active = persistence_check.get("active", False)
+                        except:
+                            pass
+                        
+                        # Get sector tide information
+                        sector_tide_active = False
+                        sector_tide_count = 0
+                        if sector_tide_info:
+                            sector_tide_active = sector_tide_info.get("count", 0) >= 3
+                            sector_tide_count = sector_tide_info.get("count", 0)
+                        
+                        # Determine rejection reason with sector/persistence context
+                        decision_reason = f"Blocked: score_too_low"
+                        if score < threshold_used:
+                            if not sector_tide_active and not persistence_active:
+                                decision_reason = "Blocked: Sector_Tide_Missing"
+                            elif sector_tide_active and not persistence_active:
+                                decision_reason = f"Blocked: score_too_low (Sector_Tide active: {sector_tide_count})"
+                            elif persistence_active:
+                                decision_reason = f"Blocked: score_too_low (Persistence: {persistence_count})"
+                        else:
+                            decision_reason = f"Blocked: {reason_str}"
                         
                         # Get ATR multiplier (not available at this stage, set to None)
                         atr_multiplier = None
@@ -7121,13 +7251,20 @@ def run_once():
                             "atr_multiplier": None,
                             "momentum_pct": 0.0,
                             "momentum_required_pct": 0.0,
-                            "decision": f"Blocked: score_too_low" if score < threshold_used else f"Blocked: {reason_str}",
+                            "decision": decision_reason,
+                            "sector": sector,
+                            "persistence_count": persistence_count,
+                            "sector_tide_count": sector_tide_count,
                             "metadata": {
                                 "threshold_used": threshold_used,
                                 "toxicity": toxicity,
                                 "freshness": freshness,
                                 "rejection_reason": reason_str,
-                                "stage": "composite_scoring"
+                                "stage": "composite_scoring",
+                                "sector_tide_active": sector_tide_active,
+                                "persistence_active": persistence_active,
+                                "sector_tide_boost": sector_tide_info.get("boost", 0.0) if sector_tide_info else 0.0,
+                                "persistence_boost": persistence_info.get("boost", 0.0) if persistence_info else 0.0
                             }
                         })
                     except ImportError:
