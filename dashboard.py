@@ -711,6 +711,8 @@ DASHBOARD_HTML = """
                     html += '<th>Raw Score</th>';
                     html += '<th>Whale Boost</th>';
                     html += '<th>Final Score</th>';
+                    html += '<th>Sector</th>';
+                    html += '<th>Persistence</th>';
                     html += '<th>ATR Mult</th>';
                     html += '<th>Momentum %</th>';
                     html += '<th>Momentum Req %</th>';
@@ -723,10 +725,25 @@ DASHBOARD_HTML = """
                         const rawScore = (signal.raw_score !== undefined && signal.raw_score !== null) ? signal.raw_score.toFixed(2) : '0.00';
                         const whaleBoost = (signal.whale_boost !== undefined && signal.whale_boost !== null) ? signal.whale_boost.toFixed(2) : '0.00';
                         const finalScore = (signal.final_score !== undefined && signal.final_score !== null) ? signal.final_score.toFixed(2) : '0.00';
+                        const sector = signal.sector || 'Unknown';
+                        const persistenceCount = signal.persistence_count || 0;
+                        const sectorTideCount = signal.sector_tide_count || 0;
                         const atrMult = (signal.atr_multiplier !== undefined && signal.atr_multiplier !== null) ? signal.atr_multiplier.toFixed(2) : 'N/A';
                         const momentumPct = (signal.momentum_pct !== undefined && signal.momentum_pct !== null) ? signal.momentum_pct.toFixed(4) : '0.0000';
                         const momentumReqPct = (signal.momentum_required_pct !== undefined && signal.momentum_required_pct !== null) ? signal.momentum_required_pct.toFixed(4) : '0.0000';
                         const decision = signal.decision || 'Unknown';
+                        
+                        // Format sector with tide indicator
+                        let sectorDisplay = sector;
+                        if (sectorTideCount >= 3) {
+                            sectorDisplay = `${sector} (${sectorTideCount})`;
+                        }
+                        
+                        // Format persistence with indicator
+                        let persistenceDisplay = persistenceCount.toString();
+                        if (persistenceCount >= 5) {
+                            persistenceDisplay = `<strong style="color: #10b981;">${persistenceCount} ⚡</strong>`;
+                        }
                         
                         // Color code decision
                         let decisionClass = '';
@@ -737,6 +754,12 @@ DASHBOARD_HTML = """
                         } else if (decision.startsWith('Blocked:')) {
                             decisionClass = 'warning';
                             decisionStyle = 'color: #f59e0b;';
+                            // Check for specific rejection reasons
+                            if (decision.includes('Sector_Tide_Missing')) {
+                                decisionStyle = 'color: #f59e0b; font-style: italic;';
+                            } else if (decision.includes('Persistence')) {
+                                decisionStyle = 'color: #f59e0b;';
+                            }
                         } else if (decision.startsWith('Rejected:')) {
                             decisionClass = 'negative';
                             decisionStyle = 'color: #ef4444;';
@@ -748,6 +771,8 @@ DASHBOARD_HTML = """
                         html += `<td>${rawScore}</td>`;
                         html += `<td>${whaleBoost !== '0.00' ? '+' + whaleBoost : whaleBoost}</td>`;
                         html += `<td>${finalScore}</td>`;
+                        html += `<td>${sectorDisplay}</td>`;
+                        html += `<td>${persistenceDisplay}</td>`;
                         html += `<td>${atrMult}</td>`;
                         html += `<td>${momentumPct}%</td>`;
                         html += `<td>${momentumReqPct}%</td>`;
