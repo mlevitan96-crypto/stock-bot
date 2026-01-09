@@ -2425,3 +2425,352 @@ Bot was not trading despite market being open. Run logs showed `clusters: 0, ord
 - `uw_enrichment_v2.py`: Added `sentiment` and `conviction` to `enrich_signal()` output
 
 ---
+
+## 🔧 VALUABLE SCRIPTS AND TOOLS - REUSE THESE INSTEAD OF CREATING NEW ONES
+
+**CRITICAL:** Before creating a new script, check this list first. Many common tasks already have scripts that can be reused or extended.
+
+### 📊 Comprehensive Audit Scripts
+
+#### 1. `FULL_TRADING_WORKFLOW_AUDIT.py` ⭐ **MOST VALUABLE**
+**Purpose:** Complete trading workflow audit - verifies bot sees open trades, reconciliation works, and entire workflow functions.
+
+**What it checks:**
+- Alpaca API connection and current positions
+- Executor state (`executor.opens`) vs Alpaca positions
+- Position metadata preservation
+- Main loop activity (cycles in last hour/day)
+- Exit evaluation activity
+- Entry/execution activity
+- Reconciliation logs
+
+**Usage:**
+```bash
+# On droplet (recommended)
+cd ~/stock-bot
+python3 FULL_TRADING_WORKFLOW_AUDIT.py
+
+# Or remotely
+python RUN_AUDIT_ON_DROPLET.py
+```
+
+**When to use:**
+- Verify bot is seeing current open trades
+- Check if position reconciliation is working
+- Verify complete trading workflow is functioning
+- Troubleshoot position tracking issues
+- Weekly health check
+
+**Output:** Comprehensive audit report with issues, warnings, and info
+
+---
+
+#### 2. `friday_eow_audit.py` ⭐ **WEEKLY AUDIT**
+**Purpose:** Friday end-of-week structural audit with specialist-tier monitoring.
+
+**What it analyzes:**
+- Alpha Decay curves
+- Stealth Flow effectiveness (100% win-rate target for Low Magnitude Flow)
+- P&L impact of Temporal Liquidity Gate
+- Greeks decay analysis (CEX/VEX)
+- Capacity Efficiency stats (trades saved by displacement)
+
+**Usage:**
+```bash
+cd ~/stock-bot
+python3 friday_eow_audit.py
+```
+
+**When to use:**
+- Every Friday after market close
+- Weekly performance review
+- Structural analysis of trading patterns
+
+**Output:** `reports/EOW_structural_audit_YYYY-MM-DD.md`
+
+---
+
+#### 3. `comprehensive_daily_trading_analysis.py` ⭐ **DAILY ANALYSIS**
+**Purpose:** Complete analysis of today's trading activity.
+
+**What it analyzes:**
+- Executed trades (wins, losses, P&L)
+- Blocked trades (all reasons)
+- Missed opportunities (counter-intelligence)
+- UW blocked entries
+- Signal analysis (generated vs executed)
+- Gate effectiveness
+- Performance improvement recommendations
+
+**Usage:**
+```bash
+cd ~/stock-bot
+python3 comprehensive_daily_trading_analysis.py
+```
+
+**When to use:**
+- Daily after market close
+- Review trading performance
+- Identify missed opportunities
+- Analyze gate effectiveness
+
+**Output:** 
+- `reports/daily_trading_analysis_YYYY-MM-DD.md` (detailed)
+- `reports/daily_trading_summary_YYYY-MM-DD.md` (summary)
+- `reports/daily_trading_data_YYYY-MM-DD.json` (data)
+
+---
+
+### 📈 Performance Analysis Scripts
+
+#### 4. `generate_daily_trading_report.py` ⭐ **DAILY REPORT**
+**Purpose:** Comprehensive daily trading report with executed trades, blocked trades, and analytics.
+
+**Usage:**
+```bash
+cd ~/stock-bot
+python3 generate_daily_trading_report.py
+```
+
+**When to use:**
+- Daily after market close
+- Quick performance review
+- Share with stakeholders
+
+**Output:** Daily trading report in `reports/` directory
+
+---
+
+#### 5. `historical_performance_analysis.py`
+**Purpose:** Analyze historical performance to determine if poor performance was due to bugs.
+
+**Usage:**
+```bash
+cd ~/stock-bot
+python3 historical_performance_analysis.py
+```
+
+**When to use:**
+- Investigate historical performance issues
+- Determine if losses were due to bugs vs strategy
+- Component performance analysis
+
+---
+
+### 🔍 Status and Health Check Scripts
+
+#### 6. `check_bot_status.py` ⭐ **QUICK STATUS**
+**Purpose:** Quick status check of bot health.
+
+**What it checks:**
+- Freeze state
+- Latest cycle timestamp
+- Threshold values
+- Flow weights
+
+**Usage:**
+```bash
+cd ~/stock-bot
+python3 check_bot_status.py
+```
+
+**When to use:**
+- Quick health check
+- Verify bot is running
+- Check if freezes are active
+
+---
+
+#### 7. `check_current_status.py`
+**Purpose:** Check current trading status and positions.
+
+**Usage:**
+```bash
+cd ~/stock-bot
+python3 check_current_status.py
+```
+
+**When to use:**
+- Check current positions
+- Verify trading is active
+- Quick status overview
+
+---
+
+#### 8. `check_positions.py`
+**Purpose:** Check current positions from Alpaca and executor.
+
+**Usage:**
+```bash
+cd ~/stock-bot
+python3 check_positions.py
+```
+
+**When to use:**
+- Verify positions are tracked
+- Check position sync
+- Quick position overview
+
+---
+
+#### 9. `check_signals_and_positions.py`
+**Purpose:** Check signals and positions together.
+
+**Usage:**
+```bash
+cd ~/stock-bot
+python3 check_signals_and_positions.py
+```
+
+**When to use:**
+- Verify signals are being generated
+- Check if signals match positions
+- Debug signal-to-position flow
+
+---
+
+### 📋 Report Generation Scripts
+
+#### 10. `report_data_fetcher.py` ⭐ **DATA FETCHER**
+**Purpose:** Fetch report data from droplet (never use local files for reports).
+
+**Usage:**
+```python
+from report_data_fetcher import ReportDataFetcher
+
+fetcher = ReportDataFetcher(date="2026-01-08")
+trades = fetcher.get_executed_trades()  # Always from Droplet
+blocked = fetcher.get_blocked_trades()  # Always from Droplet
+```
+
+**When to use:**
+- **ALWAYS** use this for generating reports
+- Ensures data comes from production (droplet), not local files
+- Prevents "0 trades" errors from reading stale local data
+
+**CRITICAL:** See MEMORY_BANK.md section "REPORT GENERATION DATA SOURCE RULE" - all reports MUST use this.
+
+---
+
+#### 11. `report_data_validator.py` ⭐ **DATA VALIDATOR**
+**Purpose:** Validate report data before committing.
+
+**Usage:**
+```python
+from report_data_validator import validate_report_data, validate_data_source
+
+# Validate data quality
+validate_report_data(trades, blocked, signals, date="2026-01-08")
+
+# Validate data source
+validate_data_source(fetcher.get_data_source_info())
+```
+
+**When to use:**
+- Before committing any report
+- Ensures data is valid (e.g., not 0 trades)
+- Validates data came from droplet, not local files
+
+---
+
+### ✅ Verification Scripts
+
+#### 12. `RUN_AUDIT_ON_DROPLET.py` ⭐ **REMOTE AUDIT**
+**Purpose:** Run audit script on droplet remotely.
+
+**Usage:**
+```bash
+cd c:\Users\markl\OneDrive\Documents\Cursor\stock-bot
+python RUN_AUDIT_ON_DROPLET.py
+```
+
+**When to use:**
+- Run audits without SSH'ing to droplet
+- Automated health checks
+- CI/CD integration
+
+---
+
+#### 13. `EXECUTE_DROPLET_DEPLOYMENT_NOW.py` ⭐ **DEPLOYMENT**
+**Purpose:** Complete deployment workflow (Cursor → Git → Droplet).
+
+**Usage:**
+```bash
+cd c:\Users\markl\OneDrive\Documents\Cursor\stock-bot
+python EXECUTE_DROPLET_DEPLOYMENT_NOW.py
+```
+
+**When to use:**
+- Deploy code changes to droplet
+- Automated deployment
+- Standard deployment workflow
+
+---
+
+### 🎯 Script Selection Guide
+
+**Need to check if bot sees open trades?**
+→ Use `FULL_TRADING_WORKFLOW_AUDIT.py`
+
+**Need daily performance report?**
+→ Use `comprehensive_daily_trading_analysis.py` or `generate_daily_trading_report.py`
+
+**Need weekly structural analysis?**
+→ Use `friday_eow_audit.py`
+
+**Need quick status check?**
+→ Use `check_bot_status.py` or `check_current_status.py`
+
+**Need to generate a report?**
+→ **ALWAYS** use `report_data_fetcher.py` (never read local files)
+
+**Need to verify data before committing?**
+→ Use `report_data_validator.py`
+
+**Need to deploy code?**
+→ Use `EXECUTE_DROPLET_DEPLOYMENT_NOW.py`
+
+**Need to run audit remotely?**
+→ Use `RUN_AUDIT_ON_DROPLET.py`
+
+---
+
+### 📝 Best Practices
+
+1. **Before creating a new script:**
+   - Check this list first
+   - See if existing script can be extended
+   - Reuse common patterns from existing scripts
+
+2. **When creating new scripts:**
+   - Add to this list in MEMORY_BANK.md
+   - Document purpose, usage, and when to use
+   - Follow patterns from existing scripts
+
+3. **Script organization:**
+   - Audit scripts: `*_audit.py`
+   - Check scripts: `check_*.py`
+   - Report scripts: `generate_*_report.py` or `*_analysis.py`
+   - Verification scripts: `verify_*.py` or `RUN_*.py`
+
+4. **Data source rule:**
+   - **NEVER** read from local files for reports
+   - **ALWAYS** use `report_data_fetcher.py` to fetch from droplet
+   - **ALWAYS** validate with `report_data_validator.py`
+
+---
+
+### 🔄 Script Maintenance
+
+**When updating scripts:**
+1. Update this documentation
+2. Test on droplet before committing
+3. Update usage examples if interface changes
+4. Document any new dependencies
+
+**When deprecating scripts:**
+1. Mark as deprecated in this list
+2. Add migration path to replacement script
+3. Keep for 30 days before deletion
+
+---
