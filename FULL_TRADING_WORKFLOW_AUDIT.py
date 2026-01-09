@@ -20,15 +20,18 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 try:
     from config.registry import StateFiles, LogFiles, ConfigFiles, get_env, APIConfig
-    from dotenv import load_dotenv
     import alpaca_trade_api as tradeapi
-    
-    # Load environment variables
-    load_dotenv()
 except ImportError as e:
     print(f"ERROR: Failed to import required modules: {e}")
     print("Make sure you're running from the project root directory")
     sys.exit(1)
+
+# Try to load dotenv if available (optional)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not required if env vars are already set
 
 
 class TradingWorkflowAuditor:
