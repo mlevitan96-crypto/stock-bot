@@ -7018,7 +7018,7 @@ def run_once():
                 
                 # Use V2 should_enter (hierarchical thresholds) with V3.0 exhaustion check
                 # Pass api for exhaustion filter (EMA/ATR check)
-                gate_result = uw_v2.should_enter_v2(composite, ticker, mode="base", api=self.executor.api if hasattr(self, 'executor') else None)
+                gate_result = uw_v2.should_enter_v2(composite, ticker, mode="base", api=engine.executor.api if hasattr(engine, 'executor') and hasattr(engine.executor, 'api') else None)
                 
                 # V3 Attribution: Store enriched composite with FULL INTELLIGENCE features for learning
                 try:
