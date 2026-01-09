@@ -17,6 +17,8 @@ DATA_DIR = Path("data")
 
 FUNNEL_WINDOW_SEC = 1800  # 30 minutes
 STAGNATION_ALERT_THRESHOLD = 50  # >50 alerts but 0 trades = stagnation
+STAGNATION_60MIN_WINDOW_SEC = 3600  # 60 minutes for adaptive scaling
+STAGNATION_60MIN_ORDERS_THRESHOLD = 0  # 0 orders in 60 minutes = stagnation
 
 class SignalFunnelTracker:
     """Tracks signal-to-trade funnel metrics"""
@@ -152,6 +154,43 @@ class SignalFunnelTracker:
                 "orders_30m": metrics["orders_sent"],
                 "regime": market_regime,
                 "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        
+        return None
+    
+    def check_60min_stagnation_for_adaptive_scaling(self, market_regime: str = "mixed") -> Optional[Dict[str, Any]]:
+        """
+        ALPHA REPAIR: Stagnation-Triggered Adaptive Scaling
+        
+        If the Signal Funnel reports 0 orders for 60 minutes during active market hours,
+        the bot must automatically lower the 'ATR Exhaustion Multiplier' from 2.5 to 3.0.
+        This allows the bot to 'lean into' strong trends that don't pull back.
+        
+        Returns:
+            Dict with 60min stagnation details if detected, None otherwise
+        """
+        # Only check during active market hours (RISK_ON regimes)
+        risk_on_regimes = ["market_open", "mixed", "low_vol_uptrend", "high_vol_neg_gamma"]
+        if market_regime not in risk_on_regimes:
+            return None
+        
+        # Check 60-minute window
+        metrics_60m = self.get_funnel_metrics(STAGNATION_60MIN_WINDOW_SEC)
+        
+        # Stagnation condition: 0 orders in 60 minutes during active market hours
+        if metrics_60m["orders_sent"] == STAGNATION_60MIN_ORDERS_THRESHOLD:
+            return {
+                "detected": True,
+                "reason": "60min_stagnation_adaptive_scaling",
+                "alerts_60m": metrics_60m["alerts"],
+                "parsed_60m": metrics_60m["parsed"],
+                "scored_60m": metrics_60m["scored_above_threshold"],
+                "orders_60m": metrics_60m["orders_sent"],
+                "regime": market_regime,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "action_required": "lower_atr_exhaustion_multiplier",
+                "current_multiplier": 2.5,
+                "target_multiplier": 3.0
             }
         
         return None

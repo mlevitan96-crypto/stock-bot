@@ -160,7 +160,13 @@ class MomentumIgnitionFilter:
     def check_momentum(self, symbol: str, signal_direction: str, current_price: float, 
                       entry_score: float = 0.0, market_regime: str = "mixed") -> Dict[str, Any]:
         """
-        Check if price has moved +0.2% in the last 2 minutes.
+        Check if price has moved relative to ATR (volatility-adjusted momentum).
+        
+        ALPHA REPAIR: Uses ATR-relative threshold instead of hard 0.01%:
+        threshold = (ATR / current_price) * 0.15
+        
+        This allows the bot to enter trades when momentum is high relative to the
+        stock's current volatility environment, rather than an arbitrary fixed percentage.
         
         Args:
             symbol: Stock symbol
@@ -174,6 +180,8 @@ class MomentumIgnitionFilter:
                 - price_2min_ago: float (price 2 minutes ago)
                 - current_price: float
                 - reason: str (why it passed/failed)
+                - threshold_used: float (volatility-adjusted threshold %)
+                - atr_used: float (ATR value used)
         """
         if not self.api_key or not self.api_secret:
             return {
@@ -181,7 +189,9 @@ class MomentumIgnitionFilter:
                 "price_change_pct": 0.0,
                 "price_2min_ago": current_price,
                 "current_price": current_price,
-                "reason": "api_unavailable_fail_open"
+                "reason": "api_unavailable_fail_open",
+                "threshold_used": 0.0,
+                "atr_used": 0.0
             }
         
         try:
@@ -214,7 +224,9 @@ class MomentumIgnitionFilter:
                     "price_change_pct": 0.0,
                     "price_2min_ago": current_price,
                     "current_price": current_price,
-                    "reason": "insufficient_data_fail_open"
+                    "reason": "insufficient_data_fail_open",
+                    "threshold_used": 0.0,
+                    "atr_used": 0.0
                 }
             
             # Get price from ~2 minutes ago (second bar from start)
@@ -224,15 +236,77 @@ class MomentumIgnitionFilter:
             # Calculate price change
             price_change_pct = (price_now - price_2min_ago) / price_2min_ago
             
-            # Check momentum based on signal direction
+            # ALPHA REPAIR: Calculate ATR-relative threshold
+            # Import compute_atr from main.py (or compute locally if needed)
+            atr_value = 0.0
+            volatility_adjusted_threshold = self.momentum_threshold_pct  # Fallback to base threshold
+            
+            try:
+                # Try to import compute_atr from main
+                import sys
+                from pathlib import Path
+                sys.path.insert(0, str(Path(__file__).parent))
+                from main import compute_atr
+                
+                # Create a minimal API wrapper for compute_atr
+                class MinimalAPI:
+                    def __init__(self, api_key, api_secret, base_url):
+                        self.api_key = api_key
+                        self.api_secret = api_secret
+                        self.base_url = base_url
+                        self.headers = {
+                            "APCA-API-KEY-ID": api_key,
+                            "APCA-API-SECRET-KEY": api_secret
+                        }
+                    
+                    def get_bars(self, symbol, timeframe, limit):
+                        import requests
+                        end_time = datetime.now(timezone.utc)
+                        start_time = end_time - timedelta(minutes=limit + 1)
+                        url = f"{self.base_url}/bars"
+                        params = {
+                            "symbols": symbol,
+                            "timeframe": timeframe,
+                            "start": start_time.strftime("%Y-%m-%dT%H:%M:%S-00:00"),
+                            "end": end_time.strftime("%Y-%m-%dT%H:%M:%S-00:00"),
+                            "limit": limit,
+                            "adjustment": "raw",
+                            "feed": "sip",
+                            "sort": "asc"
+                        }
+                        response = requests.get(url, headers=self.headers, params=params, timeout=5)
+                        response.raise_for_status()
+                        data = response.json()
+                        bars = data.get("bars", {}).get(symbol, [])
+                        if not bars:
+                            return None
+                        import pandas as pd
+                        return pd.DataFrame(bars)
+                
+                minimal_api = MinimalAPI(self.api_key, self.api_secret, self.base_url)
+                atr_value = compute_atr(minimal_api, symbol, lookback=14)
+                
+                if atr_value > 0 and current_price > 0:
+                    # ALPHA REPAIR: threshold = (ATR / current_price) * 0.15
+                    volatility_adjusted_threshold = (atr_value / current_price) * 0.15
+                    # Ensure minimum threshold (don't go below 0.0001 = 0.01%)
+                    volatility_adjusted_threshold = max(0.0001, volatility_adjusted_threshold)
+                    # Also cap at reasonable maximum (0.002 = 0.2%)
+                    volatility_adjusted_threshold = min(0.002, volatility_adjusted_threshold)
+            except Exception as atr_error:
+                # If ATR calculation fails, fall back to base threshold
+                volatility_adjusted_threshold = self.momentum_threshold_pct
+                atr_value = 0.0
+            
+            # Check momentum based on signal direction using volatility-adjusted threshold
             if signal_direction.lower() in ["bullish", "long", "buy"]:
-                # Bullish: need positive momentum (+0.05% reduced from 0.2%)
-                momentum_passed = price_change_pct >= self.momentum_threshold_pct
-                reason = "bullish_momentum_confirmed" if momentum_passed else f"insufficient_bullish_momentum_{price_change_pct*100:.2f}%"
+                # Bullish: need positive momentum >= volatility-adjusted threshold
+                momentum_passed = price_change_pct >= volatility_adjusted_threshold
+                reason = "bullish_momentum_confirmed" if momentum_passed else f"insufficient_bullish_momentum_{price_change_pct*100:.4f}%_vs_threshold_{volatility_adjusted_threshold*100:.4f}%"
             else:  # bearish/short/sell
-                # Bearish: need negative momentum (-0.05% reduced from 0.2%)
-                momentum_passed = price_change_pct <= -self.momentum_threshold_pct
-                reason = "bearish_momentum_confirmed" if momentum_passed else f"insufficient_bearish_momentum_{price_change_pct*100:.2f}%"
+                # Bearish: need negative momentum <= -volatility-adjusted threshold
+                momentum_passed = price_change_pct <= -volatility_adjusted_threshold
+                reason = "bearish_momentum_confirmed" if momentum_passed else f"insufficient_bearish_momentum_{price_change_pct*100:.4f}%_vs_threshold_{volatility_adjusted_threshold*100:.4f}%"
             
             # SOFT-FAIL MODE: If momentum is 0.00% but entry_score > 4.0, allow trade with warning
             if not momentum_passed and entry_score > 4.0 and abs(price_change_pct) < 0.001:  # < 0.1% movement
@@ -243,13 +317,32 @@ class MomentumIgnitionFilter:
             if not momentum_passed:
                 self._check_and_adjust_panic_scaling(market_regime)
             
+            # Log volatility-adjusted requirement
+            try:
+                from config.registry import append_jsonl
+                append_jsonl("system", {
+                    "msg": "volatility_adjusted_momentum_check",
+                    "symbol": symbol,
+                    "price_change_pct": price_change_pct * 100,
+                    "atr_used": atr_value,
+                    "current_price": current_price,
+                    "volatility_adjusted_threshold_pct": volatility_adjusted_threshold * 100,
+                    "base_threshold_pct": self.momentum_threshold_pct * 100,
+                    "passed": momentum_passed,
+                    "reason": reason
+                })
+            except:
+                pass
+            
             return {
                 "passed": momentum_passed,
                 "price_change_pct": price_change_pct,
                 "price_2min_ago": price_2min_ago,
                 "current_price": price_now,
                 "reason": reason,
-                "threshold_used": self.momentum_threshold_pct
+                "threshold_used": volatility_adjusted_threshold,
+                "atr_used": atr_value,
+                "volatility_adjusted": True
             }
             
         except Exception as e:

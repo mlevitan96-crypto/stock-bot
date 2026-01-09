@@ -868,6 +868,15 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     # Apply freshness decay
     composite_score = composite_raw * freshness
     
+    # ALPHA REPAIR: Whale Conviction Normalization
+    # If whale_persistence or sweep_block motifs are detected, apply +0.5 Conviction Boost
+    # This ensures actual Whales can clear the 3.0 gate even when 'Noise' scores are suppressed
+    whale_conviction_boost = 0.0
+    if whale_detected or motif_sweep.get("detected", False):
+        whale_conviction_boost = 0.5
+        composite_score += whale_conviction_boost
+        all_notes.append(f"whale_conviction_boost(+{whale_conviction_boost})")
+    
     # Clamp to 0-8 (higher max due to new components)
     composite_score = max(0.0, min(8.0, composite_score))
     
@@ -966,6 +975,7 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         "entry_delay_sec": entry_delay_sec,
         "toxicity": round(toxicity, 3),
         "freshness": round(freshness, 3),
+        "whale_conviction_boost": round(whale_conviction_boost, 3),  # ALPHA REPAIR: Track whale boost applied
         "notes": "; ".join(all_notes) if all_notes else "clean",
         # For learning - all raw inputs (V2 Full Intelligence Pipeline)
         "features_for_learning": {

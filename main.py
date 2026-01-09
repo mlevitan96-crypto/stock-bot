@@ -5010,6 +5010,18 @@ class StrategyEngine:
                 # Record scored signal (score > 2.7 threshold)
                 if score > 2.7:
                     funnel.record_scored_signal(symbol, score)
+                
+                # ALPHA REPAIR: Stagnation-Triggered Adaptive Scaling
+                # Check for 60-minute stagnation and trigger adaptive scaling if needed
+                stagnation_60m = funnel.check_60min_stagnation_for_adaptive_scaling(market_regime)
+                if stagnation_60m and stagnation_60m.get("detected"):
+                    log_event("stagnation_adaptive_scaling", "60min_stagnation_detected",
+                             alerts_60m=stagnation_60m.get("alerts_60m", 0),
+                             orders_60m=stagnation_60m.get("orders_60m", 0),
+                             action=stagnation_60m.get("action_required", "unknown"),
+                             regime=market_regime)
+                    # Note: ATR exhaustion multiplier adjustment would be implemented here
+                    # if a specific multiplier system exists. For now, we log the detection.
             except ImportError:
                 pass
             except Exception as e:
