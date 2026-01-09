@@ -690,7 +690,19 @@ DASHBOARD_HTML = """
             const signalContent = document.getElementById('signal-review-content');
             
             fetch('/api/signal_history')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    // Check if response is actually JSON
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        return response.text().then(text => {
+                            throw new Error(`Expected JSON but got: ${text.substring(0, 100)}`);
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.error) {
                         signalContent.innerHTML = `<p class="loading" style="color: #ef4444;">Error: ${data.error}</p>`;
