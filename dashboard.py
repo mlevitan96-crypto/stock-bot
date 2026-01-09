@@ -1251,12 +1251,28 @@ DASHBOARD_HTML = """
                         // Full rebuild only when structure changes
                         let html = '<table><thead><tr>';
                         html += '<th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
-                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry Score</th></tr></thead><tbody>';
+                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry Score</th><th>Current Score</th></tr></thead><tbody>';
                         
                         data.positions.forEach(pos => {
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
                             const entryScore = pos.entry_score !== undefined && pos.entry_score !== null ? pos.entry_score.toFixed(2) : '0.00';
+                            const currentScore = pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : '0.00';
                             const scoreClass = pos.entry_score > 0 ? '' : 'warning';
+                            
+                            // Calculate signal decay for visual indicator
+                            let currentScoreClass = '';
+                            let currentScoreStyle = '';
+                            if (pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
+                                const decayRatio = pos.current_score / pos.entry_score;
+                                if (decayRatio < 0.6) {
+                                    currentScoreClass = 'warning';
+                                    currentScoreStyle = 'color: #ef4444; font-weight: bold;';
+                                } else if (decayRatio < 0.8) {
+                                    currentScoreClass = 'warning';
+                                    currentScoreStyle = 'color: #f59e0b;';
+                                }
+                            }
+                            
                             html += '<tr data-symbol="' + pos.symbol + '">';
                             html += '<td class="symbol">' + pos.symbol + '</td>';
                             html += '<td><span class="side ' + pos.side + '">' + pos.side.toUpperCase() + '</span></td>';
@@ -1267,6 +1283,7 @@ DASHBOARD_HTML = """
                             html += '<td class="' + pnlClass + '">' + formatCurrency(pos.unrealized_pnl) + '</td>';
                             html += '<td class="' + pnlClass + '">' + formatPercent(pos.unrealized_pnl_pct) + '</td>';
                             html += '<td class="' + scoreClass + '" style="' + (pos.entry_score === 0 ? 'color: #ef4444; font-weight: bold;' : '') + '">' + entryScore + '</td>';
+                            html += '<td class="' + currentScoreClass + '" style="' + currentScoreStyle + '">' + currentScore + '</td>';
                             html += '</tr>';
                         });
                         
@@ -1283,7 +1300,7 @@ DASHBOARD_HTML = """
                             const cells = row.querySelectorAll('td');
                             
                             // Only update cells that changed (skip symbol, side as they don't change)
-                            if (cells.length >= 9) {
+                            if (cells.length >= 10) {
                                 cells[2].textContent = pos.qty;
                                 cells[3].textContent = formatCurrency(pos.avg_entry_price);
                                 cells[4].textContent = formatCurrency(pos.current_price);
@@ -1300,6 +1317,26 @@ DASHBOARD_HTML = """
                                 } else {
                                     cells[8].style.color = '';
                                     cells[8].style.fontWeight = '';
+                                }
+                                // Update current score
+                                const currentScore = pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : '0.00';
+                                cells[9].textContent = currentScore;
+                                // Color code based on signal decay
+                                if (pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
+                                    const decayRatio = pos.current_score / pos.entry_score;
+                                    if (decayRatio < 0.6) {
+                                        cells[9].style.color = '#ef4444';
+                                        cells[9].style.fontWeight = 'bold';
+                                    } else if (decayRatio < 0.8) {
+                                        cells[9].style.color = '#f59e0b';
+                                        cells[9].style.fontWeight = '';
+                                    } else {
+                                        cells[9].style.color = '';
+                                        cells[9].style.fontWeight = '';
+                                    }
+                                } else {
+                                    cells[9].style.color = '';
+                                    cells[9].style.fontWeight = '';
                                 }
                             }
                         });
@@ -1804,11 +1841,45 @@ def api_positions():
         except Exception as e:
             print(f"[Dashboard] Warning: Failed to load position metadata: {e}", flush=True)
         
+        # Load UW cache for current score calculation
+        uw_cache = {}
+        current_regime = "mixed"
+        try:
+            from uw_enrichment_v2 import read_uw_cache
+            uw_cache = read_uw_cache()
+            
+            # Get current regime
+            try:
+                from config.registry import StateFiles
+                regime_file = StateFiles.REGIME_DETECTOR
+                if regime_file.exists():
+                    regime_data = json.loads(regime_file.read_text())
+                    if isinstance(regime_data, dict):
+                        current_regime = regime_data.get("current_regime") or regime_data.get("regime") or "mixed"
+            except:
+                pass
+        except Exception as e:
+            print(f"[Dashboard] Warning: Failed to load UW cache for current scores: {e}", flush=True)
+        
         pos_list = []
         for p in positions:
             symbol = p.symbol
             # Get entry_score from metadata (default to 0.0 if missing - dashboard will highlight)
             entry_score = metadata.get(symbol, {}).get("entry_score", 0.0) if metadata else 0.0
+            
+            # Calculate current composite score (same logic as exit evaluation)
+            current_score = 0.0
+            try:
+                if uw_cache and symbol in uw_cache:
+                    enriched = uw_cache.get(symbol, {})
+                    if enriched:
+                        import uw_composite_v2 as uw_v2
+                        composite = uw_v2.compute_composite_score_v3(symbol, enriched, current_regime)
+                        if composite:
+                            current_score = composite.get("score", 0.0)
+            except Exception as e:
+                # Fail silently - don't break dashboard if score calculation fails
+                print(f"[Dashboard] Warning: Failed to compute current score for {symbol}: {e}", flush=True)
             
             pos_list.append({
                 "symbol": symbol,
@@ -1819,7 +1890,8 @@ def api_positions():
                 "market_value": abs(float(p.market_value)),
                 "unrealized_pnl": float(p.unrealized_pl),
                 "unrealized_pnl_pct": float(p.unrealized_plpc) * 100,
-                "entry_score": float(entry_score)  # CRITICAL: Include entry_score from metadata
+                "entry_score": float(entry_score),  # CRITICAL: Include entry_score from metadata
+                "current_score": float(current_score)  # Current composite score
             })
         
         return jsonify({
