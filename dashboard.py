@@ -166,11 +166,12 @@ DASHBOARD_HTML = """
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
-            <p class="update-info">Auto-refresh: 60 seconds | Last update: <span id="last-update">-</span></p>
+            <p class="update-info">Auto-refresh: 60 seconds | Last update: <span id="last-update">-</span> | Last Signal: <span id="last-signal">-</span></p>
         </div>
         
         <div class="tabs">
             <button class="tab active" onclick="switchTab('positions', event)">📊 Positions</button>
+            <button class="tab" onclick="switchTab('signal_review', event)">🔍 Signal Review</button>
             <button class="tab" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
             <button class="tab" onclick="switchTab('executive', event)">📈 Executive Summary</button>
             <button class="tab" onclick="switchTab('xai', event)">🧠 Natural Language Auditor</button>
@@ -236,6 +237,15 @@ DASHBOARD_HTML = """
                 <div class="loading">Loading Trading Readiness...</div>
             </div>
         </div>
+        
+        <div id="signal_review-tab" class="tab-content">
+            <div class="positions-table">
+                <h2 style="margin-bottom: 15px;">Signal Review - Last 50 Processing Events</h2>
+                <div id="signal-review-content">
+                    <p class="loading">Loading signal history...</p>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -278,6 +288,8 @@ DASHBOARD_HTML = """
                 loadXAIAuditor();
             } else if (tabName === 'failure_points') {
                 loadFailurePoints();
+            } else if (tabName === 'signal_review') {
+                loadSignalReview();
             } else if (tabName === 'positions') {
                 // Refresh positions when switching back
                 updateDashboard();
@@ -632,6 +644,124 @@ DASHBOARD_HTML = """
                 loadFailurePoints();
             }
         }, 30000);  // Refresh every 30 seconds
+        
+        // Auto-refresh Signal Review if on signal_review tab
+        setInterval(() => {
+            const signalTab = document.getElementById('signal_review-tab');
+            if (signalTab && signalTab.classList.contains('active')) {
+                loadSignalReview();
+            }
+        }, 30000);  // Refresh every 30 seconds
+        
+        function updateLastSignalTimestamp() {
+            fetch('/api/signal_history')
+                .then(response => response.json())
+                .then(data => {
+                    const lastSignalEl = document.getElementById('last-signal');
+                    if (data.last_signal_timestamp) {
+                        try {
+                            const signalDate = new Date(data.last_signal_timestamp);
+                            const now = new Date();
+                            const ageSeconds = Math.floor((now - signalDate) / 1000);
+                            if (ageSeconds < 60) {
+                                lastSignalEl.textContent = `${ageSeconds}s ago`;
+                                lastSignalEl.style.color = '#10b981';
+                            } else if (ageSeconds < 300) {
+                                lastSignalEl.textContent = `${Math.floor(ageSeconds / 60)}m ago`;
+                                lastSignalEl.style.color = '#f59e0b';
+                            } else {
+                                lastSignalEl.textContent = `${Math.floor(ageSeconds / 3600)}h ago`;
+                                lastSignalEl.style.color = '#ef4444';
+                            }
+                        } catch (e) {
+                            lastSignalEl.textContent = 'Unknown';
+                        }
+                    } else {
+                        lastSignalEl.textContent = 'Never';
+                        lastSignalEl.style.color = '#ef4444';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('last-signal').textContent = 'Error';
+                });
+        }
+        
+        function loadSignalReview() {
+            const signalContent = document.getElementById('signal-review-content');
+            
+            fetch('/api/signal_history')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        signalContent.innerHTML = `<p class="loading" style="color: #ef4444;">Error: ${data.error}</p>`;
+                        return;
+                    }
+                    
+                    const signals = data.signals || [];
+                    
+                    if (signals.length === 0) {
+                        signalContent.innerHTML = '<p class="no-positions">No signal history available</p>';
+                        return;
+                    }
+                    
+                    // Build table HTML
+                    let html = '<table><thead><tr>';
+                    html += '<th>Ticker</th>';
+                    html += '<th>Direction</th>';
+                    html += '<th>Raw Score</th>';
+                    html += '<th>Whale Boost</th>';
+                    html += '<th>Final Score</th>';
+                    html += '<th>ATR Mult</th>';
+                    html += '<th>Momentum %</th>';
+                    html += '<th>Momentum Req %</th>';
+                    html += '<th>Decision</th>';
+                    html += '</tr></thead><tbody>';
+                    
+                    signals.forEach(signal => {
+                        const symbol = signal.symbol || 'N/A';
+                        const direction = signal.direction || 'unknown';
+                        const rawScore = (signal.raw_score !== undefined && signal.raw_score !== null) ? signal.raw_score.toFixed(2) : '0.00';
+                        const whaleBoost = (signal.whale_boost !== undefined && signal.whale_boost !== null) ? signal.whale_boost.toFixed(2) : '0.00';
+                        const finalScore = (signal.final_score !== undefined && signal.final_score !== null) ? signal.final_score.toFixed(2) : '0.00';
+                        const atrMult = (signal.atr_multiplier !== undefined && signal.atr_multiplier !== null) ? signal.atr_multiplier.toFixed(2) : 'N/A';
+                        const momentumPct = (signal.momentum_pct !== undefined && signal.momentum_pct !== null) ? signal.momentum_pct.toFixed(4) : '0.0000';
+                        const momentumReqPct = (signal.momentum_required_pct !== undefined && signal.momentum_required_pct !== null) ? signal.momentum_required_pct.toFixed(4) : '0.0000';
+                        const decision = signal.decision || 'Unknown';
+                        
+                        // Color code decision
+                        let decisionClass = '';
+                        let decisionStyle = '';
+                        if (decision === 'Ordered') {
+                            decisionClass = 'positive';
+                            decisionStyle = 'color: #10b981; font-weight: bold;';
+                        } else if (decision.startsWith('Blocked:')) {
+                            decisionClass = 'warning';
+                            decisionStyle = 'color: #f59e0b;';
+                        } else if (decision.startsWith('Rejected:')) {
+                            decisionClass = 'negative';
+                            decisionStyle = 'color: #ef4444;';
+                        }
+                        
+                        html += '<tr>';
+                        html += `<td class="symbol">${symbol}</td>`;
+                        html += `<td><span class="side ${direction === 'bullish' ? 'long' : 'short'}">${direction}</span></td>`;
+                        html += `<td>${rawScore}</td>`;
+                        html += `<td>${whaleBoost !== '0.00' ? '+' + whaleBoost : whaleBoost}</td>`;
+                        html += `<td>${finalScore}</td>`;
+                        html += `<td>${atrMult}</td>`;
+                        html += `<td>${momentumPct}%</td>`;
+                        html += `<td>${momentumReqPct}%</td>`;
+                        html += `<td class="${decisionClass}" style="${decisionStyle}">${decision}</td>`;
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table>';
+                    signalContent.innerHTML = html;
+                })
+                .catch(error => {
+                    signalContent.innerHTML = `<p class="loading" style="color: #ef4444;">Error loading signal history: ${error.message}</p>`;
+                });
+        }
         
         function loadFailurePoints() {
             const fpContent = document.getElementById('failure_points-content');
@@ -1441,8 +1571,10 @@ DASHBOARD_HTML = """
         }
         
         updateDashboard();
+        updateLastSignalTimestamp();  // Initial load
         // Refresh less frequently to reduce flicker and improve UX
         setInterval(updateDashboard, 60000);  // 60 seconds instead of 10
+        setInterval(updateLastSignalTimestamp, 30000);  // Update last signal every 30 seconds
     </script>
 </body>
 </html>
@@ -2961,6 +3093,35 @@ def api_failure_points():
             "readiness": "UNKNOWN",
             "critical_count": 0,
             "warning_count": 0
+        }), 500
+
+@app.route("/api/signal_history", methods=["GET"])
+def api_signal_history():
+    """Get the last 50 signal processing events for Signal Review tab"""
+    try:
+        from signal_history_storage import get_signal_history, get_last_signal_timestamp
+        
+        signals = get_signal_history(limit=50)
+        last_signal_ts = get_last_signal_timestamp()
+        
+        return jsonify({
+            "signals": signals,
+            "last_signal_timestamp": last_signal_ts,
+            "count": len(signals)
+        }), 200
+    except ImportError:
+        return jsonify({
+            "signals": [],
+            "last_signal_timestamp": "",
+            "count": 0,
+            "error": "signal_history_storage module not available"
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "signals": [],
+            "last_signal_timestamp": "",
+            "count": 0,
+            "error": str(e)
         }), 500
 
 if __name__ == "__main__":

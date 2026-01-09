@@ -612,6 +612,43 @@ def build_client_order_id(symbol: str, side: str, cluster: dict, suffix: str = "
     base = f"uwbot-{symbol}-{side}-{start_ts}"
     return f"{base}-{suffix}" if suffix else base
 
+def log_signal_to_history(symbol: str, direction: str, raw_score: float, whale_boost: float,
+                          final_score: float, atr_multiplier: float, momentum_pct: float,
+                          momentum_required_pct: float, decision: str, metadata: dict = None):
+    """
+    Log signal processing event to signal history for dashboard display.
+    
+    Args:
+        symbol: Stock symbol
+        direction: bullish/bearish
+        raw_score: Score before whale boost
+        whale_boost: Whale conviction boost applied (+0.5 if whale detected)
+        final_score: Final score (raw_score + whale_boost)
+        atr_multiplier: ATR multiplier used (if applicable)
+        momentum_pct: Actual price change %
+        momentum_required_pct: Required threshold %
+        decision: "Ordered" or "Blocked:reason" or "Rejected:reason"
+        metadata: Additional context dict
+    """
+    try:
+        from signal_history_storage import append_signal_history
+        append_signal_history({
+            "symbol": symbol,
+            "direction": direction,
+            "raw_score": round(raw_score, 3),
+            "whale_boost": round(whale_boost, 3),
+            "final_score": round(final_score, 3),
+            "atr_multiplier": round(atr_multiplier, 3) if atr_multiplier else None,
+            "momentum_pct": round(momentum_pct * 100, 4) if momentum_pct else 0.0,  # Convert to percentage
+            "momentum_required_pct": round(momentum_required_pct * 100, 4) if momentum_required_pct else 0.0,
+            "decision": decision,
+            "metadata": metadata or {}
+        })
+    except ImportError:
+        pass  # Signal history module not available
+    except Exception:
+        pass  # Fail silently - don't break trading
+
 def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = None, 
                       direction: str = None, decision_price: float = None, 
                       components: dict = None, **kw):
@@ -5032,6 +5069,19 @@ class StrategyEngine:
             
             if Config.ENABLE_REGIME_GATING and not regime_gate_ticker(prof, market_regime):
                 log_event("gate", "regime_blocked", symbol=symbol, regime=market_regime, gate_type="regime_gate", signal_type=c.get("signal_type", "UNKNOWN"))
+                # SIGNAL HISTORY: Log blocked signal
+                log_signal_to_history(
+                    symbol=symbol,
+                    direction=direction,
+                    raw_score=raw_score,
+                    whale_boost=whale_boost,
+                    final_score=final_score,
+                    atr_multiplier=0.0,
+                    momentum_pct=0.0,
+                    momentum_required_pct=0.0,
+                    decision="Blocked: regime_gate",
+                    metadata={"regime": market_regime}
+                )
                 continue
             
             # V4.0: PORTFOLIO CONCENTRATION GATE - Block bullish entries if >70% long-delta
@@ -5047,6 +5097,19 @@ class StrategyEngine:
                                  decision_price=ref_price_check if 'ref_price_check' in locals() else 0.0,
                                  components=comps if 'comps' in locals() else {},
                                  net_delta_pct=net_delta_pct)
+                # SIGNAL HISTORY: Log blocked signal
+                log_signal_to_history(
+                    symbol=symbol,
+                    direction=direction,
+                    raw_score=raw_score,
+                    whale_boost=whale_boost,
+                    final_score=final_score,
+                    atr_multiplier=0.0,
+                    momentum_pct=0.0,
+                    momentum_required_pct=0.0,
+                    decision="Blocked: concentration_limit",
+                    metadata={"net_delta_pct": net_delta_pct}
+                )
                 continue
             
             if Config.ENABLE_THEME_RISK:
@@ -5056,9 +5119,38 @@ class StrategyEngine:
                     log_event("gate", "theme_exposure_blocked", symbol=symbol, theme=sym_theme, notional=violations[sym_theme], gate_type="theme_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                     continue
             
+            # Initialize signal history tracking variables
+            raw_score = score  # Will be updated if composite score is recalculated
+            whale_boost = 0.0
+            final_score = score
+            atr_multiplier = None
+            momentum_pct = 0.0
+            momentum_required_pct = 0.0
+            composite_result = None  # Will store full composite result if available
+            
             # PRIORITIZE COMPOSITE SCORE: If cluster has pre-calculated composite_score, always use it
             if "composite_score" in c and cluster_source in ("composite", "composite_v3") and score > 0.0:
                 base_score = c["composite_score"]
+                raw_score = base_score  # Track raw score before adjustments
+                
+                # Get composite_meta to extract whale_boost if available
+                composite_meta = c.get("composite_meta", {})
+                if composite_meta and isinstance(composite_meta, dict):
+                    whale_boost = composite_meta.get("whale_conviction_boost", 0.0)
+                    composite_result = composite_meta
+                else:
+                    # If composite_meta not available, try to get from enriched data by recalculating
+                    # This ensures whale_boost is captured even if composite_meta is missing
+                    try:
+                        enriched = self.uw_flow_cache.get(symbol, {})
+                        if enriched:
+                            import uw_composite_v2 as uw_v2
+                            temp_composite = uw_v2.compute_composite_score_v3(symbol, enriched, market_regime)
+                            if temp_composite:
+                                whale_boost = temp_composite.get("whale_conviction_boost", 0.0)
+                                composite_result = temp_composite
+                    except Exception:
+                        pass  # Fail silently - whale_boost will remain 0.0
                 
                 # STRUCTURAL INTELLIGENCE: Apply regime and macro multipliers
                 try:
@@ -5076,15 +5168,18 @@ class StrategyEngine:
                     
                     # Apply multipliers to composite score
                     score = base_score * regime_mult * macro_mult
+                    final_score = score  # Final score after all adjustments
                     
                     log_event("structural_intelligence", "composite_adjusted", 
                              symbol=symbol, base_score=base_score, regime_mult=regime_mult, 
                              macro_mult=macro_mult, final_score=score, regime=regime_name)
                 except ImportError:
                     score = base_score
+                    final_score = score
                     log_event("structural_intelligence", "import_failed", symbol=symbol)
                 except Exception as e:
                     score = base_score
+                    final_score = score
                     log_event("structural_intelligence", "error", symbol=symbol, error=str(e))
                 
                 log_event("scoring", "using_composite_score", symbol=symbol, score=score)
@@ -5346,7 +5441,26 @@ class StrategyEngine:
                         print(f"DEBUG {symbol}: Already positioned but allowing entry (score={score:.2f} >= 2.0)", flush=True)
                     else:
                         log_event("gate", "already_positioned", symbol=symbol, existing_side=existing_side, gate_type="position_gate", signal_type=c.get("signal_type", "UNKNOWN"))
+                        # SIGNAL HISTORY: Log blocked signal
+                        log_signal_to_history(
+                            symbol=symbol,
+                            direction=direction,
+                            raw_score=raw_score,
+                            whale_boost=whale_boost,
+                            final_score=final_score,
+                            atr_multiplier=atr_mult or 0.0,
+                            momentum_pct=0.0,
+                            momentum_required_pct=0.0,
+                            decision="Blocked: duplicate_signal",
+                            metadata={"existing_side": existing_side}
+                        )
                         continue
+            
+            # Capture ATR multiplier if available (for signal history)
+            if 'atr_mult' in locals() and atr_mult is not None:
+                atr_multiplier = atr_mult
+            else:
+                atr_multiplier = None
             
             # V3.2 CHECKPOINT: POST_SCORING - Expectancy Gate
             # Calculate expectancy from multiple inputs
@@ -5416,6 +5530,20 @@ class StrategyEngine:
                                   decision_price=ref_price_check,
                                   components=comps,
                                   expectancy=expectancy, stage=system_stage)
+                
+                # SIGNAL HISTORY: Log blocked signal
+                log_signal_to_history(
+                    symbol=symbol,
+                    direction=direction,
+                    raw_score=raw_score,
+                    whale_boost=whale_boost,
+                    final_score=final_score,
+                    atr_multiplier=atr_mult or 0.0,
+                    momentum_pct=momentum_pct,
+                    momentum_required_pct=momentum_required_pct,
+                    decision=f"Rejected: expectancy_gate",
+                    metadata={"expectancy": expectancy, "reason": gate_reason, "stage": system_stage}
+                )
                 continue
             
             print(f"DEBUG {symbol}: PASSED expectancy gate, checking other gates...", flush=True)
@@ -5429,6 +5557,19 @@ class StrategyEngine:
                                   decision_price=ref_price_check,
                                   components=comps,
                                   cycle_count=new_positions_this_cycle)
+                # SIGNAL HISTORY: Log blocked signal
+                log_signal_to_history(
+                    symbol=symbol,
+                    direction=direction,
+                    raw_score=raw_score,
+                    whale_boost=whale_boost,
+                    final_score=final_score,
+                    atr_multiplier=atr_multiplier or 0.0,
+                    momentum_pct=momentum_pct,
+                    momentum_required_pct=momentum_required_pct,
+                    decision="Blocked: capacity_limit",
+                    metadata={"cycle_count": new_positions_this_cycle, "max_allowed": MAX_NEW_POSITIONS_PER_CYCLE}
+                )
                 continue
             
             # Stage-aware score gate (more lenient in bootstrap for learning)
@@ -5489,6 +5630,20 @@ class StrategyEngine:
                                   components=comps,
                                   min_required=min_score,
                                   stage=system_stage)
+                
+                # SIGNAL HISTORY: Log blocked signal
+                log_signal_to_history(
+                    symbol=symbol,
+                    direction=direction,
+                    raw_score=raw_score,
+                    whale_boost=whale_boost,
+                    final_score=final_score,
+                    atr_multiplier=atr_mult or 0.0,
+                    momentum_pct=momentum_pct,
+                    momentum_required_pct=momentum_required_pct,
+                    decision=f"Blocked: score_too_low",
+                    metadata={"min_required": min_score, "stage": system_stage}
+                )
                 continue
             if not self.executor.can_open_new_position():
                 # V1.0: Attempt Opportunity Cost Displacement before blocking
@@ -5512,6 +5667,19 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           displaced_symbol=displacement_candidate["symbol"])
+                        # SIGNAL HISTORY: Log blocked signal
+                        log_signal_to_history(
+                            symbol=symbol,
+                            direction=direction,
+                            raw_score=raw_score,
+                            whale_boost=whale_boost,
+                            final_score=final_score,
+                            atr_multiplier=atr_multiplier or 0.0,
+                            momentum_pct=momentum_pct,
+                            momentum_required_pct=momentum_required_pct,
+                            decision="Blocked: displacement_failed",
+                            metadata={"displaced_symbol": displacement_candidate["symbol"]}
+                        )
                         continue
                     print(f"DEBUG {symbol}: Displacement successful! Proceeding with entry...", flush=True)
                 else:
@@ -5538,6 +5706,19 @@ class StrategyEngine:
                                       alpaca_positions=actual_positions,
                                       executor_opens=len(self.executor.opens),
                                       max_positions=Config.MAX_CONCURRENT_POSITIONS)
+                    # SIGNAL HISTORY: Log blocked signal
+                    log_signal_to_history(
+                        symbol=symbol,
+                        direction=direction,
+                        raw_score=raw_score,
+                        whale_boost=whale_boost,
+                        final_score=final_score,
+                        atr_multiplier=atr_multiplier or 0.0,
+                        momentum_pct=momentum_pct,
+                        momentum_required_pct=momentum_required_pct,
+                        decision="Blocked: capacity_limit",
+                        metadata={"alpaca_positions": actual_positions, "max": Config.MAX_CONCURRENT_POSITIONS}
+                    )
                     continue
             if not self.executor.can_open_symbol(symbol):
                 print(f"DEBUG {symbol}: BLOCKED by symbol_on_cooldown", flush=True)
@@ -5546,6 +5727,19 @@ class StrategyEngine:
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
                                   components=comps)
+                # SIGNAL HISTORY: Log blocked signal
+                log_signal_to_history(
+                    symbol=symbol,
+                    direction=direction,
+                    raw_score=raw_score,
+                    whale_boost=whale_boost,
+                    final_score=final_score,
+                    atr_multiplier=atr_mult or 0.0,
+                    momentum_pct=0.0,
+                    momentum_required_pct=0.0,
+                    decision="Blocked: duplicate_signal",
+                    metadata={"reason": "symbol_on_cooldown"}
+                )
                 continue
             
             # RISK MANAGEMENT: Check exposure limits before placing order
@@ -5583,6 +5777,19 @@ class StrategyEngine:
                                              direction=c.get("direction"),
                                              decision_price=ref_price_check,
                                              components=comps, reason=symbol_reason)
+                            # SIGNAL HISTORY: Log blocked signal
+                            log_signal_to_history(
+                                symbol=symbol,
+                                direction=direction,
+                                raw_score=raw_score,
+                                whale_boost=whale_boost,
+                                final_score=final_score,
+                                atr_multiplier=atr_multiplier or 0.0,
+                                momentum_pct=momentum_pct,
+                                momentum_required_pct=momentum_required_pct,
+                                decision="Blocked: exposure_limit",
+                                metadata={"reason": symbol_reason}
+                            )
                             continue
                     
                     sector_safe, sector_reason = check_sector_exposure(current_positions, account_equity)
@@ -5593,6 +5800,19 @@ class StrategyEngine:
                                          direction=c.get("direction"),
                                          decision_price=ref_price_check,
                                          components=comps, reason=sector_reason)
+                        # SIGNAL HISTORY: Log blocked signal
+                        log_signal_to_history(
+                            symbol=symbol,
+                            direction=direction,
+                            raw_score=raw_score,
+                            whale_boost=whale_boost,
+                            final_score=final_score,
+                            atr_multiplier=atr_multiplier or 0.0,
+                            momentum_pct=momentum_pct,
+                            momentum_required_pct=momentum_required_pct,
+                            decision="Blocked: exposure_limit",
+                            metadata={"reason": sector_reason}
+                        )
                         continue
             except ImportError:
                 # Risk management not available - continue without exposure checks
@@ -5617,6 +5837,10 @@ class StrategyEngine:
                     market_regime=market_regime  # Pass regime for dynamic scaling
                 )
                 
+                # Capture momentum check results for signal history
+                momentum_pct = momentum_check.get("price_change_pct", 0.0)
+                momentum_required_pct = momentum_check.get("threshold_used", 0.0)
+                
                 # TEMPORARILY BYPASS: Allow trades if score >= 1.5 even without momentum
                 # This prevents momentum filter from blocking all trades during low volatility
                 if not momentum_check.get("passed", True):
@@ -5638,6 +5862,20 @@ class StrategyEngine:
                                           components=comps,
                                           price_change_pct=momentum_check.get("price_change_pct", 0.0),
                                           reason=block_reason)
+                        
+                        # SIGNAL HISTORY: Log blocked signal
+                        log_signal_to_history(
+                            symbol=symbol,
+                            direction=c.get("direction", "unknown"),
+                            raw_score=raw_score,
+                            whale_boost=whale_boost,
+                            final_score=final_score,
+                            atr_multiplier=atr_mult or 0.0,
+                            momentum_pct=momentum_pct,
+                            momentum_required_pct=momentum_required_pct,
+                            decision=f"Blocked: momentum_fail",
+                            metadata={"reason": block_reason, "ignition_status": ignition_status}
+                        )
                         
                         # LOGIC STAGNATION DETECTOR: Record momentum block
                         try:
@@ -5707,6 +5945,19 @@ class StrategyEngine:
                                      direction=c.get("direction"),
                                      decision_price=ref_price_check,
                                      components=comps, validation_error=order_error)
+                    # SIGNAL HISTORY: Log blocked signal
+                    log_signal_to_history(
+                        symbol=symbol,
+                        direction=direction,
+                        raw_score=raw_score,
+                        whale_boost=whale_boost,
+                        final_score=final_score,
+                        atr_multiplier=atr_multiplier or 0.0,
+                        momentum_pct=momentum_pct,
+                        momentum_required_pct=momentum_required_pct,
+                        decision=f"Rejected: {order_error}",
+                        metadata={"validation_error": order_error}
+                    )
                     continue
             except ImportError:
                 # Risk management not available - continue without validation
@@ -5819,6 +6070,19 @@ class StrategyEngine:
                                       direction=c.get("direction"),
                                       decision_price=ref_price_check,
                                       components=comps)
+                    # SIGNAL HISTORY: Log blocked signal
+                    log_signal_to_history(
+                        symbol=symbol,
+                        direction=direction,
+                        raw_score=raw_score,
+                        whale_boost=whale_boost,
+                        final_score=final_score,
+                        atr_multiplier=atr_multiplier or 0.0,
+                        momentum_pct=momentum_pct,
+                        momentum_required_pct=momentum_required_pct,
+                        decision="Rejected: long_only_mode",
+                        metadata={"side": side}
+                    )
                     continue
 
                 print(f"DEBUG {symbol}: Building client_order_id_base...", flush=True)
@@ -5915,6 +6179,19 @@ class StrategyEngine:
                     print(f"DEBUG {symbol}: Order REJECTED - submission failed with status={entry_status}", flush=True)
                     log_event("order", "entry_submission_failed", symbol=symbol, side=side, status=entry_status,
                               client_order_id=client_order_id_base, requested_qty=qty)
+                    # SIGNAL HISTORY: Log rejected signal
+                    log_signal_to_history(
+                        symbol=symbol,
+                        direction=direction,
+                        raw_score=raw_score,
+                        whale_boost=whale_boost,
+                        final_score=final_score,
+                        atr_multiplier=atr_multiplier or 0.0,
+                        momentum_pct=momentum_pct,
+                        momentum_required_pct=momentum_required_pct,
+                        decision=f"Rejected: {entry_status}",
+                        metadata={"entry_status": entry_status, "client_order_id": client_order_id_base}
+                    )
                     continue
                 
                 # Order was successfully submitted (may or may not be filled yet)
@@ -5924,6 +6201,26 @@ class StrategyEngine:
                     print(f"DEBUG {symbol}: Order SUBMITTED (not yet filled) - status={entry_status}, will be tracked by reconciliation", flush=True)
                     # For submitted but unfilled orders, reconciliation will handle them
                     # We still process them but don't mark as open until filled
+                
+                # SIGNAL HISTORY: Log ordered signal (both filled and submitted)
+                log_signal_to_history(
+                    symbol=symbol,
+                    direction=direction,
+                    raw_score=raw_score,
+                    whale_boost=whale_boost,
+                    final_score=final_score,
+                    atr_multiplier=atr_mult or 0.0,
+                    momentum_pct=momentum_pct,
+                    momentum_required_pct=momentum_required_pct,
+                    decision="Ordered",
+                    metadata={
+                        "entry_status": entry_status,
+                        "filled_qty": filled_qty,
+                        "fill_price": fill_price,
+                        "qty": qty,
+                        "ignition_status": ignition_status if 'ignition_status' in locals() else "unknown"
+                    }
+                )
 
                 # CRITICAL FIX: Handle both filled and submitted orders
                 if entry_status == "filled" and filled_qty > 0:
