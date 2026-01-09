@@ -3148,51 +3148,51 @@ def api_failure_points():
             "warning_count": 0
         }), 500
 
-    @app.route("/api/signal_history", methods=["GET"])
-    def api_signal_history():
-        """Get the last 50 signal processing events for Signal Review tab"""
+@app.route("/api/signal_history", methods=["GET"])
+def api_signal_history():
+    """Get the last 50 signal processing events for Signal Review tab"""
+    try:
+        from signal_history_storage import get_signal_history, get_last_signal_timestamp
+        from shadow_tracker import get_shadow_tracker
+        
+        signals = get_signal_history(limit=50)
+        last_signal_ts = get_last_signal_timestamp()
+        
+        # Update virtual P&L from shadow positions
         try:
-            from signal_history_storage import get_signal_history, get_last_signal_timestamp
-            from shadow_tracker import get_shadow_tracker
-            
-            signals = get_signal_history(limit=50)
-            last_signal_ts = get_last_signal_timestamp()
-            
-            # Update virtual P&L from shadow positions
-            try:
-                shadow_tracker = get_shadow_tracker()
-                for signal in signals:
-                    symbol = signal.get("symbol")
-                    if symbol and signal.get("shadow_created"):
-                        shadow_pos = shadow_tracker.get_position(symbol)
-                        if shadow_pos:
-                            # Update virtual P&L with current max profit
-                            signal["virtual_pnl"] = shadow_pos.max_profit_pct
-                            if shadow_pos.closed:
-                                signal["shadow_closed"] = True
-                                signal["shadow_close_reason"] = shadow_pos.close_reason
-            except Exception:
-                pass  # Fail silently if shadow tracker unavailable
-            
-            return jsonify({
-                "signals": signals,
-                "last_signal_timestamp": last_signal_ts,
-                "count": len(signals)
-            }), 200
-        except ImportError:
-            return jsonify({
-                "signals": [],
-                "last_signal_timestamp": "",
-                "count": 0,
-                "error": "signal_history_storage module not available"
-            }), 200
-        except Exception as e:
-            return jsonify({
-                "signals": [],
-                "last_signal_timestamp": "",
-                "count": 0,
-                "error": str(e)
-            }), 500
+            shadow_tracker = get_shadow_tracker()
+            for signal in signals:
+                symbol = signal.get("symbol")
+                if symbol and signal.get("shadow_created"):
+                    shadow_pos = shadow_tracker.get_position(symbol)
+                    if shadow_pos:
+                        # Update virtual P&L with current max profit
+                        signal["virtual_pnl"] = shadow_pos.max_profit_pct
+                        if shadow_pos.closed:
+                            signal["shadow_closed"] = True
+                            signal["shadow_close_reason"] = shadow_pos.close_reason
+        except Exception:
+            pass  # Fail silently if shadow tracker unavailable
+        
+        return jsonify({
+            "signals": signals,
+            "last_signal_timestamp": last_signal_ts,
+            "count": len(signals)
+        }), 200
+    except ImportError:
+        return jsonify({
+            "signals": [],
+            "last_signal_timestamp": "",
+            "count": 0,
+            "error": "signal_history_storage module not available"
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "signals": [],
+            "last_signal_timestamp": "",
+            "count": 0,
+            "error": str(e)
+        }), 500
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
