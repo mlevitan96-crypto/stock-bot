@@ -3874,6 +3874,85 @@ class AlpacaExecutor:
             positions = self.api.list_positions()
             num_positions = len(positions)
             
+            # V5.0 ELITE TIER DISPLACEMENT (EOW Forensic Optimization): If new signal > 3.6 and capacity_limit hit
+            # MANDATED: Displace any position with score < 3.0 OR P&L < -0.5%
+            if num_positions >= Config.MAX_CONCURRENT_POSITIONS and new_signal_score > 3.6:
+                # Find eligible positions for displacement (score < 3.0 OR P&L < -0.5%)
+                eligible_positions = []
+                
+                metadata_path = StateFiles.POSITION_METADATA
+                try:
+                    metadata = load_metadata_with_lock(metadata_path) if metadata_path.exists() else {}
+                except Exception:
+                    metadata = {}
+                
+                # Get current scores and P&L for all positions
+                for pos in positions:
+                    symbol = getattr(pos, "symbol", "")
+                    if not symbol or symbol == new_symbol:
+                        continue
+                    
+                    # Get current score for this position
+                    pos_meta = metadata.get(symbol, {})
+                    entry_score = pos_meta.get("entry_score", 0.0)
+                    current_score = pos_meta.get("current_score", entry_score)
+                    
+                    # If current_score not available, compute it from cache
+                    if current_score == 0.0 or current_score == entry_score:
+                        try:
+                            from config.registry import CacheFiles, read_json
+                            uw_cache = read_json(CacheFiles.UW_FLOW_CACHE, default={})
+                            if symbol in uw_cache:
+                                enriched = uw_cache.get(symbol, {})
+                                if enriched:
+                                    import uw_composite_v2 as uw_v2
+                                    composite = uw_v2.compute_composite_score_v3(symbol, enriched, "mixed")
+                                    if composite:
+                                        current_score = composite.get("score", entry_score)
+                        except Exception:
+                            pass  # Use entry score as fallback
+                    
+                    # Calculate P&L
+                    entry_price = float(getattr(pos, "avg_entry_price", 0))
+                    current_price = float(getattr(pos, "current_price", 0))
+                    if entry_price > 0 and current_price > 0:
+                        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+                    else:
+                        pnl_pct = 0.0
+                    
+                    # Check if eligible for elite tier displacement
+                    if current_score < 3.0 or pnl_pct < -0.5:
+                        eligible_positions.append({
+                            "symbol": symbol,
+                            "current_score": current_score,
+                            "entry_score": entry_score,
+                            "entry_price": entry_price,
+                            "current_price": current_price,
+                            "pnl_pct": pnl_pct,
+                            "new_signal_score": new_signal_score,
+                            "score_delta": new_signal_score - current_score,
+                            "displacement_reason": "score_too_low" if current_score < 3.0 else "negative_pnl"
+                        })
+                
+                # If we have eligible positions, pick the worst one (lowest score, then worst P&L)
+                if eligible_positions:
+                    # Sort by: lowest score first, then worst P&L
+                    eligible_positions.sort(key=lambda x: (x["current_score"], x["pnl_pct"]))
+                    worst_pos = eligible_positions[0]
+                    worst_pos["reason"] = "elite_tier_displacement"
+                    
+                    # Log Elite Displacement Event for SRE monitoring
+                    log_event("displacement", "elite_tier_displacement_triggered",
+                             symbol=worst_pos["symbol"],
+                             current_score=worst_pos["current_score"],
+                             pnl_pct=worst_pos["pnl_pct"],
+                             new_signal_score=new_signal_score,
+                             displacement_reason=worst_pos["displacement_reason"],
+                             positions_count=num_positions,
+                             event_type="Elite_Displacement_Event")
+                    
+                    return worst_pos
+            
             # V4.0 COMPETITIVE DISPLACEMENT: If new signal > 4.0 and portfolio full
             if num_positions >= Config.MAX_CONCURRENT_POSITIONS and new_signal_score > 4.0:
                 # Find position with LOWEST current score
@@ -7322,6 +7401,61 @@ def run_once():
                     pass  # Persistence tracker not available
                 except Exception as e:
                     print(f"DEBUG: Persistence check failed for {ticker}: {e}", flush=True)
+                
+                # EOW FORENSIC OPTIMIZATION: Alpha Signature Boosters
+                # Leverage 'Hidden Factors' discovered in virtual winners from audit
+                alpha_boost_total = 0.0
+                alpha_boosters_applied = []
+                try:
+                    # Capture alpha signature for boosters
+                    if hasattr(engine, 'executor') and hasattr(engine.executor, 'api'):
+                        from alpha_signature_capture import capture_alpha_signature
+                        from config.registry import CacheFiles, read_json
+                        uw_cache_for_alpha = read_json(CacheFiles.UW_FLOW_CACHE, default={})
+                        alpha_signature = capture_alpha_signature(engine.executor.api, ticker, uw_cache_for_alpha)
+                        
+                        # 1. RVOL > 3.0 → Score += 0.4
+                        rvol = alpha_signature.get("rvol")
+                        if rvol and rvol > 3.0:
+                            alpha_boost_total += 0.4
+                            alpha_boosters_applied.append(f"RVOL_{rvol:.2f}")
+                            print(f"DEBUG: Alpha booster RVOL > 3.0: +0.4 applied to {ticker} (RVOL={rvol:.2f})", flush=True)
+                        
+                        # 2. Sector Tide Count > 3 → Score += 0.3 (ensure minimum, may already be applied)
+                        sector_tide_count_actual = sector_tide_info.get("count", 0) if sector_tide_info else 0
+                        if sector_tide_count_actual > 3:
+                            # Don't double-count if already applied, but ensure minimum 0.3
+                            if sector_tide_boost < 0.3:
+                                additional_boost = 0.3 - sector_tide_boost
+                                alpha_boost_total += additional_boost
+                                alpha_boosters_applied.append(f"SectorTide_{sector_tide_count_actual}")
+                                print(f"DEBUG: Alpha booster Sector Tide > 3: +{additional_boost:.2f} applied to {ticker} (count={sector_tide_count_actual})", flush=True)
+                            else:
+                                alpha_boosters_applied.append(f"SectorTide_{sector_tide_count_actual}_already_applied")
+                        
+                        # 3. Persistence Count > 5 → Score += 0.3 (ensure minimum, may already be applied)
+                        persistence_count_actual = persistence_info.get("count", 0) if persistence_info else 0
+                        if persistence_count_actual > 5:
+                            # If persistence boost already applied, check if it's >= 0.3
+                            if persistence_boost < 0.3:
+                                additional_boost = 0.3 - persistence_boost
+                                alpha_boost_total += additional_boost
+                                alpha_boosters_applied.append(f"Persistence_{persistence_count_actual}")
+                                print(f"DEBUG: Alpha booster Persistence > 5: +{additional_boost:.2f} applied to {ticker} (count={persistence_count_actual})", flush=True)
+                            else:
+                                alpha_boosters_applied.append(f"Persistence_{persistence_count_actual}_already_applied")
+                        
+                        # Apply total alpha boost
+                        if alpha_boost_total > 0:
+                            original_score = composite.get("score", 0.0)
+                            composite["score"] = original_score + alpha_boost_total
+                            composite["alpha_signature_boost"] = alpha_boost_total
+                            composite["alpha_boosters_applied"] = alpha_boosters_applied
+                            print(f"DEBUG: Alpha Signature Boosters applied to {ticker}: +{alpha_boost_total:.2f} (total score: {original_score:.2f} → {composite['score']:.2f})", flush=True)
+                except ImportError:
+                    pass  # Alpha signature capture not available
+                except Exception as e:
+                    print(f"DEBUG: Alpha signature boosters failed for {ticker}: {e}", flush=True)
                 
                 # Use V2 should_enter (hierarchical thresholds) with V3.0 exhaustion check
                 # Pass api for exhaustion filter (EMA/ATR check)

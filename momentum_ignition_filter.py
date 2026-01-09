@@ -287,11 +287,13 @@ class MomentumIgnitionFilter:
                 atr_value = compute_atr(minimal_api, symbol, lookback=14)
                 
                 if atr_value > 0 and current_price > 0:
-                    # ALPHA REPAIR: threshold = (ATR / current_price) * 0.15
-                    volatility_adjusted_threshold = (atr_value / current_price) * 0.15
-                    # Ensure minimum threshold (don't go below 0.0001 = 0.01%)
-                    volatility_adjusted_threshold = max(0.0001, volatility_adjusted_threshold)
-                    # Also cap at reasonable maximum (0.002 = 0.2%)
+                    # EOW FORENSIC OPTIMIZATION: Volatility-Adjusted Threshold
+                    # threshold = (ATR / Price) * 0.08, Minimum = 0.002%
+                    # This captures "slow grind" winners like AAPL that move steadily but don't spike
+                    volatility_adjusted_threshold = (atr_value / current_price) * 0.08
+                    # Minimum = 0.002% (0.00002) as per audit recommendation
+                    volatility_adjusted_threshold = max(0.00002, volatility_adjusted_threshold)
+                    # Cap at reasonable maximum (0.002 = 0.2%)
                     volatility_adjusted_threshold = min(0.002, volatility_adjusted_threshold)
             except Exception as atr_error:
                 # If ATR calculation fails, fall back to base threshold

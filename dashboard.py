@@ -204,6 +204,10 @@ DASHBOARD_HTML = """
                 <div class="stat-label">Doctor</div>
                 <div class="stat-value" id="doctor">-</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-label">Missed Alpha (USD)</div>
+                <div class="stat-value" id="missed-alpha">-</div>
+            </div>
         </div>
         
         <div class="positions-table">
@@ -1421,6 +1425,20 @@ DASHBOARD_HTML = """
                     dayPnlEl.textContent = formatCurrency(dayPnl);
                     dayPnlEl.className = 'stat-value ' + (dayPnl >= 0 ? 'positive' : 'negative');
                     
+                    // EOW FORENSIC OPTIMIZATION: Update Missed Alpha (USD)
+                    const missedAlpha = data.missed_alpha_usd || 0;
+                    const missedAlphaEl = document.getElementById('missed-alpha');
+                    if (missedAlphaEl) {
+                        missedAlphaEl.textContent = formatCurrency(missedAlpha);
+                        missedAlphaEl.className = 'stat-value ' + (missedAlpha > 0 ? 'negative' : (missedAlpha < 0 ? 'positive' : ''));
+                        // Show as negative (red) if positive profit was missed, positive (green) if losses were avoided
+                        if (missedAlpha > 0) {
+                            missedAlphaEl.style.color = '#ef4444';  // Red - profit missed
+                        } else if (missedAlpha < 0) {
+                            missedAlphaEl.style.color = '#10b981';  // Green - losses avoided
+                        }
+                    }
+                    
                     if (data.positions.length === 0) {
                         document.getElementById('positions-content').innerHTML = 
                             '<p class="no-positions">No open positions</p>';
@@ -2093,11 +2111,51 @@ def api_positions():
                 "current_score": float(current_score)  # Current composite score
             })
         
+        # EOW FORENSIC OPTIMIZATION: Calculate Missed Alpha (USD)
+        # Running total of profit from virtual trades blocked by capacity_limit
+        missed_alpha_usd = 0.0
+        try:
+            from shadow_tracker import get_shadow_tracker
+            from signal_history_storage import get_signal_history
+            from config.registry import Config
+            
+            # Get all signals blocked by capacity_limit
+            signal_history = get_signal_history(limit=500)  # Get more history
+            capacity_blocked_signals = [
+                s for s in signal_history
+                if "capacity_limit" in s.get("decision", "").lower()
+                and s.get("final_score", 0) >= 3.0
+                and s.get("shadow_created", False)
+            ]
+            
+            # Get shadow tracker
+            shadow_tracker = get_shadow_tracker()
+            
+            # Calculate total missed alpha in USD
+            base_position_size = Config.SIZE_BASE_USD  # Default $500 per position
+            for signal in capacity_blocked_signals:
+                symbol = signal.get("symbol", "")
+                virtual_pnl_pct = signal.get("virtual_pnl", 0.0)
+                
+                # Get live virtual P&L if shadow position exists
+                shadow_pos = shadow_tracker.get_position(symbol)
+                if shadow_pos:
+                    # Use max_profit_pct (best case scenario)
+                    virtual_pnl_pct = shadow_pos.max_profit_pct
+                
+                # Convert to USD: (virtual_pnl_pct / 100) * base_position_size
+                if virtual_pnl_pct is not None and virtual_pnl_pct != 0:
+                    missed_alpha_usd += (virtual_pnl_pct / 100.0) * base_position_size
+        except Exception as e:
+            print(f"[Dashboard] Warning: Failed to calculate missed alpha: {e}", flush=True)
+            missed_alpha_usd = 0.0
+        
         return jsonify({
             "positions": pos_list,
             "total_value": float(account.portfolio_value),
             "unrealized_pnl": sum(p["unrealized_pnl"] for p in pos_list),
-            "day_pnl": float(account.equity) - float(account.last_equity)
+            "day_pnl": float(account.equity) - float(account.last_equity),
+            "missed_alpha_usd": round(missed_alpha_usd, 2)  # EOW Forensic Optimization
         })
     except Exception as e:
         return jsonify({
