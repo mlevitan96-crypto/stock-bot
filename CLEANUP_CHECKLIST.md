@@ -161,19 +161,10 @@
 
 ## Phase 13: Commit Changes
 
-- [ ] Stage deletions: `git add -u` (updates tracked files)
-- [ ] Stage new archive structure: `git add archive/`
-- [ ] Review changes: `git status` and `git diff --cached`
-- [ ] Commit with descriptive message:
-  ```
-  git commit -m "Cleanup: Remove unused files and archive historical documentation
-  
-  - Deleted 7 temporary trigger files
-  - Deleted duplicate uw_integration_full.py module
-  - Deleted old patch files
-  - Archived ~200 documentation and script files
-  - See REPOSITORY_AUDIT_REPORT.md for details
-  ```
+- [x] Stage deletions: `git add -u` (updates tracked files)
+- [x] Stage new archive structure: `git add archive/`
+- [x] Stage .gitignore and CLEANUP_CHECKLIST.md updates
+- [x] Commit with descriptive message
 
 ---
 
