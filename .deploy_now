@@ -1,2 +1,0 @@
-Deploy all fixes now - run: cd ~/stock-bot && git pull origin main && bash FINAL_DEPLOYMENT_SCRIPT.sh
-

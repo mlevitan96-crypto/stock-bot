@@ -21,3 +21,17 @@ feature_store/
 .vscode/
 .idea/
 # Trigger investigation
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+*.lock
+
+# Backup files
+*.bak
+*.backup
+
+# Model/cache artifacts
+*.pkl
