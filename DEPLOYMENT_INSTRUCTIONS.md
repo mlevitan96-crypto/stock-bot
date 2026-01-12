@@ -1,42 +1,72 @@
-# Deployment Instructions - Hardened Code
+# Deploy Adaptive Weights Fix - Instructions
 
-## Quick Deploy
+**Target:** 104.236.102.57 (stock-bot)  
+**Service:** stockbot.service  
+**Fix Script:** FIX_ADAPTIVE_WEIGHTS_REDUCTION.py
+
+## Quick Deploy (Recommended)
 
 Run on droplet:
+
 ```bash
 cd /root/stock-bot
 git pull origin main
-systemctl restart trading-bot.service
-python3 check_current_status.py
+python3 FIX_ADAPTIVE_WEIGHTS_REDUCTION.py
+sudo systemctl restart stockbot
 ```
 
-## What Was Fixed
+## One-Liner from Local Machine
 
-1. ✅ **Portfolio Delta Gate** - Fixed to allow trading with 0 positions
-2. ✅ **All API calls** - Hardened with error handling
-3. ✅ **All state files** - Corruption handling + self-healing
-4. ✅ **All divisions** - Guarded against divide by zero
-5. ✅ **All type conversions** - Validated with safe defaults
-6. ✅ **All dict/list access** - Made safe with .get() and length checks
-7. ✅ **Syntax errors** - Fixed indentation issues
+```bash
+ssh alpaca "cd /root/stock-bot && git pull origin main && python3 FIX_ADAPTIVE_WEIGHTS_REDUCTION.py && sudo systemctl restart stockbot"
+```
 
-## Expected Behavior After Deployment
+## What the Fix Does
 
-- ✅ Bot should NOT be blocked by `portfolio_already_70pct_long_delta` when there are 0 positions
-- ✅ Bot should continue operating even if API calls fail
-- ✅ Bot should process signals and place orders if quality thresholds are met
-- ✅ Bot should self-heal from state file corruption
+1. **Creates Backup** - Backs up `state/signal_weights.json` before changes
+2. **Resets Multipliers** - Resets all component multipliers from 0.25x → 1.0x
+3. **Resets Beta Distributions** - Resets regime beta distributions to defaults
+4. **Preserves Structure** - Maintains weight file structure for compatibility
+
+## Expected Results
+
+**Before Fix:**
+- 19 components at 0.25x multiplier (74.4% reduction)
+- Average score: 1.232 (below 2.7 threshold)
+- 0 orders (all signals below threshold)
+
+**After Fix:**
+- All components at 1.0x multiplier (default)
+- Average score: ~4-5 (above 2.7 threshold)
+- Trades should start executing
+- Stagnation alerts should decrease
 
 ## Verification
 
-After deployment, check:
+Check weights after fix:
+
 ```bash
-# Check recent gate events - should NOT see portfolio_delta blocking with 0 positions
-tail -30 logs/gate.jsonl | grep portfolio_already_70pct_long_delta
+ssh alpaca "cd /root/stock-bot && python3 -c \"
+from uw_composite_v2 import get_weight, WEIGHTS_V3
+print('options_flow:', get_weight('options_flow', 'mixed'), '(expected: 2.4)')
+print('dark_pool:', get_weight('dark_pool', 'mixed'), '(expected: 1.3)')
+print('iv_term_skew:', get_weight('iv_term_skew', 'mixed'), '(expected: 0.6)')
+\""
+```
 
-# Check recent cycles for orders
-tail -10 logs/run.jsonl | jq -r '.clusters, .orders'
+Expected output:
+- options_flow: 2.4 ✅
+- dark_pool: 1.3 ✅ (was 0.333)
+- iv_term_skew: 0.6 ✅ (was 0.154)
 
-# Check recent orders
-tail -20 logs/orders.jsonl | jq -r '.symbol, .action'
+## Service Status
+
+Check service status:
+```bash
+ssh alpaca "sudo systemctl status stockbot"
+```
+
+Check service logs:
+```bash
+ssh alpaca "journalctl -u stockbot -n 50 --no-pager"
 ```
