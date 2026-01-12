@@ -1,0 +1,14 @@
+DEPLOY DASHBOARD NOW - Copy and paste this into your terminal:
+
+ssh alpaca "cd /root/stock-bot && git pull origin main && pkill -f 'python.*dashboard.py' && sleep 5 && systemctl restart trading-bot.service && sleep 3 && curl http://localhost:5000/health"
+
+Or run step by step:
+
+ssh alpaca
+cd /root/stock-bot
+git pull origin main
+pkill -f "python.*dashboard.py"
+sleep 5
+systemctl restart trading-bot.service
+sleep 3
+curl http://localhost:5000/health
