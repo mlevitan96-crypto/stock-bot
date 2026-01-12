@@ -29,10 +29,13 @@ start_time = time.time()
 
 REQUIRED_DIRS = ["logs", "state", "data", "config", "state/heartbeats"]
 
+# Use sys.executable to ensure we use the same Python interpreter
+PYTHON_EXEC = sys.executable
+
 SERVICES = [
     {
         "name": "dashboard",
-        "cmd": ["python", "-u", "dashboard.py"],
+        "cmd": [PYTHON_EXEC, "-u", "dashboard.py"],
         "delay": 0,
         "critical": False,  # Dashboard failure should NOT kill trading bot
         "port": 5000,
@@ -40,21 +43,21 @@ SERVICES = [
     },
     {
         "name": "uw-daemon",
-        "cmd": ["python", "uw_flow_daemon.py"],
+        "cmd": [PYTHON_EXEC, "uw_flow_daemon.py"],
         "delay": 0,
         "critical": True,
         "requires_secrets": True,  # Needs UW_API_KEY
     },
     {
         "name": "trading-bot",
-        "cmd": ["python", "main.py"],
+        "cmd": [PYTHON_EXEC, "main.py"],
         "delay": 0,
         "critical": True,
         "requires_secrets": True,  # Needs ALPACA_KEY, ALPACA_SECRET
     },
     {
         "name": "v4-research",
-        "cmd": ["python", "v4_orchestrator.py"],
+        "cmd": [PYTHON_EXEC, "v4_orchestrator.py"],
         "delay": 0,
         "critical": False,
         "requires_secrets": True,
@@ -62,7 +65,7 @@ SERVICES = [
     },
     {
         "name": "heartbeat-keeper",
-        "cmd": ["python", "heartbeat_keeper.py"],
+        "cmd": [PYTHON_EXEC, "heartbeat_keeper.py"],
         "delay": 0,
         "critical": False,
         "requires_secrets": False,
@@ -121,7 +124,12 @@ def check_secrets():
 
 def start_service(service):
     name = service["name"]
-    cmd = service["cmd"]
+    cmd = service["cmd"].copy()  # Make a copy to avoid modifying the original
+    
+    # Replace "python" with sys.executable for systemd compatibility
+    if cmd[0] == "python":
+        cmd[0] = sys.executable
+    
     log(f"Starting service {name} with command: {' '.join(cmd)}")
     
     if name in processes:
