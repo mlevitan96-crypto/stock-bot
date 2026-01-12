@@ -250,9 +250,14 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     }
     
     Returns: (component_score, notes)
+    
+    SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
+    See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
     if not congress_data:
-        return 0.0, ""
+        # Neutral default: small contribution (0.2x weight) instead of 0.0
+        w = get_weight("congress", "neutral")
+        return round(w * 0.2, 4), "congress_neutral_default"
     
     recent_count = congress_data.get("recent_count", 0)
     buys = congress_data.get("buys", 0)
@@ -300,9 +305,14 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "n
     }
     
     Returns: (component_score, notes)
+    
+    SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
+    See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
     if not shorts_data:
-        return 0.0, ""
+        # Neutral default: small contribution (0.2x weight) instead of 0.0
+        w = get_weight("shorts_squeeze", regime)
+        return round(w * 0.2, 4), "shorts_neutral_default"
     
     interest_pct = _to_num(shorts_data.get("interest_pct", 0))
     days_to_cover = _to_num(shorts_data.get("days_to_cover", 0))
@@ -361,9 +371,14 @@ def compute_institutional_component(insider_data: Dict, flow_sign: int, regime: 
     }
     
     Returns: (component_score, notes)
+    
+    SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
+    See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
     if not insider_data:
-        return 0.0, ""
+        # Neutral default: small contribution (0.2x weight) instead of 0.0
+        w = get_weight("institutional", regime)
+        return round(w * 0.2, 4), "institutional_neutral_default"
     
     net_buys = insider_data.get("net_buys", 0)
     net_sells = insider_data.get("net_sells", 0)
@@ -423,9 +438,14 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str =
     }
     
     Returns: (component_score, notes)
+    
+    SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
+    See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
     if not tide_data:
-        return 0.0, ""
+        # Neutral default: small contribution (0.2x weight) instead of 0.0
+        w = get_weight("market_tide", regime)
+        return round(w * 0.2, 4), "tide_neutral_default"
     
     call_prem = 0.0
     put_prem = 0.0
@@ -480,9 +500,14 @@ def compute_calendar_component(calendar_data: Optional[Dict], symbol: str, regim
     }
     
     Returns: (component_score, notes)
+    
+    SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
+    See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
     if not calendar_data:
-        return 0.0, ""
+        # Neutral default: small contribution (0.2x weight) instead of 0.0
+        w = get_weight("calendar_catalyst", regime)
+        return round(w * 0.2, 4), "calendar_neutral_default"
     
     notes_parts = []
     component = 0.0
@@ -549,7 +574,10 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     
     # Base flow components (from enriched_data / cache)
     flow_sent = enriched_data.get("sentiment", "NEUTRAL")
-    flow_conv = _to_num(enriched_data.get("conviction", 0.0))
+    # SCORING PIPELINE FIX (Priority 2): Default conviction to 0.5 (neutral) instead of 0.0
+    # See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
+    # This ensures primary component (weight 2.4) contributes 1.2 instead of 0.0 when conviction is missing
+    flow_conv = _to_num(enriched_data.get("conviction", 0.5))
     flow_sign = _sign_from_sentiment(flow_sent)
     
     # Dark pool
@@ -714,45 +742,57 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     
     # 16. Greeks/Gamma (squeeze detection)
     greeks_data = enriched_data.get("greeks", {})
-    # FIXED: Calculate gamma_exposure from call_gamma and put_gamma if not directly available
-    gamma_exposure = _to_num(greeks_data.get("gamma_exposure", 0))
-    if gamma_exposure == 0:
-        # Calculate from call_gamma and put_gamma (net gamma exposure)
-        call_gamma = _to_num(greeks_data.get("call_gamma", 0))
-        put_gamma = _to_num(greeks_data.get("put_gamma", 0))
-        gamma_exposure = call_gamma - put_gamma  # Net gamma exposure
-    
-    gamma_squeeze = greeks_data.get("gamma_squeeze_setup", False)
-    greeks_weight = get_weight("greeks_gamma", regime)
-    if gamma_squeeze:
-        greeks_gamma_component = greeks_weight * 1.0
-        all_notes.append("gamma_squeeze_setup")
-    elif abs(gamma_exposure) > 500000:
-        greeks_gamma_component = greeks_weight * 0.5
-    elif abs(gamma_exposure) > 100000:
-        greeks_gamma_component = greeks_weight * 0.25
-    elif abs(gamma_exposure) > 10000:  # Lower threshold for smaller contributions
-        greeks_gamma_component = greeks_weight * 0.1
+    # SCORING PIPELINE FIX (Priority 4): Provide neutral default if data missing
+    if not greeks_data:
+        greeks_weight = get_weight("greeks_gamma", regime)
+        greeks_gamma_component = greeks_weight * 0.2  # Neutral default
+        all_notes.append("greeks_neutral_default")
     else:
-        greeks_gamma_component = 0.0
+        # FIXED: Calculate gamma_exposure from call_gamma and put_gamma if not directly available
+        gamma_exposure = _to_num(greeks_data.get("gamma_exposure", 0))
+        if gamma_exposure == 0:
+            # Calculate from call_gamma and put_gamma (net gamma exposure)
+            call_gamma = _to_num(greeks_data.get("call_gamma", 0))
+            put_gamma = _to_num(greeks_data.get("put_gamma", 0))
+            gamma_exposure = call_gamma - put_gamma  # Net gamma exposure
+        
+        gamma_squeeze = greeks_data.get("gamma_squeeze_setup", False)
+        greeks_weight = get_weight("greeks_gamma", regime)
+        if gamma_squeeze:
+            greeks_gamma_component = greeks_weight * 1.0
+            all_notes.append("gamma_squeeze_setup")
+        elif abs(gamma_exposure) > 500000:
+            greeks_gamma_component = greeks_weight * 0.5
+        elif abs(gamma_exposure) > 100000:
+            greeks_gamma_component = greeks_weight * 0.25
+        elif abs(gamma_exposure) > 10000:  # Lower threshold for smaller contributions
+            greeks_gamma_component = greeks_weight * 0.1
+        else:
+            greeks_gamma_component = greeks_weight * 0.2  # Neutral default instead of 0.0
     
     # 17. FTD Pressure (squeeze signals)
     # FIXED: Check both 'ftd' and 'shorts' keys (FTD data may be in shorts)
     ftd_data = enriched_data.get("ftd", {}) or enriched_data.get("shorts", {})
-    ftd_count = _to_num(ftd_data.get("ftd_count", 0))
-    ftd_squeeze = ftd_data.get("squeeze_pressure", False) or ftd_data.get("squeeze_risk", False)
-    ftd_weight = get_weight("ftd_pressure", regime)
-    if ftd_squeeze or ftd_count > 200000:
-        ftd_pressure_component = ftd_weight * 1.0
-        all_notes.append("high_ftd_pressure")
-    elif ftd_count > 100000:
-        ftd_pressure_component = ftd_weight * 0.67
-    elif ftd_count > 50000:
-        ftd_pressure_component = ftd_weight * 0.33
-    elif ftd_count > 10000:  # FIXED: Lower threshold for smaller contributions
-        ftd_pressure_component = ftd_weight * 0.1
+    # SCORING PIPELINE FIX (Priority 4): Provide neutral default if data missing
+    if not ftd_data:
+        ftd_weight = get_weight("ftd_pressure", regime)
+        ftd_pressure_component = ftd_weight * 0.2  # Neutral default
+        all_notes.append("ftd_neutral_default")
     else:
-        ftd_pressure_component = 0.0
+        ftd_count = _to_num(ftd_data.get("ftd_count", 0))
+        ftd_squeeze = ftd_data.get("squeeze_pressure", False) or ftd_data.get("squeeze_risk", False)
+        ftd_weight = get_weight("ftd_pressure", regime)
+        if ftd_squeeze or ftd_count > 200000:
+            ftd_pressure_component = ftd_weight * 1.0
+            all_notes.append("high_ftd_pressure")
+        elif ftd_count > 100000:
+            ftd_pressure_component = ftd_weight * 0.67
+        elif ftd_count > 50000:
+            ftd_pressure_component = ftd_weight * 0.33
+        elif ftd_count > 10000:  # FIXED: Lower threshold for smaller contributions
+            ftd_pressure_component = ftd_weight * 0.1
+        else:
+            ftd_pressure_component = ftd_weight * 0.2  # Neutral default instead of 0.0
     
     # 18. IV Rank (volatility regime)
     # FIXED: Check both 'iv' and 'iv_rank' keys, and handle iv_rank_1y field
@@ -779,62 +819,80 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     # 19. OI Change (institutional positioning)
     # FIXED: Check both 'oi' and 'oi_change' keys
     oi_data = enriched_data.get("oi_change", {}) or enriched_data.get("oi", {})
-    # Calculate net_oi from available fields if net_oi_change doesn't exist
-    net_oi = _to_num(oi_data.get("net_oi_change", 0))
-    if net_oi == 0:
-        # Try to calculate from curr_oi and prev_oi or other fields
-        curr_oi = _to_num(oi_data.get("curr_oi", 0))
-        # If we have volume data, use that as proxy
-        if curr_oi == 0:
-            volume = _to_num(oi_data.get("volume", 0))
-            if volume > 0:
-                net_oi = volume * 0.1  # Estimate OI change from volume
-    
-    oi_sentiment = oi_data.get("oi_sentiment", "NEUTRAL")
-    # If sentiment not available, infer from net_oi
-    if oi_sentiment == "NEUTRAL" and net_oi != 0:
-        oi_sentiment = "BULLISH" if net_oi > 0 else "BEARISH"
-    
-    oi_weight = get_weight("oi_change", regime)
-    if net_oi > 50000 and oi_sentiment == "BULLISH" and flow_sign > 0:
-        oi_change_component = oi_weight * 1.0
-        all_notes.append("strong_call_positioning")
-    elif net_oi > 20000 and oi_sentiment == "BULLISH":
-        oi_change_component = oi_weight * 0.57
-    elif abs(net_oi) > 10000:
-        oi_change_component = oi_weight * 0.29
-    elif abs(net_oi) > 1000:  # FIXED: Lower threshold for smaller contributions
-        oi_change_component = oi_weight * 0.1
+    # SCORING PIPELINE FIX (Priority 4): Provide neutral default if data missing
+    if not oi_data:
+        oi_weight = get_weight("oi_change", regime)
+        oi_change_component = oi_weight * 0.2  # Neutral default
+        all_notes.append("oi_change_neutral_default")
     else:
-        oi_change_component = 0.0
+        # Calculate net_oi from available fields if net_oi_change doesn't exist
+        net_oi = _to_num(oi_data.get("net_oi_change", 0))
+        if net_oi == 0:
+            # Try to calculate from curr_oi and prev_oi or other fields
+            curr_oi = _to_num(oi_data.get("curr_oi", 0))
+            # If we have volume data, use that as proxy
+            if curr_oi == 0:
+                volume = _to_num(oi_data.get("volume", 0))
+                if volume > 0:
+                    net_oi = volume * 0.1  # Estimate OI change from volume
+        
+        oi_sentiment = oi_data.get("oi_sentiment", "NEUTRAL")
+        # If sentiment not available, infer from net_oi
+        if oi_sentiment == "NEUTRAL" and net_oi != 0:
+            oi_sentiment = "BULLISH" if net_oi > 0 else "BEARISH"
+        
+        oi_weight = get_weight("oi_change", regime)
+        if net_oi > 50000 and oi_sentiment == "BULLISH" and flow_sign > 0:
+            oi_change_component = oi_weight * 1.0
+            all_notes.append("strong_call_positioning")
+        elif net_oi > 20000 and oi_sentiment == "BULLISH":
+            oi_change_component = oi_weight * 0.57
+        elif abs(net_oi) > 10000:
+            oi_change_component = oi_weight * 0.29
+        elif abs(net_oi) > 1000:  # FIXED: Lower threshold for smaller contributions
+            oi_change_component = oi_weight * 0.1
+        else:
+            oi_change_component = oi_weight * 0.2  # Neutral default instead of 0.0
     
     # 20. ETF Flow (market sentiment) - REDUCED weight due to negative contribution in analysis
     etf_data = enriched_data.get("etf_flow", {})
-    etf_sentiment = etf_data.get("overall_sentiment", "NEUTRAL")
-    risk_on = etf_data.get("market_risk_on", False)
-    etf_weight = get_weight("etf_flow", regime)
-    if etf_sentiment == "BULLISH" and risk_on:
-        etf_flow_component = etf_weight * 1.0  # Reduced from 0.2 to 0.05
-        all_notes.append("risk_on_environment")
-    elif etf_sentiment == "BULLISH":
-        etf_flow_component = etf_weight * 0.5
-    elif etf_sentiment == "BEARISH":
-        etf_flow_component = -etf_weight * 0.3  # Reduced negative impact too
+    # SCORING PIPELINE FIX (Priority 4): Provide neutral default if data missing
+    if not etf_data:
+        etf_weight = get_weight("etf_flow", regime)
+        etf_flow_component = etf_weight * 0.2  # Neutral default
+        all_notes.append("etf_flow_neutral_default")
     else:
-        etf_flow_component = 0.0
+        etf_sentiment = etf_data.get("overall_sentiment", "NEUTRAL")
+        risk_on = etf_data.get("market_risk_on", False)
+        etf_weight = get_weight("etf_flow", regime)
+        if etf_sentiment == "BULLISH" and risk_on:
+            etf_flow_component = etf_weight * 1.0  # Reduced from 0.2 to 0.05
+            all_notes.append("risk_on_environment")
+        elif etf_sentiment == "BULLISH":
+            etf_flow_component = etf_weight * 0.5
+        elif etf_sentiment == "BEARISH":
+            etf_flow_component = -etf_weight * 0.3  # Reduced negative impact too
+        else:
+            etf_flow_component = etf_weight * 0.2  # Neutral default instead of 0.0
     
     # 21. Squeeze Score (combined FTD + SI + gamma)
     squeeze_data = enriched_data.get("squeeze_score", {})
-    squeeze_signals = _to_num(squeeze_data.get("signals", 0))
-    high_squeeze = squeeze_data.get("high_squeeze_potential", False)
-    squeeze_weight = get_weight("squeeze_score", regime)
-    if high_squeeze:
-        squeeze_score_component = squeeze_weight * 1.0
-        all_notes.append("high_squeeze_potential")
-    elif squeeze_signals >= 1:
-        squeeze_score_component = squeeze_weight * 0.5
+    # SCORING PIPELINE FIX (Priority 4): Provide neutral default if data missing
+    if not squeeze_data:
+        squeeze_weight = get_weight("squeeze_score", regime)
+        squeeze_score_component = squeeze_weight * 0.2  # Neutral default
+        all_notes.append("squeeze_score_neutral_default")
     else:
-        squeeze_score_component = 0.0
+        squeeze_signals = _to_num(squeeze_data.get("signals", 0))
+        high_squeeze = squeeze_data.get("high_squeeze_potential", False)
+        squeeze_weight = get_weight("squeeze_score", regime)
+        if high_squeeze:
+            squeeze_score_component = squeeze_weight * 1.0
+            all_notes.append("high_squeeze_potential")
+        elif squeeze_signals >= 1:
+            squeeze_score_component = squeeze_weight * 0.5
+        else:
+            squeeze_score_component = squeeze_weight * 0.2  # Neutral default instead of 0.0
     
     # ============ FINAL SCORE ============
     

@@ -11,7 +11,7 @@ import sys
 import json
 import threading
 from datetime import datetime
-from flask import Flask, render_template_string, jsonify, Response
+from flask import Flask, render_template_string, jsonify, Response, request
 
 print("[Dashboard] Starting Flask app...", flush=True)
 app = Flask(__name__)
@@ -2188,6 +2188,48 @@ def sre_dashboard():
     """Comprehensive SRE monitoring dashboard"""
     return render_template_string(SRE_DASHBOARD_HTML)
 
+@app.route("/api/system/health", methods=["GET"])
+def api_system_health():
+    """Get aggregated system health from supervisor health.json (Risk #9)."""
+    try:
+        from pathlib import Path
+        import json
+        from datetime import datetime, timezone
+        
+        health_file = Path("state/health.json")
+        if not health_file.exists():
+            return jsonify({
+                "overall_status": "UNKNOWN",
+                "services": {},
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": "Health file not found"
+            }), 200
+        
+        with open(health_file, 'r') as f:
+            health_data = json.load(f)
+        
+        return jsonify(health_data), 200
+    except Exception as e:
+        return jsonify({
+            "overall_status": "UNKNOWN",
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }), 500
+
+def _get_supervisor_health():
+    """Get supervisor health data from health.json (Risk #9)."""
+    try:
+        from pathlib import Path
+        import json
+        
+        health_file = Path("state/health.json")
+        if health_file.exists():
+            with open(health_file, 'r') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return None
+
 @app.route("/api/sre/health", methods=["GET"])
 def api_sre_health():
     """Get comprehensive SRE health data"""
@@ -2217,6 +2259,19 @@ def api_sre_health():
         try:
             from sre_monitoring import get_sre_health
             health = get_sre_health()
+            
+            # Add supervisor health (Risk #9 - Aggregated Health)
+            supervisor_health = _get_supervisor_health()
+            if supervisor_health:
+                health["supervisor_health"] = supervisor_health
+                # Override overall_health with supervisor's aggregated health if available
+                if supervisor_health.get("overall_status"):
+                    supervisor_status = supervisor_health["overall_status"].lower()
+                    if supervisor_status == "failed":
+                        health["overall_health"] = "critical"
+                    elif supervisor_status == "degraded":
+                        health["overall_health"] = "degraded"
+                    # OK maps to existing health
             
             # Enhance with SRE metrics and RCA fixes
             try:
@@ -3201,6 +3256,65 @@ def api_health_status():
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/scores/distribution", methods=["GET"])
+def api_scores_distribution():
+    """
+    SCORING PIPELINE FIX (Part 3): Score distribution endpoint
+    Returns score distribution statistics for monitoring
+    """
+    try:
+        from telemetry.score_telemetry import get_score_distribution
+        import json
+        
+        symbol = request.args.get("symbol", None)
+        lookback_hours = int(request.args.get("lookback_hours", 24))
+        
+        distribution = get_score_distribution(symbol=symbol, lookback_hours=lookback_hours)
+        return jsonify(distribution)
+    except ImportError:
+        return jsonify({"error": "score_telemetry module not available"}), 503
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/scores/components", methods=["GET"])
+def api_scores_components():
+    """
+    SCORING PIPELINE FIX (Part 3): Component health endpoint
+    Returns component-level contribution statistics
+    """
+    try:
+        from telemetry.score_telemetry import get_component_health
+        import json
+        
+        lookback_hours = int(request.args.get("lookback_hours", 24))
+        
+        component_health = get_component_health(lookback_hours=lookback_hours)
+        return jsonify(component_health)
+    except ImportError:
+        return jsonify({"error": "score_telemetry module not available"}), 503
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/scores/telemetry", methods=["GET"])
+def api_scores_telemetry():
+    """
+    SCORING PIPELINE FIX (Part 3): Complete telemetry summary endpoint
+    Returns all score telemetry statistics for dashboard
+    """
+    try:
+        from telemetry.score_telemetry import get_telemetry_summary
+        import json
+        
+        summary = get_telemetry_summary()
+        return jsonify(summary)
+    except ImportError:
+        return jsonify({"error": "score_telemetry module not available"}), 503
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/failure_points")
 def api_failure_points():

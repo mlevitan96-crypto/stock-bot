@@ -2962,7 +2962,7 @@ def compute_atr(api, symbol: str, lookback: int):
         return 0.0
 
 # =========================
-# EXECUTION & POSITION MGMT (Alpaca paper)
+# EXECUTION & POSITION MGMT (Alpaca API - PAPER/LIVE)
 # =========================
 class AlpacaExecutor:
     def __init__(self, defer_reconcile=False):
@@ -3231,11 +3231,69 @@ class AlpacaExecutor:
         Per Audit Recommendations (Dec 2025):
         - Spread Watchdog: Block trades when spread > MAX_SPREAD_BPS
         - Regime-Aware Execution: Adjust aggressiveness based on market regime
+        
+        Self-healing: All orders must pass trade_guard before submission.
         """
         ref_price = self.get_last_trade(symbol)
         if ref_price <= 0:
             log_event("submit_entry", "bad_ref_price", symbol=symbol, ref_price=ref_price)
             return None, None, "error", 0, "bad_ref_price"
+        
+        # === TRADE GUARD: Mandatory sanity check (Risk #15) ===
+        try:
+            from trade_guard import evaluate_order
+            from state_manager import StateManager
+            
+            # Get current positions from state manager
+            state_manager = getattr(self, '_state_manager', None)
+            if state_manager is None:
+                # Initialize state manager if not already done
+                state_manager = StateManager(self.api)
+                state_manager.load_state()
+                self._state_manager = state_manager
+            
+            current_state = state_manager.get_state()
+            current_positions = current_state.get("open_positions", {})
+            
+            # Get account info for exposure checks
+            try:
+                account = self.api.get_account()
+                account_equity = float(getattr(account, "equity", 0.0))
+                account_buying_power = float(getattr(account, "buying_power", 0.0))
+            except Exception:
+                account_equity = 0.0
+                account_buying_power = 0.0
+            
+            # Build order context for trade guard
+            order_context = {
+                "symbol": symbol,
+                "side": side,
+                "qty": qty,
+                "intended_price": ref_price,
+                "last_known_price": ref_price,
+                "current_positions": current_positions,
+                "account_equity": account_equity,
+                "account_buying_power": account_buying_power,
+                "last_trade_timestamp": current_state.get("last_trade_per_symbol", {}).get(symbol),
+                "risk_config": {}  # Can be extended with custom risk config
+            }
+            
+            # Evaluate order
+            approved, reason = evaluate_order(order_context)
+            if not approved:
+                log_event("submit_entry", "trade_guard_blocked", 
+                         symbol=symbol, side=side, qty=qty, reason=reason)
+                # Log rejection
+                from trade_guard import get_guard
+                guard = get_guard()
+                guard.log_rejection(symbol, side, qty, reason, order_context)
+                return None, None, "trade_guard_blocked", 0, reason
+        except ImportError:
+            # Trade guard not available - log warning but continue (fail open for backward compatibility)
+            log_event("submit_entry", "trade_guard_unavailable", symbol=symbol, warning="Trade guard module not found")
+        except Exception as e:
+            # Trade guard error - log but don't block (fail open)
+            log_event("submit_entry", "trade_guard_error", symbol=symbol, error=str(e))
         
         # === SPREAD WATCHDOG (Audit Recommendation) ===
         if Config.ENABLE_SPREAD_WATCHDOG:
@@ -4344,6 +4402,17 @@ class AlpacaExecutor:
                 del self.high_water[symbol]
             self._remove_position_metadata(symbol)
             
+            # Update state manager (Risk #6 - State Persistence)
+            try:
+                state_manager = getattr(self, '_state_manager', None)
+                if state_manager is None and hasattr(self, 'state_manager'):
+                    state_manager = self.state_manager
+                if state_manager:
+                    # Remove position from state (qty=0 removes it)
+                    state_manager.update_position(symbol=symbol, qty=0, side="buy", cost_basis=0.0)
+            except Exception as e:
+                log_event("state_manager", "close_position_update_failed", symbol=symbol, error=str(e))
+            
             log_event("displacement", "executed",
                      displaced_symbol=symbol,
                      displaced_pnl_pct=round(candidate["pnl_pct"] * 100, 2),
@@ -4408,6 +4477,25 @@ class AlpacaExecutor:
             correlation_id = self.opens[symbol]["correlation_id"]
         
         self._persist_position_metadata(symbol, entry_ts=now, entry_price=entry_price, qty=qty, side=side, entry_score=entry_score, components=components, market_regime=market_regime, direction=direction, regime_modifier=regime_modifier, ignition_status=ignition_status, correlation_id=correlation_id)
+        
+        # Update state manager (Risk #6 - State Persistence)
+        try:
+            state_manager = getattr(self, '_state_manager', None)
+            if state_manager is None and hasattr(self, 'state_manager'):
+                state_manager = self.state_manager
+            if state_manager:
+                state_manager.update_position(
+                    symbol=symbol,
+                    qty=qty,
+                    side=side,
+                    cost_basis=entry_price,
+                    entry_time=now.isoformat()
+                )
+                # Record order ID if available
+                if res and hasattr(res, 'id'):
+                    state_manager.record_order_id(symbol, str(res.id))
+        except Exception as e:
+            log_event("state_manager", "update_position_failed", symbol=symbol, error=str(e))
     
     def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None):
         """Persist position metadata to durable file for restart recovery with atomic write.
@@ -5110,6 +5198,23 @@ class StrategyEngine:
         self.profiles = load_profiles()
         self.theme_map = load_theme_map()
         self.uw_flow_cache = telemetry.get_uw_flow_cache()
+        
+        # Initialize state manager for persistence (Risk #6)
+        try:
+            from state_manager import StateManager
+            self.state_manager = StateManager(self.executor.api)
+            # Load and reconcile state on startup
+            state = self.state_manager.load_state()
+            if self.executor.api:
+                reconciled = self.state_manager.reconcile_with_alpaca(state)
+                if not reconciled:
+                    log_event("state_manager", "reconciliation_failed_on_startup", 
+                             warning="State reconciliation failed - trading may be unsafe")
+            # Attach to executor for use in submit_entry
+            self.executor._state_manager = self.state_manager
+        except Exception as e:
+            log_event("state_manager", "initialization_failed", error=str(e))
+            self.state_manager = None
 
     def score_cluster(self, cluster: dict, confirm_score: float, gex: dict, market_regime: str = "mixed") -> float:
         safe_cluster = normalize_cluster(cluster)
@@ -7285,6 +7390,11 @@ def run_once():
                 # CRITICAL FIX: Get symbol_data from cache before using it
                 symbol_data = uw_cache.get(ticker, {})
                 
+                # SCORING PIPELINE FIX (Priority 3): Ensure core features are ALWAYS computed or neutral-defaulted
+                # See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
+                # This prevents 3 components (iv_skew, smile_slope, event_align) from contributing 0.0
+                missing_core_features = []
+                
                 if isinstance(symbol_data, dict):
                     # Compute missing signals on-the-fly
                     if not enriched.get("iv_term_skew") and symbol_data.get("iv_term_skew") is None:
@@ -7293,6 +7403,12 @@ def run_once():
                         if ticker in uw_cache:
                             uw_cache[ticker]["iv_term_skew"] = computed_skew
                             cache_updated = True
+                        missing_core_features.append("iv_term_skew")
+                    
+                    # Ensure iv_term_skew exists (neutral default if computation failed)
+                    if enriched.get("iv_term_skew") is None:
+                        enriched["iv_term_skew"] = 0.0  # Neutral default
+                        missing_core_features.append("iv_term_skew_defaulted")
                     
                     if not enriched.get("smile_slope") and symbol_data.get("smile_slope") is None:
                         computed_slope = enricher.compute_smile_slope(ticker, symbol_data)
@@ -7300,6 +7416,22 @@ def run_once():
                         if ticker in uw_cache:
                             uw_cache[ticker]["smile_slope"] = computed_slope
                             cache_updated = True
+                        missing_core_features.append("smile_slope")
+                    
+                    # Ensure smile_slope exists (neutral default if computation failed)
+                    if enriched.get("smile_slope") is None:
+                        enriched["smile_slope"] = 0.0  # Neutral default
+                        missing_core_features.append("smile_slope_defaulted")
+                    
+                    # Ensure event_alignment exists (neutral default if missing)
+                    if enriched.get("event_alignment") is None:
+                        enriched["event_alignment"] = 0.0  # Neutral default
+                        missing_core_features.append("event_alignment_defaulted")
+                    
+                    # Log missing core features for telemetry
+                    if missing_core_features:
+                        log_event("scoring_pipeline", "core_features_defaulted", 
+                                 symbol=ticker, missing_features=missing_core_features)
                 
                 # Ensure insider exists (with default structure)
                 if not enriched.get("insider") or not isinstance(enriched.get("insider"), dict):
@@ -7456,6 +7588,41 @@ def run_once():
                     pass  # Alpha signature capture not available
                 except Exception as e:
                     print(f"DEBUG: Alpha signature boosters failed for {ticker}: {e}", flush=True)
+                
+                # SCORING PIPELINE FIX (Part 2): Record telemetry after all boosts applied
+                try:
+                    from telemetry.score_telemetry import record
+                    
+                    # Build metadata for telemetry
+                    metadata = {
+                        "freshness": composite.get("freshness", 1.0),
+                        "conviction_defaulted": enriched.get("conviction") is None or (enriched.get("conviction", 0.0) == 0.5 and symbol_data.get("conviction") is None),
+                        "missing_intel": [],
+                        "neutral_defaults": [],
+                        "core_features_missing": missing_core_features if 'missing_core_features' in locals() else []
+                    }
+                    
+                    # Check for neutral defaults in notes
+                    notes = composite.get("notes", "")
+                    if "neutral_default" in notes:
+                        # Extract component names from notes
+                        for comp in ["congress", "shorts", "institutional", "tide", "calendar", 
+                                    "greeks", "ftd", "oi_change", "etf_flow", "squeeze_score"]:
+                            if f"{comp}_neutral_default" in notes:
+                                metadata["neutral_defaults"].append(comp)
+                                metadata["missing_intel"].append(comp)
+                    
+                    # Record telemetry with final score (after all boosts)
+                    record(
+                        symbol=ticker,
+                        score=composite.get("score", 0.0),
+                        components=composite.get("components", {}),
+                        metadata=metadata
+                    )
+                except ImportError:
+                    pass  # Telemetry module not available
+                except Exception as e:
+                    log_event("score_telemetry", "error", symbol=ticker, error=str(e))
                 
                 # Use V2 should_enter (hierarchical thresholds) with V3.0 exhaustion check
                 # Pass api for exhaustion filter (EMA/ATR check)

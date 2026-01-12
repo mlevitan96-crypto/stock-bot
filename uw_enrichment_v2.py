@@ -17,6 +17,11 @@ ENRICHED_LOG = Path("data/uw_flow_enriched.jsonl")
 MOTIF_STATE = Path("state/uw_motifs.json")
 AUDIT_LOG = Path("data/audit_uw_upgrade.jsonl")
 
+# SCORING PIPELINE FIX (Priority 1): Increased decay_min from 45 to 180 minutes
+# See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
+# This reduces score decay from 50% after 45min to 50% after 180min
+DECAY_MINUTES = 180
+
 def audit(event: str, **kwargs):
     """Log enrichment audit events"""
     AUDIT_LOG.parent.mkdir(exist_ok=True)
@@ -231,11 +236,17 @@ class UWEnricher:
         else:
             return 0.20  # Weak/no alignment
     
-    def compute_freshness(self, data: Dict, decay_min: int = 45) -> float:
+    def compute_freshness(self, data: Dict, decay_min: int = None) -> float:
         """
         Data freshness score (1.0 = fresh, decays over time)
         Decays to 0.5 after decay_min minutes
+        
+        SCORING PIPELINE FIX (Priority 1): Default decay_min increased from 45 to 180 minutes
+        See SIGNAL_SCORE_PIPELINE_AUDIT.md for details on why this change was made.
         """
+        if decay_min is None:
+            decay_min = DECAY_MINUTES
+        
         # CRITICAL FIX: Check both _last_update (from daemon) and last_update (legacy)
         last_update = data.get("_last_update", data.get("last_update", int(time.time())))
         age_sec = int(time.time()) - last_update
