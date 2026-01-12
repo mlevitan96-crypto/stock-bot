@@ -2702,8 +2702,28 @@ def api_xai_auditor():
             
             if attribution_file:
                 cutoff_time = datetime.now(timezone.utc) - timedelta(days=90)  # Last 90 days
+                # CRITICAL FIX: Add line limit to prevent reading entire large files
+                line_count = 0
+                max_lines = 10000  # Limit to last 10k lines to prevent memory issues
                 with attribution_file.open('r', encoding='utf-8') as f:
+                    # For large files, read from end if possible
+                    try:
+                        # Try to seek to end and read backwards
+                        f.seek(0, 2)
+                        file_size = f.tell()
+                        if file_size > 500000:  # If file > 500KB, read from end
+                            # Read last ~500KB
+                            read_size = min(500000, file_size)
+                            f.seek(max(0, file_size - read_size))
+                            # Skip first line (might be incomplete)
+                            f.readline()
+                    except:
+                        f.seek(0)  # Fallback to start if seek fails
+                    
                     for line in f:
+                        line_count += 1
+                        if line_count > max_lines:
+                            break  # Stop after max_lines to prevent memory issues
                         if line.strip():
                             try:
                                 rec = json.loads(line.strip())
@@ -3181,18 +3201,56 @@ def api_health_status():
             for orders_file in orders_files:
                 if orders_file.exists():
                     try:
-                        with orders_file.open("r") as f:
-                            lines = f.readlines()
-                            for line in lines[-500:]:
-                                try:
-                                    event = json.loads(line.strip())
-                                    event_ts = event.get("_ts", 0)
-                                    event_type = event.get("event", "")
-                                    if event_ts > (last_order_ts or 0) and event_type in ["MARKET_FILLED", "LIMIT_FILLED", "ORDER_SUBMITTED"]:
-                                        last_order_ts = event_ts
-                                except:
-                                    pass
-                    except:
+                        # CRITICAL FIX: Read only last 500 lines efficiently (don't load entire file)
+                        # Use seek to read from end of file to avoid memory issues
+                        with orders_file.open("r", encoding='utf-8') as f:
+                            # Read last 500 lines efficiently
+                            try:
+                                # Seek to end, then read backwards in chunks
+                                f.seek(0, 2)  # Seek to end
+                                file_size = f.tell()
+                                if file_size == 0:
+                                    continue
+                                
+                                # Read last ~50KB (enough for ~500 lines)
+                                read_size = min(50000, file_size)
+                                f.seek(max(0, file_size - read_size))
+                                chunk = f.read()
+                                
+                                # Split into lines and take last 500
+                                lines = chunk.splitlines()
+                                if len(lines) > 500:
+                                    lines = lines[-500:]
+                                
+                                for line in lines:
+                                    if not line.strip():
+                                        continue
+                                    try:
+                                        event = json.loads(line.strip())
+                                        event_ts = event.get("_ts", 0)
+                                        event_type = event.get("event", "")
+                                        if event_ts > (last_order_ts or 0) and event_type in ["MARKET_FILLED", "LIMIT_FILLED", "ORDER_SUBMITTED"]:
+                                            last_order_ts = event_ts
+                                    except:
+                                        pass
+                            except Exception as read_err:
+                                # Fallback: try reading entire file if chunk read fails
+                                print(f"[Dashboard] Warning: Chunk read failed for {orders_file}, trying full read: {read_err}", flush=True)
+                                f.seek(0)
+                                all_lines = f.readlines()
+                                for line in all_lines[-500:]:
+                                    if not line.strip():
+                                        continue
+                                    try:
+                                        event = json.loads(line.strip())
+                                        event_ts = event.get("_ts", 0)
+                                        event_type = event.get("event", "")
+                                        if event_ts > (last_order_ts or 0) and event_type in ["MARKET_FILLED", "LIMIT_FILLED", "ORDER_SUBMITTED"]:
+                                            last_order_ts = event_ts
+                                    except:
+                                        pass
+                    except Exception as file_err:
+                        print(f"[Dashboard] Warning: Failed to read {orders_file}: {file_err}", flush=True)
                         pass
             
             if last_order_ts:
