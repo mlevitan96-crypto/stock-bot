@@ -17,18 +17,43 @@ from datetime import datetime
 from pathlib import Path
 
 # Load .env file if it exists
+# CRITICAL: This file contains live trading credentials. DO NOT overwrite.
 try:
     from dotenv import load_dotenv
     from pathlib import Path
     # Explicitly load from /root/stock-bot/.env to ensure correct path
+    # This matches the systemd EnvironmentFile path
     env_path = Path("/root/stock-bot/.env")
     if env_path.exists():
+        # Check if .env was recently modified (possible overwrite warning)
+        env_mtime = env_path.stat().st_mtime
+        script_mtime = Path(__file__).stat().st_mtime
+        if env_mtime > script_mtime:
+            print(f"[SUPERVISOR] WARNING: .env file ({env_path}) was modified after deploy_supervisor.py")
+            print(f"[SUPERVISOR] This may indicate an accidental overwrite. Verify credentials are correct.")
+        
         load_dotenv(env_path, override=True)
+        
+        # CRITICAL: Validate required credentials are present and non-empty
+        required_keys = ["ALPACA_KEY", "ALPACA_SECRET", "UW_API_KEY"]
+        missing_or_empty = []
+        for key in required_keys:
+            value = os.getenv(key)
+            if not value or value.strip() == "":
+                missing_or_empty.append(key)
+        
+        if missing_or_empty:
+            print(f"[SUPERVISOR] CRITICAL ERROR: Required credentials missing or empty: {missing_or_empty}")
+            print(f"[SUPERVISOR] The .env file at {env_path} must contain valid credentials.")
+            print(f"[SUPERVISOR] DO NOT overwrite this file with templates or empty values.")
+            sys.exit(1)
     else:
-        # Fallback to default behavior (current directory)
-        load_dotenv()
+        print(f"[SUPERVISOR] CRITICAL ERROR: .env file not found at {env_path}")
+        print(f"[SUPERVISOR] The .env file is required for trading operations.")
+        sys.exit(1)
 except ImportError:
-    pass  # dotenv not required
+    print("[SUPERVISOR] CRITICAL ERROR: python-dotenv not available. Cannot load credentials.")
+    sys.exit(1)
 
 processes = {}
 shutdown_flag = threading.Event()
