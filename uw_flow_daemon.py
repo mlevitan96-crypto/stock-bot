@@ -696,15 +696,23 @@ class UWFlowDaemon:
         net_premium = call_premium - put_premium
         
         # Sentiment based on net premium
-        if net_premium > 100000:
+        # FIXED: Lowered threshold from 100k to 10k to capture more flow signals
+        # This ensures smaller institutional flows contribute to scores
+        if net_premium > 10000:  # Lowered from 100000
             sentiment = "BULLISH"
-            conviction = min(1.0, net_premium / 5_000_000)
-        elif net_premium < -100000:
+            # Scale conviction more aggressively for smaller flows
+            conviction = min(1.0, 0.3 + (net_premium / 2_000_000))  # Start at 0.3, scale to 1.0
+        elif net_premium < -10000:  # Lowered from -100000
             sentiment = "BEARISH"
-            conviction = min(1.0, abs(net_premium) / 5_000_000)
+            # Scale conviction more aggressively for smaller flows
+            conviction = min(1.0, 0.3 + (abs(net_premium) / 2_000_000))  # Start at 0.3, scale to 1.0
         else:
             sentiment = "NEUTRAL"
-            conviction = 0.0
+            # FIXED: Give small positive conviction even for neutral flows if there's any activity
+            if total_premium > 0:
+                conviction = min(0.2, total_premium / 1_000_000)  # Small conviction for any activity
+            else:
+                conviction = 0.0
         
         return {
             "sentiment": sentiment,
@@ -915,10 +923,16 @@ class UWFlowDaemon:
                     })
                 else:
                     # Even if normalization fails, store basic info
+                    # CRITICAL FIX: Always set sentiment and conviction, even if empty
+                    # This ensures scoring can work even when API returns no data
                     cache_update.update({
                         "sentiment": "NEUTRAL",
                         "conviction": 0.0,
-                        "trade_count": len(flow_data) if flow_data else 0
+                        "trade_count": len(flow_data) if flow_data else 0,
+                        "total_premium": 0.0,
+                        "call_premium": 0.0,
+                        "put_premium": 0.0,
+                        "net_premium": 0.0
                     })
                 
                 # Always update cache (even if empty - main.py needs to know)
