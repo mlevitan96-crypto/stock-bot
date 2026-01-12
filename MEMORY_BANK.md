@@ -508,7 +508,7 @@ Cursor MUST NOT:
 ---
 
 ## 6.3 SSH CONFIG
-**DEPLOY_TARGET: 104.236.102.57 (ubuntu-s-1vcpu-2gb-nyc3-01-alpaca)**
+**DEPLOY_TARGET: 104.236.102.57 (stock-bot)**
 
 Droplet config:
 ```json
@@ -521,7 +521,7 @@ Droplet config:
 }
 ```
 
-**CRITICAL:** All deployments MUST target `104.236.102.57`. The "alpaca" SSH alias may point to a different droplet.
+**CRITICAL:** All deployments MUST target `104.236.102.57` (stock-bot). SSH alias "alpaca" should resolve to this IP.
 
 ---
 
@@ -538,7 +538,7 @@ The `.env` file contains:
 - `UW_API_KEY=...` - Unusual Whales API key
 
 ### Credential Loading
-- The systemd service (`stockbot.service`) automatically loads credentials via `EnvironmentFile=/root/stock-bot/.env`
+- The systemd service (`stock-bot.service`) automatically loads credentials via `EnvironmentFile=/root/stock-bot/.env`
 - `deploy_supervisor.py` uses `load_dotenv()` to load `.env` file
 - All services inherit environment variables from the supervisor
 
@@ -552,9 +552,11 @@ The `.env` file contains:
 ## 6.5 SYSTEMD SERVICE MANAGEMENT
 
 ### Service Details
-The stock-bot runs as a systemd service: `stockbot.service`
+The stock-bot runs as a systemd service: `stock-bot.service`
 
-**Service file location:** `/etc/systemd/system/stockbot.service`
+**SERVICE_NAME: stock-bot.service**
+
+**Service file location:** `/etc/systemd/system/stock-bot.service`
 
 **Service configuration:**
 - **WorkingDirectory:** `/root/stock-bot`
@@ -567,17 +569,17 @@ The stock-bot runs as a systemd service: `stockbot.service`
 ### Service Management Commands
 ```bash
 # Start/Stop/Restart
-sudo systemctl start stockbot
-sudo systemctl stop stockbot
-sudo systemctl restart stockbot
+sudo systemctl start stock-bot
+sudo systemctl stop stock-bot
+sudo systemctl restart stock-bot
 
 # Check status
-sudo systemctl status stockbot
+sudo systemctl status stock-bot
 
 # View logs
-journalctl -u stockbot -f          # Follow logs
-journalctl -u stockbot -n 100      # Last 100 lines
-journalctl -u stockbot -b          # Since boot
+journalctl -u stock-bot -f          # Follow logs
+journalctl -u stock-bot -n 100      # Last 100 lines
+journalctl -u stock-bot -b          # Since boot
 ```
 
 ### Service Architecture
@@ -601,6 +603,6 @@ The bot was migrated from manual supervisor execution to systemd management:
 ### Troubleshooting
 If service won't start:
 1. Verify `.env` file exists: `ls -la /root/stock-bot/.env`
-2. Check service status: `sudo systemctl status stockbot`
-3. Check logs: `journalctl -u stockbot -n 50`
+2. Check service status: `sudo systemctl status stock-bot`
+3. Check logs: `journalctl -u stock-bot -n 50`
 4. Verify credentials format in `.env` file (no spaces around `=`)

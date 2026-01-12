@@ -1,4 +1,5 @@
 {
   "droplet_ip": "104.236.102.57",
-  "repo_path": "/root/stock-bot"
+  "repo_path": "/root/stock-bot",
+  "service_name": "stock-bot.service"
 }

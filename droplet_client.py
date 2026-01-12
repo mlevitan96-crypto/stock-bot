@@ -106,8 +106,13 @@ class DropletClient:
                         elif key == 'port' and not config.get('port'):
                             config['port'] = int(value)
                         elif key == 'identityfile' and not config.get('key_file'):
-                            # Use first identity file
-                            config['key_file'] = value
+                            # Use first identity file (remove quotes if present)
+                            key_path = value.strip().strip('"').strip("'")
+                            # Expand ~ to home directory
+                            if key_path.startswith('~'):
+                                import os
+                                key_path = os.path.expanduser(key_path)
+                            config['key_file'] = key_path
                 
                 # Use resolved hostname for connection
                 if config.get('hostname'):

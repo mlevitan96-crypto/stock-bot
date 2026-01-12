@@ -75,6 +75,7 @@ def _read_jsonl(path, max_lines=None):
 
 # -------------------- Nightly Tasks (Bridge Calls) --------------------
 def run_sector_rotation_v2():
+    # NOTE: sector_rotation_v2 is optional - if missing, sector rotation is skipped
     try:
         from sector_rotation_v2 import rebalance_sectors
         profiles = rebalance_sectors()
@@ -86,6 +87,7 @@ def run_sector_rotation_v2():
         return profiles
 
 def run_canary_router_v2():
+    # NOTE: canary_router_v2 is optional - if missing, canary evaluation is skipped
     try:
         from canary_router_v2 import evaluate_canaries, promote_canaries
         eval_results = evaluate_canaries()

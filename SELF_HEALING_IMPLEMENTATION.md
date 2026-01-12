@@ -1,117 +1,261 @@
-# Self-Healing Implementation for Crashes
+# Self-Healing Trading System Implementation Summary
 
 ## Overview
+This document summarizes the implementation of a self-healing, risk-aware trading service with state persistence, health aggregation, API contract protection, chaos testing, and trade sanity checks.
 
-Added comprehensive self-healing for `NameError` and `ImportError` crashes that were preventing the bot from trading.
+## Implementation Date
+2026-01-10
 
-## Problem
+## Components Implemented
 
-The bot was crashing repeatedly with:
-```
-NameError: name 'StateFiles' is not defined
-```
+### 1. State Persistence (Risk #6)
+**File:** `state_manager.py`
 
-This error occurred in `run_once()` and caused the bot to fail every cycle, preventing any trading activity.
+**Purpose:** Persist trading state across restarts to prevent unsafe re-entry.
 
-## Solution
+**Features:**
+- Versioned state schema with open positions, PnL, trade timestamps
+- Atomic writes to `state/trading_state.json`
+- Reconciliation with Alpaca (ground truth)
+- Self-healing: detects corruption, moves corrupt file to backup, reconciles with Alpaca
+- Refuses to start trading if reconciliation fails
 
-Implemented multi-layer self-healing:
+**Integration:**
+- Initialized in `StrategyEngine.__init__()` in `main.py`
+- State updated after every position open/close
+- State loaded and reconciled on startup
 
-### 1. Pre-Check in `run_once()`
+### 2. Trade Guard (Risk #15)
+**File:** `trade_guard.py`
 
-Before executing the main logic, verify all required imports are available:
+**Purpose:** Mandatory sanity checks before any order is sent to Alpaca.
 
-```python
-# Pre-check that all required imports are available
-try:
-    _ = StateFiles.BOT_HEARTBEAT
-except (NameError, AttributeError) as import_check_error:
-    # Self-heal: Reload imports if missing
-    import importlib
-    import sys
-    if 'config.registry' in sys.modules:
-        importlib.reload(sys.modules['config.registry'])
-    from config.registry import StateFiles
-```
+**Checks:**
+- Max position size per symbol
+- Max portfolio exposure / concentration
+- Max notional per order
+- Direction flip protection
+- Price sanity (within configurable % band)
+- Cooldown (minimum time between trades)
+- Buying power validation
 
-### 2. Exception Handler in `run_once()`
+**Integration:**
+- Called early in `AlpacaExecutor.submit_entry()` in `main.py`
+- All orders must pass `evaluate_order()` before submission
+- Rejections logged to `logs/orders.jsonl`
 
-Specific handling for `NameError`/`ImportError`:
+### 3. API Contract Protection (Risk #11)
+**Files:** `alpaca_client.py`, `uw_client.py`
 
-```python
-except (NameError, ImportError) as e:
-    # Self-healing: Reload imports
-    import importlib
-    import sys
-    if 'config.registry' in sys.modules:
-        importlib.reload(sys.modules['config.registry'])
-    from config.registry import StateFiles
-    # Return early to allow next cycle to proceed
-    return {"clusters": 0, "orders": 0, "error": "import_reload", "healed": True}
-```
+**Purpose:** Detect API schema changes early and fail loudly.
 
-### 3. Worker Loop Error Recovery
+**Features:**
+- Explicit response contracts for critical endpoints
+- Startup compatibility checks
+- Error classification: AUTH_ERROR, RATE_LIMIT, NETWORK, SCHEMA_ERROR, UNKNOWN
+- Retry logic for transient errors (RATE_LIMIT, NETWORK)
+- Fail-fast for non-transient errors (AUTH_ERROR, SCHEMA_ERROR)
 
-In the worker thread's exception handler:
+**Integration:**
+- Compatibility checks run in `deploy_supervisor.py` on startup
+- API clients can be used as drop-in replacements for direct API calls
 
-```python
-except (NameError, ImportError) as e:
-    # Self-heal: Reload imports
-    import importlib
-    import sys
-    if 'config.registry' in sys.modules:
-        importlib.reload(sys.modules['config.registry'])
-    from config.registry import StateFiles, Directories, CacheFiles
-    
-    # If too many import errors (>= 3), restart worker thread
-    if self.state.fail_count >= 3:
-        self.stop()
-        time.sleep(2)
-        self._stop_evt.clear()
-        self.start()
-        self.state.fail_count = 0
-```
+### 4. Aggregated Health (Risk #9)
+**File:** `deploy_supervisor.py` (enhanced)
 
-## Self-Healing Levels
+**Purpose:** Prevent "fake green" states where dashboard is up but trading is dead.
 
-1. **Level 1 (Pre-Check)**: Catches missing imports before main execution
-2. **Level 2 (Exception Handler)**: Reloads imports when error occurs
-3. **Level 3 (Worker Restart)**: Restarts worker thread after 3 consecutive errors
-4. **Level 4 (Service Restart)**: Systemd automatically restarts service if process dies
+**Features:**
+- Health registry tracks all services (trading-bot, uw-daemon, dashboard, heartbeat-keeper)
+- Per-service status: OK, DEGRADED, FAILED
+- Overall system health computation:
+  - FAILED if any critical service is FAILED
+  - DEGRADED if any critical is DEGRADED or supportive is FAILED
+  - OK only if all critical == OK
+- Persisted to `state/health.json`
+- Self-healing: stops restarting services after N failures in M minutes
 
-## Monitoring
+**Integration:**
+- Dashboard reads `state/health.json` via `/api/system/health` endpoint
+- Health displayed in dashboard with overall status badge
 
-All self-healing actions are logged:
-- `self_healing.pre_check_heal_success`
-- `self_healing.import_reload_success`
-- `self_healing.worker_thread_restart`
-- `self_healing.import_reload_failed`
+### 5. Chaos Testing Hooks (Risk #12)
+**File:** `deploy_supervisor.py` (enhanced)
 
-## Benefits
+**Purpose:** Deliberately break parts of the system in controlled way for testing.
 
-1. **Automatic Recovery**: Bot recovers from import errors without manual intervention
-2. **Prevention**: Pre-check catches issues before they cause crashes
-3. **Escalation**: Multiple levels ensure recovery even if one level fails
-4. **Visibility**: All healing actions are logged for monitoring
+**Modes:**
+- `alpaca_down`: Simulate Alpaca API failures
+- `invalid_creds`: Simulate invalid credentials
+- `supervisor_crash`: Controlled supervisor crash
+- `state_corrupt`: Corrupt state file to test self-heal
+
+**Usage:**
+Set `CHAOS_MODE` environment variable (e.g., `CHAOS_MODE=alpaca_down`)
+
+**Safety:**
+- Cannot be accidentally enabled in production
+- Explicit environment variable required
+
+## Self-Healing Behavior Pattern
+
+### DETECT → CLASSIFY → RESPOND → RECOVER OR HALT SAFELY
+
+1. **Detection:**
+   - Supervisor monitors child processes
+   - State manager detects corrupt state
+   - API adapters detect schema/auth/network issues
+   - Trade guard detects order-level insanity
+
+2. **Classification:**
+   - **TRANSIENT**: Network, rate-limit, temporary Alpaca outage
+   - **PERSISTENT CONFIG**: Missing/invalid creds, bad .env
+   - **CODE/SCHEMA**: API drift, state schema incompatibility
+   - **LOGIC/RISK**: Trade guard rejections
+
+3. **Response:**
+   - **TRANSIENT**: Backoff + retry, within limits. If recovered, log recovery.
+   - **PERSISTENT CONFIG or CODE/SCHEMA**: Stop trading. Mark system health as FAILED_CONFIG or FAILED_API_SCHEMA. Do NOT auto-restart into a loop.
+   - **LOGIC/RISK**: Reject individual trades, log and continue.
+
+4. **Recovery:**
+   - For transient issues: System returns to healthy state without manual intervention.
+   - For hard failures: System remains in SAFE HALT mode until human intervention. All failures visible via health.json and dashboard.
+
+## Failure Playbook
+
+### TRANSIENT Errors (Network, Rate Limit)
+**What happens:**
+- API calls retry with exponential backoff (up to 3 attempts)
+- If recovery succeeds: Log recovery event, continue trading
+- If all retries fail: Mark service as DEGRADED, log error
+
+**Recovery:**
+- Automatic recovery when network/rate limit issues resolve
+- No manual intervention required
+
+### PERSISTENT CONFIG Errors (Invalid Credentials, Bad .env)
+**What happens:**
+- API compatibility check fails on startup
+- System marked as FAILED_CONFIG
+- Trading halted
+- Error logged to health.json and logs
+
+**Recovery:**
+- Manual intervention required: Fix credentials in `.env`
+- Restart service after fix
+
+### CODE/SCHEMA Errors (API Drift, State Schema Incompatibility)
+**What happens:**
+- API compatibility check detects schema mismatch
+- System marked as FAILED_API_SCHEMA
+- Trading halted
+- Error logged with full context
+
+**Recovery:**
+- Manual intervention required: Update code to match new API schema
+- Restart service after fix
+
+### LOGIC/RISK Errors (Trade Guard Rejections)
+**What happens:**
+- Individual trades rejected by trade guard
+- Rejection logged with reason
+- Trading continues for other symbols
+- No system health impact
+
+**Recovery:**
+- Automatic: System continues trading normally
+- Review rejection logs to understand why trades were blocked
+
+### State Corruption
+**What happens:**
+- State manager detects corrupt state file
+- Moves corrupt file to backup (`trading_state.json.corrupt.TIMESTAMP`)
+- Starts with empty state
+- Attempts reconciliation with Alpaca
+- If reconciliation fails: System refuses to start trading
+
+**Recovery:**
+- If reconciliation succeeds: Automatic recovery, trading resumes
+- If reconciliation fails: Manual intervention required to investigate
+
+### Service Repeated Failures
+**What happens:**
+- Supervisor tracks failure count per service
+- After N failures in M minutes: Service marked as FAILED
+- Supervisor stops restarting that service
+- Overall system health marked as DEGRADED or FAILED
+
+**Recovery:**
+- Manual intervention required: Investigate service logs, fix root cause
+- Restart service after fix
+
+## Files Modified/Created
+
+### New Files
+- `state_manager.py` - State persistence
+- `trade_guard.py` - Trade sanity checks
+- `alpaca_client.py` - Hardened Alpaca API client
+- `uw_client.py` - Hardened UW API client
+- `SELF_HEALING_IMPLEMENTATION.md` - This document
+
+### Modified Files
+- `deploy_supervisor.py` - Added health registry, aggregated health, chaos hooks, API compatibility checks
+- `main.py` - Integrated state_manager and trade_guard
+- `dashboard.py` - Added aggregated health display
+
+### State Files Created
+- `state/trading_state.json` - Persistent trading state
+- `state/health.json` - Aggregated system health
+
+## Configuration
+
+### Environment Variables
+- `CHAOS_MODE` - Enable chaos testing (off|alpaca_down|invalid_creds|supervisor_crash|state_corrupt)
+- `MAX_POSITION_SIZE_USD` - Max position size per symbol (default: 500)
+- `MAX_NOTIONAL_PER_ORDER` - Max notional per order (default: 2000)
+- `MAX_PORTFOLIO_EXPOSURE_PCT` - Max portfolio exposure (default: 0.30 = 30%)
+- `MAX_CONCENTRATION_PER_SYMBOL_PCT` - Max concentration per symbol (default: 0.15 = 15%)
+- `MAX_PRICE_DEVIATION_PCT` - Max price deviation (default: 0.05 = 5%)
+- `MIN_COOLDOWN_MINUTES` - Minimum cooldown between trades (default: 5)
 
 ## Testing
 
-To verify self-healing works:
+### Manual Testing
+1. **State Corruption Test:**
+   ```bash
+   echo "{ invalid json }" > state/trading_state.json
+   # Restart bot - should self-heal
+   ```
 
-```bash
-# Check logs for self-healing events
-journalctl -u trading-bot.service | grep self_healing
+2. **Chaos Testing:**
+   ```bash
+   export CHAOS_MODE=alpaca_down
+   # Restart bot - observe behavior
+   ```
 
-# Check for StateFiles errors (should be none after fix)
-journalctl -u trading-bot.service | grep StateFiles
+3. **Trade Guard Test:**
+   - Attempt to place order exceeding limits
+   - Verify rejection in logs
 
-# Monitor bot status
-systemctl status trading-bot.service
-```
+### Health Monitoring
+- Check `state/health.json` for aggregated health
+- Check dashboard at `/api/system/health` endpoint
+- Monitor logs for self-healing events
+
+## Notes
+
+- All changes are **additive** - no existing logic removed
+- Core strategy logic unchanged
+- Wallet/P&L/risk math unchanged (except for state persistence)
+- Process structure unchanged (deploy_supervisor.py + children)
+- Existing logging preserved and extended
+- `.env` secrets loading path unchanged
 
 ## Future Enhancements
 
-- Add self-healing for other common errors (AttributeError, KeyError)
-- Add metrics tracking for self-healing success rate
-- Add alerting when self-healing is triggered frequently
-
+1. **State Migration:** Implement version migration logic for state schema changes
+2. **Chaos Test Runner:** Automated script to run chaos tests and validate behavior
+3. **Health Metrics:** Add more detailed health metrics (latency, error rates, etc.)
+4. **Trade Guard Tuning:** Learn optimal limits from historical data
+5. **API Contract Versioning:** Track API versions and warn on mismatches

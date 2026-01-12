@@ -22,6 +22,7 @@ def run_startup_contract_check() -> bool:
     warnings = []
     
     try:
+        # NOTE: internal_contract_validator is optional - if missing, validation is skipped
         from internal_contract_validator import run_preflight_validation, validate_enriched_signal
         passed, report = run_preflight_validation()
         
