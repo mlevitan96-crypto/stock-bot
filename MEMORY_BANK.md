@@ -1,6 +1,6 @@
 # MEMORY_BANK.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-01-10 (Reorganized Edition)
+# Version: 2026-01-12 (SSH Deployment Verified)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -488,12 +488,18 @@ Cursor MUST verify:
 ## 6.1 REQUIRED STEPS
 Cursor MUST:
 1. Commit + push to GitHub  
-2. SSH into droplet using `droplet_client.py`  
-3. Run deployment script  
-4. Wait for verification  
-5. Pull results from GitHub  
-6. Analyze results  
-7. Report to user  
+2. SSH into droplet using `droplet_client.py` (via `deploy_dashboard_via_ssh.py` or similar)  
+3. Pull latest code: `git pull origin main`  
+4. Restart services (dashboard, trading bot, etc.)  
+5. Wait for verification (check health endpoints)  
+6. Verify deployment success  
+7. Report to user
+
+**VERIFIED WORKFLOW (2026-01-12):**
+- ✅ SSH connection via `droplet_client.py` works (paramiko installed)
+- ✅ Deployment script `deploy_dashboard_via_ssh.py` successfully deploys
+- ✅ Dashboard can be started with: `nohup python3 dashboard.py > logs/dashboard.log 2>&1 &`
+- ✅ Health check endpoint responds: `curl http://localhost:5000/health`  
 
 ---
 
@@ -510,18 +516,27 @@ Cursor MUST NOT:
 ## 6.3 SSH CONFIG
 **DEPLOY_TARGET: 104.236.102.57 (stock-bot)**
 
-Droplet config:
+**VERIFIED (2026-01-12):** SSH deployment works via `droplet_client.py` with paramiko.
+
+Droplet config (`droplet_config.json`):
 ```json
 {
   "host": "104.236.102.57",
   "port": 22,
   "username": "root",
   "use_ssh_config": false,
+  "key_file": "C:/Users/markl/.ssh/id_ed25519",
   "project_dir": "/root/stock-bot"
 }
 ```
 
-**CRITICAL:** All deployments MUST target `104.236.102.57` (stock-bot). SSH alias "alpaca" should resolve to this IP.
+**Alternative:** Can use SSH config alias "alpaca" with `"use_ssh_config": true` and `"host": "alpaca"`.
+
+**CRITICAL:** 
+- All deployments MUST target `104.236.102.57` (stock-bot)
+- SSH alias "alpaca" resolves to this IP
+- **REQUIRED:** `paramiko` library must be installed: `python -m pip install paramiko`
+- SSH key must be authorized on droplet (user fixed key mismatch on 2026-01-12)
 
 ---
 
@@ -552,19 +567,30 @@ The `.env` file contains:
 ## 6.5 SYSTEMD SERVICE MANAGEMENT
 
 ### Service Details
-The stock-bot runs as a systemd service: `stock-bot.service`
+**NOTE (2026-01-12):** Systemd service `trading-bot.service` may not exist. Dashboard can be started manually.
 
-**SERVICE_NAME: stock-bot.service**
+**If systemd service exists:**
+- **SERVICE_NAME:** `trading-bot.service` or `stock-bot.service`
+- **Service file location:** `/etc/systemd/system/trading-bot.service` or `/etc/systemd/system/stock-bot.service`
+- **Service configuration:**
+  - **WorkingDirectory:** `/root/stock-bot`
+  - **EnvironmentFile:** `/root/stock-bot/.env`
+  - **ExecStart:** `/root/stock-bot/venv/bin/python /root/stock-bot/deploy_supervisor.py`
+  - **Restart:** `always` (with 5 second delay)
+  - **User:** `root`
+  - **Start on boot:** `enabled`
 
-**Service file location:** `/etc/systemd/system/stock-bot.service`
+**Manual Dashboard Start (VERIFIED WORKING):**
+```bash
+cd /root/stock-bot
+nohup python3 dashboard.py > logs/dashboard.log 2>&1 &
+```
 
-**Service configuration:**
-- **WorkingDirectory:** `/root/stock-bot`
-- **EnvironmentFile:** `/root/stock-bot/.env`
-- **ExecStart:** `/root/stock-bot/venv/bin/python /root/stock-bot/deploy_supervisor.py`
-- **Restart:** `always` (with 5 second delay)
-- **User:** `root`
-- **Start on boot:** `enabled`
+**Dashboard Health Check:**
+```bash
+curl http://localhost:5000/health
+# Should return: {"status":"degraded"|"healthy",...}
+```
 
 ### Service Management Commands
 ```bash
@@ -606,3 +632,58 @@ If service won't start:
 2. Check service status: `sudo systemctl status stock-bot`
 3. Check logs: `journalctl -u stock-bot -n 50`
 4. Verify credentials format in `.env` file (no spaces around `=`)
+
+---
+
+## 6.6 DASHBOARD DEPLOYMENT (VERIFIED 2026-01-12)
+
+### Deployment Process
+**VERIFIED WORKING:** SSH deployment via `droplet_client.py` works correctly.
+
+**Deployment Script:** `deploy_dashboard_via_ssh.py`
+
+**Required Dependencies:**
+- `paramiko` library: `python -m pip install paramiko`
+- `droplet_config.json` configured with correct SSH key path
+- SSH key authorized on droplet (user fixed key mismatch on 2026-01-12)
+
+### Deployment Steps (VERIFIED)
+1. **Code Push:** Commit and push to GitHub
+2. **SSH Connection:** Use `DropletClient()` from `droplet_client.py`
+3. **Pull Code:** `git pull origin main` on droplet
+4. **Restart Dashboard:** 
+   - Kill existing: `pkill -f 'python.*dashboard.py'`
+   - Start new: `nohup python3 dashboard.py > logs/dashboard.log 2>&1 &`
+5. **Verify:** `curl http://localhost:5000/health`
+
+### Dashboard Startup
+**VERIFIED METHOD (2026-01-12):**
+```bash
+cd /root/stock-bot
+nohup python3 dashboard.py > logs/dashboard.log 2>&1 &
+```
+
+**Health Check:**
+```bash
+curl http://localhost:5000/health
+# Expected: {"status":"degraded"|"healthy","alpaca_connected":true,...}
+```
+
+### Dashboard Endpoints
+- **Main:** http://104.236.102.57:5000/
+- **Health:** http://104.236.102.57:5000/health
+- **Positions:** http://104.236.102.57:5000/api/positions
+- **Health Status:** http://104.236.102.57:5000/api/health_status
+
+### Recent Fixes (2026-01-12)
+- ✅ Fixed blocking file read operations (`readlines()` → chunk-based reading)
+- ✅ Optimized large file processing (10,000 line limit, efficient reading)
+- ✅ All endpoints return valid JSON even on errors
+- ✅ Memory-efficient file operations
+
+### Troubleshooting Dashboard
+If dashboard not responding:
+1. Check if running: `ps aux | grep dashboard.py | grep -v grep`
+2. Check logs: `tail -50 /root/stock-bot/logs/dashboard.log`
+3. Start manually: `cd /root/stock-bot && nohup python3 dashboard.py > logs/dashboard.log 2>&1 &`
+4. Verify port: `netstat -tlnp | grep 5000` or `ss -tlnp | grep 5000`
