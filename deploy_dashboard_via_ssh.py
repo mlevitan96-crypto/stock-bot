@@ -62,9 +62,9 @@ def deploy_dashboard():
             if "dashboard" in commit.lower() or "6d7b3c2" in commit or "1ccbcf3" in commit or "f1a763a" in commit:
                 print("[OK] Dashboard fixes detected in commit")
             else:
-                print("⚠️  Warning: Dashboard fixes may not be in this commit")
+                print("[WARNING] Dashboard fixes may not be in this commit")
         else:
-            print(f"⚠️  Could not verify commit: {stderr[:200] if stderr else 'Unknown error'}")
+            print(f"[WARNING] Could not verify commit: {stderr[:200] if stderr else 'Unknown error'}")
         print()
         
         # Step 4: Check dashboard status
@@ -76,7 +76,7 @@ def deploy_dashboard():
             print(f"[OK] Dashboard is running")
             print(f"   {stdout.strip()[:100]}")
         else:
-            print("ℹ️  Dashboard process not found (may be under systemd/supervisor)")
+            print("[INFO] Dashboard process not found (may be under systemd/supervisor)")
         print()
         
         # Step 5: Restart dashboard
@@ -106,10 +106,10 @@ def deploy_dashboard():
                 print("[OK] Dashboard is responding")
                 print(f"   {stdout.strip()[:150]}")
             else:
-                print("⚠️  Dashboard responded but may have issues")
+                print("[WARNING] Dashboard responded but may have issues")
                 print(f"   {stdout.strip()[:150]}")
         else:
-            print("⚠️  Dashboard health check had issues")
+            print("[WARNING] Dashboard health check had issues")
             if stderr:
                 print(f"   Error: {stderr[:200]}")
         print()
