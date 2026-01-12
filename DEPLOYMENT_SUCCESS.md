@@ -1,51 +1,52 @@
-# ✅ DEPLOYMENT SUCCESS - Hardened Code Deployed
+# Deployment Success - 2026-01-12
 
-## Deployment Summary
+## Status: ✅ ALL SERVICES RUNNING
 
-**Date**: 2026-01-07
-**Status**: ✅ **DEPLOYED AND RUNNING**
+### Services Deployed and Started
 
-### Deployment Steps Completed
+1. **Supervisor**: ✅ RUNNING (PID: 1326462)
+2. **UW Daemon (FP-1.1)**: ✅ RUNNING (PID: 1326471)
+3. **Trading Bot (FP-6.1)**: ✅ RUNNING (PID: 1326473)
 
-1. ✅ All hardening fixes committed and pushed to Git
-2. ✅ Code pulled to droplet (commit: ffdb647)
-3. ✅ Portfolio delta gate fix verified in code (line 4844)
-4. ✅ Trading bot service restarted
-5. ✅ Bot is running and processing cycles
+### Deployment Process
 
-## Critical Fix: Portfolio Delta Gate
+1. ✅ Pulled latest code from GitHub
+2. ✅ Cleaned up existing service instances
+3. ✅ Restarted supervisor
+4. ✅ Started UW daemon manually
+5. ✅ Started trading bot manually
+6. ✅ Verified all services running
 
-✅ **FIXED**: The portfolio delta gate now checks `len(open_positions) > 0` FIRST before checking delta percentage.
+### Dashboard Status
 
-**Code Location**: Line 4844 in `main.py`
-```python
-if len(open_positions) > 0 and net_delta_pct > 70.0 and c.get("direction") == "bullish":
+The dashboard should now show:
+- **FP-1.1 (UW Daemon Running)**: OK
+- **FP-6.1 (Bot Running)**: OK
+
+### Next Steps
+
+1. Refresh the dashboard to verify status
+2. Monitor services for stability (10-15 minutes)
+3. Check trading activity if market is open
+
+### Deployment Script
+
+The script `deploy_and_start_services.py` can be used for future deployments:
+- Pulls latest code from GitHub
+- Cleans up existing services
+- Restarts supervisor
+- Manually starts services if supervisor doesn't start them
+- Verifies all services are running
+
+### Commands Used
+
+```bash
+cd /root/stock-bot
+git pull origin main
+pkill -f uw_flow_daemon
+pkill -f "python.*main.py"
+pkill -f deploy_supervisor
+nohup /root/stock-bot/venv/bin/python deploy_supervisor.py > logs/supervisor_restart.log 2>&1 &
+nohup /root/stock-bot/venv/bin/python uw_flow_daemon.py > logs/uw_daemon.log 2>&1 &
+nohup /root/stock-bot/venv/bin/python main.py > logs/main.log 2>&1 &
 ```
-
-**What This Means**:
-- ✅ With 0 positions: Gate will NOT block (net_delta_pct = 0.0)
-- ✅ With positions AND delta > 70%: Gate will block to prevent over-concentration
-- ✅ All errors fail open (allow trading)
-
-## All Hardening Applied
-
-1. ✅ **Portfolio Delta Gate** - Fixed to allow trading with 0 positions
-2. ✅ **API Calls** - All hardened with error handling
-3. ✅ **State Files** - All hardened with corruption handling
-4. ✅ **Division Operations** - All guarded
-5. ✅ **Type Conversions** - All validated
-6. ✅ **Self-Healing** - Implemented
-
-## Next Steps: Monitor for Trades
-
-The bot is now:
-- ✅ Running with hardened code
-- ✅ Portfolio delta gate fixed
-- ✅ Ready to process signals and place orders
-
-**Monitor**:
-- Check `logs/run.jsonl` for clusters and orders
-- Check `logs/orders.jsonl` for order submissions
-- Check `logs/gate.jsonl` - should NOT see portfolio_delta blocking with 0 positions
-
-**The bot should now be trading when quality signals are present!**
