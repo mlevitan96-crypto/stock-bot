@@ -6,15 +6,17 @@ Dashboard starts FIRST with ZERO delay to bind port 5000 immediately.
 IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK.md
 """
 
-from config.registry import StateFiles, CacheFiles, LogFiles, ConfigFiles
+from config.registry import StateFiles, CacheFiles, LogFiles, ConfigFiles, Directories
 import os
 import sys
 import time
 import signal
 import subprocess
 import threading
-from datetime import datetime
+import json
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Dict, Optional
 
 # Load .env file if it exists
 # CRITICAL: This file contains live trading credentials. DO NOT overwrite.
@@ -60,6 +62,34 @@ shutdown_flag = threading.Event()
 start_time = time.time()
 
 REQUIRED_DIRS = ["logs", "state", "data", "config", "state/heartbeats"]
+
+# Health registry
+health_registry = {}
+health_lock = threading.Lock()
+HEALTH_FILE = Directories.STATE / "health.json"
+
+# Chaos mode (for testing)
+CHAOS_MODE = os.getenv("CHAOS_MODE", "off").lower()
+
+# Droplet identity verification
+def verify_droplet_identity():
+    """Verify this is running on the correct droplet."""
+    try:
+        import requests
+        expected_ip = "104.236.102.57"
+        actual_ip = requests.get("https://ifconfig.me", timeout=5).text.strip()
+        if actual_ip != expected_ip:
+            raise RuntimeError(
+                f"WRONG DROPLET: Expected {expected_ip} (ubuntu-s-1vcpu-2gb-nyc3-01-alpaca), "
+                f"got {actual_ip}. Deployment aborted for safety."
+            )
+        print(f"[SUPERVISOR] Droplet identity verified: {actual_ip}")
+    except Exception as e:
+        # Don't fail if network check fails, but log warning
+        print(f"[SUPERVISOR] WARNING: Could not verify droplet identity: {e}")
+
+# Verify droplet identity on startup
+verify_droplet_identity()
 
 # Use sys.executable to ensure we use the same Python interpreter
 PYTHON_EXEC = sys.executable
@@ -128,6 +158,189 @@ def create_directories():
         except Exception as e:
             log(f"  ERROR creating {dir_path}: {e}")
 
+# =========================
+# HEALTH REGISTRY & AGGREGATION
+# =========================
+
+def update_service_health(service_name: str, status: str, error_message: Optional[str] = None):
+    """
+    Update health status for a service.
+    
+    Args:
+        service_name: Service name
+        status: "OK", "DEGRADED", or "FAILED"
+        error_message: Optional error message
+    """
+    with health_lock:
+        if service_name not in health_registry:
+            health_registry[service_name] = {
+                "name": service_name,
+                "pid": None,
+                "last_heartbeat_time": None,
+                "status": "UNKNOWN",
+                "last_error_message": None,
+                "last_updated": None
+            }
+        
+        health_registry[service_name]["status"] = status
+        health_registry[service_name]["last_updated"] = datetime.now(timezone.utc).isoformat()
+        
+        if error_message:
+            health_registry[service_name]["last_error_message"] = error_message
+        
+        # Update PID if process exists
+        if service_name in processes and processes[service_name]:
+            health_registry[service_name]["pid"] = processes[service_name].pid
+        
+        # Update heartbeat time
+        health_registry[service_name]["last_heartbeat_time"] = datetime.now(timezone.utc).isoformat()
+        
+        # Persist health
+        persist_health()
+
+def compute_overall_health() -> Dict[str, any]:
+    """
+    Compute overall system health from service health registry.
+    
+    Returns:
+        Dict with overall_status and per-service details
+    """
+    with health_lock:
+        critical_services = ["trading-bot", "uw-daemon", "heartbeat-keeper"]
+        supportive_services = ["dashboard"]
+        
+        overall_status = "OK"
+        service_statuses = {}
+        
+        # Check critical services
+        for service_name in critical_services:
+            service_health = health_registry.get(service_name, {})
+            status = service_health.get("status", "UNKNOWN")
+            service_statuses[service_name] = status
+            
+            if status == "FAILED":
+                overall_status = "FAILED"
+            elif status == "DEGRADED" and overall_status == "OK":
+                overall_status = "DEGRADED"
+        
+        # Check supportive services
+        for service_name in supportive_services:
+            service_health = health_registry.get(service_name, {})
+            status = service_health.get("status", "UNKNOWN")
+            service_statuses[service_name] = status
+            
+            if status == "FAILED" and overall_status == "OK":
+                overall_status = "DEGRADED"
+        
+        return {
+            "overall_status": overall_status,
+            "services": service_statuses,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "details": health_registry.copy()
+        }
+
+def persist_health():
+    """Persist health registry to health.json."""
+    try:
+        health_data = compute_overall_health()
+        Directories.STATE.mkdir(parents=True, exist_ok=True)
+        
+        # Atomic write
+        tmp_file = HEALTH_FILE.with_suffix(".tmp")
+        with open(tmp_file, 'w') as f:
+            json.dump(health_data, f, indent=2)
+        tmp_file.replace(HEALTH_FILE)
+    except Exception as e:
+        log(f"Failed to persist health: {e}")
+
+def check_api_compatibility():
+    """
+    Check API compatibility on startup.
+    
+    Returns:
+        Tuple of (all_ok: bool, errors: List[str])
+    """
+    errors = []
+    
+    # Check Alpaca API
+    try:
+        from alpaca_client import check_alpaca_compat
+        alpaca_key = os.getenv("ALPACA_KEY")
+        alpaca_secret = os.getenv("ALPACA_SECRET")
+        alpaca_url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+        
+        if alpaca_key and alpaca_secret:
+            is_ok, error = check_alpaca_compat(alpaca_key, alpaca_secret, alpaca_url)
+            if not is_ok:
+                errors.append(f"Alpaca API: {error}")
+                update_service_health("trading-bot", "FAILED", f"API compatibility check failed: {error}")
+            else:
+                log("Alpaca API compatibility check passed")
+        else:
+            log("Skipping Alpaca API check (credentials not available)")
+    except Exception as e:
+        errors.append(f"Alpaca API check error: {e}")
+        log(f"Alpaca API compatibility check failed: {e}")
+    
+    # Check UW API
+    try:
+        from uw_client import check_uw_compat
+        uw_key = os.getenv("UW_API_KEY")
+        uw_url = os.getenv("UW_BASE_URL", "https://api.unusualwhales.com")
+        
+        if uw_key:
+            is_ok, error = check_uw_compat(uw_key, uw_url)
+            if not is_ok:
+                errors.append(f"UW API: {error}")
+                update_service_health("uw-daemon", "FAILED", f"API compatibility check failed: {error}")
+            else:
+                log("UW API compatibility check passed")
+        else:
+            log("Skipping UW API check (credentials not available)")
+    except Exception as e:
+        errors.append(f"UW API check error: {e}")
+        log(f"UW API compatibility check failed: {e}")
+    
+    return len(errors) == 0, errors
+
+# =========================
+# CHAOS TESTING HOOKS
+# =========================
+
+def apply_chaos_mode():
+    """Apply chaos mode if enabled."""
+    if CHAOS_MODE == "off":
+        return
+    
+    log(f"CHAOS MODE ENABLED: {CHAOS_MODE}")
+    
+    if CHAOS_MODE == "supervisor_crash":
+        log("CHAOS: Simulating supervisor crash in 10 seconds...")
+        import threading
+        def crash():
+            time.sleep(10)
+            log("CHAOS: Supervisor crashing now!")
+            os._exit(1)
+        threading.Thread(target=crash, daemon=True).start()
+    
+    elif CHAOS_MODE == "alpaca_down":
+        log("CHAOS: Alpaca API will fail (simulated)")
+        # This will be handled by alpaca_client.py if it detects CHAOS_MODE
+    
+    elif CHAOS_MODE == "invalid_creds":
+        log("CHAOS: Invalid credentials mode (simulated)")
+        # Override credentials in process only (not in .env)
+        os.environ["ALPACA_KEY"] = "INVALID_KEY"
+        os.environ["ALPACA_SECRET"] = "INVALID_SECRET"
+    
+    elif CHAOS_MODE == "state_corrupt":
+        log("CHAOS: Corrupting state file...")
+        state_file = Directories.STATE / "trading_state.json"
+        if state_file.exists():
+            # Write invalid JSON
+            state_file.write_text("{ invalid json }")
+            log("CHAOS: State file corrupted")
+
 secrets_available = False
 
 def check_secrets():
@@ -164,10 +377,14 @@ def start_service(service):
     
     log(f"Starting service {name} with command: {' '.join(cmd)}")
     
+    # Initialize health registry entry
+    update_service_health(name, "OK")
+    
     if name in processes:
         proc = processes[name]
         if proc and proc.poll() is None:
             log(f"Service {name} already running (PID: {proc.pid})")
+            update_service_health(name, "OK")
             return True
     
     script_file = None
@@ -256,9 +473,11 @@ def start_service(service):
             return False
         
         log(f"Service {name} started successfully (PID: {proc.pid})")
+        update_service_health(name, "OK")
         return True
     except Exception as e:
         log(f"ERROR starting {name}: {e}")
+        update_service_health(name, "FAILED", str(e))
         import traceback
         traceback.print_exc()
         return False
@@ -359,8 +578,22 @@ def main():
     log(f"Time: {utc_now()}")
     log("="*60)
     
+    # Apply chaos mode if enabled
+    apply_chaos_mode()
+    
     create_directories()
     startup_cleanup()
+    
+    # Initialize health registry
+    for service in SERVICES:
+        update_service_health(service["name"], "UNKNOWN")
+    
+    # Check API compatibility
+    log("Checking API compatibility...")
+    api_ok, api_errors = check_api_compatibility()
+    if not api_ok:
+        log(f"WARNING: API compatibility checks failed: {api_errors}")
+        log("System will continue but trading may be disabled")
     
     if not check_secrets():
         log("WARNING: Continuing despite missing secrets...")
@@ -417,6 +650,12 @@ def main():
     last_status = time.time()
     status_interval = 300
     
+    # Track service failure counts for self-healing
+    service_failure_counts = {}
+    service_failure_window_start = {}
+    MAX_FAILURES_IN_WINDOW = 5
+    FAILURE_WINDOW_MINUTES = 10
+    
     while not shutdown_flag.is_set():
         time.sleep(30)
         
@@ -432,10 +671,40 @@ def main():
             if proc:
                 if proc.poll() is not None:
                     exit_code = proc.returncode
-                    log(f"Service {name} died (exit code {exit_code}), restarting...")
-                    log_event("SERVICE_DIED", service=name, exit_code=exit_code)
-                    time.sleep(5)
-                    start_service(service)
+                    log(f"Service {name} died (exit code {exit_code})")
+                    
+                    # Track failures
+                    now = time.time()
+                    if name not in service_failure_counts:
+                        service_failure_counts[name] = 0
+                        service_failure_window_start[name] = now
+                    
+                    # Reset window if expired
+                    if now - service_failure_window_start[name] > FAILURE_WINDOW_MINUTES * 60:
+                        service_failure_counts[name] = 0
+                        service_failure_window_start[name] = now
+                    
+                    service_failure_counts[name] += 1
+                    
+                    # Check if service should be marked as FAILED
+                    if service_failure_counts[name] >= MAX_FAILURES_IN_WINDOW:
+                        log(f"CRITICAL: Service {name} failed {service_failure_counts[name]} times in {FAILURE_WINDOW_MINUTES} minutes")
+                        log(f"Marking {name} as FAILED and stopping restart attempts")
+                        update_service_health(name, "FAILED", f"Repeated failures: {service_failure_counts[name]} in {FAILURE_WINDOW_MINUTES}min")
+                        log_event("SERVICE_FAILED_REPEATEDLY", service=name, failure_count=service_failure_counts[name])
+                        # Don't restart - wait for manual intervention or cooldown
+                    else:
+                        log(f"Restarting {name} (failure {service_failure_counts[name]}/{MAX_FAILURES_IN_WINDOW})...")
+                        log_event("SERVICE_DIED", service=name, exit_code=exit_code, failure_count=service_failure_counts[name])
+                        update_service_health(name, "DEGRADED", f"Restarting after failure (count: {service_failure_counts[name]})")
+                        time.sleep(5)
+                        start_service(service)
+                else:
+                    # Service is running - update health
+                    update_service_health(name, "OK")
+                    # Reset failure count on success
+                    if name in service_failure_counts:
+                        service_failure_counts[name] = 0
         
         if time.time() - last_rotation >= rotation_interval:
             rotate_logs()
@@ -447,9 +716,17 @@ def main():
             for name, proc in processes.items():
                 if proc:
                     status = "RUNNING" if proc.poll() is None else f"EXITED({proc.returncode})"
-                    log(f"  {name}: {status}")
+                    health_status = health_registry.get(name, {}).get("status", "UNKNOWN")
+                    log(f"  {name}: {status} (health: {health_status})")
+            
+            # Log overall health
+            overall_health = compute_overall_health()
+            log(f"OVERALL SYSTEM HEALTH: {overall_health['overall_status']}")
             log(f"Uptime: {int((time.time() - start_time) / 60)} minutes")
             log("-" * 40)
+            
+            # Persist health
+            persist_health()
             last_status = time.time()
     
     log("Supervisor exiting")

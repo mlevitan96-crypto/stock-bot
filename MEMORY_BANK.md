@@ -469,16 +469,20 @@ Cursor MUST NOT:
 ---
 
 ## 6.3 SSH CONFIG
+**DEPLOY_TARGET: 104.236.102.57 (ubuntu-s-1vcpu-2gb-nyc3-01-alpaca)**
+
 Droplet config:
 ```json
 {
-  "host": "alpaca",
+  "host": "104.236.102.57",
   "port": 22,
   "username": "root",
-  "use_ssh_config": true,
-  "project_dir": "~/stock-bot"
+  "use_ssh_config": false,
+  "project_dir": "/root/stock-bot"
 }
 ```
+
+**CRITICAL:** All deployments MUST target `104.236.102.57`. The "alpaca" SSH alias may point to a different droplet.
 
 ---
 
