@@ -709,10 +709,14 @@ class UWFlowDaemon:
         else:
             sentiment = "NEUTRAL"
             # FIXED: Give small positive conviction even for neutral flows if there's any activity
+            # This ensures NEUTRAL flows still contribute to scores (with stealth boost, gives ~0.4-0.6 flow component)
             if total_premium > 0:
-                conviction = min(0.2, total_premium / 1_000_000)  # Small conviction for any activity
+                # Scale conviction from 0.1 to 0.3 based on total premium
+                # This ensures even small flows contribute meaningfully to scores
+                conviction = min(0.3, 0.1 + (total_premium / 5_000_000))
             else:
-                conviction = 0.0
+                # No activity at all - give minimal conviction so stealth boost still applies
+                conviction = 0.05  # Small base so stealth boost (0.2) gives 0.25 total
         
         return {
             "sentiment": sentiment,
