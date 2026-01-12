@@ -19,7 +19,14 @@ from pathlib import Path
 # Load .env file if it exists
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    from pathlib import Path
+    # Explicitly load from /root/stock-bot/.env to ensure correct path
+    env_path = Path("/root/stock-bot/.env")
+    if env_path.exists():
+        load_dotenv(env_path, override=True)
+    else:
+        # Fallback to default behavior (current directory)
+        load_dotenv()
 except ImportError:
     pass  # dotenv not required
 
