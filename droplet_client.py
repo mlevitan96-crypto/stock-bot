@@ -112,7 +112,13 @@ class DropletClient:
                             if key_path.startswith('~'):
                                 import os
                                 key_path = os.path.expanduser(key_path)
-                            config['key_file'] = key_path
+                            # Convert Windows path separators if needed
+                            if os.sep == '\\' and '/' in key_path:
+                                key_path = key_path.replace('/', '\\')
+                            elif os.sep == '/' and '\\' in key_path:
+                                key_path = key_path.replace('\\', '/')
+                            if os.path.exists(key_path):
+                                config['key_file'] = key_path
                 
                 # Use resolved hostname for connection
                 if config.get('hostname'):
@@ -151,16 +157,25 @@ class DropletClient:
                     timeout=10
                 )
             elif self.config.get("use_ssh_config"):
-                # For SSH config, try connecting without explicit auth (SSH agent or default key)
-                # This will use the SSH agent or default keys from ~/.ssh/
-                ssh.connect(
-                    hostname=self.config["host"],
-                    port=self.config["port"],
-                    username=self.config["username"],
-                    timeout=10,
-                    look_for_keys=True,
-                    allow_agent=True
-                )
+                # For SSH config, try key file first if parsed, then SSH agent
+                if self.config.get("key_file") and os.path.exists(self.config["key_file"]):
+                    ssh.connect(
+                        hostname=self.config["host"],
+                        port=self.config["port"],
+                        username=self.config["username"],
+                        key_filename=self.config["key_file"],
+                        timeout=10
+                    )
+                else:
+                    # Fallback: try connecting without explicit auth (SSH agent or default key)
+                    ssh.connect(
+                        hostname=self.config["host"],
+                        port=self.config["port"],
+                        username=self.config["username"],
+                        timeout=10,
+                        look_for_keys=True,
+                        allow_agent=True
+                    )
             else:
                 raise ValueError("Either key_file, password, or use_ssh_config must be provided in config")
             
