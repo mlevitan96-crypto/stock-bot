@@ -310,6 +310,45 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - % of trades using default conviction
   - % of trades using neutral-expanded-intel defaults
 
+## 7.5 ADAPTIVE WEIGHTS & STAGNATION ALERTS (2026-01-10)
+
+### Current Protection Status
+
+**✅ Protected Component:**
+- `options_flow` - Hardcoded to always return default weight (2.4) in `uw_composite_v2.py:83-85`
+- **Reason:** Adaptive system previously learned bad weight (0.612 instead of 2.4), killing all scores
+
+**⚠️ Unprotected Components:**
+- All other 21 components can have adaptive multipliers applied (0.25x to 2.5x)
+- If multiple components are reduced to 0.25x, this can cause significant score reduction
+
+### Stagnation Alert Causes
+
+**Common Causes:**
+1. **Adaptive weights reducing multiple components** - If 5+ components reduced to 0.25x → 3-4 point score reduction
+2. **Zero score threshold** - 20+ consecutive signals with score=0.00 triggers alert
+3. **Funnel stagnation** - >50 alerts but 0 trades in 30min during RISK_ON regimes
+
+### Diagnostic Steps
+
+**When stagnation alerts occur:**
+1. Check adaptive weight state: `state/signal_weights.json`
+2. Verify component multipliers: Run `comprehensive_score_diagnostic.py`
+3. Review weight reductions: Components with multiplier < 1.0
+4. Calculate impact: `effective_weight = base_weight * multiplier`
+
+### Recommended Actions
+
+**Immediate:**
+- Review `SCORE_STAGNATION_ANALYSIS.md` for full analysis
+- Run diagnostics to check current weight state
+- Verify if weights need reset or protection
+
+**Long-term:**
+- Consider adding safety floors for critical components (similar to `options_flow`)
+- Review adaptive learning data to ensure weights learned from correct behavior
+- Add component contribution monitoring to track weight impacts
+
 ---
 
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)

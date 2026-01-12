@@ -1,131 +1,89 @@
 #!/usr/bin/env python3
-"""Run comprehensive investigation on droplet via SSH."""
+"""Run score stagnation investigation on droplet"""
+
+import sys
+from pathlib import Path
+
+# Add current directory to path
+sys.path.insert(0, str(Path(__file__).parent))
 
 from droplet_client import DropletClient
-import json
 
 def main():
     print("=" * 80)
-    print("RUNNING COMPREHENSIVE INVESTIGATION ON DROPLET")
+    print("CONNECTING TO DROPLET FOR SCORE STAGNATION INVESTIGATION")
     print("=" * 80)
-    print()
-    
-    client = DropletClient()
     
     try:
-        # Step 1: Pull latest code
-        print("Step 1: Pulling latest code from Git...")
-        result = client.execute_command("cd ~/stock-bot && git pull origin main", timeout=60)
-        if result['success']:
-            print("[OK] Code pulled successfully")
-        else:
-            print(f"[WARNING] Git pull had issues: {result['stderr'][:200]}")
-        print()
+        client = DropletClient()
+        print("✅ Droplet client initialized")
         
-        # Step 2: Run investigation
-        print("Step 2: Running comprehensive investigation...")
+        # First, upload the investigation script if it doesn't exist
+        print("\n📤 Uploading investigation script to droplet...")
+        
+        # Upload script using base64 encoding to avoid issues with heredoc
+        script_content = Path("investigate_score_stagnation_on_droplet.py").read_text()
+        import base64
+        script_b64 = base64.b64encode(script_content.encode('utf-8')).decode('ascii')
         result = client.execute_command(
-            "cd ~/stock-bot && python3 comprehensive_no_positions_investigation.py",
+            f"cd /root/stock-bot && echo '{script_b64}' | base64 -d > investigate_score_stagnation_on_droplet.py && chmod +x investigate_score_stagnation_on_droplet.py",
+            timeout=30
+        )
+        
+        if result.get('exit_code') == 0:
+            print("✅ Script uploaded")
+        else:
+            print(f"⚠️  Upload may have failed: {result.get('stderr', '')}")
+        
+        # Now run the investigation
+        print("\n🔍 Running investigation on droplet...")
+        print("-" * 80)
+        
+        result = client.execute_command(
+            "cd /root/stock-bot && python3 investigate_score_stagnation_on_droplet.py",
             timeout=180
         )
         
         print("\n" + "=" * 80)
-        print("INVESTIGATION OUTPUT")
+        print("INVESTIGATION RESULTS")
         print("=" * 80)
-        print(result['stdout'])
         
-        if result['stderr']:
-            print("\n" + "=" * 80)
-            print("ERRORS")
-            print("=" * 80)
-            print(result['stderr'])
+        stdout = result.get('stdout', '')
+        stderr = result.get('stderr', '')
+        exit_code = result.get('exit_code', -1)
         
-        # Step 2b: Run additional diagnostics
-        print("\n" + "=" * 80)
-        print("Step 2b: Running additional diagnostics...")
-        result2 = client.execute_command(
-            "cd ~/stock-bot && python3 fix_no_positions_issues.py",
-            timeout=120
-        )
+        if stdout:
+            print("\n=== STDOUT ===")
+            print(stdout)
         
-        print("\n" + "=" * 80)
-        print("ADDITIONAL DIAGNOSTICS OUTPUT")
-        print("=" * 80)
-        print(result2['stdout'])
+        if stderr:
+            print("\n=== STDERR ===")
+            print(stderr)
         
-        if result2['stderr']:
-            print("\n" + "=" * 80)
-            print("ERRORS")
-            print("=" * 80)
-            print(result2['stderr'])
+        print(f"\n=== EXIT CODE: {exit_code} ===")
         
-        print("\n" + "=" * 80)
-        print("INVESTIGATION OUTPUT")
-        print("=" * 80)
-        print(result['stdout'])
+        # Save results to file
+        output_file = Path("droplet_investigation_results.txt")
+        with open(output_file, 'w') as f:
+            f.write("=" * 80 + "\n")
+            f.write("DROPLET SCORE STAGNATION INVESTIGATION RESULTS\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(stdout)
+            if stderr:
+                f.write("\n" + "=" * 80 + "\n")
+                f.write("STDERR\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(stderr)
         
-        if result['stderr']:
-            print("\n" + "=" * 80)
-            print("ERRORS")
-            print("=" * 80)
-            print(result['stderr'])
-        
-        # Step 3: Get investigation results
-        print("\n" + "=" * 80)
-        print("Step 3: Retrieving investigation results...")
-        result = client.execute_command(
-            "cd ~/stock-bot && cat investigate_no_positions.json",
-            timeout=30
-        )
-        
-        if result['success'] and result['stdout']:
-            try:
-                data = json.loads(result['stdout'])
-                print("\n" + "=" * 80)
-                print("INVESTIGATION RESULTS SUMMARY")
-                print("=" * 80)
-                print(f"Timestamp: {data.get('timestamp')}")
-                print(f"Processes found: {len(data.get('processes', []))}")
-                positions = data.get('positions', {})
-                open_pos = len([p for p in positions.values() if p.get('status') == 'open']) if positions else 0
-                print(f"Open positions: {open_pos}")
-                print(f"Recent signals: {len(data.get('signals', []))}")
-                print(f"Blocked trades (last 50): {len(data.get('blocked_trades', []))}")
-                print(f"Errors in logs: {len(data.get('log_errors', []))}")
-            except:
-                print("Could not parse JSON results")
-        
-        # Step 4: Check if results were pushed to Git
-        print("\n" + "=" * 80)
-        print("Step 4: Checking if results need to be pushed to Git...")
-        result = client.execute_command(
-            "cd ~/stock-bot && git status --short | grep investigate_no_positions",
-            timeout=30
-        )
-        if result['stdout'].strip():
-            print("[INFO] Results file has changes, committing...")
-            commit_result = client.execute_command(
-                "cd ~/stock-bot && git add investigate_no_positions.json && git commit -m 'Investigation results - no positions diagnosis' && git push origin main",
-                timeout=60
-            )
-            if commit_result['success']:
-                print("[OK] Results pushed to Git")
-            else:
-                print(f"[WARNING] Failed to push: {commit_result['stderr'][:200]}")
-        else:
-            print("[INFO] No changes to commit")
+        print(f"\n✅ Results saved to: {output_file}")
         
     except Exception as e:
-        print(f"[ERROR] Investigation failed: {e}")
+        print(f"\n❌ Error: {e}")
         import traceback
         traceback.print_exc()
-    finally:
-        client.close()
+        return 1
     
-    print("\n" + "=" * 80)
-    print("INVESTIGATION COMPLETE")
-    print("=" * 80)
+    return 0
 
 if __name__ == "__main__":
-    main()
-
+    sys.exit(main())
