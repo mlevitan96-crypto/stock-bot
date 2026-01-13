@@ -7403,6 +7403,7 @@ def run_once():
         clusters = flow_clusters
         
         print(f"DEBUG: Initial flow_trades clusters={len(flow_clusters)}, use_composite={use_composite}", flush=True)
+        log_event("scoring_flow", "cluster_creation", flow_clusters=len(flow_clusters), use_composite=use_composite, cache_symbols=cache_symbol_count)
         
         # ROOT CAUSE FIX: Always run composite scoring when cache has symbol data
         # Composite scoring uses sentiment, conviction, dark_pool, insider - doesn't need flow_trades
@@ -7411,6 +7412,7 @@ def run_once():
             # Generate synthetic signals from cache instead of waiting for live API
             # CRITICAL: This works even when flow_trades is empty - uses sentiment, conviction, dark_pool, insider
             print(f"DEBUG: Running composite scoring for {cache_symbol_count} symbols (flow_trades may be empty)", flush=True)
+            log_event("scoring_flow", "composite_scoring_start", cache_symbols=cache_symbol_count)
             market_regime = compute_market_regime(gex_map, net_map, vol_map)
             filtered_clusters = []
             
@@ -7545,10 +7547,16 @@ def run_once():
                 # Use V3 scoring with all expanded intelligence (congress, shorts, institutional, etc.)
                 # NOTE: market_regime is computed later, use "mixed" as default for now
                 symbols_processed += 1
+                print(f"DEBUG: Computing composite score for {ticker} (symbol {symbols_processed}/{len(all_symbols_to_process)})", flush=True)
                 composite = uw_v2.compute_composite_score_v3(ticker, enriched, "mixed")
                 if composite is None:
                     print(f"DEBUG: Composite scoring returned None for {ticker} - skipping", flush=True)
+                    log_event("scoring_flow", "composite_none", symbol=ticker)
                     continue  # skip invalid data safely
+                
+                score = composite.get("score", 0.0)
+                print(f"DEBUG: {ticker} composite_score={score:.3f}", flush=True)
+                log_event("scoring_flow", "composite_calculated", symbol=ticker, score=score, components=composite.get("components", {}))
                 
                 # V3: Log all expanded features for learning (congress, shorts, institutional, etc.)
                 log_v3_features(ticker, composite)
