@@ -7780,10 +7780,66 @@ def run_once():
                     toxicity = composite.get("toxicity", 0.0)
                     freshness = composite.get("freshness", 1.0)
                     whale_boost = composite.get("whale_conviction_boost", 0.0)
-                    
+
                     # Extract raw score (before whale boost) for signal history
                     raw_score = score - whale_boost if whale_boost > 0 else score
                     final_score = score
+                    
+                    # CRITICAL FIX: Log rejected signals to history so they show in dashboard
+                    try:
+                        # Get sector for logging
+                        sector = "Unknown"
+                        try:
+                            from risk_management import get_sector
+                            sector = get_sector(ticker)
+                        except:
+                            pass
+                        
+                        # Get persistence and sector tide counts
+                        persistence_count = 0
+                        sector_tide_count = 0
+                        if composite.get("persistence_info"):
+                            persistence_count = composite.get("persistence_info", {}).get("count", 0)
+                        if composite.get("sector_tide_info"):
+                            sector_tide_count = composite.get("sector_tide_info", {}).get("count", 0)
+                        
+                        # Determine actual rejection reason
+                        rejection_reasons = []
+                        if score < threshold_used:
+                            rejection_reasons.append(f"score={score:.2f} < threshold={threshold_used:.2f}")
+                        if toxicity > 0.90:
+                            rejection_reasons.append(f"toxicity={toxicity:.2f} > 0.90")
+                        if freshness < 0.30:
+                            rejection_reasons.append(f"freshness={freshness:.2f} < 0.30")
+                        
+                        reason_str = " OR ".join(rejection_reasons) if rejection_reasons else "unknown"
+                        
+                        log_signal_to_history(
+                            symbol=ticker,
+                            direction=composite.get("sentiment", "neutral").lower(),  # bullish/bearish/neutral
+                            raw_score=raw_score,
+                            whale_boost=whale_boost,
+                            final_score=final_score,
+                            atr_multiplier=0.0,
+                            momentum_pct=0.0,
+                            momentum_required_pct=0.0,
+                            decision=f"Rejected: {reason_str}",
+                            metadata={
+                                "sector": sector,
+                                "persistence_count": persistence_count,
+                                "sector_tide_count": sector_tide_count,
+                                "composite_score": score,
+                                "threshold": threshold_used,
+                                "toxicity": toxicity,
+                                "freshness": freshness,
+                                "source": "composite_v3",
+                                "gate_stage": "composite_rejected"
+                            }
+                        )
+                        print(f"DEBUG: Logged rejected signal to history: {ticker} score={score:.2f} reason={reason_str}", flush=True)
+                    except Exception as log_err:
+                        print(f"DEBUG: Failed to log rejected signal to history for {ticker}: {log_err}", flush=True)
+                        # Don't fail on logging error - continue processing
                     
                     # Determine actual rejection reason
                     rejection_reasons = []
