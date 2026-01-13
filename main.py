@@ -7473,12 +7473,12 @@ def run_once():
                     enriched["freshness"] = 0.90  # Set to 0.9 if somehow still below 0.30
                     print(f"DEBUG: FORCED freshness to 0.90 for {ticker} (was below 0.30)", flush=True)
                 
-                    # Ensure computed signals are in enriched data (fallback if not in cache)
-                    enricher = uw_enrich.UWEnricher()
-                    cache_updated = False
-                    
-                    # CRITICAL FIX: Get symbol_data from cache before using it
-                    symbol_data = uw_cache.get(ticker, {})
+                # CRITICAL FIX: Get symbol_data from cache before using it (MUST be outside freshness check)
+                symbol_data = uw_cache.get(ticker, {})
+                
+                # Ensure computed signals are in enriched data (fallback if not in cache)
+                enricher = uw_enrich.UWEnricher()
+                cache_updated = False
                 
                 # SCORING PIPELINE FIX (Priority 3): Ensure core features are ALWAYS computed or neutral-defaulted
                 # See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
