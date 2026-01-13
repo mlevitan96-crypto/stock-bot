@@ -8913,8 +8913,11 @@ class Watchdog:
                         
                         # CRITICAL FIX: Ensure evaluate_exits is called even if run_once didn't call it
                         # This is a safety net in case run_once() returned early or crashed
+                        # Create engine in worker loop scope to access executor
                         try:
-                            if hasattr(engine, 'executor') and hasattr(engine.executor, 'evaluate_exits'):
+                            from main import StrategyEngine
+                            safety_engine = StrategyEngine()
+                            if hasattr(safety_engine, 'executor') and hasattr(safety_engine.executor, 'evaluate_exits'):
                                 print("DEBUG: Safety net - calling evaluate_exits() after run_once()", flush=True)
                                 try:
                                     with open("logs/worker_debug.log", "a") as f:
@@ -8922,10 +8925,24 @@ class Watchdog:
                                         f.flush()
                                 except:
                                     pass
-                                engine.executor.evaluate_exits()
+                                safety_engine.executor.evaluate_exits()
                                 print("DEBUG: Safety net evaluate_exits() completed", flush=True)
+                                try:
+                                    with open("logs/worker_debug.log", "a") as f:
+                                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] Safety net evaluate_exits() completed\n")
+                                        f.flush()
+                                except:
+                                    pass
                         except Exception as safety_err:
                             print(f"ERROR: Safety net evaluate_exits() failed: {safety_err}", flush=True)
+                            import traceback
+                            try:
+                                with open("logs/worker_debug.log", "a") as f:
+                                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] ERROR: Safety net evaluate_exits() failed: {safety_err}\n")
+                                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] Traceback: {traceback.format_exc()}\n")
+                                    f.flush()
+                            except:
+                                pass
                         # CRITICAL: Ensure run.jsonl is written even for successful cycles
                         jsonl_write("run", {
                             "ts": datetime.now(timezone.utc).isoformat(),
@@ -8964,11 +8981,28 @@ class Watchdog:
                         
                         # CRITICAL FIX: Still call evaluate_exits() even if run_once() failed
                         try:
-                            if hasattr(engine, 'executor') and hasattr(engine.executor, 'evaluate_exits'):
+                            from main import StrategyEngine
+                            safety_engine = StrategyEngine()
+                            if hasattr(safety_engine, 'executor') and hasattr(safety_engine.executor, 'evaluate_exits'):
                                 print("DEBUG: Calling evaluate_exits() after run_once() exception", flush=True)
-                                engine.executor.evaluate_exits()
+                                try:
+                                    with open("logs/worker_debug.log", "a") as f:
+                                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] Calling evaluate_exits() after run_once() exception\n")
+                                        f.flush()
+                                except:
+                                    pass
+                                safety_engine.executor.evaluate_exits()
+                                print("DEBUG: evaluate_exits() completed after exception", flush=True)
                         except Exception as exit_err:
                             print(f"ERROR: evaluate_exits() failed after run_once() exception: {exit_err}", flush=True)
+                            import traceback
+                            try:
+                                with open("logs/worker_debug.log", "a") as f:
+                                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] ERROR: evaluate_exits() failed after exception: {exit_err}\n")
+                                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] Traceback: {traceback.format_exc()}\n")
+                                    f.flush()
+                            except:
+                                pass
                         
                         raise  # Re-raise to be caught by outer exception handler
                 else:
