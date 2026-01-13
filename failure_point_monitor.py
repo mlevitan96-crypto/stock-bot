@@ -252,9 +252,13 @@ class FailurePointMonitor:
             print(f"[SELF-HEAL] Weight init error: {e}")
     
     def check_fp_3_1_freeze_state(self) -> FailurePointStatus:
-        """FP-3.1: Freeze State"""
+        """
+        FP-3.1: Freeze State
+        
+        NOTE: pre_market_freeze.flag mechanism removed - only checks governor_freezes.json
+        This matches the actual freeze check in monitoring_guards.py:check_freeze_state()
+        """
         freeze_file = Path("state/governor_freezes.json")
-        pre_market = Path("state/pre_market_freeze.flag")
         
         frozen = False
         freeze_reason = None
@@ -263,15 +267,17 @@ class FailurePointMonitor:
             try:
                 with freeze_file.open() as f:
                     freezes = json.load(f)
-                    if freezes:
+                    # Check for active freezes (value == True)
+                    active_freezes = {k: v for k, v in freezes.items() if v == True}
+                    if active_freezes:
                         frozen = True
-                        freeze_reason = "governor_freezes.json"
-            except:
+                        freeze_reason = f"governor_freezes.json: {', '.join(active_freezes.keys())}"
+            except Exception as e:
+                # Don't block on check errors
                 pass
         
-        if pre_market.exists():
-            frozen = True
-            freeze_reason = "pre_market_freeze.flag"
+        # NOTE: pre_market_freeze.flag is no longer checked (removed mechanism)
+        # If it exists, it's stale and should be removed but won't block trading
         
         status = "OK" if not frozen else "ERROR"
         error = None if not frozen else f"Trading frozen: {freeze_reason}"
