@@ -8313,7 +8313,15 @@ def run_once():
         except:
             pass
         
-        engine.executor.evaluate_exits()
+        # CRITICAL FIX: Ensure evaluate_exits is ALWAYS called, even if there's an exception
+        try:
+            engine.executor.evaluate_exits()
+            print("DEBUG: evaluate_exits() completed", flush=True)
+        except Exception as exit_err:
+            print(f"ERROR: evaluate_exits() raised exception: {exit_err}", flush=True)
+            import traceback
+            traceback.print_exc()
+            log_event("exit", "evaluate_exits_exception", error=str(exit_err))
         
         # CRITICAL FIX: Log after evaluate_exits
         try:
