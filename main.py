@@ -10168,6 +10168,14 @@ def main():
     app.run(host="0.0.0.0", port=Config.API_PORT, debug=False)
 
 if __name__ == "__main__":
+    # CRITICAL FIX: Log to file immediately to verify this block executes
+    try:
+        with open("logs/worker_debug.log", "a") as f:
+            f.write(f"[{datetime.now(timezone.utc).isoformat()}] THIRD if __name__ == '__main__' BLOCK EXECUTING (line 10165)\n")
+            f.flush()
+    except Exception as log_err:
+        print(f"ERROR: Failed to write to worker_debug.log in if __name__ block: {log_err}", flush=True)
+    
     # INVINCIBLE MAIN LOOP: Catch-all exception handler prevents process exit
     max_crash_count = 10
     crash_count = 0
@@ -10175,7 +10183,22 @@ if __name__ == "__main__":
     
     while True:
         try:
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] About to call main() function\n")
+                    f.flush()
+            except:
+                pass
+            
             main()
+            
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] main() function returned (should not happen - Flask blocks)\n")
+                    f.flush()
+            except:
+                pass
+            
             break  # Normal exit from main() breaks the loop
         except KeyboardInterrupt:
             log_event("system", "shutdown_requested", reason="keyboard_interrupt")
