@@ -1,0 +1,411 @@
+{
+  "validation_date": "2026-01-12T23:23:03.301726+00:00",
+  "summary": {
+    "total_components": 6,
+    "passed": 2,
+    "failed": 4,
+    "warnings": 0,
+    "operational_readiness": "NOT_OPERATIONAL",
+    "total_failures": 8
+  },
+  "component_results": [
+    {
+      "component": "Signal Generation",
+      "status": "FAIL",
+      "message": "1 failures",
+      "failures": [
+        "Mock score out of range: 5.092"
+      ],
+      "details": {
+        "uw_composite_v2_import": "OK",
+        "uw_composite_import": "OK",
+        "mock_score": 5.092,
+        "mock_score_valid": false,
+        "deterministic": true
+      }
+    },
+    {
+      "component": "Score Computation",
+      "status": "FAIL",
+      "message": "2 failures",
+      "failures": [
+        "High conviction bullish: score 5.045 outside expected range (3.0, 5.0)",
+        "Exit High urgency (signal decay): urgency 0.62 outside expected range"
+      ],
+      "details": {
+        "buy_score_tests": [
+          {
+            "name": "High conviction bullish",
+            "score": 5.045,
+            "in_range": false
+          },
+          {
+            "name": "Low conviction neutral",
+            "score": 1.947,
+            "in_range": true
+          },
+          {
+            "name": "Missing data fallback",
+            "score": 2.605,
+            "in_range": true
+          }
+        ],
+        "exit_score_tests": [
+          {
+            "name": "High urgency (signal decay)",
+            "urgency": 0.62,
+            "recommendation": "HOLD",
+            "in_range": false
+          },
+          {
+            "name": "Low urgency (hold)",
+            "urgency": 0.0,
+            "recommendation": "HOLD",
+            "in_range": true
+          }
+        ],
+        "zero_conviction_handled": true,
+        "zero_conviction_score": 1.885
+      }
+    },
+    {
+      "component": "Trade Decision Logic",
+      "status": "PASS",
+      "message": "All checks passed",
+      "failures": [],
+      "details": {
+        "min_exec_score": 3.0,
+        "threshold_tests": [
+          {
+            "score": 3.5,
+            "expected": "ENTER",
+            "would_pass": true,
+            "correct": true
+          },
+          {
+            "score": 2.5,
+            "expected": "BLOCK",
+            "would_pass": false,
+            "correct": true
+          },
+          {
+            "score": 3.0,
+            "expected": "BORDERLINE",
+            "would_pass": true,
+            "correct": true
+          }
+        ],
+        "exit_decision_tests": [
+          [
+            "Trailing Stop",
+            {
+              "entry_price": 100.0,
+              "current_price": 98.0,
+              "high_water": 101.0,
+              "trailing_stop_pct": 0.015,
+              "trail_stop_price": 99.485,
+              "should_exit": true
+            }
+          ],
+          [
+            "Profit Target",
+            {
+              "entry_price": 100.0,
+              "current_price": 100.75,
+              "profit_target_pct": 0.0075,
+              "should_exit": true
+            }
+          ],
+          [
+            "Time Exit",
+            {
+              "age_minutes": 241,
+              "time_exit_minutes": 240,
+              "should_exit": true
+            }
+          ]
+        ],
+        "gates_checked": {
+          "regime_gate": true,
+          "concentration_gate": true,
+          "theme_risk_gate": true,
+          "expectancy_gate": true,
+          "score_threshold_gate": true,
+          "cooldown_gate": true,
+          "position_exists_gate": true,
+          "momentum_ignition": true,
+          "spread_watchdog": true,
+          "size_validation": true
+        }
+      }
+    },
+    {
+      "component": "Order Construction",
+      "status": "PASS",
+      "message": "All checks passed",
+      "failures": [],
+      "details": {
+        "base_qty_calc": {
+          "price": 150.0,
+          "base_notional": 500.0,
+          "calculated_qty": 3,
+          "expected_qty": 3,
+          "correct": true
+        },
+        "min_notional": 100.0,
+        "notional_tests": [
+          {
+            "notional": 450.0,
+            "should_pass": true,
+            "would_pass": true,
+            "correct": true
+          },
+          {
+            "notional": 50.0,
+            "should_pass": false,
+            "would_pass": false,
+            "correct": true
+          },
+          {
+            "notional": 100.0,
+            "should_pass": true,
+            "would_pass": true,
+            "correct": true
+          },
+          {
+            "notional": 99.99,
+            "should_pass": false,
+            "would_pass": false,
+            "correct": true
+          }
+        ],
+        "fractional_shares": {
+          "high_price": 900.0,
+          "position_size": 500.0,
+          "fractional_qty": 0.5555555555555556,
+          "would_use_fractional": true
+        },
+        "buying_power_tests": [
+          {
+            "side": "long",
+            "required": 500.0,
+            "available": 10000.0,
+            "should_pass": true,
+            "would_pass": true,
+            "correct": true
+          },
+          {
+            "side": "short",
+            "required": 750.0,
+            "available": 10000.0,
+            "should_pass": true,
+            "would_pass": true,
+            "correct": true
+          },
+          {
+            "side": "long",
+            "required": 10100.0,
+            "available": 10000.0,
+            "should_pass": false,
+            "would_pass": false,
+            "correct": true
+          },
+          {
+            "side": "short",
+            "required": 10100.0,
+            "available": 10000.0,
+            "should_pass": false,
+            "would_pass": false,
+            "correct": true
+          }
+        ]
+      }
+    },
+    {
+      "component": "Execution Path",
+      "status": "FAIL",
+      "message": "2 issues",
+      "failures": [
+        "Cannot import main: No module named 'requests'",
+        "Cannot verify submit_entry: No module named 'requests'"
+      ],
+      "details": {
+        "error_handling": {
+          "spread_watchdog": true,
+          "min_notional_check": true,
+          "buying_power_check": true,
+          "api_error_handling": true,
+          "logging": true
+        },
+        "paper_mode": true,
+        "alpaca_url": "https://paper-api.alpaca.markets"
+      }
+    },
+    {
+      "component": "Exit-Score Flow",
+      "status": "FAIL",
+      "message": "3 failures",
+      "failures": [
+        "Exit urgency too low: 3.94 (expected >= 6.0 for EXIT)",
+        "Exit recommendation incorrect: REDUCE (expected EXIT)",
+        "Close reason formatting failed: No module named 'requests'"
+      ],
+      "details": {
+        "exit_model_import": "OK",
+        "exit_computation": {
+          "urgency": 3.94,
+          "recommendation": "REDUCE",
+          "factors": [
+            "entry_decay(0.50)",
+            "adverse_flow_detected",
+            "momentum_reversal(-0.80)"
+          ]
+        },
+        "exit_thresholds": {
+          "exit_urgency_threshold": 6.0,
+          "reduce_urgency_threshold": 3.0,
+          "hold_urgency_threshold": 0.0
+        }
+      }
+    }
+  ],
+  "simulation_scenarios": {
+    "A": {
+      "name": "Scenario A: High Conviction BUY",
+      "symbol": "AAPL",
+      "mock_enriched": {
+        "sentiment": "BULLISH",
+        "conviction": 0.85,
+        "dark_pool": {
+          "sentiment": "BULLISH",
+          "total_premium": 5000000.0,
+          "print_count": 20
+        },
+        "insider": {
+          "sentiment": "BULLISH",
+          "net_buys": 8,
+          "net_sells": 1,
+          "conviction_modifier": 0.04
+        },
+        "iv_term_skew": 0.1,
+        "smile_slope": 0.06,
+        "toxicity": 0.1
+      },
+      "regime": "RISK_ON",
+      "current_price": 175.0,
+      "composite_score": 5.381,
+      "decision": "BUY",
+      "order": {
+        "qty": 2,
+        "notional": 500.0,
+        "side": "buy"
+      }
+    },
+    "B": {
+      "name": "Scenario B: Low Score HOLD",
+      "symbol": "MSFT",
+      "mock_enriched": {
+        "sentiment": "NEUTRAL",
+        "conviction": 0.4,
+        "dark_pool": {
+          "sentiment": "NEUTRAL",
+          "total_premium": 500000.0,
+          "print_count": 5
+        },
+        "insider": {
+          "sentiment": "NEUTRAL"
+        },
+        "iv_term_skew": 0.02,
+        "smile_slope": 0.01,
+        "toxicity": 0.2
+      },
+      "regime": "mixed",
+      "current_price": 380.0,
+      "composite_score": 2.199,
+      "decision": "HOLD",
+      "order": null
+    },
+    "C": {
+      "name": "Scenario C: Exit Signal",
+      "symbol": "NVDA",
+      "position_data": {
+        "entry_score": 4.2,
+        "entry_price": 500.0,
+        "current_price": 495.0,
+        "current_pnl_pct": -1.0,
+        "age_hours": 2.0,
+        "high_water_pct": 0.5,
+        "direction": "LONG"
+      },
+      "current_signals": {
+        "composite_score": 1.5,
+        "flow_reversal": true,
+        "momentum": -0.7
+      },
+      "exit_urgency": 3.95,
+      "recommendation": "REDUCE",
+      "decision": "HOLD",
+      "close_order": null
+    },
+    "D": {
+      "name": "Scenario D: Missing Data Fallback",
+      "symbol": "TSLA",
+      "mock_enriched": {
+        "sentiment": "BULLISH",
+        "conviction": 0.6
+      },
+      "regime": "RISK_ON",
+      "current_price": 250.0,
+      "composite_score": 2.845,
+      "decision": "BLOCK",
+      "handled_gracefully": true,
+      "order": null
+    }
+  },
+  "files_involved": {
+    "Signal Generation": [
+      "uw_composite_v2.py",
+      "signals/uw_composite.py",
+      "main.py (run_once)"
+    ],
+    "Score Computation": [
+      "uw_composite_v2.py (compute_composite_score_v3)",
+      "adaptive_signal_optimizer.py (ExitSignalModel)",
+      "main.py (get_exit_urgency)"
+    ],
+    "Trade Decision": [
+      "main.py (decide_and_execute)",
+      "v3_2_features.py (ExpectancyGate)",
+      "config/registry.py (Thresholds)"
+    ],
+    "Order Construction": [
+      "main.py (submit_entry)",
+      "config/registry.py (Config, Thresholds)"
+    ],
+    "Execution Path": [
+      "main.py (AlpacaExecutor.submit_entry)",
+      "api_management/* (if exists)"
+    ],
+    "Exit-Score Flow": [
+      "main.py (evaluate_exits)",
+      "adaptive_signal_optimizer.py (ExitSignalModel)",
+      "main.py (get_exit_urgency, build_composite_close_reason)"
+    ]
+  },
+  "failures": [
+    "Mock score out of range: 5.092",
+    "High conviction bullish: score 5.045 outside expected range (3.0, 5.0)",
+    "Exit High urgency (signal decay): urgency 0.62 outside expected range",
+    "Cannot import main: No module named 'requests'",
+    "Cannot verify submit_entry: No module named 'requests'",
+    "Exit urgency too low: 3.94 (expected >= 6.0 for EXIT)",
+    "Exit recommendation incorrect: REDUCE (expected EXIT)",
+    "Close reason formatting failed: No module named 'requests'"
+  ],
+  "recommendations": [
+    "Fix signal generation module imports or computation logic",
+    "Review score computation logic for edge cases",
+    "Verify execution path error handling",
+    "Review exit-score computation and logging"
+  ]
+}

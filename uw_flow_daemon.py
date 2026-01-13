@@ -245,6 +245,36 @@ class UWClient:
             
             r.raise_for_status()
             response_data = r.json()
+            
+            # DIAGNOSTIC: Store last 5 raw payloads for debugging
+            try:
+                raw_payload_log = Path("logs/uw_raw_payloads.jsonl")
+                raw_payload_log.parent.mkdir(exist_ok=True)
+                payload_entry = {
+                    "ts": int(time.time()),
+                    "dt": datetime.now(timezone.utc).isoformat(),
+                    "url": url,
+                    "status": r.status_code,
+                    "payload": response_data
+                }
+                with raw_payload_log.open("a") as f:
+                    f.write(json.dumps(payload_entry) + "\n")
+                
+                # Keep only last 5 entries (simple rotation)
+                try:
+                    with raw_payload_log.open("r") as f:
+                        lines = f.readlines()
+                    if len(lines) > 5:
+                        with raw_payload_log.open("w") as f:
+                            f.writelines(lines[-5:])
+                except:
+                    pass
+                
+                # Print last payload summary to console
+                safe_print(f"[UW-DAEMON] ✅ RAW PAYLOAD RECEIVED: {url} | Status: {r.status_code} | Data keys: {list(response_data.keys()) if isinstance(response_data, dict) else 'N/A'}")
+            except Exception as log_err:
+                safe_print(f"[UW-DAEMON] ⚠️  Failed to log raw payload: {log_err}")
+            
             # #region agent log
             debug_log("uw_flow_daemon.py:_get", "API call success", {
                 "url": url, 

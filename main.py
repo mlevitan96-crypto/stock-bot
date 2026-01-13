@@ -34,6 +34,16 @@ from config.registry import (
 # CRITICAL: Standardized data path - MUST be used by all components (main.py, friday_eow_audit.py, dashboard.py)
 ATTRIBUTION_LOG_PATH = LogFiles.ATTRIBUTION
 
+def _normalize_ticker(ticker: str) -> str:
+    """
+    REQUIRED FIX: Normalize GOOG/GOOGL tickers to prevent concentration bias.
+    Both GOOG and GOOGL represent Alphabet Inc. and should be treated as the same symbol.
+    """
+    ticker_upper = ticker.upper()
+    if ticker_upper in ("GOOG", "GOOGL"):
+        return "GOOGL"  # Use GOOGL as canonical form
+    return ticker_upper
+
 # Institutional-grade modules
 from signals.uw import (
     uw_weighting,
@@ -2972,6 +2982,19 @@ class AlpacaExecutor:
         self.high_water = {}
         self.last_quotes = {}
         self._reconciled = False
+        
+        # DIAGNOSTIC: Test Alpaca API connection and account balance
+        try:
+            account = self.api.get_account()
+            buying_power = float(getattr(account, "buying_power", 0.0))
+            equity = float(getattr(account, "equity", 0.0))
+            print(f"✅ DIAGNOSTIC: Alpaca API connected - Buying Power: ${buying_power:,.2f}, Equity: ${equity:,.2f}", flush=True)
+            log_event("alpaca_api", "connection_test_success", buying_power=buying_power, equity=equity)
+        except Exception as e:
+            print(f"❌ DIAGNOSTIC: Alpaca API connection test FAILED: {e}", flush=True)
+            log_event("alpaca_api", "connection_test_failed", error=str(e))
+            # Don't fail initialization, but log the error
+        
         # Defer reconciliation to avoid crash during market open API latency
         if not defer_reconcile:
             self._safe_reconcile()
@@ -3898,8 +3921,33 @@ class AlpacaExecutor:
             return False  # Fail closed - don't open new positions if we can't check
 
     def can_open_symbol(self, symbol: str) -> bool:
+        """
+        Check if we can open a new position for this symbol.
+        Includes cooldown check and Max 1 Position per Symbol governor.
+        """
         now = datetime.utcnow()
-        return now >= self.cooldowns.get(symbol, datetime.min)
+        if now < self.cooldowns.get(symbol, datetime.min):
+            return False
+        
+        # REQUIRED FIX: Max 1 Position per Symbol governor
+        # Normalize GOOG/GOOGL to prevent concentration bias
+        normalized_symbol = _normalize_ticker(symbol)
+        
+        # Check if we already have a position in this symbol (or its normalized variant)
+        try:
+            positions = self.api.list_positions() or []
+            for pos in positions:
+                pos_symbol = getattr(pos, "symbol", "")
+                if pos_symbol:
+                    pos_normalized = _normalize_ticker(pos_symbol)
+                    if pos_normalized == normalized_symbol:
+                        # Already have a position in this symbol (or its variant)
+                        return False
+        except Exception as e:
+            log_event("can_open_symbol", "position_check_error", symbol=symbol, error=str(e))
+            # Fail open - if we can't check, allow the trade
+        
+        return True
 
     def find_displacement_candidate(self, new_signal_score: float, new_symbol: str = None) -> Optional[Dict]:
         """
@@ -5742,12 +5790,31 @@ class StrategyEngine:
                         # Skip this symbol - can't flip if close failed
                         continue
                 elif symbol in self.executor.opens and not should_flip:
-                    # TEMPORARILY ALLOW: We already have a position but allow new entries for higher scores
-                    # This prevents stale positions from blocking all trading
-                    if score >= 2.0:  # Allow entries even if already positioned if score is good
-                        print(f"DEBUG {symbol}: Already positioned but allowing entry (score={score:.2f} >= 2.0)", flush=True)
-                    else:
-                        log_event("gate", "already_positioned", symbol=symbol, existing_side=existing_side, gate_type="position_gate", signal_type=c.get("signal_type", "UNKNOWN"))
+                    # REQUIRED FIX: Max 1 Position per Symbol governor - hard block duplicate positions
+                    # Normalize symbol to prevent GOOG/GOOGL concentration bias
+                    normalized_symbol = _normalize_ticker(symbol)
+                    
+                    # Check if we already have a position (including normalized variants)
+                    has_existing_position = False
+                    try:
+                        positions = self.executor.api.list_positions() or []
+                        for pos in positions:
+                            pos_symbol = getattr(pos, "symbol", "")
+                            if pos_symbol:
+                                pos_normalized = _normalize_ticker(pos_symbol)
+                                if pos_normalized == normalized_symbol:
+                                    has_existing_position = True
+                                    break
+                    except Exception:
+                        # If check fails, use opens dict as fallback
+                        has_existing_position = symbol in self.executor.opens
+                    
+                    if has_existing_position:
+                        # HARD BLOCK: Max 1 Position per Symbol
+                        log_event("gate", "max_one_position_per_symbol", 
+                                 symbol=symbol, normalized_symbol=normalized_symbol,
+                                 existing_side=existing_side, gate_type="diversification_gate", 
+                                 signal_type=c.get("signal_type", "UNKNOWN"))
                         # SIGNAL HISTORY: Log blocked signal
                         log_signal_to_history(
                             symbol=symbol,
@@ -5758,8 +5825,8 @@ class StrategyEngine:
                             atr_multiplier=atr_mult or 0.0,
                             momentum_pct=0.0,
                             momentum_required_pct=0.0,
-                            decision="Blocked: duplicate_signal",
-                            metadata={"existing_side": existing_side}
+                            decision="Blocked: max_one_position_per_symbol",
+                            metadata={"normalized_symbol": normalized_symbol, "existing_side": existing_side}
                         )
                         continue
             

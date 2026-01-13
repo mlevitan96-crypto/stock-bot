@@ -27,8 +27,31 @@ MOTIF_STATE = Path("state/uw_motifs.json")
 THRESHOLD_STATE = Path("state/uw_thresholds_hierarchical.json")
 AUDIT_LOG = Path("data/audit_uw_upgrade.jsonl")
 EXPANDED_INTEL_CACHE = Path("data/uw_expanded_intel.json")
+GATE_DIAGNOSTIC_LOG = Path("logs/gate_diagnostic.jsonl")
 
 _adaptive_optimizer = None
+
+def _log_gate_failure(symbol: str, gate_name: str, details: Dict):
+    """
+    DIAGNOSTIC: Log every signal that fails a gate for root cause analysis.
+    This helps identify if signals are failing the 3.0 Score Gate, 2.5 ATR Exhaustion Gate, or Diversification Gate.
+    """
+    try:
+        from datetime import datetime, timezone
+        GATE_DIAGNOSTIC_LOG.parent.mkdir(exist_ok=True)
+        log_rec = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "timestamp": int(time.time()),
+            "symbol": symbol,
+            "gate_name": gate_name,
+            "decision": "blocked",
+            "status": "rejected",
+            "details": details
+        }
+        with GATE_DIAGNOSTIC_LOG.open("a") as f:
+            f.write(json.dumps(log_rec) + "\n")
+    except Exception:
+        pass  # Don't fail on diagnostic logging
 
 def _get_adaptive_optimizer():
     """Lazy-load adaptive optimizer to avoid circular imports"""
@@ -1303,6 +1326,8 @@ def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) 
       (avoids buying the 'top' of a spike)
     """
     if not composite:
+        # DIAGNOSTIC: Log composite None
+        _log_gate_failure(symbol, "composite_none", {"reason": "composite is None or empty"})
         return False
     
     score = composite.get("score", 0.0)
@@ -1310,11 +1335,24 @@ def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) 
     
     # V3.0: Score must be >= 3.0 (MIN_EXEC_SCORE from config)
     if score < threshold:
+        # DIAGNOSTIC: Log score gate failure
+        _log_gate_failure(symbol, "score_gate", {
+            "score": score,
+            "threshold": threshold,
+            "gap": threshold - score,
+            "reason": f"Score {score:.2f} < threshold {threshold:.2f}"
+        })
         return False
     
     # Additional gating: don't enter if toxicity too high
     toxicity = composite.get("toxicity", 0.0)
     if toxicity > 0.90:
+        # DIAGNOSTIC: Log toxicity gate failure
+        _log_gate_failure(symbol, "toxicity_gate", {
+            "toxicity": toxicity,
+            "threshold": 0.90,
+            "reason": f"Toxicity {toxicity:.2f} > 0.90"
+        })
         return False
     
     # Don't enter if freshness too low (stale data)
@@ -1322,6 +1360,12 @@ def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) 
     # The freshness floor in main.py sets minimum to 0.9, so this should rarely trigger
     freshness = composite.get("freshness", 1.0)
     if freshness < 0.25:  # Lowered from 0.30 to 0.25 to match freshness floor fix
+        # DIAGNOSTIC: Log freshness gate failure
+        _log_gate_failure(symbol, "freshness_gate", {
+            "freshness": freshness,
+            "threshold": 0.25,
+            "reason": f"Freshness {freshness:.2f} < 0.25"
+        })
         return False
     
     # V3.0 EXHAUSTION CHECK: Block entries where price is > 2.5 ATRs from 20-period EMA
@@ -1363,32 +1407,16 @@ def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) 
                             
                             if atr_distance > 2.5:
                                 # EXHAUSTION DETECTED: Price too extended from EMA
-                                # Log the block
-                                try:
-                                    from pathlib import Path
-                                    log_file = Path("logs/gate.jsonl")
-                                    log_file.parent.mkdir(exist_ok=True)
-                                    import json
-                                    from datetime import datetime, timezone
-                                    log_rec = {
-                                        "ts": datetime.now(timezone.utc).isoformat(),
-                                        "symbol": symbol,
-                                        "decision": "blocked",
-                                        "gate_name": "exhaustion_filter",
-                                        "reason": "price_extended_from_ema",
-                                        "current_price": current_price,
-                                        "ema_20": float(ema_20),
-                                        "atr": atr,
-                                        "atr_distance": round(atr_distance, 2),
-                                        "threshold": 2.5,
-                                        "signal_score": score,
-                                        "status": "rejected"
-                                    }
-                                    with log_file.open("a") as f:
-                                        f.write(json.dumps(log_rec) + "\n")
-                                except:
-                                    pass
-                                
+                                # DIAGNOSTIC: Log exhaustion gate failure
+                                _log_gate_failure(symbol, "atr_exhaustion_gate", {
+                                    "current_price": current_price,
+                                    "ema_20": float(ema_20),
+                                    "atr": atr,
+                                    "atr_distance": round(atr_distance, 2),
+                                    "threshold": 2.5,
+                                    "signal_score": score,
+                                    "reason": f"Price {current_price:.2f} is {atr_distance:.2f} ATRs above EMA {float(ema_20):.2f} (threshold: 2.5)"
+                                })
                                 return False  # Block exhausted entry
                 except Exception as e:
                     # If EMA calculation fails, fail open (allow trade)

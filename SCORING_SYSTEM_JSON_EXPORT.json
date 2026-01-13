@@ -1,0 +1,391 @@
+{
+  "version": "V3.1",
+  "extraction_date": "2026-01-12",
+  "description": "Complete extraction of stock-bot scoring system - Buy-side and Exit-side components",
+  
+  "buy_score_components": [
+    {
+      "name": "options_flow",
+      "category": "core_flow",
+      "weight": 2.4,
+      "raw_range": [0.0, 1.0],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": true,
+      "formula": "weight * min(1.0, conviction + stealth_boost)",
+      "special_handling": "Stealth flow boost +0.2 if LOW magnitude (<0.3). Default conviction 0.5 if missing.",
+      "max_contribution": 6.0,
+      "notes": "Primary anchor component. Currently adaptive weights disabled (forced to 2.4 base)."
+    },
+    {
+      "name": "dark_pool",
+      "category": "core_flow",
+      "weight": 1.3,
+      "raw_range": [0.2, 1.3],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (0.5 + min(0.8, log10(premium)/7.5)) if BULLISH/BEARISH else weight * 0.2",
+      "special_handling": "Log-scaled by notional magnitude. Neutral default 0.2 if no sentiment.",
+      "max_contribution": 4.225,
+      "notes": "Uses total_notional or total_premium (fallback)."
+    },
+    {
+      "name": "insider",
+      "category": "core_flow",
+      "weight": 0.5,
+      "raw_range": [0.125, 0.55],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (0.50 + modifier) if BULLISH, weight * (0.50 - abs(modifier)) if BEARISH, weight * 0.25 if NEUTRAL",
+      "special_handling": "Conviction modifier range: -0.05 to +0.05",
+      "max_contribution": 0.6875,
+      "notes": "Shares data source with institutional component."
+    },
+    {
+      "name": "iv_term_skew",
+      "category": "v2_features",
+      "weight": 0.6,
+      "raw_range": [-0.15, 0.15],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * abs(skew) * (1.3 if aligned else 0.7)",
+      "special_handling": "Alignment bonus/penalty based on flow direction",
+      "max_contribution": 0.117,
+      "notes": "Positive skew with bullish flow = aligned, negative skew with bearish flow = aligned."
+    },
+    {
+      "name": "smile_slope",
+      "category": "v2_features",
+      "weight": 0.35,
+      "raw_range": [-0.10, 0.10],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * abs(slope)",
+      "special_handling": "OTM call/put skew indicator",
+      "max_contribution": 0.0875,
+      "notes": "Positive = bullish skew, negative = bearish skew."
+    },
+    {
+      "name": "whale_persistence",
+      "category": "v2_features",
+      "weight": 0.7,
+      "raw_range": [0.0, 1.0],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * avg_conviction",
+      "special_handling": "Sustained high conviction detection (whale motif)",
+      "max_contribution": 1.75,
+      "notes": "Triggered by whale motif detection."
+    },
+    {
+      "name": "event_alignment",
+      "category": "v2_features",
+      "weight": 0.4,
+      "raw_range": [0.0, 1.0],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * event_align",
+      "special_handling": "Earnings/FDA/economic event alignment",
+      "max_contribution": 1.0,
+      "notes": "Calendar event awareness."
+    },
+    {
+      "name": "temporal_motif",
+      "category": "v2_features",
+      "weight": 0.6,
+      "raw_range": [0.0, "variable"],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (staircase_slope * 3.0 + burst_intensity / 2.0)",
+      "special_handling": "Pattern detection (staircase, burst, sweep)",
+      "max_contribution": "variable",
+      "notes": "Combines staircase and burst motif contributions."
+    },
+    {
+      "name": "toxicity_penalty",
+      "category": "v2_features",
+      "weight": -0.9,
+      "raw_range": [-1.35, 0.0],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (toxicity - 0.5) * 1.5 if toxicity > 0.5, else weight * (toxicity - 0.3) * 0.5 if toxicity > 0.3",
+      "special_handling": "NEGATIVE weight - penalizes signal disagreement. Applied if toxicity > 0.5",
+      "max_contribution": -3.375,
+      "notes": "Critical: Weight is negative. Applied as penalty, not boost."
+    },
+    {
+      "name": "regime_modifier",
+      "category": "v2_features",
+      "weight": 0.3,
+      "raw_range": ["variable"],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (regime_factor - 1.0) * 2.0",
+      "special_handling": "RISK_ON: +1.15 aligned, +0.95 opposite. RISK_OFF: +1.10 opposite, +0.90 aligned. Mixed: +1.02",
+      "max_contribution": 0.09,
+      "notes": "Regime alignment/opposition modifier."
+    },
+    {
+      "name": "congress",
+      "category": "v3_expanded",
+      "weight": 0.9,
+      "raw_range": [-0.36, 0.9],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (0.6 + activity_strength * 0.4) * (1.0 + conviction_boost) if aligned, -weight * 0.4 * activity_strength if opposing, weight * 0.2 * activity_strength if neutral",
+      "special_handling": "Neutral default 0.2x weight if missing. Activity strength = min(1.0, recent_count/10)",
+      "max_contribution": 2.25,
+      "notes": "Politician trading signals."
+    },
+    {
+      "name": "shorts_squeeze",
+      "category": "v3_expanded",
+      "weight": 0.7,
+      "raw_range": [-0.14, 0.7],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (SI_strength * 0.5 + DTC_strength * 0.3 + squeeze_flag * 0.3) if bullish, -weight * 0.2 if crowded_short",
+      "special_handling": "Neutral default 0.2x weight if missing. SI >15% with bullish flow = squeeze potential",
+      "max_contribution": 1.75,
+      "notes": "Short interest + days to cover + FTD pressure."
+    },
+    {
+      "name": "institutional",
+      "category": "v3_expanded",
+      "weight": 0.5,
+      "raw_range": [-0.15, 0.5],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (0.5 + activity_strength * 0.5 + usd_bonus) if aligned, -weight * 0.3 * activity_strength if opposing, weight * 0.15 * activity_strength if neutral",
+      "special_handling": "Neutral default 0.2x weight if missing. Activity strength = min(1.0, total_trades/20). USD bonus if total_usd > $1M",
+      "max_contribution": 1.25,
+      "notes": "13F filings & institutional activity. Shares data with insider."
+    },
+    {
+      "name": "market_tide",
+      "category": "v3_expanded",
+      "weight": 0.4,
+      "raw_range": [0.08, 0.4],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * call_ratio * (1.0 if aligned else 0.5)",
+      "special_handling": "Neutral default 0.2x weight if missing. Call ratio = call_prem / total_prem",
+      "max_contribution": 1.0,
+      "notes": "Options market sentiment."
+    },
+    {
+      "name": "calendar_catalyst",
+      "category": "v3_expanded",
+      "weight": 0.45,
+      "raw_range": [0.0, 0.45],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (earnings_prox * 0.4 + FDA * 0.5 + econ * 0.2)",
+      "special_handling": "Neutral default 0.2x weight if missing. Earnings proximity: (1 - days_to/7) if days_to <= 7",
+      "max_contribution": 1.125,
+      "notes": "Earnings/FDA/Economic events."
+    },
+    {
+      "name": "etf_flow",
+      "category": "v3_expanded",
+      "weight": 0.3,
+      "raw_range": [-0.09, 0.3],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * 1.0 if BULLISH+risk_on, weight * 0.5 if BULLISH, -weight * 0.3 if BEARISH, weight * 0.2 if NEUTRAL",
+      "special_handling": "Neutral default 0.2x weight if missing",
+      "max_contribution": 0.75,
+      "notes": "ETF in/outflows."
+    },
+    {
+      "name": "greeks_gamma",
+      "category": "v2_full_intelligence",
+      "weight": 0.4,
+      "raw_range": [0.04, 0.4],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (1.0 if squeeze, 0.5 if >500k, 0.25 if >100k, 0.1 if >10k, 0.2 if neutral)",
+      "special_handling": "Neutral default 0.2x weight if missing. Gamma exposure = call_gamma - put_gamma",
+      "max_contribution": 1.0,
+      "notes": "Gamma exposure for squeeze detection."
+    },
+    {
+      "name": "ftd_pressure",
+      "category": "v2_full_intelligence",
+      "weight": 0.3,
+      "raw_range": [0.06, 0.3],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (1.0 if squeeze/200k+, 0.67 if >100k, 0.33 if >50k, 0.1 if >10k, 0.2 if neutral)",
+      "special_handling": "Neutral default 0.2x weight if missing",
+      "max_contribution": 0.75,
+      "notes": "Fails-to-deliver pressure."
+    },
+    {
+      "name": "iv_rank",
+      "category": "v2_full_intelligence",
+      "weight": 0.2,
+      "raw_range": [-0.2, 0.2],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (1.0 if <20, 0.5 if <30, -1.0 if >80, -0.5 if >70, 0.15 if 30-70, 0.0 otherwise)",
+      "special_handling": "CAN BE NEGATIVE - high IV = caution. Low IV = opportunity",
+      "max_contribution": 0.5,
+      "notes": "IV rank for options timing. Negative contribution if IV > 80."
+    },
+    {
+      "name": "oi_change",
+      "category": "v2_full_intelligence",
+      "weight": 0.35,
+      "raw_range": [0.035, 0.35],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (1.0 if >50k aligned, 0.57 if >20k BULLISH, 0.29 if >10k, 0.1 if >1k, 0.2 if neutral)",
+      "special_handling": "Neutral default 0.2x weight if missing",
+      "max_contribution": 0.875,
+      "notes": "Open interest changes - institutional positioning."
+    },
+    {
+      "name": "squeeze_score",
+      "category": "v2_full_intelligence",
+      "weight": 0.2,
+      "raw_range": [0.04, 0.2],
+      "multiplier_range": [0.25, 2.5],
+      "anchored": false,
+      "formula": "weight * (1.0 if high_squeeze, 0.5 if signals>=1, 0.2 if neutral)",
+      "special_handling": "Neutral default 0.2x weight if missing",
+      "max_contribution": 0.5,
+      "notes": "Combined squeeze indicator."
+    }
+  ],
+
+  "exit_score_components": [
+    {
+      "name": "entry_decay",
+      "base_weight": 1.0,
+      "raw_range": [0.0, 1.0],
+      "multiplier_range": [0.25, 2.5],
+      "formula": "(1 - decay_ratio) * weight",
+      "trigger_condition": "current_score / entry_score < 0.7 (30%+ decay)",
+      "max_contribution": 2.5,
+      "notes": "Signal decay detection - compares current composite score to entry score"
+    },
+    {
+      "name": "adverse_flow",
+      "base_weight": 1.2,
+      "raw_range": [0.0, 2.4],
+      "multiplier_range": [0.25, 2.5],
+      "formula": "2.0 * weight",
+      "trigger_condition": "Flow reversal detected (LONG position + BEARISH flow OR SHORT position + BULLISH flow)",
+      "max_contribution": 6.0,
+      "notes": "Major exit signal - flow has reversed direction"
+    },
+    {
+      "name": "drawdown_velocity",
+      "base_weight": 1.5,
+      "raw_range": [0.0, 4.5],
+      "multiplier_range": [0.25, 2.5],
+      "formula": "min(3.0, drawdown / age_days) * 0.5 * weight",
+      "trigger_condition": "drawdown > 3.0% (high_water_pct - current_pnl_pct > 3.0)",
+      "max_contribution": 11.25,
+      "notes": "Velocity-based drawdown - measures how fast position is losing value"
+    },
+    {
+      "name": "time_decay",
+      "base_weight": 0.8,
+      "raw_range": [0.0, 1.6],
+      "multiplier_range": [0.25, 2.5],
+      "formula": "min(2.0, (age_hours - 72) / 48) * weight",
+      "trigger_condition": "age_hours > 72 (3 days)",
+      "max_contribution": 4.0,
+      "notes": "Time-based decay for stale positions"
+    },
+    {
+      "name": "momentum_reversal",
+      "base_weight": 1.3,
+      "raw_range": [0.0, "variable"],
+      "multiplier_range": [0.25, 2.5],
+      "formula": "abs(momentum) * weight",
+      "trigger_condition": "(LONG position AND momentum < -0.5) OR (SHORT position AND momentum > 0.5)",
+      "max_contribution": "variable",
+      "notes": "Momentum reversal detection"
+    },
+    {
+      "name": "volume_exhaustion",
+      "base_weight": 0.9,
+      "raw_range": [0.0, "variable"],
+      "multiplier_range": [0.25, 2.5],
+      "formula": "RESERVED - Not actively used",
+      "trigger_condition": "RESERVED - Not actively used",
+      "max_contribution": "N/A",
+      "notes": "Reserved for future use"
+    },
+    {
+      "name": "support_break",
+      "base_weight": 1.4,
+      "raw_range": [0.0, "variable"],
+      "multiplier_range": [0.25, 2.5],
+      "formula": "RESERVED - Not actively used",
+      "trigger_condition": "RESERVED - Not actively used",
+      "max_contribution": "N/A",
+      "notes": "Reserved for future use"
+    },
+    {
+      "name": "loss_limit",
+      "base_weight": 2.0,
+      "raw_range": [0.0, 2.0],
+      "multiplier_range": "N/A (fixed)",
+      "formula": "2.0 (fixed value)",
+      "trigger_condition": "current_pnl < -5.0%",
+      "max_contribution": 2.0,
+      "notes": "Hard-coded loss limit override (not adaptive)"
+    }
+  ],
+
+  "thresholds": {
+    "buy": {
+      "min_exec_score": 3.0,
+      "min_notional_usd": 100,
+      "max_spread_bps": 50,
+      "score_max": 8.0,
+      "source": "config/registry.py, main.py Config class"
+    },
+    "exit": {
+      "exit": 6.0,
+      "reduce": 3.0,
+      "hold": 0.0,
+      "urgency_max": 10.0,
+      "source": "adaptive_signal_optimizer.py ExitSignalModel"
+    },
+    "additional_exit_triggers": {
+      "trailing_stop_pct": 0.015,
+      "profit_target_pct": 0.0075,
+      "stop_loss_pct": -0.01,
+      "time_exit_minutes": 240,
+      "time_exit_days_stale": 12,
+      "stale_pnl_threshold_pct": 0.03,
+      "signal_decay_threshold": 0.6,
+      "source": "config/registry.py, main.py evaluate_exits"
+    }
+  },
+
+  "adaptive_system": {
+    "multiplier_range": [0.25, 2.5],
+    "regime_aware": true,
+    "regimes": ["RISK_ON", "RISK_OFF", "MIXED", "NEUTRAL"],
+    "learning_method": "Bayesian updates with EWMA smoothing",
+    "update_frequency": "Continuous (per trade outcome)",
+    "safety_guards": {
+      "options_flow_forced_base": true,
+      "options_flow_min_weight": 1.5,
+      "notes": "options_flow currently forced to base weight (2.4) due to learning issues"
+    }
+  },
+
+  "notes": {
+    "missing_data_handling": "Most components use neutral default (0.2x weight) instead of 0.0 when data is missing",
+    "score_range": "Theoretical max 8.0, but scores can exceed 5.0 due to multipliers and bonuses (expected behavior)",
+    "unused_components": "volume_exhaustion and support_break are defined but not actively used in exit urgency calculation",
+    "toxicity_penalty": "Weight is NEGATIVE (-0.9) - this is a penalty, not a boost",
+    "iv_rank": "Can contribute NEGATIVE values when IV > 80 (high IV = caution)"
+  }
+}
