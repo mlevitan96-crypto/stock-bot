@@ -7758,6 +7758,56 @@ def run_once():
                     flow_sentiment = flow_sentiment_raw.lower() if flow_sentiment_raw in ("BULLISH", "BEARISH") else "neutral"
                     score = composite.get("score", 0.0)
                     print(f"DEBUG: Composite signal ACCEPTED for {ticker}: score={score:.2f}, sentiment={flow_sentiment_raw}->{flow_sentiment}, threshold={get_threshold(ticker, 'base'):.2f}", flush=True)
+                    
+                    # CRITICAL FIX: Log accepted signals to history IMMEDIATELY so they show in dashboard
+                    # Even if they're blocked later in decide_and_execute, they should appear in Signal Review
+                    try:
+                        whale_boost = composite.get("whale_conviction_boost", 0.0)
+                        raw_score = score - whale_boost if whale_boost > 0 else score
+                        final_score = score
+                        
+                        # Get sector for logging
+                        sector = "Unknown"
+                        try:
+                            from risk_management import get_sector
+                            sector = get_sector(ticker)
+                        except:
+                            pass
+                        
+                        # Get persistence and sector tide counts
+                        persistence_count = 0
+                        sector_tide_count = 0
+                        if composite.get("persistence_info"):
+                            persistence_count = composite.get("persistence_info", {}).get("count", 0)
+                        if composite.get("sector_tide_info"):
+                            sector_tide_count = composite.get("sector_tide_info", {}).get("count", 0)
+                        
+                        log_signal_to_history(
+                            symbol=ticker,
+                            direction=flow_sentiment,  # bullish/bearish
+                            raw_score=raw_score,
+                            whale_boost=whale_boost,
+                            final_score=final_score,
+                            atr_multiplier=0.0,  # Will be calculated later if needed
+                            momentum_pct=0.0,  # Will be calculated later if needed
+                            momentum_required_pct=0.0,  # Will be calculated later if needed
+                            decision="Accepted: composite_gate",  # Will be updated to "Ordered" or "Blocked:reason" later
+                            metadata={
+                                "sector": sector,
+                                "persistence_count": persistence_count,
+                                "sector_tide_count": sector_tide_count,
+                                "composite_score": score,
+                                "source": "composite_v3",
+                                "gate_stage": "composite_accepted"
+                            }
+                        )
+                        print(f"DEBUG: Logged accepted signal to history: {ticker} score={score:.2f}", flush=True)
+                    except Exception as log_err:
+                        print(f"DEBUG: Failed to log accepted signal to history for {ticker}: {log_err}", flush=True)
+                        import traceback
+                        traceback.print_exc()
+                        # Don't fail on logging error - continue processing
+                    
                     cluster = {
                         "ticker": ticker,
                         "direction": flow_sentiment,  # CRITICAL: Must be lowercase "bullish"/"bearish"
@@ -7784,6 +7834,18 @@ def run_once():
                     # Extract raw score (before whale boost) for signal history
                     raw_score = score - whale_boost if whale_boost > 0 else score
                     final_score = score
+                    
+                    # Determine actual rejection reason
+                    rejection_reasons = []
+                    if score < threshold_used:
+                        rejection_reasons.append(f"score={score:.2f} < threshold={threshold_used:.2f}")
+                    if toxicity > 0.90:
+                        rejection_reasons.append(f"toxicity={toxicity:.2f} > 0.90")
+                    if freshness < 0.30:
+                        rejection_reasons.append(f"freshness={freshness:.2f} < 0.30")
+                    
+                    reason_str = " OR ".join(rejection_reasons) if rejection_reasons else "unknown"
+                    print(f"DEBUG: Composite signal REJECTED for {ticker}: {reason_str}", flush=True)
                     
                     # CRITICAL FIX: Log rejected signals to history so they show in dashboard
                     try:
