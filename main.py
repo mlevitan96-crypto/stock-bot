@@ -8891,6 +8891,15 @@ class Watchdog:
                         pass
                     
                     try:
+                        # CRITICAL FIX: Add timeout protection and ensure evaluate_exits is ALWAYS called
+                        print("DEBUG: About to call run_once() - entering try block", flush=True)
+                        try:
+                            with open("logs/worker_debug.log", "a") as f:
+                                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Entering run_once() try block\n")
+                                f.flush()
+                        except:
+                            pass
+                        
                         metrics = run_once()
                         
                         # CRITICAL FIX: Write after run_once completes
@@ -8901,6 +8910,22 @@ class Watchdog:
                         except:
                             pass
                         print(f"DEBUG: run_once() returned: clusters={metrics.get('clusters', 0)}, orders={metrics.get('orders', 0)}", flush=True)
+                        
+                        # CRITICAL FIX: Ensure evaluate_exits is called even if run_once didn't call it
+                        # This is a safety net in case run_once() returned early or crashed
+                        try:
+                            if hasattr(engine, 'executor') and hasattr(engine.executor, 'evaluate_exits'):
+                                print("DEBUG: Safety net - calling evaluate_exits() after run_once()", flush=True)
+                                try:
+                                    with open("logs/worker_debug.log", "a") as f:
+                                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] Safety net - calling evaluate_exits()\n")
+                                        f.flush()
+                                except:
+                                    pass
+                                engine.executor.evaluate_exits()
+                                print("DEBUG: Safety net evaluate_exits() completed", flush=True)
+                        except Exception as safety_err:
+                            print(f"ERROR: Safety net evaluate_exits() failed: {safety_err}", flush=True)
                         # CRITICAL: Ensure run.jsonl is written even for successful cycles
                         jsonl_write("run", {
                             "ts": datetime.now(timezone.utc).isoformat(),
@@ -8915,6 +8940,16 @@ class Watchdog:
                         print(f"ERROR: run_once() raised exception: {run_err}", flush=True)
                         import traceback
                         traceback.print_exc()
+                        
+                        # CRITICAL FIX: Log exception to file
+                        try:
+                            with open("logs/worker_debug.log", "a") as f:
+                                f.write(f"[{datetime.now(timezone.utc).isoformat()}] ERROR: run_once() exception: {run_err}\n")
+                                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Traceback: {traceback.format_exc()}\n")
+                                f.flush()
+                        except:
+                            pass
+                        
                         metrics = {"clusters": 0, "orders": 0, "error": str(run_err)}
                         jsonl_write("run", {
                             "ts": datetime.now(timezone.utc).isoformat(),
@@ -8926,6 +8961,15 @@ class Watchdog:
                             "error": str(run_err)[:200],
                             "metrics": metrics
                         })
+                        
+                        # CRITICAL FIX: Still call evaluate_exits() even if run_once() failed
+                        try:
+                            if hasattr(engine, 'executor') and hasattr(engine.executor, 'evaluate_exits'):
+                                print("DEBUG: Calling evaluate_exits() after run_once() exception", flush=True)
+                                engine.executor.evaluate_exits()
+                        except Exception as exit_err:
+                            print(f"ERROR: evaluate_exits() failed after run_once() exception: {exit_err}", flush=True)
+                        
                         raise  # Re-raise to be caught by outer exception handler
                 else:
                     # Market closed - still log cycle but skip trading
