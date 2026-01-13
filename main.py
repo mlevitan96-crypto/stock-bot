@@ -7194,6 +7194,14 @@ def run_once():
         pass
     print("DEBUG: run_once() ENTRY", flush=True)
     
+    # CRITICAL FIX: Ensure StateFiles is available - re-import if needed
+    try:
+        StateFiles  # Check if available
+    except NameError:
+        # StateFiles not available - re-import it
+        from config.registry import StateFiles
+        print("DEBUG: Re-imported StateFiles in run_once()", flush=True)
+    
     # Update logic heartbeat for SRE monitoring
     try:
         from sre_diagnostics import update_sre_metrics
