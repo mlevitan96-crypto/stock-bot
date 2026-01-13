@@ -4875,12 +4875,32 @@ class AlpacaExecutor:
             entry_price = info.get("entry_price", current_price) or current_price  # BULLETPROOF: Ensure non-zero
             high_water_price = info.get("high_water", current_price) or current_price  # BULLETPROOF: Ensure non-zero
             
-            # BULLETPROOF: Validate entry_price before division (prevent divide by zero)
-            if entry_price <= 0:
-                log_event("exit", "invalid_entry_price", symbol=symbol, entry_price=entry_price, current_price=current_price)
-                entry_price = current_price if current_price > 0 else 1.0  # Fallback to safe value
+            # CRITICAL FIX: Use Alpaca's unrealized_plpc directly if available
+            # This is the authoritative P&L calculation from Alpaca
+            if symbol in positions_index:
+                pos = positions_index[symbol]
+                try:
+                    # Use Alpaca's calculated P&L % (most accurate)
+                    alpaca_pnl_pct = float(getattr(pos, "unrealized_plpc", 0))
+                    # Also get avg_entry_price from Alpaca (handles partial closes, adds correctly)
+                    alpaca_entry_price = float(getattr(pos, "avg_entry_price", 0))
+                    if alpaca_entry_price > 0:
+                        entry_price = alpaca_entry_price  # Use Alpaca's entry price (handles position changes)
+                    pnl_pct = alpaca_pnl_pct  # Use Alpaca's P&L % (authoritative)
+                except (AttributeError, ValueError, TypeError):
+                    # Fallback to calculated P&L if Alpaca data unavailable
+                    if entry_price <= 0:
+                        log_event("exit", "invalid_entry_price", symbol=symbol, entry_price=entry_price, current_price=current_price)
+                        entry_price = current_price if current_price > 0 else 1.0
+                    pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+            else:
+                # BULLETPROOF: Validate entry_price before division (prevent divide by zero)
+                if entry_price <= 0:
+                    log_event("exit", "invalid_entry_price", symbol=symbol, entry_price=entry_price, current_price=current_price)
+                    entry_price = current_price if current_price > 0 else 1.0  # Fallback to safe value
+                
+                pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
             
-            pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
             high_water_pct = ((high_water_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
             
             # BULLETPROOF: Clamp percentages to reasonable range (prevent NaN/infinity)
@@ -5082,7 +5102,7 @@ class AlpacaExecutor:
             if pnl_pct_decimal <= stop_loss_pct:
                 try:
                     with open("logs/worker_debug.log", "a") as f:
-                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] STOP LOSS HIT: {symbol} P&L={pnl_pct:.2f}% (threshold: -1.0%), entry=${entry_price:.2f}, current=${current_price:.2f}, source={pos_data.get('source', 'unknown')}\n")
+                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] STOP LOSS HIT: {symbol} P&L={pnl_pct:.2f}% (threshold: -1.0%), entry=${entry_price:.2f}, current=${current_price:.2f}, source={pos_data.get('source', 'unknown')}, alpaca_pnl={alpaca_pnl_pct if 'alpaca_pnl_pct' in locals() else 'N/A'}\n")
                         f.flush()
                 except:
                     pass
