@@ -5422,6 +5422,16 @@ class StrategyEngine:
             
             prof = get_or_init_profile(self.profiles, symbol) if Config.ENABLE_PER_TICKER_LEARNING else {}
             
+            # CRITICAL FIX: Initialize signal history tracking variables BEFORE gate checks
+            # These variables are used in log_signal_to_history() calls within gate checks
+            raw_score = score  # Will be updated if composite score is recalculated
+            whale_boost = 0.0
+            final_score = score
+            atr_multiplier = None
+            momentum_pct = 0.0
+            momentum_required_pct = 0.0
+            composite_result = None  # Will store full composite result if available
+            
             if Config.ENABLE_REGIME_GATING and not regime_gate_ticker(prof, market_regime):
                 log_event("gate", "regime_blocked", symbol=symbol, regime=market_regime, gate_type="regime_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 # SIGNAL HISTORY: Log blocked signal
@@ -5474,16 +5484,8 @@ class StrategyEngine:
                     log_event("gate", "theme_exposure_blocked", symbol=symbol, theme=sym_theme, notional=violations[sym_theme], gate_type="theme_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                     continue
             
-            # Initialize signal history tracking variables
-            raw_score = score  # Will be updated if composite score is recalculated
-            whale_boost = 0.0
-            final_score = score
-            atr_multiplier = None
-            momentum_pct = 0.0
-            momentum_required_pct = 0.0
-            composite_result = None  # Will store full composite result if available
-            
             # PRIORITIZE COMPOSITE SCORE: If cluster has pre-calculated composite_score, always use it
+            # NOTE: raw_score, whale_boost, final_score already initialized above before gate checks
             if "composite_score" in c and cluster_source in ("composite", "composite_v3") and score > 0.0:
                 base_score = c["composite_score"]
                 raw_score = base_score  # Track raw score before adjustments
