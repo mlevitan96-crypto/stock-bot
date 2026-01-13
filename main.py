@@ -8447,15 +8447,23 @@ class Watchdog:
                 
                 # CRITICAL FIX: Wrap market check in try/except to prevent silent failures
                 try:
-                    market_open = is_market_open_now() or SIMULATE_MARKET_OPEN
-                    print(f"DEBUG WORKER: Market open check: {market_open}", flush=True)
+                    print(f"DEBUG WORKER: About to check market status...", flush=True)
+                    market_open_result = is_market_open_now()
+                    print(f"DEBUG WORKER: is_market_open_now() returned: {market_open_result}", flush=True)
+                    market_open = market_open_result or SIMULATE_MARKET_OPEN
+                    print(f"DEBUG WORKER: Market open check: {market_open} (SIMULATE_MARKET_OPEN={SIMULATE_MARKET_OPEN})", flush=True)
+                    log_event("worker", "market_check", market_open=market_open, simulate=SIMULATE_MARKET_OPEN)
                 except Exception as market_err:
                     print(f"ERROR WORKER: Market check failed: {market_err}", flush=True)
-                    log_event("worker_error", "market_check_failed", error=str(market_err))
+                    import traceback
+                    print(f"ERROR WORKER: Market check traceback: {traceback.format_exc()}", flush=True)
+                    log_event("worker_error", "market_check_failed", error=str(market_err), traceback=traceback.format_exc())
                     market_open = False  # Default to closed on error
                 
+                print(f"DEBUG WORKER: After market check, market_open={market_open}, about to check if block...", flush=True)
                 if market_open:
                     print(f"DEBUG: Market is OPEN - calling run_once()", flush=True)
+                    log_event("worker", "calling_run_once", iter=self.state.iter_count + 1)
                     try:
                         metrics = run_once()
                         print(f"DEBUG: run_once() returned: clusters={metrics.get('clusters', 0)}, orders={metrics.get('orders', 0)}", flush=True)
