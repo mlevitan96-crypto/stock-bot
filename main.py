@@ -9069,6 +9069,35 @@ if __name__ == "__main__":
         log_event("system", "mock_signal_injection_start_failed", error=str(e))
         print(f"WARNING: Mock signal injection failed to start: {e}", flush=True)
     comprehensive_learning_thread.start()
+    
+    # CRITICAL FIX: Ensure watchdog starts even if main() is not called
+    # This is a fallback to ensure trading loop runs
+    try:
+        with open("logs/worker_debug.log", "a") as f:
+            f.write(f"[{datetime.now(timezone.utc).isoformat()}] FIRST if __name__ block completed, about to start watchdog as fallback\n")
+            f.flush()
+    except:
+        pass
+    
+    # Start watchdog if not already started (fallback)
+    if not (watchdog.thread and watchdog.thread.is_alive()):
+        try:
+            watchdog.start()
+            supervisor = threading.Thread(target=watchdog.supervise, daemon=True, name="WatchdogSupervisor")
+            supervisor.start()
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] Watchdog started from FIRST if __name__ block (fallback)\n")
+                    f.flush()
+            except:
+                pass
+        except Exception as e:
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] Watchdog start failed in first block: {e}\n")
+                    f.flush()
+            except:
+                pass
 
 @app.route("/", methods=["GET"])
 def root():
