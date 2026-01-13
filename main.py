@@ -8288,6 +8288,14 @@ def run_once():
         print(f"DEBUG: decide_and_execute returned {len(orders)} orders", flush=True)
         audit_seg("run_once", "after_decide_execute", {"order_count": len(orders)})
         
+        # CRITICAL FIX: Log to file BEFORE self-healing code
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] decide_and_execute returned {len(orders)} orders\n")
+                f.flush()
+        except:
+            pass
+        
         # SELF-HEALING: Clear freeze flag and reset fail counter on successful cycle
         if watchdog and hasattr(watchdog, 'state'):
             if watchdog.state.fail_count > 0:
@@ -8302,6 +8310,14 @@ def run_once():
                     print("✅ SELF-HEALING: Cleared freeze flag after successful cycle", flush=True)
                 except Exception as e:
                     log_event("self_healing", "freeze_clear_failed", error=str(e))
+        
+        # CRITICAL FIX: Log to file BEFORE calling evaluate_exits
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] About to call evaluate_exits()\n")
+                f.flush()
+        except:
+            pass
         
         print("DEBUG: Calling evaluate_exits", flush=True)
         
