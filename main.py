@@ -7195,12 +7195,19 @@ def run_once():
     print("DEBUG: run_once() ENTRY", flush=True)
     
     # CRITICAL FIX: Ensure StateFiles is available - re-import if needed
+    global StateFiles
     try:
-        StateFiles  # Check if available
+        _ = StateFiles  # Check if available
     except NameError:
         # StateFiles not available - re-import it
         from config.registry import StateFiles
         print("DEBUG: Re-imported StateFiles in run_once()", flush=True)
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Re-imported StateFiles in run_once()\n")
+                f.flush()
+        except:
+            pass
     
     # Update logic heartbeat for SRE monitoring
     try:
