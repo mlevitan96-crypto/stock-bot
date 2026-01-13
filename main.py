@@ -5101,6 +5101,14 @@ class AlpacaExecutor:
             pnl_pct_decimal = pnl_pct / 100.0  # Convert to decimal
             stop_loss_hit = pnl_pct_decimal <= stop_loss_pct
             
+            # CRITICAL FIX: Log ALL position evaluations to file
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] EVALUATING {symbol}: P&L={pnl_pct:.2f}%, entry=${entry_price:.2f}, current=${current_price:.2f}, stop_loss_hit={stop_loss_hit}, threshold=-1.0%\n")
+                    f.flush()
+            except:
+                pass
+            
             # CRITICAL FIX: Log stop loss check to file for debugging
             if pnl_pct_decimal <= stop_loss_pct:
                 try:
@@ -8314,7 +8322,7 @@ def run_once():
         # CRITICAL FIX: Log to file BEFORE calling evaluate_exits
         try:
             with open("logs/worker_debug.log", "a") as f:
-                f.write(f"[{datetime.now(timezone.utc).isoformat()}] About to call evaluate_exits()\n")
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] About to call evaluate_exits() - orders={len(orders)}\n")
                 f.flush()
         except:
             pass
@@ -8331,13 +8339,36 @@ def run_once():
         
         # CRITICAL FIX: Ensure evaluate_exits is ALWAYS called, even if there's an exception
         try:
-            engine.executor.evaluate_exits()
-            print("DEBUG: evaluate_exits() completed", flush=True)
+            # CRITICAL: Force evaluate_exits to run - this MUST happen
+            print(f"DEBUG: FORCING evaluate_exits() call - engine.executor exists: {hasattr(engine, 'executor')}", flush=True)
+            if hasattr(engine, 'executor') and hasattr(engine.executor, 'evaluate_exits'):
+                engine.executor.evaluate_exits()
+                print("DEBUG: evaluate_exits() completed", flush=True)
+                try:
+                    with open("logs/worker_debug.log", "a") as f:
+                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] evaluate_exits() completed\n")
+                        f.flush()
+                except:
+                    pass
+            else:
+                print("ERROR: engine.executor.evaluate_exits() not available!", flush=True)
+                try:
+                    with open("logs/worker_debug.log", "a") as f:
+                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] ERROR: evaluate_exits() not available!\n")
+                        f.flush()
+                except:
+                    pass
         except Exception as exit_err:
             print(f"ERROR: evaluate_exits() raised exception: {exit_err}", flush=True)
             import traceback
             traceback.print_exc()
             log_event("exit", "evaluate_exits_exception", error=str(exit_err))
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] ERROR: evaluate_exits() exception: {exit_err}\n")
+                    f.flush()
+            except:
+                pass
         
         # CRITICAL FIX: Log after evaluate_exits
         try:
