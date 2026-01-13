@@ -8946,22 +8946,27 @@ if __name__ == "__main__":
             log_event("cache_enrichment", "startup_error", error=str(e))
         
         # Then run every 60 seconds
-        while True:
-            try:
-                time.sleep(60)  # Check every minute
+        # CRITICAL FIX: Run in separate thread to avoid blocking main execution
+        def cache_enrichment_thread():
+            while True:
                 try:
-                    from cache_enrichment_service import CacheEnrichmentService
-                    service = CacheEnrichmentService()
-                    service.run_once()
-                    log_event("cache_enrichment", "cycle_complete")
-                except ImportError:
-                    # Service not available, skip
-                    pass
+                    time.sleep(60)  # Check every minute
+                    try:
+                        from cache_enrichment_service import CacheEnrichmentService
+                        service = CacheEnrichmentService()
+                        service.run_once()
+                        log_event("cache_enrichment", "cycle_complete")
+                    except ImportError:
+                        # Service not available, skip
+                        pass
+                    except Exception as e:
+                        log_event("cache_enrichment", "error", error=str(e))
                 except Exception as e:
-                    log_event("cache_enrichment", "error", error=str(e))
-            except Exception as e:
-                log_event("cache_enrichment", "thread_error", error=str(e))
-                time.sleep(60)
+                    log_event("cache_enrichment", "thread_error", error=str(e))
+                    time.sleep(60)
+        
+        cache_thread = threading.Thread(target=cache_enrichment_thread, daemon=True, name="CacheEnrichment")
+        cache_thread.start()
     
     cache_enrichment_thread = threading.Thread(target=run_cache_enrichment_periodic, daemon=True, name="CacheEnrichmentService")
     cache_enrichment_thread.start()
