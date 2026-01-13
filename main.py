@@ -8810,14 +8810,46 @@ class Watchdog:
         print(f"DEBUG: Worker loop EXITING (stop_evt was set)", flush=True)
 
     def start(self):
+        # CRITICAL FIX: Log to file immediately
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] watchdog.start() CALLED\n")
+                f.flush()
+        except:
+            pass
+        
         if self.thread and self.thread.is_alive():
             log_event("watchdog", "start_skipped", reason="thread_already_alive")
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] watchdog.start() SKIPPED - thread already alive\n")
+                    f.flush()
+            except:
+                pass
             return
         if self.thread:
             log_event("watchdog", "clearing_dead_thread", old_thread_id=self.thread.ident if self.thread else None)
         self._stop_evt.clear()
         self.thread = threading.Thread(target=self._worker_loop, daemon=True, name="TradingWorker")
+        
+        # CRITICAL FIX: Log before starting thread
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Creating thread, about to call thread.start()\n")
+                f.flush()
+        except:
+            pass
+        
         self.thread.start()
+        
+        # CRITICAL FIX: Log after starting thread
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] thread.start() called, thread.ident={self.thread.ident}, thread.is_alive()={self.thread.is_alive()}\n")
+                f.flush()
+        except:
+            pass
+        
         log_event("watchdog", "thread_started", thread_id=self.thread.ident)
 
     def stop(self):
