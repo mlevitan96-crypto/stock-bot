@@ -5009,6 +5009,15 @@ class AlpacaExecutor:
             pnl_pct_decimal = pnl_pct / 100.0  # Convert to decimal
             stop_loss_hit = pnl_pct_decimal <= stop_loss_pct
             
+            # CRITICAL FIX: Log stop loss check to file for debugging
+            if pnl_pct_decimal <= stop_loss_pct:
+                try:
+                    with open("logs/worker_debug.log", "a") as f:
+                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] STOP LOSS HIT: {symbol} P&L={pnl_pct:.2f}% (threshold: -1.0%)\n")
+                        f.flush()
+                except:
+                    pass
+            
             # 2. Signal Decay Check: Current Score drops >40% below Entry Score
             entry_score = info.get("entry_score", 0.0)
             signal_decay_exit = False
@@ -5145,6 +5154,14 @@ class AlpacaExecutor:
         if to_close:
             print(f"DEBUG EXITS: Found {len(to_close)} positions to close: {to_close}", flush=True)
             log_event("exit", "positions_to_close", symbols=to_close, count=len(to_close))
+            
+            # CRITICAL FIX: Log to file
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] EXITS: {len(to_close)} positions to close: {to_close}\n")
+                    f.flush()
+            except:
+                pass
         
         for symbol in to_close:
             try:
@@ -8138,7 +8155,25 @@ def run_once():
                     log_event("self_healing", "freeze_clear_failed", error=str(e))
         
         print("DEBUG: Calling evaluate_exits", flush=True)
+        
+        # CRITICAL FIX: Log exit evaluation to file
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Calling evaluate_exits()\n")
+                f.flush()
+        except:
+            pass
+        
         engine.executor.evaluate_exits()
+        
+        # CRITICAL FIX: Log after evaluate_exits
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] evaluate_exits() completed\n")
+                f.flush()
+        except:
+            pass
+        
         audit_seg("run_once", "after_exits")
 
         print("DEBUG: Computing metrics", flush=True)
@@ -8548,10 +8583,26 @@ class Watchdog:
             log_event("heartbeat", "write_failed", error=str(e), path=str(heartbeat_path), traceback=traceback.format_exc())
 
     def _worker_loop(self):
+        # CRITICAL FIX: Write to file immediately to verify loop is running
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Worker loop STARTING (thread {threading.current_thread().ident})\n")
+                f.flush()
+        except:
+            pass
+        
         self.state.running = True
         log_event("worker", "started", thread_id=threading.current_thread().ident, 
                  fail_count=self.state.fail_count)
         print(f"DEBUG: Worker loop STARTED (thread {threading.current_thread().ident})", flush=True)
+        
+        # CRITICAL FIX: Write to file to verify logging works
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Worker loop STARTED, state.running={self.state.running}\n")
+                f.flush()
+        except:
+            pass
         
         SIMULATE_MARKET_OPEN = os.getenv("SIMULATE_MARKET_OPEN", "false").lower() == "true"
         print(f"DEBUG: SIMULATE_MARKET_OPEN={SIMULATE_MARKET_OPEN}, stop_evt.is_set()={self._stop_evt.is_set()}", flush=True)
@@ -8561,6 +8612,15 @@ class Watchdog:
             iteration_count += 1
             start = time.time()
             print(f"DEBUG: Worker loop iteration {iteration_count} (iter_count={self.state.iter_count})", flush=True)
+            
+            # CRITICAL FIX: Write every iteration to file
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] Worker iteration {iteration_count}, iter_count={self.state.iter_count}, stop_evt={self._stop_evt.is_set()}\n")
+                    f.flush()
+            except:
+                pass
+            
             try:
                 log_event("worker", "iter_start", iter=self.state.iter_count + 1)
                 print(f"DEBUG WORKER: Starting iteration {self.state.iter_count + 1}", flush=True)
@@ -8581,11 +8641,37 @@ class Watchdog:
                     market_open = False  # Default to closed on error
                 
                 print(f"DEBUG WORKER: After market check, market_open={market_open}, about to check if block...", flush=True)
+                
+                # CRITICAL FIX: Write market check result to file
+                try:
+                    with open("logs/worker_debug.log", "a") as f:
+                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] Market check: market_open={market_open}\n")
+                        f.flush()
+                except:
+                    pass
+                
                 if market_open:
                     print(f"DEBUG: Market is OPEN - calling run_once()", flush=True)
                     log_event("worker", "calling_run_once", iter=self.state.iter_count + 1)
+                    
+                    # CRITICAL FIX: Write before calling run_once
+                    try:
+                        with open("logs/worker_debug.log", "a") as f:
+                            f.write(f"[{datetime.now(timezone.utc).isoformat()}] About to call run_once()\n")
+                            f.flush()
+                    except:
+                        pass
+                    
                     try:
                         metrics = run_once()
+                        
+                        # CRITICAL FIX: Write after run_once completes
+                        try:
+                            with open("logs/worker_debug.log", "a") as f:
+                                f.write(f"[{datetime.now(timezone.utc).isoformat()}] run_once() completed: clusters={metrics.get('clusters', 0)}, orders={metrics.get('orders', 0)}\n")
+                                f.flush()
+                        except:
+                            pass
                         print(f"DEBUG: run_once() returned: clusters={metrics.get('clusters', 0)}, orders={metrics.get('orders', 0)}", flush=True)
                         # CRITICAL: Ensure run.jsonl is written even for successful cycles
                         jsonl_write("run", {
