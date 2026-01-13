@@ -7430,8 +7430,29 @@ def run_once():
                 if ticker.startswith("_"):
                     continue
                 
-                # V3: Enrichment → Composite V3 FULL INTELLIGENCE → Gate
-                enriched = uw_enrich.enrich_signal(ticker, uw_cache, market_regime)
+                # ROOT CAUSE FIX: Add error handling to prevent KeyError crashes
+                # If ticker is not in cache or cache data is invalid, skip it gracefully
+                try:
+                    # Check if ticker exists in cache before processing
+                    if ticker not in uw_cache:
+                        print(f"DEBUG: Skipping {ticker} - not in UW cache", flush=True)
+                        continue
+                    
+                    cache_data = uw_cache.get(ticker)
+                    if not cache_data or not isinstance(cache_data, dict):
+                        print(f"DEBUG: Skipping {ticker} - invalid cache data", flush=True)
+                        continue
+                    
+                    # V3: Enrichment → Composite V3 FULL INTELLIGENCE → Gate
+                    enriched = uw_enrich.enrich_signal(ticker, uw_cache, market_regime)
+                except KeyError as ke:
+                    print(f"DEBUG: KeyError processing {ticker}: {ke} - skipping", flush=True)
+                    log_event("composite_scoring", "keyerror_skipped", symbol=ticker, error=str(ke))
+                    continue
+                except Exception as e:
+                    print(f"DEBUG: Exception processing {ticker}: {e} - skipping", flush=True)
+                    log_event("composite_scoring", "exception_skipped", symbol=ticker, error=str(e), error_type=type(e).__name__)
+                    continue
                 
                 # CRITICAL FIX: Freshness is killing all scores!
                 # If freshness < 0.5, set it to 0.9 to prevent score destruction
@@ -7450,12 +7471,12 @@ def run_once():
                     enriched["freshness"] = 0.90  # Set to 0.9 if somehow still below 0.30
                     print(f"DEBUG: FORCED freshness to 0.90 for {ticker} (was below 0.30)", flush=True)
                 
-                # Ensure computed signals are in enriched data (fallback if not in cache)
-                enricher = uw_enrich.UWEnricher()
-                cache_updated = False
-                
-                # CRITICAL FIX: Get symbol_data from cache before using it
-                symbol_data = uw_cache.get(ticker, {})
+                    # Ensure computed signals are in enriched data (fallback if not in cache)
+                    enricher = uw_enrich.UWEnricher()
+                    cache_updated = False
+                    
+                    # CRITICAL FIX: Get symbol_data from cache before using it
+                    symbol_data = uw_cache.get(ticker, {})
                 
                 # SCORING PIPELINE FIX (Priority 3): Ensure core features are ALWAYS computed or neutral-defaulted
                 # See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
@@ -7736,7 +7757,7 @@ def run_once():
                         "gate_passed": True,
                         "source": "composite_v3",
                         "count": 1,
-                        "total_premium": uw_cache[ticker].get("dark_pool", {}).get("total_premium", 0),
+                        "total_premium": uw_cache.get(ticker, {}).get("dark_pool", {}).get("total_premium", 0),  # ROOT CAUSE FIX: Use .get() to prevent KeyError
                         "start_ts": int(time.time()),  # Required for cluster key
                         # V3: Expanded intelligence for downstream processing
                         "expanded_intel": composite.get("expanded_intel", {}),
