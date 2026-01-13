@@ -4877,6 +4877,7 @@ class AlpacaExecutor:
             
             # CRITICAL FIX: Use Alpaca's unrealized_plpc directly if available
             # This is the authoritative P&L calculation from Alpaca
+            alpaca_pnl_pct = None  # Initialize for logging
             if symbol in positions_index:
                 pos = positions_index[symbol]
                 try:
@@ -4887,7 +4888,9 @@ class AlpacaExecutor:
                     if alpaca_entry_price > 0:
                         entry_price = alpaca_entry_price  # Use Alpaca's entry price (handles position changes)
                     pnl_pct = alpaca_pnl_pct  # Use Alpaca's P&L % (authoritative)
-                except (AttributeError, ValueError, TypeError):
+                    print(f"DEBUG EXITS: {symbol} using Alpaca P&L: {pnl_pct:.4f}% (entry=${entry_price:.2f}, current=${current_price:.2f})", flush=True)
+                except (AttributeError, ValueError, TypeError) as alpaca_err:
+                    log_event("exit", "alpaca_pnl_fetch_error", symbol=symbol, error=str(alpaca_err))
                     # Fallback to calculated P&L if Alpaca data unavailable
                     if entry_price <= 0:
                         log_event("exit", "invalid_entry_price", symbol=symbol, entry_price=entry_price, current_price=current_price)
@@ -5102,7 +5105,7 @@ class AlpacaExecutor:
             if pnl_pct_decimal <= stop_loss_pct:
                 try:
                     with open("logs/worker_debug.log", "a") as f:
-                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] STOP LOSS HIT: {symbol} P&L={pnl_pct:.2f}% (threshold: -1.0%), entry=${entry_price:.2f}, current=${current_price:.2f}, source={pos_data.get('source', 'unknown')}, alpaca_pnl={alpaca_pnl_pct if 'alpaca_pnl_pct' in locals() else 'N/A'}\n")
+                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] STOP LOSS HIT: {symbol} P&L={pnl_pct:.2f}% (threshold: -1.0%), entry=${entry_price:.2f}, current=${current_price:.2f}, source={pos_data.get('source', 'unknown')}, alpaca_pnl={alpaca_pnl_pct if alpaca_pnl_pct is not None else 'calculated'}\n")
                         f.flush()
                 except:
                     pass
