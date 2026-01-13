@@ -4781,7 +4781,68 @@ class AlpacaExecutor:
         current_regime_global = self._get_global_regime() or "mixed"
 
         now = datetime.utcnow()
-        for symbol, info in list(self.opens.items()):
+        
+        # CRITICAL FIX: Check ALL positions from Alpaca API, not just self.opens
+        # This ensures positions that exist in Alpaca but not in self.opens are still evaluated
+        positions_to_evaluate = {}
+        
+        # First, add all positions from self.opens
+        for symbol, info in self.opens.items():
+            positions_to_evaluate[symbol] = {
+                "info": info,
+                "source": "opens_dict"
+            }
+        
+        # Then, add all positions from Alpaca API that aren't in self.opens
+        for symbol, pos in positions_index.items():
+            if symbol not in positions_to_evaluate:
+                # Get metadata for this position
+                meta = all_metadata.get(symbol, {})
+                if meta:
+                    # Create info dict from metadata
+                    try:
+                        entry_ts_str = meta.get("entry_ts", "")
+                        if isinstance(entry_ts_str, str):
+                            try:
+                                entry_ts = datetime.fromisoformat(entry_ts_str.replace("Z", ""))
+                            except:
+                                entry_ts = datetime.utcnow()
+                        else:
+                            entry_ts = datetime.utcnow()
+                    except:
+                        entry_ts = datetime.utcnow()
+                    
+                    positions_to_evaluate[symbol] = {
+                        "info": {
+                            "entry_price": meta.get("entry_price", float(getattr(pos, "avg_entry_price", 0))),
+                            "ts": entry_ts,
+                            "side": meta.get("side", "buy" if float(getattr(pos, "qty", 0)) > 0 else "sell"),
+                            "entry_score": meta.get("entry_score", 0.0),
+                            "high_water": meta.get("high_water", float(getattr(pos, "current_price", 0)))
+                        },
+                        "source": "alpaca_api"
+                    }
+                else:
+                    # No metadata - create from Alpaca position
+                    try:
+                        entry_ts = datetime.utcnow()  # Unknown entry time
+                        positions_to_evaluate[symbol] = {
+                            "info": {
+                                "entry_price": float(getattr(pos, "avg_entry_price", 0)),
+                                "ts": entry_ts,
+                                "side": "buy" if float(getattr(pos, "qty", 0)) > 0 else "sell",
+                                "entry_score": 0.0,
+                                "high_water": float(getattr(pos, "current_price", 0))
+                            },
+                            "source": "alpaca_api_no_metadata"
+                        }
+                    except Exception as e:
+                        log_event("exit", "position_eval_setup_error", symbol=symbol, error=str(e))
+                        continue
+        
+        # Now evaluate all positions
+        for symbol, pos_data in positions_to_evaluate.items():
+            info = pos_data["info"]
             exit_signals = {}  # Collect all exit signals for this position
             try:
                 # FIX: Handle both offset-naive and offset-aware timestamps
@@ -4793,7 +4854,15 @@ class AlpacaExecutor:
                 age_hours = age_days * 24
                 exit_signals["age_hours"] = age_hours
                 
-                current_price = self.get_quote_price(symbol)
+                # CRITICAL FIX: Get current price from Alpaca position if available
+                if symbol in positions_index:
+                    pos = positions_index[symbol]
+                    current_price = float(getattr(pos, "current_price", 0))
+                    if current_price <= 0:
+                        current_price = self.get_quote_price(symbol)
+                else:
+                    current_price = self.get_quote_price(symbol)
+                
                 if current_price <= 0:
                     # FIX: Use entry price as fallback for after-hours exit evaluation
                     current_price = info.get("entry_price", 0.0)
@@ -5013,10 +5082,11 @@ class AlpacaExecutor:
             if pnl_pct_decimal <= stop_loss_pct:
                 try:
                     with open("logs/worker_debug.log", "a") as f:
-                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] STOP LOSS HIT: {symbol} P&L={pnl_pct:.2f}% (threshold: -1.0%)\n")
+                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] STOP LOSS HIT: {symbol} P&L={pnl_pct:.2f}% (threshold: -1.0%), entry=${entry_price:.2f}, current=${current_price:.2f}, source={pos_data.get('source', 'unknown')}\n")
                         f.flush()
                 except:
                     pass
+                print(f"DEBUG EXITS: {symbol} STOP LOSS HIT - P&L={pnl_pct:.2f}% <= -1.0%, entry=${entry_price:.2f}, current=${current_price:.2f}", flush=True)
             
             # 2. Signal Decay Check: Current Score drops >40% below Entry Score
             entry_score = info.get("entry_score", 0.0)
@@ -5149,7 +5219,15 @@ class AlpacaExecutor:
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 to_close.append(symbol)
                 exit_reason_str = "stop_loss" if stop_loss_hit else ("signal_decay" if signal_decay_exit else ("profit_075" if profit_target_hit else "trail_stop"))
-                print(f"DEBUG EXITS: {symbol} marked for close - {exit_reason_str}, age={age_min:.1f}min, pnl={pnl_pct:.2f}%, reason={exit_reasons[symbol]}", flush=True)
+                print(f"DEBUG EXITS: {symbol} marked for close - {exit_reason_str}, age={age_min:.1f}min, pnl={pnl_pct:.2f}%, entry=${entry_price:.2f}, current=${current_price:.2f}, reason={exit_reasons[symbol]}", flush=True)
+                
+                # CRITICAL FIX: Log to file
+                try:
+                    with open("logs/worker_debug.log", "a") as f:
+                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] EXIT TRIGGERED: {symbol} {exit_reason_str}, P&L={pnl_pct:.2f}%, entry=${entry_price:.2f}, current=${current_price:.2f}\n")
+                        f.flush()
+                except:
+                    pass
         
         if to_close:
             print(f"DEBUG EXITS: Found {len(to_close)} positions to close: {to_close}", flush=True)
@@ -5165,14 +5243,49 @@ class AlpacaExecutor:
         
         for symbol in to_close:
             try:
-                info = self.opens.get(symbol, {})
+                # CRITICAL FIX: Get info from positions_to_evaluate if not in self.opens
+                if symbol in positions_to_evaluate:
+                    info = positions_to_evaluate[symbol]["info"]
+                else:
+                    info = self.opens.get(symbol, {})
+                    # If still not found, get from metadata
+                    if not info and symbol in all_metadata:
+                        meta = all_metadata[symbol]
+                        try:
+                            entry_ts_str = meta.get("entry_ts", "")
+                            if isinstance(entry_ts_str, str):
+                                try:
+                                    entry_ts = datetime.fromisoformat(entry_ts_str.replace("Z", ""))
+                                except:
+                                    entry_ts = datetime.utcnow()
+                            else:
+                                entry_ts = datetime.utcnow()
+                        except:
+                            entry_ts = datetime.utcnow()
+                        
+                        info = {
+                            "entry_price": meta.get("entry_price", 0.0),
+                            "ts": entry_ts,
+                            "side": meta.get("side", "buy"),
+                            "entry_score": meta.get("entry_score", 0.0),
+                            "qty": meta.get("qty", 0)
+                        }
+                
                 entry_price = info.get("entry_price", 0.0)
                 entry_ts = info.get("ts", datetime.utcnow())
                 if hasattr(entry_ts, 'tzinfo') and entry_ts.tzinfo is not None:
                     entry_ts = entry_ts.replace(tzinfo=None)
                 holding_period_min = (datetime.utcnow() - entry_ts).total_seconds() / 60.0
                 
-                exit_price = self.get_quote_price(symbol)
+                # CRITICAL FIX: Get exit price from Alpaca position if available
+                if symbol in positions_index:
+                    pos = positions_index[symbol]
+                    exit_price = float(getattr(pos, "current_price", 0))
+                    if exit_price <= 0:
+                        exit_price = self.get_quote_price(symbol)
+                else:
+                    exit_price = self.get_quote_price(symbol)
+                
                 if exit_price <= 0:
                     exit_price = entry_price
                 
@@ -5236,9 +5349,22 @@ class AlpacaExecutor:
                 )
             except Exception as e:
                 log_order({"action": "close_position_failed", "symbol": symbol, "error": str(e)})
+                print(f"ERROR EXITS: Exception closing {symbol}: {e}", flush=True)
+                import traceback
+                traceback.print_exc()
+            
+            # CRITICAL FIX: Remove from opens and metadata even if not in opens
             self.opens.pop(symbol, None)
             self.high_water.pop(symbol, None)
             self._remove_position_metadata(symbol)
+            
+            # CRITICAL FIX: Log to file
+            try:
+                with open("logs/worker_debug.log", "a") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] EXIT COMPLETED: {symbol} closed, removed from opens and metadata\n")
+                    f.flush()
+            except:
+                pass
     
     def _remove_position_metadata(self, symbol: str):
         """Remove closed position from metadata file with atomic write."""
