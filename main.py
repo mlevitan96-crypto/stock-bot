@@ -7185,6 +7185,15 @@ def audit_seg(name, phase, extra=None):
 # CORE ITERATION (pull all UW layers, score, execute)
 # =========================
 def run_once():
+    # CRITICAL FIX: Log entry to run_once()
+    try:
+        with open("logs/worker_debug.log", "a") as f:
+            f.write(f"[{datetime.now(timezone.utc).isoformat()}] run_once() ENTRY\n")
+            f.flush()
+    except:
+        pass
+    print("DEBUG: run_once() ENTRY", flush=True)
+    
     # Update logic heartbeat for SRE monitoring
     try:
         from sre_diagnostics import update_sre_metrics
@@ -7195,6 +7204,13 @@ def run_once():
     # StateFiles is already imported at module level (line 30-32)
     # No redundant import needed
     try:
+        # CRITICAL FIX: Log after try block entry
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] run_once() inside try block\n")
+                f.flush()
+        except:
+            pass
         
         global ZERO_ORDER_CYCLE_COUNT
         alerts_this_cycle = []
@@ -7244,6 +7260,14 @@ def run_once():
                 "metrics": summary
             })
             return {"clusters": 0, "orders": 0, **summary}
+        
+        # CRITICAL FIX: Log before creating UWClient and engine
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] run_once() creating UWClient and engine\n")
+                f.flush()
+        except:
+            pass
         
         uw = UWClient()
         engine = StrategyEngine()
