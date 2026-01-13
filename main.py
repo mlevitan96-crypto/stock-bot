@@ -8915,7 +8915,7 @@ class Watchdog:
                         # This is a safety net in case run_once() returned early or crashed
                         # Create engine in worker loop scope to access executor
                         try:
-                            from main import StrategyEngine
+                            # CRITICAL: Import StrategyEngine directly (not from main to avoid circular import)
                             safety_engine = StrategyEngine()
                             if hasattr(safety_engine, 'executor') and hasattr(safety_engine.executor, 'evaluate_exits'):
                                 print("DEBUG: Safety net - calling evaluate_exits() after run_once()", flush=True)
@@ -8930,6 +8930,14 @@ class Watchdog:
                                 try:
                                     with open("logs/worker_debug.log", "a") as f:
                                         f.write(f"[{datetime.now(timezone.utc).isoformat()}] Safety net evaluate_exits() completed\n")
+                                        f.flush()
+                                except:
+                                    pass
+                            else:
+                                print("ERROR: Safety net - engine.executor.evaluate_exits() not available", flush=True)
+                                try:
+                                    with open("logs/worker_debug.log", "a") as f:
+                                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] ERROR: Safety net - engine.executor.evaluate_exits() not available\n")
                                         f.flush()
                                 except:
                                     pass
@@ -8981,7 +8989,7 @@ class Watchdog:
                         
                         # CRITICAL FIX: Still call evaluate_exits() even if run_once() failed
                         try:
-                            from main import StrategyEngine
+                            # CRITICAL: Import StrategyEngine directly (not from main to avoid circular import)
                             safety_engine = StrategyEngine()
                             if hasattr(safety_engine, 'executor') and hasattr(safety_engine.executor, 'evaluate_exits'):
                                 print("DEBUG: Calling evaluate_exits() after run_once() exception", flush=True)
@@ -8993,6 +9001,14 @@ class Watchdog:
                                     pass
                                 safety_engine.executor.evaluate_exits()
                                 print("DEBUG: evaluate_exits() completed after exception", flush=True)
+                                try:
+                                    with open("logs/worker_debug.log", "a") as f:
+                                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] evaluate_exits() completed after exception\n")
+                                        f.flush()
+                                except:
+                                    pass
+                            else:
+                                print("ERROR: engine.executor.evaluate_exits() not available after exception", flush=True)
                         except Exception as exit_err:
                             print(f"ERROR: evaluate_exits() failed after run_once() exception: {exit_err}", flush=True)
                             import traceback
