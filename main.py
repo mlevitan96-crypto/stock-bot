@@ -10051,6 +10051,14 @@ def startup_reconcile_positions():
 # ENTRY POINT
 # =========================
 def main():
+    # CRITICAL FIX: Log to file immediately to verify main() is called
+    try:
+        with open("logs/worker_debug.log", "a") as f:
+            f.write(f"[{datetime.now(timezone.utc).isoformat()}] main() FUNCTION CALLED\n")
+            f.flush()
+    except Exception as log_err:
+        print(f"ERROR: Failed to write to worker_debug.log: {log_err}", flush=True)
+    
     # V1.0: Run contract validation BEFORE trading starts
     # Catches producer/consumer type mismatches that cause runtime errors
     try:
@@ -10067,23 +10075,66 @@ def main():
     # TIMEOUT PROTECTED: Allow server to start even if Alpaca is unreachable
     try:
         startup_reconcile_positions()
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] startup_reconcile_positions() completed\n")
+                f.flush()
+        except:
+            pass
     except Exception as e:
         log_event("system", "startup_reconcile_failed_continue", error=str(e))
         print(f"WARNING: Startup reconciliation failed (will retry in background): {e}")
         print("Flask server starting anyway to allow monitoring...")
         # DO NOT sys.exit(1) - allow server to start for health monitoring
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] startup_reconcile_positions() FAILED: {e}\n")
+                f.flush()
+        except:
+            pass
     
     # Start watchdog with error handling
     try:
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] About to call watchdog.start()\n")
+                f.flush()
+        except:
+            pass
+        
         watchdog.start()
+        
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] watchdog.start() completed\n")
+                f.flush()
+        except:
+            pass
+        
         supervisor = threading.Thread(target=watchdog.supervise, daemon=True)
         supervisor.start()
         log_event("system", "watchdog_started")
+        
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Watchdog supervisor thread started\n")
+                f.flush()
+        except:
+            pass
     except Exception as e:
         log_event("system", "watchdog_start_failed", error=str(e))
         print(f"WARNING: Watchdog failed to start: {e}")
         import traceback
         traceback.print_exc()
+        
+        # CRITICAL FIX: Log error to file
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] watchdog.start() FAILED: {e}\n")
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Traceback: {traceback.format_exc()}\n")
+                f.flush()
+        except:
+            pass
         # Continue anyway - bot can run without watchdog
     
     # Start health supervisor with error handling
@@ -10100,6 +10151,15 @@ def main():
     
     log_event("system", "api_start", port=Config.API_PORT)
     print(f"Starting Flask server on port {Config.API_PORT}...", flush=True)
+    
+    # CRITICAL FIX: Log before Flask starts
+    try:
+        with open("logs/worker_debug.log", "a") as f:
+            f.write(f"[{datetime.now(timezone.utc).isoformat()}] About to start Flask server on port {Config.API_PORT}\n")
+            f.flush()
+    except:
+        pass
+    
     app.run(host="0.0.0.0", port=Config.API_PORT, debug=False)
 
 if __name__ == "__main__":
