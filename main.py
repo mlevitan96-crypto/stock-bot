@@ -8601,7 +8601,25 @@ class Watchdog:
     def stop(self):
         self._stop_evt.set()
         if self.thread:
-            self.thread.join(timeout=5)
+            # ROOT CAUSE FIX: Prevent "cannot join current thread" error
+            # Check if we're trying to join the current thread
+            current_thread_id = threading.current_thread().ident
+            worker_thread_id = self.thread.ident if self.thread else None
+            
+            if current_thread_id == worker_thread_id:
+                # Can't join current thread - just set stop event and return
+                print(f"DEBUG: Cannot join current thread (thread {current_thread_id}) - stop event set, thread will exit on next check", flush=True)
+                log_event("watchdog", "stop_skipped_self_join", thread_id=current_thread_id)
+                return
+            
+            try:
+                self.thread.join(timeout=5)
+            except RuntimeError as e:
+                if "cannot join current thread" in str(e).lower():
+                    print(f"DEBUG: Thread join error (expected): {e} - stop event set, thread will exit", flush=True)
+                    log_event("watchdog", "stop_join_error_handled", error=str(e))
+                else:
+                    raise
 
     def supervise(self):
         while not self._stop_evt.is_set():
