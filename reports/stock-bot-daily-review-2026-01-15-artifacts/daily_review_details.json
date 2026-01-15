@@ -1,0 +1,161 @@
+{
+  "report_date": "2026-01-15",
+  "report_generated_at": "2026-01-15T22:30:19+00:00",
+  "data_source_info": {
+    "source": "Droplet Production Server",
+    "host": "alpaca (via SSH config)",
+    "project_dir": "/root/stock-bot",
+    "fetch_timestamp": "2026-01-15T22:30:19.145285+00:00",
+    "target_date": "2026-01-15",
+    "cache_used": true,
+    "cache_dir": "droplet_data_cache"
+  },
+  "counts": {
+    "executed_attribution_events": 94,
+    "executed_open_events": 76,
+    "realized_close_scale_events": 18,
+    "blocked_trades": 570,
+    "signals": 2000,
+    "orders": 2410,
+    "gate_events": 1885,
+    "order_error_events_heuristic": 1621,
+    "missed_candidates": 1396,
+    "counter_conflicts": 12
+  },
+  "session_window_utc": {
+    "start": "2026-01-15T15:59:39+00:00",
+    "end": "2026-01-15T22:15:00+00:00"
+  },
+  "pnl": {
+    "net_realized_usd_close_scale": -7.299999999999999,
+    "wins": 7,
+    "losses": 11,
+    "win_rate_pct": 38.88888888888889,
+    "max_drawdown_usd_proxy": 32.730000000000004,
+    "peak_usd_proxy": 15.29
+  },
+  "top_block_reasons": [
+    [
+      "order_validation_failed",
+      236
+    ],
+    [
+      "expectancy_blocked:score_floor_breach",
+      222
+    ],
+    [
+      "max_new_positions_per_cycle",
+      100
+    ],
+    [
+      "max_positions_reached",
+      9
+    ],
+    [
+      "symbol_on_cooldown",
+      3
+    ]
+  ],
+  "top_gate_events": [
+    [
+      "max_one_position_per_symbol",
+      1056
+    ],
+    [
+      "momentum_ignition_passed",
+      495
+    ],
+    [
+      "expectancy_blocked",
+      222
+    ],
+    [
+      "max_new_positions_per_cycle_reached",
+      100
+    ],
+    [
+      "max_positions_reached",
+      9
+    ],
+    [
+      "symbol_on_cooldown",
+      3
+    ]
+  ],
+  "top_order_errors": [
+    [
+      "cannot access local variable 'time' where it is not associated with a value",
+      783
+    ],
+    [
+      "submit_entry_failed",
+      514
+    ],
+    [
+      "asset \"LCID\" cannot be sold short",
+      265
+    ],
+    [
+      "client_order_id must be unique",
+      24
+    ],
+    [
+      "invalid limit_price 115.945. sub-penny increment does not fulfill minimum pricing criteria",
+      6
+    ],
+    [
+      "invalid limit_price 52.955. sub-penny increment does not fulfill minimum pricing criteria",
+      6
+    ],
+    [
+      "invalid limit_price 277.505. sub-penny increment does not fulfill minimum pricing criteria",
+      4
+    ],
+    [
+      "invalid limit_price 277.1326. sub-penny increment does not fulfill minimum pricing criteria",
+      2
+    ],
+    [
+      "invalid limit_price 129.6702. sub-penny increment does not fulfill minimum pricing criteria",
+      2
+    ],
+    [
+      "invalid limit_price 377.5621. sub-penny increment does not fulfill minimum pricing criteria",
+      2
+    ],
+    [
+      "invalid limit_price 109.7901. sub-penny increment does not fulfill minimum pricing criteria",
+      2
+    ],
+    [
+      "invalid limit_price 52.9699. sub-penny increment does not fulfill minimum pricing criteria",
+      2
+    ]
+  ],
+  "signal_distribution": {
+    "direction_counts": {
+      "bearish": 623,
+      "bullish": 1377
+    },
+    "source_counts": {
+      "composite_v3": 2000
+    },
+    "score_buckets": {
+      "[0.0,2.0)": 0,
+      "[2.0,3.0)": 356,
+      "[3.0,4.0)": 1017,
+      "[4.0,5.0)": 627,
+      "[5.0,6.0)": 0,
+      "[6.0,9.0)": 0
+    },
+    "avg_toxicity": 0.6773494999999999,
+    "avg_freshness": 0.7866475,
+    "sector_counts": {
+      "Consumer": 516,
+      "Financial": 717,
+      "Healthcare": 168,
+      "Technology": 480,
+      "ETF": 33
+    }
+  }
+}

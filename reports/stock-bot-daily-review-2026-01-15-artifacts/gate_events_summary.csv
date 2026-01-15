@@ -1,0 +1,7 @@
+gate_msg,count
+max_one_position_per_symbol,1056
+momentum_ignition_passed,495
+expectancy_blocked,222
+max_new_positions_per_cycle_reached,100
+max_positions_reached,9
+symbol_on_cooldown,3

@@ -1,0 +1,13 @@
+symbol,initial_direction,counter_direction,delta_seconds,decision_observed,pnl_outcome_nearest_close
+V,bullish,bearish,4,no_immediate_close_observed,—
+LOW,bullish,bearish,7,no_immediate_close_observed,—
+BLK,bearish,bullish,10,no_immediate_close_observed,—
+PLTR,bullish,bearish,18,no_immediate_close_observed,—
+LOW,bearish,bullish,32,no_immediate_close_observed,—
+LOW,bullish,bearish,33,no_immediate_close_observed,—
+BLK,bullish,bearish,39,no_immediate_close_observed,—
+LOW,bullish,bearish,40,no_immediate_close_observed,—
+COIN,bullish,bearish,55,no_immediate_close_observed,—
+LOW,bearish,bullish,56,no_immediate_close_observed,—
+AAPL,bullish,bearish,76,no_immediate_close_observed,—
+COST,bullish,bearish,106,no_immediate_close_observed,—

@@ -1,0 +1,571 @@
+time_utc,symbol,direction,score,reason,details
+2026-01-15T16:00:22+00:00,BLK,bullish,4.030,order_validation_failed,Order $1148.00 exceeds max position size $825.00
+2026-01-15T16:00:22+00:00,BLK,bullish,4.031,order_validation_failed,Order $1148.00 exceeds max position size $825.00
+2026-01-15T16:01:37+00:00,C,bearish,3.619,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,C,bearish,3.619,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,V,bearish,3.597,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,V,bearish,3.597,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,XLF,bearish,3.567,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,XLF,bearish,3.567,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,XLE,bearish,3.567,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,XLE,bearish,3.567,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,XLP,bearish,3.567,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,XLP,bearish,3.567,max_new_positions_per_cycle,—
+2026-01-15T16:01:37+00:00,BA,bearish,3.559,max_new_positions_per_cycle,—
+2026-01-15T16:01:40+00:00,BA,bearish,3.559,max_new_positions_per_cycle,—
+2026-01-15T16:01:40+00:00,AAPL,bullish,3.535,max_new_positions_per_cycle,—
+2026-01-15T16:01:40+00:00,AAPL,bullish,3.535,max_new_positions_per_cycle,—
+2026-01-15T16:01:40+00:00,NVDA,bearish,3.528,max_new_positions_per_cycle,—
+2026-01-15T16:01:40+00:00,NVDA,bearish,3.528,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,COST,bearish,3.528,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,COST,bearish,3.528,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,F,bearish,3.528,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,F,bearish,3.528,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,XLK,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,XLK,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,DIA,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,DIA,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,PLTR,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:43+00:00,PLTR,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:44+00:00,SLB,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:44+00:00,SLB,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,JPM,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,JPM,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,XLV,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,XLV,bearish,3.495,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,RIVN,bearish,3.485,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,RIVN,bearish,3.485,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,QQQ,bearish,3.481,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,QQQ,bearish,3.481,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,SPY,bearish,3.481,max_new_positions_per_cycle,—
+2026-01-15T16:01:47+00:00,SPY,bearish,3.481,max_new_positions_per_cycle,—
+2026-01-15T16:01:50+00:00,CVX,bearish,3.481,max_new_positions_per_cycle,—
+2026-01-15T16:01:50+00:00,CVX,bearish,3.481,max_new_positions_per_cycle,—
+2026-01-15T16:01:50+00:00,NFLX,bearish,3.467,max_new_positions_per_cycle,—
+2026-01-15T16:01:50+00:00,NFLX,bearish,3.467,max_new_positions_per_cycle,—
+2026-01-15T16:01:50+00:00,GOOGL,bullish,3.445,max_new_positions_per_cycle,—
+2026-01-15T16:01:50+00:00,GOOGL,bullish,3.445,max_new_positions_per_cycle,—
+2026-01-15T16:01:50+00:00,PFE,bearish,3.445,max_new_positions_per_cycle,—
+2026-01-15T16:01:50+00:00,PFE,bearish,3.445,max_new_positions_per_cycle,—
+2026-01-15T16:01:50+00:00,JNJ,bearish,3.445,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,JNJ,bearish,3.445,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,GM,bearish,3.445,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,GM,bearish,3.445,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,MA,bullish,3.382,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,MA,bullish,3.382,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,GS,bearish,3.380,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,GS,bearish,3.380,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,LCID,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,LCID,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,SOFI,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:53+00:00,SOFI,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:54+00:00,COP,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,COP,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,AMD,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,AMD,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,WMT,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,WMT,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,XLI,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,XLI,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,MSFT,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,MSFT,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,UNH,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:01:57+00:00,UNH,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,INTC,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,INTC,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,IWM,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,MRNA,bearish,3.351,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,IWM,bearish,3.358,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,COIN,bearish,3.312,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,MRNA,bearish,3.351,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,CAT,bearish,3.198,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,COIN,bearish,3.312,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,TSLA,bullish,3.068,max_new_positions_per_cycle,—
+2026-01-15T16:02:00+00:00,CAT,bearish,3.198,max_new_positions_per_cycle,—
+2026-01-15T16:02:03+00:00,TSLA,bullish,3.068,max_new_positions_per_cycle,—
+2026-01-15T16:02:03+00:00,AMZN,bearish,3.058,max_new_positions_per_cycle,—
+2026-01-15T16:02:03+00:00,AMZN,bearish,3.058,max_new_positions_per_cycle,—
+2026-01-15T16:02:45+00:00,BLK,bullish,4.376,order_validation_failed,Order $1149.61 exceeds max position size $825.00
+2026-01-15T16:03:03+00:00,BLK,bullish,4.376,order_validation_failed,Order $1150.60 exceeds max position size $825.00
+2026-01-15T16:05:08+00:00,BLK,bullish,3.934,order_validation_failed,Order $1147.29 exceeds max position size $825.00
+2026-01-15T16:05:08+00:00,BLK,bullish,3.933,order_validation_failed,Order $1147.29 exceeds max position size $825.00
+2026-01-15T16:06:33+00:00,BLK,bullish,4.398,order_validation_failed,Order $1146.40 exceeds max position size $825.00
+2026-01-15T16:06:33+00:00,BLK,bullish,4.397,order_validation_failed,Order $1146.40 exceeds max position size $825.00
+2026-01-15T16:07:47+00:00,MRNA,bearish,3.242,symbol_on_cooldown,—
+2026-01-15T16:08:05+00:00,MS,bullish,3.175,max_new_positions_per_cycle,—
+2026-01-15T16:08:05+00:00,META,bullish,3.120,max_new_positions_per_cycle,—
+2026-01-15T16:08:05+00:00,WFC,bullish,3.029,max_new_positions_per_cycle,—
+2026-01-15T16:08:05+00:00,TSLA,bullish,2.969,expectancy_blocked:score_floor_breach,—
+2026-01-15T16:08:08+00:00,C,bearish,2.718,expectancy_blocked:score_floor_breach,—
+2026-01-15T16:08:22+00:00,META,bullish,3.120,max_new_positions_per_cycle,—
+2026-01-15T16:08:22+00:00,WFC,bullish,3.028,max_new_positions_per_cycle,—
+2026-01-15T16:08:22+00:00,TSLA,bullish,2.969,expectancy_blocked:score_floor_breach,—
+2026-01-15T16:08:22+00:00,C,bearish,2.717,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:44:56+00:00,COST,bullish,4.320,order_validation_failed,Order $954.21 exceeds max position size $825.00
+2026-01-15T19:45:02+00:00,COST,bullish,4.320,order_validation_failed,Order $954.21 exceeds max position size $825.00
+2026-01-15T19:46:03+00:00,V,bullish,3.984,max_new_positions_per_cycle,—
+2026-01-15T19:46:03+00:00,HD,bullish,3.908,max_new_positions_per_cycle,—
+2026-01-15T19:46:07+00:00,NVDA,bullish,3.571,max_new_positions_per_cycle,—
+2026-01-15T19:46:07+00:00,MS,bullish,3.480,max_new_positions_per_cycle,—
+2026-01-15T19:46:07+00:00,LOW,bullish,3.368,max_new_positions_per_cycle,—
+2026-01-15T19:46:07+00:00,BAC,bearish,2.434,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:46:12+00:00,V,bullish,3.985,max_new_positions_per_cycle,—
+2026-01-15T19:46:15+00:00,COIN,bullish,3.942,max_new_positions_per_cycle,—
+2026-01-15T19:46:15+00:00,HD,bullish,3.910,max_new_positions_per_cycle,—
+2026-01-15T19:46:15+00:00,PLTR,bullish,3.706,max_new_positions_per_cycle,—
+2026-01-15T19:46:15+00:00,NVDA,bullish,3.572,max_new_positions_per_cycle,—
+2026-01-15T19:46:18+00:00,MS,bullish,3.480,max_new_positions_per_cycle,—
+2026-01-15T19:46:18+00:00,BAC,bearish,2.435,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:46:46+00:00,COST,bullish,4.276,order_validation_failed,Order $954.43 exceeds max position size $825.00
+2026-01-15T19:46:53+00:00,COST,bullish,4.273,order_validation_failed,Order $954.42 exceeds max position size $825.00
+2026-01-15T19:48:31+00:00,GS,bullish,3.358,order_validation_failed,Order $974.00 exceeds max position size $825.00
+2026-01-15T19:48:35+00:00,GS,bullish,3.355,order_validation_failed,Order $973.99 exceeds max position size $825.00
+2026-01-15T19:49:37+00:00,COST,bullish,4.812,order_validation_failed,Order $953.98 exceeds max position size $825.00
+2026-01-15T19:49:37+00:00,COST,bullish,4.811,order_validation_failed,Order $953.98 exceeds max position size $825.00
+2026-01-15T19:50:09+00:00,GS,bullish,3.908,order_validation_failed,Order $975.03 exceeds max position size $825.00
+2026-01-15T19:50:12+00:00,GS,bullish,3.908,order_validation_failed,Order $975.12 exceeds max position size $825.00
+2026-01-15T19:50:12+00:00,BAC,bearish,2.825,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:50:15+00:00,BAC,bearish,2.825,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:50:16+00:00,C,bearish,2.749,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:50:16+00:00,BLK,bearish,2.677,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:50:19+00:00,AMD,bearish,2.668,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:50:19+00:00,C,bearish,2.749,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:50:19+00:00,BLK,bearish,2.677,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:50:20+00:00,AMD,bearish,2.668,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:50:44+00:00,JPM,bearish,2.616,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:50:44+00:00,JPM,bearish,2.616,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:51:02+00:00,XLE,bearish,2.503,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:51:02+00:00,XLF,bearish,2.501,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:51:05+00:00,XLE,bearish,2.503,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:51:05+00:00,XLF,bearish,2.501,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:51:24+00:00,XLK,bearish,2.466,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:51:24+00:00,XLK,bearish,2.466,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:52:04+00:00,BLK,bearish,3.776,order_validation_failed,Order $1157.79 exceeds max position size $825.00
+2026-01-15T19:52:04+00:00,BLK,bearish,3.776,order_validation_failed,Order $1157.79 exceeds max position size $825.00
+2026-01-15T19:52:08+00:00,COST,bullish,4.760,order_validation_failed,Order $953.89 exceeds max position size $825.00
+2026-01-15T19:52:08+00:00,COST,bullish,4.760,order_validation_failed,Order $953.89 exceeds max position size $825.00
+2026-01-15T19:53:06+00:00,GS,bullish,3.870,order_validation_failed,Order $974.74 exceeds max position size $825.00
+2026-01-15T19:53:09+00:00,BAC,bearish,2.798,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:09+00:00,GS,bullish,3.869,order_validation_failed,Order $974.74 exceeds max position size $825.00
+2026-01-15T19:53:13+00:00,BAC,bearish,2.798,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:13+00:00,C,bearish,2.722,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:13+00:00,AMD,bearish,2.642,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:16+00:00,JPM,bearish,2.591,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:17+00:00,C,bearish,2.722,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:17+00:00,AMD,bearish,2.642,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:17+00:00,XLE,bearish,2.479,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:17+00:00,JPM,bearish,2.591,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:20+00:00,XLF,bearish,2.478,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:20+00:00,XLK,bearish,2.443,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:20+00:00,XLE,bearish,2.479,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:23+00:00,XLF,bearish,2.478,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:23+00:00,XLK,bearish,2.443,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:53:51+00:00,COST,bearish,3.766,order_validation_failed,Order $953.99 exceeds max position size $825.00
+2026-01-15T19:53:52+00:00,BLK,bearish,3.745,order_validation_failed,Order $1158.24 exceeds max position size $825.00
+2026-01-15T19:54:03+00:00,COST,bearish,3.765,order_validation_failed,Order $953.88 exceeds max position size $825.00
+2026-01-15T19:54:07+00:00,BLK,bearish,3.743,order_validation_failed,Order $1158.01 exceeds max position size $825.00
+2026-01-15T19:54:22+00:00,GS,bullish,3.840,order_validation_failed,Order $974.48 exceeds max position size $825.00
+2026-01-15T19:54:25+00:00,BAC,bearish,2.777,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:32+00:00,C,bearish,2.702,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:32+00:00,AMD,bearish,2.623,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:35+00:00,JPM,bearish,2.572,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:35+00:00,XLE,bearish,2.462,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:35+00:00,XLF,bearish,2.461,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:49+00:00,GS,bullish,3.839,order_validation_failed,Order $975.00 exceeds max position size $825.00
+2026-01-15T19:54:52+00:00,BAC,bearish,2.776,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:53+00:00,C,bearish,2.701,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:53+00:00,AMD,bearish,2.622,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:56+00:00,JPM,bearish,2.571,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:54:59+00:00,XLE,bearish,2.461,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:55:00+00:00,XLF,bearish,2.460,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:55:15+00:00,COST,bearish,3.742,order_validation_failed,Order $953.85 exceeds max position size $825.00
+2026-01-15T19:55:16+00:00,BLK,bearish,3.721,order_validation_failed,Order $1157.66 exceeds max position size $825.00
+2026-01-15T19:55:40+00:00,COST,bearish,3.739,order_validation_failed,Order $953.85 exceeds max position size $825.00
+2026-01-15T19:55:47+00:00,BLK,bearish,3.719,order_validation_failed,Order $1157.03 exceeds max position size $825.00
+2026-01-15T19:55:54+00:00,GS,bullish,3.817,order_validation_failed,Order $974.78 exceeds max position size $825.00
+2026-01-15T19:55:54+00:00,BAC,bearish,2.761,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:01+00:00,C,bearish,2.687,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:01+00:00,AMD,bearish,2.608,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:04+00:00,JPM,bearish,2.558,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:07+00:00,XLE,bearish,2.449,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:07+00:00,XLF,bearish,2.447,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:15+00:00,GS,bullish,3.815,order_validation_failed,Order $974.50 exceeds max position size $825.00
+2026-01-15T19:56:18+00:00,BAC,bearish,2.759,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:22+00:00,C,bearish,2.685,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:22+00:00,AMD,bearish,2.606,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:22+00:00,JPM,bearish,2.556,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:25+00:00,XLE,bearish,2.447,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:25+00:00,XLF,bearish,2.445,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:56:44+00:00,COST,bearish,3.719,order_validation_failed,Order $953.80 exceeds max position size $825.00
+2026-01-15T19:56:48+00:00,BLK,bearish,3.698,order_validation_failed,Order $1157.67 exceeds max position size $825.00
+2026-01-15T19:57:01+00:00,COST,bearish,3.715,order_validation_failed,Order $954.10 exceeds max position size $825.00
+2026-01-15T19:57:05+00:00,BLK,bearish,3.694,order_validation_failed,Order $1157.47 exceeds max position size $825.00
+2026-01-15T19:57:30+00:00,GS,bullish,3.796,order_validation_failed,Order $973.89 exceeds max position size $825.00
+2026-01-15T19:57:30+00:00,BAC,bearish,2.745,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:37+00:00,C,bearish,2.671,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:37+00:00,AMD,bearish,2.593,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:40+00:00,JPM,bearish,2.543,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:40+00:00,XLE,bearish,2.435,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:40+00:00,XLF,bearish,2.434,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:44+00:00,GS,bullish,3.791,order_validation_failed,Order $974.63 exceeds max position size $825.00
+2026-01-15T19:57:47+00:00,BAC,bearish,2.742,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:48+00:00,C,bearish,2.668,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:51+00:00,AMD,bearish,2.591,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:51+00:00,JPM,bearish,2.542,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:58+00:00,XLE,bearish,2.433,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:57:58+00:00,XLF,bearish,2.432,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:58:14+00:00,COST,bearish,3.693,order_validation_failed,Order $954.29 exceeds max position size $825.00
+2026-01-15T19:58:15+00:00,BLK,bearish,3.672,order_validation_failed,Order $1158.59 exceeds max position size $825.00
+2026-01-15T19:58:51+00:00,GS,bullish,3.770,order_validation_failed,Order $974.51 exceeds max position size $825.00
+2026-01-15T19:59:00+00:00,COST,bearish,3.691,order_validation_failed,Order $954.20 exceeds max position size $825.00
+2026-01-15T19:59:01+00:00,BAC,bearish,2.728,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:59:04+00:00,BLK,bearish,3.669,order_validation_failed,Order $1159.58 exceeds max position size $825.00
+2026-01-15T19:59:08+00:00,C,bearish,2.654,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:59:08+00:00,AMD,bearish,2.577,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:59:11+00:00,JPM,bearish,2.528,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:59:30+00:00,GS,bullish,3.768,order_validation_failed,Order $975.15 exceeds max position size $825.00
+2026-01-15T19:59:30+00:00,BAC,bearish,2.726,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:59:38+00:00,C,bearish,2.652,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:59:38+00:00,AMD,bearish,2.576,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:59:38+00:00,JPM,bearish,2.526,expectancy_blocked:score_floor_breach,—
+2026-01-15T19:59:53+00:00,COST,bearish,3.669,order_validation_failed,Order $954.16 exceeds max position size $825.00
+2026-01-15T19:59:56+00:00,BLK,bearish,3.649,order_validation_failed,Order $1159.59 exceeds max position size $825.00
+2026-01-15T20:00:13+00:00,GS,bullish,3.748,order_validation_failed,Order $974.56 exceeds max position size $825.00
+2026-01-15T20:00:13+00:00,BAC,bearish,2.712,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:00:20+00:00,C,bearish,2.639,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:00:20+00:00,AMD,bearish,2.562,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:00:21+00:00,JPM,bearish,2.514,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:00:37+00:00,BLK,bearish,3.793,order_validation_failed,Order $1158.43 exceeds max position size $825.00
+2026-01-15T20:00:42+00:00,COST,bearish,3.658,order_validation_failed,Order $954.20 exceeds max position size $825.00
+2026-01-15T20:00:56+00:00,BLK,bearish,3.785,order_validation_failed,Order $1159.15 exceeds max position size $825.00
+2026-01-15T20:01:03+00:00,COST,bearish,3.649,order_validation_failed,Order $954.35 exceeds max position size $825.00
+2026-01-15T20:01:18+00:00,GS,bullish,3.738,order_validation_failed,Order $974.79 exceeds max position size $825.00
+2026-01-15T20:01:18+00:00,BAC,bearish,2.704,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:01:22+00:00,C,bearish,2.632,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:01:22+00:00,AMD,bearish,2.555,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:01:25+00:00,JPM,bearish,2.507,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:01:39+00:00,GS,bullish,3.730,order_validation_failed,Order $974.61 exceeds max position size $825.00
+2026-01-15T20:01:39+00:00,BAC,bearish,2.700,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:01:40+00:00,C,bearish,2.626,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:01:40+00:00,AMD,bearish,2.550,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:01:43+00:00,JPM,bearish,2.502,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:02:02+00:00,BLK,bearish,3.766,order_validation_failed,Order $1160.22 exceeds max position size $825.00
+2026-01-15T20:02:09+00:00,COST,bearish,3.631,order_validation_failed,Order $954.23 exceeds max position size $825.00
+2026-01-15T20:02:23+00:00,BLK,bearish,3.763,order_validation_failed,Order $1160.12 exceeds max position size $825.00
+2026-01-15T20:02:27+00:00,COST,bearish,3.628,order_validation_failed,Order $954.53 exceeds max position size $825.00
+2026-01-15T20:02:53+00:00,GS,bullish,3.709,order_validation_failed,Order $975.85 exceeds max position size $825.00
+2026-01-15T20:02:57+00:00,BAC,bearish,2.685,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:02:57+00:00,GS,bullish,3.712,order_validation_failed,Order $975.90 exceeds max position size $825.00
+2026-01-15T20:02:57+00:00,BAC,bearish,2.687,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:03:01+00:00,C,bearish,2.613,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:03:01+00:00,AMD,bearish,2.536,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:03:01+00:00,JPM,bearish,2.489,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:03:04+00:00,C,bearish,2.614,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:03:04+00:00,AMD,bearish,2.538,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:03:05+00:00,JPM,bearish,2.490,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:03:31+00:00,BLK,bearish,3.739,order_validation_failed,Order $1160.36 exceeds max position size $825.00
+2026-01-15T20:03:35+00:00,COST,bearish,3.607,order_validation_failed,Order $954.44 exceeds max position size $825.00
+2026-01-15T20:04:05+00:00,GS,bullish,3.690,order_validation_failed,Order $975.00 exceeds max position size $825.00
+2026-01-15T20:04:05+00:00,BAC,bearish,2.669,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:04:09+00:00,C,bearish,2.598,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:04:09+00:00,AMD,bearish,2.524,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:04:09+00:00,JPM,bearish,2.476,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:04:16+00:00,BLK,bearish,3.738,order_validation_failed,Order $1160.43 exceeds max position size $825.00
+2026-01-15T20:04:24+00:00,COST,bearish,3.605,order_validation_failed,Order $954.30 exceeds max position size $825.00
+2026-01-15T20:04:43+00:00,BLK,bearish,3.721,order_validation_failed,Order $1160.21 exceeds max position size $825.00
+2026-01-15T20:04:50+00:00,COST,bearish,3.589,order_validation_failed,Order $954.49 exceeds max position size $825.00
+2026-01-15T20:05:01+00:00,GS,bullish,3.688,order_validation_failed,Order $976.00 exceeds max position size $825.00
+2026-01-15T20:05:01+00:00,BAC,bearish,2.668,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:05:02+00:00,C,bearish,2.597,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:05:02+00:00,AMD,bearish,2.523,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:05:05+00:00,JPM,bearish,2.474,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:05:19+00:00,GS,bullish,3.673,order_validation_failed,Order $976.60 exceeds max position size $825.00
+2026-01-15T20:05:22+00:00,BAC,bearish,2.658,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:05:24+00:00,C,bearish,2.587,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:05:24+00:00,AMD,bearish,2.513,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:05:24+00:00,JPM,bearish,2.465,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:05:43+00:00,BLK,bearish,3.705,order_validation_failed,Order $1161.16 exceeds max position size $825.00
+2026-01-15T20:05:48+00:00,COST,bearish,3.574,order_validation_failed,Order $954.12 exceeds max position size $825.00
+2026-01-15T20:05:55+00:00,BLK,bullish,5.525,order_validation_failed,Order $1161.45 exceeds max position size $825.00
+2026-01-15T20:06:16+00:00,COST,bearish,3.568,order_validation_failed,Order $954.46 exceeds max position size $825.00
+2026-01-15T20:06:23+00:00,GS,bullish,3.658,order_validation_failed,Order $975.82 exceeds max position size $825.00
+2026-01-15T20:06:24+00:00,BAC,bearish,2.648,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:06:24+00:00,C,bearish,2.577,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:06:24+00:00,AMD,bearish,2.503,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:06:27+00:00,JPM,bearish,2.455,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:06:48+00:00,GS,bullish,3.653,order_validation_failed,Order $975.20 exceeds max position size $825.00
+2026-01-15T20:06:48+00:00,BAC,bearish,2.643,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:06:49+00:00,C,bearish,2.573,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:06:50+00:00,AMD,bearish,2.499,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:06:50+00:00,JPM,bearish,2.453,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:06:57+00:00,BLK,bullish,5.498,order_validation_failed,Order $1161.43 exceeds max position size $825.00
+2026-01-15T20:07:09+00:00,COST,bearish,3.552,order_validation_failed,Order $954.39 exceeds max position size $825.00
+2026-01-15T20:07:26+00:00,GS,bullish,3.637,order_validation_failed,Order $975.00 exceeds max position size $825.00
+2026-01-15T20:07:26+00:00,BAC,bearish,2.632,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:07:30+00:00,C,bearish,2.562,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:07:30+00:00,AMD,bearish,2.489,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:07:30+00:00,JPM,bearish,2.443,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:07:52+00:00,BLK,bullish,5.474,order_validation_failed,Order $1161.54 exceeds max position size $825.00
+2026-01-15T20:07:56+00:00,BLK,bullish,5.472,order_validation_failed,Order $1161.29 exceeds max position size $825.00
+2026-01-15T20:08:03+00:00,COST,bearish,3.538,order_validation_failed,Order $954.15 exceeds max position size $825.00
+2026-01-15T20:08:17+00:00,COST,bearish,3.536,order_validation_failed,Order $954.41 exceeds max position size $825.00
+2026-01-15T20:08:30+00:00,GS,bullish,3.624,order_validation_failed,Order $976.13 exceeds max position size $825.00
+2026-01-15T20:08:30+00:00,BAC,bearish,2.623,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:08:34+00:00,C,bearish,2.552,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:08:34+00:00,AMD,bearish,2.480,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:08:34+00:00,JPM,bearish,2.434,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:08:53+00:00,GS,bullish,3.622,order_validation_failed,Order $975.81 exceeds max position size $825.00
+2026-01-15T20:08:54+00:00,BAC,bearish,2.622,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:09:00+00:00,C,bearish,2.551,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:09:01+00:00,AMD,bearish,2.479,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:09:01+00:00,JPM,bearish,2.432,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:09:02+00:00,BLK,bullish,5.447,order_validation_failed,Order $1159.32 exceeds max position size $825.00
+2026-01-15T20:09:18+00:00,COST,bearish,3.520,order_validation_failed,Order $954.54 exceeds max position size $825.00
+2026-01-15T20:09:34+00:00,BLK,bullish,5.432,order_validation_failed,Order $1158.28 exceeds max position size $825.00
+2026-01-15T20:09:45+00:00,COST,bearish,3.511,order_validation_failed,Order $954.56 exceeds max position size $825.00
+2026-01-15T20:09:58+00:00,GS,bullish,3.607,order_validation_failed,Order $975.07 exceeds max position size $825.00
+2026-01-15T20:10:01+00:00,BAC,bearish,2.611,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:10:11+00:00,C,bearish,2.542,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:10:11+00:00,AMD,bearish,2.469,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:10:15+00:00,GS,bullish,3.598,order_validation_failed,Order $974.85 exceeds max position size $825.00
+2026-01-15T20:10:15+00:00,BAC,bearish,2.605,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:10:23+00:00,C,bearish,2.535,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:10:23+00:00,AMD,bearish,2.463,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:10:37+00:00,BLK,bullish,5.406,order_validation_failed,Order $1157.79 exceeds max position size $825.00
+2026-01-15T20:10:50+00:00,COST,bearish,3.495,order_validation_failed,Order $954.46 exceeds max position size $825.00
+2026-01-15T20:10:50+00:00,BLK,bullish,5.402,order_validation_failed,Order $1157.74 exceeds max position size $825.00
+2026-01-15T20:11:09+00:00,COST,bearish,3.492,order_validation_failed,Order $954.65 exceeds max position size $825.00
+2026-01-15T20:11:35+00:00,GS,bullish,3.581,order_validation_failed,Order $975.78 exceeds max position size $825.00
+2026-01-15T20:11:35+00:00,BAC,bearish,2.592,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:11:38+00:00,GS,bullish,3.583,order_validation_failed,Order $975.78 exceeds max position size $825.00
+2026-01-15T20:11:38+00:00,BAC,bearish,2.594,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:11:42+00:00,C,bearish,2.524,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:11:42+00:00,AMD,bearish,2.452,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:11:42+00:00,C,bearish,2.524,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:11:42+00:00,AMD,bearish,2.453,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:12:16+00:00,BLK,bullish,5.365,order_validation_failed,Order $1156.96 exceeds max position size $825.00
+2026-01-15T20:12:17+00:00,BLK,bullish,5.365,order_validation_failed,Order $1156.96 exceeds max position size $825.00
+2026-01-15T20:12:23+00:00,COST,bearish,3.469,order_validation_failed,Order $955.15 exceeds max position size $825.00
+2026-01-15T20:12:27+00:00,COST,bearish,3.470,order_validation_failed,Order $955.15 exceeds max position size $825.00
+2026-01-15T20:12:56+00:00,GS,bullish,3.559,order_validation_failed,Order $976.13 exceeds max position size $825.00
+2026-01-15T20:12:56+00:00,BAC,bearish,2.576,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:13:01+00:00,C,bearish,2.508,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:13:01+00:00,AMD,bearish,2.437,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:13:03+00:00,GS,bullish,3.559,order_validation_failed,Order $975.92 exceeds max position size $825.00
+2026-01-15T20:13:03+00:00,BAC,bearish,2.577,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:13:07+00:00,C,bearish,2.508,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:13:07+00:00,AMD,bearish,2.437,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:13:25+00:00,BLK,bullish,5.336,order_validation_failed,Order $1158.89 exceeds max position size $825.00
+2026-01-15T20:13:37+00:00,COST,bearish,3.451,order_validation_failed,Order $955.26 exceeds max position size $825.00
+2026-01-15T20:13:44+00:00,BLK,bullish,5.332,order_validation_failed,Order $1158.91 exceeds max position size $825.00
+2026-01-15T20:14:01+00:00,GS,bullish,3.542,order_validation_failed,Order $976.14 exceeds max position size $825.00
+2026-01-15T20:14:01+00:00,BAC,bearish,2.564,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:14:08+00:00,C,bearish,2.497,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:14:12+00:00,COST,bearish,3.449,order_validation_failed,Order $955.14 exceeds max position size $825.00
+2026-01-15T20:14:35+00:00,GS,bullish,3.540,order_validation_failed,Order $975.83 exceeds max position size $825.00
+2026-01-15T20:14:35+00:00,BAC,bearish,2.562,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:14:36+00:00,C,bearish,2.495,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:15:04+00:00,BLK,bullish,5.300,order_validation_failed,Order $1158.40 exceeds max position size $825.00
+2026-01-15T20:15:08+00:00,BLK,bullish,5.297,order_validation_failed,Order $1158.40 exceeds max position size $825.00
+2026-01-15T20:15:31+00:00,COST,bearish,3.426,order_validation_failed,Order $954.97 exceeds max position size $825.00
+2026-01-15T20:15:41+00:00,COST,bearish,3.429,order_validation_failed,Order $955.09 exceeds max position size $825.00
+2026-01-15T20:16:07+00:00,GS,bullish,3.520,order_validation_failed,Order $974.62 exceeds max position size $825.00
+2026-01-15T20:16:08+00:00,BAC,bearish,2.548,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:16:11+00:00,GS,bullish,3.521,order_validation_failed,Order $974.62 exceeds max position size $825.00
+2026-01-15T20:16:11+00:00,BAC,bearish,2.549,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:16:14+00:00,C,bearish,2.479,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:16:15+00:00,C,bearish,2.481,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:16:43+00:00,BLK,bullish,5.261,order_validation_failed,Order $1157.97 exceeds max position size $825.00
+2026-01-15T20:16:49+00:00,GOOGL,bullish,5.602,symbol_on_cooldown,—
+2026-01-15T20:16:53+00:00,BLK,bullish,5.256,order_validation_failed,Order $1158.37 exceeds max position size $825.00
+2026-01-15T20:17:00+00:00,COST,bearish,3.404,order_validation_failed,Order $954.63 exceeds max position size $825.00
+2026-01-15T20:17:22+00:00,COST,bearish,3.400,order_validation_failed,Order $954.68 exceeds max position size $825.00
+2026-01-15T20:17:32+00:00,GS,bullish,3.497,order_validation_failed,Order $974.74 exceeds max position size $825.00
+2026-01-15T20:17:32+00:00,BAC,bearish,2.533,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:17:36+00:00,C,bearish,2.466,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:17:51+00:00,GS,bullish,3.494,order_validation_failed,Order $974.74 exceeds max position size $825.00
+2026-01-15T20:17:51+00:00,BAC,bearish,2.530,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:17:57+00:00,C,bearish,2.464,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:18:03+00:00,BLK,bullish,5.225,order_validation_failed,Order $1157.24 exceeds max position size $825.00
+2026-01-15T20:18:19+00:00,COST,bearish,3.382,order_validation_failed,Order $954.74 exceeds max position size $825.00
+2026-01-15T20:18:33+00:00,BLK,bullish,5.216,order_validation_failed,Order $1157.46 exceeds max position size $825.00
+2026-01-15T20:18:44+00:00,GS,bullish,3.476,order_validation_failed,Order $974.58 exceeds max position size $825.00
+2026-01-15T20:18:44+00:00,BAC,bearish,2.517,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:18:51+00:00,C,bearish,2.452,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:18:55+00:00,COST,bearish,3.376,order_validation_failed,Order $954.72 exceeds max position size $825.00
+2026-01-15T20:19:19+00:00,GS,bullish,3.472,order_validation_failed,Order $974.71 exceeds max position size $825.00
+2026-01-15T20:19:22+00:00,BAC,bearish,2.514,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:19:23+00:00,BLK,bullish,5.197,order_validation_failed,Order $1156.99 exceeds max position size $825.00
+2026-01-15T20:19:26+00:00,C,bearish,2.448,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:19:41+00:00,COST,bearish,3.364,order_validation_failed,Order $954.85 exceeds max position size $825.00
+2026-01-15T20:19:59+00:00,GS,bullish,3.460,order_validation_failed,Order $974.30 exceeds max position size $825.00
+2026-01-15T20:19:59+00:00,BAC,bearish,2.506,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:20:04+00:00,C,bearish,2.440,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:20:11+00:00,BLK,bullish,5.176,order_validation_failed,Order $1157.62 exceeds max position size $825.00
+2026-01-15T20:20:24+00:00,COST,bearish,3.351,order_validation_failed,Order $954.94 exceeds max position size $825.00
+2026-01-15T20:20:45+00:00,BLK,bullish,5.166,order_validation_failed,Order $1157.45 exceeds max position size $825.00
+2026-01-15T20:20:49+00:00,GS,bullish,3.448,order_validation_failed,Order $973.24 exceeds max position size $825.00
+2026-01-15T20:20:49+00:00,BAC,bearish,2.497,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:20:56+00:00,C,bearish,2.431,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:21:29+00:00,BLK,bullish,5.148,order_validation_failed,Order $1156.82 exceeds max position size $825.00
+2026-01-15T20:21:32+00:00,COST,bearish,3.344,order_validation_failed,Order $955.32 exceeds max position size $825.00
+2026-01-15T20:21:43+00:00,V,bearish,3.463,symbol_on_cooldown,—
+2026-01-15T20:21:46+00:00,COST,bearish,3.334,order_validation_failed,Order $955.36 exceeds max position size $825.00
+2026-01-15T20:22:01+00:00,GS,bullish,3.442,order_validation_failed,Order $972.94 exceeds max position size $825.00
+2026-01-15T20:22:01+00:00,BAC,bearish,2.493,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:22:19+00:00,GS,bullish,3.431,order_validation_failed,Order $972.98 exceeds max position size $825.00
+2026-01-15T20:22:19+00:00,BAC,bearish,2.485,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:22:44+00:00,BLK,bullish,5.117,order_validation_failed,Order $1158.60 exceeds max position size $825.00
+2026-01-15T20:22:45+00:00,BLK,bullish,5.116,order_validation_failed,Order $1158.60 exceeds max position size $825.00
+2026-01-15T20:22:59+00:00,COST,bearish,3.314,order_validation_failed,Order $955.51 exceeds max position size $825.00
+2026-01-15T20:23:03+00:00,COST,bearish,3.314,order_validation_failed,Order $955.35 exceeds max position size $825.00
+2026-01-15T20:23:28+00:00,GS,bullish,3.413,order_validation_failed,Order $973.07 exceeds max position size $825.00
+2026-01-15T20:23:29+00:00,BAC,bearish,2.471,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:23:39+00:00,GS,bullish,3.412,order_validation_failed,Order $972.92 exceeds max position size $825.00
+2026-01-15T20:23:39+00:00,BAC,bearish,2.471,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:24:03+00:00,BLK,bullish,5.088,order_validation_failed,Order $1159.18 exceeds max position size $825.00
+2026-01-15T20:24:09+00:00,BLK,bullish,5.084,order_validation_failed,Order $1159.17 exceeds max position size $825.00
+2026-01-15T20:24:16+00:00,COST,bearish,3.296,order_validation_failed,Order $955.26 exceeds max position size $825.00
+2026-01-15T20:24:33+00:00,COST,bearish,3.294,order_validation_failed,Order $955.22 exceeds max position size $825.00
+2026-01-15T20:24:45+00:00,GS,bullish,3.395,order_validation_failed,Order $971.89 exceeds max position size $825.00
+2026-01-15T20:24:45+00:00,BAC,bearish,2.460,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:25:03+00:00,GS,bullish,3.394,order_validation_failed,Order $972.00 exceeds max position size $825.00
+2026-01-15T20:25:03+00:00,BAC,bearish,2.458,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:25:13+00:00,BLK,bullish,5.059,order_validation_failed,Order $1159.58 exceeds max position size $825.00
+2026-01-15T20:25:27+00:00,COST,bearish,3.278,order_validation_failed,Order $955.35 exceeds max position size $825.00
+2026-01-15T20:25:40+00:00,BLK,bullish,5.054,order_validation_failed,Order $1159.08 exceeds max position size $825.00
+2026-01-15T20:25:56+00:00,GS,bullish,3.378,order_validation_failed,Order $972.02 exceeds max position size $825.00
+2026-01-15T20:25:56+00:00,BAC,bearish,2.447,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:26:05+00:00,COST,bearish,3.275,order_validation_failed,Order $955.38 exceeds max position size $825.00
+2026-01-15T20:26:19+00:00,GS,bullish,3.376,order_validation_failed,Order $972.40 exceeds max position size $825.00
+2026-01-15T20:26:19+00:00,BAC,bearish,2.445,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:27:23+00:00,COST,bearish,3.255,order_validation_failed,Order $955.48 exceeds max position size $825.00
+2026-01-15T20:27:23+00:00,COST,bearish,3.255,order_validation_failed,Order $955.48 exceeds max position size $825.00
+2026-01-15T20:27:30+00:00,BLK,bullish,4.100,order_validation_failed,Order $1158.49 exceeds max position size $825.00
+2026-01-15T20:27:33+00:00,BLK,bullish,4.100,order_validation_failed,Order $1158.49 exceeds max position size $825.00
+2026-01-15T20:27:33+00:00,LCID,bearish,2.993,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:27:33+00:00,LCID,bearish,2.993,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:27:59+00:00,GS,bullish,3.358,order_validation_failed,Order $973.00 exceeds max position size $825.00
+2026-01-15T20:27:59+00:00,GS,bullish,3.358,order_validation_failed,Order $973.00 exceeds max position size $825.00
+2026-01-15T20:27:59+00:00,BAC,bearish,2.432,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:27:59+00:00,BAC,bearish,2.432,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:28:40+00:00,COST,bearish,3.233,order_validation_failed,Order $955.49 exceeds max position size $825.00
+2026-01-15T20:28:44+00:00,COST,bearish,3.234,order_validation_failed,Order $955.46 exceeds max position size $825.00
+2026-01-15T20:28:47+00:00,BLK,bullish,4.073,order_validation_failed,Order $1157.34 exceeds max position size $825.00
+2026-01-15T20:28:50+00:00,BLK,bullish,4.074,order_validation_failed,Order $1157.34 exceeds max position size $825.00
+2026-01-15T20:28:50+00:00,LCID,bearish,2.974,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:28:54+00:00,LCID,bearish,2.974,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:29:00+00:00,GS,bullish,3.336,order_validation_failed,Order $972.98 exceeds max position size $825.00
+2026-01-15T20:29:04+00:00,GS,bullish,3.336,order_validation_failed,Order $972.64 exceeds max position size $825.00
+2026-01-15T20:29:31+00:00,COST,bearish,3.219,order_validation_failed,Order $955.59 exceeds max position size $825.00
+2026-01-15T20:29:35+00:00,BLK,bullish,4.056,order_validation_failed,Order $1157.39 exceeds max position size $825.00
+2026-01-15T20:29:35+00:00,LCID,bearish,2.961,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:29:48+00:00,GS,bullish,3.323,order_validation_failed,Order $972.35 exceeds max position size $825.00
+2026-01-15T20:29:58+00:00,COST,bearish,3.217,order_validation_failed,Order $955.41 exceeds max position size $825.00
+2026-01-15T20:30:02+00:00,BLK,bullish,4.054,order_validation_failed,Order $1156.93 exceeds max position size $825.00
+2026-01-15T20:30:02+00:00,LCID,bearish,2.959,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:30:11+00:00,GS,bullish,3.320,order_validation_failed,Order $972.23 exceeds max position size $825.00
+2026-01-15T20:30:44+00:00,COST,bearish,3.204,order_validation_failed,Order $955.29 exceeds max position size $825.00
+2026-01-15T20:30:48+00:00,BLK,bullish,4.037,order_validation_failed,Order $1157.09 exceeds max position size $825.00
+2026-01-15T20:30:51+00:00,COST,bearish,3.203,order_validation_failed,Order $955.40 exceeds max position size $825.00
+2026-01-15T20:30:51+00:00,LCID,bearish,2.947,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:30:58+00:00,BLK,bullish,4.037,order_validation_failed,Order $1156.92 exceeds max position size $825.00
+2026-01-15T20:30:59+00:00,LCID,bearish,2.947,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:31:11+00:00,GS,bullish,3.308,order_validation_failed,Order $972.71 exceeds max position size $825.00
+2026-01-15T20:31:15+00:00,GS,bullish,3.308,order_validation_failed,Order $972.71 exceeds max position size $825.00
+2026-01-15T20:31:46+00:00,COST,bearish,3.190,order_validation_failed,Order $955.87 exceeds max position size $825.00
+2026-01-15T20:31:53+00:00,BLK,bullish,4.019,order_validation_failed,Order $1156.54 exceeds max position size $825.00
+2026-01-15T20:31:53+00:00,LCID,bearish,2.934,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:32:08+00:00,COST,bearish,3.188,order_validation_failed,Order $956.05 exceeds max position size $825.00
+2026-01-15T20:32:11+00:00,GS,bullish,3.295,order_validation_failed,Order $973.55 exceeds max position size $825.00
+2026-01-15T20:32:15+00:00,BLK,bullish,4.016,order_validation_failed,Order $1156.38 exceeds max position size $825.00
+2026-01-15T20:32:15+00:00,LCID,bearish,2.933,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:32:28+00:00,GS,bullish,3.293,order_validation_failed,Order $973.59 exceeds max position size $825.00
+2026-01-15T20:33:06+00:00,COST,bearish,3.176,max_positions_reached,—
+2026-01-15T20:33:41+00:00,COST,bearish,3.163,order_validation_failed,Order $956.47 exceeds max position size $825.00
+2026-01-15T20:33:47+00:00,BLK,bullish,3.988,order_validation_failed,Order $1158.11 exceeds max position size $825.00
+2026-01-15T20:33:53+00:00,LCID,bearish,2.911,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:33:54+00:00,COST,bearish,3.162,order_validation_failed,Order $956.50 exceeds max position size $825.00
+2026-01-15T20:34:00+00:00,BLK,bullish,3.985,order_validation_failed,Order $1158.69 exceeds max position size $825.00
+2026-01-15T20:34:00+00:00,LCID,bearish,2.910,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:34:08+00:00,GS,bullish,3.270,order_validation_failed,Order $974.11 exceeds max position size $825.00
+2026-01-15T20:34:15+00:00,GS,bullish,3.269,order_validation_failed,Order $974.36 exceeds max position size $825.00
+2026-01-15T20:34:37+00:00,BLK,bearish,3.786,order_validation_failed,Order $1158.36 exceeds max position size $825.00
+2026-01-15T20:34:47+00:00,BLK,bearish,3.784,order_validation_failed,Order $1158.36 exceeds max position size $825.00
+2026-01-15T20:34:51+00:00,COST,bearish,3.148,order_validation_failed,Order $956.15 exceeds max position size $825.00
+2026-01-15T20:34:54+00:00,LCID,bearish,2.898,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:35:08+00:00,COST,bearish,3.146,order_validation_failed,Order $956.30 exceeds max position size $825.00
+2026-01-15T20:35:12+00:00,GS,bullish,3.256,order_validation_failed,Order $974.30 exceeds max position size $825.00
+2026-01-15T20:35:15+00:00,LCID,bearish,2.896,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:35:29+00:00,GS,bullish,3.254,order_validation_failed,Order $974.12 exceeds max position size $825.00
+2026-01-15T20:35:38+00:00,BLK,bearish,3.770,order_validation_failed,Order $1158.52 exceeds max position size $825.00
+2026-01-15T20:35:50+00:00,COST,bearish,3.136,order_validation_failed,Order $955.95 exceeds max position size $825.00
+2026-01-15T20:35:54+00:00,LCID,bearish,2.886,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:36:04+00:00,GS,bullish,3.244,order_validation_failed,Order $974.97 exceeds max position size $825.00
+2026-01-15T20:36:07+00:00,BLK,bearish,3.761,order_validation_failed,Order $1158.47 exceeds max position size $825.00
+2026-01-15T20:36:24+00:00,COST,bearish,3.128,order_validation_failed,Order $956.04 exceeds max position size $825.00
+2026-01-15T20:36:28+00:00,LCID,bearish,2.880,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:36:38+00:00,BLK,bearish,3.753,order_validation_failed,Order $1158.15 exceeds max position size $825.00
+2026-01-15T20:36:59+00:00,COST,bearish,3.121,order_validation_failed,Order $956.06 exceeds max position size $825.00
+2026-01-15T20:37:03+00:00,LCID,bearish,2.874,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:37:13+00:00,BLK,bearish,3.743,order_validation_failed,Order $1158.14 exceeds max position size $825.00
+2026-01-15T20:37:32+00:00,COST,bearish,3.114,order_validation_failed,Order $956.11 exceeds max position size $825.00
+2026-01-15T20:37:35+00:00,LCID,bearish,2.867,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:37:46+00:00,BLK,bearish,3.734,order_validation_failed,Order $1158.37 exceeds max position size $825.00
+2026-01-15T20:38:02+00:00,COST,bearish,3.107,order_validation_failed,Order $955.58 exceeds max position size $825.00
+2026-01-15T20:38:03+00:00,LCID,bearish,2.861,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:38:35+00:00,BLK,bearish,3.720,order_validation_failed,Order $1158.19 exceeds max position size $825.00
+2026-01-15T20:38:35+00:00,BLK,bearish,3.719,order_validation_failed,Order $1158.19 exceeds max position size $825.00
+2026-01-15T20:38:57+00:00,COST,bearish,3.095,max_positions_reached,—
+2026-01-15T20:38:57+00:00,COST,bearish,3.095,max_positions_reached,—
+2026-01-15T20:39:00+00:00,LCID,bearish,2.849,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:39:00+00:00,LCID,bearish,2.850,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:39:29+00:00,BLK,bearish,3.705,order_validation_failed,Order $1158.34 exceeds max position size $825.00
+2026-01-15T20:39:38+00:00,BLK,bearish,3.704,order_validation_failed,Order $1158.49 exceeds max position size $825.00
+2026-01-15T20:39:45+00:00,COST,bearish,3.084,order_validation_failed,Order $955.60 exceeds max position size $825.00
+2026-01-15T20:39:49+00:00,LCID,bearish,2.839,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:40:03+00:00,COST,bearish,3.083,order_validation_failed,Order $955.54 exceeds max position size $825.00
+2026-01-15T20:40:04+00:00,LCID,bearish,2.839,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:40:30+00:00,BLK,bearish,3.688,order_validation_failed,Order $1160.40 exceeds max position size $825.00
+2026-01-15T20:40:46+00:00,COST,bearish,3.071,order_validation_failed,Order $955.89 exceeds max position size $825.00
+2026-01-15T20:40:46+00:00,LCID,bearish,2.828,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:40:56+00:00,BLK,bearish,3.685,order_validation_failed,Order $1160.67 exceeds max position size $825.00
+2026-01-15T20:41:14+00:00,COST,bearish,3.068,order_validation_failed,Order $955.89 exceeds max position size $825.00
+2026-01-15T20:41:14+00:00,LCID,bearish,2.826,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:41:40+00:00,BLK,bearish,3.670,order_validation_failed,Order $1161.39 exceeds max position size $825.00
+2026-01-15T20:41:55+00:00,BLK,bearish,3.667,order_validation_failed,Order $1161.71 exceeds max position size $825.00
+2026-01-15T20:42:02+00:00,COST,bearish,3.056,order_validation_failed,Order $956.26 exceeds max position size $825.00
+2026-01-15T20:42:02+00:00,LCID,bearish,2.815,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:42:17+00:00,COST,bearish,3.054,order_validation_failed,Order $956.16 exceeds max position size $825.00
+2026-01-15T20:42:20+00:00,PLTR,bearish,2.960,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:42:20+00:00,LCID,bearish,2.813,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:42:51+00:00,BLK,bearish,3.650,order_validation_failed,Order $1161.96 exceeds max position size $825.00
+2026-01-15T20:43:01+00:00,BLK,bearish,3.648,order_validation_failed,Order $1161.99 exceeds max position size $825.00
+2026-01-15T20:43:07+00:00,COST,bearish,3.040,order_validation_failed,Order $956.65 exceeds max position size $825.00
+2026-01-15T20:43:08+00:00,PLTR,bearish,2.947,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:43:11+00:00,LCID,bearish,2.801,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:43:22+00:00,COST,bearish,3.039,order_validation_failed,Order $956.63 exceeds max position size $825.00
+2026-01-15T20:43:22+00:00,PLTR,bearish,2.947,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:43:25+00:00,LCID,bearish,2.800,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:43:57+00:00,BLK,bearish,3.632,order_validation_failed,Order $1161.58 exceeds max position size $825.00
+2026-01-15T20:44:01+00:00,BLK,bearish,3.632,order_validation_failed,Order $1161.37 exceeds max position size $825.00
+2026-01-15T20:44:21+00:00,COST,bearish,3.027,max_positions_reached,—
+2026-01-15T20:44:24+00:00,PLTR,bearish,2.934,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:44:24+00:00,LCID,bearish,2.788,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:44:27+00:00,COST,bearish,3.026,max_positions_reached,—
+2026-01-15T20:44:30+00:00,MA,bullish,3.397,max_positions_reached,—
+2026-01-15T20:44:30+00:00,PLTR,bearish,2.934,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:44:34+00:00,LCID,bearish,2.787,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:44:37+00:00,MA,bullish,3.396,max_positions_reached,—
+2026-01-15T20:45:27+00:00,BLK,bearish,4.410,order_validation_failed,Order $1160.96 exceeds max position size $825.00
+2026-01-15T20:45:27+00:00,PFE,bullish,2.865,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:45:27+00:00,WFC,bullish,2.830,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:45:27+00:00,BLK,bearish,4.409,order_validation_failed,Order $1160.70 exceeds max position size $825.00
+2026-01-15T20:45:27+00:00,PFE,bullish,2.864,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:45:27+00:00,WFC,bullish,2.828,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:45:29+00:00,COST,bearish,3.677,order_validation_failed,Order $956.65 exceeds max position size $825.00
+2026-01-15T20:45:29+00:00,COST,bearish,3.675,order_validation_failed,Order $956.65 exceeds max position size $825.00
+2026-01-15T20:45:38+00:00,LCID,bearish,3.386,max_positions_reached,—
+2026-01-15T20:45:38+00:00,MA,bullish,2.250,expectancy_blocked:score_floor_breach,—
+2026-01-15T20:45:41+00:00,LCID,bearish,3.386,max_positions_reached,—
+2026-01-15T20:45:41+00:00,MA,bullish,2.251,expectancy_blocked:score_floor_breach,—

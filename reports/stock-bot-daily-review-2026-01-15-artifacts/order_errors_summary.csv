@@ -1,0 +1,13 @@
+error_or_action,count
+cannot access local variable 'time' where it is not associated with a value,783
+submit_entry_failed,514
+"asset ""LCID"" cannot be sold short",265
+client_order_id must be unique,24
+invalid limit_price 115.945. sub-penny increment does not fulfill minimum pricing criteria,6
+invalid limit_price 52.955. sub-penny increment does not fulfill minimum pricing criteria,6
+invalid limit_price 277.505. sub-penny increment does not fulfill minimum pricing criteria,4
+invalid limit_price 277.1326. sub-penny increment does not fulfill minimum pricing criteria,2
+invalid limit_price 129.6702. sub-penny increment does not fulfill minimum pricing criteria,2
+invalid limit_price 377.5621. sub-penny increment does not fulfill minimum pricing criteria,2
+invalid limit_price 109.7901. sub-penny increment does not fulfill minimum pricing criteria,2
+invalid limit_price 52.9699. sub-penny increment does not fulfill minimum pricing criteria,2
