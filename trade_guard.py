@@ -37,7 +37,9 @@ class TradeGuard:
             config: Optional config dict. If None, uses defaults from env/registry.
         """
         # Risk limits
-        self.max_position_size_usd = get_env("MAX_POSITION_SIZE_USD", Thresholds.POSITION_SIZE_USD, float)
+        # Institutional Remediation Phase 2:
+        # Raise default cap to unlock SPY/QQQ/AAPL while preserving env override.
+        self.max_position_size_usd = get_env("MAX_POSITION_SIZE_USD", 750.0, float)
         self.max_portfolio_exposure_pct = get_env("MAX_PORTFOLIO_EXPOSURE_PCT", 0.30, float)  # 30% max
         self.max_notional_per_order = get_env("MAX_NOTIONAL_PER_ORDER", 2000.0, float)
         self.max_concentration_per_symbol_pct = get_env("MAX_CONCENTRATION_PER_SYMBOL_PCT", 0.15, float)  # 15% max per symbol
@@ -121,6 +123,10 @@ class TradeGuard:
             new_qty = abs(current_qty - qty)
         
         new_notional = new_qty * intended_price
+        # WHY: Expensive symbols (> cap) are structurally untradeable with integer shares; avoid ambiguous 'position_size_exceeds_limit'.
+        # HOW TO VERIFY: logs/orders.jsonl shows 'min_share_notional_exceeds_cap' for QQQ/SPY-like names.
+        if current_qty == 0 and qty == 1 and intended_price > self.max_position_size_usd:
+            return False, f"min_share_notional_exceeds_cap_price_{intended_price:.2f}_cap_{self.max_position_size_usd:.2f}"
         if new_notional > self.max_position_size_usd:
             return False, f"position_size_exceeds_limit_{new_notional:.2f}_max_{self.max_position_size_usd:.2f}"
         

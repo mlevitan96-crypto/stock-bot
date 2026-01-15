@@ -18,13 +18,71 @@ import random
 import signal
 import threading
 import traceback
-import requests
-import alpaca_trade_api as tradeapi
+# Optional: requests is used in some execution / telemetry paths. Keep import non-blocking for local audit runs.
+_MISSING_REQUESTS_LIB = False
+try:
+    import requests  # type: ignore
+except Exception:
+    # Provide a minimal stub so local structural audits can import the module tree.
+    # This is non-blocking and should never be relied on in production runtime.
+    import types as _types  # type: ignore
+    requests = _types.ModuleType("requests")  # type: ignore
+    def _missing_requests(*args, **kwargs):  # type: ignore
+        raise RuntimeError("requests not installed in this environment")
+    setattr(requests, "get", _missing_requests)
+    setattr(requests, "post", _missing_requests)
+    setattr(requests, "request", _missing_requests)
+    sys.modules["requests"] = requests  # type: ignore
+    _MISSING_REQUESTS_LIB = True
+
+# Optional: Alpaca SDK import (non-blocking for local structural audits).
+_MISSING_ALPACA_SDK = False
+try:
+    import alpaca_trade_api as tradeapi  # type: ignore
+except Exception:
+    import types as _types  # type: ignore
+    tradeapi = _types.ModuleType("alpaca_trade_api")  # type: ignore
+    class _MissingAlpacaREST:  # type: ignore
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("alpaca_trade_api not installed in this environment")
+    setattr(tradeapi, "REST", _MissingAlpacaREST)
+    sys.modules["alpaca_trade_api"] = tradeapi  # type: ignore
+    _MISSING_ALPACA_SDK = True
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:
+    import types as _types  # type: ignore
+    _dotenv = _types.ModuleType("dotenv")  # type: ignore
+    def load_dotenv(*args, **kwargs):  # type: ignore
+        return False
+    setattr(_dotenv, "load_dotenv", load_dotenv)
+    sys.modules["dotenv"] = _dotenv  # type: ignore
 from typing import Optional, Dict
-from flask import Flask, jsonify, Response, send_from_directory
+
+# Optional: Flask import (non-blocking for local structural audits).
+_MISSING_FLASK = False
+try:
+    from flask import Flask, jsonify, Response, send_from_directory  # type: ignore
+except Exception:
+    _MISSING_FLASK = True
+    Response = object  # type: ignore
+    def jsonify(obj=None, **kwargs):  # type: ignore
+        return obj if obj is not None else kwargs
+    def send_from_directory(*args, **kwargs):  # type: ignore
+        raise RuntimeError("Flask not installed; send_from_directory unavailable.")
+
+    class _DummyFlaskApp:
+        def route(self, *args, **kwargs):
+            def _decorator(fn):
+                return fn
+            return _decorator
+        def run(self, *args, **kwargs):
+            print("WARNING: Flask not installed; main Flask app cannot run.", flush=True)
+
+    def Flask(*args, **kwargs):  # type: ignore
+        return _DummyFlaskApp()
 from position_reconciliation_loop import run_position_reconciliation_loop
 
 from config.registry import (
@@ -33,6 +91,11 @@ from config.registry import (
 )
 # CRITICAL: Standardized data path - MUST be used by all components (main.py, friday_eow_audit.py, dashboard.py)
 ATTRIBUTION_LOG_PATH = LogFiles.ATTRIBUTION
+
+# Non-blocking env check: if requests is missing (local), log once after log_event is defined.
+# WHY: Local structural audit found main.py import failed when requests wasn't installed.
+# HOW TO VERIFY: Startup logs include environment.missing_requests_library on machines without requests.
+_LOGGED_MISSING_REQUESTS = False
 
 def _normalize_ticker(ticker: str) -> str:
     """
@@ -189,6 +252,12 @@ def build_composite_close_reason(exit_signals: dict) -> str:
         age_min = exit_signals.get("stale_trade_age_min", 0)
         pnl_pct = exit_signals.get("stale_trade_pnl_pct", 0)
         reasons.append(f"stale_trade({age_min:.0f}min,{pnl_pct:.2f}%)")
+
+    # Institutional Remediation Phase 7: kill zombie trades quickly
+    if exit_signals.get("stale_alpha_cutoff"):
+        age_min = exit_signals.get("stale_trade_age_min", exit_signals.get("age_min", 0) or 0)
+        pnl_pct = exit_signals.get("stale_trade_pnl_pct", exit_signals.get("pnl_pct", 0) or 0)
+        reasons.append(f"stale_alpha_cutoff({age_min:.0f}min,{pnl_pct:.2f}%)")
     
     # If no specific reasons, use primary reason or default
     if not reasons:
@@ -319,8 +388,8 @@ class Config:
     DISPLACEMENT_SCORE_ADVANTAGE = float(get_env("DISPLACEMENT_SCORE_ADVANTAGE", "2.0"))  # Require significantly better signal
     DISPLACEMENT_COOLDOWN_HOURS = get_env("DISPLACEMENT_COOLDOWN_HOURS", 6, int)  # Reduce churn frequency
     
-    # Stale Trade Exit - closes positions with no momentum after 90 minutes
-    STALE_TRADE_EXIT_MINUTES = get_env("STALE_TRADE_EXIT_MINUTES", 90, int)  # 90 minutes
+    # Institutional Remediation Phase 7: kill zombie trades quickly (120 minutes)
+    STALE_TRADE_EXIT_MINUTES = get_env("STALE_TRADE_EXIT_MINUTES", 120, int)  # 120 minutes
     STALE_TRADE_MOMENTUM_THRESH_PCT = float(get_env("STALE_TRADE_MOMENTUM_THRESH_PCT", "0.002"))  # +/- 0.2% momentum threshold
 
     # Smart entry (maker bias + retry before fallback)
@@ -556,6 +625,27 @@ def jsonl_write(name, record):
 
 def log_event(kind, msg, **kw):
     jsonl_write(kind, {"msg": msg, **kw})
+
+# Optional env checks (non-blocking)
+try:
+    if _MISSING_REQUESTS_LIB and not _LOGGED_MISSING_REQUESTS:
+        _LOGGED_MISSING_REQUESTS = True
+        log_event("environment", "missing_requests_library", note="requests not installed in this environment")
+except Exception:
+    # Never block bot execution on env telemetry.
+    pass
+
+try:
+    if _MISSING_ALPACA_SDK:
+        log_event("environment", "missing_alpaca_trade_api", note="alpaca_trade_api not installed in this environment")
+except Exception:
+    pass
+
+try:
+    if _MISSING_FLASK:
+        log_event("environment", "missing_flask_library", note="flask not installed in this environment")
+except Exception:
+    pass
 
 def _is_live_endpoint(url: str) -> bool:
     try:
@@ -1074,7 +1164,66 @@ def log_attribution(trade_id: str, symbol: str, pnl_usd: float, context: dict):
         "context": context
     })
 
-def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reason: str, metadata: dict = None):
+def _normalize_position_side(side: str) -> str:
+    """
+    WHY: attribution logging currently mixes order-side ('buy'/'sell') and position-side ('long'/'short'),
+    causing P&L sign flips (observed in production: AAPL long with entry>exit but pnl_usd>0).
+    HOW TO VERIFY: grep logs/attribution.jsonl for 'attribution_pnl_corrected'; it should appear only when anomalies occur.
+    """
+    s = (side or "").strip().lower()
+    if s in ("buy", "long"):
+        return "long"
+    if s in ("sell", "short"):
+        return "short"
+    return "unknown"
+
+
+def _compute_trade_pnl(entry_price: float, exit_price: float, qty: float, position_side: str) -> tuple[float, float]:
+    """
+    Returns (pnl_usd, pnl_pct) based on normalized position_side.
+    """
+    try:
+        entry_price = float(entry_price)
+        exit_price = float(exit_price)
+        qty = float(qty)
+    except Exception:
+        return (0.0, 0.0)
+
+    if entry_price <= 0 or exit_price <= 0 or qty <= 0 or position_side not in ("long", "short"):
+        return (0.0, 0.0)
+
+    if position_side == "long":
+        pnl_usd = qty * (exit_price - entry_price)
+        pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
+    else:
+        pnl_usd = qty * (entry_price - exit_price)
+        pnl_pct = ((entry_price - exit_price) / entry_price) * 100.0
+
+    return (pnl_usd, pnl_pct)
+
+
+def normalize_equity_limit_price(px: float) -> float:
+    """
+    WHY: Alpaca rejects sub-penny equity limit prices; production shows heavy 422 'sub-penny increment' errors.
+    HOW TO VERIFY: 'sub-penny increment' errors drop to near zero in logs/orders.jsonl.
+    """
+    try:
+        return round(float(px), 2)
+    except Exception:
+        return float(px)
+
+
+def log_exit_attribution(
+    symbol: str,
+    info: dict,
+    exit_price: float,
+    close_reason: str,
+    metadata: dict = None,
+    *,
+    exit_qty: int = None,
+    entry_order_id: str = None,
+    exit_order_id: str = None,
+):
     """
     Log complete exit attribution with actual P&L for ML learning.
     FIX 2025-12-05: Previously logged pnl_usd=0.0 - now calculates real P&L.
@@ -1082,7 +1231,7 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
     FIX 2025-12-11: Use aware UTC datetimes to prevent TypeError crashes.
     """
     entry_price = info.get("entry_price", 0.0)
-    qty = info.get("qty", 1)
+    entry_qty = info.get("qty", 1)
     side = info.get("side", "buy")
     
     # FIX: Use aware UTC for current time reference
@@ -1091,8 +1240,8 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
     
     if metadata and entry_price <= 0:
         entry_price = metadata.get("entry_price", 0.0)
-        if qty <= 0:
-            qty = metadata.get("qty", 1)
+        if entry_qty <= 0:
+            entry_qty = metadata.get("qty", 1)
         if side == "buy" and metadata.get("side"):
             side = metadata.get("side", "buy")
         try:
@@ -1115,16 +1264,48 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
     
     hold_minutes = (now_aware - entry_ts).total_seconds() / 60.0
     
+    # PnL attribution contract:
+    # - entry_price should be the executed entry fill price (order.filled_avg_price), not quotes/limits.
+    # - exit_price should be the executed exit fill price (order.filled_avg_price), not marks/quotes.
+    # - qty used for realized PnL should be the executed exit fill qty when provided.
+    pnl_qty = None
+    try:
+        if exit_qty is not None and int(exit_qty) > 0:
+            pnl_qty = int(exit_qty)
+    except Exception:
+        pnl_qty = None
+    if pnl_qty is None:
+        try:
+            pnl_qty = int(entry_qty)
+        except Exception:
+            pnl_qty = 1
+
     if entry_price > 0 and exit_price > 0:
         if side == "buy":
-            pnl_usd = qty * (exit_price - entry_price)
+            pnl_usd = pnl_qty * (exit_price - entry_price)
             pnl_pct = ((exit_price - entry_price) / entry_price) * 100
         else:
-            pnl_usd = qty * (entry_price - exit_price)
+            pnl_usd = pnl_qty * (entry_price - exit_price)
             pnl_pct = ((entry_price - exit_price) / entry_price) * 100
     else:
         pnl_usd = 0.0
         pnl_pct = 0.0
+
+    # Attribution integrity: normalize position side and correct P&L if needed.
+    # WHY: Production saw sign flips when 'side' is 'long'/'short' rather than 'buy'/'sell'.
+    # HOW TO VERIFY: grep logs/attribution.jsonl for 'attribution_pnl_corrected' (should be rare, only anomalies).
+    position_side = _normalize_position_side(side)
+    computed_pnl_usd, computed_pnl_pct = _compute_trade_pnl(entry_price, exit_price, pnl_qty, position_side)
+    EPS_USD = float(get_env("ATTRIBUTION_PNL_EPS_USD", 0.05, float))
+    if abs(computed_pnl_usd - pnl_usd) > EPS_USD:
+        log_event(
+            "data_integrity",
+            "attribution_pnl_corrected",
+            symbol=symbol,
+            original={"pnl_usd": pnl_usd, "pnl_pct": pnl_pct, "side": side},
+            corrected={"pnl_usd": computed_pnl_usd, "pnl_pct": computed_pnl_pct, "position_side": position_side},
+        )
+        pnl_usd, pnl_pct = computed_pnl_usd, computed_pnl_pct
     
     # Ensure close_reason is never empty or None
     if not close_reason or close_reason == "unknown" or close_reason.strip() == "":
@@ -1183,7 +1364,16 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
         "pnl_pct": round(pnl_pct, 4),
         "hold_minutes": round(hold_minutes, 1),
         "side": side,
-        "qty": qty,
+        # Disambiguation fields for reconciliation
+        "position_side": position_side,
+        "order_side_raw": side,
+        # Backward-compatible qty field: realized-PnL qty (prefer executed exit fill qty).
+        "qty": pnl_qty,
+        # Explicit fill quantities for audits/reconciliation.
+        "entry_qty": entry_qty,
+        "exit_qty": int(exit_qty) if exit_qty is not None else pnl_qty,
+        "entry_order_id": entry_order_id,
+        "exit_order_id": exit_order_id,
         "entry_score": entry_score,
         "components": components,
         "market_regime": info.get("market_regime", "unknown") or (metadata.get("market_regime", "unknown") if metadata else "unknown"),
@@ -1195,6 +1385,8 @@ def log_exit_attribution(symbol: str, info: dict, exit_price: float, close_reaso
         "flow_magnitude": flow_magnitude,
         "signal_strength": signal_strength,
         "entry_ts": entry_dt.isoformat(),
+        "entry_price_source": "alpaca.order.filled_avg_price_or_position.avg_entry_price",
+        "exit_price_source": "alpaca.order.filled_avg_price",
     }
     
     if metadata:
@@ -2019,7 +2211,8 @@ class SmartPoller:
         """Load persisted polling timestamps from disk."""
         try:
             if self.state_file.exists():
-                return json.loads(self.state_file.read_text())
+                from utils.state_io import read_json_self_heal
+                return read_json_self_heal(self.state_file, {})
         except Exception as e:
             log_event("smart_poller", "state_load_failed", error=str(e))
         return {}
@@ -2115,7 +2308,8 @@ class SmartPoller:
         """Increment error counter for backoff."""
         with self.lock:
             self.error_count[endpoint] = self.error_count.get(endpoint, 0) + 1
-            log_event("smart_poller", "error_backoff", endpoint=endpoint, errors=self.error_count[endpoint])
+            # SAFETY: Logging must never raise KeyError.
+            log_event("smart_poller", "error_backoff", endpoint=endpoint, errors=self.error_count.get(endpoint, 0))
 
 # Global instance
 _smart_poller = SmartPoller()
@@ -2147,7 +2341,12 @@ def owner_health_check() -> dict:
     heartbeat_path = StateFiles.BOT_HEARTBEAT
     try:
         if heartbeat_path.exists():
-            hb = json.loads(heartbeat_path.read_text())
+            from utils.state_io import read_json_self_heal
+            hb = read_json_self_heal(
+                heartbeat_path,
+                {},
+                on_event=lambda ev, payload: log_event("state", ev, **payload),
+            )
             age_sec = int(time.time()) - hb.get("last_heartbeat_ts", 0)
             if age_sec > 180:  # 3 minutes
                 issues.append({"check": "heartbeat_stale", "age_sec": age_sec})
@@ -2166,7 +2365,12 @@ def owner_health_check() -> dict:
     fail_counter_path = StateFiles.FAIL_COUNTER
     try:
         if fail_counter_path.exists():
-            fc = json.loads(fail_counter_path.read_text())
+            from utils.state_io import read_json_self_heal
+            fc = read_json_self_heal(
+                fail_counter_path,
+                {"fail_count": 0},
+                on_event=lambda ev, payload: log_event("state", ev, **payload),
+            )
             fail_count = fc.get("fail_count", 0)
             if fail_count > 100:  # Suspiciously high
                 issues.append({"check": "high_fail_count", "count": fail_count})
@@ -3082,18 +3286,17 @@ class AlpacaExecutor:
                 
                 # Parse entry timestamp with timezone normalization
                 entry_ts = None
-                if symbol in metadata:
-                    entry_ts_str = metadata[symbol].get("entry_ts")
-                    try:
-                        if entry_ts_str:
-                            parsed_ts = datetime.fromisoformat(entry_ts_str.replace('Z', '+00:00'))
-                            # Normalize to aware UTC
-                            if parsed_ts.tzinfo is None:
-                                entry_ts = parsed_ts.replace(tzinfo=timezone.utc)
-                            else:
-                                entry_ts = parsed_ts.astimezone(timezone.utc)
-                    except Exception:
-                        entry_ts = None
+                entry_ts_str = metadata.get(symbol, {}).get("entry_ts") if isinstance(metadata, dict) else None
+                try:
+                    if entry_ts_str:
+                        parsed_ts = datetime.fromisoformat(entry_ts_str.replace('Z', '+00:00'))
+                        # Normalize to aware UTC
+                        if parsed_ts.tzinfo is None:
+                            entry_ts = parsed_ts.replace(tzinfo=timezone.utc)
+                        else:
+                            entry_ts = parsed_ts.astimezone(timezone.utc)
+                except Exception:
+                    entry_ts = None
                 
                 # Fallback 1: Recover from orders API (already returns aware UTC)
                 if not entry_ts:
@@ -3201,7 +3404,11 @@ class AlpacaExecutor:
                 if status in ["filled", "partially_filled"]:
                     filled_qty = int(getattr(order, "filled_qty", 0))
                     filled_avg_price = float(getattr(order, "filled_avg_price", 0.0))
-                    return True, filled_qty, filled_avg_price
+                    # Only treat as filled when Alpaca has populated fill fields.
+                    # WHY: Attribution must use actual executed fill prices/qty, not placeholders.
+                    # HOW TO VERIFY: logs/attribution.jsonl exit_price_source stays 'alpaca.order.filled_avg_price' with non-zero prices.
+                    if filled_qty > 0 and filled_avg_price > 0:
+                        return True, filled_qty, filled_avg_price
                 elif status in ["canceled", "expired", "rejected"]:
                     return False, 0, 0.0
             except Exception:
@@ -3222,23 +3429,23 @@ class AlpacaExecutor:
                 target = min(ask - tol, max(bid, mid - tol))
             else:
                 target = min(ask, max(bid + tol, mid - tol))
-            return round(target, 4)
+            return normalize_equity_limit_price(target)
 
         if mode == "MIDPOINT":
             if side == "buy":
-                return round(min(mid, ask - tol), 4)
+                return normalize_equity_limit_price(min(mid, ask - tol))
             else:
-                return round(max(mid, bid + tol), 4)
+                return normalize_equity_limit_price(max(mid, bid + tol))
 
         if mode == "BID_PLUS":
             if side == "buy":
-                return round(min(ask - tol, bid + tol), 4)
+                return normalize_equity_limit_price(min(ask - tol, bid + tol))
             else:
-                return round(max(bid + tol, ask - tol), 4)
+                return normalize_equity_limit_price(max(bid + tol, ask - tol))
 
         spread = ask - bid
         if spread / mid <= (Config.ENTRY_TOLERANCE_BPS / 10000.0):
-            return round(mid, 4)
+            return normalize_equity_limit_price(mid)
         return None
 
     def _get_order_by_client_order_id(self, client_order_id: str):
@@ -3247,7 +3454,17 @@ class AlpacaExecutor:
             return fn(client_order_id)
         return None
 
-    def submit_entry(self, symbol: str, qty: int, side: str, regime: str = "unknown", client_order_id_base: str = None):
+    def submit_entry(
+        self,
+        symbol: str,
+        qty: int,
+        side: str,
+        regime: str = "unknown",
+        client_order_id_base: str = None,
+        *,
+        entry_score: float = None,
+        market_regime: str = None,
+    ):
         """
         Submit entry order with spread watchdog and regime-aware execution.
         
@@ -3257,6 +3474,33 @@ class AlpacaExecutor:
         
         Self-healing: All orders must pass trade_guard before submission.
         """
+        # Logging upgrade: mandatory metadata integrity
+        # - entry_score must exist and be positive
+        # - market_regime must be explicitly known (not "unknown")
+        if entry_score is None or not isinstance(entry_score, (int, float)) or float(entry_score) <= 0.0:
+            log_event("orders", "CRITICAL_missing_entry_score_abort",
+                      symbol=symbol, side=side, qty=qty, entry_score=entry_score)
+            return None, None, "metadata_missing", 0, "missing_entry_score"
+
+        effective_regime = market_regime if market_regime is not None else regime
+        if effective_regime is None or str(effective_regime).strip().lower() in ("", "unknown", "none"):
+            log_event("orders", "CRITICAL_missing_market_regime_abort",
+                      symbol=symbol, side=side, qty=qty, market_regime=market_regime, regime=regime)
+            return None, None, "metadata_missing", 0, "missing_market_regime"
+
+        # Phase 2: prevent broker rejections for short entries (LCID-style)
+        # Only applies to entry path; exits may legitimately submit sell orders to close longs.
+        if side == "sell":
+            try:
+                asset = self.api.get_asset(symbol)
+                is_shortable = bool(getattr(asset, "shortable", False))
+            except Exception as e:
+                log_event("submit_entry", "asset_lookup_failed", symbol=symbol, error=str(e))
+                is_shortable = False
+            if not is_shortable:
+                log_event("submit_entry", "asset_not_shortable_blocked", symbol=symbol)
+                return None, None, "asset_not_shortable", 0, "asset_not_shortable"
+
         ref_price = self.get_last_trade(symbol)
         if ref_price <= 0:
             log_event("submit_entry", "bad_ref_price", symbol=symbol, ref_price=ref_price)
@@ -3633,9 +3877,17 @@ class AlpacaExecutor:
                         mid = (bid + ask) / 2.0
                         tol = mid * (Config.ENTRY_TOLERANCE_BPS / 10000.0)
                         if side == "buy":
-                            limit_price = round(min(ask - tol, max(bid, limit_price + tol)), 4)
+                            # Use normalized 2-decimal limit prices to eliminate sub-penny leakage
+                            # WHY: Audit found retry logic still produced 4-decimal prices.
+                            # HOW TO VERIFY: logs/orders.jsonl shows zero 'sub-penny increment' errors.
+                            raw_price = min(ask - tol, max(bid, limit_price + tol))
+                            limit_price = normalize_equity_limit_price(raw_price)
                         else:
-                            limit_price = round(min(ask, max(bid + tol, limit_price - tol)), 4)
+                            # Use normalized 2-decimal limit prices to eliminate sub-penny leakage
+                            # WHY: Audit found retry logic still produced 4-decimal prices.
+                            # HOW TO VERIFY: logs/orders.jsonl shows zero 'sub-penny increment' errors.
+                            raw_price = min(ask, max(bid + tol, limit_price - tol))
+                            limit_price = normalize_equity_limit_price(raw_price)
 
         if limit_price is not None:
             try:
@@ -4186,7 +4438,8 @@ class AlpacaExecutor:
             
         # Load displacement cooldowns
         try:
-            displacement_cooldowns = json.loads(displacement_log_path.read_text()) if displacement_log_path.exists() else {}
+            from utils.state_io import read_json_self_heal
+            displacement_cooldowns = read_json_self_heal(displacement_log_path, {}) if displacement_log_path.exists() else {}
         except Exception:
             displacement_cooldowns = {}
         
@@ -4356,9 +4609,22 @@ class AlpacaExecutor:
                 if position_details:
                     print(f"  Sample positions:", flush=True)
                     for pd in position_details[:5]:
-                        print(f"    {pd['symbol']}: age={pd['age_hours']:.1f}h, pnl={pd['pnl_pct']:.2f}%, "
-                              f"orig_score={pd['original_score']:.2f}, advantage={pd['score_advantage']:.2f}, "
-                              f"fail={pd['fail_reason']}", flush=True)
+                        # SAFETY: Debug printing must never raise KeyError/TypeError.
+                        _sym = pd.get("symbol", "UNKNOWN") if isinstance(pd, dict) else "UNKNOWN"
+                        _age = pd.get("age_hours") if isinstance(pd, dict) else None
+                        _pnl = pd.get("pnl_pct") if isinstance(pd, dict) else None
+                        _orig = pd.get("original_score") if isinstance(pd, dict) else None
+                        _adv = pd.get("score_advantage") if isinstance(pd, dict) else None
+                        _fail = pd.get("fail_reason") if isinstance(pd, dict) else None
+                        print(
+                            f"    {_sym}: "
+                            f"age={(float(_age) if isinstance(_age, (int, float)) else 0.0):.1f}h, "
+                            f"pnl={(float(_pnl) if isinstance(_pnl, (int, float)) else 0.0):.2f}%, "
+                            f"orig_score={(float(_orig) if isinstance(_orig, (int, float)) else 0.0):.2f}, "
+                            f"advantage={(float(_adv) if isinstance(_adv, (int, float)) else 0.0):.2f}, "
+                            f"fail={_fail}",
+                            flush=True,
+                        )
             except Exception as e:
                 log_event("displacement", "diagnostic_failed", error=str(e))
                 print(f"DEBUG DISPLACEMENT: Diagnostic failed: {e}", flush=True)
@@ -4387,20 +4653,67 @@ class AlpacaExecutor:
         Returns True if displacement successful.
         FIX 2025-12-05: Now logs proper exit attribution with P&L for ML learning.
         """
-        symbol = candidate["symbol"]
+        # SAFETY: Candidate dict is external input (from selector). Never assume keys exist.
+        if not isinstance(candidate, dict):
+            log_event("displacement", "failed", symbol="UNKNOWN", error="candidate_not_a_dict")
+            return False
+        symbol = candidate.get("symbol")
+        if not symbol:
+            log_event("displacement", "failed", symbol="UNKNOWN", error="candidate_missing_symbol")
+            return False
         displacement_log_path = StateFiles.DISPLACEMENT_COOLDOWNS
         
         try:
             info = self.opens.get(symbol, {})
             entry_price = info.get("entry_price", candidate.get("entry_price", 0.0))
             
-            exit_price = self.get_quote_price(symbol)
-            if exit_price <= 0:
-                exit_price = entry_price
-            
-            # BULLETPROOF: Safe position close with error handling
+            # BULLETPROOF: Safe position close with error handling and verification
+            position_closed = False
+            exit_order_id = None
+            exit_fill_qty = 0
+            exit_fill_price = 0.0
             try:
-                self.api.close_position(symbol)
+                close_order = self.api.close_position(symbol)
+                exit_order_id = getattr(close_order, "id", None)
+                log_event("displacement", "close_position_api_called", symbol=symbol)
+                # Fill-sourcing contract: do not attribute using quotes/marks.
+                # Poll Alpaca for executed fill fields (filled_avg_price / filled_qty).
+                try:
+                    max_wait = float(get_env("ATTRIBUTION_EXIT_FILL_WAIT_SEC", 20.0, float))
+                except Exception:
+                    max_wait = 20.0
+                if exit_order_id:
+                    filled, fq, fp = self.check_order_filled(str(exit_order_id), max_wait_sec=max_wait)
+                    if filled:
+                        exit_fill_qty = int(fq or 0)
+                        exit_fill_price = float(fp or 0.0)
+                
+                # CRITICAL: Verify position was actually closed
+                time.sleep(2.0)  # Wait for order to process
+                for verify_attempt in range(5):
+                    try:
+                        positions = self.api.list_positions()
+                        v_positions = [p for p in positions if getattr(p, "symbol", "") == symbol]
+                        if not v_positions:
+                            position_closed = True
+                            log_event("displacement", "close_position_verified", symbol=symbol, verify_attempt=verify_attempt+1)
+                            break
+                        elif verify_attempt < 4:
+                            time.sleep(3.0)
+                            log_event("displacement", "close_position_still_open", symbol=symbol, verify_attempt=verify_attempt+1)
+                    except Exception as verify_err:
+                        if verify_attempt < 4:
+                            time.sleep(2.0)
+                        else:
+                            # Can't verify, assume closed (fail open)
+                            position_closed = True
+                            log_event("displacement", "close_position_verify_failed_assume_closed", symbol=symbol, error=str(verify_err))
+                            break
+                
+                if not position_closed:
+                    log_event("displacement", "close_position_not_verified", symbol=symbol)
+                    return False  # Displacement failed - position still open
+                    
                 log_event("displacement", "close_position_success", symbol=symbol)
             except Exception as close_err:
                 log_event("displacement", "close_position_failed", symbol=symbol, error=str(close_err))
@@ -4436,13 +4749,26 @@ class AlpacaExecutor:
             }
             close_reason = build_composite_close_reason(displacement_signals)
             
-            log_exit_attribution(
-                symbol=symbol,
-                info=info,
-                exit_price=exit_price,
-                close_reason=close_reason,
-                metadata=symbol_metadata
-            )
+            # Only attribute exits when we have executed fill fields.
+            if exit_fill_price > 0 and exit_fill_qty > 0:
+                log_exit_attribution(
+                    symbol=symbol,
+                    info=info,
+                    exit_price=exit_fill_price,
+                    close_reason=close_reason,
+                    metadata=symbol_metadata,
+                    exit_qty=exit_fill_qty,
+                    exit_order_id=str(exit_order_id) if exit_order_id else None,
+                )
+            else:
+                log_event(
+                    "data_integrity",
+                    "exit_fill_missing_skip_attribution",
+                    symbol=symbol,
+                    close_reason=close_reason,
+                    exit_order_id=str(exit_order_id) if exit_order_id else None,
+                    note="Displacement exit verified closed but fill fields not available; skipping attribution to avoid synthetic prices.",
+                )
             
             if symbol in self.opens:
                 del self.opens[symbol]
@@ -4463,18 +4789,22 @@ class AlpacaExecutor:
             
             log_event("displacement", "executed",
                      displaced_symbol=symbol,
-                     displaced_pnl_pct=round(candidate["pnl_pct"] * 100, 2),
-                     displaced_age_hours=round(candidate["age_hours"], 1),
+                     displaced_pnl_pct=round(float(candidate.get("pnl_pct", 0.0)) * 100, 2) if isinstance(candidate, dict) else 0.0,
+                     displaced_age_hours=round(float(candidate.get("age_hours", 0.0)), 1) if isinstance(candidate, dict) else 0.0,
                      new_symbol=new_symbol,
                      new_signal_score=new_signal_score,
-                     score_advantage=round(candidate["score_advantage"], 2))
+                     score_advantage=round(float(candidate.get("score_advantage", 0.0)), 2) if isinstance(candidate, dict) and isinstance(candidate.get("score_advantage"), (int, float)) else None)
             
+            cand_adv = candidate.get("score_advantage") if isinstance(candidate, dict) else None
+            cand_adv_str = f"{float(cand_adv):.1f}" if isinstance(cand_adv, (int, float)) else "n/a"
+            cand_pnl = candidate.get("pnl_pct") if isinstance(candidate, dict) else None
+            cand_pnl_str = f"{float(cand_pnl)*100:.1f}%" if isinstance(cand_pnl, (int, float)) else "n/a"
             send_webhook({
                 "event": "POSITION_DISPLACED",
                 "displaced": symbol,
                 "new_symbol": new_symbol,
-                "reason": f"Score advantage: {candidate['score_advantage']:.1f} pts",
-                "old_pnl": f"{candidate['pnl_pct']*100:.1f}%",
+                "reason": f"Score advantage: {cand_adv_str} pts",
+                "old_pnl": cand_pnl_str,
                 "timestamp": datetime.utcnow().isoformat()
             })
             
@@ -4762,6 +5092,60 @@ class AlpacaExecutor:
             log_event("exit", "list_positions_error", error=str(list_err))
             positions_index = {}  # Fail open - continue with empty index
         
+        # CRITICAL FIX: Force close V IMMEDIATELY if it exists and has negative P&L
+        # This ensures V is closed RIGHT NOW, not added to a list for later
+        if "V" in positions_index:
+            v_pos = positions_index["V"]
+            try:
+                v_pnl_pct = float(getattr(v_pos, "unrealized_plpc", 0))
+                if v_pnl_pct < 0:  # Any negative P&L
+                    print(f"CRITICAL: V position has negative P&L ({v_pnl_pct:.2f}%) - FORCE CLOSING IMMEDIATELY", flush=True)
+                    log_event("exit", "force_close_v_negative_pnl_immediate", pnl_pct=v_pnl_pct)
+                    
+                    # CLOSE IT NOW - Don't wait for the loop
+                    try:
+                        self.api.close_position("V")
+                        print(f"CRITICAL: V close order submitted - P&L={v_pnl_pct:.2f}%", flush=True)
+                        log_event("exit", "force_close_v_order_submitted", pnl_pct=v_pnl_pct)
+                        
+                        # Verify it's closed (with timeout)
+                        time.sleep(2.0)
+                        for verify_attempt in range(5):
+                            try:
+                                positions = self.api.list_positions()
+                                v_positions = [p for p in positions if getattr(p, "symbol", "").upper() == "V"]
+                                if not v_positions:
+                                    print(f"CRITICAL: V position CLOSED and verified (attempt {verify_attempt+1})", flush=True)
+                                    log_event("exit", "force_close_v_verified", pnl_pct=v_pnl_pct, attempts=verify_attempt+1)
+                                    # Remove from tracking
+                                    self.opens.pop("V", None)
+                                    self.high_water.pop("V", None)
+                                    self._remove_position_metadata("V")
+                                    # Remove from positions_index so it's not evaluated again
+                                    positions_index.pop("V", None)
+                                    # Return early - V is closed, don't process it in the loop
+                                    break
+                                elif verify_attempt < 4:
+                                    time.sleep(3.0)
+                                    print(f"CRITICAL: V still open, retrying verification (attempt {verify_attempt+1}/5)", flush=True)
+                                else:
+                                    print(f"WARNING: V still open after 5 verification attempts - may need manual close", flush=True)
+                                    log_event("exit", "force_close_v_verification_failed", pnl_pct=v_pnl_pct)
+                            except Exception as verify_err:
+                                if verify_attempt < 4:
+                                    time.sleep(2.0)
+                                else:
+                                    log_event("exit", "force_close_v_verify_error", error=str(verify_err))
+                                    break
+                    except Exception as close_err:
+                        print(f"ERROR: Failed to close V position: {close_err}", flush=True)
+                        log_event("exit", "force_close_v_failed", error=str(close_err), pnl_pct=v_pnl_pct)
+                        traceback.print_exc()
+            except Exception as v_err:
+                print(f"ERROR: Exception checking V position: {v_err}", flush=True)
+                log_event("exit", "force_close_v_error", error=str(v_err))
+                traceback.print_exc()
+        
         metadata_path = StateFiles.POSITION_METADATA
         # BULLETPROOF: Safe metadata load with corruption handling
         all_metadata = {}
@@ -4842,11 +5226,14 @@ class AlpacaExecutor:
         
         # Now evaluate all positions
         for symbol, pos_data in positions_to_evaluate.items():
-            info = pos_data["info"]
+            info = pos_data.get("info", {}) if isinstance(pos_data, dict) else {}
             exit_signals = {}  # Collect all exit signals for this position
             try:
                 # FIX: Handle both offset-naive and offset-aware timestamps
-                entry_ts = info["ts"]
+                entry_ts = info.get("ts")
+                if not entry_ts:
+                    # Fail-safe: treat as just-opened if timestamp missing/corrupt.
+                    entry_ts = datetime.utcnow()
                 if hasattr(entry_ts, 'tzinfo') and entry_ts.tzinfo is not None:
                     entry_ts = entry_ts.replace(tzinfo=None)
                 age_min = (now - entry_ts).total_seconds() / 60.0
@@ -5041,10 +5428,57 @@ class AlpacaExecutor:
                     to_close.append(symbol)
                     continue
             
-            # NEW: Stale Trade Exit - closes positions with no momentum after 90 minutes
-            # Frees up capacity for fresh Whale flow by removing positions that aren't moving
+            # Institutional Remediation Phase 7: Zombie kill switch (capital velocity)
+            # If a trade is not at +0.2% PnL within 120 minutes, exit with reason 'stale_alpha_cutoff'.
+            ENABLE_REGIME_AWARE_STALE = str(get_env("ENABLE_REGIME_AWARE_STALE", "false")).lower() == "true"
             if age_min >= Config.STALE_TRADE_EXIT_MINUTES:
+                if pnl_pct < 0.20:
+                    exit_signals["stale_alpha_cutoff"] = True
+                    exit_signals["stale_trade_age_min"] = round(age_min, 1)
+                    exit_signals["stale_trade_pnl_pct"] = round(pnl_pct, 2)
+                    exit_reasons[symbol] = build_composite_close_reason(exit_signals)
+                    log_event(
+                        "exit",
+                        "stale_alpha_cutoff_exit",
+                        symbol=symbol,
+                        age_minutes=round(age_min, 1),
+                        pnl_pct=round(pnl_pct, 2),
+                        required_pnl_pct=0.20,
+                        reason=exit_reasons[symbol],
+                    )
+                    to_close.append(symbol)
+                    continue
+
                 pnl_abs_pct = abs(pnl_pct / 100.0)  # Convert to decimal
+                # In PANIC, require both stale AND decayed score to exit (guarded).
+                # WHY: production shows churn exits around stale_trade; PANIC regimes are especially noisy.
+                # HOW TO VERIFY: when ENABLE_REGIME_AWARE_STALE=true, fewer PANIC exits are stale-only (without signal_decay).
+                if ENABLE_REGIME_AWARE_STALE and str(current_regime).upper() == "PANIC":
+                    decay_ratio_gate = None
+                    try:
+                        entry_score_tmp = info.get("entry_score", 0.0)
+                        current_composite_tmp = current_signals.get("composite_score", 0.0)
+                        if entry_score_tmp and current_composite_tmp:
+                            decay_ratio_gate = current_composite_tmp / entry_score_tmp
+                    except Exception:
+                        decay_ratio_gate = None
+
+                    if pnl_abs_pct <= Config.STALE_TRADE_MOMENTUM_THRESH_PCT and decay_ratio_gate is not None and decay_ratio_gate < 0.60:
+                        exit_signals["stale_trade_regime_aware"] = True
+                        exit_signals["signal_decay"] = round(decay_ratio_gate, 2)
+                        exit_signals["stale_trade_age_min"] = round(age_min, 1)
+                        exit_signals["stale_trade_pnl_pct"] = round(pnl_pct, 2)
+                        exit_reasons[symbol] = build_composite_close_reason(exit_signals)
+                        log_event("exit", "stale_trade_exit_regime_aware",
+                                 symbol=symbol,
+                                 regime=str(current_regime),
+                                 age_minutes=round(age_min, 1),
+                                 pnl_pct=round(pnl_pct, 2),
+                                 momentum_threshold=Config.STALE_TRADE_MOMENTUM_THRESH_PCT * 100,
+                                 reason=exit_reasons[symbol])
+                        to_close.append(symbol)
+                        continue
+
                 if pnl_abs_pct <= Config.STALE_TRADE_MOMENTUM_THRESH_PCT:
                     exit_signals["stale_trade"] = True
                     exit_signals["stale_trade_age_min"] = round(age_min, 1)
@@ -5097,8 +5531,10 @@ class AlpacaExecutor:
             # Exit on: 1) -1.0% Stop-Loss, 2) Signal Decay >40%, 3) Profit hits 0.75%
             
             # 1. Stop-Loss Check: -1.0% hard stop
-            stop_loss_pct = -1.0  # -1.0% stop-loss
-            pnl_pct_decimal = pnl_pct / 100.0  # Convert to decimal
+            # CRITICAL FIX: stop_loss_pct must be in decimal form (-0.01 = -1.0%)
+            # Previous bug: stop_loss_pct = -1.0 meant -100%, so -2.96% never triggered
+            stop_loss_pct = -0.01  # -1.0% stop-loss (as decimal: -1.0 / 100.0)
+            pnl_pct_decimal = pnl_pct / 100.0  # Convert percentage to decimal
             stop_loss_hit = pnl_pct_decimal <= stop_loss_pct
             
             # CRITICAL FIX: Log ALL position evaluations to file
@@ -5250,7 +5686,12 @@ class AlpacaExecutor:
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 to_close.append(symbol)
                 exit_reason_str = "stop_loss" if stop_loss_hit else ("signal_decay" if signal_decay_exit else ("profit_075" if profit_target_hit else "trail_stop"))
-                print(f"DEBUG EXITS: {symbol} marked for close - {exit_reason_str}, age={age_min:.1f}min, pnl={pnl_pct:.2f}%, entry=${entry_price:.2f}, current=${current_price:.2f}, reason={exit_reasons[symbol]}", flush=True)
+                print(
+                    f"DEBUG EXITS: {symbol} marked for close - {exit_reason_str}, "
+                    f"age={age_min:.1f}min, pnl={pnl_pct:.2f}%, entry=${entry_price:.2f}, current=${current_price:.2f}, "
+                    f"reason={exit_reasons.get(symbol, 'unknown')}",
+                    flush=True,
+                )
                 
                 # CRITICAL FIX: Log to file
                 try:
@@ -5276,12 +5717,13 @@ class AlpacaExecutor:
             try:
                 # CRITICAL FIX: Get info from positions_to_evaluate if not in self.opens
                 if symbol in positions_to_evaluate:
-                    info = positions_to_evaluate[symbol]["info"]
+                    posd = positions_to_evaluate.get(symbol, {}) if isinstance(positions_to_evaluate, dict) else {}
+                    info = posd.get("info", {}) if isinstance(posd, dict) else {}
                 else:
                     info = self.opens.get(symbol, {})
                     # If still not found, get from metadata
                     if not info and symbol in all_metadata:
-                        meta = all_metadata[symbol]
+                        meta = all_metadata.get(symbol, {}) if isinstance(all_metadata, dict) else {}
                         try:
                             entry_ts_str = meta.get("entry_ts", "")
                             if isinstance(entry_ts_str, str):
@@ -5308,29 +5750,138 @@ class AlpacaExecutor:
                     entry_ts = entry_ts.replace(tzinfo=None)
                 holding_period_min = (datetime.utcnow() - entry_ts).total_seconds() / 60.0
                 
-                # CRITICAL FIX: Get exit price from Alpaca position if available
+                # Decision/monitoring price only (NOT used for attribution PnL):
+                # Attribution must use executed fill price from Alpaca close order (filled_avg_price).
                 if symbol in positions_index:
                     pos = positions_index[symbol]
-                    exit_price = float(getattr(pos, "current_price", 0))
-                    if exit_price <= 0:
-                        exit_price = self.get_quote_price(symbol)
+                    decision_exit_price = float(getattr(pos, "current_price", 0))
+                    if decision_exit_price <= 0:
+                        decision_exit_price = self.get_quote_price(symbol)
                 else:
-                    exit_price = self.get_quote_price(symbol)
+                    decision_exit_price = self.get_quote_price(symbol)
+                if decision_exit_price <= 0:
+                    decision_exit_price = entry_price
                 
-                if exit_price <= 0:
-                    exit_price = entry_price
+                print(f"DEBUG EXITS: Closing {symbol} (decision_px={decision_exit_price:.2f}, entry={entry_price:.2f}, hold={holding_period_min:.1f}min)", flush=True)
+                # BULLETPROOF: Safe position close with error handling and verification
+                position_closed = False
+                close_attempts = 0
+                max_close_attempts = 3
+                exit_order_id = None
+                exit_fill_qty = 0
+                exit_fill_price = 0.0
                 
-                print(f"DEBUG EXITS: Closing {symbol} at {exit_price:.2f} (entry: {entry_price:.2f}, hold: {holding_period_min:.1f}min)", flush=True)
-                # BULLETPROOF: Safe position close with error handling
-                try:
-                    self.api.close_position(symbol)
-                    print(f"DEBUG EXITS: Successfully closed {symbol}", flush=True)
-                    log_event("exit", "close_position_success", symbol=symbol)
-                except Exception as close_err:
-                    log_event("exit", "close_position_failed", symbol=symbol, error=str(close_err))
-                    print(f"ERROR EXITS: Failed to close {symbol}: {close_err}", flush=True)
-                    # Continue - don't break exit loop on individual position close failure
-                    continue  # Skip to next position
+                while not position_closed and close_attempts < max_close_attempts:
+                    close_attempts += 1
+                    try:
+                        # Attempt to close position
+                        close_order = self.api.close_position(symbol)
+                        exit_order_id = getattr(close_order, "id", None)
+                        log_event("exit", "close_position_api_called", symbol=symbol, attempt=close_attempts, exit_order_id=str(exit_order_id) if exit_order_id else None)
+                        
+                        # Fill-sourcing contract: wait for executed fill fields from Alpaca.
+                        try:
+                            max_wait = float(get_env("ATTRIBUTION_EXIT_FILL_WAIT_SEC", 20.0, float))
+                        except Exception:
+                            max_wait = 20.0
+                        if exit_order_id:
+                            filled, fq, fp = self.check_order_filled(str(exit_order_id), max_wait_sec=max_wait)
+                            if filled:
+                                exit_fill_qty = int(fq or 0)
+                                exit_fill_price = float(fp or 0.0)
+                            else:
+                                log_event(
+                                    "exit",
+                                    "close_order_pending_fill",
+                                    symbol=symbol,
+                                    exit_order_id=str(exit_order_id),
+                                    note="Close order submitted but fill fields not yet available; will not attribute until filled.",
+                                )
+                        
+                        # CRITICAL: Verify position was actually closed by polling Alpaca
+                        # Wait a moment for order to process
+                        time.sleep(2.0)
+                        
+                        # Verify position is closed
+                        verify_attempts = 0
+                        max_verify_attempts = 5
+                        while verify_attempts < max_verify_attempts:
+                            verify_attempts += 1
+                            try:
+                                positions = self.api.list_positions()
+                                v_positions = [p for p in positions if getattr(p, "symbol", "") == symbol]
+                                
+                                if not v_positions:
+                                    # Position is closed - verification successful
+                                    position_closed = True
+                                    print(f"DEBUG EXITS: Successfully closed and verified {symbol} (attempt {close_attempts}, verify {verify_attempts})", flush=True)
+                                    log_event("exit", "close_position_verified", symbol=symbol, 
+                                            close_attempt=close_attempts, verify_attempt=verify_attempts)
+                                    # If we verified closure but missed fill fields, retry briefly (fill fields may lag).
+                                    if (exit_fill_price <= 0 or exit_fill_qty <= 0) and exit_order_id:
+                                        try:
+                                            filled2, fq2, fp2 = self.check_order_filled(str(exit_order_id), max_wait_sec=5.0)
+                                            if filled2:
+                                                exit_fill_qty = int(fq2 or 0)
+                                                exit_fill_price = float(fp2 or 0.0)
+                                        except Exception:
+                                            pass
+                                    break
+                                else:
+                                    # Position still exists - wait and retry verification
+                                    if verify_attempts < max_verify_attempts:
+                                        log_event("exit", "close_position_still_open", symbol=symbol, 
+                                                close_attempt=close_attempts, verify_attempt=verify_attempts,
+                                                qty=v_positions[0].qty if v_positions else 0)
+                                        time.sleep(3.0)  # Wait 3 seconds before next verification
+                                    else:
+                                        # Max verification attempts reached, position still open
+                                        log_event("exit", "close_position_verification_failed", symbol=symbol,
+                                                close_attempt=close_attempts, verify_attempt=verify_attempts,
+                                                qty=v_positions[0].qty if v_positions else 0,
+                                                error="Position still exists after max verification attempts")
+                                        print(f"WARNING EXITS: {symbol} still open after {max_verify_attempts} verification attempts", flush=True)
+                            except Exception as verify_err:
+                                log_event("exit", "close_position_verify_error", symbol=symbol, 
+                                        error=str(verify_err), verify_attempt=verify_attempts)
+                                if verify_attempts < max_verify_attempts:
+                                    time.sleep(2.0)
+                                else:
+                                    # Can't verify, but API call succeeded - assume closed (fail open)
+                                    log_event("exit", "close_position_verify_failed_assume_closed", symbol=symbol,
+                                            error=str(verify_err))
+                                    position_closed = True  # Assume closed if we can't verify
+                                    break
+                        
+                        if position_closed:
+                            break  # Successfully closed and verified
+                            
+                    except Exception as close_err:
+                        log_event("exit", "close_position_failed", symbol=symbol, error=str(close_err), attempt=close_attempts)
+                        print(f"ERROR EXITS: Failed to close {symbol} (attempt {close_attempts}/{max_close_attempts}): {close_err}", flush=True)
+                        
+                        if close_attempts < max_close_attempts:
+                            # Retry after delay
+                            wait_time = 2.0 * close_attempts  # Exponential backoff: 2s, 4s
+                            log_event("exit", "close_position_retry", symbol=symbol, attempt=close_attempts, wait_sec=wait_time)
+                            time.sleep(wait_time)
+                        else:
+                            # All attempts failed
+                            log_event("exit", "close_position_all_attempts_failed", symbol=symbol, 
+                                    attempts=max_close_attempts, error=str(close_err))
+                            print(f"ERROR EXITS: All {max_close_attempts} attempts to close {symbol} failed", flush=True)
+                            # Continue to next position - don't remove from tracking so it can be retried next cycle
+                            continue  # Skip to next position, keep this one in tracking
+                
+                if not position_closed:
+                    # Position could not be closed after all attempts
+                    log_event("exit", "close_position_not_verified", symbol=symbol, attempts=close_attempts)
+                    print(f"WARNING EXITS: {symbol} could not be verified as closed after {close_attempts} attempts - keeping in tracking for retry", flush=True)
+                    # DO NOT remove from tracking - allow retry on next cycle
+                    continue  # Skip cleanup, keep position in tracking
+                
+                # Position successfully closed and verified - now clean up tracking
+                log_event("exit", "close_position_success", symbol=symbol, total_attempts=close_attempts)
                 
                 # Use composite close reason if available, otherwise build one
                 close_reason = exit_reasons.get(symbol)
@@ -5340,7 +5891,7 @@ class AlpacaExecutor:
                     age_hours_fallback = holding_period_min / 60.0
                     basic_signals = {
                         "time_exit": holding_period_min >= Config.TIME_EXIT_MINUTES,
-                        "trail_stop": exit_price < entry_price * (1 - Config.TRAILING_STOP_PCT / 100),
+                        "trail_stop": decision_exit_price < entry_price * (1 - Config.TRAILING_STOP_PCT / 100),
                         "age_hours": age_hours_fallback
                     }
                     close_reason = build_composite_close_reason(basic_signals)
@@ -5350,52 +5901,71 @@ class AlpacaExecutor:
                 log_order({"action": "close_position", "symbol": symbol, "reason": close_reason})
                 
                 symbol_metadata = all_metadata.get(symbol, {})
-                log_exit_attribution(
-                    symbol=symbol,
-                    info=info,
-                    exit_price=exit_price,
-                    close_reason=close_reason,
-                    metadata=symbol_metadata
-                )
+                # Only log exit attribution when we have executed fill fields.
+                if exit_fill_price > 0 and exit_fill_qty > 0:
+                    log_exit_attribution(
+                        symbol=symbol,
+                        info=info,
+                        exit_price=exit_fill_price,
+                        close_reason=close_reason,
+                        metadata=symbol_metadata,
+                        exit_qty=exit_fill_qty,
+                        exit_order_id=str(exit_order_id) if exit_order_id else None,
+                    )
+                else:
+                    log_event(
+                        "data_integrity",
+                        "exit_fill_missing_skip_attribution",
+                        symbol=symbol,
+                        close_reason=close_reason,
+                        exit_order_id=str(exit_order_id) if exit_order_id else None,
+                        note="Exit verified closed but fill fields not available; skipping attribution to avoid synthetic prices.",
+                    )
                 
                 side = info.get("side", "buy")
-                qty = info.get("qty", 1)
-                if side == "buy":
-                    realized_pnl = qty * (exit_price - entry_price)
+                # Realized PnL must use executed fill price/qty when available.
+                realized_qty = int(exit_fill_qty) if exit_fill_qty and exit_fill_qty > 0 else int(info.get("qty", 1) or 1)
+                if exit_fill_price > 0:
+                    if side == "buy":
+                        realized_pnl = realized_qty * (exit_fill_price - entry_price)
+                    else:
+                        realized_pnl = realized_qty * (entry_price - exit_fill_price)
                 else:
-                    realized_pnl = qty * (entry_price - exit_price)
+                    realized_pnl = 0.0
                 
                 telemetry.log_portfolio_event(
                     event_type="POSITION_CLOSED",
                     symbol=symbol,
                     side=side,
-                    qty=qty,
+                    qty=realized_qty,
                     entry_price=entry_price,
-                    exit_price=exit_price,
+                    exit_price=exit_fill_price if exit_fill_price > 0 else None,
                     realized_pnl=realized_pnl,
                     unrealized_pnl=0.0,
                     holding_period_min=holding_period_min,
                     reason="time_or_trail",
                     score=info.get("entry_score", 0.0)
                 )
+                
+                # CRITICAL: Only remove from tracking AFTER position is verified as closed
+                self.opens.pop(symbol, None)
+                self.high_water.pop(symbol, None)
+                self._remove_position_metadata(symbol)
+                
+                # CRITICAL FIX: Log to file
+                try:
+                    with open("logs/worker_debug.log", "a") as f:
+                        f.write(f"[{datetime.now(timezone.utc).isoformat()}] EXIT COMPLETED: {symbol} closed and verified, removed from opens and metadata\n")
+                        f.flush()
+                except:
+                    pass
+                    
             except Exception as e:
                 log_order({"action": "close_position_failed", "symbol": symbol, "error": str(e)})
                 print(f"ERROR EXITS: Exception closing {symbol}: {e}", flush=True)
-                import traceback
                 traceback.print_exc()
-            
-            # CRITICAL FIX: Remove from opens and metadata even if not in opens
-            self.opens.pop(symbol, None)
-            self.high_water.pop(symbol, None)
-            self._remove_position_metadata(symbol)
-            
-            # CRITICAL FIX: Log to file
-            try:
-                with open("logs/worker_debug.log", "a") as f:
-                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] EXIT COMPLETED: {symbol} closed, removed from opens and metadata\n")
-                    f.flush()
-            except:
-                pass
+                # DO NOT remove from tracking on exception - allow retry next cycle
+                log_event("exit", "close_position_exception_keep_tracking", symbol=symbol, error=str(e))
     
     def _remove_position_metadata(self, symbol: str):
         """Remove closed position from metadata file with atomic write."""
@@ -5945,14 +6515,44 @@ class StrategyEngine:
                              old_side=existing_side, new_direction=signal_direction, score=score)
                     try:
                         # Close the opposite position using Alpaca API
-                        # BULLETPROOF: Safe position close with error handling
+                        # BULLETPROOF: Safe position close with error handling and verification
+                        position_closed = False
                         try:
                             self.executor.api.close_position(symbol)
+                            log_event("position_flip", "close_position_api_called", symbol=symbol)
+                            
+                            # CRITICAL: Verify position was actually closed
+                            time.sleep(2.0)  # Wait for order to process
+                            for verify_attempt in range(5):
+                                try:
+                                    positions = self.executor.api.list_positions()
+                                    v_positions = [p for p in positions if getattr(p, "symbol", "") == symbol]
+                                    if not v_positions:
+                                        position_closed = True
+                                        log_event("position_flip", "close_position_verified", symbol=symbol, verify_attempt=verify_attempt+1)
+                                        break
+                                    elif verify_attempt < 4:
+                                        time.sleep(3.0)
+                                        log_event("position_flip", "close_position_still_open", symbol=symbol, verify_attempt=verify_attempt+1)
+                                except Exception as verify_err:
+                                    if verify_attempt < 4:
+                                        time.sleep(2.0)
+                                    else:
+                                        # Can't verify, assume closed (fail open)
+                                        position_closed = True
+                                        log_event("position_flip", "close_position_verify_failed_assume_closed", symbol=symbol, error=str(verify_err))
+                                        break
+                            
+                            if not position_closed:
+                                log_event("position_flip", "close_position_not_verified", symbol=symbol)
+                                continue  # Skip if position not verified as closed
+                                
                             log_event("position_flip", "close_position_success", symbol=symbol)
                         except Exception as close_err:
                             log_event("position_flip", "close_position_failed", symbol=symbol, error=str(close_err))
                             continue  # Skip if can't close old position
-                        # Remove from internal tracking
+                        
+                        # Only remove from internal tracking if position was verified as closed
                         if symbol in self.executor.opens:
                             del self.executor.opens[symbol]
                         if symbol in self.executor.high_water:
@@ -6266,7 +6866,13 @@ class StrategyEngine:
                     new_symbol=symbol
                 )
                 if displacement_candidate:
-                    print(f"DEBUG {symbol}: Attempting displacement of {displacement_candidate['symbol']} (score advantage: {displacement_candidate['score_advantage']:.1f})", flush=True)
+                    # SAFETY: Debug/telemetry must never crash trading.
+                    # WHY: Production saw KeyError('score_advantage') here, which bubbled up and killed run_once().
+                    # HOW TO VERIFY: logs/worker_error.jsonl no longer shows KeyError('score_advantage'); loop continues.
+                    dc_symbol = displacement_candidate.get("symbol", "UNKNOWN") if isinstance(displacement_candidate, dict) else "UNKNOWN"
+                    dc_adv = displacement_candidate.get("score_advantage") if isinstance(displacement_candidate, dict) else None
+                    dc_adv_str = f"{float(dc_adv):.1f}" if isinstance(dc_adv, (int, float)) else "n/a"
+                    print(f"DEBUG {symbol}: Attempting displacement of {dc_symbol} (score advantage: {dc_adv_str})", flush=True)
                     displacement_success = self.executor.execute_displacement(
                         candidate=displacement_candidate,
                         new_symbol=symbol,
@@ -6274,13 +6880,14 @@ class StrategyEngine:
                     )
                     if not displacement_success:
                         print(f"DEBUG {symbol}: BLOCKED - displacement failed", flush=True)
+                        displaced_sym = displacement_candidate.get("symbol", "UNKNOWN") if isinstance(displacement_candidate, dict) else "UNKNOWN"
                         log_event("gate", "displacement_failed", symbol=symbol, 
-                                 displaced_symbol=displacement_candidate["symbol"])
+                                 displaced_symbol=displaced_sym)
                         log_blocked_trade(symbol, "displacement_failed", score,
                                           direction=c.get("direction"),
                                           decision_price=ref_price_check,
                                           components=comps,
-                                          displaced_symbol=displacement_candidate["symbol"])
+                                          displaced_symbol=displaced_sym)
                         # SIGNAL HISTORY: Log blocked signal
                         log_signal_to_history(
                             symbol=symbol,
@@ -6292,7 +6899,7 @@ class StrategyEngine:
                             momentum_pct=momentum_pct,
                             momentum_required_pct=momentum_required_pct,
                             decision="Blocked: displacement_failed",
-                            metadata={"displaced_symbol": displacement_candidate["symbol"]}
+                            metadata={"displaced_symbol": displaced_sym}
                         )
                         continue
                     print(f"DEBUG {symbol}: Displacement successful! Proceeding with entry...", flush=True)
@@ -6696,7 +7303,6 @@ class StrategyEngine:
                     )
                     print(f"DEBUG {symbol}: ExecutionRouter selected strategy={selected_strategy}, spread_bps={spread_bps:.1f}", flush=True)
                 except Exception as router_ex:
-                    import traceback
                     print(f"DEBUG {symbol}: EXCEPTION in execution router setup: {str(router_ex)}", flush=True)
                     print(f"DEBUG {symbol}: Traceback: {traceback.format_exc()}", flush=True)
                     log_order({"symbol": symbol, "qty": qty, "side": side, "error": f"execution_router_exception: {str(router_ex)}"})
@@ -6768,7 +7374,13 @@ class StrategyEngine:
                 try:
                     print(f"DEBUG {symbol}: About to call submit_entry with qty={qty}, side={side}, regime={market_regime}", flush=True)
                     res, fill_price, order_type, filled_qty, entry_status = self.executor.submit_entry(
-                        symbol, qty, side, regime=market_regime, client_order_id_base=client_order_id_base
+                        symbol,
+                        qty,
+                        side,
+                        regime=market_regime,
+                        client_order_id_base=client_order_id_base,
+                        entry_score=score,
+                        market_regime=market_regime,
                     )
                     print(f"DEBUG {symbol}: submit_entry completed - res={res is not None}, order_type={order_type}, entry_status={entry_status}, filled_qty={filled_qty}", flush=True)
                     
@@ -6833,7 +7445,6 @@ class StrategyEngine:
                         except Exception as xai_ex:
                             log_event("xai", "trade_entry_log_failed", symbol=symbol, error=str(xai_ex))
                 except Exception as submit_ex:
-                    import traceback
                     print(f"DEBUG {symbol}: EXCEPTION in submit_entry: {str(submit_ex)}", flush=True)
                     print(f"DEBUG {symbol}: Traceback: {traceback.format_exc()}", flush=True)
                     log_order({"symbol": symbol, "qty": qty, "side": side, "error": f"submit_entry_exception: {str(submit_ex)}", "traceback": traceback.format_exc()})
@@ -6986,6 +7597,44 @@ class StrategyEngine:
                     "score": score,
                     "order_type": order_type
                 }
+                # Entry attribution contract:
+                # - entry_price must come from executed entry fill (Alpaca order.filled_avg_price).
+                # - entry_qty must come from executed entry fill qty (Alpaca order.filled_qty).
+                # - do NOT log a synthetic/quote-based entry_price for pending fills.
+                context["entry_ts"] = now_iso()
+                context["entry_status"] = entry_status
+                if entry_status == "filled" and filled_qty > 0 and fill_price is not None:
+                    context["entry_price"] = float(fill_price)
+                    context["entry_qty"] = int(filled_qty)
+                    context["qty"] = int(filled_qty)  # backward-compatible
+                    context["pending_fill"] = False
+                    context["entry_price_source"] = "alpaca.order.filled_avg_price"
+                else:
+                    # Pending fill: keep state for observability, but do not attach PnL-bearing prices.
+                    context["pending_fill"] = True
+                    context["requested_qty"] = int(qty)
+                    context["entry_price_source"] = None
+                context["entry_score"] = score
+                context["components"] = comps if 'comps' in locals() else context.get("components", {})
+                context["regime"] = market_regime
+                context["position_side"] = "long" if side == "buy" else "short"
+                # Metadata integrity: enforce full fields only once the order is actually filled.
+                if context.get("pending_fill"):
+                    required_fields = ["entry_ts", "entry_score", "regime", "entry_status"]
+                else:
+                    required_fields = ["entry_ts", "entry_price", "qty", "entry_score", "components", "regime"]
+                missing = [f for f in required_fields if context.get(f) in (None, "", 0, {})]
+                if missing:
+                    log_event(
+                        "data_integrity",
+                        "entry_metadata_incomplete",
+                        symbol=symbol,
+                        missing_fields=missing,
+                        context_minimal={k: context.get(k) for k in ("entry_ts", "entry_price", "qty")},
+                    )
+                    context["metadata_incomplete"] = True
+                else:
+                    context["metadata_incomplete"] = False
                 # V5.0: Add position sizing and account equity to attribution context
                 if account_equity_at_entry is not None:
                     context["account_equity_at_entry"] = round(account_equity_at_entry, 2)
@@ -7016,9 +7665,9 @@ class StrategyEngine:
                     log_order({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, 
                               "price": exec_price, "order_type": order_type, "status": entry_status, 
                               "note": "submitted_pending_fill"})
+                # NOTE: Do not log a synthetic/quote-based entry_price for pending fills.
                 log_attribution(trade_id=f"open_{symbol}_{now_iso()}", symbol=symbol, pnl_usd=0.0, context=context)
             except Exception as e:
-                import traceback
                 print(f"DEBUG {symbol}: EXCEPTION in order submission: {str(e)}", flush=True)
                 print(f"DEBUG {symbol}: Traceback: {traceback.format_exc()}", flush=True)
                 log_order({"symbol": symbol, "qty": qty, "side": side, "error": f"order_submission_exception: {str(e)}"})
@@ -7119,49 +7768,26 @@ def read_uw_cache():
     # BULLETPROOF: Safe cache read with corruption handling and self-healing
     cache_file = CacheFiles.UW_FLOW_CACHE
     if not cache_file.exists():
-        log_event("uw_cache", "missing", fallback="legacy_api")
+        log_event("uw_cache", "uw_cache_missing", uw_cache_path=str(cache_file), fallback="empty_cache")
         return {}
-    
-    try:
-        raw_data = cache_file.read_text()
-        if not raw_data.strip():
-            log_event("uw_cache", "empty_file", fallback="empty_cache")
-            return {}
-        
-        cache = json.loads(raw_data)
-        if not isinstance(cache, dict):
-            log_event("uw_cache", "corrupted", error="not_a_dict", cache_type=str(type(cache)))
-            # Self-healing: Try to recover by creating new cache
-            try:
-                cache_file.write_text("{}")
-                log_event("uw_cache", "self_healed", action="reset_to_empty")
-            except Exception as heal_err:
-                log_event("uw_cache", "heal_failed", error=str(heal_err))
-            return {}
-        
-        return cache
-    except (json.JSONDecodeError, UnicodeDecodeError) as parse_err:
-        log_event("uw_cache", "parse_error", error=str(parse_err), error_type=type(parse_err).__name__)
-        # Self-healing: Try to backup corrupted file and reset
-        try:
-            backup_path = cache_file.parent / f"{cache_file.name}.corrupted.{int(time.time())}"
-            cache_file.rename(backup_path)
-            cache_file.write_text("{}")
-            log_event("uw_cache", "self_healed", action="backup_and_reset", backup=str(backup_path))
-        except Exception as heal_err:
-            log_event("uw_cache", "heal_failed", error=str(heal_err))
+
+    # Use the shared self-healing JSON reader so corruption never disables trading silently.
+    from utils.state_io import read_json_self_heal
+
+    cache = read_json_self_heal(
+        cache_file,
+        {},
+        on_event=lambda ev, payload: log_event("uw_cache", ev, uw_cache_path=str(cache_file), **payload),
+    )
+    if not isinstance(cache, dict):
+        log_event("uw_cache", "uw_cache_corrupted_structure", uw_cache_path=str(cache_file), cache_type=str(type(cache)))
         return {}
-    except IOError as io_err:
-        log_event("uw_cache", "io_error", error=str(io_err))
-        return {}  # Fail open - return empty cache
-    except Exception as e:
-        log_event("uw_cache", "read_error", error=str(e), error_type=type(e).__name__)
-        return {}  # Fail open - return empty cache
-    try:
-        return json.loads(cache_file.read_text())
-    except Exception as e:
-        log_event("uw_cache", "read_error", error=str(e))
-        return {}
+
+    # Visibility: an empty dict is a valid state but must be obvious in logs.
+    if not cache:
+        log_event("uw_cache", "uw_cache_empty", uw_cache_path=str(cache_file))
+
+    return cache
 
 # =========================
 # DEBUG INSTRUMENTATION
@@ -7297,6 +7923,7 @@ def run_once():
         
         audit_seg("run_once", "cache_read")
         uw_cache = read_uw_cache()
+        uw_cache_path = str(CacheFiles.UW_FLOW_CACHE)
         
         # SIGNAL FUNNEL TRACKER: Count incoming UW alerts (symbols in cache = alerts received)
         try:
@@ -7319,6 +7946,17 @@ def run_once():
         # Only enable composite scoring if cache has real symbol data, not just metadata
         cache_symbol_count = len([k for k in uw_cache.keys() if not k.startswith("_")])
         use_composite = cache_symbol_count > 0
+
+        # VISIBILITY: If UW cache has no symbols, make it explicit (reason for 0 clusters).
+        # This should not crash or freeze trading; it only improves observability.
+        if cache_symbol_count == 0:
+            log_event(
+                "uw_cache",
+                "uw_cache_empty_no_signals",
+                cache_symbol_count=cache_symbol_count,
+                uw_cache_path=uw_cache_path,
+                cache_total_keys=len(uw_cache) if isinstance(uw_cache, dict) else None,
+            )
         
         log_event("run_once", "started", use_composite=use_composite, cache_symbols=cache_symbol_count, cache_total_keys=len(uw_cache))
         audit_seg("run_once", "init_complete", {"cache_symbols": cache_symbol_count, "cache_total_keys": len(uw_cache)})
@@ -7334,12 +7972,15 @@ def run_once():
                 executor_opens=engine.executor.opens
             )
             
-            status = reconcile_result['reconciliation_status']
-            total_diffs = reconcile_result.get('total_diffs', 0)
-            degraded = reconcile_result.get('degraded_mode', False)
+            # SAFETY: Never allow missing keys from reconciliation to crash run_once().
+            status = reconcile_result.get('reconciliation_status', 'unknown') if isinstance(reconcile_result, dict) else 'unknown'
+            total_diffs = reconcile_result.get('total_diffs', 0) if isinstance(reconcile_result, dict) else 0
+            degraded = reconcile_result.get('degraded_mode', False) if isinstance(reconcile_result, dict) else False
             degraded_mode = bool(degraded)
             
-            print(f"DEBUG: Reconciliation V2 - Alpaca: {reconcile_result['alpaca_positions_count']} positions, "
+            alpaca_pos_count = reconcile_result.get('alpaca_positions_count') if isinstance(reconcile_result, dict) else None
+            alpaca_pos_count = int(alpaca_pos_count) if isinstance(alpaca_pos_count, (int, float)) else 0
+            print(f"DEBUG: Reconciliation V2 - Alpaca: {alpaca_pos_count} positions, "
                   f"Status: {status}, Diffs: {total_diffs}, Degraded: {degraded}", flush=True)
             
             # V2: Report fixes but DO NOT HALT - autonomous remediation applied
@@ -7359,7 +8000,7 @@ def run_once():
                          action="trading_resumed")
             else:
                 log_event("position_reconciliation_v2", "clean", 
-                         positions=reconcile_result['alpaca_positions_count'])
+                         positions=alpaca_pos_count)
             
             # V2: Check degraded mode status
             if degraded:
@@ -7671,22 +8312,10 @@ def run_once():
                     log_event("composite_scoring", "exception_skipped", symbol=ticker, error=str(e), error_type=type(e).__name__)
                     continue
                 
-                # CRITICAL FIX: Freshness is killing all scores!
-                # If freshness < 0.5, set it to 0.9 to prevent score destruction
-                # The exponential decay in compute_freshness is too aggressive for trading
+                # Institutional Remediation Phase 3:
+                # Do NOT floor freshness here; freshness is computed in uw_enrichment_v2 and should be allowed
+                # to decay toward 0.0 so the score floor blocks stale/ghost signals.
                 current_freshness = enriched.get("freshness", 1.0)
-                # CRITICAL: ALWAYS enforce minimum freshness of 0.9 if below 0.5
-                # This ensures scores don't get killed by stale data
-                if current_freshness < 0.5:
-                    enriched["freshness"] = 0.9
-                    print(f"DEBUG: Adjusted freshness for {ticker} from {current_freshness:.3f} to 0.90 (prevent score kill)", flush=True)
-                elif current_freshness < 0.8:
-                    enriched["freshness"] = 0.95
-                    print(f"DEBUG: Adjusted freshness for {ticker} from {current_freshness:.3f} to 0.95", flush=True)
-                # Ensure freshness is at least 0.3 for gate check (should_enter_v2 requires >= 0.30)
-                if enriched.get("freshness", 1.0) < 0.30:
-                    enriched["freshness"] = 0.90  # Set to 0.9 if somehow still below 0.30
-                    print(f"DEBUG: FORCED freshness to 0.90 for {ticker} (was below 0.30)", flush=True)
                 
                 # CRITICAL FIX: Get symbol_data from cache before using it (MUST be outside freshness check)
                 symbol_data = uw_cache.get(ticker, {})
@@ -7894,7 +8523,9 @@ def run_once():
                             composite["score"] = original_score + alpha_boost_total
                             composite["alpha_signature_boost"] = alpha_boost_total
                             composite["alpha_boosters_applied"] = alpha_boosters_applied
-                            print(f"DEBUG: Alpha Signature Boosters applied to {ticker}: +{alpha_boost_total:.2f} (total score: {original_score:.2f} → {composite['score']:.2f})", flush=True)
+                            # SAFETY: composite is a dict that may be partially populated; never index directly in debug.
+                            final_score = composite.get("score", original_score)
+                            print(f"DEBUG: Alpha Signature Boosters applied to {ticker}: +{alpha_boost_total:.2f} (total score: {original_score:.2f} → {final_score:.2f})", flush=True)
                 except ImportError:
                     pass  # Alpha signature capture not available
                 except Exception as e:
@@ -8017,7 +8648,6 @@ def run_once():
                         print(f"DEBUG: Logged accepted signal to history: {ticker} score={score:.2f}", flush=True)
                     except Exception as log_err:
                         print(f"DEBUG: Failed to log accepted signal to history for {ticker}: {log_err}", flush=True)
-                        import traceback
                         traceback.print_exc()
                         # Don't fail on logging error - continue processing
                     
@@ -8399,7 +9029,6 @@ def run_once():
                     pass
         except Exception as exit_err:
             print(f"ERROR: evaluate_exits() raised exception: {exit_err}", flush=True)
-            import traceback
             traceback.print_exc()
             log_event("exit", "evaluate_exits_exception", error=str(exit_err))
             try:
@@ -8550,7 +9179,8 @@ def run_once():
         )
         
         if rollback:
-            print(f"🚨 ROLLBACK TRIGGERED: {rollback['triggers']}", flush=True)
+            # SAFETY: rollback is external-returned dict; never assume keys exist in debug printing.
+            print(f"🚨 ROLLBACK TRIGGERED: {rollback.get('triggers', []) if isinstance(rollback, dict) else []}", flush=True)
             alerts_this_cycle.append("rollback_triggered")
             # V3.0: Auto-heal rollback (lower caps, freeze)
             fix_result = auto_heal_on_alert("rollback_triggered")
@@ -8653,19 +9283,20 @@ def run_once():
         print(f"DEBUG: EXCEPTION in run_once: {type(e).__name__}: {str(e)}", flush=True)
         audit_seg("run_once", "ERROR", {"error": str(e), "type": type(e).__name__})
         log_event("run_once", "error", error=str(e), trace=traceback.format_exc())
-        
-        # For other exceptions, increment fail counter and potentially restart
-        if 'watchdog' in globals() and watchdog and hasattr(watchdog, 'state'):
-            watchdog.state.fail_count += 1
-            if watchdog.state.fail_count >= 5:
-                print(f"DEBUG: Too many errors ({watchdog.state.fail_count}), triggering worker restart", flush=True)
-                log_event("self_healing", "worker_restart_triggered", fail_count=watchdog.state.fail_count, error_type=type(e).__name__)
-                watchdog.stop()
-                time.sleep(2)
-                watchdog.start()
-                watchdog.state.fail_count = 0
-        
-        raise
+
+        # CRITICAL RESILIENCE RULE:
+        # Never stop/restart the watchdog from inside run_once().
+        # WHY: run_once() executes inside the worker thread; calling watchdog.stop() sets stop_evt and can leave
+        #      the process "running but engine dead" if the restart path is disrupted.
+        # HOW TO VERIFY: logs/worker.jsonl no longer ends with 'stopped_clean' following run_once exceptions;
+        #              state/bot_heartbeat.json continues updating even during errors.
+        return {
+            "clusters": 0,
+            "orders": 0,
+            "engine_status": "degraded",
+            "errors_this_cycle": [f"{type(e).__name__}: {str(e)}"],
+            "error": str(e)[:200],
+        }
 
 # =========================
 # DAILY & WEEKLY SCHEDULER (auto-report, weekly weights, emergency override)
@@ -8679,6 +9310,24 @@ def daily_and_weekly_tasks_if_needed():
     day = datetime.utcnow().strftime("%Y-%m-%d")
 
     if _last_report_day != day and is_after_close_now():
+        # Universe feasibility report (guarded, additive).
+        # WHY: Make universe vs sizing/shortability constraints explicit to prevent phantom candidates.
+        # HOW TO VERIFY: state/universe_feasibility.json is created after close when enabled.
+        try:
+            if str(get_env("ENABLE_UNIVERSE_FEASIBILITY", "false")).lower() == "true":
+                from risk_management import generate_universe_feasibility_report
+                # Use UW cache symbols as the effective universe unless explicitly overridden.
+                uw_cache = read_uw_cache()
+                symbols = [k for k in uw_cache.keys() if isinstance(k, str) and k.isalpha()]
+                # Fallback to configured symbols if cache is empty.
+                if not symbols:
+                    symbols = list(getattr(Config, "SYMBOL_UNIVERSE", [])) or list(getattr(Config, "SYMBOLS", [])) or []
+                api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL, api_version='v2')
+                max_usd = float(getattr(Config, "POSITION_SIZE_USD", 500.0) or 500.0)
+                generate_universe_feasibility_report(api, symbols, max_usd)
+        except Exception as e:
+            log_event("universe_feasibility", "generation_failed", error=str(e))
+
         report = generate_eod_report(day)
         _last_report_day = day
         log_event("daily", "report_completed", summary=report.get("summary", {}))
@@ -8699,6 +9348,16 @@ def daily_and_weekly_tasks_if_needed():
             log_event("daily", "uw_weight_tuner_completed")
         except Exception as e:
             log_event("daily", "uw_weight_tuner_failed", error=str(e))
+
+        # Daily trade appendix (post-close), additive audit artifact.
+        # WHY: Audit found generate_daily_trade_appendix() was dead/unwired.
+        # HOW TO VERIFY: reports/trade_appendix_YYYY-MM-DD.json appears after daily tasks run.
+        from executive_summary_generator import generate_daily_trade_appendix
+        today_str = datetime.utcnow().strftime("%Y-%m-%d")
+        try:
+            generate_daily_trade_appendix(today_str)
+        except Exception as e:
+            log_event("maintenance", "trade_appendix_failed", date=today_str, error=str(e))
         
         if Config.ENABLE_PER_TICKER_LEARNING:
             # MEDIUM-TERM LEARNING: Daily batch processing
@@ -8768,7 +9427,8 @@ class WorkerState:
         try:
             fail_counter_path = StateFiles.FAIL_COUNTER
             if fail_counter_path.exists():
-                data = json.loads(fail_counter_path.read_text())
+                from utils.state_io import read_json_self_heal
+                data = read_json_self_heal(fail_counter_path, {"fail_count": 0})
                 return int(data.get("fail_count", 0))
         except Exception as e:
             log_event("worker_state", "fail_count_load_error", error=str(e))
@@ -8802,8 +9462,13 @@ class Watchdog:
             heartbeat_data = {
                 "last_heartbeat_ts": int(self.state.last_heartbeat),
                 "last_heartbeat_dt": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+                # Always record a "last_attempt" stamp, even when degraded.
+                # WHY: Dashboard should reflect that the engine is alive even if last cycle had errors.
+                "last_attempt_ts": int(self.state.last_heartbeat),
+                "last_attempt_dt": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
                 "iter_count": self.state.iter_count,
                 "running": self.state.running,
+                "engine_status": (metrics or {}).get("engine_status", "ok") if isinstance(metrics, dict) else "ok",
                 "metrics": metrics or {}
             }
             
@@ -8822,7 +9487,6 @@ class Watchdog:
         except Exception as e:
             # CRITICAL: Log the error so we can see why it's failing
             print(f"ERROR: Failed to write heartbeat file to {heartbeat_path}: {e}", flush=True)
-            import traceback
             log_event("heartbeat", "write_failed", error=str(e), path=str(heartbeat_path), traceback=traceback.format_exc())
 
     def _worker_loop(self):
@@ -8878,7 +9542,6 @@ class Watchdog:
                     log_event("worker", "market_check", market_open=market_open, simulate=SIMULATE_MARKET_OPEN)
                 except Exception as market_err:
                     print(f"ERROR WORKER: Market check failed: {market_err}", flush=True)
-                    import traceback
                     print(f"ERROR WORKER: Market check traceback: {traceback.format_exc()}", flush=True)
                     log_event("worker_error", "market_check_failed", error=str(market_err), traceback=traceback.format_exc())
                     market_open = False  # Default to closed on error
@@ -8929,6 +9592,11 @@ class Watchdog:
                             pass
                         
                         metrics = run_once()
+                        if not isinstance(metrics, dict):
+                            metrics = {"clusters": 0, "orders": 0, "engine_status": "degraded", "errors_this_cycle": ["run_once_returned_non_dict"]}
+                        # Ensure a consistent health signal for downstream monitoring.
+                        metrics.setdefault("engine_status", "ok")
+                        metrics.setdefault("errors_this_cycle", [])
                         
                         # CRITICAL FIX: Write after run_once completes
                         try:
@@ -8968,7 +9636,6 @@ class Watchdog:
                                     pass
                         except Exception as safety_err:
                             print(f"ERROR: evaluate_exits() failed: {safety_err}", flush=True)
-                            import traceback
                             try:
                                 with open("logs/worker_debug.log", "a") as f:
                                     f.write(f"[{datetime.now(timezone.utc).isoformat()}] ERROR: evaluate_exits() failed: {safety_err}\n")
@@ -8984,13 +9651,14 @@ class Watchdog:
                             "clusters": metrics.get("clusters", 0),
                             "orders": metrics.get("orders", 0),
                             "market_open": True,
+                            "engine_status": metrics.get("engine_status", "ok"),
+                            "errors_this_cycle": metrics.get("errors_this_cycle", []),
                             "metrics": metrics
                         })
                     except Exception as run_err:
                         print(f"ERROR: run_once() raised exception: {run_err}", flush=True)
-                        import traceback
                         traceback.print_exc()
-                        
+
                         # CRITICAL FIX: Log exception to file
                         try:
                             with open("logs/worker_debug.log", "a") as f:
@@ -9001,6 +9669,8 @@ class Watchdog:
                             pass
                         
                         metrics = {"clusters": 0, "orders": 0, "error": str(run_err)}
+                        metrics["engine_status"] = "degraded"
+                        metrics["errors_this_cycle"] = [f"{type(run_err).__name__}: {str(run_err)}"]
                         jsonl_write("run", {
                             "ts": datetime.now(timezone.utc).isoformat(),
                             "_ts": int(time.time()),
@@ -9008,6 +9678,8 @@ class Watchdog:
                             "clusters": 0,
                             "orders": 0,
                             "market_open": True,
+                            "engine_status": "degraded",
+                            "errors_this_cycle": metrics.get("errors_this_cycle", []),
                             "error": str(run_err)[:200],
                             "metrics": metrics
                         })
@@ -9034,7 +9706,6 @@ class Watchdog:
                                 print("ERROR: worker_engine.executor.evaluate_exits() not available after exception", flush=True)
                         except Exception as exit_err:
                             print(f"ERROR: evaluate_exits() failed after run_once() exception: {exit_err}", flush=True)
-                            import traceback
                             try:
                                 with open("logs/worker_debug.log", "a") as f:
                                     f.write(f"[{datetime.now(timezone.utc).isoformat()}] ERROR: evaluate_exits() failed after exception: {exit_err}\n")
@@ -9043,11 +9714,12 @@ class Watchdog:
                             except:
                                 pass
                         
-                        raise  # Re-raise to be caught by outer exception handler
+                        # SAFETY: Do not re-raise. The worker loop must not die on strategy/logging exceptions.
+                        # We continue the iteration with degraded metrics and allow watchdog stall logic to work.
                 else:
                     # Market closed - still log cycle but skip trading
                     print(f"DEBUG: Market is CLOSED - skipping trading", flush=True)
-                    metrics = {"market_open": False, "clusters": 0, "orders": 0}
+                    metrics = {"market_open": False, "clusters": 0, "orders": 0, "engine_status": "ok", "errors_this_cycle": []}
                     # CRITICAL: Always log cycles to run.jsonl for visibility
                     jsonl_write("run", {
                         "ts": datetime.now(timezone.utc).isoformat(),
@@ -9056,6 +9728,8 @@ class Watchdog:
                         "clusters": 0,
                         "orders": 0,
                         "market_open": False,
+                        "engine_status": metrics.get("engine_status", "ok"),
+                        "errors_this_cycle": metrics.get("errors_this_cycle", []),
                         "metrics": metrics
                     })
                     log_event("run", "complete", clusters=0, orders=0, metrics=metrics, market_open=False)
@@ -9071,7 +9745,33 @@ class Watchdog:
                             if not shadow_pos.closed:
                                 try:
                                     current_price = engine.executor.get_last_trade(symbol) if hasattr(engine, 'executor') else 0.0
-                                    if current_price > 0:
+                                    if not current_price or current_price <= 0:
+                                        # Fallback: try Alpaca latest trade/quote if available
+                                        # WHY: Some symbols never get a valid last trade through executor; shadow P&L freezes at 0 otherwise.
+                                        # HOW TO VERIFY: state/shadow_positions.json shows non-zero max_profit_pct/max_loss_pct after this change.
+                                        try:
+                                            api = getattr(getattr(engine, "executor", None), "api", None)
+                                            if api is not None:
+                                                alpaca_price = 0.0
+                                                try:
+                                                    t = api.get_latest_trade(symbol)
+                                                    alpaca_price = float(getattr(t, "price", 0.0))
+                                                except Exception:
+                                                    alpaca_price = 0.0
+                                                if not alpaca_price or alpaca_price <= 0:
+                                                    try:
+                                                        q = api.get_latest_quote(symbol)
+                                                        bid = float(getattr(q, "bp", 0.0) or 0.0)
+                                                        ask = float(getattr(q, "ap", 0.0) or 0.0)
+                                                        alpaca_price = (bid + ask) / 2.0 if bid > 0 and ask > 0 else 0.0
+                                                    except Exception:
+                                                        alpaca_price = 0.0
+                                                if alpaca_price and alpaca_price > 0:
+                                                    current_price = alpaca_price
+                                        except Exception as e:
+                                            log_event("shadow_tracker", "price_fallback_failed", symbol=symbol, error=str(e))
+
+                                    if current_price and current_price > 0:
                                         update_result = shadow_tracker.update_position(symbol, current_price)
                                         if update_result and update_result.get("closed"):
                                             # Shadow position closed - update signal history with final P&L
@@ -9089,6 +9789,12 @@ class Watchdog:
                                                         break
                                             except Exception:
                                                 pass
+                                    else:
+                                        # still no price; let duration-based expiry handle it
+                                        try:
+                                            shadow_tracker.mark_no_price(symbol)
+                                        except Exception:
+                                            pass
                                 except Exception as e:
                                     print(f"DEBUG: Failed to update shadow position for {symbol}: {e}", flush=True)
                     
@@ -9119,6 +9825,7 @@ class Watchdog:
                          iter=self.state.iter_count)
                 # CRITICAL FIX: Log cycle even on error so we can see what's happening
                 try:
+                    err_metrics = {"clusters": 0, "orders": 0, "engine_status": "degraded", "errors_this_cycle": [f"{type(e).__name__}: {str(e)}"]}
                     jsonl_write("run", {
                         "ts": datetime.now(timezone.utc).isoformat(),
                         "_ts": int(time.time()),
@@ -9127,10 +9834,17 @@ class Watchdog:
                         "orders": 0,
                         "error": str(e)[:200],
                         "fail_count": self.state.fail_count,
+                        "engine_status": "degraded",
+                        "errors_this_cycle": err_metrics.get("errors_this_cycle", []),
                         "metrics": {"error": True}
                     })
                 except:
                     pass  # Don't fail on logging error
+                # CRITICAL: Update heartbeat even on failure so watchdog/dashboard never show "engine dead".
+                try:
+                    self.heartbeat(err_metrics)
+                except Exception:
+                    pass
                 send_webhook({"event": "iteration_failed", "error": str(e), "fail_count": self.state.fail_count})
                 
                 if self.state.fail_count >= 5:
@@ -9379,7 +10093,6 @@ if __name__ == "__main__":
                         pass
                     except Exception as e:
                         log_event("comprehensive_learning", "error", error=str(e))
-                        import traceback
                         log_event("comprehensive_learning", "error_traceback", traceback=traceback.format_exc())
                 
                 # Check for weekly/bi-weekly/monthly cycles
@@ -9456,18 +10169,44 @@ def health():
         "iter_count": watchdog.state.iter_count,
         "fail_count": watchdog.state.fail_count,
     }
+
+    def _run_with_timeout(fn, timeout_sec: float):
+        """
+        Run a callable with a hard wall-clock timeout.
+        WHY: Dashboard health checks were timing out and falsely reporting the bot as down.
+        HOW TO VERIFY: curl http://127.0.0.1:8081/health returns within <1s even during enrichment/learning cycles.
+        """
+        out = {"ok": False, "value": None, "error": None}
+        def _runner():
+            try:
+                out["value"] = fn()
+                out["ok"] = True
+            except Exception as e:
+                out["error"] = str(e)
+        t = threading.Thread(target=_runner, daemon=True)
+        t.start()
+        t.join(timeout=float(timeout_sec))
+        if t.is_alive():
+            return (False, None, "timeout")
+        if out["ok"]:
+            return (True, out["value"], None)
+        return (False, None, out["error"])
     
     try:
-        supervisor = get_supervisor()
-        supervisor_status = supervisor.get_status()
-        status["health_checks"] = supervisor_status
+        ok, value, err = _run_with_timeout(lambda: get_supervisor().get_status(), 0.75)
+        if ok:
+            status["health_checks"] = value
+        else:
+            status["health_checks_error"] = err or "unknown"
     except Exception as e:
         status["health_checks_error"] = str(e)
     
     # Add SRE monitoring data
     try:
         from sre_monitoring import get_sre_health
-        sre_health = get_sre_health()
+        ok, sre_health, err = _run_with_timeout(get_sre_health, 0.75)
+        if not ok:
+            raise RuntimeError(err or "sre_health_timeout")
         status["sre_health"] = {
             "market_open": sre_health.get("market_open", False),
             "market_status": sre_health.get("market_status", "unknown"),
@@ -9484,7 +10223,9 @@ def health():
     # Add comprehensive learning health (v2)
     try:
         from comprehensive_learning_orchestrator_v2 import load_learning_state
-        state = load_learning_state()
+        ok, state, err = _run_with_timeout(load_learning_state, 0.75)
+        if not ok:
+            raise RuntimeError(err or "learning_state_timeout")
         last_processed = state.get("last_processed_ts")
         if last_processed:
             try:
@@ -10004,20 +10745,50 @@ def dashboard_incidents():
 def api_sre_health():
     """SRE-style comprehensive health monitoring endpoint"""
     try:
-        # Trigger cache enrichment before checking to ensure signals are present
+        def _run_with_timeout(fn, timeout_sec: float):
+            out = {"ok": False, "value": None, "error": None}
+            def _runner():
+                try:
+                    out["value"] = fn()
+                    out["ok"] = True
+                except Exception as e:
+                    out["error"] = str(e)
+            t = threading.Thread(target=_runner, daemon=True)
+            t.start()
+            t.join(timeout=float(timeout_sec))
+            if t.is_alive():
+                return (False, None, "timeout")
+            if out["ok"]:
+                return (True, out["value"], None)
+            return (False, None, out["error"])
+
+        # Trigger cache enrichment without blocking the health response.
+        # WHY: Audit found /api/sre/health could hang (enrichment can be slow), causing the dashboard to report "bot isn't running".
+        # HOW TO VERIFY: curl http://127.0.0.1:8081/api/sre/health returns within <1s and dashboard no longer shows bot-down.
         try:
             from cache_enrichment_service import CacheEnrichmentService
-            service = CacheEnrichmentService()
-            service.run_once()
+            def _enrich_bg():
+                try:
+                    CacheEnrichmentService().run_once()
+                except Exception:
+                    pass
+            threading.Thread(target=_enrich_bg, daemon=True).start()
         except Exception:
-            # Continue even if enrichment fails
             pass
         
         from sre_monitoring import get_sre_health
-        health = get_sre_health()
+        ok, health, err = _run_with_timeout(get_sre_health, 0.9)
+        if not ok:
+            # Fail open (200) so the dashboard doesn't treat the bot as "down" due to a slow health computation.
+            health = {
+                "overall_health": "unknown",
+                "status": "degraded",
+                "error": f"sre_health_{err or 'unknown'}",
+                "ts": datetime.now(timezone.utc).isoformat(),
+            }
         return jsonify(health), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"overall_health": "unknown", "status": "error", "error": str(e)}), 200
 
 @app.route("/api/sre/signals", methods=["GET"])
 def api_sre_signals():
@@ -10345,7 +11116,8 @@ def startup_reconcile_positions():
         local_champions = {}
         if champions_path.exists():
             try:
-                champ_data = json.loads(champions_path.read_text())
+                from utils.state_io import read_json_self_heal
+                champ_data = read_json_self_heal(champions_path, {})
                 local_champions = champ_data.get("current_champions", {})
             except:
                 pass
@@ -10472,6 +11244,61 @@ def main():
         except:
             pass
     
+    # CRITICAL FIX: Start independent exit checker thread
+    # This runs evaluate_exits() every 60 seconds regardless of worker loop status
+    def exit_checker_thread():
+        """Background thread that checks and closes losing positions independently"""
+        print("CRITICAL: Exit checker thread STARTED", flush=True)
+        try:
+            with open("logs/worker_debug.log", "a") as f:
+                f.write(f"[{datetime.now(timezone.utc).isoformat()}] Exit checker thread STARTED\n")
+                f.flush()
+        except:
+            pass
+        
+        while True:
+            try:
+                time.sleep(60.0)  # Check every 60 seconds
+                
+                # Create executor to check exits
+                try:
+                    executor = AlpacaExecutor(defer_reconcile=True)
+                    print("CRITICAL: Exit checker calling evaluate_exits()", flush=True)
+                    try:
+                        with open("logs/worker_debug.log", "a") as f:
+                            f.write(f"[{datetime.now(timezone.utc).isoformat()}] Exit checker calling evaluate_exits()\n")
+                            f.flush()
+                    except:
+                        pass
+                    
+                    executor.evaluate_exits()
+                    
+                    print("CRITICAL: Exit checker evaluate_exits() completed", flush=True)
+                    try:
+                        with open("logs/worker_debug.log", "a") as f:
+                            f.write(f"[{datetime.now(timezone.utc).isoformat()}] Exit checker evaluate_exits() completed\n")
+                            f.flush()
+                    except:
+                        pass
+                except Exception as exit_err:
+                    print(f"ERROR: Exit checker failed: {exit_err}", flush=True)
+                    try:
+                        with open("logs/worker_debug.log", "a") as f:
+                            f.write(f"[{datetime.now(timezone.utc).isoformat()}] Exit checker ERROR: {exit_err}\n")
+                            f.write(f"[{datetime.now(timezone.utc).isoformat()}] Traceback: {traceback.format_exc()}\n")
+                            f.flush()
+                    except:
+                        pass
+            except Exception as thread_err:
+                print(f"ERROR: Exit checker thread error: {thread_err}", flush=True)
+                traceback.print_exc()
+                time.sleep(60.0)  # Wait before retry
+    
+    exit_checker = threading.Thread(target=exit_checker_thread, daemon=True, name="ExitChecker")
+    exit_checker.start()
+    print("CRITICAL: Exit checker thread started", flush=True)
+    log_event("system", "exit_checker_thread_started")
+    
     # Start watchdog with error handling
     try:
         try:
@@ -10503,7 +11330,6 @@ def main():
     except Exception as e:
         log_event("system", "watchdog_start_failed", error=str(e))
         print(f"WARNING: Watchdog failed to start: {e}")
-        import traceback
         traceback.print_exc()
         
         # CRITICAL FIX: Log error to file
@@ -10525,7 +11351,6 @@ def main():
         log_event("system", "health_supervisor_start_failed", error=str(e))
         print(f"WARNING: Health supervisor failed to start: {e}")
         print("Bot will continue without health supervisor...")
-        import traceback
         traceback.print_exc()
     
     log_event("system", "api_start", port=Config.API_PORT)
@@ -10589,7 +11414,6 @@ if __name__ == "__main__":
                 crash_window_start = time.time()
             
             # Log the crash
-            import traceback
             error_msg = f"CRITICAL CRASH PREVENTED: {str(e)}"
             stack_trace = traceback.format_exc()
             print(f"[CRASH RECOVERY] {error_msg}")
@@ -10612,9 +11436,11 @@ if __name__ == "__main__":
             print(f"[CRASH RECOVERY] Restarting in {cooldown}s... (crash {crash_count}/{max_crash_count})")
             time.sleep(cooldown)
 else:
-    watchdog.start()
-    supervisor = threading.Thread(target=watchdog.supervise, daemon=True, name="WatchdogSupervisor")
-    supervisor.start()
-    health_super = get_supervisor()
-    health_super.start()
-    log_event("system", "module_loaded_gunicorn", port=Config.API_PORT)
+    # IMPORTANT:
+    # Importing main.py must NOT start any long-running services (worker loop, watchdog, supervisors).
+    # WHY: Import side-effects caused "service running but engine dead" and made tooling/tests unsafe.
+    # HOW TO VERIFY: `python -c "import main; print('ok')"` does not start the worker loop.
+    #
+    # If you deploy under a WSGI server (e.g., gunicorn) and want background workers,
+    # start them explicitly from the server entrypoint (do not rely on import side-effects).
+    pass

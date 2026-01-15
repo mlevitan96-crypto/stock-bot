@@ -21,6 +21,8 @@ AUDIT_LOG = Path("data/audit_uw_upgrade.jsonl")
 # See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
 # This reduces score decay from 50% after 45min to 50% after 180min
 DECAY_MINUTES = 180
+# Institutional Remediation Phase 3: aggressive half-life freshness to prevent "ghost signal" trading
+FRESHNESS_HALF_LIFE_MINUTES = 15.0
 
 def audit(event: str, **kwargs):
     """Log enrichment audit events"""
@@ -239,22 +241,19 @@ class UWEnricher:
     def compute_freshness(self, data: Dict, decay_min: int = None) -> float:
         """
         Data freshness score (1.0 = fresh, decays over time)
-        Decays to 0.5 after decay_min minutes
-        
-        SCORING PIPELINE FIX (Priority 1): Default decay_min increased from 45 to 180 minutes
-        See SIGNAL_SCORE_PIPELINE_AUDIT.md for details on why this change was made.
+        Institutional Remediation Phase 3:
+        freshness = 0.5 ** (age_min / 15)
+
+        Note: decay_min param is retained only for backward compatibility; it is no longer used.
         """
-        if decay_min is None:
-            decay_min = DECAY_MINUTES
-        
         # CRITICAL FIX: Check both _last_update (from daemon) and last_update (legacy)
         last_update = data.get("_last_update", data.get("last_update", int(time.time())))
         age_sec = int(time.time()) - last_update
         age_min = age_sec / 60.0
         
-        # Exponential decay: fresh=1.0, after decay_min=0.5
-        freshness = math.exp(-age_min / decay_min)
-        return max(0.1, min(1.0, freshness))
+        freshness = 0.5 ** (age_min / float(FRESHNESS_HALF_LIFE_MINUTES))
+        # Clamp only to numerical bounds (no forced floor).
+        return max(0.0, min(1.0, freshness))
     
     def enrich_symbol(self, symbol: str, raw_data: Dict, features: List[str]) -> Dict:
         """
