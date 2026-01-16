@@ -553,14 +553,27 @@ class SmartPoller:
             pass
     
     def should_poll(self, endpoint: str, force_first: bool = False) -> bool:
-        """Check if enough time has passed since last call."""
+        """Check if enough time has passed since last call.
+        
+        Contract:
+        - Market-wide endpoints may key solely by endpoint (e.g., "market_tide").
+        - Per-ticker endpoints MUST be keyed by endpoint+ticker (e.g., "option_flow:AAPL"),
+          otherwise only the first ticker in the loop will ever be polled within an interval,
+          collapsing the feature store and downstream scores.
+        
+        Implementation:
+        - If `endpoint` contains a suffix like "<base>:<ticker>", we use `<base>` for interval selection
+          but persist timestamps under the full key.
+        """
         now = time.time()
+        base_endpoint = endpoint.split(":", 1)[0]
         last = self.last_call.get(endpoint, 0)
-        base_interval = self.intervals.get(endpoint, 60)
+        base_interval = self.intervals.get(base_endpoint, 60)
         
         # #region agent log
         debug_log("uw_flow_daemon.py:should_poll", "Polling decision", {
             "endpoint": endpoint,
+            "base_endpoint": base_endpoint,
             "force_first": force_first,
             "last": last,
             "interval": base_interval,
@@ -933,8 +946,8 @@ class UWFlowDaemon:
                 # Trading bot can use stale data if available
                 return
             
-            # Poll option flow (should_poll already checks market hours)
-            if self.poller.should_poll("option_flow"):
+            # Poll option flow (per-ticker)
+            if self.poller.should_poll(f"option_flow:{ticker}"):
                 flow_data = self.client.get_option_flow(ticker, limit=100)
                 
                 # Check if rate limited
@@ -1022,8 +1035,8 @@ class UWFlowDaemon:
                 else:
                     print(f"[UW-DAEMON] Cache for {ticker}: empty (no data available)", flush=True)
             
-            # Poll dark pool
-            if self.poller.should_poll("dark_pool_levels"):
+            # Poll dark pool (per-ticker)
+            if self.poller.should_poll(f"dark_pool_levels:{ticker}"):
                 dp_data = self.client.get_dark_pool_levels(ticker)
                 dp_normalized = self._normalize_dark_pool(dp_data)
                 # Always store dark_pool (even if empty) so we know it was polled
@@ -1033,8 +1046,8 @@ class UWFlowDaemon:
                 # Write dark_pool data (nested is fine - main.py reads it as cache_data.get("dark_pool", {}))
                 self._update_cache(ticker, {"dark_pool": dp_normalized})
             
-            # Poll greek_exposure (detailed exposure data)
-            if self.poller.should_poll("greek_exposure"):
+            # Poll greek_exposure (per-ticker; detailed exposure data)
+            if self.poller.should_poll(f"greek_exposure:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling greek_exposure for {ticker}...", flush=True)
                     gex_data = self.client.get_greek_exposure(ticker)
@@ -1052,8 +1065,8 @@ class UWFlowDaemon:
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
             
-            # Poll greeks (basic greeks data - separate endpoint)
-            if self.poller.should_poll("greeks"):
+            # Poll greeks (per-ticker; basic greeks data - separate endpoint)
+            if self.poller.should_poll(f"greeks:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling greeks for {ticker}...", flush=True)
                     greeks_data = self.client.get_greeks(ticker)
@@ -1071,8 +1084,8 @@ class UWFlowDaemon:
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
             
-            # Poll OI change
-            if self.poller.should_poll("oi_change"):
+            # Poll OI change (per-ticker)
+            if self.poller.should_poll(f"oi_change:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling oi_change for {ticker}...", flush=True)
                     oi_data = self.client.get_oi_change(ticker)
@@ -1091,8 +1104,8 @@ class UWFlowDaemon:
                     # Store empty on error too
                     self._update_cache(ticker, {"oi_change": {}})
             
-            # Poll ETF flow
-            if self.poller.should_poll("etf_flow"):
+            # Poll ETF flow (per-ticker)
+            if self.poller.should_poll(f"etf_flow:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling etf_flow for {ticker}...", flush=True)
                     etf_data = self.client.get_etf_flow(ticker)
@@ -1111,8 +1124,8 @@ class UWFlowDaemon:
                     # Store empty on error too
                     self._update_cache(ticker, {"etf_flow": {}})
             
-            # Poll IV rank
-            if self.poller.should_poll("iv_rank"):
+            # Poll IV rank (per-ticker)
+            if self.poller.should_poll(f"iv_rank:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling iv_rank for {ticker}...", flush=True)
                     iv_data = self.client.get_iv_rank(ticker)
@@ -1131,8 +1144,8 @@ class UWFlowDaemon:
                     # Store empty on error too
                     self._update_cache(ticker, {"iv_rank": {}})
             
-            # Poll shorts/FTDs
-            if self.poller.should_poll("shorts_ftds"):
+            # Poll shorts/FTDs (per-ticker)
+            if self.poller.should_poll(f"shorts_ftds:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling shorts_ftds for {ticker}...", flush=True)
                     ftd_data = self.client.get_shorts_ftds(ticker)
@@ -1151,8 +1164,8 @@ class UWFlowDaemon:
                     # Store empty on error too
                     self._update_cache(ticker, {"ftd_pressure": {}})
             
-            # Poll max pain
-            if self.poller.should_poll("max_pain"):
+            # Poll max pain (per-ticker)
+            if self.poller.should_poll(f"max_pain:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling max_pain for {ticker}...", flush=True)
                     max_pain_data = self.client.get_max_pain(ticker)
@@ -1174,8 +1187,8 @@ class UWFlowDaemon:
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
             
-            # Poll insider
-            if self.poller.should_poll("insider"):
+            # Poll insider (per-ticker)
+            if self.poller.should_poll(f"insider:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling insider for {ticker}...", flush=True)
                     insider_data = self.client.get_insider(ticker)
@@ -1187,8 +1200,8 @@ class UWFlowDaemon:
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching insider for {ticker}: {e}", flush=True)
             
-            # Poll calendar
-            if self.poller.should_poll("calendar"):
+            # Poll calendar (per-ticker)
+            if self.poller.should_poll(f"calendar:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling calendar for {ticker}...", flush=True)
                     calendar_data = self.client.get_calendar(ticker)
@@ -1205,8 +1218,8 @@ class UWFlowDaemon:
                     # Store empty on error too
                     self._update_cache(ticker, {"calendar": {}})
             
-            # Poll congress
-            if self.poller.should_poll("congress"):
+            # Poll congress (per-ticker)
+            if self.poller.should_poll(f"congress:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling congress for {ticker}...", flush=True)
                     congress_data = self.client.get_congress(ticker)
@@ -1223,8 +1236,8 @@ class UWFlowDaemon:
                     # Store empty on error too
                     self._update_cache(ticker, {"congress": {}})
             
-            # Poll institutional
-            if self.poller.should_poll("institutional"):
+            # Poll institutional (per-ticker)
+            if self.poller.should_poll(f"institutional:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling institutional for {ticker}...", flush=True)
                     institutional_data = self.client.get_institutional(ticker)

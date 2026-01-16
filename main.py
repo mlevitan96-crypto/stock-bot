@@ -4748,7 +4748,12 @@ class AlpacaExecutor:
             exit_fill_qty = 0
             exit_fill_price = 0.0
             try:
-                close_order = self.api.close_position(symbol)
+                # Contract: closes should succeed even if qty is reserved by open orders.
+                # Prefer canceling open orders as part of close (safe fallback for older SDKs).
+                try:
+                    close_order = self.api.close_position(symbol, cancel_orders=True)
+                except TypeError:
+                    close_order = self.api.close_position(symbol)
                 exit_order_id = getattr(close_order, "id", None)
                 log_event("displacement", "close_position_api_called", symbol=symbol)
                 # Fill-sourcing contract: do not attribute using quotes/marks.
@@ -5212,7 +5217,11 @@ class AlpacaExecutor:
                     
                     # CLOSE IT NOW - Don't wait for the loop
                     try:
-                        self.api.close_position("V")
+                        # Contract: closes should succeed even if qty is reserved by open orders.
+                        try:
+                            self.api.close_position("V", cancel_orders=True)
+                        except TypeError:
+                            self.api.close_position("V")
                         print(f"CRITICAL: V close order submitted - P&L={v_pnl_pct:.2f}%", flush=True)
                         log_event("exit", "force_close_v_order_submitted", pnl_pct=v_pnl_pct)
                         
@@ -5891,7 +5900,11 @@ class AlpacaExecutor:
                     close_attempts += 1
                     try:
                         # Attempt to close position
-                        close_order = self.api.close_position(symbol)
+                        # Contract: closes should succeed even if qty is reserved by open orders.
+                        try:
+                            close_order = self.api.close_position(symbol, cancel_orders=True)
+                        except TypeError:
+                            close_order = self.api.close_position(symbol)
                         exit_order_id = getattr(close_order, "id", None)
                         log_event("exit", "close_position_api_called", symbol=symbol, attempt=close_attempts, exit_order_id=str(exit_order_id) if exit_order_id else None)
                         
@@ -6152,6 +6165,24 @@ class StrategyEngine:
 
     def decide_and_execute(self, clusters: list, confirm_map: dict, gex_map: dict, decisions_map: dict = None, market_regime: str = "mixed"):
         orders = []
+        # Per-cycle gate accounting (for "why no trades?" observability).
+        try:
+            from collections import Counter as _Counter
+            gate_counts = _Counter()
+        except Exception:
+            gate_counts = {}
+
+        def _inc_gate(k: str) -> None:
+            try:
+                gate_counts[k] += 1  # type: ignore[index]
+            except Exception:
+                try:
+                    gate_counts[k] = int(gate_counts.get(k, 0)) + 1  # type: ignore[union-attr]
+                except Exception:
+                    pass
+
+        considered = 0
+        top_score = None
         
         open_positions = []
         try:
@@ -6223,6 +6254,16 @@ class StrategyEngine:
         
         if len(clusters_sorted) == 0:
             print("⚠️  WARNING: decide_and_execute called with 0 clusters - no trades possible", flush=True)
+            log_event(
+                "gate",
+                "cycle_summary",
+                market_regime=market_regime,
+                stage=system_stage,
+                considered=0,
+                orders=0,
+                gate_counts={},
+                reason="no_clusters",
+            )
             return orders
         
         for c in clusters_sorted:
@@ -6231,6 +6272,12 @@ class StrategyEngine:
             direction = c.get("direction", "unknown")
             # CRITICAL FIX: Initialize score but recalculate if source is unknown or composite_score is 0.0
             score = c.get("composite_score", 0.0)
+            considered += 1
+            try:
+                s = float(score)
+                top_score = s if top_score is None else max(top_score, s)
+            except Exception:
+                pass
             cluster_source = c.get("source", "unknown")
             print(f"DEBUG {symbol}: Processing cluster - direction={direction}, initial_score={score:.2f}, source={cluster_source}", flush=True)
             
@@ -6640,7 +6687,11 @@ class StrategyEngine:
                         # BULLETPROOF: Safe position close with error handling and verification
                         position_closed = False
                         try:
-                            self.executor.api.close_position(symbol)
+                            # Contract: closes should succeed even if qty is reserved by open orders.
+                            try:
+                                self.executor.api.close_position(symbol, cancel_orders=True)
+                            except TypeError:
+                                self.executor.api.close_position(symbol)
                             log_event("position_flip", "close_position_api_called", symbol=symbol)
                             
                             # CRITICAL: Verify position was actually closed
@@ -6709,6 +6760,7 @@ class StrategyEngine:
                     
                     if has_existing_position:
                         # HARD BLOCK: Max 1 Position per Symbol
+                        _inc_gate("max_one_position_per_symbol")
                         log_event("gate", "max_one_position_per_symbol", 
                                  symbol=symbol, normalized_symbol=normalized_symbol,
                                  existing_side=existing_side, gate_type="diversification_gate", 
@@ -6785,6 +6837,7 @@ class StrategyEngine:
             print(f"DEBUG {symbol}: expectancy={expectancy:.4f}, should_trade={should_trade}, reason={gate_reason}", flush=True)
             
             if not should_trade:
+                _inc_gate(f"expectancy_blocked:{gate_reason}")
                 log_event("gate", "expectancy_blocked", symbol=symbol, 
                          expectancy=expectancy, reason=gate_reason, stage=system_stage, gate_type="expectancy_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 
@@ -6822,6 +6875,7 @@ class StrategyEngine:
             
             # V3.2.1: Check cycle position limit
             if new_positions_this_cycle >= MAX_NEW_POSITIONS_PER_CYCLE:
+                _inc_gate("max_new_positions_per_cycle_reached")
                 log_event("gate", "max_new_positions_per_cycle_reached", symbol=symbol, 
                          cycle_count=new_positions_this_cycle, max_allowed=MAX_NEW_POSITIONS_PER_CYCLE, gate_type="capacity_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 log_blocked_trade(symbol, "max_new_positions_per_cycle", score,
@@ -6948,6 +7002,7 @@ class StrategyEngine:
             
             if score < min_score:
                 print(f"DEBUG {symbol}: BLOCKED by score_below_min ({score} < {min_score}, stage={system_stage})", flush=True)
+                _inc_gate("score_below_min")
                 log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=min_score, stage=system_stage, gate_type="score_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 
                 # SHADOW LOGGER: Track rejected signal
@@ -7036,6 +7091,7 @@ class StrategyEngine:
                         # Use executor.opens as fallback
                         actual_positions = len(self.executor.opens)
                     print(f"DEBUG {symbol}: BLOCKED by max_positions_reached (Alpaca positions: {actual_positions}, executor.opens: {len(self.executor.opens)}, max: {Config.MAX_CONCURRENT_POSITIONS}), no displacement candidates", flush=True)
+                    _inc_gate("max_positions_reached")
                     log_event("gate", "max_positions_reached", symbol=symbol, 
                              alpaca_positions=actual_positions,
                              executor_opens=len(self.executor.opens),
@@ -7124,6 +7180,7 @@ class StrategyEngine:
                     continue
             if not self.executor.can_open_symbol(symbol):
                 print(f"DEBUG {symbol}: BLOCKED by symbol_on_cooldown", flush=True)
+                _inc_gate("symbol_on_cooldown")
                 log_event("gate", "symbol_on_cooldown", symbol=symbol)
                 log_blocked_trade(symbol, "symbol_on_cooldown", score,
                                   direction=c.get("direction"),
@@ -7818,6 +7875,22 @@ class StrategyEngine:
         
         if Config.ENABLE_PER_TICKER_LEARNING:
             save_profiles(self.profiles)
+        # Cycle-level "why no trades" summary (low-noise: only emit when we placed no orders).
+        if not orders:
+            try:
+                gc = dict(gate_counts)  # Counter → dict
+            except Exception:
+                gc = gate_counts if isinstance(gate_counts, dict) else {}
+            log_event(
+                "gate",
+                "cycle_summary",
+                market_regime=market_regime,
+                stage=system_stage,
+                considered=considered,
+                orders=0,
+                top_score=top_score,
+                gate_counts=gc,
+            )
         return orders
 
 # =========================

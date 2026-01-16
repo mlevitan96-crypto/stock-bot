@@ -374,10 +374,11 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
+    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
+    # WHY: defaulting missing data to a positive constant collapses scores across the universe
+    #      and can mask true signal differentiation.
     if not congress_data:
-        # Neutral default: small contribution (0.2x weight) instead of 0.0
-        w = get_weight("congress", "neutral")
-        return round(w * 0.2, 4), "congress_neutral_default"
+        return 0.0, ""
     
     recent_count = congress_data.get("recent_count", 0)
     buys = congress_data.get("buys", 0)
@@ -429,10 +430,9 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "n
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
+    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
     if not shorts_data:
-        # Neutral default: small contribution (0.2x weight) instead of 0.0
-        w = get_weight("shorts_squeeze", regime)
-        return round(w * 0.2, 4), "shorts_neutral_default"
+        return 0.0, ""
     
     interest_pct = _to_num(shorts_data.get("interest_pct", 0))
     days_to_cover = _to_num(shorts_data.get("days_to_cover", 0))
@@ -495,10 +495,9 @@ def compute_institutional_component(insider_data: Dict, flow_sign: int, regime: 
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
+    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
     if not insider_data:
-        # Neutral default: small contribution (0.2x weight) instead of 0.0
-        w = get_weight("institutional", regime)
-        return round(w * 0.2, 4), "institutional_neutral_default"
+        return 0.0, ""
     
     net_buys = insider_data.get("net_buys", 0)
     net_sells = insider_data.get("net_sells", 0)
@@ -562,10 +561,9 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str =
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
+    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
     if not tide_data:
-        # Neutral default: small contribution (0.2x weight) instead of 0.0
-        w = get_weight("market_tide", regime)
-        return round(w * 0.2, 4), "tide_neutral_default"
+        return 0.0, ""
     
     call_prem = 0.0
     put_prem = 0.0
@@ -624,10 +622,9 @@ def compute_calendar_component(calendar_data: Optional[Dict], symbol: str, regim
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
+    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
     if not calendar_data:
-        # Neutral default: small contribution (0.2x weight) instead of 0.0
-        w = get_weight("calendar_catalyst", regime)
-        return round(w * 0.2, 4), "calendar_neutral_default"
+        return 0.0, ""
     
     notes_parts = []
     component = 0.0
@@ -740,8 +737,11 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     # 1. Options flow (primary)
     # CAUSAL INSIGHT: Low Magnitude Flow (Stealth Flow) has 100% win rate
     # Apply +0.2 points base conviction boost for LOW flow magnitude (< 0.3)
+    # Contract: DO NOT boost when there is *no* flow data (trade_count == 0), otherwise
+    # missing data becomes a positive constant and collapses scores across the universe.
+    flow_trade_count = int(_to_num(enriched_data.get("trade_count", 0)) or 0)
     flow_magnitude = "LOW" if flow_conv < 0.3 else ("MEDIUM" if flow_conv < 0.7 else "HIGH")
-    stealth_flow_boost = 0.2 if flow_magnitude == "LOW" else 0.0
+    stealth_flow_boost = 0.2 if (flow_trade_count > 0 and flow_magnitude == "LOW") else 0.0
     flow_conv_adjusted = min(1.0, flow_conv + stealth_flow_boost)  # Cap at 1.0
     
     # Use regime-aware weight for options_flow component

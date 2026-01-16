@@ -404,6 +404,14 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     # ROOT CAUSE FIX: Must include sentiment and conviction - these are required for flow_component calculation
     enriched_symbol["sentiment"] = data.get("sentiment", "NEUTRAL")
     enriched_symbol["conviction"] = data.get("conviction", 0.0)
+    # Flow metadata used by composite scoring (must distinguish "no flow" vs "low flow").
+    try:
+        flow_trades = data.get("flow_trades") or []
+        enriched_symbol["trade_count"] = int(data.get("trade_count", len(flow_trades)) or 0)
+        enriched_symbol["flow_trades_n"] = int(len(flow_trades))
+    except Exception:
+        enriched_symbol["trade_count"] = int(enriched_symbol.get("trade_count", 0) or 0)
+        enriched_symbol["flow_trades_n"] = int(enriched_symbol.get("flow_trades_n", 0) or 0)
     enriched_symbol["dark_pool"] = data.get("dark_pool", {})
     # Phase 5: Explicit dark-pool wiring (avoid neutral constant)
     try:
@@ -425,7 +433,14 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     enriched_symbol["calendar"] = data.get("calendar", {})
     enriched_symbol["congress"] = data.get("congress", {})
     enriched_symbol["institutional"] = data.get("institutional", {})
-    enriched_symbol["shorts"] = data.get("ftd", {})  # FTD data is stored as "ftd" in cache
+    # Contract: cache wiring must match UW daemon keys.
+    # UW daemon stores fails-to-deliver / shorts endpoint under `ftd_pressure` (not `ftd`).
+    enriched_symbol["shorts"] = (
+        data.get("ftd_pressure")
+        or data.get("shorts_ftds")
+        or data.get("ftd")
+        or {}
+    )
     enriched_symbol["greeks"] = data.get("greeks", {})
     enriched_symbol["iv_rank"] = data.get("iv_rank", {})
     enriched_symbol["oi_change"] = data.get("oi_change", {})
