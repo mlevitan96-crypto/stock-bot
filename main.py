@@ -3251,6 +3251,64 @@ def compute_atr(api, symbol: str, lookback: int):
         return 0.0
 
 # =========================
+# MARKET-DATA HEALTH PROBES (observability only)
+# =========================
+_BAR_PROBE_LAST_TS = 0.0
+
+
+def _probe_1min_bar_freshness_maybe(api, *, symbol: str = "SPY", every_sec: float = 600.0) -> None:
+    """
+    Observability-only probe.
+
+    Contract: when 1Min bars are stale, emit a clear structured event.
+    This MUST NOT change strategy intent; it only reports data-quality risk.
+    """
+    global _BAR_PROBE_LAST_TS
+    try:
+        now_ts = float(time.time())
+        last = float(_BAR_PROBE_LAST_TS or 0.0)
+        if (now_ts - last) < float(every_sec):
+            return
+        _BAR_PROBE_LAST_TS = now_ts
+
+        bars = api.get_bars(symbol, "1Min", limit=5)
+        df = getattr(bars, "df", None)
+        if df is None or len(df) == 0:
+            log_event("market_check", "bar_probe_empty", symbol=symbol)
+            return
+
+        last_bar_ts = df.index[-1]
+        last_bar_dt = last_bar_ts.to_pydatetime() if hasattr(last_bar_ts, "to_pydatetime") else last_bar_ts
+        if getattr(last_bar_dt, "tzinfo", None) is None:
+            last_bar_dt = last_bar_dt.replace(tzinfo=timezone.utc)
+        else:
+            last_bar_dt = last_bar_dt.astimezone(timezone.utc)
+
+        now_dt = datetime.now(timezone.utc)
+        age_min = (now_dt - last_bar_dt).total_seconds() / 60.0
+        try:
+            max_age_minutes = float(get_env("BAR_STALE_MAX_AGE_MINUTES", 5, float))
+        except Exception:
+            max_age_minutes = 5.0
+
+        if age_min > max_age_minutes:
+            log_event(
+                "market_check",
+                "stale_1min_bars_detected",
+                symbol=symbol,
+                latest_bar=str(last_bar_dt),
+                now=str(now_dt),
+                age_minutes=round(age_min, 2),
+                max_age_minutes=max_age_minutes,
+                action="warn_only",
+            )
+    except Exception as e:
+        try:
+            log_event("market_check", "bar_probe_failed", symbol=symbol, error=str(e))
+        except Exception:
+            pass
+
+# =========================
 # EXECUTION & POSITION MGMT (Alpaca API - PAPER/LIVE)
 # =========================
 class AlpacaExecutor:
@@ -6191,16 +6249,11 @@ class StrategyEngine:
             open_positions = []  # FIX: Initialize to empty list if API call fails
 
         # Market-data health probe (observability only).
-        # Contract: when 1Min bars are stale, emit `market_data:stale_bars_detected` (compute_atr handles logging).
+        # Contract: when 1Min bars are stale, emit a clear stale event (probe is observability-only).
         try:
-            last_ts = getattr(self.executor, "_bar_health_probe_last_ts", 0.0) or 0.0
-            now_ts = float(time.time())
-            if now_ts - float(last_ts) >= 600.0:  # once per 10 minutes
-                setattr(self.executor, "_bar_health_probe_last_ts", now_ts)
-                # Use a tiny lookback to minimize API load; we only need the latest bar timestamp.
-                _ = compute_atr(self.executor.api, "SPY", 2)
+            _probe_1min_bar_freshness_maybe(self.executor.api, symbol="SPY", every_sec=600.0)
         except Exception as e:
-            log_event("market_data", "bar_probe_failed", symbol="SPY", error=str(e))
+            log_event("market_check", "bar_probe_failed", symbol="SPY", error=str(e))
         
         # V4.0: PORTFOLIO CONCENTRATION GATE - Calculate net long-delta exposure
         # BULLETPROOF: Always initialize to safe defaults, fail open on any error
