@@ -17,6 +17,17 @@ ENRICHED_LOG = Path("data/uw_flow_enriched.jsonl")
 MOTIF_STATE = Path("state/uw_motifs.json")
 AUDIT_LOG = Path("data/audit_uw_upgrade.jsonl")
 
+# Permanent system events + global failure wrapper (non-blocking import).
+try:
+    from utils.system_events import global_failure_wrapper, log_system_event
+except Exception:
+    def global_failure_wrapper(_subsystem):  # type: ignore
+        def _d(fn):
+            return fn
+        return _d
+    def log_system_event(*args, **kwargs):  # type: ignore
+        return None
+
 # SCORING PIPELINE FIX (Priority 1): Increased decay_min from 45 to 180 minutes
 # See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
 # This reduces score decay from 50% after 45min to 50% after 180min
@@ -372,6 +383,7 @@ def apply_enrichment(cache_path: Path, features: List[str]) -> Dict:
     
     return enriched
 
+@global_failure_wrapper("data")
 def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     """
     Per-symbol enrichment for live trading

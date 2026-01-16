@@ -111,6 +111,13 @@ class StateFiles:
     FAIL_COUNTER = Directories.STATE / "fail_counter.json"
     CHAMPIONS = Directories.STATE / "champions.json"
     PRE_MARKET_FREEZE = Directories.STATE / "pre_market_freeze.flag"
+    # WHY: Universe feasibility report enables actionable constraints alignment.
+    # HOW TO VERIFY: state/universe_feasibility.json exists and updates daily when enabled.
+    UNIVERSE_FEASIBILITY = Directories.STATE / "universe_feasibility.json"
+
+    # WHY: Droplet uses regime_detector_state.json; dashboard previously read regime_detector.json and defaulted to MIXED.
+    # HOW TO VERIFY: Dashboard regime matches state/regime_detector_state.json (e.g., PANIC confidence=1.0).
+    REGIME_DETECTOR_STATE = Directories.STATE / "regime_detector_state.json"
 
 
 class LogFiles:
@@ -134,6 +141,12 @@ class LogFiles:
     UW_DAEMON = Directories.LOGS / "uw_daemon.jsonl"
     UW_ERRORS = Directories.LOGS / "uw_errors.jsonl"
     RECONCILE = Directories.LOGS / "reconcile.jsonl"
+    # WHY: Central P&L reconciliation log for auditing day vs window vs attribution.
+    # HOW TO VERIFY: logs/pnl_reconciliation.jsonl gets appended by dashboard /api/pnl/reconcile.
+    PNL_RECONCILIATION = Directories.LOGS / "pnl_reconciliation.jsonl"
+
+    # Permanent, unified system events stream (append-only).
+    SYSTEM_EVENTS = Directories.LOGS / "system_events.jsonl"
 
 
 class ConfigFiles:

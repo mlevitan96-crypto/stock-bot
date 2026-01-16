@@ -129,6 +129,17 @@ except Exception as e:
         pass
     raise
 
+# Permanent system events + global failure wrapper (non-blocking import).
+try:
+    from utils.system_events import global_failure_wrapper, log_system_event
+except Exception:
+    def global_failure_wrapper(_subsystem):  # type: ignore
+        def _d(fn):
+            return fn
+        return _d
+    def log_system_event(*args, **kwargs):  # type: ignore
+        return None
+
 load_dotenv()
 
 DATA_DIR = Directories.DATA
@@ -143,6 +154,7 @@ class UWClient:
         self.base = APIConfig.UW_BASE_URL
         self.headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
     
+    @global_failure_wrapper("uw_poll")
     def _get(self, path_or_url: str, params: dict = None) -> dict:
         """Make API request with quota tracking."""
         url = path_or_url if path_or_url.startswith("http") else f"{self.base}{path_or_url}"

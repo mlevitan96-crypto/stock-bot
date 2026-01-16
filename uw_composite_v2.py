@@ -29,6 +29,17 @@ AUDIT_LOG = Path("data/audit_uw_upgrade.jsonl")
 EXPANDED_INTEL_CACHE = Path("data/uw_expanded_intel.json")
 GATE_DIAGNOSTIC_LOG = Path("logs/gate_diagnostic.jsonl")
 
+# Permanent system events + global failure wrapper (non-blocking import).
+try:
+    from utils.system_events import global_failure_wrapper, log_system_event
+except Exception:
+    def global_failure_wrapper(_subsystem):  # type: ignore
+        def _d(fn):
+            return fn
+        return _d
+    def log_system_event(*args, **kwargs):  # type: ignore
+        return None
+
 _adaptive_optimizer = None
 
 def _log_gate_failure(symbol: str, gate_name: str, details: Dict):
@@ -50,6 +61,18 @@ def _log_gate_failure(symbol: str, gate_name: str, details: Dict):
         }
         with GATE_DIAGNOSTIC_LOG.open("a") as f:
             f.write(json.dumps(log_rec) + "\n")
+        # First-class blocked candidate event (permanent stream).
+        try:
+            log_system_event(
+                subsystem="gate",
+                event_type="blocked",
+                severity="INFO",
+                symbol=symbol,
+                reason=gate_name,
+                details=details,
+            )
+        except Exception:
+            pass
     except Exception:
         pass  # Don't fail on diagnostic logging
 
@@ -653,6 +676,7 @@ def compute_calendar_component(calendar_data: Optional[Dict], symbol: str, regim
     
     return round(component, 4), "; ".join(notes_parts)
 
+@global_failure_wrapper("scoring")
 def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL", 
                                 expanded_intel: Dict = None,
                                 use_adaptive_weights: bool = True) -> Dict[str, Any]:
@@ -1482,6 +1506,7 @@ def get_threshold(symbol: str, mode: str = "base") -> float:
     
     return ENTRY_THRESHOLDS[mode]
 
+@global_failure_wrapper("gate")
 def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) -> bool:
     """
     V3.0 Predatory Entry Filter: V2 entry decision with hierarchical thresholds + Exhaustion Check

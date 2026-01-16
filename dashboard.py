@@ -10,11 +10,43 @@ import os
 import sys
 import json
 import threading
-from datetime import datetime
-from flask import Flask, render_template_string, jsonify, Response, request
+from datetime import datetime, timezone
 
-print("[Dashboard] Starting Flask app...", flush=True)
-app = Flask(__name__)
+# Optional env checks (non-blocking)
+_FLASK_AVAILABLE = True
+try:
+    import flask  # type: ignore
+except Exception:
+    _FLASK_AVAILABLE = False
+    print("WARNING: Flask not installed in this environment; dashboard endpoints cannot be simulated locally.", flush=True)
+
+try:
+    from flask import Flask, render_template_string, jsonify, Response, request
+except Exception:
+    _FLASK_AVAILABLE = False
+    # Provide a minimal stub so `import dashboard` works for local audits.
+    Flask = None  # type: ignore
+    Response = None  # type: ignore
+    request = None  # type: ignore
+    def jsonify(obj=None, **kwargs):  # type: ignore
+        return obj if obj is not None else kwargs
+    def render_template_string(*args, **kwargs):  # type: ignore
+        return ""
+
+    class _DummyApp:
+        def route(self, *args, **kwargs):
+            def _decorator(fn):
+                return fn
+            return _decorator
+        def run(self, *args, **kwargs):
+            print("WARNING: Flask not installed; dashboard cannot run.", flush=True)
+        def test_client(self, *args, **kwargs):
+            raise RuntimeError("Flask not installed; test_client unavailable.")
+
+    app = _DummyApp()
+else:
+    print("[Dashboard] Starting Flask app...", flush=True)
+    app = Flask(__name__)
 
 _alpaca_api = None
 _registry_loaded = False
@@ -890,6 +922,21 @@ DASHBOARD_HTML = """
                     ${data.warning_fps && data.warning_fps.length > 0 ? `
                         <div style="margin-top: 10px; padding: 10px; background: #fef3c7; border-radius: 5px;">
                             <strong style="color: #f59e0b;">Warning Failure Points:</strong> ${data.warning_fps.join(', ')}
+                        </div>
+                    ` : ''}
+                    ${data.blockers && data.blockers.blocked ? `
+                        <div style="margin-top: 15px; padding: 15px; background: #fef2f2; border: 2px solid #ef4444; border-radius: 5px;">
+                            <h3 style="color: #ef4444; margin-top: 0;">🚫 Why Am I Not Trading?</h3>
+                            <p style="font-weight: bold; margin-bottom: 10px;">${data.blockers.summary}</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                ${data.blockers.blockers.map(b => `
+                                    <li style="margin: 5px 0;">
+                                        <strong>${b.type.replace('_', ' ').toUpperCase()}:</strong> ${b.reason}
+                                        ${b.requires_manual_action ? ' <span style="color: #ef4444;">(Requires manual action)</span>' : ''}
+                                        ${b.can_self_heal ? ' <span style="color: #10b981;">(Self-healing attempted)</span>' : ''}
+                                    </li>
+                                `).join('')}
+                            </ul>
                         </div>
                     ` : ''}
                 </div>
@@ -2065,12 +2112,16 @@ def api_positions():
             # Get current regime (also re-read fresh on each request)
             try:
                 from config.registry import StateFiles
-                regime_file = StateFiles.REGIME_DETECTOR
-                if regime_file.exists():
-                    # Re-read regime file fresh on each request
-                    regime_data = json_module.loads(regime_file.read_text())
-                    if isinstance(regime_data, dict):
-                        current_regime = regime_data.get("current_regime") or regime_data.get("regime") or "mixed"
+                # WHY: Droplet uses regime_detector_state.json; dashboard previously read regime_detector.json and defaulted to MIXED.
+                # HOW TO VERIFY: Dashboard regime matches state/regime_detector_state.json (e.g., PANIC confidence=1.0).
+                for regime_file in [getattr(StateFiles, "REGIME_DETECTOR_STATE", None), StateFiles.REGIME_DETECTOR]:
+                    if not regime_file:
+                        continue
+                    if regime_file.exists():
+                        regime_data = json_module.loads(regime_file.read_text())
+                        if isinstance(regime_data, dict):
+                            current_regime = regime_data.get("current_regime") or regime_data.get("regime") or "mixed"
+                            break
             except:
                 pass
         except Exception as e:
@@ -2090,8 +2141,13 @@ def api_positions():
                     enriched = uw_cache.get(symbol, {})
                     if enriched:
                         import uw_composite_v2 as uw_v2
-                        # Always recalculate composite score from fresh cache data
-                        composite = uw_v2.compute_composite_score_v3(symbol, enriched, current_regime)
+                        # Always recalculate composite score from enriched cache data (prevents score collapse on None/missing fields).
+                        try:
+                            import uw_enrichment_v2 as uw_enrich
+                            enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, current_regime) or enriched
+                        except Exception:
+                            enriched_live = enriched
+                        composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, current_regime)
                         if composite:
                             current_score = composite.get("score", 0.0)
             except Exception as e:
@@ -2117,7 +2173,8 @@ def api_positions():
         try:
             from shadow_tracker import get_shadow_tracker
             from signal_history_storage import get_signal_history
-            from config.registry import Config
+            # Do not rely on a `Config` class in config.registry (not guaranteed to exist).
+            # For display-only conversion, use env with a sane default.
             
             # Get all signals blocked by capacity_limit
             signal_history = get_signal_history(limit=500)  # Get more history
@@ -2132,7 +2189,7 @@ def api_positions():
             shadow_tracker = get_shadow_tracker()
             
             # Calculate total missed alpha in USD
-            base_position_size = Config.SIZE_BASE_USD  # Default $500 per position
+            base_position_size = float(os.getenv("POSITION_SIZE_USD", "500"))  # Default $500 per position
             for signal in capacity_blocked_signals:
                 symbol = signal.get("symbol", "")
                 virtual_pnl_pct = signal.get("virtual_pnl", 0.0)
@@ -2165,6 +2222,147 @@ def api_positions():
             "day_pnl": 0,
             "error": str(e)
         })
+
+
+@app.route("/api/pnl/reconcile", methods=["GET"])
+def api_pnl_reconcile():
+    """
+    WHY: Production has conflicting P&L definitions (broker day_pnl vs attribution vs bot session baseline).
+    HOW TO VERIFY:
+      - broker_day_pnl equals account.equity - account.last_equity
+      - window_pnl equals account.equity - state/daily_start_equity.json equity (if present)
+      - attribution_closed_pnl_sum matches recomputation from attribution context (within expected differences).
+    """
+    try:
+        if _alpaca_api is None:
+            return jsonify({"error": "Alpaca API not connected"}), 503
+
+        date_str = request.args.get("date")
+        if not date_str:
+            date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        account = _alpaca_api.get_account()
+        equity_now = float(getattr(account, "equity", 0.0) or 0.0)
+        last_equity = float(getattr(account, "last_equity", 0.0) or 0.0)
+        broker_day_pnl = equity_now - last_equity
+
+        # Window P&L (session baseline via risk_management daily_start_equity)
+        window_pnl = None
+        start_equity = None
+        try:
+            # Avoid importing `risk_management` here: it may import `main` in some runtimes,
+            # which can start worker threads inside the dashboard process.
+            # This endpoint only needs the persisted baseline written to state/daily_start_equity.json.
+            from pathlib import Path
+            p = Path("state") / "daily_start_equity.json"
+            if p.exists():
+                try:
+                    data = json.loads(p.read_text(encoding="utf-8"))
+                except Exception:
+                    data = {}
+                if isinstance(data, dict) and str(data.get("date", "")) == str(date_str):
+                    start_equity = data.get("equity")
+                    if start_equity is not None:
+                        window_pnl = equity_now - float(start_equity)
+        except Exception:
+            window_pnl = None
+
+        # Attribution sums for that date (recompute from context when possible)
+        def _normalize_position_side(side: str) -> str:
+            s = (side or "").strip().lower()
+            if s in ("buy", "long"):
+                return "long"
+            if s in ("sell", "short"):
+                return "short"
+            return "unknown"
+
+        def _compute_trade_pnl(entry_price, exit_price, qty, position_side: str) -> float:
+            try:
+                entry_price = float(entry_price)
+                exit_price = float(exit_price)
+                qty = float(qty)
+            except Exception:
+                return 0.0
+            if entry_price <= 0 or exit_price <= 0 or qty <= 0:
+                return 0.0
+            if position_side == "long":
+                return qty * (exit_price - entry_price)
+            if position_side == "short":
+                return qty * (entry_price - exit_price)
+            return 0.0
+
+        closed_pnl_sum_logged = 0.0
+        closed_pnl_sum_recomputed = 0.0
+        entered_today_closed_today_sum = 0.0
+        recompute_mismatch_count = 0
+        counted = 0
+
+        try:
+            from config.registry import LogFiles
+            attr_path = LogFiles.ATTRIBUTION
+            if attr_path.exists():
+                with attr_path.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except Exception:
+                            continue
+                        ts = rec.get("ts")
+                        if not ts or not str(ts).startswith(date_str):
+                            continue
+                        pnl_usd_logged = float(rec.get("pnl_usd", 0.0) or 0.0)
+                        closed_pnl_sum_logged += pnl_usd_logged
+                        counted += 1
+
+                        ctx = rec.get("context") if isinstance(rec.get("context"), dict) else {}
+                        entry_ts = ctx.get("entry_ts")
+                        if entry_ts and str(entry_ts).startswith(date_str):
+                            entered_today_closed_today_sum += pnl_usd_logged
+
+                        # Recompute P&L from context if possible (prefers position_side if present)
+                        position_side = ctx.get("position_side") or _normalize_position_side(ctx.get("side"))
+                        entry_price = ctx.get("entry_price")
+                        exit_price = ctx.get("exit_price")
+                        qty = ctx.get("qty")
+                        pnl_usd_re = _compute_trade_pnl(entry_price, exit_price, qty, str(position_side).lower())
+                        closed_pnl_sum_recomputed += pnl_usd_re
+                        if abs(pnl_usd_re - pnl_usd_logged) > 0.05:
+                            recompute_mismatch_count += 1
+        except Exception:
+            pass
+
+        payload = {
+            "date": date_str,
+            "equity_now": equity_now,
+            "last_equity": last_equity,
+            "broker_day_pnl": broker_day_pnl,
+            "daily_start_equity": start_equity,
+            "window_pnl": window_pnl,
+            "attribution_closed_pnl_sum_logged": round(closed_pnl_sum_logged, 2),
+            "attribution_closed_pnl_sum_recomputed": round(closed_pnl_sum_recomputed, 2),
+            "attribution_entered_today_closed_today_sum": round(entered_today_closed_today_sum, 2),
+            "attribution_records_counted": counted,
+            "recompute_mismatch_count": recompute_mismatch_count,
+            "notes": [
+                "broker_day_pnl is equity_now - last_equity (broker day).",
+                "window_pnl is equity_now - daily_start_equity (session baseline), if daily_start_equity is available.",
+                "attribution_* sums are from logs/attribution.jsonl for records whose ts startswith date.",
+                "logged vs recomputed differences indicate attribution integrity issues (should shrink after fixes).",
+            ],
+        }
+
+        try:
+            from config.registry import append_jsonl, LogFiles
+            append_jsonl(LogFiles.PNL_RECONCILIATION, payload)
+        except Exception:
+            pass
+
+        return jsonify(payload), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/closed_positions")
 def api_closed_positions():
@@ -2215,6 +2413,123 @@ def api_system_health():
             "error": str(e),
             "timestamp": datetime.now(timezone.utc).isoformat()
         }), 500
+
+
+@app.route("/api/system-events", methods=["GET"])
+def api_system_events():
+    """
+    Return last N system events (default 500) with optional filters:
+    - subsystem
+    - severity
+    - symbol
+    """
+    try:
+        limit = 500
+        try:
+            limit = min(500, max(1, int(request.args.get("limit", "500"))))
+        except Exception:
+            limit = 500
+        subsystem = request.args.get("subsystem") or None
+        severity = request.args.get("severity") or None
+        symbol = request.args.get("symbol") or None
+        try:
+            from utils.system_events import read_last_system_events
+            rows = read_last_system_events(limit=limit, subsystem=subsystem, severity=severity, symbol=symbol)
+        except Exception as e:
+            rows = []
+        return jsonify({"events": rows})
+    except Exception as e:
+        return jsonify({"events": [], "error": str(e)}), 500
+
+
+@app.route("/system-events", methods=["GET"])
+def system_events_page():
+    """Simple system events panel (permanent observability)."""
+    html = """
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System Events</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; background: #0b1220; color: #e5e7eb; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    input, select { padding: 8px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e5e7eb; }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #334155; background: #111827; color: #e5e7eb; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #334155; vertical-align: top; font-size: 12px; }
+    th { text-align: left; color: #cbd5e1; position: sticky; top: 0; background: #0b1220; }
+    .sev-CRITICAL { color: #fecaca; font-weight: 700; }
+    .sev-ERROR { color: #fca5a5; font-weight: 600; }
+    .sev-WARN { color: #fde68a; font-weight: 600; }
+    .sev-INFO { color: #93c5fd; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <h2>System Events (last 500)</h2>
+  <div class="row">
+    <input id="subsystem" placeholder="subsystem (e.g. gate, exit, order)" />
+    <select id="severity">
+      <option value="">severity (all)</option>
+      <option>CRITICAL</option>
+      <option>ERROR</option>
+      <option>WARN</option>
+      <option>INFO</option>
+    </select>
+    <input id="symbol" placeholder="symbol (e.g. AAPL)" />
+    <button onclick="loadEvents()">Refresh</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 220px;">timestamp</th>
+        <th style="width: 110px;">subsystem</th>
+        <th style="width: 120px;">severity</th>
+        <th style="width: 220px;">event_type</th>
+        <th style="width: 90px;">symbol</th>
+        <th>details</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <script>
+    async function loadEvents() {
+      const subsystem = document.getElementById('subsystem').value.trim();
+      const severity = document.getElementById('severity').value.trim();
+      const symbol = document.getElementById('symbol').value.trim();
+      const params = new URLSearchParams();
+      if (subsystem) params.set('subsystem', subsystem);
+      if (severity) params.set('severity', severity);
+      if (symbol) params.set('symbol', symbol);
+      params.set('limit', '500');
+      const resp = await fetch('/api/system-events?' + params.toString());
+      const data = await resp.json();
+      const rows = (data && data.events) ? data.events : [];
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+      for (const r of rows) {
+        const sev = (r.severity || '').toUpperCase();
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="mono">${r.timestamp || ''}</td>
+          <td>${r.subsystem || ''}</td>
+          <td class="sev-${sev}">${sev}</td>
+          <td class="mono">${r.event_type || ''}</td>
+          <td class="mono">${r.symbol || ''}</td>
+          <td class="mono">${JSON.stringify(r.details || {}, null, 2)}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+    loadEvents();
+    setInterval(loadEvents, 15000);
+  </script>
+</body>
+</html>
+"""
+    return render_template_string(html)
 
 def _get_supervisor_health():
     """Get supervisor health data from health.json (Risk #9)."""
@@ -3440,6 +3755,13 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
     print(f"[Dashboard] Starting on port {port}...", flush=True)
     print(f"[Dashboard] Instance: {os.getenv('INSTANCE', 'UNKNOWN')}", flush=True)
+
+    # Fail fast if Flask isn't actually available.
+    # WHY: If Flask is missing, the dashboard never binds a port, so it appears "down" with no clear error.
+    # HOW TO VERIFY: Logs show this message and process exits non-zero; install Flask in the runtime to resolve.
+    if not _FLASK_AVAILABLE:
+        print("[Dashboard] ERROR: Flask is not installed in this runtime. Install flask and restart the dashboard service.", flush=True)
+        raise SystemExit(1)
     
     loader_thread = threading.Thread(target=lazy_load_dependencies, daemon=True)
     loader_thread.start()

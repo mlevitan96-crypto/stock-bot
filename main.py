@@ -593,6 +593,18 @@ load_theme_risk_config()
 # Institutional telemetry
 telemetry = TelemetryLogger()
 
+# Permanent system-events layer (append-only).
+try:
+    from utils.system_events import log_system_event, global_failure_wrapper
+except Exception:
+    # Never block bot startup on observability imports.
+    def log_system_event(*args, **kwargs):  # type: ignore
+        return None
+    def global_failure_wrapper(_subsystem):  # type: ignore
+        def _d(fn):
+            return fn
+        return _d
+
 # =========================
 # UTILITIES
 # =========================
@@ -623,8 +635,68 @@ def jsonl_write(name, record):
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps({"ts": now_iso(), **record}) + "\n")
 
+_CYCLE_GATE_SYMBOLS = set()
+
+def _infer_system_severity(kind: str, msg: str, kw: dict) -> str:
+    try:
+        sev = str(kw.get("severity", "")).upper().strip()
+        if sev in ("INFO", "WARN", "ERROR", "CRITICAL"):
+            return sev
+        # Map legacy severities
+        if sev in ("HIGH", "SEVERE"):
+            return "ERROR"
+    except Exception:
+        pass
+    m = str(msg or "").upper()
+    if "CRITICAL" in m:
+        return "CRITICAL"
+    if "EXCEPTION" in m or "TRACEBACK" in m:
+        return "CRITICAL"
+    if "FAILED" in m or "ERROR" in m or "CORRUPT" in m:
+        return "ERROR"
+    if "ALL_ATTEMPTS_FAILED" in m or "MAX_ATTEMPTS" in m:
+        return "CRITICAL"
+    if "STALE" in m or "MISSING" in m or "UNAVAILABLE" in m:
+        return "WARN"
+    # Gate blocks are first-class but not errors.
+    if str(kind or "").lower() == "gate":
+        return "INFO"
+    return "INFO"
+
 def log_event(kind, msg, **kw):
     jsonl_write(kind, {"msg": msg, **kw})
+    # Permanent unified system events stream (best-effort; never blocks execution).
+    try:
+        subsystem = str(kind)
+        symbol = kw.get("symbol")
+        # Track gate symbols for missed-candidate detection.
+        if subsystem == "gate" and symbol:
+            try:
+                _CYCLE_GATE_SYMBOLS.add(str(symbol))
+            except Exception:
+                pass
+        # First-class blocked events: any gate event other than cycle summaries/passes.
+        if subsystem == "gate" and str(msg) not in ("cycle_summary",):
+            log_system_event(
+                subsystem="gate",
+                event_type="blocked",
+                severity="INFO",
+                symbol=symbol,
+                reason=str(msg),
+                score=kw.get("score"),
+                position_state=kw.get("position_state"),
+                details=kw,
+            )
+        else:
+            log_system_event(
+                subsystem=subsystem,
+                event_type=str(msg),
+                severity=_infer_system_severity(subsystem, str(msg), kw),
+                symbol=symbol,
+                details=kw,
+            )
+    except Exception:
+        pass
 
 # ============================================================
 # SRE PIPELINE HEARTBEAT (low-noise, read-only observability)
@@ -3161,6 +3233,48 @@ def correlated_exposure_guard(open_positions, theme_map: dict, max_per_theme_not
 # =========================
 _atr_cache = {}
 
+@global_failure_wrapper("bar_fetch")
+def fetch_bars_safe(api, symbol: str, timeframe: str = "1Min", limit: int = 100):
+    """
+    Safe bar fetch with stale-bar guard.
+    Contract:
+    - On exception: logs (via wrapper) and returns None.
+    - On stale bars: logs WARN and returns None.
+    """
+    bars = api.get_bars(symbol, timeframe, limit=limit)
+    df = getattr(bars, "df", None)
+    if df is None or len(df) == 0:
+        return None
+    try:
+        last_bar_ts = df.index[-1]
+        last_bar_dt = last_bar_ts.to_pydatetime() if hasattr(last_bar_ts, "to_pydatetime") else last_bar_ts
+        if getattr(last_bar_dt, "tzinfo", None) is None:
+            last_bar_dt = last_bar_dt.replace(tzinfo=timezone.utc)
+        else:
+            last_bar_dt = last_bar_dt.astimezone(timezone.utc)
+        now_dt = datetime.now(timezone.utc)
+        try:
+            max_age_minutes = float(get_env("BAR_STALE_MAX_AGE_MINUTES", 5, float))
+        except Exception:
+            max_age_minutes = 5.0
+        age_min = (now_dt - last_bar_dt).total_seconds() / 60.0
+        if age_min > max_age_minutes:
+            log_system_event(
+                subsystem="data",
+                event_type="stale_bars_detected",
+                severity="WARN",
+                symbol=symbol,
+                timeframe=timeframe,
+                latest_bar=str(last_bar_dt),
+                now=str(now_dt),
+                age_minutes=round(age_min, 2),
+                max_age_minutes=max_age_minutes,
+            )
+            return None
+    except Exception:
+        pass
+    return bars
+
 def compute_atr(api, symbol: str, lookback: int):
     cache_key = f"{symbol}_{lookback}"
     now = time.time()
@@ -3170,7 +3284,8 @@ def compute_atr(api, symbol: str, lookback: int):
             return cached_atr
     
     try:
-        bars = api.get_bars(symbol, "1Min", limit=lookback + 1).df
+        bars_obj = fetch_bars_safe(api, symbol, "1Min", limit=lookback + 1)
+        bars = getattr(bars_obj, "df", None) if bars_obj is not None else None
         if bars is None or len(bars) < 2:
             return 0.0
 
@@ -3271,7 +3386,7 @@ def _probe_1min_bar_freshness_maybe(api, *, symbol: str = "SPY", every_sec: floa
             return
         _BAR_PROBE_LAST_TS = now_ts
 
-        bars = api.get_bars(symbol, "1Min", limit=5)
+        bars = fetch_bars_safe(api, symbol, "1Min", limit=5)
         df = getattr(bars, "df", None)
         if df is None or len(df) == 0:
             log_event("market_check", "bar_probe_empty", symbol=symbol)
@@ -3549,6 +3664,48 @@ class AlpacaExecutor:
             time.sleep(0.2)
         return False, 0, 0.0
 
+    def close_position_with_retries(self, symbol: str, *, max_attempts: int = 3):
+        """
+        Close a position with retries and first-class exit failure logging.
+        Contract: never raises; logs every failure permanently.
+        """
+        for attempt in range(1, int(max_attempts) + 1):
+            try:
+                try:
+                    return self.api.close_position(symbol, cancel_orders=True)
+                except TypeError:
+                    return self.api.close_position(symbol)
+            except Exception as e:
+                log_system_event(
+                    subsystem="exit",
+                    event_type="close_position_failed",
+                    severity="ERROR",
+                    symbol=symbol,
+                    error=str(e),
+                    attempt=attempt,
+                )
+                if attempt < int(max_attempts):
+                    try:
+                        time.sleep(0.5 * (2 ** (attempt - 1)))
+                    except Exception:
+                        pass
+                    continue
+                log_system_event(
+                    subsystem="exit",
+                    event_type="close_position_all_attempts_failed",
+                    severity="CRITICAL",
+                    symbol=symbol,
+                )
+                return None
+
+    @global_failure_wrapper("exit")
+    def close_position_api_once(self, symbol: str):
+        """Single close_position attempt (wrapped) for exit evaluation loops."""
+        try:
+            return self.api.close_position(symbol, cancel_orders=True)
+        except TypeError:
+            return self.api.close_position(symbol)
+
     def compute_entry_price(self, symbol: str, side: str):
         bid, ask = self.get_nbbo(symbol)
         if bid <= 0 or ask <= 0:
@@ -3587,6 +3744,7 @@ class AlpacaExecutor:
             return fn(client_order_id)
         return None
 
+    @global_failure_wrapper("order")
     def submit_entry(
         self,
         symbol: str,
@@ -4397,7 +4555,12 @@ class AlpacaExecutor:
                                 enriched = uw_cache.get(symbol, {})
                                 if enriched:
                                     import uw_composite_v2 as uw_v2
-                                    composite = uw_v2.compute_composite_score_v3(symbol, enriched, "mixed")
+                                    try:
+                                        import uw_enrichment_v2 as uw_enrich
+                                        enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, "mixed") or enriched
+                                    except Exception:
+                                        enriched_live = enriched
+                                    composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, "mixed")
                                     if composite:
                                         current_score = composite.get("score", entry_score)
                         except Exception:
@@ -4476,7 +4639,12 @@ class AlpacaExecutor:
                                 enriched = uw_cache.get(symbol, {})
                                 if enriched:
                                     import uw_composite_v2 as uw_v2
-                                    composite = uw_v2.compute_composite_score_v3(symbol, enriched, "mixed")
+                                    try:
+                                        import uw_enrichment_v2 as uw_enrich
+                                        enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, "mixed") or enriched
+                                    except Exception:
+                                        enriched_live = enriched
+                                    composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, "mixed")
                                     if composite:
                                         current_score = composite.get("score", pos_meta.get("entry_score", 0.0))
                         except Exception:
@@ -4808,10 +4976,9 @@ class AlpacaExecutor:
             try:
                 # Contract: closes should succeed even if qty is reserved by open orders.
                 # Prefer canceling open orders as part of close (safe fallback for older SDKs).
-                try:
-                    close_order = self.api.close_position(symbol, cancel_orders=True)
-                except TypeError:
-                    close_order = self.api.close_position(symbol)
+                close_order = self.close_position_with_retries(symbol, max_attempts=3)
+                if close_order is None:
+                    raise RuntimeError("close_position_with_retries failed")
                 exit_order_id = getattr(close_order, "id", None)
                 log_event("displacement", "close_position_api_called", symbol=symbol)
                 # Fill-sourcing contract: do not attribute using quotes/marks.
@@ -5238,6 +5405,7 @@ class AlpacaExecutor:
         except Exception as e:
             log_event("reload", "metadata_reload_failed", error=str(e))
 
+    @global_failure_wrapper("exit")
     def evaluate_exits(self):
         # CRITICAL: Reload positions from metadata (catches health check auto-fixes)
         self.reload_positions_from_metadata()
@@ -5276,10 +5444,7 @@ class AlpacaExecutor:
                     # CLOSE IT NOW - Don't wait for the loop
                     try:
                         # Contract: closes should succeed even if qty is reserved by open orders.
-                        try:
-                            self.api.close_position("V", cancel_orders=True)
-                        except TypeError:
-                            self.api.close_position("V")
+                        self.close_position_with_retries("V", max_attempts=3)
                         print(f"CRITICAL: V close order submitted - P&L={v_pnl_pct:.2f}%", flush=True)
                         log_event("exit", "force_close_v_order_submitted", pnl_pct=v_pnl_pct)
                         
@@ -5516,11 +5681,18 @@ class AlpacaExecutor:
             try:
                 enriched = uw_cache.get(symbol, {})
                 if enriched:
-                    composite = uw_v2.compute_composite_score_v3(symbol, enriched, current_regime_global)
+                    # Scoring pipeline invariant: current scores MUST use the same enrichment path as entries.
+                    # WHY: raw cache often contains None/missing fields (conviction, etc.), causing score collapse into a narrow band.
+                    try:
+                        import uw_enrichment_v2 as uw_enrich
+                        enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, current_regime_global) or enriched
+                    except Exception:
+                        enriched_live = enriched
+                    composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, current_regime_global)
                     if composite:
                         current_composite_score = composite.get("score", 0.0)
                         # Check for flow reversal
-                        flow_sent = enriched.get("sentiment", "NEUTRAL")
+                        flow_sent = enriched_live.get("sentiment", "NEUTRAL")
                         entry_direction = info.get("direction", "unknown")
                         if entry_direction == "bullish" and flow_sent == "BEARISH":
                             flow_reversal = True
@@ -5595,6 +5767,15 @@ class AlpacaExecutor:
                          symbol=symbol,
                          urgency=exit_recommendation.get("urgency"),
                          reason=exit_reasons[symbol])
+                if flow_reversal:
+                    log_system_event(
+                        subsystem="exit",
+                        event_type="counter_signal_exit_triggered",
+                        severity="INFO",
+                        symbol=symbol,
+                        score_before=float(entry_score or 0.0),
+                        score_after=float(current_composite_score or 0.0),
+                    )
                 to_close.append(symbol)
                 continue
             
@@ -5959,10 +6140,9 @@ class AlpacaExecutor:
                     try:
                         # Attempt to close position
                         # Contract: closes should succeed even if qty is reserved by open orders.
-                        try:
-                            close_order = self.api.close_position(symbol, cancel_orders=True)
-                        except TypeError:
-                            close_order = self.api.close_position(symbol)
+                        close_order = self.close_position_api_once(symbol)
+                        if close_order is None:
+                            raise RuntimeError("close_position_api_once returned None")
                         exit_order_id = getattr(close_order, "id", None)
                         log_event("exit", "close_position_api_called", symbol=symbol, attempt=close_attempts, exit_order_id=str(exit_order_id) if exit_order_id else None)
                         
@@ -6221,8 +6401,17 @@ class StrategyEngine:
         w = float(self.weights.get(key, 1.0))
         return round(base_score * w, 3)
 
+    @global_failure_wrapper("decision")
     def decide_and_execute(self, clusters: list, confirm_map: dict, gex_map: dict, decisions_map: dict = None, market_regime: str = "mixed"):
         orders = []
+        # Reset per-cycle gate symbol tracker (used for missed-candidate detection).
+        try:
+            global _CYCLE_GATE_SYMBOLS
+            _CYCLE_GATE_SYMBOLS = set()
+        except Exception:
+            pass
+
+        candidates_above_min = {}
         # Per-cycle gate accounting (for "why no trades?" observability).
         try:
             from collections import Counter as _Counter
@@ -6337,6 +6526,11 @@ class StrategyEngine:
             direction = c.get("direction", "unknown")
             # CRITICAL FIX: Initialize score but recalculate if source is unknown or composite_score is 0.0
             score = c.get("composite_score", 0.0)
+            try:
+                if float(score) >= float(Config.MIN_EXEC_SCORE):
+                    candidates_above_min[str(symbol)] = float(score)
+            except Exception:
+                pass
             considered += 1
             try:
                 s = float(score)
@@ -6480,7 +6674,12 @@ class StrategyEngine:
                         enriched = self.uw_flow_cache.get(symbol, {})
                         if enriched:
                             import uw_composite_v2 as uw_v2
-                            temp_composite = uw_v2.compute_composite_score_v3(symbol, enriched, market_regime)
+                            try:
+                                import uw_enrichment_v2 as uw_enrich
+                                enriched_live = uw_enrich.enrich_signal(symbol, self.uw_flow_cache, market_regime) or enriched
+                            except Exception:
+                                enriched_live = enriched
+                            temp_composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, market_regime)
                             if temp_composite:
                                 whale_boost = temp_composite.get("whale_conviction_boost", 0.0)
                                 composite_result = temp_composite
@@ -6753,10 +6952,7 @@ class StrategyEngine:
                         position_closed = False
                         try:
                             # Contract: closes should succeed even if qty is reserved by open orders.
-                            try:
-                                self.executor.api.close_position(symbol, cancel_orders=True)
-                            except TypeError:
-                                self.executor.api.close_position(symbol)
+                            self.executor.close_position_with_retries(symbol, max_attempts=3)
                             log_event("position_flip", "close_position_api_called", symbol=symbol)
                             
                             # CRITICAL: Verify position was actually closed
@@ -7920,6 +8116,25 @@ class StrategyEngine:
         print(f"DEBUG decide_and_execute SUMMARY: {len(clusters_sorted)} clusters processed, {new_positions_this_cycle} positions opened this cycle, {len(orders)} orders returned", flush=True)
         if len(orders) == 0 and len(clusters_sorted) > 0:
             print(f"DEBUG WARNING: {len(clusters_sorted)} clusters processed but 0 orders returned - check gate logs above for block reasons", flush=True)
+
+        # First-class missed-candidate logging: above-floor symbols that neither executed nor logged a gate.
+        try:
+            executed_symbols = set()
+            for o in orders:
+                if isinstance(o, dict) and o.get("symbol"):
+                    executed_symbols.add(str(o.get("symbol")))
+            for sym, sc in (candidates_above_min or {}).items():
+                if sym not in executed_symbols and sym not in _CYCLE_GATE_SYMBOLS:
+                    log_system_event(
+                        subsystem="decision",
+                        event_type="missed_candidate",
+                        severity="WARN",
+                        symbol=sym,
+                        score=float(sc),
+                        reason="no_gate_recorded",
+                    )
+        except Exception:
+            pass
         
         # RISK MANAGEMENT: Update daily start equity if this is first trade of day
         try:
@@ -8021,6 +8236,7 @@ def generate_eod_report(date_str=None):
 # =========================
 # UW CACHE INTEGRATION (Transitional composite scoring)
 # =========================
+@global_failure_wrapper("uw_cache")
 def read_uw_cache():
     """Read UW cache populated by daemon.
 
@@ -8124,6 +8340,7 @@ def audit_seg(name, phase, extra=None):
 # =========================
 # CORE ITERATION (pull all UW layers, score, execute)
 # =========================
+@global_failure_wrapper("decision")
 def run_once():
     # CRITICAL FIX: Log entry to run_once()
     try:
@@ -8598,6 +8815,23 @@ def run_once():
             all_symbols_to_process = cluster_symbols | cache_symbols
             
             print(f"DEBUG: Processing {len(all_symbols_to_process)} symbols ({len(cluster_symbols)} from clusters, {len(cache_symbols)} from cache)", flush=True)
+
+            # Counter-signal detector state (persisted; best-effort).
+            try:
+                from pathlib import Path as _Path
+                from utils.state_io import read_json_self_heal as _read_json_self_heal
+                _LAST_SCORES_PATH = _Path("state/last_scores.json")
+                last_scores = _read_json_self_heal(
+                    _LAST_SCORES_PATH,
+                    {},
+                    on_event=lambda ev, payload: log_system_event("signals", ev, "WARN", details=payload),
+                )
+                if not isinstance(last_scores, dict):
+                    last_scores = {}
+            except Exception:
+                last_scores = {}
+                _LAST_SCORES_PATH = None
+            last_scores_dirty = False
             
             for ticker in all_symbols_to_process:
                 # Skip metadata keys
@@ -8717,6 +8951,32 @@ def run_once():
                 score = composite.get("score", 0.0)
                 print(f"DEBUG: {ticker} composite_score={score:.3f}", flush=True)
                 log_event("scoring_flow", "composite_calculated", symbol=ticker, score=score, components=composite.get("components", {}))
+
+                # First-class counter-signal logging (direction reversal).
+                try:
+                    new_sent = enriched.get("sentiment", "NEUTRAL")
+                    new_dir = "bullish" if new_sent == "BULLISH" else ("bearish" if new_sent == "BEARISH" else "neutral")
+                    prev = last_scores.get(ticker, {}) if isinstance(last_scores, dict) else {}
+                    old_score = float(prev.get("score", 0.0) or 0.0)
+                    old_dir = str(prev.get("direction", "neutral") or "neutral")
+                    delta = float(score) - float(old_score)
+                    if old_dir in ("bullish", "bearish") and new_dir in ("bullish", "bearish") and old_dir != new_dir:
+                        log_system_event(
+                            subsystem="signals",
+                            event_type="counter_signal_detected",
+                            severity="INFO",
+                            symbol=ticker,
+                            old_score=old_score,
+                            new_score=float(score),
+                            delta=delta,
+                            old_direction=old_dir,
+                            new_direction=new_dir,
+                        )
+                    if isinstance(last_scores, dict):
+                        last_scores[ticker] = {"score": float(score), "direction": new_dir, "ts": now_iso()}
+                        last_scores_dirty = True
+                except Exception:
+                    pass
                 
                 # V3: Log all expanded features for learning (congress, shorts, institutional, etc.)
                 log_v3_features(ticker, composite)
@@ -9195,6 +9455,14 @@ def run_once():
                     except Exception as e:
                         print(f"DEBUG: Failed to log rejected signal to history: {e}", flush=True)
             
+            # Persist counter-signal state (best-effort; never blocks trading).
+            try:
+                if last_scores_dirty and _LAST_SCORES_PATH is not None:
+                    from config.registry import atomic_write_json as _atomic_write_json
+                    _atomic_write_json(_LAST_SCORES_PATH, last_scores)
+            except Exception:
+                pass
+
             # CRITICAL FIX: When composite scoring is active, ONLY use composite-scored clusters
             # Flow_trades clusters don't have composite_score, so they appear as score=0.00
             # Composite-scored clusters have proper scores and source="composite_v3"

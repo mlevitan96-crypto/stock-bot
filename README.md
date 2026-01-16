@@ -118,6 +118,44 @@ The bot includes comprehensive self-healing capabilities:
 - Automatic retry for transient errors, fail-fast for persistent errors
 
 ### Trade Guard (Risk #15)
+
+## Permanent System Events (Global Observability)
+
+STOCK-BOT now emits a **single, append-only, structured event stream** for reliability and auditability:
+
+- **Location**: `logs/system_events.jsonl` (always exists; append-only)
+- **Schema**:
+  - `timestamp` (UTC ISO)
+  - `subsystem` (e.g. `scoring`, `decision`, `gate`, `order`, `exit`, `data`, `uw_cache`, `signals`, `uw_poll`)
+  - `event_type` (string)
+  - `severity` (`INFO|WARN|ERROR|CRITICAL`)
+  - `symbol` (optional)
+  - `details` (dict)
+
+### What gets logged
+
+- **All exceptions** inside wrapped subsystems via `@global_failure_wrapper(subsystem)` (includes traceback).
+- **First-class operational events**:
+  - **Counter-signals**: `signals.counter_signal_detected`
+  - **Blocked candidates**: `gate.blocked` (reason + context in `details`)
+  - **Missed candidates**: `decision.missed_candidate`
+  - **Exit failures**: `exit.close_position_failed`, `exit.close_position_all_attempts_failed`
+
+### How to interpret
+
+- **CRITICAL**: the subsystem hit an exception/failure that may require intervention (or repeated self-heal attempts failed).
+- **ERROR**: a retryable failure happened (order/exit attempts, transient subsystem exception).
+- **WARN**: degraded/stale data or fallback behavior (cycle skipped, stale bars detected, fallback return).
+- **INFO**: expected control-flow events (gates blocked a candidate; counter-signal detected).
+
+### Regression detection
+
+- Watch for increasing rates of:
+  - `event_type=exception` with `severity in {ERROR,CRITICAL}`
+  - `exit.close_position_all_attempts_failed`
+  - `decision.missed_candidate`
+  - `data.stale_bars_detected`
+- Dashboard panel (optional): `GET /system-events` (filters by subsystem/severity/symbol).
 - Mandatory sanity checks before every order
 - Validates position size, exposure, price sanity, cooldowns
 - All orders must pass trade guard before submission
