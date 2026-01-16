@@ -202,7 +202,6 @@ class UWClient:
                 # V4.0: Queue signal for later processing if in PANIC regime
                 try:
                     from api_resilience import get_signal_queue, is_panic_regime
-                    from datetime import datetime, timezone
                     if is_panic_regime():
                         queue = get_signal_queue()
                         queue.enqueue({
