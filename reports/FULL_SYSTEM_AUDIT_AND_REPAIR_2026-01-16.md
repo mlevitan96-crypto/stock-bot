@@ -57,6 +57,7 @@ Evidence shows the service is active and all subprocesses are running (dashboard
 
 - Fixed composite score collapse caused by missing `conviction`/`sentiment` defaults and positive defaults for missing intelligence components.
 - Fixed UW daemon per-ticker polling so `option_flow` endpoints are tracked by `endpoint:ticker` (prevents “only first ticker updates”).
+- Fixed a UW daemon logging bug (`UnboundLocalError: datetime`) that could spam errors while handling successful responses.
 
 ### 4.4 Stale bar behavior is now explicit (observability-only)
 
