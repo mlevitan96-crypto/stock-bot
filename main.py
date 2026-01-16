@@ -626,6 +626,39 @@ def jsonl_write(name, record):
 def log_event(kind, msg, **kw):
     jsonl_write(kind, {"msg": msg, **kw})
 
+# ============================================================
+# SRE PIPELINE HEARTBEAT (low-noise, read-only observability)
+# ============================================================
+# Contract: once per N cycles, emit a compact heartbeat showing that scoring/decisions/exits are alive.
+_PIPELINE_STAGE_TS = {"scoring": None, "decision": None, "exit_eval": None}
+_PIPELINE_HEARTBEAT_LAST_LOG_TS = 0.0
+
+
+def _pipeline_touch(stage: str) -> None:
+    try:
+        _PIPELINE_STAGE_TS[stage] = time.time()
+    except Exception:
+        pass
+
+
+def _pipeline_heartbeat_maybe(*, every_sec: float = 600.0) -> None:
+    """Emit a low-noise heartbeat at most once per `every_sec`."""
+    global _PIPELINE_HEARTBEAT_LAST_LOG_TS
+    try:
+        now = time.time()
+        if (now - float(_PIPELINE_HEARTBEAT_LAST_LOG_TS or 0.0)) < every_sec:
+            return
+        _PIPELINE_HEARTBEAT_LAST_LOG_TS = now
+        log_event(
+            "sre_health",
+            "pipeline_heartbeat",
+            last_scoring_ts=_PIPELINE_STAGE_TS.get("scoring"),
+            last_decision_ts=_PIPELINE_STAGE_TS.get("decision"),
+            last_exit_eval_ts=_PIPELINE_STAGE_TS.get("exit_eval"),
+        )
+    except Exception:
+        pass
+
 # Optional env checks (non-blocking)
 try:
     if _MISSING_REQUESTS_LIB and not _LOGGED_MISSING_REQUESTS:
@@ -3140,6 +3173,48 @@ def compute_atr(api, symbol: str, lookback: int):
         bars = api.get_bars(symbol, "1Min", limit=lookback + 1).df
         if bars is None or len(bars) < 2:
             return 0.0
+
+        # Contract: When bars are stale, the system MUST NOT trade on them and MUST log stale_bars_detected.
+        # This is an operational guardrail (prevents using stale market data; does not add new strategy behavior).
+        try:
+            max_age_minutes = float(get_env("BAR_STALE_MAX_AGE_MINUTES", 5, float))
+        except Exception:
+            max_age_minutes = 5.0
+        try:
+            global _STALE_BAR_LOG_LAST_TS  # lazily created
+        except Exception:
+            _STALE_BAR_LOG_LAST_TS = {}
+        try:
+            last_bar_ts = bars.index[-1]
+            if hasattr(last_bar_ts, "to_pydatetime"):
+                last_bar_dt = last_bar_ts.to_pydatetime()
+            else:
+                last_bar_dt = last_bar_ts
+            if getattr(last_bar_dt, "tzinfo", None) is None:
+                last_bar_dt = last_bar_dt.replace(tzinfo=timezone.utc)
+            else:
+                last_bar_dt = last_bar_dt.astimezone(timezone.utc)
+            now_dt = datetime.now(timezone.utc)
+            age_min = (now_dt - last_bar_dt).total_seconds() / 60.0
+            if age_min > max_age_minutes:
+                now_sec = time.time()
+                last_logged = float(_STALE_BAR_LOG_LAST_TS.get(symbol, 0.0) or 0.0)
+                if (now_sec - last_logged) > 300:
+                    _STALE_BAR_LOG_LAST_TS[symbol] = now_sec
+                    log_event(
+                        "market_data",
+                        "stale_bars_detected",
+                        symbol=symbol,
+                        latest_bar=str(last_bar_dt),
+                        now=str(now_dt),
+                        age_minutes=round(age_min, 2),
+                        max_age_minutes=max_age_minutes,
+                        source="compute_atr",
+                        action="skip_indicator",
+                    )
+                return 0.0
+        except Exception:
+            pass
         
         # BULLETPROOF: Safe column access with validation
         if not all(col in bars.columns for col in ['high', 'low', 'close']):
@@ -5103,6 +5178,8 @@ class AlpacaExecutor:
     def evaluate_exits(self):
         # CRITICAL: Reload positions from metadata (catches health check auto-fixes)
         self.reload_positions_from_metadata()
+        _pipeline_touch("exit_eval")
+        _pipeline_heartbeat_maybe()
         
         to_close = []
         exit_reasons = {}  # Track composite exit reasons per symbol
@@ -5192,7 +5269,15 @@ class AlpacaExecutor:
             all_metadata = {}  # Fail open - continue with empty metadata
 
         # Get current UW cache for signal evaluation
-        uw_cache = read_uw_cache()
+        # Contract: If UW cache cannot be loaded due to import issues, exits are skipped and a clear event is logged.
+        try:
+            uw_cache = read_uw_cache()
+        except (ImportError, NameError) as e:
+            log_event("exit", "uw_cache_import_failed", error=str(e), error_type=type(e).__name__, action="skip_exits")
+            return
+        except Exception as e:
+            log_event("exit", "uw_cache_load_failed", error=str(e), error_type=type(e).__name__, action="skip_exits")
+            return
         current_regime_global = self._get_global_regime() or "mixed"
 
         now = datetime.utcnow()
@@ -5888,6 +5973,9 @@ class AlpacaExecutor:
                             break  # Successfully closed and verified
                             
                     except Exception as close_err:
+                        # Contract: Exit failure handlers MUST NOT throw secondary exceptions.
+                        # Use a local alias so future edits can't break retry sleeps via shadowing `time`.
+                        import time as _time
                         log_event("exit", "close_position_failed", symbol=symbol, error=str(close_err), attempt=close_attempts)
                         print(f"ERROR EXITS: Failed to close {symbol} (attempt {close_attempts}/{max_close_attempts}): {close_err}", flush=True)
                         
@@ -5895,7 +5983,7 @@ class AlpacaExecutor:
                             # Retry after delay
                             wait_time = 2.0 * close_attempts  # Exponential backoff: 2s, 4s
                             log_event("exit", "close_position_retry", symbol=symbol, attempt=close_attempts, wait_sec=wait_time)
-                            time.sleep(wait_time)
+                            _time.sleep(wait_time)
                         else:
                             # All attempts failed
                             log_event("exit", "close_position_all_attempts_failed", symbol=symbol, 
@@ -5994,7 +6082,10 @@ class AlpacaExecutor:
             except Exception as e:
                 log_order({"action": "close_position_failed", "symbol": symbol, "error": str(e)})
                 print(f"ERROR EXITS: Exception closing {symbol}: {e}", flush=True)
-                traceback.print_exc()
+                try:
+                    traceback.print_exc()
+                except Exception:
+                    pass
                 # DO NOT remove from tracking on exception - allow retry next cycle
                 log_event("exit", "close_position_exception_keep_tracking", symbol=symbol, error=str(e))
     
@@ -7795,7 +7886,11 @@ def generate_eod_report(date_str=None):
 # UW CACHE INTEGRATION (Transitional composite scoring)
 # =========================
 def read_uw_cache():
-    """Read UW cache populated by daemon."""
+    """Read UW cache populated by daemon.
+
+    Contract: read_uw_cache() MUST NOT raise ImportError in production.
+    If UW cache is missing/corrupt/unreadable, it MUST return {} and log a clear event.
+    """
     # BULLETPROOF: Safe cache read with corruption handling and self-healing
     cache_file = CacheFiles.UW_FLOW_CACHE
     if not cache_file.exists():
@@ -7803,7 +7898,59 @@ def read_uw_cache():
         return {}
 
     # Use the shared self-healing JSON reader so corruption never disables trading silently.
-    from utils.state_io import read_json_self_heal
+    try:
+        from utils.state_io import read_json_self_heal
+    except Exception as e:
+        log_event(
+            "uw_cache",
+            "uw_cache_import_failed",
+            error=str(e),
+            error_type=type(e).__name__,
+            module="utils.state_io.read_json_self_heal",
+            action="fallback_reader",
+            severity="HIGH",
+        )
+
+        # Fallback: minimal self-healing reader (kept local to avoid scattered PYTHONPATH hacks).
+        def read_json_self_heal(path, default, *, heal=True, mkdir=True, on_event=None):  # type: ignore
+            from pathlib import Path
+            import json as _json
+            import time as _time
+
+            p = Path(path)
+            if not p.exists():
+                return default
+            try:
+                return _json.loads(p.read_text(encoding="utf-8"))
+            except Exception as ee:
+                if on_event:
+                    try:
+                        on_event("state_read_failed", {"path": str(p), "error": str(ee), "error_type": type(ee).__name__})
+                    except Exception:
+                        pass
+                if not heal:
+                    return default
+                try:
+                    ts = int(_time.time())
+                    backup = p.with_suffix(p.suffix + f".corrupted.{ts}.json")
+                    try:
+                        p.rename(backup)
+                    except Exception:
+                        backup = None
+                    if mkdir:
+                        p.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        p.write_text(_json.dumps(default, indent=2), encoding="utf-8")
+                    except Exception:
+                        pass
+                    if on_event:
+                        try:
+                            on_event("state_self_healed", {"path": str(p), "backup": str(backup) if backup else None})
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                return default
 
     cache = read_json_self_heal(
         cache_file,
@@ -7850,6 +7997,7 @@ def run_once():
     except:
         pass
     print("DEBUG: run_once() ENTRY", flush=True)
+    _pipeline_heartbeat_maybe()
     
     # CRITICAL FIX: Ensure StateFiles is available - re-import if needed
     global StateFiles
@@ -8291,6 +8439,7 @@ def run_once():
         
         print(f"DEBUG: Initial flow_trades clusters={len(flow_clusters)}, use_composite={use_composite}", flush=True)
         log_event("scoring_flow", "cluster_creation", flow_clusters=len(flow_clusters), use_composite=use_composite, cache_symbols=cache_symbol_count)
+        _pipeline_touch("scoring")
         
         # ROOT CAUSE FIX: Always run composite scoring when cache has symbol data
         # Composite scoring uses sentiment, conviction, dark_pool, insider - doesn't need flow_trades
@@ -8990,8 +9139,10 @@ def run_once():
         else:
             if Config.ENABLE_PER_TICKER_LEARNING:
                 decisions_map = build_symbol_decisions(clusters, gex_map, dp_map, net_map, vol_map, ovl_map)
+                _pipeline_touch("decision")
                 orders = engine.decide_and_execute(clusters, confirm_map, gex_map, decisions_map, market_regime)
             else:
+                _pipeline_touch("decision")
                 orders = engine.decide_and_execute(clusters, confirm_map, gex_map, None, market_regime)
         print(f"DEBUG: decide_and_execute returned {len(orders)} orders", flush=True)
         audit_seg("run_once", "after_decide_execute", {"order_count": len(orders)})
@@ -9284,14 +9435,19 @@ def run_once():
         
         return {"clusters": len(clusters), "orders": len(orders), **metrics}
     except (NameError, ImportError) as e:
-        # CRITICAL: Import errors should NOT stop the cycle
-        # StateFiles is imported at module level, so this shouldn't happen
-        # But if it does, log it and continue - don't abort the cycle
+        # Contract: Import errors in run_once() MUST be visible as fatal events, not silently ignored.
         error_msg = str(e)
         error_type = type(e).__name__
-        print(f"WARNING: Import error in run_once: {error_type}: {error_msg}", flush=True)
-        print(f"DEBUG: Continuing cycle despite import error (StateFiles should be available)", flush=True)
-        log_event("run_once", "import_error_ignored", error=error_msg, type=error_type, action="continuing_cycle")
+        print(f"FATAL: Import error in run_once: {error_type}: {error_msg}", flush=True)
+        log_event(
+            "run_once",
+            "fatal_import_error",
+            error=error_msg,
+            error_type=error_type,
+            module_hint="utils.state_io" if "utils" in error_msg else None,
+            action="skip_scoring_and_decisions",
+            severity="HIGH",
+        )
         
         # Try to heal if possible, but don't abort cycle
         # NOTE: Don't re-import StateFiles here - it's already imported at module level
@@ -9309,7 +9465,7 @@ def run_once():
         # CRITICAL: Return empty results - function can't continue after exception
         # But log the error so we know what happened
         # The cycle will complete with 0 clusters/orders, which is better than crashing
-        return {"clusters": 0, "orders": 0, "error": f"import_error_{error_type}", "error_msg": error_msg[:100]}
+        return {"clusters": 0, "orders": 0, "fatal_error": f"import_error_{error_type}", "error_msg": error_msg[:160]}
     except Exception as e:
         print(f"DEBUG: EXCEPTION in run_once: {type(e).__name__}: {str(e)}", flush=True)
         audit_seg("run_once", "ERROR", {"error": str(e), "type": type(e).__name__})
