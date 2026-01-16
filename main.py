@@ -6189,6 +6189,18 @@ class StrategyEngine:
             open_positions = self.executor.api.list_positions()
         except Exception:
             open_positions = []  # FIX: Initialize to empty list if API call fails
+
+        # Market-data health probe (observability only).
+        # Contract: when 1Min bars are stale, emit `market_data:stale_bars_detected` (compute_atr handles logging).
+        try:
+            last_ts = getattr(self.executor, "_bar_health_probe_last_ts", 0.0) or 0.0
+            now_ts = float(time.time())
+            if now_ts - float(last_ts) >= 600.0:  # once per 10 minutes
+                setattr(self.executor, "_bar_health_probe_last_ts", now_ts)
+                # Use a tiny lookback to minimize API load; we only need the latest bar timestamp.
+                _ = compute_atr(self.executor.api, "SPY", 2)
+        except Exception as e:
+            log_event("market_data", "bar_probe_failed", symbol="SPY", error=str(e))
         
         # V4.0: PORTFOLIO CONCENTRATION GATE - Calculate net long-delta exposure
         # BULLETPROOF: Always initialize to safe defaults, fail open on any error
