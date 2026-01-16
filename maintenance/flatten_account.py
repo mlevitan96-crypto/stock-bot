@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -125,6 +126,13 @@ def _count_internal_positions(path: Path) -> int:
 def flatten_and_reset(*, timeout_sec: int = 60) -> int:
     os.chdir(REPO_ROOT)
     _load_dotenv_if_present(REPO_ROOT / ".env")
+    # Ensure repo root is importable even when executed as a script (sys.path[0] = maintenance/).
+    try:
+        repo_str = str(REPO_ROOT)
+        if repo_str not in sys.path:
+            sys.path.insert(0, repo_str)
+    except Exception:
+        pass
 
     # Import bot primitives after cwd/env is set.
     import main as bot_main  # noqa: PLC0415
