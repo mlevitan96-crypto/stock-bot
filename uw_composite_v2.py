@@ -244,6 +244,103 @@ def _to_num(x, default=0.0):
     except:
         return default
 
+
+def _parse_trade_ts(trade: Dict[str, Any]) -> Optional[int]:
+    """Best-effort parse of UW trade timestamp to epoch seconds."""
+    try:
+        for k in ("timestamp", "ts", "t", "time"):
+            v = trade.get(k)
+            if isinstance(v, (int, float)):
+                vv = float(v)
+                return int(vv / 1000.0) if vv > 2_000_000_000 else int(vv)
+            if isinstance(v, str) and v.strip():
+                s = v.strip().replace("Z", "+00:00")
+                try:
+                    from datetime import datetime, timezone
+                    dt = datetime.fromisoformat(s)
+                    return int(dt.replace(tzinfo=timezone.utc).timestamp()) if dt.tzinfo is None else int(dt.timestamp())
+                except Exception:
+                    pass
+        for k in ("date", "created_at", "createdAt"):
+            v = trade.get(k)
+            if isinstance(v, str) and v.strip():
+                s = v.strip().replace("Z", "+00:00")
+                try:
+                    from datetime import datetime, timezone
+                    dt = datetime.fromisoformat(s)
+                    return int(dt.replace(tzinfo=timezone.utc).timestamp()) if dt.tzinfo is None else int(dt.timestamp())
+                except Exception:
+                    pass
+    except Exception:
+        return None
+    return None
+
+
+def _is_sweep_trade(trade: Dict[str, Any]) -> bool:
+    """Heuristic sweep flag extraction across UW schemas."""
+    try:
+        for k in ("sweep", "is_sweep", "isSweep", "is_sweep_trade"):
+            v = trade.get(k)
+            if v is True:
+                return True
+            if isinstance(v, str) and v.strip().lower() in ("true", "1", "yes", "y"):
+                return True
+        ttype = str(trade.get("trade_type") or trade.get("type") or trade.get("tag") or "").upper()
+        if "SWEEP" in ttype:
+            return True
+    except Exception:
+        return False
+    return False
+
+
+def _trade_premium_usd(trade: Dict[str, Any]) -> float:
+    return _to_num(trade.get("premium", trade.get("total_premium", trade.get("totalPremium", 0.0))), 0.0)
+
+
+def _extract_gamma_resistance_levels(greeks_data: Dict[str, Any]) -> List[float]:
+    """
+    Extract gamma resistance levels from UW greeks payloads.
+    Supports:
+    - gamma_exposure_levels: list[dict|float]
+    - gamma_wall / gamma_max_strike: single float
+    - max_pain: can act as a resistance magnet (fallback)
+    """
+    levels: List[float] = []
+    if not greeks_data:
+        return levels
+
+    candidates = (
+        greeks_data.get("gamma_exposure_levels")
+        or greeks_data.get("gammaExposureLevels")
+        or greeks_data.get("gamma_levels")
+        or greeks_data.get("gammaLevels")
+        or []
+    )
+    if isinstance(candidates, list):
+        for item in candidates:
+            if isinstance(item, (int, float, str)):
+                lv = _to_num(item, 0.0)
+                if lv > 0:
+                    levels.append(lv)
+            elif isinstance(item, dict):
+                lv = _to_num(item.get("level", item.get("strike", item.get("price", 0.0))), 0.0)
+                if lv > 0:
+                    levels.append(lv)
+
+    # Single-level fallbacks
+    for k in ("gamma_wall", "gamma_max_strike", "gammaWall", "gammaMaxStrike"):
+        v = _to_num(greeks_data.get(k, 0.0), 0.0)
+        if v > 0:
+            levels.append(v)
+
+    mp = _to_num(greeks_data.get("max_pain", greeks_data.get("maxPain", 0.0)), 0.0)
+    if mp > 0:
+        levels.append(mp)
+
+    # De-dup + sort
+    uniq = sorted({round(x, 6) for x in levels if x > 0})
+    return uniq[:20]
+
 def _sign_from_sentiment(sent: str) -> int:
     if sent == "BULLISH": return +1
     if sent == "BEARISH": return -1
@@ -603,11 +700,12 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     flow_conv = _to_num(enriched_data.get("conviction", 0.5))
     flow_sign = _sign_from_sentiment(flow_sent)
     
-    # Dark pool
+    # Dark pool (Phase 5: use 1h notional, not neutral constant)
     dp = enriched_data.get("dark_pool", {}) or {}
     dp_sent = dp.get("sentiment", "NEUTRAL")
-    # FIXED: Use total_notional (from new normalization) or fallback to total_premium (old format)
-    dp_prem = _to_num(dp.get("total_notional", 0.0) or dp.get("total_premium", 0.0))
+    dp_notional_1h = _to_num(dp.get("total_notional_1h", 0.0) or dp.get("notional_1h", 0.0) or 0.0)
+    dp_notional_total = _to_num(dp.get("total_notional", 0.0) or dp.get("total_premium", 0.0) or 0.0)
+    dp_prem = dp_notional_1h if dp_notional_1h > 0 else dp_notional_total  # backward compat name
     
     # Insider (also used for institutional)
     ins = enriched_data.get("insider", {}) or {}
@@ -647,18 +745,42 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     # Use regime-aware weight for options_flow component
     flow_weight = get_weight("options_flow", regime)
     flow_component = flow_weight * flow_conv_adjusted
+
+    # Phase 5: Sweep urgency multiplier (>=3 sweeps with premium > $100k in recent flow)
+    urgency_multiplier = 1.0
+    try:
+        sweeps_hi = 0
+        now_ts = int(time.time())
+        for tr in (enriched_data.get("flow_trades") or []):
+            if not isinstance(tr, dict):
+                continue
+            if not _is_sweep_trade(tr):
+                continue
+            prem = _trade_premium_usd(tr)
+            if prem < 100_000:
+                continue
+            tts = _parse_trade_ts(tr)
+            if tts is not None and (now_ts - tts) > 3600:
+                continue  # focus on last hour if timestamps exist
+            sweeps_hi += 1
+        if sweeps_hi >= 3:
+            urgency_multiplier = 1.2
+            flow_component *= urgency_multiplier
+            all_notes.append(f"sweep_urgency({urgency_multiplier}x,{sweeps_hi} sweeps>$100k)")
+    except Exception:
+        pass
     
     # Track if stealth flow boost was applied (for logging)
     if stealth_flow_boost > 0:
         all_notes.append(f"stealth_flow_boost(+{stealth_flow_boost:.1f})")
     
-    # 2. Dark pool (use regime-aware weight)
-    dp_strength = 0.0
-    if dp_sent in ("BULLISH", "BEARISH"):
-        mag = max(1.0, dp_prem)
-        log_factor = min(0.8, math.log10(mag) / 7.5)
-        dp_strength = 0.5 + log_factor
-    else:
+    # 2. Dark pool (use regime-aware weight) - proportional to 1h notional
+    # Proportional scaling: 0 -> 0.2 baseline, 50M -> ~1.0 strength
+    dp_strength = 0.2
+    try:
+        scale = max(0.0, dp_prem)
+        dp_strength = 0.2 + 0.8 * min(1.0, scale / 50_000_000.0)
+    except Exception:
         dp_strength = 0.2
     dp_weight = get_weight("dark_pool", regime)
     dp_component = dp_weight * dp_strength
@@ -765,6 +887,7 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     
     # 16. Greeks/Gamma (squeeze detection)
     greeks_data = enriched_data.get("greeks", {})
+    gamma_resistance_levels = _extract_gamma_resistance_levels(greeks_data if isinstance(greeks_data, dict) else {})
     # SCORING PIPELINE FIX (Priority 4): Provide neutral default if data missing
     if not greeks_data:
         greeks_weight = get_weight("greeks_gamma", regime)
@@ -998,40 +1121,79 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         entry_delay_sec = 180
     
     # ============ BUILD RESULT ============
+    components = {
+        # Core
+        "flow": round(flow_component, 3),
+        "dark_pool": round(dp_component, 3),
+        "insider": round(insider_component, 3),
+        # V2
+        "iv_skew": round(iv_component, 3),
+        "smile": round(smile_component, 3),
+        "whale": round(whale_score, 3),
+        "event": round(event_component, 3),
+        "motif_bonus": round(motif_bonus, 3),
+        "toxicity_penalty": round(toxicity_component, 3),
+        "regime": round(regime_component, 3),
+        # V3 NEW
+        "congress": round(congress_component, 3),
+        "shorts_squeeze": round(shorts_component, 3),
+        "institutional": round(inst_component, 3),
+        "market_tide": round(tide_component, 3),
+        "calendar": round(calendar_component, 3),
+        # V2 NEW (Full Intelligence Pipeline) - must match SIGNAL_COMPONENTS in main.py
+        "greeks_gamma": round(greeks_gamma_component, 3),
+        "ftd_pressure": round(ftd_pressure_component, 3),
+        "iv_rank": round(iv_rank_component, 3),
+        "oi_change": round(oi_change_component, 3),
+        "etf_flow": round(etf_flow_component, 3),
+        "squeeze_score": round(squeeze_score_component, 3),
+        # Meta
+        "freshness_factor": round(freshness, 3)
+    }
+
+    # Component sources for audit/telemetry
+    # WHY: Stop treating neutral defaults as "real" signal; make it explicit which components were defaulted/missing.
+    # HOW TO VERIFY: position metadata and attribution logs include component_sources; defaults correlate with *_neutral_default notes.
+    default_note_by_component = {
+        "congress": "congress_neutral_default",
+        "shorts_squeeze": "shorts_neutral_default",
+        "institutional": "institutional_neutral_default",
+        "market_tide": "tide_neutral_default",
+        "calendar": "calendar_neutral_default",
+        "greeks_gamma": "greeks_neutral_default",
+        "ftd_pressure": "ftd_neutral_default",
+        "oi_change": "oi_change_neutral_default",
+        "etf_flow": "etf_flow_neutral_default",
+        "squeeze_score": "squeeze_score_neutral_default",
+    }
+    component_sources = {}
+    missing_components = []
+    for name in components.keys():
+        source = "real"
+        note_marker = default_note_by_component.get(name)
+        if note_marker and note_marker in all_notes:
+            source = "default"
+        # Dark pool "0 notional + NEUTRAL" should be treated as missing signal.
+        if name == "dark_pool" and dp_sent not in ("BULLISH", "BEARISH") and dp_prem <= 0:
+            source = "missing"
+        # Whale/motif are legitimately absent when no motif detected.
+        if name == "whale" and not whale_detected:
+            source = "missing"
+        if name == "motif_bonus" and not (motif_staircase.get("detected") or motif_burst.get("detected")):
+            source = "missing"
+        component_sources[name] = source
+        if source == "missing":
+            missing_components.append(name)
+
     return {
         "symbol": symbol,
         "score": round(composite_score, 3),
         "version": "V3.1" if adaptive_active else "V3",
         "adaptive_weights_active": adaptive_active,
-        "components": {
-            # Core
-            "flow": round(flow_component, 3),
-            "dark_pool": round(dp_component, 3),
-            "insider": round(insider_component, 3),
-            # V2
-            "iv_skew": round(iv_component, 3),
-            "smile": round(smile_component, 3),
-            "whale": round(whale_score, 3),
-            "event": round(event_component, 3),
-            "motif_bonus": round(motif_bonus, 3),
-            "toxicity_penalty": round(toxicity_component, 3),
-            "regime": round(regime_component, 3),
-            # V3 NEW
-            "congress": round(congress_component, 3),
-            "shorts_squeeze": round(shorts_component, 3),
-            "institutional": round(inst_component, 3),
-            "market_tide": round(tide_component, 3),
-            "calendar": round(calendar_component, 3),
-            # V2 NEW (Full Intelligence Pipeline) - must match SIGNAL_COMPONENTS in main.py
-            "greeks_gamma": round(greeks_gamma_component, 3),
-            "ftd_pressure": round(ftd_pressure_component, 3),
-            "iv_rank": round(iv_rank_component, 3),
-            "oi_change": round(oi_change_component, 3),
-            "etf_flow": round(etf_flow_component, 3),
-            "squeeze_score": round(squeeze_score_component, 3),
-            # Meta
-            "freshness_factor": round(freshness, 3)
-        },
+        "gamma_resistance_levels": gamma_resistance_levels,
+        "components": components,
+        "component_sources": component_sources,
+        "missing_components": missing_components,
         "motifs": {
             "staircase": motif_staircase.get("detected", False),
             "sweep_block": motif_sweep.get("detected", False),
@@ -1064,6 +1226,8 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
             "flow_conviction": flow_conv,
             "flow_sign": flow_sign,
             "dp_premium": dp_prem,
+            "dp_notional_1h": dp_notional_1h,
+            "sweep_urgency_multiplier": urgency_multiplier,
             "iv_skew": iv_skew,
             "smile_slope": smile_slope,
             "toxicity": toxicity,
@@ -1426,6 +1590,47 @@ def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) 
             # If exhaustion check fails, fail open (allow trade)
             # This ensures we don't block trades due to technical indicator errors
             pass
+
+    # Phase 5: Gamma wall awareness — block trades into resistance walls
+    try:
+        levels = composite.get("gamma_resistance_levels") or []
+        if api is not None and levels:
+            # Reuse current price best-effort (as above); fall back to last trade.
+            try:
+                current_price = float(api.get_last_trade(symbol).price) if hasattr(api.get_last_trade(symbol), 'price') else None
+            except Exception:
+                current_price = None
+            if not current_price or current_price <= 0:
+                try:
+                    quote = api.get_quote(symbol)
+                    current_price = (float(quote.bid) + float(quote.ask)) / 2.0
+                except Exception:
+                    current_price = None
+
+            if current_price and current_price > 0:
+                nearest = None
+                nearest_dist = None
+                for lv in levels:
+                    lvf = _to_num(lv, 0.0)
+                    if lvf <= 0:
+                        continue
+                    dist = abs(current_price - lvf) / lvf
+                    if nearest_dist is None or dist < nearest_dist:
+                        nearest_dist = dist
+                        nearest = lvf
+                if nearest is not None and nearest_dist is not None and nearest_dist <= 0.002:
+                    composite["gate_msg"] = "resistance_wall_detected"
+                    composite["notes"] = (composite.get("notes", "") + "; gate:resistance_wall_detected").strip("; ").strip()
+                    _log_gate_failure(symbol, "resistance_wall_detected", {
+                        "current_price": float(current_price),
+                        "nearest_level": float(nearest),
+                        "distance_pct": round(nearest_dist * 100, 4),
+                        "threshold_pct": 0.2,
+                        "reason": "Entry price within 0.2% of gamma resistance level"
+                    })
+                    return False
+    except Exception:
+        pass
     
     return score >= threshold
 

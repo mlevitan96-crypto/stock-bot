@@ -4814,7 +4814,7 @@ class AlpacaExecutor:
             log_event("displacement", "failed", symbol=symbol, error=str(e))
             return False
 
-    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown"):
+    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", alpha_signature: dict = None):
         # VALIDATION: Warn if entry_score is 0.0 (should not happen in normal flow)
         if entry_score <= 0.0:
             print(f"WARNING {symbol}: mark_open called with entry_score={entry_score:.2f} - this may indicate a bug", flush=True)
@@ -4853,8 +4853,31 @@ class AlpacaExecutor:
         correlation_id = None
         if symbol in self.opens and "correlation_id" in self.opens[symbol]:
             correlation_id = self.opens[symbol]["correlation_id"]
+
+        # Phase 5: Persist alpha_signature into position metadata for forensic analysis
+        if alpha_signature is None:
+            try:
+                from alpha_signature_capture import capture_alpha_signature
+                uw_cache_for_alpha = read_json(CacheFiles.UW_FLOW_CACHE, default={})
+                alpha_signature = capture_alpha_signature(self.api, symbol, uw_cache_for_alpha)
+            except Exception as e:
+                alpha_signature = {"status": "error", "error": str(e), "timestamp": time.time()}
         
-        self._persist_position_metadata(symbol, entry_ts=now, entry_price=entry_price, qty=qty, side=side, entry_score=entry_score, components=components, market_regime=market_regime, direction=direction, regime_modifier=regime_modifier, ignition_status=ignition_status, correlation_id=correlation_id)
+        self._persist_position_metadata(
+            symbol,
+            entry_ts=now,
+            entry_price=entry_price,
+            qty=qty,
+            side=side,
+            entry_score=entry_score,
+            components=components,
+            market_regime=market_regime,
+            direction=direction,
+            regime_modifier=regime_modifier,
+            ignition_status=ignition_status,
+            correlation_id=correlation_id,
+            alpha_signature=alpha_signature,
+        )
         
         # Update state manager (Risk #6 - State Persistence)
         try:
@@ -4875,7 +4898,7 @@ class AlpacaExecutor:
         except Exception as e:
             log_event("state_manager", "update_position_failed", symbol=symbol, error=str(e))
     
-    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None):
+    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None, alpha_signature: dict = None):
         """Persist position metadata to durable file for restart recovery with atomic write.
         
         V2.0: Now stores all 21 signal components for ML learning when trade closes.
@@ -4885,6 +4908,13 @@ class AlpacaExecutor:
         try:
             metadata_path.parent.mkdir(exist_ok=True)
             metadata = load_metadata_with_lock(metadata_path)
+
+            # Preserve previously-captured alpha_signature if caller didn't provide one.
+            if alpha_signature is None:
+                try:
+                    alpha_signature = (metadata.get(symbol, {}) or {}).get("alpha_signature")
+                except Exception:
+                    alpha_signature = None
             
             metadata[symbol] = {
                 "entry_ts": entry_ts.isoformat(),
@@ -4898,6 +4928,7 @@ class AlpacaExecutor:
                 "regime_modifier": regime_modifier,  # V4.0: Store regime multiplier applied to composite score
                 "ignition_status": ignition_status,  # V4.0: Store momentum filter status
                 "correlation_id": correlation_id,  # V4.0: Store UW-to-Alpaca correlation ID for tracking
+                "alpha_signature": alpha_signature,  # Phase 5: RVOL/RSI/PCR observability for forensics
                 "updated_at": datetime.utcnow().isoformat()
             }
             

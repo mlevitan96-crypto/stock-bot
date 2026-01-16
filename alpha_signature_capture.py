@@ -136,8 +136,11 @@ def calculate_put_call_ratio(uw_cache: Dict[str, Any], symbol: str) -> Optional[
         put_volume = 0
         
         for trade in flow_trades:
-            option_type = trade.get("option_type", "").upper()
-            volume = trade.get("volume", 0)
+            option_type = str(trade.get("option_type") or trade.get("type") or "").upper()
+            try:
+                volume = int(float(trade.get("volume") or trade.get("size") or trade.get("qty") or 0))
+            except Exception:
+                volume = 0
             
             if option_type == "CALL":
                 call_volume += volume
@@ -170,6 +173,9 @@ def capture_alpha_signature(api, symbol: str, uw_cache: Dict[str, Any]) -> Dict[
             - timestamp: Capture timestamp
     """
     signature = {
+        # WHY: Downstream consumers were seeing nulls with no explanation.
+        # HOW TO VERIFY: dashboard /api/signal_history shows alpha_signature.status instead of ambiguous nulls.
+        "status": "computed",
         "rvol": None,
         "rsi": None,
         "put_call_ratio": None,
@@ -177,6 +183,12 @@ def capture_alpha_signature(api, symbol: str, uw_cache: Dict[str, Any]) -> Dict[
     }
     
     try:
+        # If Alpaca isn't available in this runtime, mark explicitly.
+        if not ALPACA_AVAILABLE:
+            signature["status"] = "not_implemented"
+            signature["put_call_ratio"] = calculate_put_call_ratio(uw_cache, symbol)
+            return signature
+
         # Calculate RVOL
         signature["rvol"] = calculate_rvol(api, symbol)
         
@@ -203,6 +215,7 @@ def capture_alpha_signature(api, symbol: str, uw_cache: Dict[str, Any]) -> Dict[
         signature["put_call_ratio"] = calculate_put_call_ratio(uw_cache, symbol)
     
     except Exception:
-        pass  # Fail gracefully
+        # Fail gracefully but mark status so missing data isn't silent.
+        signature["status"] = "error"
     
     return signature

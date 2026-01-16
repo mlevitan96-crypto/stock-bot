@@ -771,9 +771,41 @@ class UWFlowDaemon:
         # Dark pool data has: price, lit_volume, off_lit_volume, total_volume, side
         # Calculate notional value (volume * price) as proxy for premium
         total_notional = 0.0
+        total_notional_1h = 0.0
         total_off_lit_volume = 0.0
         buy_volume = 0.0
         sell_volume = 0.0
+
+        def _parse_ts_any(d: Dict) -> Optional[int]:
+            """Best-effort parse of dp record timestamp to epoch seconds."""
+            try:
+                for k in ("timestamp", "ts", "time", "t"):
+                    v = d.get(k)
+                    if isinstance(v, (int, float)):
+                        # If it looks like ms epoch, convert
+                        vv = float(v)
+                        return int(vv / 1000.0) if vv > 2_000_000_000 else int(vv)
+                    if isinstance(v, str) and v.strip():
+                        s = v.strip().replace("Z", "+00:00")
+                        try:
+                            dt = datetime.fromisoformat(s)
+                            return int(dt.replace(tzinfo=timezone.utc).timestamp()) if dt.tzinfo is None else int(dt.timestamp())
+                        except Exception:
+                            pass
+                # Some UW payloads use "date"
+                v = d.get("date")
+                if isinstance(v, str) and v.strip():
+                    s = v.strip().replace("Z", "+00:00")
+                    try:
+                        dt = datetime.fromisoformat(s)
+                        return int(dt.replace(tzinfo=timezone.utc).timestamp()) if dt.tzinfo is None else int(dt.timestamp())
+                    except Exception:
+                        return None
+            except Exception:
+                return None
+            return None
+
+        now_ts = int(time.time())
         
         for d in dp_data:
             if not isinstance(d, dict):
@@ -788,6 +820,10 @@ class UWFlowDaemon:
             # Calculate notional (volume * price)
             notional = total_vol * price
             total_notional += notional
+            # Best-effort 1-hour window
+            rec_ts = _parse_ts_any(d)
+            if rec_ts is None or (now_ts - rec_ts) <= 3600:
+                total_notional_1h += notional
             total_off_lit_volume += off_lit_vol
             
             # Track buy vs sell
@@ -809,7 +845,11 @@ class UWFlowDaemon:
         
         return {
             "sentiment": sentiment,
-            "total_premium": total_notional,  # Use notional as proxy for premium
+            # Canonical notional fields (Phase 5: dark-pool is no longer a neutral constant)
+            "total_notional": total_notional,
+            "total_notional_1h": total_notional_1h,
+            # Backward compatibility: some downstream consumers still read total_premium
+            "total_premium": total_notional,
             "print_count": print_count,
             "total_off_lit_volume": total_off_lit_volume,
             "buy_volume": buy_volume,

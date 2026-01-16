@@ -112,7 +112,9 @@ SERVICES = [
     },
     {
         "name": "trading-bot",
-        "cmd": [PYTHON_EXEC, "main.py"],
+        # CRITICAL: main.py no longer starts the engine on import; it must be executed as a script.
+        # Use -u for unbuffered logs to make restarts/debugging visible immediately.
+        "cmd": [PYTHON_EXEC, "-u", "main.py"],
         "delay": 0,
         "critical": True,
         "requires_secrets": True,  # Needs ALPACA_KEY, ALPACA_SECRET
@@ -195,8 +197,8 @@ def update_service_health(service_name: str, status: str, error_message: Optiona
         # Update heartbeat time
         health_registry[service_name]["last_heartbeat_time"] = datetime.now(timezone.utc).isoformat()
         
-        # Persist health
-        persist_health()
+        # Don't persist health during initialization - it's called too frequently and can block
+        # Health will be persisted later in the monitoring loop
 
 def compute_overall_health() -> Dict[str, any]:
     """
@@ -245,11 +247,15 @@ def persist_health():
         health_data = compute_overall_health()
         Directories.STATE.mkdir(parents=True, exist_ok=True)
         
-        # Atomic write
+        # Atomic write with timeout protection
         tmp_file = HEALTH_FILE.with_suffix(".tmp")
-        with open(tmp_file, 'w') as f:
-            json.dump(health_data, f, indent=2)
-        tmp_file.replace(HEALTH_FILE)
+        try:
+            with open(tmp_file, 'w') as f:
+                json.dump(health_data, f, indent=2)
+            tmp_file.replace(HEALTH_FILE)
+        except (IOError, OSError) as e:
+            # File write error - log but don't fail
+            log(f"Failed to write health file (non-critical): {e}")
     except Exception as e:
         log(f"Failed to persist health: {e}")
 
@@ -398,6 +404,9 @@ def start_service(service):
     
     log(f"Starting {name}: {' '.join(cmd)}")
     log_event("SERVICE_START", service=name)
+    if name == "trading-bot":
+        # Explicit trading engine start visibility.
+        log_event("TRADING_ENGINE_STARTING", service=name, entrypoint="main.py", cmd=" ".join(cmd), python=cmd[0])
     
     try:
         env = os.environ.copy()
@@ -437,6 +446,9 @@ def start_service(service):
             start_new_session=False  # Keep in same process group (don't detach from terminal)
         )
         processes[name] = proc
+        log_event("SERVICE_STARTED", service=name, pid=proc.pid, cmd=" ".join(cmd))
+        if name == "trading-bot":
+            log_event("TRADING_ENGINE_STARTED", pid=proc.pid, cmd=" ".join(cmd), api_port=env.get("API_PORT"))
         
         def stream_output(proc, name):
             try:
@@ -528,6 +540,21 @@ def rotate_logs():
     max_size_mb = 5
     max_lines = 2000
     try:
+        def _tail_text(path: Path, n: int) -> str:
+            """Read last N lines without loading whole file into memory."""
+            try:
+                res = subprocess.run(
+                    ["tail", "-n", str(n), str(path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                if res.returncode == 0:
+                    return res.stdout
+                return ""
+            except Exception:
+                return ""
+
         patterns = [
             "logs/*.jsonl", "logs/*.log", 
             "data/*.jsonl", "state/*.jsonl",
@@ -539,8 +566,12 @@ def rotate_logs():
                     size_mb = filepath.stat().st_size / (1024 * 1024)
                     if size_mb > max_size_mb:
                         log(f"Rotating {filepath} ({size_mb:.1f}MB)")
-                        lines = filepath.read_text().splitlines()
-                        filepath.write_text("\n".join(lines[-max_lines:]) + "\n")
+                        tail_txt = _tail_text(filepath, max_lines)
+                        if tail_txt:
+                            # Ensure newline terminator
+                            if not tail_txt.endswith("\n"):
+                                tail_txt += "\n"
+                            filepath.write_text(tail_txt)
                 except:
                     pass
     except:
@@ -552,6 +583,21 @@ def startup_cleanup():
     max_size_mb = 10
     max_lines = 3000
     cleaned = 0
+    def _tail_text(path: Path, n: int) -> str:
+        """Read last N lines without loading whole file into memory."""
+        try:
+            res = subprocess.run(
+                ["tail", "-n", str(n), str(path)],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if res.returncode == 0:
+                return res.stdout
+            return ""
+        except Exception:
+            return ""
+
     patterns = [
         "logs/*.jsonl", "logs/*.log",
         "data/*.jsonl", "state/*.jsonl",
@@ -563,8 +609,11 @@ def startup_cleanup():
                 size_mb = filepath.stat().st_size / (1024 * 1024)
                 if size_mb > max_size_mb:
                     log(f"  Truncating {filepath} ({size_mb:.1f}MB)")
-                    lines = filepath.read_text().splitlines()
-                    filepath.write_text("\n".join(lines[-max_lines:]) + "\n")
+                    tail_txt = _tail_text(filepath, max_lines)
+                    if tail_txt:
+                        if not tail_txt.endswith("\n"):
+                            tail_txt += "\n"
+                        filepath.write_text(tail_txt)
                     cleaned += 1
             except:
                 pass
@@ -584,16 +633,73 @@ def main():
     create_directories()
     startup_cleanup()
     
+    log("Initializing health registry...")
     # Initialize health registry
-    for service in SERVICES:
-        update_service_health(service["name"], "UNKNOWN")
+    try:
+        for service in SERVICES:
+            log(f"  Initializing {service['name']}...")
+            update_service_health(service["name"], "UNKNOWN")
+            log(f"  {service['name']} initialized")
+        log("Health registry initialized")
+    except Exception as e:
+        log(f"ERROR initializing health registry: {e}")
+        import traceback
+        traceback.print_exc()
+        # Continue anyway
     
-    # Check API compatibility
+    # Check API compatibility (with timeout to prevent hanging)
     log("Checking API compatibility...")
-    api_ok, api_errors = check_api_compatibility()
-    if not api_ok:
-        log(f"WARNING: API compatibility checks failed: {api_errors}")
-        log("System will continue but trading may be disabled")
+    try:
+        import signal
+        
+        def timeout_handler(signum, frame):
+            raise TimeoutError("API compatibility check timed out")
+        
+        # Set 30 second timeout
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(30)
+        
+        try:
+            api_ok, api_errors = check_api_compatibility()
+            signal.alarm(0)  # Cancel timeout
+            if not api_ok:
+                log(f"WARNING: API compatibility checks failed: {api_errors}")
+                log("System will continue but trading may be disabled")
+        except TimeoutError:
+            signal.alarm(0)  # Cancel timeout
+            log("WARNING: API compatibility check timed out after 30s, continuing anyway...")
+            log("System will continue but trading may be disabled")
+            api_ok, api_errors = False, ["Timeout"]
+    except (AttributeError, OSError):
+        # signal.SIGALRM not available on Windows or some systems, use threading timeout instead
+        import threading
+        
+        api_check_result = [None, None]
+        api_check_exception = [None]
+        
+        def run_api_check():
+            try:
+                api_check_result[0], api_check_result[1] = check_api_compatibility()
+            except Exception as e:
+                api_check_exception[0] = e
+        
+        thread = threading.Thread(target=run_api_check, daemon=True)
+        thread.start()
+        thread.join(timeout=30)
+        
+        if thread.is_alive():
+            log("WARNING: API compatibility check timed out after 30s, continuing anyway...")
+            log("System will continue but trading may be disabled")
+            api_ok, api_errors = False, ["Timeout"]
+        elif api_check_exception[0]:
+            log(f"WARNING: API compatibility check failed: {api_check_exception[0]}")
+            log("System will continue but trading may be disabled")
+            api_ok, api_errors = False, [str(api_check_exception[0])]
+        else:
+            api_ok, api_errors = api_check_result[0], api_check_result[1]
+            if not api_ok:
+                log(f"WARNING: API compatibility checks failed: {api_errors}")
+                log("System will continue but trading may be disabled")
     
     if not check_secrets():
         log("WARNING: Continuing despite missing secrets...")
@@ -672,6 +778,8 @@ def main():
                 if proc.poll() is not None:
                     exit_code = proc.returncode
                     log(f"Service {name} died (exit code {exit_code})")
+                    if name == "trading-bot":
+                        log_event("TRADING_ENGINE_EXITED", service=name, exit_code=exit_code, pid=getattr(proc, "pid", None))
                     
                     # Track failures
                     now = time.time()
@@ -696,6 +804,8 @@ def main():
                     else:
                         log(f"Restarting {name} (failure {service_failure_counts[name]}/{MAX_FAILURES_IN_WINDOW})...")
                         log_event("SERVICE_DIED", service=name, exit_code=exit_code, failure_count=service_failure_counts[name])
+                        if name == "trading-bot":
+                            log_event("TRADING_ENGINE_RESTARTING", service=name, failure_count=service_failure_counts[name], exit_code=exit_code)
                         update_service_health(name, "DEGRADED", f"Restarting after failure (count: {service_failure_counts[name]})")
                         time.sleep(5)
                         start_service(service)

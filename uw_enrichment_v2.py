@@ -405,6 +405,21 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     enriched_symbol["sentiment"] = data.get("sentiment", "NEUTRAL")
     enriched_symbol["conviction"] = data.get("conviction", 0.0)
     enriched_symbol["dark_pool"] = data.get("dark_pool", {})
+    # Phase 5: Explicit dark-pool wiring (avoid neutral constant)
+    try:
+        dp = data.get("dark_pool", {}) or {}
+        enriched_symbol["dark_pool_sentiment"] = dp.get("sentiment", "NEUTRAL")
+        enriched_symbol["dark_pool_notional"] = float(
+            dp.get("total_notional_1h")
+            or dp.get("total_notional")
+            or dp.get("total_premium")
+            or 0.0
+        )
+        enriched_symbol["dark_pool_notional_1h"] = float(dp.get("total_notional_1h") or 0.0)
+        enriched_symbol["dark_pool_notional_total"] = float(dp.get("total_notional") or dp.get("total_premium") or 0.0)
+    except Exception:
+        enriched_symbol["dark_pool_sentiment"] = enriched_symbol.get("dark_pool_sentiment", "NEUTRAL")
+        enriched_symbol["dark_pool_notional"] = enriched_symbol.get("dark_pool_notional", 0.0)
     enriched_symbol["insider"] = data.get("insider", {})
     enriched_symbol["market_tide"] = data.get("market_tide", {})
     enriched_symbol["calendar"] = data.get("calendar", {})
