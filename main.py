@@ -6854,7 +6854,6 @@ class StrategyEngine:
                         try:
                             if hasattr(engine, 'executor') and hasattr(engine.executor, 'api'):
                                 # Get UW cache for alpha signature
-                                from config.registry import CacheFiles, read_json
                                 uw_cache = read_json(CacheFiles.UW_FLOW_CACHE, default={})
                                 alpha_signature = capture_alpha_signature(engine.executor.api, symbol, uw_cache)
                         except Exception:
@@ -7076,7 +7075,6 @@ class StrategyEngine:
                             # Capture alpha signature
                             try:
                                 if hasattr(engine, 'executor') and hasattr(engine.executor, 'api'):
-                                    from config.registry import CacheFiles, read_json
                                     uw_cache = read_json(CacheFiles.UW_FLOW_CACHE, default={})
                                     alpha_signature = capture_alpha_signature(engine.executor.api, symbol, uw_cache)
                             except Exception:
@@ -8662,7 +8660,6 @@ def run_once():
                     # Capture alpha signature for boosters
                     if hasattr(engine, 'executor') and hasattr(engine.executor, 'api'):
                         from alpha_signature_capture import capture_alpha_signature
-                        from config.registry import CacheFiles, read_json
                         uw_cache_for_alpha = read_json(CacheFiles.UW_FLOW_CACHE, default={})
                         alpha_signature = capture_alpha_signature(engine.executor.api, ticker, uw_cache_for_alpha)
                         
