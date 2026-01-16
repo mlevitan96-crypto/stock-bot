@@ -693,11 +693,13 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
     symbol_intel = expanded_intel.get(symbol, {})
     
     # Base flow components (from enriched_data / cache)
-    flow_sent = enriched_data.get("sentiment", "NEUTRAL")
-    # SCORING PIPELINE FIX (Priority 2): Default conviction to 0.5 (neutral) instead of 0.0
-    # See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
-    # This ensures primary component (weight 2.4) contributes 1.2 instead of 0.0 when conviction is missing
-    flow_conv = _to_num(enriched_data.get("conviction", 0.5))
+    # Contract: missing/None sentiment must behave as NEUTRAL.
+    flow_sent = enriched_data.get("sentiment") or "NEUTRAL"
+    # Contract: missing/None conviction must default to 0.5 (neutral), not 0.0.
+    # WHY: many upstream producers set conviction=None when unavailable; treating None as 0.0 suppresses scoring
+    #      and can create a "no trades" condition unrelated to actual alpha.
+    conv_raw = enriched_data.get("conviction", None)
+    flow_conv = _to_num(conv_raw) if conv_raw is not None else 0.5
     flow_sign = _sign_from_sentiment(flow_sent)
     
     # Dark pool (Phase 5: use 1h notional, not neutral constant)
