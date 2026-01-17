@@ -500,11 +500,20 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "n
     
     return round(component, 4), "; ".join(notes_parts)
 
-def compute_institutional_component(insider_data: Dict, flow_sign: int, regime: str = "neutral") -> tuple:
+def compute_institutional_component(insider_data: Dict, institutional_data: Dict, flow_sign: int, regime: str = "neutral") -> tuple:
     """
-    Calculate institutional activity component from insider/institutional data
+    Calculate institutional activity component from institutional endpoints + insider fallback.
     
-    Insider data format from cache:
+    Institutional data format (from uw_flow_daemon summaries; may evolve):
+    {
+        "recent_count": int,
+        "holders_count": int,
+        "top_holder_pct": float,
+        "top5_holder_pct": float,
+        ...
+    }
+
+    Insider data format from cache (fallback):
     {
         "sentiment": str,
         "conviction_modifier": float,
@@ -518,7 +527,29 @@ def compute_institutional_component(insider_data: Dict, flow_sign: int, regime: 
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
-    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
+    w = get_weight("institutional", regime)
+
+    # Primary: institutional endpoints (directionless but informative).
+    if institutional_data and isinstance(institutional_data, dict):
+        recent = int(_to_num(institutional_data.get("recent_count", institutional_data.get("holders_count", 0))) or 0)
+        top1 = _to_num(institutional_data.get("top_holder_pct", 0.0))
+        top5 = _to_num(institutional_data.get("top5_holder_pct", 0.0))
+
+        # Strength grows with number of holders/entries we have and concentration.
+        # This is not a directional signal by itself, so we keep it modest.
+        strength = 0.0
+        if recent > 0:
+            strength += min(1.0, recent / 25.0) * 0.6
+        if top1 > 0:
+            strength += min(1.0, top1 / 10.0) * 0.25
+        if top5 > 0:
+            strength += min(1.0, top5 / 25.0) * 0.15
+        if strength > 0:
+            component = w * (0.2 + 0.8 * min(1.0, strength)) * 0.6
+            notes = f"institutional_ownership(n={recent},top1={top1:.2f}%,top5={top5:.2f}%)"
+            return round(component, 4), notes
+
+    # Fallback: insider-based institutional proxy (directional)
     if not insider_data:
         return 0.0, ""
     
@@ -544,8 +575,6 @@ def compute_institutional_component(insider_data: Dict, flow_sign: int, regime: 
     
     # Alignment with flow
     aligned = (inst_sign == flow_sign) and inst_sign != 0
-    w = get_weight("institutional", regime)
-    
     if aligned:
         component = w * (0.5 + activity_strength * 0.5 + usd_bonus)
         notes = f"inst_confirm({net_buys}B/{net_sells}S,${total_usd/1e6:.1f}M)"
@@ -895,7 +924,8 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         all_notes.append(shorts_notes)
     
     # 13. Institutional activity (enhanced from insider)
-    inst_component, inst_notes = compute_institutional_component(ins, flow_sign, regime)
+    institutional_payload = enriched_data.get("institutional", {}) or symbol_intel.get("institutional", {})
+    inst_component, inst_notes = compute_institutional_component(ins, institutional_payload, flow_sign, regime)
     if inst_notes:
         all_notes.append(inst_notes)
     

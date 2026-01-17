@@ -129,6 +129,13 @@ except Exception as e:
         pass
     raise
 
+# UW OpenAPI catalog (official docs).
+try:
+    from uw_openapi_catalog import refresh_catalog_if_needed, find_tagged_ops
+except Exception:
+    refresh_catalog_if_needed = None  # type: ignore
+    find_tagged_ops = None  # type: ignore
+
 # Permanent system events + global failure wrapper (non-blocking import).
 try:
     from utils.system_events import global_failure_wrapper, log_system_event
@@ -327,6 +334,49 @@ class UWClient:
                 "ts": int(time.time())
             })
             return {"data": []}
+
+    def _probe(self, path_or_url: str, params: dict = None) -> Dict[str, Any]:
+        """
+        Probe an endpoint without raising on non-200.
+        WHY: Some endpoints (e.g. congress/institutional) may exist under different paths or require different shapes.
+        HOW TO VERIFY: Use `uw_endpoint_probe.py` or enable discovery env vars; discovered endpoints are persisted.
+        """
+        url = path_or_url if path_or_url.startswith("http") else f"{self.base}{path_or_url}"
+        try:
+            # No quota logging here: probing still counts as calls; we intentionally log via _get-style record.
+            # Keep it explicit so it shows up in uw_api_quota.jsonl with source=uw_flow_daemon_probe.
+            quota_log = CacheFiles.UW_API_QUOTA
+            quota_log.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                with quota_log.open("a") as f:
+                    f.write(json.dumps({
+                        "ts": int(time.time()),
+                        "url": url,
+                        "params": params or {},
+                        "source": "uw_flow_daemon_probe"
+                    }) + "\n")
+            except Exception:
+                pass
+
+            r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
+            data = None
+            try:
+                data = r.json()
+            except Exception:
+                data = r.text[:500] if getattr(r, "text", None) else ""
+            return {
+                "ok": r.status_code == 200,
+                "status": r.status_code,
+                "url": url,
+                "data": data,
+            }
+        except Exception as e:
+            return {
+                "ok": False,
+                "status": None,
+                "url": url,
+                "error": str(e),
+            }
     
     def get_option_flow(self, ticker: str, limit: int = 100) -> List[Dict]:
         """Get option flow for a ticker."""
@@ -463,49 +513,33 @@ class UWClient:
             data = data[0]
         return data if isinstance(data, dict) else {}
     
-    def get_congress(self, ticker: str) -> Dict:
+    def get_congress_recent_trades(self, limit: int = 200, date: str = None, ticker: str = None) -> List[Dict]:
         """
-        Get congress trading data.
-        
-        NOTE: Per-ticker endpoint `/api/congress/{ticker}` returns 404.
-        Congress data may be market-wide only. This endpoint is kept for
-        compatibility but will return empty dict.
-        
-        Reference: https://api.unusualwhales.com/docs#/
+        Congress recent trades (official OpenAPI).
+        Endpoint: /api/congress/recent-trades
+        Params: limit, date, ticker
         """
-        try:
-            # Try per-ticker first (may not exist)
-            raw = self._get(f"/api/congress/{ticker}")
-            data = raw.get("data", {})
-            if isinstance(data, list) and len(data) > 0:
-                data = data[0]
-            return data if isinstance(data, dict) else {}
-        except Exception:
-            # Per-ticker doesn't exist - return empty
-            # TODO: Check if market-wide endpoint exists
-            return {}
+        params: Dict[str, Any] = {"limit": limit}
+        if date:
+            params["date"] = date
+        if ticker:
+            params["ticker"] = ticker
+        raw = self._get("/api/congress/recent-trades", params=params)
+        data = raw.get("data", [])
+        return data if isinstance(data, list) else []
     
-    def get_institutional(self, ticker: str) -> Dict:
+    def get_institutional_ownership(self, ticker: str, date: str = None) -> List[Dict]:
         """
-        Get institutional data.
-        
-        NOTE: Per-ticker endpoint `/api/institutional/{ticker}` returns 404.
-        Institutional data may be market-wide only. This endpoint is kept for
-        compatibility but will return empty dict.
-        
-        Reference: https://api.unusualwhales.com/docs#/
+        Institutional ownership by ticker (official OpenAPI).
+        Endpoint: /api/institution/{ticker}/ownership
+        Params: date, start_date, end_date, tags[], order, order_direction, limit, page
         """
-        try:
-            # Try per-ticker first (may not exist)
-            raw = self._get(f"/api/institutional/{ticker}")
-            data = raw.get("data", {})
-            if isinstance(data, list) and len(data) > 0:
-                data = data[0]
-            return data if isinstance(data, dict) else {}
-        except Exception:
-            # Per-ticker doesn't exist - return empty
-            # TODO: Check if market-wide endpoint exists
-            return {}
+        params: Dict[str, Any] = {}
+        if date:
+            params["date"] = date
+        raw = self._get(f"/api/institution/{ticker}/ownership", params=params)
+        data = raw.get("data", [])
+        return data if isinstance(data, list) else []
 
 
 class SmartPoller:
@@ -525,6 +559,12 @@ class SmartPoller:
         # Total: 8,268 + 2,067 + 689 + 78 = 11,102 calls (74% of limit)
         #
         # We can increase frequency if needed, but this is safe
+        # NOTE: Not all UW data is real-time valuable.
+        # - Calendar updates infrequently (often quarterly); poll slowly, then accelerate near events.
+        # - Insider is not real-time; poll daily.
+        # - Congress/institutional per-ticker endpoints are VERIFIED 404 in UW docs for this repo:
+        #   see UW_API_ENDPOINTS_OFFICIAL.md and UW_API_ENDPOINT_VERIFICATION.md.
+        #   Do NOT poll them (wastes quota and creates error noise).
         self.intervals = {
             "option_flow": 150,       # 2.5 min: Most critical data, poll frequently
             "dark_pool_levels": 600,  # 10 min: Important but less time-sensitive
@@ -532,16 +572,21 @@ class SmartPoller:
             "greeks": 1800,           # 30 min: Basic greeks (changes slowly)
             "top_net_impact": 300,    # 5 min: Market-wide, poll moderately
             "market_tide": 300,       # 5 min: Market-wide sentiment
-            "insider": 1800,          # 30 min: Insider trading (changes slowly)
-            "calendar": 3600,         # 60 min: Calendar events (changes slowly)
-            "congress": 1800,         # 30 min: Congress trading (changes slowly)
-            "institutional": 1800,    # 30 min: Institutional data (changes slowly)
+            # Slow-moving endpoints (quota optimization)
+            "insider": 86400,         # 24h: Insider is not real-time (poll daily)
+            "calendar": 604800,       # 7d baseline: Calendar updates infrequently (dynamic override near events)
             "oi_change": 900,         # 15 min: OI changes per ticker
             "etf_flow": 1800,         # 30 min: ETF flows per ticker
             "iv_rank": 1800,          # 30 min: IV rank per ticker
             "shorts_ftds": 3600,      # 60 min: FTD data changes slowly
             "max_pain": 900,           # 15 min: Max pain per ticker
+            # Congress/institutional (official OpenAPI endpoints; slow cadence)
+            "congress_recent_trades": 86400,
+            "institutional_ownership": 86400,
         }
+        # Endpoints that should NOT be slowed down 3x outside market hours.
+        # WHY: Daily/weekly jobs should keep their cadence even when market is closed.
+        self._offhours_exempt = {"insider", "calendar", "congress_recent_trades", "institutional_ownership"}
         self.last_call = self._load_state()
     
     def _load_state(self) -> dict:
@@ -563,7 +608,7 @@ class SmartPoller:
         except Exception:
             pass
     
-    def should_poll(self, endpoint: str, force_first: bool = False) -> bool:
+    def should_poll(self, endpoint: str, force_first: bool = False, interval_override_sec: Optional[int] = None) -> bool:
         """Check if enough time has passed since last call.
         
         Contract:
@@ -579,7 +624,7 @@ class SmartPoller:
         now = time.time()
         base_endpoint = endpoint.split(":", 1)[0]
         last = self.last_call.get(endpoint, 0)
-        base_interval = self.intervals.get(base_endpoint, 60)
+        base_interval = int(interval_override_sec) if isinstance(interval_override_sec, (int, float)) and interval_override_sec and interval_override_sec > 0 else self.intervals.get(base_endpoint, 60)
         
         # #region agent log
         debug_log("uw_flow_daemon.py:should_poll", "Polling decision", {
@@ -601,12 +646,12 @@ class SmartPoller:
             # #endregion
             return True
         
-        # OPTIMIZATION: During market hours, use normal intervals
-        # Outside market hours, use longer intervals to conserve quota
-        if self._is_market_hours():
+        # OPTIMIZATION: During market hours, use normal intervals.
+        # Outside market hours, poll 3x less frequently to conserve quota,
+        # EXCEPT for daily/weekly endpoints which should keep their cadence.
+        if self._is_market_hours() or base_endpoint in self._offhours_exempt:
             interval = base_interval
         else:
-            # Outside market hours: poll 3x less frequently (conserve quota)
             interval = base_interval * 3
         
         if now - last < interval:
@@ -676,6 +721,16 @@ class UWFlowDaemon:
         # Register signal handlers BEFORE any debug_log calls that might block
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
+
+        # Load/refresh official OpenAPI catalog in the background of init.
+        # This lets us discover the correct congress/institutional endpoints from UW docs
+        # without guessing paths.
+        self._openapi_catalog = None
+        try:
+            if refresh_catalog_if_needed:
+                self._openapi_catalog = refresh_catalog_if_needed()
+        except Exception:
+            self._openapi_catalog = None
         
         # #region agent log
         try:
@@ -1212,7 +1267,13 @@ class UWFlowDaemon:
                     print(f"[UW-DAEMON] Error fetching insider for {ticker}: {e}", flush=True)
             
             # Poll calendar (per-ticker)
-            if self.poller.should_poll(f"calendar:{ticker}"):
+            # Calendar is slow-moving; dynamically accelerate polling near the next event.
+            calendar_interval = None
+            try:
+                calendar_interval = self._calendar_interval_override_sec(ticker)
+            except Exception:
+                calendar_interval = None
+            if self.poller.should_poll(f"calendar:{ticker}", interval_override_sec=calendar_interval):
                 try:
                     print(f"[UW-DAEMON] Polling calendar for {ticker}...", flush=True)
                     calendar_data = self.client.get_calendar(ticker)
@@ -1228,45 +1289,350 @@ class UWFlowDaemon:
                     print(f"[UW-DAEMON] Error fetching calendar for {ticker}: {e}", flush=True)
                     # Store empty on error too
                     self._update_cache(ticker, {"calendar": {}})
-            
-            # Poll congress (per-ticker)
-            if self.poller.should_poll(f"congress:{ticker}"):
-                try:
-                    print(f"[UW-DAEMON] Polling congress for {ticker}...", flush=True)
-                    congress_data = self.client.get_congress(ticker)
-                    # Always store congress (even if empty or 404) so we know it was polled
-                    if not congress_data:
-                        congress_data = {}  # Store empty structure
-                    self._update_cache(ticker, {"congress": congress_data})
-                    if congress_data:
-                        print(f"[UW-DAEMON] Updated congress for {ticker}: {len(str(congress_data))} bytes", flush=True)
-                    else:
-                        print(f"[UW-DAEMON] congress for {ticker}: API returned empty (stored as empty)", flush=True)
-                except Exception as e:
-                    print(f"[UW-DAEMON] Error fetching congress for {ticker}: {e}", flush=True)
-                    # Store empty on error too
-                    self._update_cache(ticker, {"congress": {}})
-            
-            # Poll institutional (per-ticker)
-            if self.poller.should_poll(f"institutional:{ticker}"):
-                try:
-                    print(f"[UW-DAEMON] Polling institutional for {ticker}...", flush=True)
-                    institutional_data = self.client.get_institutional(ticker)
-                    # Always store institutional (even if empty or 404) so we know it was polled
-                    if not institutional_data:
-                        institutional_data = {}  # Store empty structure
-                    self._update_cache(ticker, {"institutional": institutional_data})
-                    if institutional_data:
-                        print(f"[UW-DAEMON] Updated institutional for {ticker}: {len(str(institutional_data))} bytes", flush=True)
-                    else:
-                        print(f"[UW-DAEMON] institutional for {ticker}: API returned empty (stored as empty)", flush=True)
-                except Exception as e:
-                    print(f"[UW-DAEMON] Error fetching institutional for {ticker}: {e}", flush=True)
-                    # Store empty on error too
-                    self._update_cache(ticker, {"institutional": {}})
+            # Institutional ownership is slow-moving; poll daily.
+            self._poll_institutional_ownership(ticker)
         
         except Exception as e:
             print(f"[UW-DAEMON] Error polling {ticker}: {e}", flush=True)
+
+    def _discovery_state_path(self) -> Path:
+        return Path("state/uw_endpoint_discovery.json")
+
+    def _load_discovery_state(self) -> Dict[str, Any]:
+        try:
+            p = self._discovery_state_path()
+            if p.exists():
+                return json.loads(p.read_text())
+        except Exception:
+            pass
+        return {}
+
+    def _save_discovery_state(self, state: Dict[str, Any]) -> None:
+        try:
+            p = self._discovery_state_path()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            tmp = p.with_suffix(".tmp")
+            tmp.write_text(json.dumps(state, indent=2))
+            tmp.replace(p)
+        except Exception:
+            pass
+
+    def _parse_candidates_env(self, env_key: str) -> List[str]:
+        raw = os.getenv(env_key, "").strip()
+        if not raw:
+            return []
+        return [p.strip() for p in raw.split(",") if p.strip()]
+
+    def _resolve_endpoint(self, kind: str, ticker: str) -> Optional[str]:
+        """
+        Resolve a working endpoint path for `kind` ("congress" or "institutional").
+        - Uses last-known-good from discovery state if still works
+        - Otherwise probes configured candidates and stores the first 200
+
+        IMPORTANT: No hallucination. If nothing returns 200, we do not fabricate data.
+        """
+        state = self._load_discovery_state()
+        cache_key = f"{kind}_endpoint"
+
+        # 0) Prefer the official OpenAPI endpoints when available (no probing needed).
+        if kind == "congress":
+            official = "/api/congress/recent-trades"
+            state[cache_key] = official
+            self._save_discovery_state(state)
+            return official
+        if kind == "institutional":
+            official = "/api/institution/{ticker}/ownership"
+            state[cache_key] = official
+            self._save_discovery_state(state)
+            return official
+
+        # 1) Try last known good
+        last = state.get(cache_key)
+        if isinstance(last, str) and last.strip():
+            path = last.strip().replace("{ticker}", ticker)
+            probe = self.client._probe(path)
+            if probe.get("ok"):
+                return last.strip()
+
+        # 2) Probe configured candidates (comma-separated).
+        # Examples (NOT guaranteed): "/api/congress", "/api/congress/trades", "/api/institutions/latest_filings"
+        candidates = self._parse_candidates_env(f"UW_{kind.upper()}_ENDPOINT_CANDIDATES")
+        # 2b) If no env candidates, derive candidates from official OpenAPI catalog by tag.
+        if not candidates and self._openapi_catalog and find_tagged_ops:
+            tag = "congress" if kind == "congress" else "institution"
+            try:
+                ops = find_tagged_ops(self._openapi_catalog, tag)
+            except Exception:
+                ops = []
+            # Convert to path templates (we only support GET endpoints here)
+            for op in ops:
+                try:
+                    if op.get("method") != "get":
+                        continue
+                    p = op.get("path")
+                    if isinstance(p, str) and p.startswith("/"):
+                        # Avoid wasting calls on institution-by-name endpoints in per-ticker contexts.
+                        if kind == "institutional":
+                            if "{ticker}" not in p:
+                                continue
+                        candidates.append(p)
+                except Exception:
+                    continue
+
+        for cand in candidates:
+            path = cand.replace("{ticker}", ticker)
+            probe = self.client._probe(path)
+            if probe.get("ok"):
+                state[cache_key] = cand
+                state[f"{kind}_last_ok_ts"] = int(time.time())
+                self._save_discovery_state(state)
+                return cand
+
+        # Persist last failure time for observability.
+        state[f"{kind}_last_fail_ts"] = int(time.time())
+        self._save_discovery_state(state)
+        return None
+
+    def _summarize_congress(self, raw: Any, ticker: str) -> Dict[str, Any]:
+        """
+        Best-effort summarization into the shape uw_composite_v2 expects.
+        Stores a small sample for schema discovery without huge payloads.
+        """
+        items: List[Dict[str, Any]] = []
+        if isinstance(raw, dict):
+            d = raw.get("data", raw)
+            if isinstance(d, list):
+                items = [x for x in d if isinstance(x, dict)]
+        elif isinstance(raw, list):
+            items = [x for x in raw if isinstance(x, dict)]
+
+        # Filter to ticker if possible
+        def _item_ticker(it: Dict[str, Any]) -> Optional[str]:
+            for k in ("ticker", "symbol", "underlying", "underlying_symbol", "underlyingSymbol"):
+                v = it.get(k)
+                if isinstance(v, str) and v.strip():
+                    return v.strip().upper()
+            return None
+
+        t_items = [it for it in items if _item_ticker(it) == ticker.upper()] if items else []
+
+        buys = 0
+        sells = 0
+        for it in t_items:
+            side = None
+            for k in ("side", "type", "transaction_type", "transactionType", "action"):
+                v = it.get(k)
+                if isinstance(v, str) and v.strip():
+                    side = v.strip().lower()
+                    break
+            if side:
+                if "buy" in side or "purchase" in side:
+                    buys += 1
+                elif "sell" in side or "sale" in side:
+                    sells += 1
+
+        net = buys - sells
+        if net > 0:
+            net_sent = "BULLISH"
+        elif net < 0:
+            net_sent = "BEARISH"
+        else:
+            net_sent = "NEUTRAL"
+
+        return {
+            "recent_count": len(t_items),
+            "buys": buys,
+            "sells": sells,
+            "net_sentiment": net_sent,
+            "conviction_boost": 0.0,  # until we know reliable sizing fields
+            "sample": t_items[:3],
+        }
+
+    def _summarize_institutional(self, raw: Any, ticker: str) -> Dict[str, Any]:
+        """
+        Institutional endpoints vary (13F, ownership, filings). We store a conservative summary and a sample.
+        """
+        items: List[Dict[str, Any]] = []
+        if isinstance(raw, dict):
+            d = raw.get("data", raw)
+            if isinstance(d, list):
+                items = [x for x in d if isinstance(x, dict)]
+        elif isinstance(raw, list):
+            items = [x for x in raw if isinstance(x, dict)]
+
+        # Try to filter to ticker if any obvious field exists
+        def _item_ticker(it: Dict[str, Any]) -> Optional[str]:
+            for k in ("ticker", "symbol", "underlying", "underlying_symbol", "stock", "asset"):
+                v = it.get(k)
+                if isinstance(v, str) and v.strip():
+                    return v.strip().upper()
+            return None
+
+        t_items = [it for it in items if _item_ticker(it) == ticker.upper()] if items else []
+
+        # Compute simple, stable concentration metrics when possible.
+        def _num(v) -> float:
+            try:
+                if isinstance(v, str):
+                    vv = v.replace(",", "").strip()
+                    return float(vv) if vv else 0.0
+                return float(v)
+            except Exception:
+                return 0.0
+
+        # Try common ownership percent keys.
+        pcts: List[float] = []
+        for it in t_items:
+            if not isinstance(it, dict):
+                continue
+            for k in ("percent", "percentage", "ownership_percent", "ownershipPercentage", "pct"):
+                if k in it:
+                    pv = _num(it.get(k))
+                    if pv > 0:
+                        pcts.append(pv)
+                        break
+
+        pcts_sorted = sorted(pcts, reverse=True)
+        top1 = pcts_sorted[0] if pcts_sorted else 0.0
+        top5 = sum(pcts_sorted[:5]) if pcts_sorted else 0.0
+
+        return {
+            "recent_count": len(t_items),
+            "holders_count": len(t_items),
+            "top_holder_pct": round(top1, 4),
+            "top5_holder_pct": round(top5, 4),
+            "sample": t_items[:3],
+        }
+
+    def _poll_congress_recent_trades_global(self, force_first: bool = False) -> None:
+        """
+        Best practice: poll congress trades once (market-wide) and distribute to tickers.
+        This avoids N-per-day calls and still keeps per-ticker cache keys populated.
+        """
+        if not self.poller.should_poll("congress_recent_trades", force_first=force_first):
+            return
+        try:
+            limit = int(os.getenv("UW_CONGRESS_RECENT_TRADES_LIMIT", "200"))
+        except Exception:
+            limit = 200
+
+        items = self.client.get_congress_recent_trades(limit=limit)
+        if not isinstance(items, list):
+            items = []
+
+        # Bucket by ticker
+        buckets: Dict[str, List[Dict[str, Any]]] = {t: [] for t in self.tickers}
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            tkr = None
+            for k in ("ticker", "symbol"):
+                v = it.get(k)
+                if isinstance(v, str) and v.strip():
+                    tkr = v.strip().upper()
+                    break
+            if tkr and tkr in buckets:
+                buckets[tkr].append(it)
+
+        for tkr, t_items in buckets.items():
+            summary = self._summarize_congress(t_items, tkr)
+            summary["_last_update"] = int(time.time())
+            self._update_cache(tkr, {"congress": summary})
+
+        # Store global metadata too
+        try:
+            cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
+            cache["_congress_recent_trades"] = {"last_update": int(time.time()), "count": len(items)}
+            atomic_write_json(CACHE_FILE, cache)
+        except Exception:
+            pass
+
+    def _poll_institutional_ownership(self, ticker: str) -> None:
+        """Poll institutional ownership per ticker (daily)."""
+        if not self.poller.should_poll(f"institutional_ownership:{ticker}"):
+            return
+        try:
+            items = self.client.get_institutional_ownership(ticker)
+            summary = self._summarize_institutional(items, ticker)
+            summary["_last_update"] = int(time.time())
+            self._update_cache(ticker, {"institutional": summary})
+        except Exception:
+            # Keep last known data; do not overwrite on failure
+            return
+
+    def _calendar_interval_override_sec(self, ticker: str) -> Optional[int]:
+        """
+        Determine calendar polling cadence based on event proximity.
+        Baseline is weekly, then accelerates as events get closer.
+        No endpoint/schema guessing: we only use whatever calendar payload we already have cached.
+        """
+        # Baseline: weekly
+        baseline = 7 * 86400
+        try:
+            cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
+            cal = (cache.get(ticker, {}) or {}).get("calendar", {}) or {}
+        except Exception:
+            return baseline
+
+        # Extract candidate dates from common keys; handle dict/list payloads.
+        dates: List[str] = []
+        try:
+            if isinstance(cal, dict):
+                for k in ("earnings_date", "earningsDate", "next_earnings", "nextEarnings", "date", "event_date", "eventDate"):
+                    v = cal.get(k)
+                    if isinstance(v, str) and v.strip():
+                        dates.append(v.strip())
+                # Some payloads embed events list
+                evs = cal.get("events") or cal.get("data")
+                if isinstance(evs, list):
+                    for ev in evs[:25]:
+                        if isinstance(ev, dict):
+                            for k in ("date", "event_date", "eventDate", "earnings_date", "earningsDate"):
+                                v = ev.get(k)
+                                if isinstance(v, str) and v.strip():
+                                    dates.append(v.strip())
+            elif isinstance(cal, list):
+                for ev in cal[:25]:
+                    if isinstance(ev, dict):
+                        for k in ("date", "event_date", "eventDate", "earnings_date", "earningsDate"):
+                            v = ev.get(k)
+                            if isinstance(v, str) and v.strip():
+                                dates.append(v.strip())
+        except Exception:
+            dates = []
+
+        if not dates:
+            return baseline
+
+        # Parse soonest future date (UTC) from ISO-like strings.
+        now = datetime.now(timezone.utc)
+        soonest: Optional[datetime] = None
+        for s in dates:
+            try:
+                ss = s.replace("Z", "+00:00")
+                dt = datetime.fromisoformat(ss)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                # Only future-ish dates matter for proximity
+                if dt < now - timedelta(days=1):
+                    continue
+                if soonest is None or dt < soonest:
+                    soonest = dt
+            except Exception:
+                continue
+
+        if soonest is None:
+            return baseline
+
+        days_to = (soonest - now).total_seconds() / 86400.0
+        # Accelerate as event approaches
+        if days_to <= 2:
+            return 3600       # 1h within 2 days
+        if days_to <= 7:
+            return 21600      # 6h within 1 week
+        if days_to <= 30:
+            return 86400      # daily within 30 days
+        return baseline
     
     def run(self):
         """Main daemon loop."""
@@ -1410,6 +1776,12 @@ class UWFlowDaemon:
                             safe_print(f"[UW-DAEMON] Error polling market_tide: {e}")
                             import traceback
                             safe_print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}")
+
+                    # Poll congress recent trades (market-wide) and distribute to tickers.
+                    try:
+                        self._poll_congress_recent_trades_global(force_first=first_poll)
+                    except Exception as e:
+                        safe_print(f"[UW-DAEMON] Error polling congress_recent_trades: {e}")
                     
                     # Poll each ticker (optimized delay for rate limit efficiency)
                     for ticker in self.tickers:

@@ -6774,6 +6774,39 @@ class StrategyEngine:
                 # Also capture expanded intel features for comprehensive learning
                 if not comps and "features_for_learning" in c:
                     comps = c.get("features_for_learning", {})
+                # Shadow tracking wants to understand the impact of slower-changing intel too.
+                # IMPORTANT: Do not include raw flow_trades arrays (too large); only include compact summaries.
+                try:
+                    uw_raw = self.uw_flow_cache.get(symbol, {}) if hasattr(self, "uw_flow_cache") else {}
+                    if isinstance(uw_raw, dict) and uw_raw:
+                        uw_shadow_intel = {
+                            "_last_update": uw_raw.get("_last_update", uw_raw.get("last_update")),
+                            "sentiment": uw_raw.get("sentiment"),
+                            "conviction": uw_raw.get("conviction"),
+                            "trade_count": uw_raw.get("trade_count"),
+                            "flow_trades_n": len(uw_raw.get("flow_trades") or []),
+                            "dark_pool": uw_raw.get("dark_pool", {}),
+                            "insider": uw_raw.get("insider", {}),
+                            "calendar": uw_raw.get("calendar", {}),
+                            "market_tide": uw_raw.get("market_tide", {}),
+                            "greeks": uw_raw.get("greeks", {}),
+                            "oi_change": uw_raw.get("oi_change", {}),
+                            "iv_rank": uw_raw.get("iv_rank", {}),
+                            "etf_flow": uw_raw.get("etf_flow", {}),
+                            "ftd_pressure": uw_raw.get("ftd_pressure", {}),
+                            # These are currently placeholders if UW per-ticker endpoints are unavailable
+                            "congress": uw_raw.get("congress", {}),
+                            "institutional": uw_raw.get("institutional", {}),
+                        }
+                        # Embed into comps so shadow logger can track potential impact vs trade outcomes.
+                        if isinstance(comps, dict):
+                            comps.setdefault("_shadow_inputs", {})
+                            if isinstance(comps.get("_shadow_inputs"), dict):
+                                comps["_shadow_inputs"]["uw_intel"] = uw_shadow_intel
+                                comps["_shadow_inputs"]["component_sources"] = composite_meta.get("component_sources", {})
+                                comps["_shadow_inputs"]["expanded_intel"] = composite_meta.get("expanded_intel", {})
+                except Exception:
+                    pass
             elif Config.ENABLE_PER_TICKER_LEARNING and decisions_map:
                 prof = get_or_init_profile(self.profiles, symbol)
                 cluster_key = f"{symbol}|{c['direction']}|{c['start_ts']}"
