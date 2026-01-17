@@ -565,21 +565,31 @@ class SmartPoller:
         # - Congress/institutional per-ticker endpoints are VERIFIED 404 in UW docs for this repo:
         #   see UW_API_ENDPOINTS_OFFICIAL.md and UW_API_ENDPOINT_VERIFICATION.md.
         #   Do NOT poll them (wastes quota and creates error noise).
+        # IMPORTANT BUDGETING NOTE
+        # This daemon runs 24/7. If we poll per-ticker endpoints outside market hours,
+        # the daily call count explodes with large ticker lists.
+        #
+        # Policy:
+        # - Market-sensitive endpoints are polled ONLY during market hours (9:30-16:00 ET)
+        # - Slow endpoints keep cadence outside hours (insider/calendar/congress/institutional)
+        #
+        # With the default ~53 tickers, these settings target ~13.5k calls/day during market hours
+        # (staying under the 15,000/day quota with buffer).
         self.intervals = {
-            "option_flow": 150,       # 2.5 min: Most critical data, poll frequently
-            "dark_pool_levels": 600,  # 10 min: Important but less time-sensitive
-            "greek_exposure": 1800,   # 30 min: Detailed exposure (changes slowly)
-            "greeks": 1800,           # 30 min: Basic greeks (changes slowly)
-            "top_net_impact": 300,    # 5 min: Market-wide, poll moderately
-            "market_tide": 300,       # 5 min: Market-wide sentiment
+            "option_flow": 150,        # 2.5 min: Most critical data, poll frequently
+            "dark_pool_levels": 900,   # 15 min: Important but less time-sensitive
+            "greek_exposure": 3600,    # 60 min: Detailed exposure (changes slowly)
+            "greeks": 3600,            # 60 min: Basic greeks (changes slowly)
+            "top_net_impact": 600,     # 10 min: Market-wide, poll moderately
+            "market_tide": 600,        # 10 min: Market-wide sentiment
             # Slow-moving endpoints (quota optimization)
             "insider": 86400,         # 24h: Insider is not real-time (poll daily)
             "calendar": 604800,       # 7d baseline: Calendar updates infrequently (dynamic override near events)
             "oi_change": 900,         # 15 min: OI changes per ticker
-            "etf_flow": 1800,         # 30 min: ETF flows per ticker
-            "iv_rank": 1800,          # 30 min: IV rank per ticker
-            "shorts_ftds": 3600,      # 60 min: FTD data changes slowly
-            "max_pain": 900,           # 15 min: Max pain per ticker
+            "etf_flow": 3600,         # 60 min: ETF flows per ticker
+            "iv_rank": 3600,          # 60 min: IV rank per ticker
+            "shorts_ftds": 7200,      # 120 min: FTD data changes slowly
+            "max_pain": 1800,         # 30 min: Max pain per ticker
             # Congress/institutional (official OpenAPI endpoints; slow cadence)
             "congress_recent_trades": 86400,
             "institutional_ownership": 86400,
@@ -625,6 +635,26 @@ class SmartPoller:
         base_endpoint = endpoint.split(":", 1)[0]
         last = self.last_call.get(endpoint, 0)
         base_interval = int(interval_override_sec) if isinstance(interval_override_sec, (int, float)) and interval_override_sec and interval_override_sec > 0 else self.intervals.get(base_endpoint, 60)
+
+        # HARD QUOTA GUARD:
+        # Market-sensitive endpoints should not run outside market hours.
+        # This keeps daily volume predictable and under 15,000/day with large ticker sets.
+        if (not self._is_market_hours()) and (base_endpoint not in self._offhours_exempt):
+            market_sensitive = {
+                "option_flow",
+                "dark_pool_levels",
+                "greek_exposure",
+                "greeks",
+                "top_net_impact",
+                "market_tide",
+                "oi_change",
+                "etf_flow",
+                "iv_rank",
+                "shorts_ftds",
+                "max_pain",
+            }
+            if base_endpoint in market_sensitive:
+                return False
         
         # #region agent log
         debug_log("uw_flow_daemon.py:should_poll", "Polling decision", {
