@@ -1,0 +1,63 @@
+{
+  "report_date": "2026-01-19",
+  "report_timestamp": "2026-01-19T20:30:03.089343+00:00",
+  "report_type": "daily_alpha_audit",
+  "authoritative_source": "MEMORY_BANK.md",
+  "today_summary": {
+    "total_trades": 0,
+    "total_wins": 0,
+    "total_losses": 0,
+    "win_rate": 0.0,
+    "total_pnl_usd": 0,
+    "total_pnl_pct": 0,
+    "avg_pnl_pct": 0.0
+  },
+  "regime_performance": {
+    "today": {},
+    "weekly_average": {
+      "MIXED": 0.0921,
+      "UNKNOWN": 0.3077
+    },
+    "comparison": {
+      "MIXED": {
+        "today_win_rate": 0.0,
+        "weekly_avg_win_rate": 0.0921,
+        "divergence_pct": -9.21,
+        "today_trades": 0,
+        "today_avg_pnl_pct": 0.0
+      },
+      "UNKNOWN": {
+        "today_win_rate": 0.0,
+        "weekly_avg_win_rate": 0.3077,
+        "divergence_pct": -30.77,
+        "today_trades": 0,
+        "today_avg_pnl_pct": 0.0
+      }
+    }
+  },
+  "vwap_deviation": {
+    "avg_deviation_pct": 0.0,
+    "median_deviation_pct": 0.0,
+    "positive_deviations": 0,
+    "negative_deviations": 0,
+    "sample_count": 0
+  },
+  "momentum_lead_time": {
+    "avg_lead_time_seconds": 0.0,
+    "median_lead_time_seconds": 0.0,
+    "min_lead_time_seconds": 0.0,
+    "max_lead_time_seconds": 0.0,
+    "sample_count": 0
+  },
+  "liquidity_metrics": {
+    "avg_spread_bps": 0.0,
+    "avg_hour_spread_bps": 0.0,
+    "avg_deviation_from_hour_avg": 0.0,
+    "sample_count": 0
+  },
+  "data_quality": {
+    "today_trades_analyzed": 0,
+    "weekly_trades_analyzed": 981,
+    "orders_analyzed": 11556
+  }
+}
