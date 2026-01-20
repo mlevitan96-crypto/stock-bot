@@ -38,7 +38,8 @@ def main() -> int:
     date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     out_path = Path("reports") / f"SHADOW_TRADING_AUDIT_{date}.md"
 
-    with ReportDataFetcher(date=date) as fetcher:
+    # Shadow audit should be "fresh" by default so new shadow events (PnL) are reflected promptly.
+    with ReportDataFetcher(date=date, use_cache=False) as fetcher:
         src = fetcher.get_data_source_info()
         validate_data_source(src)
 
