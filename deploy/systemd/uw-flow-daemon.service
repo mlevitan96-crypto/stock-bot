@@ -1,5 +1,5 @@
-[#] uw-flow-daemon.service
-[#] Systemd unit to guarantee single-instance UW polling.
+# uw-flow-daemon.service
+# Systemd unit to guarantee single-instance UW polling.
 
 [Unit]
 Description=Unusual Whales Flow Daemon (single instance)
