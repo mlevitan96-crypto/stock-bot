@@ -97,8 +97,9 @@ def deploy_dashboard():
         
         # Step 6: Verify dashboard is responding
         print("[6/6] Verifying dashboard is responding...")
+        # Use IPv4 loopback explicitly: some droplets don't have IPv6 ::1 bound for "localhost".
         stdout, stderr, exit_code = client._execute(
-            "curl -s http://localhost:5000/health 2>&1 | head -5"
+            "curl -s http://127.0.0.1:5000/health 2>&1 | head -5"
         )
         
         if exit_code == 0 and stdout:
