@@ -7806,12 +7806,19 @@ class StrategyEngine:
                             from config.registry import StrategyFlags
                             if bool(getattr(StrategyFlags, "SHADOW_PNL_ENABLED", False)):
                                 from shadow.shadow_pnl_engine import record_shadow_executed
+                                from shadow.shadow_pnl_engine import shadow_pnl_tick
                                 record_shadow_executed(
                                     symbol=str(symbol),
                                     qty=int(qty),
                                     entry_price=float(ref_price_check) if ref_price_check else 0.0,
                                     side=("long" if c.get("direction") == "bullish" else "short"),
                                 )
+                                # Also emit a best-effort PnL tick immediately (unrealized only).
+                                try:
+                                    if hasattr(self, "executor") and hasattr(self.executor, "api") and self.executor.api is not None:
+                                        shadow_pnl_tick(self.executor.api, signal_context=None, posture_state=None, enable_exits=False)
+                                except Exception:
+                                    pass
                         except Exception:
                             pass
                     else:
