@@ -106,6 +106,16 @@ To permanently prevent silent 404s and hallucinated URLs:
   - any UW endpoint used in code is not present in the spec (static audit)
 - No code may bypass `uw_client` for UW HTTP calls.
 
+### 4.9 UW Polling Single-Instance Contract (Droplet)
+To prevent quota waste and inconsistent cache writes:
+- `uw_flow_daemon.py` MUST run as a **single instance** on the droplet.
+- Canonical runner is systemd unit:
+  - `uw-flow-daemon.service` (repo template: `deploy/systemd/uw-flow-daemon.service`)
+- The daemon MUST also enforce a process-level single-instance guard via a file lock:
+  - `state/uw_flow_daemon.lock`
+- Any attempted second instance MUST exit and log:
+  - `subsystem="uw_poll" event_type="uw_flow_daemon_already_running"`
+
 ### 4.6 UW Intelligence Execution Contract
 The UW intelligence lifecycle MUST be executed in this order:
 - **Universe build (daily, before market open)**:

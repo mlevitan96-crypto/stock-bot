@@ -500,6 +500,10 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - Sync failures MUST be logged and MUST NOT break v1 trading.
 - **Shadow-only enforcement**:
   - v2 composite MUST consume UW intel only from `state/premarket_intel.json` / `state/postmarket_intel.json` (no live UW calls in scoring).
+- **UW polling must be single-instance (quota safety)**:
+  - `uw_flow_daemon.py` MUST NOT run more than once on the droplet.
+  - Systemd service `uw-flow-daemon.service` is the canonical runner.
+  - The daemon enforces a file lock at `state/uw_flow_daemon.lock` to prevent duplicates.
 
 #### Operator scripts
 - **Full run + sync**: `scripts/run_uw_intel_on_droplet.py`
