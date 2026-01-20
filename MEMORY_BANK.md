@@ -527,6 +527,17 @@ Cursor MUST:
 5. Include data source metadata  
 6. Reject invalid reports  
 
+## 5.4 END-OF-DAY TRADE REVIEW (EOD)
+- **Droplet-native generator**:
+  - Payload: `reports/_daily_review_tools/droplet_end_of_day_review_payload.py`
+  - Runner: `reports/_daily_review_tools/run_droplet_end_of_day_review.py`
+- **Output**:
+  - `reports/END_OF_DAY_REVIEW_YYYY-MM-DD.md`
+- **Contract**:
+  - MUST use droplet logs/state as source-of-truth
+  - MUST be brutally honest (explicit YES/NO verdicts)
+  - MUST compare v1 real vs v2 shadow and include buy-and-hold benchmark (best-effort)
+
 ---
 
 ## 5.2 PROHIBITED PRACTICES
