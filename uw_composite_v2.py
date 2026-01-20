@@ -1654,7 +1654,8 @@ def compute_composite_score_v3_v2(
 
     # Shadow-only attribution (append-only, never raises).
     try:
-        if uw_inputs and isinstance(uw_adj, dict):
+        # Emit when there is meaningful v2 evaluation context (trade_count>0) OR UW intel exists.
+        if (int(trade_count) > 0 or bool(uw_inputs)) and isinstance(uw_adj, dict):
             from src.uw.uw_attribution import emit_uw_attribution
             emit_uw_attribution(
                 symbol=str(symbol),
@@ -1662,12 +1663,12 @@ def compute_composite_score_v3_v2(
                 composite_version="v2",
                 uw_intel_version=str(uw_intel_version or ""),
                 uw_features={
-                    "flow_strength": uw_inputs.get("flow_strength", 0.0),
-                    "darkpool_bias": uw_inputs.get("darkpool_bias", 0.0),
-                    "sentiment": uw_inputs.get("sentiment", "NEUTRAL"),
-                    "earnings_proximity": uw_inputs.get("earnings_proximity"),
-                    "sector_alignment": uw_inputs.get("sector_alignment", 0.0),
-                    "regime_alignment": uw_inputs.get("regime_alignment", 0.0),
+                    "flow_strength": (uw_inputs.get("flow_strength", 0.0) if isinstance(uw_inputs, dict) else 0.0),
+                    "darkpool_bias": (uw_inputs.get("darkpool_bias", 0.0) if isinstance(uw_inputs, dict) else 0.0),
+                    "sentiment": (uw_inputs.get("sentiment", "NEUTRAL") if isinstance(uw_inputs, dict) else "NEUTRAL"),
+                    "earnings_proximity": (uw_inputs.get("earnings_proximity") if isinstance(uw_inputs, dict) else None),
+                    "sector_alignment": (uw_inputs.get("sector_alignment", 0.0) if isinstance(uw_inputs, dict) else 0.0),
+                    "regime_alignment": (uw_inputs.get("regime_alignment", (v2_uw_regime_profile or {}).get("alignment", 0.0)) if isinstance(uw_inputs, dict) else (v2_uw_regime_profile or {}).get("alignment", 0.0)),
                 },
                 uw_contribution={
                     "score_delta": float(uw_adj.get("total", 0.0) or 0.0),
