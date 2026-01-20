@@ -22,10 +22,11 @@ from typing import Any, Dict, List, Set
 ROOT = Path("/root/stock-bot")
 
 
-def _load_env_file(path: Path) -> None:
+def _load_env_map(path: Path) -> Dict[str, str]:
+    env: Dict[str, str] = {}
     try:
         if not path.exists():
-            return
+            return env
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             s = line.strip()
             if not s or s.startswith("#") or "=" not in s:
@@ -35,10 +36,11 @@ def _load_env_file(path: Path) -> None:
             if k.startswith("export "):
                 k = k[len("export ") :].strip()
             v = v.strip().strip("'").strip('"')
-            if k and k not in os.environ:
-                os.environ[k] = v
+            if k:
+                env[k] = v
     except Exception:
-        return
+        return env
+    return env
 
 
 def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
@@ -61,11 +63,38 @@ def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
 
 
 def main() -> int:
-    _load_env_file(ROOT / ".env")
+    env = _load_env_map(ROOT / ".env")
 
-    api_key = os.getenv("ALPACA_API_KEY") or os.getenv("APCA_API_KEY_ID") or ""
-    api_secret = os.getenv("ALPACA_SECRET_KEY") or os.getenv("APCA_API_SECRET_KEY") or ""
-    base_url = os.getenv("ALPACA_BASE_URL") or os.getenv("APCA_API_BASE_URL") or "https://paper-api.alpaca.markets"
+    def _pick(*keys: str) -> str:
+        for k in keys:
+            v = env.get(k) or os.getenv(k)
+            if v:
+                return str(v)
+        return ""
+
+    api_key = _pick("APCA_API_KEY_ID", "ALPACA_API_KEY", "ALPACA_KEY", "API_KEY")
+    api_secret = _pick("APCA_API_SECRET_KEY", "ALPACA_SECRET_KEY", "ALPACA_SECRET", "API_SECRET", "SECRET_KEY")
+    base_url = _pick("APCA_API_BASE_URL", "ALPACA_BASE_URL", "BASE_URL") or "https://paper-api.alpaca.markets"
+
+    # Heuristic fallback: accept any key containing API_KEY / SECRET / BASE_URL.
+    if not api_key:
+        for k, v in env.items():
+            kk = k.upper()
+            if "API_KEY" in kk and "SECRET" not in kk and v:
+                api_key = v
+                break
+    if not api_secret:
+        for k, v in env.items():
+            kk = k.upper()
+            if ("SECRET" in kk or "API_SECRET" in kk) and v:
+                api_secret = v
+                break
+    if not base_url:
+        for k, v in env.items():
+            kk = k.upper()
+            if "BASE_URL" in kk and v:
+                base_url = v
+                break
 
     if not api_key or not api_secret:
         raise SystemExit("Missing Alpaca credentials in environment/.env")
