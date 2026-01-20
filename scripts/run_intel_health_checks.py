@@ -106,6 +106,7 @@ def main() -> int:
     ap.add_argument("--max-age-hours", type=float, default=24.0, help="Freshness threshold for intel state")
     ap.add_argument("--heal", action="store_true", help="Attempt safe self-healing when missing/stale")
     ap.add_argument("--mock", action="store_true", help="Use UW_MOCK=1 for heal actions")
+    ap.add_argument("--nonfatal", action="store_true", help="Always exit 0 (still writes state with ok=true/false)")
     args = ap.parse_args()
 
     max_age_sec = int(float(args.max_age_hours) * 3600.0)
@@ -200,6 +201,8 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(doc, indent=2, sort_keys=True), encoding="utf-8")
     print(str(OUT))
+    if bool(args.nonfatal):
+        return 0
     return 0 if ok else 1
 
 

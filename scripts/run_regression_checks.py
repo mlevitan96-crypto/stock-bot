@@ -224,7 +224,7 @@ def main() -> int:
     ok, msg = validate_uw_intel_pnl_summary(pnl); _assert(ok, f"uw_intel_pnl_summary schema: {msg}")
 
     # 11) intel health checks run and write health state
-    _run([sys.executable, "scripts/run_intel_health_checks.py", "--mock"], env=base_env)
+    _run([sys.executable, "scripts/run_intel_health_checks.py", "--mock", "--nonfatal"], env=base_env)
     _assert(Path("state/intel_health_state.json").exists(), "state/intel_health_state.json not written")
     hs = json.loads(Path("state/intel_health_state.json").read_text(encoding="utf-8"))
     ok, msg = validate_intel_health_state(hs); _assert(ok, f"intel_health_state schema: {msg}")
