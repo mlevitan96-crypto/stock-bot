@@ -453,6 +453,35 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - Use the droplet-native refresh tool to repopulate `state/symbol_risk_features.json` on-demand:
   - `reports/_daily_review_tools/run_droplet_refresh_symbol_risk_features.py`
 
+## 7.8 UW INTELLIGENCE LAYER (CENTRAL CLIENT + UNIVERSE + INTEL PASSES) (2026-01-20)
+
+### Invariants (non-negotiable)
+- **All UW HTTP calls must route through** `src/uw/uw_client.py` (rate-limited, cached, logged).
+- **UW daily usage must be persisted** to `state/uw_usage_state.json` (self-healing; never crashes engine).
+- **UW response cache (v2 intelligence) lives under** `state/uw_cache/` (TTL enforced per endpoint policy).
+- **Symbol-level UW calls are allowed only for** `daily_universe ∪ core_universe`.
+- **Universe build must happen before market open** (or the intel passes fall back and log).
+- **Pre/post intel must be generated daily**:
+  - `state/premarket_intel.json`
+  - `state/postmarket_intel.json`
+- **COMPOSITE v2 remains shadow-only** until `COMPOSITE_VERSION` is manually flipped.
+
+### Components
+- **Endpoint policies**: `config/uw_endpoint_policies.py`
+- **Central UW client**: `src/uw/uw_client.py`
+- **Universe builder**: `scripts/build_daily_universe.py` → `state/daily_universe.json`, `state/core_universe.json`
+- **Pre-market pass**: `scripts/run_premarket_intel.py` → `state/premarket_intel.json`
+- **Post-market pass**: `scripts/run_postmarket_intel.py` → `state/postmarket_intel.json`
+- **Regression runner**: `scripts/run_regression_checks.py`
+
+### Observability
+- `logs/system_events.jsonl` (subsystem=`uw`):
+  - `uw_call`
+  - `uw_rate_limit_block`
+  - `daily_universe_built`
+  - `premarket_intel_ready`
+  - `postmarket_intel_ready`
+
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)
 
 ## 8.1 SCORE TELEMETRY MODULE

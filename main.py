@@ -1772,74 +1772,57 @@ class UWClient:
                 if wait_time > 0:
                     time.sleep(min(wait_time, 5.0))  # Max 5 second wait
                 return {"data": []}
-            
-            # V4.0: Apply API resilience with exponential backoff
-            from api_resilience import ExponentialBackoff, get_signal_queue, is_panic_regime
-            
-            backoff = ExponentialBackoff(max_retries=5, base_delay=1.0, max_delay=60.0)
-            
-            def make_request():
-                r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
-                r.raise_for_status()
-                return r.json()
-            
+ 
+            # Central UW client routing (rate-limited, cached, logged).
+            # Contract: MUST return {"data": []} on failure (never crash v1).
             try:
-                result = backoff(make_request)()
-                # Record API call
-                quota.record_api_call(symbol or "unknown")
-                return result
-            except requests.exceptions.HTTPError as e:
-                # Check for 429 rate limit - queue signal if in PANIC regime
-                status_code = e.response.status_code if hasattr(e, 'response') and e.response else None
-                if status_code == 429:
+                from src.uw.uw_client import uw_http_get
+                status, payload, _hdr = uw_http_get(
+                    url,
+                    params=params or {},
+                    cache_policy={"ttl_seconds": 0, "endpoint_name": "", "max_calls_per_day": 0},
+                    timeout_s=10.0,
+                )
+                if int(status) == 200 and isinstance(payload, dict):
                     try:
+                        quota.record_api_call(symbol or "unknown")
+                    except Exception:
+                        pass
+                    return payload
+                # Check for 429 rate limit - queue signal if in PANIC regime
+                if int(status) == 429:
+                    try:
+                        from api_resilience import get_signal_queue, is_panic_regime
                         if is_panic_regime():
-                            # Queue signal for later processing
                             queue = get_signal_queue()
                             queue.enqueue({
                                 "url": url,
                                 "params": params or {},
                                 "symbol": symbol or "unknown",
-                                "error": f"Rate limited (429): {str(e)}",
+                                "error": f"Rate limited (429): uw_client_block",
                                 "timestamp": datetime.now(timezone.utc).isoformat()
                             })
                             log_event("api_resilience", "signal_queued_on_429", url=url, symbol=symbol)
                     except Exception:
-                        pass  # Don't fail if queueing fails
-                # Rate limited or endpoint not available - return empty data
-                jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e), "status_code": status_code})
+                        pass
+                jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": "uw_client_non_200", "status_code": int(status)})
                 return {"data": []}
             except Exception as e:
                 jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e)})
                 return {"data": []}
         except ImportError:
-            # Fallback if quota manager not available - still apply resilience
-            from api_resilience import ExponentialBackoff, get_signal_queue, is_panic_regime
-            
-            backoff = ExponentialBackoff(max_retries=5, base_delay=1.0, max_delay=60.0)
-            
-            def make_request():
-                r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
-                r.raise_for_status()
-                return r.json()
-            
+            # Fallback if quota manager not available: still route through central UW client.
             try:
-                return backoff(make_request)()
-            except requests.exceptions.HTTPError as e:
-                # Check for 429 rate limit - queue signal if in PANIC regime
-                status_code = e.response.status_code if hasattr(e, 'response') and e.response else None
-                if status_code == 429 and is_panic_regime():
-                    queue = get_signal_queue()
-                    queue.enqueue({
-                        "url": url,
-                        "params": params or {},
-                        "symbol": symbol if 'symbol' in locals() else "unknown",
-                        "error": f"Rate limited (429): {str(e)}",
-                        "timestamp": datetime.now(timezone.utc).isoformat()
-                    })
-                    log_event("api_resilience", "signal_queued_on_429", url=url)
-                # Rate limited or endpoint not available - return empty data
-                jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e), "status_code": status_code})
+                from src.uw.uw_client import uw_http_get
+                status, payload, _hdr = uw_http_get(
+                    url,
+                    params=params or {},
+                    cache_policy={"ttl_seconds": 0, "endpoint_name": "", "max_calls_per_day": 0},
+                    timeout_s=10.0,
+                )
+                if int(status) == 200 and isinstance(payload, dict):
+                    return payload
+                jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": "uw_client_non_200", "status_code": int(status)})
                 return {"data": []}
             except Exception as e:
                 jsonl_write("uw_error", {"event": "UW_API_ERROR", "url": url, "error": str(e)})

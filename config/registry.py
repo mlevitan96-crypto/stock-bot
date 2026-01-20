@@ -300,6 +300,19 @@ COMPOSITE_WEIGHTS_V2: Dict[str, Any] = {
     "shape_uw_weak_penalty_max": -0.10,
     "shape_uw_weak_threshold": 0.35,
     "shape_trade_count_strong": 15,
+
+    # UW intelligence layer (shadow-only, additive)
+    "uw": {
+        "version": "2026-01-20_uw_v1",
+        # Inputs are expected from state/premarket_intel.json and/or state/postmarket_intel.json
+        "flow_strength_bonus_max": 0.20,
+        "darkpool_bias_bonus_max": 0.12,
+        "sentiment_bonus_max": 0.10,
+        "earnings_proximity_penalty_max": -0.12,  # closer earnings => more risk
+        "sector_alignment_bonus_max": 0.12,
+        # normalization knobs
+        "earnings_penalty_days": 3,  # within N days => penalize
+    },
 }
 
 
@@ -325,6 +338,30 @@ class APIConfig:
             "Authorization": f"Bearer {os.getenv('UW_API_KEY', '')}",
             "Accept": "application/json"
         }
+
+
+# UW intelligence layer (v2) limits (aggressive but safe)
+# ------------------------------------------------------
+# Contract:
+# - These limits are enforced by `src/uw/uw_client.py`
+# - Defaults can be overridden via env vars of the same names
+UW_RATE_LIMIT_PER_MIN = get_env("UW_RATE_LIMIT_PER_MIN", 120, int)
+UW_DAILY_LIMIT = get_env("UW_DAILY_LIMIT", 15000, int)
+UW_SAFETY_BUFFER = get_env("UW_SAFETY_BUFFER", 0.95, float)
+
+
+# Daily dynamic universe scoring config (v1 for the universe builder)
+DAILY_UNIVERSE_SCORING_V1: Dict[str, Any] = {
+    "version": "2026-01-20_universe_v1",
+    "weights": {
+        "volatility": 0.30,
+        "premarket_activity": 0.20,
+        "uw_flow": 0.20,
+        "uw_darkpool": 0.10,
+        "uw_sentiment": 0.10,
+        "earnings_proximity": 0.10,
+    },
+}
 
 
 class SignalComponents:

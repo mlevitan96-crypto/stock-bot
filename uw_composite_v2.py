@@ -1502,6 +1502,81 @@ def compute_composite_score_v3_v2(
     total_adj = vol_bonus + low_vol_pen + beta_bonus + uw_bonus + pre_bonus + regime_bonus + regime_pen + shaping_adj
     score_v2 = _clamp(base_score + total_adj, 0.0, 8.0)
 
+    # UW intelligence layer (optional additive inputs for v2 only; shadow-safe).
+    # Reads state written by scripts/run_premarket_intel.py and scripts/run_postmarket_intel.py.
+    uw_inputs: Dict[str, Any] = {}
+    uw_adj = {
+        "flow_strength": 0.0,
+        "darkpool_bias": 0.0,
+        "sentiment": 0.0,
+        "earnings_proximity": 0.0,
+        "sector_alignment": 0.0,
+        "total": 0.0,
+    }
+    uw_intel_version = ""
+    try:
+        uw_cfg = v2_params.get("uw", {}) if isinstance(v2_params, dict) else {}
+        if isinstance(uw_cfg, dict) and uw_cfg:
+            from utils.state_io import read_json_self_heal
+
+            pm = read_json_self_heal("state/premarket_intel.json", default={}, heal=True, mkdir=True)
+            post = read_json_self_heal("state/postmarket_intel.json", default={}, heal=True, mkdir=True)
+
+            sym = str(symbol).upper()
+            pm_syms = pm.get("symbols", {}) if isinstance(pm, dict) else {}
+            post_syms = post.get("symbols", {}) if isinstance(post, dict) else {}
+            srec = (pm_syms.get(sym) if isinstance(pm_syms, dict) else None) or (post_syms.get(sym) if isinstance(post_syms, dict) else None) or {}
+            if isinstance(srec, dict) and srec:
+                uw_intel_version = str((pm.get("_meta", {}) if isinstance(pm, dict) else {}).get("uw_intel_version") or (post.get("_meta", {}) if isinstance(post, dict) else {}).get("uw_intel_version") or uw_cfg.get("version") or "")
+
+                flow_strength = _clamp(_to_num(srec.get("flow_strength", 0.0)), 0.0, 1.0)
+                darkpool_bias = _clamp(_to_num(srec.get("darkpool_bias", 0.0)), -1.0, 1.0)
+                sector_alignment = _clamp(_to_num(srec.get("sector_alignment", 0.0)), -1.0, 1.0)
+                sentiment_s = str(srec.get("sentiment", "NEUTRAL") or "NEUTRAL").upper()
+                earnings_prox = srec.get("earnings_proximity")
+                try:
+                    earnings_days = int(earnings_prox) if earnings_prox is not None else None
+                except Exception:
+                    earnings_days = None
+
+                # Apply bounded adjustments
+                uw_adj["flow_strength"] = float(uw_cfg.get("flow_strength_bonus_max", 0.20)) * float(flow_strength) * float(align_mult)
+                uw_adj["darkpool_bias"] = float(uw_cfg.get("darkpool_bias_bonus_max", 0.12)) * float(abs(darkpool_bias)) * float(align_mult)
+                if sentiment_s == "BULLISH" and direction == "bullish":
+                    uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult)
+                elif sentiment_s == "BEARISH" and direction == "bearish":
+                    uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult)
+
+                # Earnings proximity penalty (risk reduction)
+                pen_days = int(uw_cfg.get("earnings_penalty_days", 3) or 3)
+                if earnings_days is not None and earnings_days <= pen_days:
+                    uw_adj["earnings_proximity"] = float(uw_cfg.get("earnings_proximity_penalty_max", -0.12)) * float(align_mult)
+
+                uw_adj["sector_alignment"] = float(uw_cfg.get("sector_alignment_bonus_max", 0.12)) * float(max(0.0, sector_alignment)) * float(align_mult)
+
+                uw_adj["total"] = float(sum(float(v) for k, v in uw_adj.items() if k != "total"))
+                uw_inputs = {
+                    "flow_strength": float(flow_strength),
+                    "darkpool_bias": float(darkpool_bias),
+                    "sentiment": sentiment_s,
+                    "earnings_proximity": earnings_days,
+                    "sector_alignment": float(sector_alignment),
+                    "uw_intel_version": uw_intel_version,
+                }
+                # Apply to score
+                score_v2 = _clamp(score_v2 + float(uw_adj["total"]), 0.0, 8.0)
+    except Exception:
+        uw_inputs = {}
+        uw_adj = {
+            "flow_strength": 0.0,
+            "darkpool_bias": 0.0,
+            "sentiment": 0.0,
+            "earnings_proximity": 0.0,
+            "sector_alignment": 0.0,
+            "total": 0.0,
+        }
+        uw_intel_version = ""
+
     # Annotate
     try:
         base["score"] = round(float(score_v2), 3)
@@ -1533,6 +1608,10 @@ def compute_composite_score_v3_v2(
             "posture_confidence": round(float(posture_conf), 4),
             "weights_version": str(v2_params.get("version", "")),
         }
+        if uw_inputs:
+            base["v2_uw_inputs"] = uw_inputs
+            base["v2_uw_adjustments"] = {k: round(float(v), 4) for k, v in (uw_adj or {}).items()}
+            base["uw_intel_version"] = str(uw_intel_version)
         # Preserve existing notes while making adjustments explicit.
         base["notes"] = (str(base.get("notes", "") or "") + f"; v2_adj={round(float(total_adj), 3)}").strip("; ").strip()
         base["version"] = str(base.get("version", "V3")) + "+V2"

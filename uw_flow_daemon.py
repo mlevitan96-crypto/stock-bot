@@ -185,18 +185,28 @@ class UWClient:
             pass  # Don't fail on quota logging
         
         try:
-            # V4.0: Apply API resilience with exponential backoff
-            try:
-                from api_resilience import ExponentialBackoff, get_signal_queue, is_panic_regime
-                backoff = ExponentialBackoff(max_retries=5, base_delay=1.0, max_delay=60.0)
-                
-                def make_request():
-                    return requests.get(url, headers=self.headers, params=params or {}, timeout=10)
-                
-                r = backoff(make_request)()
-            except ImportError:
-                # Fallback if api_resilience not available
-                r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
+            # Central UW client routing (rate-limited, cached, logged).
+            # Keep daemon semantics:
+            # - still inspects UW headers when available
+            # - still returns {"data": [], "_rate_limited": True} on 429
+            from src.uw.uw_client import uw_http_get
+            status_code, response_data, resp_headers = uw_http_get(
+                url,
+                params=params or {},
+                cache_policy={"ttl_seconds": 0, "endpoint_name": "", "max_calls_per_day": 0},
+                timeout_s=10.0,
+            )
+            class _R:
+                status_code = int(status_code)
+                headers = resp_headers or {}
+                content = b"1" if isinstance(response_data, dict) else b""
+                text = ""
+                def json(self):
+                    return response_data if isinstance(response_data, dict) else {"data": []}
+                def raise_for_status(self):
+                    if int(self.status_code) != 200:
+                        raise requests.exceptions.HTTPError(f"UW status {self.status_code}")
+            r = _R()
             
             # Check rate limit headers
             daily_count = r.headers.get("x-uw-daily-req-count")
