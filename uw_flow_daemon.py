@@ -19,6 +19,40 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
+# Single-instance guard (droplet safety)
+def _acquire_single_instance_lock() -> bool:
+    """
+    Prevent multiple uw_flow_daemon instances (quota safety).
+
+    Uses an advisory file lock (Linux). If locking isn't supported, we proceed
+    (best-effort).
+    """
+    lock_path = Path("state/uw_flow_daemon.lock")
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        f = lock_path.open("a+")
+    except Exception:
+        return True
+
+    try:
+        import fcntl  # type: ignore
+
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # Keep handle alive for lifetime of process
+        globals()["_UW_DAEMON_LOCK_FH"] = f  # type: ignore
+        try:
+            f.write(f"pid={os.getpid()} ts={datetime.now(timezone.utc).isoformat()}\n")
+            f.flush()
+        except Exception:
+            pass
+        return True
+    except Exception:
+        try:
+            f.close()
+        except Exception:
+            pass
+        return False
+
 # Signal-safe print function to avoid reentrant call issues
 _print_lock = False
 def safe_print(*args, **kwargs):
@@ -151,6 +185,20 @@ load_dotenv()
 
 DATA_DIR = Directories.DATA
 CACHE_FILE = CacheFiles.UW_FLOW_CACHE
+
+# Enforce "poll once" safety invariant.
+if not _acquire_single_instance_lock():
+    try:
+        log_system_event(
+            subsystem="uw_poll",
+            event_type="uw_flow_daemon_already_running",
+            severity="ERROR",
+            details={"pid": os.getpid()},
+        )
+    except Exception:
+        pass
+    safe_print("[UW_DAEMON] Another instance is already running. Exiting.")
+    raise SystemExit(0)
 
 class UWClient:
     """Unusual Whales API client."""
