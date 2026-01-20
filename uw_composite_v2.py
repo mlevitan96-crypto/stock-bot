@@ -1314,6 +1314,139 @@ def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "
         }
     }
 
+
+def _clamp(x: float, lo: float, hi: float) -> float:
+    try:
+        return max(float(lo), min(float(hi), float(x)))
+    except Exception:
+        return float(lo)
+
+
+@global_failure_wrapper("scoring")
+def compute_composite_score_v3_v2(
+    symbol: str,
+    enriched_data: Dict,
+    regime: str = "NEUTRAL",
+    *,
+    market_context: Optional[Dict[str, Any]] = None,
+    posture_state: Optional[Dict[str, Any]] = None,
+    base_override: Optional[Dict[str, Any]] = None,
+    expanded_intel: Dict = None,
+    use_adaptive_weights: bool = True,
+    v2_params: Optional[Dict[str, float]] = None,
+) -> Dict[str, Any]:
+    """
+    Composite V2 (for A/B shadow):
+    - Uses the current production composite (v1) as a base
+    - Applies explicit, parameterized adjustments for:
+      - realized volatility
+      - beta vs SPY
+      - regime/posture alignment
+
+    IMPORTANT:
+    - This function is additive and does not replace production scoring unless explicitly enabled.
+    - It is designed for shadow comparison and observability.
+    """
+    if market_context is None:
+        market_context = {}
+    if posture_state is None:
+        posture_state = {}
+    if v2_params is None:
+        v2_params = {
+            "vol_bonus_max": 0.6,
+            "beta_bonus_max": 0.4,
+            "regime_align_bonus": 0.5,
+            "regime_misalign_penalty": -0.25,
+            "high_vol_multiplier": 1.30,
+            "low_vol_multiplier": 0.85,
+            "mid_vol_multiplier": 1.00,
+        }
+
+    # Base score source:
+    # - If base_override is provided, we treat it as the already-finalized v1 composite (including upstream boosts)
+    #   and only apply the v2 adjustment layer for comparability.
+    # - Otherwise compute v1 from scratch.
+    if isinstance(base_override, dict) and base_override:
+        base = dict(base_override)
+    else:
+        base = compute_composite_score_v3(
+            symbol,
+            enriched_data,
+            regime=regime,
+            expanded_intel=expanded_intel,
+            use_adaptive_weights=use_adaptive_weights,
+        ) or {}
+
+    base_score = _to_num(base.get("score", 0.0))
+
+    # Inputs (from enrichment feature store)
+    vol_20d = _to_num(enriched_data.get("realized_vol_20d", 0.0))
+    beta = _to_num(enriched_data.get("beta_vs_spy", 0.0))
+
+    # Context
+    vol_regime = str(market_context.get("volatility_regime", "mid") or "mid").lower()
+    posture = str(posture_state.get("posture", "neutral") or "neutral").lower()
+    posture_conf = _to_num(posture_state.get("regime_confidence", posture_state.get("regime_confidence", 0.0)))
+
+    # Direction from sentiment
+    sent = enriched_data.get("sentiment") or "NEUTRAL"
+    direction = "bullish" if sent == "BULLISH" else ("bearish" if sent == "BEARISH" else "neutral")
+
+    # Multipliers by vol regime
+    if vol_regime == "high":
+        vol_mult = float(v2_params.get("high_vol_multiplier", 1.30))
+    elif vol_regime == "low":
+        vol_mult = float(v2_params.get("low_vol_multiplier", 0.85))
+    else:
+        vol_mult = float(v2_params.get("mid_vol_multiplier", 1.00))
+
+    # Volatility preference: in high-vol regimes, prefer higher realized vol (no penalty for low vol yet).
+    # Normalize around ~20% annualized.
+    vol_strength = _clamp((vol_20d - 0.20) / 0.25, 0.0, 1.0)
+    vol_bonus = float(v2_params.get("vol_bonus_max", 0.6)) * vol_strength * vol_mult
+
+    # Beta preference: prefer beta > 1 when otherwise comparable.
+    beta_strength = _clamp((beta - 1.0) / 1.0, 0.0, 1.0)
+    beta_bonus = float(v2_params.get("beta_bonus_max", 0.4)) * beta_strength * vol_mult
+
+    # Regime/posture alignment (directional).
+    align = (posture == "long" and direction == "bullish") or (posture == "short" and direction == "bearish")
+    misalign = (posture == "long" and direction == "bearish") or (posture == "short" and direction == "bullish")
+    conf_mult = 1.0 if posture_conf >= 0.65 else 0.6
+    regime_bonus = float(v2_params.get("regime_align_bonus", 0.5)) * (conf_mult if align else 0.0)
+    regime_pen = float(v2_params.get("regime_misalign_penalty", -0.25)) * (conf_mult if misalign else 0.0)
+
+    total_adj = vol_bonus + beta_bonus + regime_bonus + regime_pen
+    score_v2 = _clamp(base_score + total_adj, 0.0, 8.0)
+
+    # Annotate
+    try:
+        base["score"] = round(float(score_v2), 3)
+        base["composite_version"] = "v2"
+        base["base_score_v1"] = round(float(base_score), 3)
+        base["v2_adjustments"] = {
+            "vol_bonus": round(float(vol_bonus), 4),
+            "beta_bonus": round(float(beta_bonus), 4),
+            "regime_align_bonus": round(float(regime_bonus), 4),
+            "regime_misalign_penalty": round(float(regime_pen), 4),
+            "total": round(float(total_adj), 4),
+        }
+        base["v2_inputs"] = {
+            "realized_vol_20d": round(float(vol_20d), 6),
+            "beta_vs_spy": round(float(beta), 6),
+            "volatility_regime": vol_regime,
+            "posture": posture,
+            "direction": direction,
+            "posture_confidence": round(float(posture_conf), 4),
+        }
+        # Preserve existing notes while making adjustments explicit.
+        base["notes"] = (str(base.get("notes", "") or "") + f"; v2_adj={round(float(total_adj), 3)}").strip("; ").strip()
+        base["version"] = str(base.get("version", "V3")) + "+V2"
+    except Exception:
+        pass
+
+    return base
+
 def compute_composite_score_v2(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL") -> Dict[str, Any]:
     """
     V2 Composite scoring with expanded features and motif awareness

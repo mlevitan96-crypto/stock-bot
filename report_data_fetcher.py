@@ -35,6 +35,7 @@ DROPLET_LOG_FILES = {
     "signals": "/root/stock-bot/logs/signals.jsonl",
     "orders": "/root/stock-bot/logs/orders.jsonl",
     "gate": "/root/stock-bot/logs/gate.jsonl",
+    "shadow": "/root/stock-bot/logs/shadow.jsonl",
     "uw_attribution": "/root/stock-bot/data/uw_attribution.jsonl",
     "daily_postmortem": "/root/stock-bot/data/daily_postmortem.jsonl",
 }
@@ -201,6 +202,10 @@ class ReportDataFetcher:
     def get_gate_events(self) -> List[Dict]:
         """Get gate events for target date from Droplet"""
         return self._get_file_data("gate")
+
+    def get_shadow_events(self) -> List[Dict]:
+        """Get shadow A/B events for target date from Droplet"""
+        return self._get_file_data("shadow")
     
     def get_uw_attribution(self) -> List[Dict]:
         """Get UW attribution for target date from Droplet"""

@@ -28,6 +28,13 @@ except Exception:
     def log_system_event(*args, **kwargs):  # type: ignore
         return None
 
+# Symbol risk features (volatility/beta) (best-effort import).
+try:
+    from config.registry import StateFiles, read_json
+except Exception:
+    StateFiles = None  # type: ignore
+    read_json = None  # type: ignore
+
 # SCORING PIPELINE FIX (Priority 1): Increased decay_min from 45 to 180 minutes
 # See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
 # This reduces score decay from 50% after 45min to 50% after 180min
@@ -457,6 +464,30 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     enriched_symbol["iv_rank"] = data.get("iv_rank", {})
     enriched_symbol["oi_change"] = data.get("oi_change", {})
     enriched_symbol["etf_flow"] = data.get("etf_flow", {})
+
+    # STRUCTURAL UPGRADE (log-only): attach per-symbol volatility/beta features if available.
+    # These fields are additive; composite v3 does not consume them yet.
+    try:
+        realized_vol_5d = 0.0
+        realized_vol_20d = 0.0
+        beta_vs_spy = 0.0
+        if StateFiles is not None and read_json is not None and hasattr(StateFiles, "SYMBOL_RISK_FEATURES"):
+            rf = read_json(StateFiles.SYMBOL_RISK_FEATURES, default={})  # type: ignore[attr-defined]
+            if isinstance(rf, dict):
+                sym_map = rf.get("symbols", {}) if isinstance(rf.get("symbols"), dict) else {}
+                row = sym_map.get(symbol, {}) if isinstance(sym_map, dict) else {}
+                if isinstance(row, dict):
+                    realized_vol_5d = float(row.get("realized_vol_5d", 0.0) or 0.0)
+                    realized_vol_20d = float(row.get("realized_vol_20d", 0.0) or 0.0)
+                    beta_vs_spy = float(row.get("beta_vs_spy", 0.0) or 0.0)
+        enriched_symbol["realized_vol_5d"] = realized_vol_5d
+        enriched_symbol["realized_vol_20d"] = realized_vol_20d
+        enriched_symbol["beta_vs_spy"] = beta_vs_spy
+    except Exception:
+        # Never block scoring/enrichment on feature store read issues.
+        enriched_symbol["realized_vol_5d"] = float(enriched_symbol.get("realized_vol_5d", 0.0) or 0.0)
+        enriched_symbol["realized_vol_20d"] = float(enriched_symbol.get("realized_vol_20d", 0.0) or 0.0)
+        enriched_symbol["beta_vs_spy"] = float(enriched_symbol.get("beta_vs_spy", 0.0) or 0.0)
     
     # SYNTHETIC SQUEEZE ENGINE: Compute if official squeeze data is missing
     squeeze_data = data.get("squeeze_score", {})

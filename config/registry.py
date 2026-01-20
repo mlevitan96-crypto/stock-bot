@@ -30,6 +30,25 @@ def get_env(key: str, default: T = None, cast: type = str) -> Union[T, str]:
         return default
 
 
+def get_env_bool(key: str, default: bool = False) -> bool:
+    """
+    Read a boolean environment variable safely.
+    Accepts: 1/0, true/false, yes/no, on/off (case-insensitive).
+    """
+    try:
+        raw = os.getenv(key)
+        if raw is None:
+            return bool(default)
+        s = str(raw).strip().lower()
+        if s in ("1", "true", "yes", "y", "on"):
+            return True
+        if s in ("0", "false", "no", "n", "off"):
+            return False
+        return bool(default)
+    except Exception:
+        return bool(default)
+
+
 class Directories:
     """All directory paths - create if not exist."""
     ROOT = Path(".")
@@ -119,6 +138,13 @@ class StateFiles:
     # HOW TO VERIFY: Dashboard regime matches state/regime_detector_state.json (e.g., PANIC confidence=1.0).
     REGIME_DETECTOR_STATE = Directories.STATE / "regime_detector_state.json"
 
+    # STRUCTURAL UPGRADE (2026-01-20): Market context + posture snapshots (additive).
+    # WHY: Provide stable, cached market context inputs (premarket/overnight + vol term proxy) and posture outputs.
+    # HOW TO VERIFY: state/market_context_v2.json and state/regime_posture_state.json update during trading cycles.
+    MARKET_CONTEXT_V2 = Directories.STATE / "market_context_v2.json"
+    REGIME_POSTURE_STATE = Directories.STATE / "regime_posture_state.json"
+    SYMBOL_RISK_FEATURES = Directories.STATE / "symbol_risk_features.json"
+
 
 class LogFiles:
     """All log files - single source of truth."""
@@ -147,6 +173,9 @@ class LogFiles:
 
     # Permanent, unified system events stream (append-only).
     SYSTEM_EVENTS = Directories.LOGS / "system_events.jsonl"
+
+    # STRUCTURAL UPGRADE (2026-01-20): Shadow A/B stream (append-only).
+    SHADOW = Directories.LOGS / "shadow.jsonl"
 
 
 class ConfigFiles:
@@ -190,6 +219,21 @@ class Thresholds:
     UW_POLL_INTERVAL_SEC = get_env("UW_POLL_INTERVAL_SEC", 120, int)
     UW_RATE_LIMIT_CALLS = get_env("UW_RATE_LIMIT_CALLS", 50, int)
     UW_RATE_LIMIT_PERIOD = get_env("UW_RATE_LIMIT_PERIOD", 60, int)
+
+
+class StrategyFlags:
+    """
+    Structural upgrade feature flags (config-gated, safe defaults).
+    """
+
+    # Composite scoring version selector:
+    # - v1: current production composite (compute_composite_score_v3)
+    # - v2: volatility/regime-aware composite (shadow by default)
+    COMPOSITE_VERSION = str(os.getenv("COMPOSITE_VERSION", "v1") or "v1").strip().lower()
+
+    # Shadow A/B evaluation:
+    # - When true, compute v1 + v2 in parallel and log divergences (v1 still places real orders).
+    SHADOW_TRADING_ENABLED = get_env_bool("SHADOW_TRADING_ENABLED", True)
 
 
 class APIConfig:

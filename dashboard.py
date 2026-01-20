@@ -3751,6 +3751,48 @@ def api_signal_history():
             "error": str(e)
         }), 500
 
+
+@app.route("/api/regime-and-posture", methods=["GET"])
+def api_regime_and_posture():
+    """
+    Structural upgrade status endpoint:
+    - market context (state/market_context_v2.json)
+    - regime+posture (state/regime_posture_state.json)
+    - composite version + shadow enabled (env/config)
+    """
+    try:
+        from config.registry import StateFiles, read_json
+        mc = {}
+        rp = {}
+        try:
+            if hasattr(StateFiles, "MARKET_CONTEXT_V2") and StateFiles.MARKET_CONTEXT_V2.exists():
+                mc = read_json(StateFiles.MARKET_CONTEXT_V2, default={})
+        except Exception:
+            mc = {}
+        try:
+            if hasattr(StateFiles, "REGIME_POSTURE_STATE") and StateFiles.REGIME_POSTURE_STATE.exists():
+                rp = read_json(StateFiles.REGIME_POSTURE_STATE, default={})
+        except Exception:
+            rp = {}
+
+        composite_version = os.getenv("COMPOSITE_VERSION", "v1")
+        shadow_enabled_raw = os.getenv("SHADOW_TRADING_ENABLED", "true")
+        shadow_enabled = str(shadow_enabled_raw).strip().lower() in ("1", "true", "yes", "y", "on")
+
+        return jsonify(
+            {
+                "timestamp": datetime.utcnow().isoformat(),
+                "market_context_v2": mc if isinstance(mc, dict) else {},
+                "regime_posture_v2": rp if isinstance(rp, dict) else {},
+                "config": {
+                    "COMPOSITE_VERSION": str(composite_version),
+                    "SHADOW_TRADING_ENABLED": bool(shadow_enabled),
+                },
+            }
+        ), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "timestamp": datetime.utcnow().isoformat()}), 500
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
     print(f"[Dashboard] Starting on port {port}...", flush=True)

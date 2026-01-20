@@ -105,6 +105,12 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - `comprehensive_learning_scheduler.py`  
 - `v2_nightly_orchestration_with_auto_promotion.py`  
 
+## 2.2.1 STRUCTURAL UPGRADE MODULES (ADDITIVE - 2026-01-20)
+- `structural_intelligence/market_context_v2.py` — market context snapshot (premarket/overnight + vol term proxy)
+- `structural_intelligence/symbol_risk_features.py` — realized vol + beta feature store (per-symbol)
+- `structural_intelligence/regime_posture_v2.py` — regime label + posture (log-only context layer)
+- `telemetry/shadow_ab.py` — shadow A/B JSONL stream writer (`logs/shadow.jsonl`)
+
 ## 2.3 CONFIG FILES
 - `config/registry.py` — **single source of truth**  
 - `config/theme_risk.json`  
@@ -351,6 +357,43 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 
 ---
 
+## 7.6 STRUCTURAL UPGRADE: COMPOSITE V2 + SHADOW A/B (2026-01-20)
+
+### Composite versioning (contract)
+- **Production default remains v1**:
+  - v1 composite: `uw_composite_v2.compute_composite_score_v3()`
+- **Additive v2 composite (shadow-first)**:
+  - v2 composite: `uw_composite_v2.compute_composite_score_v3_v2()`
+  - v2 is an **adjustment layer** on top of the finalized v1 composite (uses `base_override`) for apples-to-apples comparability.
+
+### Feature inputs added (log-only until promotion)
+- Per-symbol risk features attached in enrichment:
+  - `realized_vol_5d`, `realized_vol_20d`, `beta_vs_spy`
+- Market context snapshot:
+  - `state/market_context_v2.json`
+- Regime/posture snapshot:
+  - `state/regime_posture_state.json`
+
+### Shadow trading A/B mode (contract)
+- **Flag**: `SHADOW_TRADING_ENABLED=true|false` (default true)
+- **Selector**: `COMPOSITE_VERSION=v1|v2` (default v1)
+- Shadow MUST:
+  - compute v1 (real) and v2 (shadow) side-by-side
+  - NEVER submit real orders for v2
+  - log all shadow comparisons to:
+    - `logs/shadow.jsonl` (append-only)
+    - `logs/system_events.jsonl` with `subsystem="shadow"` for divergences
+
+### Real vs shadow comparison (operator workflow)
+- Generate the daily shadow audit (droplet-source-of-truth):
+  - `python reports/_daily_review_tools/generate_shadow_audit.py --date YYYY-MM-DD`
+  - Report output: `reports/SHADOW_TRADING_AUDIT_YYYY-MM-DD.md`
+- This report includes a **real-vs-shadow symbol overlap** section using:
+  - real trades from `logs/attribution.jsonl`
+  - shadow hypotheticals from `logs/shadow.jsonl` (`event_type="shadow_executed"`)
+
+---
+
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)
 
 ## 8.1 SCORE TELEMETRY MODULE
@@ -388,6 +431,13 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Endpoint:** `/api/scores/telemetry`
   - Returns: Complete telemetry summary (all statistics)
   - Parameters: None
+
+## 8.4 STRUCTURAL UPGRADE DASHBOARD ENDPOINTS (2026-01-20)
+- **Endpoint:** `/api/regime-and-posture`
+  - Returns:
+    - `state/market_context_v2.json` snapshot
+    - `state/regime_posture_state.json` snapshot
+    - `COMPOSITE_VERSION`, `SHADOW_TRADING_ENABLED` (config flags)
 
 ---
 
@@ -687,3 +737,165 @@ If dashboard not responding:
 2. Check logs: `tail -50 /root/stock-bot/logs/dashboard.log`
 3. Start manually: `cd /root/stock-bot && nohup python3 dashboard.py > logs/dashboard.log 2>&1 &`
 4. Verify port: `netstat -tlnp | grep 5000` or `ss -tlnp | grep 5000`
+
+---
+
+## 6.7 FAILURE POINT MONITORING + SELF-HEALING SYSTEM (UPDATED 2026-01-14)
+
+### System Overview
+The failure point monitoring system tracks all critical system components and provides self-healing for recoverable issues. It answers "Why am I not trading?" with explicit, accurate explanations.
+
+### Failure Point Categories
+
+**FP-1.x: Data & Signal Generation**
+- **FP-1.1:** UW Daemon Running - Checks if `uw_flow_daemon.py` process is active
+- **FP-1.2:** Cache File Exists - Verifies `data/uw_flow_cache.json` exists and has data
+- **FP-1.3:** Cache Fresh - Checks cache file age (< 10 min = OK, < 30 min = WARN, > 30 min = ERROR)
+- **FP-1.4:** Cache Has Symbols - Verifies cache contains symbol data
+- **FP-1.5:** UW API Authentication - Checks for recent 401/403 errors in daemon logs
+
+**FP-2.x: Scoring & Evaluation**
+- **FP-2.1:** Adaptive Weights Initialized - Verifies `state/signal_weights.json` has 21 components
+
+**FP-3.x: Gates & Filters**
+- **FP-3.1:** Freeze State - Checks `check_performance_freeze()` and `state/governor_freezes.json`
+  - **Single Source of Truth:** Matches `monitoring_guards.py:check_freeze_state()` exactly
+  - **Files Checked:** `state/governor_freezes.json` (active freezes where value == True)
+  - **Performance Freeze:** Automatically set by `check_performance_freeze()` in LIVE mode only
+- **FP-3.2:** Max Positions Reached - Checks Alpaca positions vs `MAX_CONCURRENT_POSITIONS` (16)
+- **FP-3.3:** Concentration Gate - Calculates `net_delta_pct` and checks if > 70% (blocking bullish entries)
+  - **Matches:** `main.py:5794` - Blocks when `net_delta_pct > 70.0` and `direction == "bullish"`
+
+**FP-4.x: Execution & Broker**
+- **FP-4.1:** Alpaca Connection - Tests `api.get_account()` connectivity
+- **FP-4.2:** Alpaca API Authentication - Checks for 401/403 errors
+- **FP-4.3:** Insufficient Buying Power - Warns if buying power < $100
+
+**FP-6.x: System & Infrastructure**
+- **FP-6.1:** Bot Running - Checks if `main.py` process is active (multiple pattern matching + port 8081 check)
+
+### Freeze State Contract
+
+**Single Source of Truth:** `monitoring_guards.py:check_freeze_state()`
+
+**Logic:**
+1. First checks `check_performance_freeze()` (only in LIVE mode, freezes on extreme losses)
+2. Then checks `state/governor_freezes.json` for any active freezes (value == True)
+
+**Files:**
+- ✅ `state/governor_freezes.json` - ACTIVE (single source of truth)
+- ❌ `state/pre_market_freeze.flag` - REMOVED (stale mechanism, cleaned up 2026-01-14)
+
+**How Bot Uses It:**
+- `main.py:7430` - Early exit if frozen: `if not check_freeze_state(): return {"clusters": 0, "orders": 0}`
+- `main.py:6050` - Passed to expectancy gate: `freeze_active = check_freeze_state() == False`
+
+**How Panel Reads It:**
+- `failure_point_monitor.py:check_fp_3_1_freeze_state()` - Matches main.py logic exactly
+
+**Self-Healing:**
+- ❌ **NO self-healing for freezes** - Must be manually cleared (correct behavior)
+
+### Trading Blockers Function
+
+**Function:** `get_trading_blockers()` in `failure_point_monitor.py`
+
+**Purpose:** Provides explicit answer to "Why am I not trading?"
+
+**Returns:**
+```python
+{
+    "blocked": bool,
+    "blockers": [
+        {
+            "type": "freeze_state" | "max_positions" | "concentration_gate" | "system_error",
+            "active": bool,
+            "reason": str,
+            "source": str,
+            "can_self_heal": bool,
+            "requires_manual_action": bool,
+            "fp_id": str
+        }
+    ],
+    "summary": str
+}
+```
+
+**Usage:**
+- Dashboard `/api/failure_points` endpoint includes blockers
+- Dashboard UI shows "Why am I not trading?" panel when blocked
+- `get_trading_readiness()` includes blockers in response
+
+### Self-Healing System
+
+**Routines:**
+1. **`_heal_uw_daemon()`** - Restarts UW daemon (kills process, supervisor restarts; fallback: systemd)
+2. **`_heal_weights_init()`** - Initializes weights file via `fix_adaptive_weights_init.py`
+3. **`_heal_bot_restart()`** - Restarts bot service via systemd
+
+**Logging:**
+- ✅ All self-healing actions logged to `logs/self_healing.jsonl` (structured JSONL)
+- ✅ Includes: timestamp, FP ID, action, message, success status
+- ✅ Also prints to console for immediate visibility
+
+**Safety:**
+- ✅ All routines are safe operational repairs
+- ✅ No modifications to sacred logic
+- ✅ No deletion of important state
+- ✅ No masking of real problems
+
+### Dashboard Integration
+
+**Endpoint:** `/api/failure_points`
+- Returns trading readiness status
+- Includes all failure point details
+- Includes blockers explanation
+
+**UI Tab:** "⚠️ Trading Readiness"
+- Shows overall readiness (READY/DEGRADED/BLOCKED)
+- Lists all failure points with status
+- Shows "Why am I not trading?" panel when blocked
+- Auto-refreshes every 30 seconds
+
+### Usage
+
+**Check Trading Readiness:**
+```bash
+python3 -c "from failure_point_monitor import get_failure_point_monitor; m = get_failure_point_monitor(); r = m.get_trading_readiness(); print(r['readiness'])"
+```
+
+**Get Trading Blockers:**
+```bash
+python3 -c "from failure_point_monitor import get_failure_point_monitor; m = get_failure_point_monitor(); b = m.get_trading_blockers(); print(b['summary'])"
+```
+
+**View Self-Healing Logs:**
+```bash
+tail -20 logs/self_healing.jsonl | jq '.'
+```
+
+---
+
+## 6.8 TRADING BLOCKERS EXPLANATION (NEW 2026-01-14)
+
+### Common Blockers
+
+1. **Freeze State (FP-3.1)**
+   - **Reason:** Trading frozen by operator or performance freeze
+   - **Source:** `state/governor_freezes.json` or `check_performance_freeze()`
+   - **Action Required:** Manual - Clear freeze flags in `governor_freezes.json`
+
+2. **Max Positions (FP-3.2)**
+   - **Reason:** At capacity (16/16 positions)
+   - **Source:** Alpaca API position count
+   - **Action Required:** None - Wait for natural exits or manually close positions
+
+3. **Concentration Gate (FP-3.3)**
+   - **Reason:** Portfolio >70% long-delta, blocking bullish entries
+   - **Source:** Portfolio calculation (net_delta / account_equity)
+   - **Action Required:** None - Wait for exits, bearish signals, or manually close positions
+
+4. **System Errors (FP-1.x, FP-4.x, FP-6.x)**
+   - **Reason:** Critical system component failed
+   - **Source:** Various (daemon, cache, API, bot process)
+   - **Action Required:** Check self-healing status, may require manual intervention

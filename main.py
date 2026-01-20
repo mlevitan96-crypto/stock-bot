@@ -7085,6 +7085,26 @@ class StrategyEngine:
             ticker_key = f"{symbol}_{market_regime}"
             ticker_profile = bayes_profiles.get("profiles", {}).get(ticker_key, {})
             ticker_bayes_expectancy = ticker_profile.get("expectancy", 0.0)
+
+            # STRUCTURAL UPGRADE: Decision-level shadow A/B (v2) — evaluate v2 through the same downstream gates.
+            # This is read-only/hypothetical and only emits telemetry.
+            shadow_enabled = False
+            v2_shadow = None
+            v2_score = None
+            try:
+                from config.registry import StrategyFlags
+                shadow_enabled = bool(getattr(StrategyFlags, "SHADOW_TRADING_ENABLED", True))
+            except Exception:
+                shadow_enabled = False
+            if shadow_enabled:
+                try:
+                    cm = c.get("composite_meta", {}) if isinstance(c, dict) else {}
+                    v2_shadow = cm.get("shadow_v2", {}) if isinstance(cm, dict) else {}
+                    if isinstance(v2_shadow, dict) and "score" in v2_shadow:
+                        v2_score = float(v2_shadow.get("score", 0.0) or 0.0)
+                except Exception:
+                    v2_shadow = None
+                    v2_score = None
             
             # Get regime forecast modifier and TCA quality
             try:
@@ -7113,6 +7133,36 @@ class StrategyEngine:
                 theme_risk_penalty=theme_risk_penalty,
                 toxicity_penalty=toxicity_penalty
             )
+
+            # Shadow expectancy (v2) using the exact same inputs, substituting v2 score.
+            v2_expectancy = None
+            v2_should_trade = None
+            v2_gate_reason = None
+            if shadow_enabled and v2_score is not None:
+                try:
+                    v2_expectancy = v32.ExpectancyGate.calculate_expectancy(
+                        composite_score=float(v2_score),
+                        ticker_bayes_expectancy=ticker_bayes_expectancy,
+                        regime_modifier=regime_modifier,
+                        tca_modifier=tca_modifier,
+                        theme_risk_penalty=theme_risk_penalty,
+                        toxicity_penalty=toxicity_penalty,
+                    )
+                    v2_should_trade, v2_gate_reason = v32.ExpectancyGate.should_enter(
+                        ticker=symbol,
+                        expectancy=float(v2_expectancy),
+                        composite_score=float(v2_score),
+                        stage=system_stage,
+                        regime=market_regime,
+                        tca_modifier=tca_modifier,
+                        freeze_active=freeze_active,
+                        score_floor_breach=(float(v2_score) < float(Config.MIN_EXEC_SCORE)),
+                        broker_health_degraded=False,
+                    )
+                except Exception:
+                    v2_expectancy = None
+                    v2_should_trade = None
+                    v2_gate_reason = None
             
             # Check expectancy gate (v3.2.1 enhanced with telemetry)
             freeze_active = check_freeze_state() == False
@@ -7134,6 +7184,39 @@ class StrategyEngine:
                 _inc_gate(f"expectancy_blocked:{gate_reason}")
                 log_event("gate", "expectancy_blocked", symbol=symbol, 
                          expectancy=expectancy, reason=gate_reason, stage=system_stage, gate_type="expectancy_gate", signal_type=c.get("signal_type", "UNKNOWN"))
+
+                # Shadow decision telemetry: would v2 have passed expectancy here?
+                try:
+                    if shadow_enabled and v2_score is not None:
+                        from telemetry.shadow_ab import log_shadow_event, log_shadow_divergence
+                        log_shadow_event(
+                            "shadow_blocked",
+                            symbol=symbol,
+                            reason="expectancy_gate_v1_blocked",
+                            v1_score=float(score),
+                            v2_score=float(v2_score),
+                            v1_reason=str(gate_reason),
+                            v2_reason=str(v2_gate_reason) if v2_gate_reason is not None else None,
+                            v2_would_trade=bool(v2_should_trade) if v2_should_trade is not None else None,
+                        )
+                        if v2_should_trade is True:
+                            log_shadow_event(
+                                "shadow_candidate",
+                                symbol=symbol,
+                                note="v2_would_pass_expectancy_where_v1_blocked",
+                                v2_score=float(v2_score),
+                                v2_expectancy=float(v2_expectancy) if v2_expectancy is not None else None,
+                            )
+                            log_shadow_divergence(
+                                symbol=symbol,
+                                v1_score=float(score),
+                                v2_score=float(v2_score),
+                                v1_pass=False,
+                                v2_pass=True,
+                                details={"gate": "expectancy_gate", "v1_reason": str(gate_reason), "v2_reason": str(v2_gate_reason)},
+                            )
+                except Exception:
+                    pass
                 
                 # SHADOW LOGGER: Track rejected signal
                 try:
@@ -7298,6 +7381,39 @@ class StrategyEngine:
                 print(f"DEBUG {symbol}: BLOCKED by score_below_min ({score} < {min_score}, stage={system_stage})", flush=True)
                 _inc_gate("score_below_min")
                 log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=min_score, stage=system_stage, gate_type="score_gate", signal_type=c.get("signal_type", "UNKNOWN"))
+
+                # Shadow decision telemetry: would v2 have cleared the score floor here?
+                try:
+                    if shadow_enabled and v2_score is not None:
+                        from telemetry.shadow_ab import log_shadow_event, log_shadow_divergence
+                        v2_pass_floor = float(v2_score) >= float(min_score)
+                        log_shadow_event(
+                            "shadow_blocked",
+                            symbol=symbol,
+                            reason="score_gate_v1_blocked",
+                            min_required=float(min_score),
+                            v1_score=float(score),
+                            v2_score=float(v2_score),
+                            v2_pass_floor=bool(v2_pass_floor),
+                        )
+                        if v2_pass_floor:
+                            log_shadow_event(
+                                "shadow_candidate",
+                                symbol=symbol,
+                                note="v2_would_pass_score_floor_where_v1_blocked",
+                                v2_score=float(v2_score),
+                                min_required=float(min_score),
+                            )
+                            log_shadow_divergence(
+                                symbol=symbol,
+                                v1_score=float(score),
+                                v2_score=float(v2_score),
+                                v1_pass=False,
+                                v2_pass=True,
+                                details={"gate": "score_gate", "min_required": float(min_score)},
+                            )
+                except Exception:
+                    pass
                 
                 # SHADOW LOGGER: Track rejected signal
                 try:
@@ -7666,6 +7782,37 @@ class StrategyEngine:
                 # Fail open on error - don't block trades due to filter errors
 
             print(f"DEBUG {symbol}: PASSED ALL GATES! Calling submit_entry...", flush=True)
+
+            # Shadow decision telemetry: if v2 would also pass downstream gates at this point, record hypothetical execution.
+            try:
+                if shadow_enabled and v2_score is not None:
+                    from telemetry.shadow_ab import log_shadow_event
+                    # At this point, all non-score gates have passed for v1; for v2, the main uncertainty is score/expectancy.
+                    v2_pass_floor = float(v2_score) >= float(min_score)
+                    v2_ok = bool(v2_pass_floor and (v2_should_trade is True or v2_should_trade is None))
+                    if v2_ok:
+                        log_shadow_event(
+                            "shadow_executed",
+                            symbol=symbol,
+                            side=("buy" if c.get("direction") == "bullish" else "sell"),
+                            qty=int(qty),
+                            entry_price=float(ref_price_check) if ref_price_check else None,
+                            v2_score=float(v2_score),
+                            market_regime=str(market_regime),
+                            note="hypothetical_order_would_be_submitted_by_v2",
+                        )
+                    else:
+                        log_shadow_event(
+                            "shadow_blocked",
+                            symbol=symbol,
+                            reason="v2_failed_score_or_expectancy",
+                            v2_score=float(v2_score),
+                            min_required=float(min_score),
+                            v2_should_trade=bool(v2_should_trade) if v2_should_trade is not None else None,
+                            v2_reason=str(v2_gate_reason) if v2_gate_reason is not None else None,
+                        )
+            except Exception:
+                pass
             
             side = "buy" if c["direction"] == "bullish" else "sell"
             print(f"DEBUG {symbol}: Side determined: {side}, qty={qty}, ref_price={ref_price_check}", flush=True)
@@ -8479,6 +8626,56 @@ def run_once():
         engine = StrategyEngine()
         degraded_mode = False  # Reduce-only when broker is unreachable
 
+        # STRUCTURAL UPGRADE (additive): Market context snapshot (premarket/overnight + vol term proxy).
+        # Contract:
+        # - Must never block trading (best-effort, wrapped, logs to system_events).
+        # - Provides inputs for regime/posture and shadow A/B (does not change decisions by itself).
+        try:
+            if hasattr(engine, "executor") and hasattr(engine.executor, "api") and engine.executor.api is not None:
+                from structural_intelligence.market_context_v2 import update_market_context_v2
+                mc = update_market_context_v2(engine.executor.api)
+                try:
+                    engine.market_context_v2 = mc  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        except Exception:
+            # Never block trading on context ingest errors.
+            pass
+
+        # STRUCTURAL UPGRADE (additive): Per-symbol vol/beta features store.
+        # Contract: log-only enrichment fields; no scoring weight changes here.
+        try:
+            if hasattr(engine, "executor") and hasattr(engine.executor, "api") and engine.executor.api is not None:
+                from structural_intelligence.symbol_risk_features import update_symbol_risk_features
+                try:
+                    symbols = list(getattr(Config, "TICKERS", []) or [])
+                except Exception:
+                    symbols = []
+                if "SPY" not in [str(s).upper() for s in symbols]:
+                    symbols.append("SPY")
+                rf = update_symbol_risk_features(engine.executor.api, symbols=symbols, benchmark="SPY")
+                try:
+                    engine.symbol_risk_features = rf  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # STRUCTURAL UPGRADE (additive): Regime + posture V2 (log-only; no gating changes).
+        try:
+            if hasattr(engine, "executor") and hasattr(engine.executor, "api") and engine.executor.api is not None:
+                from structural_intelligence.regime_posture_v2 import update_regime_posture_v2
+                mc = getattr(engine, "market_context_v2", None)
+                if not isinstance(mc, dict):
+                    mc = {}
+                rp = update_regime_posture_v2(engine.executor.api, market_context=mc)
+                try:
+                    engine.regime_posture_v2 = rp  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         all_trades = []
         gex_map = {}
         dp_map = {}
@@ -8894,6 +9091,26 @@ def run_once():
                     print(f"DEBUG: Exception processing {ticker}: {e} - skipping", flush=True)
                     log_event("composite_scoring", "exception_skipped", symbol=ticker, error=str(e), error_type=type(e).__name__)
                     continue
+
+                # Shadow/rollout observability: record composite version selection once per cycle.
+                # NOTE: production currently remains v1; v2 is shadow-only unless explicitly enabled later.
+                try:
+                    if symbols_processed == 0:
+                        from config.registry import StrategyFlags
+                        try:
+                            log_system_event(
+                                subsystem="scoring",
+                                event_type="composite_version_used",
+                                severity="INFO",
+                                details={
+                                    "composite_version": getattr(StrategyFlags, "COMPOSITE_VERSION", "v1"),
+                                    "shadow_trading_enabled": bool(getattr(StrategyFlags, "SHADOW_TRADING_ENABLED", True)),
+                                },
+                            )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
                 
                 # Institutional Remediation Phase 3:
                 # Do NOT floor freshness here; freshness is computed in uw_enrichment_v2 and should be allowed
@@ -8980,6 +9197,19 @@ def run_once():
                     print(f"DEBUG: Composite scoring returned None for {ticker} - skipping", flush=True)
                     log_event("scoring_flow", "composite_none", symbol=ticker)
                     continue  # skip invalid data safely
+
+                # STRUCTURAL UPGRADE (log-only): pass through vol/beta features for observability/learning.
+                # This does NOT affect score computation (composite already computed).
+                try:
+                    f = composite.get("features_for_learning")
+                    if not isinstance(f, dict):
+                        f = {}
+                    f.setdefault("realized_vol_5d", float(enriched.get("realized_vol_5d", 0.0) or 0.0))
+                    f.setdefault("realized_vol_20d", float(enriched.get("realized_vol_20d", 0.0) or 0.0))
+                    f.setdefault("beta_vs_spy", float(enriched.get("beta_vs_spy", 0.0) or 0.0))
+                    composite["features_for_learning"] = f
+                except Exception:
+                    pass
                 
                 score = composite.get("score", 0.0)
                 print(f"DEBUG: {ticker} composite_score={score:.3f}", flush=True)
@@ -9177,6 +9407,95 @@ def run_once():
                 # Use V2 should_enter (hierarchical thresholds) with V3.0 exhaustion check
                 # Pass api for exhaustion filter (EMA/ATR check)
                 gate_result = uw_v2.should_enter_v2(composite, ticker, mode="base", api=engine.executor.api if hasattr(engine, 'executor') and hasattr(engine.executor, 'api') else None)
+
+                # STRUCTURAL UPGRADE: Shadow A/B compare (v1 vs v2 composite) - v1 remains production.
+                # v2 is computed as an additive adjustment layer on the finalized v1 composite for comparability.
+                try:
+                    from config.registry import StrategyFlags
+                    shadow_enabled = bool(getattr(StrategyFlags, "SHADOW_TRADING_ENABLED", True))
+                except Exception:
+                    shadow_enabled = True
+                try:
+                    if shadow_enabled:
+                        from telemetry.shadow_ab import log_shadow_event, log_shadow_divergence
+
+                        mc = getattr(engine, "market_context_v2", None)
+                        if not isinstance(mc, dict):
+                            mc = {}
+                        rp = getattr(engine, "regime_posture_v2", None)
+                        if not isinstance(rp, dict):
+                            rp = {}
+
+                        # Use structural regime for directional weighting when available, else fall back to "mixed".
+                        v2_regime = (rp.get("structural_regime") or "mixed") if isinstance(rp, dict) else "mixed"
+
+                        composite_v2 = uw_v2.compute_composite_score_v3_v2(
+                            ticker,
+                            enriched,
+                            regime=str(v2_regime),
+                            market_context=mc,
+                            posture_state=rp,
+                            base_override=composite,
+                        ) or {}
+
+                        v2_pass = False
+                        try:
+                            v2_pass = bool(
+                                uw_v2.should_enter_v2(
+                                    composite_v2,
+                                    ticker,
+                                    mode="base",
+                                    api=engine.executor.api if hasattr(engine, "executor") and hasattr(engine.executor, "api") else None,
+                                )
+                            )
+                        except Exception:
+                            v2_pass = False
+
+                        v1_score = float(composite.get("score", 0.0) or 0.0)
+                        v2_score = float(composite_v2.get("score", 0.0) or 0.0)
+
+                        # Attach shadow metadata to the composite payload for downstream decision-path comparability.
+                        # This is safe, additive metadata only.
+                        try:
+                            composite["shadow_v2"] = {
+                                "score": v2_score,
+                                "pass_composite_gate": bool(v2_pass),
+                                "adjustments": composite_v2.get("v2_adjustments", {}),
+                                "inputs": composite_v2.get("v2_inputs", {}),
+                                "notes": composite_v2.get("notes", ""),
+                            }
+                        except Exception:
+                            pass
+
+                        log_shadow_event(
+                            "score_compare",
+                            symbol=ticker,
+                            v1_score=v1_score,
+                            v2_score=v2_score,
+                            v1_pass=bool(gate_result),
+                            v2_pass=bool(v2_pass),
+                            market_regime=str(market_regime),
+                            posture=str(rp.get("posture", "neutral") if isinstance(rp, dict) else "neutral"),
+                            regime_label=str(rp.get("regime_label", "chop") if isinstance(rp, dict) else "chop"),
+                            volatility_regime=str(mc.get("volatility_regime", "mid") if isinstance(mc, dict) else "mid"),
+                            v2_adjustments=composite_v2.get("v2_adjustments", {}),
+                        )
+
+                        if bool(gate_result) != bool(v2_pass):
+                            log_shadow_divergence(
+                                symbol=ticker,
+                                v1_score=v1_score,
+                                v2_score=v2_score,
+                                v1_pass=bool(gate_result),
+                                v2_pass=bool(v2_pass),
+                                details={
+                                    "market_regime": str(market_regime),
+                                    "posture": str(rp.get("posture", "neutral") if isinstance(rp, dict) else "neutral"),
+                                    "regime_label": str(rp.get("regime_label", "chop") if isinstance(rp, dict) else "chop"),
+                                },
+                            )
+                except Exception:
+                    pass
                 
                 # V3 Attribution: Store enriched composite with FULL INTELLIGENCE features for learning
                 try:
