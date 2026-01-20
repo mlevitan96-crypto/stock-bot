@@ -312,6 +312,12 @@ def main() -> int:
     real_total_notional = 0.0
     real_syms: set[str] = set()
     real_long = real_short = 0
+    real_pnl_by_symbol: Dict[str, float] = {}
+    real_notional_by_symbol: Dict[str, float] = {}
+    real_trade_count_by_symbol: Dict[str, int] = {}
+    real_score_by_symbol: Dict[str, List[float]] = {}
+    real_flow_premium_by_symbol: Dict[str, List[float]] = {}
+    real_flow_count_by_symbol: Dict[str, List[float]] = {}
     for rec in sorted(trades_by_id.values(), key=lambda r: r.get("first_ts") or datetime.min.replace(tzinfo=timezone.utc)):
         sym = str(rec.get("symbol") or "").upper()
         if not sym:
@@ -330,6 +336,20 @@ def main() -> int:
             notional = entry_px * qty
         real_total_notional += max(0.0, notional)
         real_syms.add(sym)
+        real_pnl_by_symbol[sym] = real_pnl_by_symbol.get(sym, 0.0) + pnl
+        real_notional_by_symbol[sym] = real_notional_by_symbol.get(sym, 0.0) + max(0.0, notional)
+        real_trade_count_by_symbol[sym] = real_trade_count_by_symbol.get(sym, 0) + 1
+        sc = _safe_float(rec.get("score"), 0.0)
+        if sc:
+            real_score_by_symbol.setdefault(sym, []).append(sc)
+        ctx = rec.get("context") if isinstance(rec.get("context"), dict) else {}
+        comps = ctx.get("components") if isinstance(ctx.get("components"), dict) else {}
+        fp = _safe_float(comps.get("flow_premium"), 0.0)
+        fc = _safe_float(comps.get("flow_count"), 0.0)
+        if fp:
+            real_flow_premium_by_symbol.setdefault(sym, []).append(fp)
+        if fc:
+            real_flow_count_by_symbol.setdefault(sym, []).append(fc)
         if side == "short":
             real_short += 1
         else:
@@ -373,6 +393,10 @@ def main() -> int:
     shadow_total_notional = 0.0
     shadow_syms: set[str] = set()
     shadow_long = shadow_short = 0
+    shadow_notional_by_symbol: Dict[str, float] = {}
+    shadow_trade_count_by_symbol: Dict[str, int] = {}
+    shadow_realized_by_symbol: Dict[str, float] = {}
+    shadow_unreal_by_symbol: Dict[str, float] = dict(unreal_by_sym)
 
     for r in sorted(shadow_exec, key=lambda x: str(x.get("ts") or "")):
         ts = _parse_dt(r.get("ts"))
@@ -388,7 +412,10 @@ def main() -> int:
         else:
             shadow_long += 1
         if qty > 0 and entry_px > 0:
-            shadow_total_notional += qty * entry_px
+            n = qty * entry_px
+            shadow_total_notional += n
+            shadow_notional_by_symbol[sym] = shadow_notional_by_symbol.get(sym, 0.0) + n
+        shadow_trade_count_by_symbol[sym] = shadow_trade_count_by_symbol.get(sym, 0) + 1
 
         shadow_rows.append(
             [
@@ -408,7 +435,10 @@ def main() -> int:
     # Apply realized exits
     for r in shadow_exit:
         sym = str(r.get("symbol") or "").upper()
-        shadow_total_realized += _safe_float(r.get("realized_pnl_usd"), 0.0)
+        rp = _safe_float(r.get("realized_pnl_usd"), 0.0)
+        shadow_total_realized += rp
+        if sym:
+            shadow_realized_by_symbol[sym] = shadow_realized_by_symbol.get(sym, 0.0) + rp
 
     shadow_total_pnl = shadow_total_realized + shadow_total_unreal
 
@@ -508,6 +538,39 @@ def main() -> int:
         lines.append("- " + ", ".join(shadow_only[:50]))
         lines.append("")
 
+    # Per-symbol PnL comparison table
+    lines.append("### Per-symbol PnL (real vs shadow)")
+    pnl_rows: List[List[str]] = []
+    for sym in sorted(real_syms | shadow_syms):
+        rf = feat_by_sym.get(sym, {})
+        real_p = real_pnl_by_symbol.get(sym, 0.0)
+        shadow_p = shadow_realized_by_symbol.get(sym, 0.0) + shadow_unreal_by_symbol.get(sym, 0.0)
+        pnl_rows.append(
+            [
+                sym,
+                str(real_trade_count_by_symbol.get(sym, 0)),
+                str(shadow_trade_count_by_symbol.get(sym, 0)),
+                _fmt_money(real_p),
+                _fmt_money(shadow_p),
+                f"{_safe_float(rf.get('realized_vol_20d'), 0.0):.4f}" if rf else "",
+                f"{_safe_float(rf.get('beta_vs_spy'), 0.0):.3f}" if rf else "",
+            ]
+        )
+    lines.append(_table(["symbol", "real_trades", "shadow_trades", "real_pnl_usd", "shadow_pnl_usd", "vol_20d", "beta"], pnl_rows if pnl_rows else [["(none)", "", "", "", "", "", ""]]))
+    lines.append("")
+
+    # Category performance: real-only vs shadow-only
+    def _avg(vals: List[float]) -> float:
+        return sum(vals) / len(vals) if vals else 0.0
+
+    real_only_pnls = [real_pnl_by_symbol.get(s, 0.0) for s in real_only]
+    shadow_only_pnls = [(shadow_realized_by_symbol.get(s, 0.0) + shadow_unreal_by_symbol.get(s, 0.0)) for s in shadow_only]
+    lines.append("### Category outcome (today)")
+    lines.append(f"- **REAL_ONLY avg PnL/symbol**: `${_fmt_money(_avg(real_only_pnls))}` across `{len(real_only)}` symbols")
+    lines.append(f"- **SHADOW_ONLY avg PnL/symbol**: `${_fmt_money(_avg(shadow_only_pnls))}` across `{len(shadow_only)}` symbols")
+    lines.append(f"- **Did shadow-only symbols outperform real-only symbols today?**: `{'YES' if _avg(shadow_only_pnls) > _avg(real_only_pnls) else 'NO'}`")
+    lines.append("")
+
     lines.append("## Volatility / beta exposure (from symbol risk features state)")
     rows_vb: List[List[str]] = []
     all_syms = sorted(real_syms | shadow_syms)
@@ -523,6 +586,39 @@ def main() -> int:
     lines.append(_table(["symbol", "realized_vol_20d", "beta_vs_spy", "real_traded?", "shadow_traded?"], rows_vb if rows_vb else [["(none)", "", "", "", ""]]))
     lines.append("")
 
+    # Vol/Beta quartile slice (best-effort)
+    vols = [feat_by_sym.get(s, {}).get("realized_vol_20d", 0.0) for s in all_syms if feat_by_sym.get(s)]
+    betas = [feat_by_sym.get(s, {}).get("beta_vs_spy", 0.0) for s in all_syms if feat_by_sym.get(s)]
+    vols = sorted([_safe_float(v, 0.0) for v in vols if _safe_float(v, 0.0) > 0])
+    betas = sorted([_safe_float(b, 0.0) for b in betas if _safe_float(b, 0.0) > 0])
+    if vols and betas:
+        qv_hi = vols[int(0.75 * (len(vols) - 1))]
+        qv_lo = vols[int(0.25 * (len(vols) - 1))]
+        qb_hi = betas[int(0.75 * (len(betas) - 1))]
+        qb_lo = betas[int(0.25 * (len(betas) - 1))]
+
+        def _is_high(sym: str) -> bool:
+            f = feat_by_sym.get(sym, {})
+            return _safe_float(f.get("realized_vol_20d"), 0.0) >= qv_hi and _safe_float(f.get("beta_vs_spy"), 0.0) >= qb_hi
+
+        def _is_low(sym: str) -> bool:
+            f = feat_by_sym.get(sym, {})
+            return _safe_float(f.get("realized_vol_20d"), 0.0) <= qv_lo and _safe_float(f.get("beta_vs_spy"), 0.0) <= qb_lo
+
+        high = [s for s in all_syms if _is_high(s)]
+        low = [s for s in all_syms if _is_low(s)]
+
+        def _sum_map(m: Dict[str, float], syms: List[str]) -> float:
+            return sum(m.get(s, 0.0) for s in syms)
+
+        lines.append("### High-vol/high-beta vs low-vol/low-beta slice (top/bottom quartile, best-effort)")
+        lines.append(f"- thresholds: vol_hi≥{qv_hi:.4f}, beta_hi≥{qb_hi:.3f} | vol_lo≤{qv_lo:.4f}, beta_lo≤{qb_lo:.3f}")
+        lines.append(f"- **real notional** high: `${_fmt_money(_sum_map(real_notional_by_symbol, high))}` | low: `${_fmt_money(_sum_map(real_notional_by_symbol, low))}`")
+        lines.append(f"- **shadow notional** high: `${_fmt_money(_sum_map(shadow_notional_by_symbol, high))}` | low: `${_fmt_money(_sum_map(shadow_notional_by_symbol, low))}`")
+        lines.append(f"- **real PnL** high: `${_fmt_money(_sum_map(real_pnl_by_symbol, high))}` | low: `${_fmt_money(_sum_map(real_pnl_by_symbol, low))}`")
+        lines.append(f"- **shadow PnL** high: `${_fmt_money(_sum_map(shadow_unreal_by_symbol, high) + _sum_map(shadow_realized_by_symbol, high))}` | low: `${_fmt_money(_sum_map(shadow_unreal_by_symbol, low) + _sum_map(shadow_realized_by_symbol, low))}`")
+        lines.append("")
+
     lines.append("## Long vs short posture")
     lines.append(f"- **real_long_trades**: `{real_long}` | **real_short_trades**: `{real_short}`")
     lines.append(f"- **shadow_long_trades**: `{shadow_long}` | **shadow_short_trades**: `{shadow_short}`")
@@ -536,6 +632,8 @@ def main() -> int:
         for r in divs[:40]:
             ts = str(r.get("ts") or "")
             sym = str(r.get("symbol") or "").upper()
+            real_sym_pnl = real_pnl_by_symbol.get(sym, 0.0)
+            shadow_sym_pnl = shadow_realized_by_symbol.get(sym, 0.0) + shadow_unreal_by_symbol.get(sym, 0.0)
             rows_d.append([
                 ts,
                 sym,
@@ -543,8 +641,10 @@ def main() -> int:
                 f"{_safe_float(r.get('v2_score'), 0.0):.3f}",
                 "PASS" if bool(r.get("v1_pass")) else "SKIP",
                 "PASS" if bool(r.get("v2_pass")) else "SKIP",
+                _fmt_money(real_sym_pnl),
+                _fmt_money(shadow_sym_pnl),
             ])
-        lines.append(_table(["time", "symbol", "v1_score", "v2_score", "decision_v1", "decision_v2"], rows_d))
+        lines.append(_table(["time", "symbol", "v1_score", "v2_score", "decision_v1", "decision_v2", "real_pnl_sym", "shadow_pnl_sym"], rows_d))
         lines.append("")
 
     lines.append("## Brutal conclusions (decision-ready)")
