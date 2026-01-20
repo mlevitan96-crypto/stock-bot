@@ -157,10 +157,10 @@ def main() -> int:
     else:
         checks.append({"name": "uw_usage", "status": "missing"})
 
-    # Droplet sync completeness (local)
+    # Droplet sync completeness (local-only; skip on droplet/servers without local sync dirs)
     latest = _latest_droplet_sync_dir()
     if latest is None:
-        checks.append({"name": "droplet_sync", "status": "missing", "detail": "droplet_sync/ not found"})
+        checks.append({"name": "droplet_sync", "status": "skip", "detail": "droplet_sync/ not found (local-only check)"})
     else:
         required = [
             "daily_universe.json",
@@ -184,7 +184,7 @@ def main() -> int:
         if not Path("state/regime_state.json").exists():
             heal_events.append(_heal_if_needed(heal=True, mock=mock, check_name="heal:regime_state", script=["scripts/run_regime_detector.py"]))
 
-    ok = all(c.get("status") in ("ok", "warn") for c in checks)
+    ok = all(c.get("status") in ("ok", "warn", "skip") for c in checks)
     doc = {
         "_meta": {"ts": _now_iso(), "version": "2026-01-20_intel_health_v1"},
         "ok": bool(ok),
