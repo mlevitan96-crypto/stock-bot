@@ -169,7 +169,16 @@ def main() -> int:
     input_path.write_text(json.dumps(test_payload, indent=2), encoding="utf-8")
 
     out = subprocess.check_output(
-        [sys.executable, "-c", "import json; from uw_composite_v2 import compute_composite_score_v3; p=json.load(open('reports/_regression_v1_composite_input.json','r')); r=compute_composite_score_v3(p['symbol'], p['enriched']); print(json.dumps(r, sort_keys=True))"],
+        [
+            sys.executable,
+            "-c",
+            "import json,time; import uw_composite_v2 as m; "
+            # Freeze weights to deterministic baseline (avoid adaptive/state-driven drift on droplet).
+            "m._cached_weights = m.WEIGHTS_V3.copy(); m._weights_cache_ts = time.time(); "
+            "p=json.load(open('reports/_regression_v1_composite_input.json','r')); "
+            "r=m.compute_composite_score_v3(p['symbol'], p['enriched']); "
+            "print(json.dumps(r, sort_keys=True))",
+        ],
         cwd=str(ROOT),
         env=base_env,
         text=True,
