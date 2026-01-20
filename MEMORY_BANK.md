@@ -408,6 +408,51 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 
 ---
 
+## 7.7 COMPOSITE V2 WEIGHT TUNING (SHADOW-ONLY) (2026-01-20)
+
+### Contract (do not break)
+- **Live trading remains v1**: `StrategyFlags.COMPOSITE_VERSION` stays `v1` unless flipped manually.
+- **Risk posture unchanged**: no sizing / max-positions / exits changes.
+- **Logging preserved**: only additive fields for observability.
+
+### Config-driven weights
+- **Location**: `config/registry.py` → `COMPOSITE_WEIGHTS_V2`
+- **Versioning**: `COMPOSITE_WEIGHTS_V2["version"]` (e.g., `2026-01-20_wt1`)
+- **New knobs (v2-only adjustment layer)**:
+  - vol/beta: `vol_*`, `beta_*`, `*_bonus_max`, `low_vol_penalty_*`
+  - UW strength: `uw_*`, `uw_bonus_max` (uses conviction + trade_count; no reward when trade_count==0)
+  - premarket alignment: `premarket_align_bonus`, `premarket_misalign_penalty` (SPY/QQQ overnight proxy)
+  - regime/posture: `regime_align_bonus`, `regime_misalign_penalty`, `posture_conf_strong`
+  - alignment dampening: `misalign_dampen`, `neutral_dampen`
+
+### Score-shaping (optional, OFF by default)
+- **Gate**: only applied when `COMPOSITE_VERSION=="v2"` AND `V2_SHAPING_ENABLED==true`
+- **Params**: `shape_*` keys in `COMPOSITE_WEIGHTS_V2`
+- **Purpose**: nonlinear volatility reward, extra regime-aligned boost, and weak-UW penalties under heavy print counts.
+
+### Observability additions (additive)
+- `logs/system_events.jsonl`:
+  - `subsystem="scoring" event_type="composite_version_used"` includes `v2_weights_version`
+- `logs/shadow.jsonl`:
+  - `event_type="score_compare"` includes `v2_inputs` (with `weights_version`) and `v2_adjustments`
+
+### Diagnostics + reports (droplet-source-of-truth)
+- **Weight impact**:
+  - generator: `diagnostics/weight_impact_report.py` (runs on droplet)
+  - runner: `reports/_daily_review_tools/run_droplet_weight_impact.py`
+  - output: `reports/WEIGHT_IMPACT_YYYY-MM-DD.md`
+- **Weight tuning summary**:
+  - generator: `reports/_daily_review_tools/droplet_weight_tuning_summary_payload.py` (runs on droplet)
+  - runner: `reports/_daily_review_tools/run_droplet_weight_tuning_summary.py`
+  - output: `reports/WEIGHT_TUNING_SUMMARY_YYYY-MM-DD.md`
+- **Fetch helper** (for exporting droplet-generated files):
+  - `reports/_daily_review_tools/fetch_from_droplet.py`
+
+### Operational note: refreshing vol/beta when market is closed
+- Worker may skip the vol/beta refresh when `market_open=false`.
+- Use the droplet-native refresh tool to repopulate `state/symbol_risk_features.json` on-demand:
+  - `reports/_daily_review_tools/run_droplet_refresh_symbol_risk_features.py`
+
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)
 
 ## 8.1 SCORE TELEMETRY MODULE
