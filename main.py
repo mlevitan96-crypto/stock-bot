@@ -9117,6 +9117,7 @@ def run_once():
                 try:
                     if symbols_processed == 0:
                         from config.registry import StrategyFlags
+                        from config.registry import COMPOSITE_WEIGHTS_V2
                         try:
                             log_system_event(
                                 subsystem="scoring",
@@ -9125,6 +9126,7 @@ def run_once():
                                 details={
                                     "composite_version": getattr(StrategyFlags, "COMPOSITE_VERSION", "v1"),
                                     "shadow_trading_enabled": bool(getattr(StrategyFlags, "SHADOW_TRADING_ENABLED", True)),
+                                    "v2_weights_version": str((COMPOSITE_WEIGHTS_V2 or {}).get("version", "")) if isinstance(COMPOSITE_WEIGHTS_V2, dict) else "",
                                 },
                             )
                         except Exception:
@@ -9499,6 +9501,7 @@ def run_once():
                             regime_label=str(rp.get("regime_label", "chop") if isinstance(rp, dict) else "chop"),
                             volatility_regime=str(mc.get("volatility_regime", "mid") if isinstance(mc, dict) else "mid"),
                             v2_adjustments=composite_v2.get("v2_adjustments", {}),
+                            v2_inputs=composite_v2.get("v2_inputs", {}),
                         )
 
                         if bool(gate_result) != bool(v2_pass):
@@ -9512,6 +9515,7 @@ def run_once():
                                     "market_regime": str(market_regime),
                                     "posture": str(rp.get("posture", "neutral") if isinstance(rp, dict) else "neutral"),
                                     "regime_label": str(rp.get("regime_label", "chop") if isinstance(rp, dict) else "chop"),
+                                    "v2_weights_version": str((composite_v2.get("v2_inputs", {}) or {}).get("weights_version", "")),
                                 },
                             )
                 except Exception:

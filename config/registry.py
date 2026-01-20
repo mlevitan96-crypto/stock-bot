@@ -242,6 +242,58 @@ class StrategyFlags:
     SHADOW_PNL_ENABLED = get_env_bool("SHADOW_PNL_ENABLED", True)
     SHADOW_EXIT_ENABLED = get_env_bool("SHADOW_EXIT_ENABLED", False)
 
+    # V2 score shaping (OPTIONAL):
+    # - Nonlinear shaping functions applied inside compute_composite_score_v3_v2
+    # - MUST remain off unless explicitly enabled (shadow-safe, but keep conservative)
+    V2_SHAPING_ENABLED = get_env_bool("V2_SHAPING_ENABLED", False)
+
+
+# Composite V2 weights (shadow-only until promotion)
+# -------------------------------------------------
+# Contract:
+# - v1 composite remains unchanged
+# - v2 is an additive adjustment layer used for shadow A/B and optional future promotion
+# - weights are explicit, documented, and safe-by-default
+COMPOSITE_WEIGHTS_V2: Dict[str, Any] = {
+    "version": "2026-01-20_wt1",
+
+    # Volatility reward (annualized realized vol)
+    "vol_center": 0.20,
+    "vol_scale": 0.25,
+    "vol_bonus_max": 0.70,
+    # Penalty for low-vol names in high-vol regimes (applied only when vol_regime == "high")
+    "low_vol_penalty_center": 0.15,
+    "low_vol_penalty_max": -0.15,
+
+    # Beta reward (vs SPY)
+    "beta_center": 1.00,
+    "beta_scale": 1.00,
+    "beta_bonus_max": 0.45,
+
+    # UW strength proxy (uses conviction + trade_count)
+    "uw_center": 0.55,
+    "uw_scale": 0.45,
+    "uw_bonus_max": 0.25,
+
+    # Premarket / futures proxy alignment (uses SPY/QQQ overnight direction from market_context_v2)
+    "premarket_align_bonus": 0.15,
+    "premarket_misalign_penalty": -0.15,
+
+    # Regime/posture alignment
+    "regime_align_bonus": 0.55,
+    "regime_misalign_penalty": -0.35,
+    "posture_conf_strong": 0.65,
+
+    # Vol-regime multipliers
+    "high_vol_multiplier": 1.15,
+    "mid_vol_multiplier": 1.00,
+    "low_vol_multiplier": 0.90,
+
+    # Alignment dampening (avoid boosting misaligned directions)
+    "misalign_dampen": 0.25,
+    "neutral_dampen": 0.60,
+}
+
 
 class APIConfig:
     """API configuration - centralized."""

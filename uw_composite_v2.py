@@ -1352,15 +1352,37 @@ def compute_composite_score_v3_v2(
     if posture_state is None:
         posture_state = {}
     if v2_params is None:
-        v2_params = {
-            "vol_bonus_max": 0.6,
-            "beta_bonus_max": 0.4,
-            "regime_align_bonus": 0.5,
-            "regime_misalign_penalty": -0.25,
-            "high_vol_multiplier": 1.30,
-            "low_vol_multiplier": 0.85,
-            "mid_vol_multiplier": 1.00,
-        }
+        # Default to config-driven params when available (shadow-safe).
+        try:
+            from config.registry import COMPOSITE_WEIGHTS_V2 as _CWV2  # type: ignore
+            v2_params = dict(_CWV2) if isinstance(_CWV2, dict) else {}
+        except Exception:
+            v2_params = {}
+        if not v2_params:
+            v2_params = {
+                "version": "fallback_defaults",
+                "vol_center": 0.20,
+                "vol_scale": 0.25,
+                "vol_bonus_max": 0.6,
+                "low_vol_penalty_center": 0.15,
+                "low_vol_penalty_max": -0.10,
+                "beta_center": 1.00,
+                "beta_scale": 1.00,
+                "beta_bonus_max": 0.4,
+                "uw_center": 0.55,
+                "uw_scale": 0.45,
+                "uw_bonus_max": 0.20,
+                "premarket_align_bonus": 0.10,
+                "premarket_misalign_penalty": -0.10,
+                "regime_align_bonus": 0.5,
+                "regime_misalign_penalty": -0.25,
+                "posture_conf_strong": 0.65,
+                "high_vol_multiplier": 1.15,
+                "low_vol_multiplier": 0.90,
+                "mid_vol_multiplier": 1.00,
+                "misalign_dampen": 0.25,
+                "neutral_dampen": 0.60,
+            }
 
     # Base score source:
     # - If base_override is provided, we treat it as the already-finalized v1 composite (including upstream boosts)
@@ -1382,6 +1404,8 @@ def compute_composite_score_v3_v2(
     # Inputs (from enrichment feature store)
     vol_20d = _to_num(enriched_data.get("realized_vol_20d", 0.0))
     beta = _to_num(enriched_data.get("beta_vs_spy", 0.0))
+    flow_conv = _to_num(enriched_data.get("conviction", enriched_data.get("flow_conv", 0.0)))
+    trade_count = int(_to_num(enriched_data.get("trade_count", 0)) or 0)
 
     # Context
     vol_regime = str(market_context.get("volatility_regime", "mid") or "mid").lower()
@@ -1400,23 +1424,59 @@ def compute_composite_score_v3_v2(
     else:
         vol_mult = float(v2_params.get("mid_vol_multiplier", 1.00))
 
-    # Volatility preference: in high-vol regimes, prefer higher realized vol (no penalty for low vol yet).
-    # Normalize around ~20% annualized.
-    vol_strength = _clamp((vol_20d - 0.20) / 0.25, 0.0, 1.0)
-    vol_bonus = float(v2_params.get("vol_bonus_max", 0.6)) * vol_strength * vol_mult
-
-    # Beta preference: prefer beta > 1 when otherwise comparable.
-    beta_strength = _clamp((beta - 1.0) / 1.0, 0.0, 1.0)
-    beta_bonus = float(v2_params.get("beta_bonus_max", 0.4)) * beta_strength * vol_mult
-
-    # Regime/posture alignment (directional).
+    # Alignment dampening (avoid boosting misaligned directions).
     align = (posture == "long" and direction == "bullish") or (posture == "short" and direction == "bearish")
     misalign = (posture == "long" and direction == "bearish") or (posture == "short" and direction == "bullish")
-    conf_mult = 1.0 if posture_conf >= 0.65 else 0.6
+    if misalign:
+        align_mult = float(v2_params.get("misalign_dampen", 0.25))
+    elif direction == "neutral" or posture == "neutral":
+        align_mult = float(v2_params.get("neutral_dampen", 0.60))
+    else:
+        align_mult = 1.0
+
+    # Volatility preference: reward higher realized vol (and optionally penalize low-vol in high-vol regimes).
+    vol_center = float(v2_params.get("vol_center", 0.20))
+    vol_scale = float(v2_params.get("vol_scale", 0.25)) or 0.25
+    vol_strength = _clamp((vol_20d - vol_center) / vol_scale, 0.0, 1.0)
+    vol_bonus = float(v2_params.get("vol_bonus_max", 0.6)) * vol_strength * vol_mult * align_mult
+    low_vol_pen = 0.0
+    if vol_regime == "high":
+        low_center = float(v2_params.get("low_vol_penalty_center", 0.15))
+        low_strength = _clamp((low_center - vol_20d) / max(1e-9, low_center), 0.0, 1.0)
+        low_vol_pen = float(v2_params.get("low_vol_penalty_max", -0.10)) * low_strength * align_mult
+
+    # Beta preference: prefer beta > 1 when otherwise comparable.
+    beta_center = float(v2_params.get("beta_center", 1.0))
+    beta_scale = float(v2_params.get("beta_scale", 1.0)) or 1.0
+    beta_strength = _clamp((beta - beta_center) / beta_scale, 0.0, 1.0)
+    beta_bonus = float(v2_params.get("beta_bonus_max", 0.4)) * beta_strength * vol_mult * align_mult
+
+    # UW strength proxy: conviction + trade_count (only reward when there is actual flow data).
+    uw_strength = _clamp(flow_conv, 0.0, 1.0) if trade_count > 0 else 0.0
+    uw_center = float(v2_params.get("uw_center", 0.55))
+    uw_scale = float(v2_params.get("uw_scale", 0.45)) or 0.45
+    uw_norm = _clamp((uw_strength - uw_center) / uw_scale, 0.0, 1.0)
+    uw_bonus = float(v2_params.get("uw_bonus_max", 0.2)) * uw_norm * align_mult
+
+    # Premarket / futures proxy alignment (SPY/QQQ overnight direction).
+    spy_ov = _to_num(market_context.get("spy_overnight_ret", 0.0))
+    qqq_ov = _to_num(market_context.get("qqq_overnight_ret", 0.0))
+    mkt_trend = str(market_context.get("market_trend", "") or "")
+    fut_dir = "up" if (spy_ov + qqq_ov) > 0.005 else ("down" if (spy_ov + qqq_ov) < -0.005 else "flat")
+    pre_bonus = 0.0
+    if direction in ("bullish", "bearish"):
+        aligned = (direction == "bullish" and fut_dir == "up") or (direction == "bearish" and fut_dir == "down")
+        if aligned:
+            pre_bonus = float(v2_params.get("premarket_align_bonus", 0.10)) * align_mult
+        elif fut_dir in ("up", "down"):
+            pre_bonus = float(v2_params.get("premarket_misalign_penalty", -0.10)) * align_mult
+
+    # Regime/posture alignment (directional).
+    conf_mult = 1.0 if posture_conf >= float(v2_params.get("posture_conf_strong", 0.65)) else 0.6
     regime_bonus = float(v2_params.get("regime_align_bonus", 0.5)) * (conf_mult if align else 0.0)
     regime_pen = float(v2_params.get("regime_misalign_penalty", -0.25)) * (conf_mult if misalign else 0.0)
 
-    total_adj = vol_bonus + beta_bonus + regime_bonus + regime_pen
+    total_adj = vol_bonus + low_vol_pen + beta_bonus + uw_bonus + pre_bonus + regime_bonus + regime_pen
     score_v2 = _clamp(base_score + total_adj, 0.0, 8.0)
 
     # Annotate
@@ -1426,7 +1486,10 @@ def compute_composite_score_v3_v2(
         base["base_score_v1"] = round(float(base_score), 3)
         base["v2_adjustments"] = {
             "vol_bonus": round(float(vol_bonus), 4),
+            "low_vol_penalty": round(float(low_vol_pen), 4),
             "beta_bonus": round(float(beta_bonus), 4),
+            "uw_bonus": round(float(uw_bonus), 4),
+            "premarket_bonus": round(float(pre_bonus), 4),
             "regime_align_bonus": round(float(regime_bonus), 4),
             "regime_misalign_penalty": round(float(regime_pen), 4),
             "total": round(float(total_adj), 4),
@@ -1434,10 +1497,17 @@ def compute_composite_score_v3_v2(
         base["v2_inputs"] = {
             "realized_vol_20d": round(float(vol_20d), 6),
             "beta_vs_spy": round(float(beta), 6),
+            "uw_conviction": round(float(flow_conv), 6),
+            "trade_count": int(trade_count),
             "volatility_regime": vol_regime,
+            "market_trend": str(mkt_trend),
+            "futures_direction": str(fut_dir),
+            "spy_overnight_ret": round(float(spy_ov), 6),
+            "qqq_overnight_ret": round(float(qqq_ov), 6),
             "posture": posture,
             "direction": direction,
             "posture_confidence": round(float(posture_conf), 4),
+            "weights_version": str(v2_params.get("version", "")),
         }
         # Preserve existing notes while making adjustments explicit.
         base["notes"] = (str(base.get("notes", "") or "") + f"; v2_adj={round(float(total_adj), 3)}").strip("; ").strip()
