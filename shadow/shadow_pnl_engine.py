@@ -312,6 +312,21 @@ def shadow_pnl_tick(
     if not isinstance(positions, list) or not positions:
         return
 
+    # Lightweight heartbeat for observability (one line per tick).
+    try:
+        log_shadow_event("shadow_pnl_tick", positions=len(positions))
+    except Exception:
+        pass
+    try:
+        log_system_event(
+            subsystem="shadow_pnl",
+            event_type="tick",
+            severity="INFO",
+            details={"positions": len(positions)},
+        )
+    except Exception:
+        pass
+
     sig_ctx = signal_context or {}
     ps = posture_state or {}
     posture = _posture_from_state(ps)
