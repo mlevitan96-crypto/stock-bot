@@ -57,14 +57,10 @@ def _run_remote(client: DropletClient, cmd: str, *, timeout: int = 300) -> Dict[
 
 def _remote_py(script_path: str, *, mock: bool) -> str:
     # Always run in droplet venv. Source .env for API keys (best-effort).
+    # IMPORTANT: DropletClient executes inside project_dir already.
     env = "UW_MOCK=1 " if mock else ""
     args = " --mock" if mock else ""
-    return (
-        "bash -lc "
-        "\"cd /root/stock-bot && "
-        "set -a && source .env >/dev/null 2>&1 || true; set +a; "
-        f"{env}/root/stock-bot/venv/bin/python {script_path}{args}\""
-    )
+    return f"bash -c \"set -a && source .env >/dev/null 2>&1 || true; set +a; {env}./venv/bin/python {script_path}{args}\""
 
 
 def _validate_json(path: Path, validator) -> None:
@@ -139,7 +135,7 @@ def main() -> int:
             "state/uw_usage_state.json": out_dir / "uw_usage_state.json",
         }
         for remote, local in fetch_map.items():
-            res = droplet_b64_read_file(c, f"/root/stock-bot/{remote}", timeout=60)
+            res = droplet_b64_read_file(c, remote, timeout=60)
             if not res.success:
                 append_sync_log(sync_log, {"event": "fetch_failed", "path": remote, "stderr": res.stderr[:300]})
                 continue
@@ -151,7 +147,7 @@ def main() -> int:
             ("logs/shadow.jsonl", "shadow_tail.jsonl"),
             ("logs/system_events.jsonl", "system_events_tail.jsonl"),
         ]:
-            res = droplet_b64_tail_file(c, f"/root/stock-bot/{remote}", lines=500, timeout=60)
+            res = droplet_b64_tail_file(c, remote, lines=500, timeout=60)
             if res.success:
                 write_bytes(out_dir / local_name, decode_b64(res.stdout.strip()))
                 append_sync_log(sync_log, {"event": "fetched_tail", "path": remote})

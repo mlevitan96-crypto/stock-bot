@@ -63,7 +63,7 @@ def droplet_b64_read_file(client, remote_path: str, *, timeout: int = 60) -> Syn
     Uses droplet venv python to avoid reliance on `python`/`python3` in PATH.
     """
     cmd = (
-        "/root/stock-bot/venv/bin/python -c "
+        "./venv/bin/python -c "
         "\"import base64,sys; "
         f"p='{remote_path}'; "
         "sys.stdout.write(base64.b64encode(open(p,'rb').read()).decode('ascii'))\""
@@ -79,7 +79,7 @@ def droplet_b64_tail_file(client, remote_path: str, *, lines: int = 500, timeout
     """
     n = int(lines)
     cmd = (
-        "/root/stock-bot/venv/bin/python -c "
+        "./venv/bin/python -c "
         "\"import base64,pathlib; "
         f"p=pathlib.Path('{remote_path}'); "
         f"n={n}; "
