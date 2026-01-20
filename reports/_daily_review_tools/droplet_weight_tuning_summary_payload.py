@@ -210,6 +210,33 @@ def main() -> int:
     lines.append("- We strengthen penalties for **misaligned direction vs posture** and modestly reward **high-vol/high-beta** only when aligned.")
     lines.append("- We add an explicit UW-strength bonus (conviction+trade_count) and a futures/premarket alignment term (SPY/QQQ overnight proxy).")
     lines.append("")
+    lines.append("## Most affected symbols (from WEIGHT_IMPACT)")
+    try:
+        impact_path = ROOT / "reports" / f"WEIGHT_IMPACT_{date}.md"
+        if impact_path.exists():
+            impact_lines = impact_path.read_text(encoding="utf-8", errors="replace").splitlines()
+            # Find the first markdown table row header and take next up to 10 data rows.
+            table_rows: List[str] = []
+            for i, ln in enumerate(impact_lines):
+                if ln.strip().startswith("| symbol | baseline_v2 |"):
+                    # header + separator + rows
+                    table_rows = impact_lines[i : i + 12]
+                    break
+            if table_rows:
+                lines.extend(table_rows)
+            else:
+                lines.append("- (no impact table found)")
+        else:
+            lines.append("- (WEIGHT_IMPACT report not found on droplet)")
+    except Exception:
+        lines.append("- (failed to read WEIGHT_IMPACT report)")
+    lines.append("")
+    lines.append("## Expected impact on shadow PnL (hypothesis)")
+    lines.append("- **Higher sensitivity to movers**: higher-vol/high-beta names receive a modest additive boost (bounded) when aligned with posture.")
+    lines.append("- **Fewer bad-direction chases**: misalignment dampening + stronger misalign penalty should reduce bullish adds in short/defensive posture states.")
+    lines.append("- **Better use of UW strength**: strong conviction with real prints (trade_count>0) becomes a differentiator vs missing-flow names.")
+    lines.append("- **Premarket alignment**: overnight SPY/QQQ proxy adds a small tailwind/headwind term for directionality.")
+    lines.append("")
     out_path = ROOT / "reports" / f"WEIGHT_TUNING_SUMMARY_{date}.md"
     out_path.write_text("\n".join(lines), encoding="utf-8")
     print(str(out_path))
