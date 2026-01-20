@@ -2,7 +2,7 @@
 
 ## Data source
 - `Droplet local logs/state`
-- generated_utc: `2026-01-20T22:05:58.829474+00:00`
+- generated_utc: `2026-01-20T22:09:12.260549+00:00`
 
 ## Snapshot
 - symbols_with_real_pnl: `49`
@@ -46,3 +46,23 @@
 - Today’s tuning is driven by observed differences in shadow vs real symbol outcomes and the regime/posture context.
 - We strengthen penalties for **misaligned direction vs posture** and modestly reward **high-vol/high-beta** only when aligned.
 - We add an explicit UW-strength bonus (conviction+trade_count) and a futures/premarket alignment term (SPY/QQQ overnight proxy).
+
+## Most affected symbols (from WEIGHT_IMPACT)
+| symbol | baseline_v2 | current_v2 | delta | old_gate | new_gate |
+| --- | --- | --- | --- | --- | --- |
+| TSLA | 4.318 | 4.408 | +0.090 | PASS | PASS |
+| NVDA | 4.653 | 4.743 | +0.090 | PASS | PASS |
+| NFLX | 4.020 | 4.110 | +0.090 | PASS | PASS |
+| INTC | 4.451 | 4.541 | +0.090 | PASS | PASS |
+| COIN | 4.262 | 4.352 | +0.090 | PASS | PASS |
+| SOFI | 4.161 | 4.251 | +0.090 | PASS | PASS |
+| HOOD | 4.233 | 4.323 | +0.090 | PASS | PASS |
+| AMD | 4.520 | 4.610 | +0.090 | PASS | PASS |
+| RIVN | 4.249 | 4.339 | +0.090 | PASS | PASS |
+| PLTR | 4.302 | 4.392 | +0.090 | PASS | PASS |
+
+## Expected impact on shadow PnL (hypothesis)
+- **Higher sensitivity to movers**: higher-vol/high-beta names receive a modest additive boost (bounded) when aligned with posture.
+- **Fewer bad-direction chases**: misalignment dampening + stronger misalign penalty should reduce bullish adds in short/defensive posture states.
+- **Better use of UW strength**: strong conviction with real prints (trade_count>0) becomes a differentiator vs missing-flow names.
+- **Premarket alignment**: overnight SPY/QQQ proxy adds a small tailwind/headwind term for directionality.
