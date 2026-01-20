@@ -84,21 +84,24 @@ def main() -> int:
     uw_cfg = (COMPOSITE_WEIGHTS_V2.get("uw") or {}) if isinstance(COMPOSITE_WEIGHTS_V2, dict) else {}
     uw_ver = str(uw_cfg.get("version", ""))
 
+    # Market-level postmarket context (fetch once)
+    market: Dict[str, Any] = {}
+    if not mock:
+        try:
+            after = uw_get(
+                "/api/earnings/afterhours",
+                params=None,
+                cache_policy={"ttl_seconds": 300, "endpoint_name": "earnings_afterhours", "max_calls_per_day": 400},
+            )
+            market["afterhours_earnings_present"] = bool(after.get("data"))
+        except Exception:
+            market["afterhours_earnings_present"] = False
+
     symbols: Dict[str, Any] = {}
     for sym in syms:
         if mock:
             symbols[sym] = _mock_intel(sym)
             continue
-        # After-hours market summary (market-level, fast)
-        try:
-            ah = uw_get(
-                "/api/market/afterhours",
-                params=None,
-                cache_policy={"ttl_seconds": 300, "endpoint_name": "afterhours_summary", "max_calls_per_day": 400},
-            )
-        except Exception:
-            ah = {"data": []}
-
         # Minimal per-symbol record (we can enrich later with specific endpoints)
         symbols[sym] = {
             "flow_strength": 0.0,
@@ -107,13 +110,13 @@ def main() -> int:
             "earnings_proximity": None,
             "sector_alignment": 0.0,
             "institutional_blocks": 0,
-            "afterhours_summary_present": bool(ah.get("data")),
+            "afterhours_summary_present": bool(market.get("afterhours_earnings_present")),
         }
 
     out = {
         "_meta": {"ts": datetime.now(timezone.utc).isoformat(), "uw_intel_version": uw_ver, "mock": mock},
         "symbols": symbols,
-        "market": {},
+        "market": market,
     }
     _atomic_write(OUT, out)
 

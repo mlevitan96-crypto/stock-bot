@@ -33,7 +33,7 @@ POLICIES: Dict[str, UwEndpointPolicy] = {
     # Slow (cache hard)
     "congress_trades": UwEndpointPolicy(
         name="congress_trades",
-        path="/api/congress/trades",
+        path="/api/congress/recent-trades",
         cadence="slow",
         ttl_seconds=6 * 3600,
         max_calls_per_day=200,
@@ -42,7 +42,7 @@ POLICIES: Dict[str, UwEndpointPolicy] = {
     ),
     "insider_trades": UwEndpointPolicy(
         name="insider_trades",
-        path="/api/insider/trades",
+        path="/api/insider/transactions",
         cadence="slow",
         ttl_seconds=6 * 3600,
         max_calls_per_day=200,
@@ -51,7 +51,7 @@ POLICIES: Dict[str, UwEndpointPolicy] = {
     ),
     "institutional_holdings": UwEndpointPolicy(
         name="institutional_holdings",
-        path="/api/institutional/holdings",
+        path="/api/institutions/latest_filings",
         cadence="slow",
         ttl_seconds=24 * 3600,
         max_calls_per_day=100,
@@ -60,16 +60,16 @@ POLICIES: Dict[str, UwEndpointPolicy] = {
     ),
     "short_interest": UwEndpointPolicy(
         name="short_interest",
-        path="/api/short-interest",
+        path="/api/shorts/{ticker}/interest-float",
         cadence="slow",
         ttl_seconds=24 * 3600,
         max_calls_per_day=200,
-        symbol_scope="market",
-        notes="Short interest updates slowly; cache hard.",
+        symbol_scope="symbol",
+        notes="Short interest updates slowly; cache hard (symbol-level).",
     ),
     "seasonality": UwEndpointPolicy(
         name="seasonality",
-        path="/api/seasonality",
+        path="/api/seasonality/market",
         cadence="slow",
         ttl_seconds=24 * 3600,
         max_calls_per_day=100,
@@ -78,7 +78,7 @@ POLICIES: Dict[str, UwEndpointPolicy] = {
     ),
     "fda_calendar": UwEndpointPolicy(
         name="fda_calendar",
-        path="/api/calendar/fda",
+        path="/api/market/fda-calendar",
         cadence="slow",
         ttl_seconds=24 * 3600,
         max_calls_per_day=100,
@@ -87,9 +87,9 @@ POLICIES: Dict[str, UwEndpointPolicy] = {
     ),
 
     # Medium
-    "earnings_calendar": UwEndpointPolicy(
-        name="earnings_calendar",
-        path="/api/calendar/earnings",
+    "earnings_premarket": UwEndpointPolicy(
+        name="earnings_premarket",
+        path="/api/earnings/premarket",
         cadence="medium",
         ttl_seconds=2 * 3600,
         max_calls_per_day=400,
@@ -98,7 +98,7 @@ POLICIES: Dict[str, UwEndpointPolicy] = {
     ),
     "sector_flow": UwEndpointPolicy(
         name="sector_flow",
-        path="/api/market/sector-flow",
+        path="/api/market/{sector}/sector-tide",
         cadence="medium",
         ttl_seconds=15 * 60,
         max_calls_per_day=1000,
@@ -107,12 +107,12 @@ POLICIES: Dict[str, UwEndpointPolicy] = {
     ),
     "market_sentiment": UwEndpointPolicy(
         name="market_sentiment",
-        path="/api/market/sentiment",
+        path="/api/market/market-tide",
         cadence="medium",
         ttl_seconds=10 * 60,
         max_calls_per_day=1500,
         symbol_scope="market",
-        notes="Market-wide; medium cadence.",
+        notes="Market-wide regime/sentiment proxy; medium cadence.",
     ),
     "top_net_impact": UwEndpointPolicy(
         name="top_net_impact",
@@ -145,30 +145,21 @@ POLICIES: Dict[str, UwEndpointPolicy] = {
     ),
     "net_premium_ticks": UwEndpointPolicy(
         name="net_premium_ticks",
-        path="/api/market/net-premium",
+        path="/api/stock/{ticker}/net-prem-ticks",
         cadence="fast",
         ttl_seconds=30,
         max_calls_per_day=3000,
-        symbol_scope="market",
-        notes="Fast market tick; short TTL.",
+        symbol_scope="symbol",
+        notes="Symbol-level net premium ticks; short TTL.",
     ),
-    "premarket_summary": UwEndpointPolicy(
-        name="premarket_summary",
-        path="/api/market/premarket",
-        cadence="fast",
-        ttl_seconds=120,
-        max_calls_per_day=800,
-        symbol_scope="market",
-        notes="Premarket/after-hours summary.",
-    ),
-    "afterhours_summary": UwEndpointPolicy(
-        name="afterhours_summary",
-        path="/api/market/afterhours",
+    "earnings_afterhours": UwEndpointPolicy(
+        name="earnings_afterhours",
+        path="/api/earnings/afterhours",
         cadence="fast",
         ttl_seconds=300,
         max_calls_per_day=400,
         symbol_scope="market",
-        notes="Postmarket summary.",
+        notes="After-hours earnings list; postmarket reference.",
     ),
 }
 

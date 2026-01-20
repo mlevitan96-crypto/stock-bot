@@ -93,6 +93,19 @@ Contracts:
   - `daily_universe ∪ core_universe`
 - v2 remains shadow-only until `COMPOSITE_VERSION` is manually flipped.
 
+### 4.8 UW Endpoint Validation Contract
+To permanently prevent silent 404s and hallucinated URLs:
+- The official Unusual Whales OpenAPI spec MUST be present at:
+  - `unusual_whales_api/api_spec.yaml`
+- The system MUST load valid UW endpoint paths from that spec (OpenAPI `paths`).
+- The centralized UW client (`src/uw/uw_client.py`) MUST reject any endpoint not in the spec:
+  - Must log `event_type="uw_invalid_endpoint_attempt"`
+  - Must raise `ValueError` *before* rate limiting, caching, or network calls
+- Regression MUST fail if:
+  - the spec is missing/corrupt, or has an unexpectedly small path set
+  - any UW endpoint used in code is not present in the spec (static audit)
+- No code may bypass `uw_client` for UW HTTP calls.
+
 ### 4.6 UW Intelligence Execution Contract
 The UW intelligence lifecycle MUST be executed in this order:
 - **Universe build (daily, before market open)**:

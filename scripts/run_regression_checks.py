@@ -47,6 +47,23 @@ def main() -> int:
     base_env["UW_MOCK"] = "1"
     base_env["PYTHONIOENCODING"] = "utf-8"
 
+    # 0) UW spec integrity (must exist + load + sanity size)
+    _run(
+        [
+            sys.executable,
+            "-c",
+            "from src.uw.uw_spec_loader import SPEC_PATH, get_valid_uw_paths; "
+            "assert SPEC_PATH.exists(), 'missing api_spec.yaml'; "
+            "paths=get_valid_uw_paths(); "
+            "assert isinstance(paths,set) and len(paths)>=50, f'bad openapi paths count: {len(paths) if isinstance(paths,set) else type(paths)}'; "
+            "print('ok')",
+        ],
+        env=base_env,
+    )
+
+    # 0b) Static audit of UW endpoints in code
+    _run([sys.executable, "scripts/audit_uw_endpoints.py"], env=base_env)
+
     # 1) uw_client importable
     _run([sys.executable, "-c", "from src.uw.uw_client import uw_get; assert callable(uw_get)"], env=base_env)
 
@@ -98,6 +115,27 @@ def main() -> int:
     _assert(Path("state/uw_usage_state.json").exists(), "state/uw_usage_state.json not written")
     usage = json.loads(Path("state/uw_usage_state.json").read_text(encoding="utf-8"))
     ok, msg = validate_uw_usage_state(usage); _assert(ok, f"uw_usage_state schema: {msg}")
+
+    # 5e) UW client must reject invalid endpoints even in mock mode (and log it)
+    def _tail_system_events() -> str:
+        p = Path("logs/system_events.jsonl")
+        if not p.exists():
+            return ""
+        try:
+            return p.read_text(encoding="utf-8", errors="replace")[-20000:]
+        except Exception:
+            return ""
+
+    before = _tail_system_events()
+    try:
+        from src.uw.uw_client import uw_get  # type: ignore
+
+        uw_get("INVALID_ENDPOINT", params=None, cache_policy=None)  # type: ignore[arg-type]
+        _assert(False, "uw_get did not raise on invalid endpoint")
+    except ValueError:
+        pass
+    after = _tail_system_events()
+    _assert("uw_invalid_endpoint_attempt" in after[len(before):] or "uw_invalid_endpoint_attempt" in after, "missing uw_invalid_endpoint_attempt in system_events")
 
     # 5d) droplet runner scripts importable + local-only mock sync works (no SSH)
     _run([sys.executable, "-c", "import scripts.run_uw_intel_on_droplet, scripts.run_premarket_on_droplet, scripts.run_postmarket_on_droplet; print('ok')"], env=base_env)

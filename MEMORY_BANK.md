@@ -457,6 +457,8 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 
 ### Invariants (non-negotiable)
 - **All UW HTTP calls must route through** `src/uw/uw_client.py` (rate-limited, cached, logged).
+- **All UW endpoints must be validated** against the official OpenAPI spec at `unusual_whales_api/api_spec.yaml`.
+- **Invalid UW endpoints must be blocked at runtime** by `uw_client` before any caching/rate limiting/network, and must log `uw_invalid_endpoint_attempt`.
 - **UW daily usage must be persisted** to `state/uw_usage_state.json` (self-healing; never crashes engine).
 - **UW response cache (v2 intelligence) lives under** `state/uw_cache/` (TTL enforced per endpoint policy).
 - **Symbol-level UW calls are allowed only for** `daily_universe ∪ core_universe`.
@@ -465,6 +467,12 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - `state/premarket_intel.json`
   - `state/postmarket_intel.json`
 - **COMPOSITE v2 remains shadow-only** until `COMPOSITE_VERSION` is manually flipped.
+
+### UW endpoint validation (anti-404 contract) (2026-01-20)
+- **Official spec location**: `unusual_whales_api/api_spec.yaml` (downloaded from UW and committed).
+- **Spec loader**: `src/uw/uw_spec_loader.py` (extracts OpenAPI `paths` without YAML dependencies).
+- **Static auditing**: `scripts/audit_uw_endpoints.py` (used by regression; fails if any UW endpoint used in code is not in spec).
+- **Runtime blocking**: `src/uw/uw_client.py` rejects invalid endpoints and logs `uw_invalid_endpoint_attempt`.
 
 ### Components
 - **Endpoint policies**: `config/uw_endpoint_policies.py`

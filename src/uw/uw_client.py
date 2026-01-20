@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import inspect
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,8 @@ import requests
 from config.registry import APIConfig, CacheFiles
 from utils.state_io import read_json_self_heal
 
+from src.uw.uw_spec_loader import is_valid_uw_path
+
 try:
     from utils.system_events import log_system_event
 except Exception:  # pragma: no cover
@@ -37,6 +40,52 @@ except Exception:  # pragma: no cover
 
 UW_USAGE_STATE_PATH = Path("state/uw_usage_state.json")
 UW_CACHE_DIR = Path("state/uw_cache")
+
+def _caller_hint() -> str:
+    try:
+        for fr in inspect.stack()[2:12]:
+            fn = fr.filename.replace("\\", "/")
+            if fn.endswith("/src/uw/uw_client.py"):
+                continue
+            return f"{fn}:{fr.lineno}:{fr.function}"
+    except Exception:
+        pass
+    return "unknown"
+
+
+def _validate_endpoint_or_raise(endpoint: str) -> None:
+    """
+    Hard safety gate: block any UW endpoint not present in the official OpenAPI spec.
+    Runs before rate limiting, caching, or network calls.
+    """
+    ep = str(endpoint or "").strip()
+    if not ep:
+        raise ValueError("Invalid UW endpoint: <empty>")
+    if ep.startswith("http://") or ep.startswith("https://"):
+        try:
+            from urllib.parse import urlparse
+
+            ep = urlparse(ep).path or ep
+        except Exception:
+            pass
+    if not ep.startswith("/"):
+        ep = "/" + ep
+
+    if not is_valid_uw_path(ep):
+        try:
+            log_system_event(
+                subsystem="uw",
+                event_type="uw_invalid_endpoint_attempt",
+                severity="ERROR",
+                details={
+                    "endpoint": ep,
+                    "caller": _caller_hint(),
+                    "timestamp": time.time(),
+                },
+            )
+        except Exception:
+            pass
+        raise ValueError(f"Invalid UW endpoint: {ep}")
 
 
 def _today_utc() -> str:
@@ -193,6 +242,9 @@ def uw_http_get(
     Returns: (status_code, json_body, response_headers_dict)
     Never raises.
     """
+    # Endpoint safety check MUST run before any other work.
+    _validate_endpoint_or_raise(endpoint)
+
     policy = _normalize_policy(cache_policy)
     now = time.time()
     per_min, per_day, buf = _limits()
