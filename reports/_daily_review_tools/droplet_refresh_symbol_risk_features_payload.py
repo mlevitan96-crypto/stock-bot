@@ -32,6 +32,8 @@ def _load_env_file(path: Path) -> None:
                 continue
             k, v = s.split("=", 1)
             k = k.strip()
+            if k.startswith("export "):
+                k = k[len("export ") :].strip()
             v = v.strip().strip("'").strip('"')
             if k and k not in os.environ:
                 os.environ[k] = v
