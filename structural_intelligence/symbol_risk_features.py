@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import math
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
@@ -94,7 +94,17 @@ def _get_daily_closes(api, symbol: str, *, limit: int = 40) -> Tuple[List[float]
     Best-effort daily close series. Returns (closes, last_bar_ts_iso).
     """
     try:
-        bars = api.get_bars(symbol, "1Day", limit=int(limit))
+        # IMPORTANT: Some Alpaca environments return only the most recent bar when
+        # `start/end` are omitted. We explicitly request a lookback window.
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(days=120)
+        bars = api.get_bars(
+            symbol,
+            "1Day",
+            start=start.isoformat(),
+            end=end.isoformat(),
+            limit=int(limit),
+        )
         df = getattr(bars, "df", None)
         if df is None or df.empty:
             return [], None
@@ -156,7 +166,25 @@ def _cache_fresh(cache: Dict[str, Any], *, max_age_hours: float) -> bool:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         age_hours = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
-        return age_hours <= float(max_age_hours)
+        if age_hours > float(max_age_hours):
+            return False
+
+        # Guard: treat "all zeros" feature cache as invalid (e.g., not enough history returned).
+        try:
+            syms = cache.get("symbols", {}) if isinstance(cache, dict) else {}
+            if isinstance(syms, dict) and syms:
+                nonzero = 0
+                for v in syms.values():
+                    if not isinstance(v, dict):
+                        continue
+                    if _safe_float(v.get("realized_vol_20d"), 0.0) > 0.001 or _safe_float(v.get("beta_vs_spy"), 0.0) != 0.0:
+                        nonzero += 1
+                        break
+                if nonzero == 0:
+                    return False
+        except Exception:
+            pass
+        return True
     except Exception:
         return False
 
