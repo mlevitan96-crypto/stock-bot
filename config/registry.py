@@ -239,7 +239,7 @@ class StrategyFlags:
     # Shadow PnL reconstruction (OPTIONAL, additive):
     # - Maintains `state/shadow_positions.json`
     # - Logs PnL updates + hypothetical exits (never submits orders)
-    SHADOW_PNL_ENABLED = get_env_bool("SHADOW_PNL_ENABLED", False)
+    SHADOW_PNL_ENABLED = get_env_bool("SHADOW_PNL_ENABLED", True)
     SHADOW_EXIT_ENABLED = get_env_bool("SHADOW_EXIT_ENABLED", False)
 
 
