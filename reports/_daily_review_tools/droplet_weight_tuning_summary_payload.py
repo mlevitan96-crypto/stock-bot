@@ -92,8 +92,15 @@ def main() -> int:
             shadow_unreal[sym] = float(r.get("unrealized_pnl_usd") or 0.0)
     shadow_pnl_by_symbol = {s: shadow_realized.get(s, 0.0) + shadow_unreal.get(s, 0.0) for s in set(shadow_realized) | set(shadow_unreal)}
 
-    # Vol/beta features
-    feats = (risk.get("symbols") or {}) if isinstance(risk, dict) else {}
+    # Vol/beta features (schema varies by version; accept common layouts)
+    feats = {}
+    if isinstance(risk, dict):
+        for k in ("symbols", "symbol_features", "features"):
+            if isinstance(risk.get(k), dict):
+                feats = risk.get(k) or {}
+                break
+        if not feats:
+            feats = {k: v for k, v in risk.items() if isinstance(v, dict) and k.isalpha() and len(k) <= 6}
 
     def _feat(sym: str, k: str) -> float:
         v = feats.get(sym, {}) if isinstance(feats, dict) else {}
@@ -177,6 +184,26 @@ def main() -> int:
     for k in keys:
         if k in w:
             lines.append(f"- {k}: `{w.get(k)}`")
+    lines.append("")
+    lines.append("## Weight deltas vs baseline (pre-tuning defaults)")
+    baseline = {
+        "vol_bonus_max": 0.6,
+        "low_vol_penalty_max": -0.10,
+        "beta_bonus_max": 0.4,
+        "uw_bonus_max": 0.20,
+        "premarket_align_bonus": 0.10,
+        "premarket_misalign_penalty": -0.10,
+        "regime_align_bonus": 0.5,
+        "regime_misalign_penalty": -0.25,
+        "misalign_dampen": 0.25,
+    }
+    for k, v in baseline.items():
+        if k in w:
+            try:
+                dv = float(w.get(k)) - float(v)
+                lines.append(f"- {k}: `{v}` → `{w.get(k)}` (Δ `{dv:+.3f}`)")
+            except Exception:
+                lines.append(f"- {k}: `{v}` → `{w.get(k)}`")
     lines.append("")
     lines.append("## Why these weights (brutally honest)")
     lines.append("- Today’s tuning is driven by observed differences in shadow vs real symbol outcomes and the regime/posture context.")

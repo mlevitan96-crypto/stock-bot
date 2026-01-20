@@ -1476,7 +1476,30 @@ def compute_composite_score_v3_v2(
     regime_bonus = float(v2_params.get("regime_align_bonus", 0.5)) * (conf_mult if align else 0.0)
     regime_pen = float(v2_params.get("regime_misalign_penalty", -0.25)) * (conf_mult if misalign else 0.0)
 
-    total_adj = vol_bonus + low_vol_pen + beta_bonus + uw_bonus + pre_bonus + regime_bonus + regime_pen
+    # Optional nonlinear shaping (strictly gated; disabled by default).
+    shaping_adj = 0.0
+    try:
+        from config.registry import StrategyFlags
+
+        shaping_on = bool(getattr(StrategyFlags, "V2_SHAPING_ENABLED", False)) and str(getattr(StrategyFlags, "COMPOSITE_VERSION", "v1")) == "v2"
+    except Exception:
+        shaping_on = False
+    if shaping_on:
+        try:
+            # Nonlinear volatility reward
+            gamma = float(v2_params.get("shape_vol_gamma", 1.8))
+            shape_vol = float(v2_params.get("shape_vol_bonus_max", 0.15)) * (vol_strength ** max(0.5, gamma)) * vol_mult * align_mult
+            shaping_adj += shape_vol
+            # Extra regime-aligned directional boost
+            shaping_adj += float(v2_params.get("shape_regime_align_bonus", 0.10)) * (conf_mult if align else 0.0)
+            # Penalty for weak UW flow even when many prints exist
+            if trade_count >= int(v2_params.get("shape_trade_count_strong", 15)):
+                if uw_strength <= float(v2_params.get("shape_uw_weak_threshold", 0.35)):
+                    shaping_adj += float(v2_params.get("shape_uw_weak_penalty_max", -0.10)) * align_mult
+        except Exception:
+            shaping_adj = 0.0
+
+    total_adj = vol_bonus + low_vol_pen + beta_bonus + uw_bonus + pre_bonus + regime_bonus + regime_pen + shaping_adj
     score_v2 = _clamp(base_score + total_adj, 0.0, 8.0)
 
     # Annotate
@@ -1492,6 +1515,7 @@ def compute_composite_score_v3_v2(
             "premarket_bonus": round(float(pre_bonus), 4),
             "regime_align_bonus": round(float(regime_bonus), 4),
             "regime_misalign_penalty": round(float(regime_pen), 4),
+            "shaping_adj": round(float(shaping_adj), 4),
             "total": round(float(total_adj), 4),
         }
         base["v2_inputs"] = {

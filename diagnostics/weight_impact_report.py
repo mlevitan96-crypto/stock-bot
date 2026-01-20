@@ -110,8 +110,37 @@ def main() -> int:
         and _in_window(r.get("ts"), start_prefix, end_prefix)
     ]
 
-    # Need v2_inputs to recompute (added in recent logging).
-    usable = [r for r in events if isinstance(r.get("v2_inputs"), dict)]
+    # Load state for reconstruction when v2_inputs are missing (most historical events).
+    try:
+        import json
+
+        market_context = json.loads((ROOT / "state/market_context_v2.json").read_text(encoding="utf-8"))
+    except Exception:
+        market_context = {}
+    try:
+        import json
+
+        posture_state = json.loads((ROOT / "state/regime_posture_state.json").read_text(encoding="utf-8"))
+    except Exception:
+        posture_state = {}
+    try:
+        import json
+
+        risk = json.loads((ROOT / "state/symbol_risk_features.json").read_text(encoding="utf-8"))
+    except Exception:
+        risk = {}
+
+    # risk features shape varies; accept common layouts
+    risk_map: Dict[str, Any] = {}
+    if isinstance(risk, dict):
+        for k in ("symbols", "symbol_features", "features"):
+            if isinstance(risk.get(k), dict):
+                risk_map = risk.get(k)  # type: ignore[assignment]
+                break
+        if not risk_map:
+            risk_map = {k: v for k, v in risk.items() if isinstance(v, dict) and k.isalpha() and len(k) <= 6}
+
+    usable = list(events)
 
     from config.registry import COMPOSITE_WEIGHTS_V2
     from uw_composite_v2 import compute_composite_score_v3_v2
@@ -126,25 +155,51 @@ def main() -> int:
         old_v2 = float(r.get("v2_score") or 0.0)
         v2_in = r.get("v2_inputs") or {}
 
+        # Prefer per-event inputs; otherwise reconstruct from state feature store.
+        rv = None
+        bt = None
+        if isinstance(v2_in, dict):
+            try:
+                rv = float(v2_in.get("realized_vol_20d")) if v2_in.get("realized_vol_20d") is not None else None
+            except Exception:
+                rv = None
+            try:
+                bt = float(v2_in.get("beta_vs_spy")) if v2_in.get("beta_vs_spy") is not None else None
+            except Exception:
+                bt = None
+        if rv is None or bt is None:
+            feat = risk_map.get(sym, {}) if isinstance(risk_map, dict) else {}
+            if isinstance(feat, dict):
+                try:
+                    rv = float(feat.get("realized_vol_20d") or 0.0)
+                except Exception:
+                    rv = 0.0
+                try:
+                    bt = float(feat.get("beta_vs_spy") or 0.0)
+                except Exception:
+                    bt = 0.0
+            else:
+                rv, bt = 0.0, 0.0
+
         # Rebuild minimal inputs.
-        direction = str(v2_in.get("direction") or "neutral").lower()
+        direction = str(v2_in.get("direction") or "neutral").lower() if isinstance(v2_in, dict) else "neutral"
         sentiment = "BULLISH" if direction == "bullish" else ("BEARISH" if direction == "bearish" else "NEUTRAL")
         enriched = {
-            "realized_vol_20d": float(v2_in.get("realized_vol_20d") or 0.0),
-            "beta_vs_spy": float(v2_in.get("beta_vs_spy") or 0.0),
-            "conviction": float(v2_in.get("uw_conviction") or 0.0),
-            "trade_count": int(v2_in.get("trade_count") or 0),
+            "realized_vol_20d": float(rv or 0.0),
+            "beta_vs_spy": float(bt or 0.0),
+            "conviction": float(v2_in.get("uw_conviction") or 0.0) if isinstance(v2_in, dict) else 0.0,
+            "trade_count": int(v2_in.get("trade_count") or 0) if isinstance(v2_in, dict) else 0,
             "sentiment": sentiment,
         }
         mc = {
-            "volatility_regime": v2_in.get("volatility_regime") or "mid",
-            "market_trend": v2_in.get("market_trend") or "",
-            "spy_overnight_ret": float(v2_in.get("spy_overnight_ret") or 0.0),
-            "qqq_overnight_ret": float(v2_in.get("qqq_overnight_ret") or 0.0),
+            "volatility_regime": (v2_in.get("volatility_regime") if isinstance(v2_in, dict) else None) or str(market_context.get("volatility_regime") or "mid"),
+            "market_trend": (v2_in.get("market_trend") if isinstance(v2_in, dict) else None) or str(market_context.get("market_trend") or ""),
+            "spy_overnight_ret": float(v2_in.get("spy_overnight_ret") or 0.0) if isinstance(v2_in, dict) else float(market_context.get("spy_overnight_ret") or 0.0),
+            "qqq_overnight_ret": float(v2_in.get("qqq_overnight_ret") or 0.0) if isinstance(v2_in, dict) else float(market_context.get("qqq_overnight_ret") or 0.0),
         }
         ps = {
-            "posture": v2_in.get("posture") or "neutral",
-            "regime_confidence": float(v2_in.get("posture_confidence") or 0.0),
+            "posture": (v2_in.get("posture") if isinstance(v2_in, dict) else None) or str(posture_state.get("posture") or "neutral"),
+            "regime_confidence": float(v2_in.get("posture_confidence") or 0.0) if isinstance(v2_in, dict) else float(posture_state.get("regime_confidence") or posture_state.get("regime_confidence", 0.0) or 0.0),
         }
 
         base_override = {"score": v1}
@@ -175,7 +230,7 @@ def main() -> int:
     out_lines.append("## Data source")
     out_lines.append("- **source**: `Droplet local logs`")
     out_lines.append(f"- **generated_utc**: `{datetime.now(timezone.utc).isoformat()}`")
-    out_lines.append(f"- **events_used(score_compare with v2_inputs)**: `{len(usable)}`")
+    out_lines.append(f"- **events_used(score_compare)**: `{len(usable)}`")
     out_lines.append("")
     out_lines.append("## Weight versions")
     out_lines.append(f"- **baseline**: `{BASELINE_V2_PARAMS.get('version')}`")

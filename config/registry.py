@@ -292,6 +292,14 @@ COMPOSITE_WEIGHTS_V2: Dict[str, Any] = {
     # Alignment dampening (avoid boosting misaligned directions)
     "misalign_dampen": 0.25,
     "neutral_dampen": 0.60,
+
+    # Optional shaping (applied ONLY when COMPOSITE_VERSION=="v2" and V2_SHAPING_ENABLED==true)
+    "shape_vol_gamma": 1.8,
+    "shape_vol_bonus_max": 0.15,
+    "shape_regime_align_bonus": 0.10,
+    "shape_uw_weak_penalty_max": -0.10,
+    "shape_uw_weak_threshold": 0.35,
+    "shape_trade_count_strong": 15,
 }
 
 
