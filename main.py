@@ -10009,7 +10009,7 @@ def run_once():
                 # Build a lightweight signal context map from current clusters (direction used for counter-signal exits).
                 sig_ctx = {}
                 try:
-                    for cl in clusters:
+                    for cl in (locals().get("clusters") or []):
                         sym = cl.get("ticker")
                         if not sym:
                             continue
