@@ -104,3 +104,60 @@ def validate_uw_usage_state(doc: Any) -> Tuple[bool, str]:
         return False, "uw_usage_state: by_endpoint not dict"
     return True, "ok"
 
+
+def validate_daily_universe_v2(doc: Any) -> Tuple[bool, str]:
+    # Same top-level shape, plus optional v2 context fields.
+    ok, msg = validate_daily_universe(doc)
+    if not ok:
+        return False, f"daily_universe_v2: {msg}"
+    meta = doc.get("_meta") if isinstance(doc, dict) else {}
+    if not isinstance(meta, dict):
+        return False, "daily_universe_v2: missing _meta"
+    # v2 version should exist (may be empty during early rollout)
+    if "version" not in meta:
+        return False, "daily_universe_v2: missing _meta.version"
+    return True, "ok"
+
+
+def validate_regime_state(doc: Any) -> Tuple[bool, str]:
+    if not isinstance(doc, dict):
+        return False, "regime_state: not a dict"
+    meta = doc.get("_meta")
+    if not isinstance(meta, dict):
+        return False, "regime_state: missing _meta"
+    if not _is_iso_ts(meta.get("ts")):
+        return False, "regime_state: _meta.ts invalid"
+    if not isinstance(doc.get("regime_label"), str):
+        return False, "regime_state: regime_label not str"
+    try:
+        float(doc.get("regime_confidence", 0.0))
+    except Exception:
+        return False, "regime_state: regime_confidence not numeric"
+    return True, "ok"
+
+
+def validate_uw_intel_pnl_summary(doc: Any) -> Tuple[bool, str]:
+    if not isinstance(doc, dict):
+        return False, "uw_intel_pnl_summary: not a dict"
+    meta = doc.get("_meta")
+    if not isinstance(meta, dict):
+        return False, "uw_intel_pnl_summary: missing _meta"
+    if not _is_iso_ts(meta.get("ts")):
+        return False, "uw_intel_pnl_summary: _meta.ts invalid"
+    if not isinstance(doc.get("by_feature"), dict):
+        return False, "uw_intel_pnl_summary: by_feature not dict"
+    return True, "ok"
+
+
+def validate_intel_health_state(doc: Any) -> Tuple[bool, str]:
+    if not isinstance(doc, dict):
+        return False, "intel_health_state: not a dict"
+    meta = doc.get("_meta")
+    if not isinstance(meta, dict):
+        return False, "intel_health_state: missing _meta"
+    if not _is_iso_ts(meta.get("ts")):
+        return False, "intel_health_state: _meta.ts invalid"
+    if not isinstance(doc.get("checks"), list):
+        return False, "intel_health_state: checks not list"
+    return True, "ok"
+

@@ -28,6 +28,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from config.registry import DAILY_UNIVERSE_SCORING_V1
+try:
+    from config.registry import DAILY_UNIVERSE_SCORING_V2
+except Exception:  # pragma: no cover
+    DAILY_UNIVERSE_SCORING_V2 = {}
 from src.uw.uw_client import uw_get
 from utils.state_io import read_json_self_heal
 
@@ -40,6 +44,7 @@ except Exception:  # pragma: no cover
 
 OUT_DAILY = Path("state/daily_universe.json")
 OUT_CORE = Path("state/core_universe.json")
+OUT_DAILY_V2 = Path("state/daily_universe_v2.json")
 
 
 def _atomic_write(path: Path, data: Any) -> None:
@@ -99,6 +104,43 @@ def _score_symbol(sym: str, risk_feats: Dict[str, Any]) -> Tuple[float, Dict[str
     return float(score), {"volatility": float(score)}
 
 
+def _score_symbol_v2(sym: str, risk_feats: Dict[str, Any], *, regime_label: str) -> Tuple[float, Dict[str, float], Dict[str, Any]]:
+    """
+    Shadow-only universe scoring v2.
+    Adds sector/regime alignment features while keeping v1 outputs unchanged.
+    """
+    vol = float(risk_feats.get("realized_vol_20d") or 0.0)
+    w = (DAILY_UNIVERSE_SCORING_V2.get("weights") or {}) if isinstance(DAILY_UNIVERSE_SCORING_V2, dict) else {}
+    vol_norm = max(0.0, min(1.0, (vol - 0.20) / 0.40)) if vol > 0 else 0.0
+    w_vol = float(w.get("volatility", 0.25))
+
+    try:
+        from src.intel.sector_intel import get_sector
+        sector = get_sector(sym)
+    except Exception:
+        sector = "UNKNOWN"
+
+    # Very conservative alignment heuristics (bounded [0,1])
+    r = str(regime_label or "NEUTRAL").upper()
+    if r == "RISK_ON":
+        sector_align = 1.0 if sector in ("TECH", "BIOTECH") else 0.25
+        regime_align = 1.0
+    elif r in ("RISK_OFF", "BEAR"):
+        sector_align = 1.0 if sector in ("ENERGY", "FINANCIALS") else 0.25
+        regime_align = 1.0
+    elif r == "MIXED":
+        sector_align = 0.5
+        regime_align = 0.5
+    else:
+        sector_align = 0.25
+        regime_align = 0.25
+
+    w_sector = float(w.get("sector_alignment", 0.05))
+    w_regime = float(w.get("regime_alignment", 0.05))
+    score = (w_vol * vol_norm) + (w_sector * float(sector_align)) + (w_regime * float(regime_align))
+    return float(score), {"volatility": float(w_vol * vol_norm), "sector_alignment": float(w_sector * sector_align), "regime_alignment": float(w_regime * regime_align)}, {"sector": sector, "regime_label": r}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--max", type=int, default=200, help="Target daily universe size (150–250 recommended)")
@@ -134,12 +176,45 @@ def main() -> int:
     _atomic_write(OUT_DAILY, daily_out)
     _atomic_write(OUT_CORE, core_out)
 
+    # Shadow-only v2 universe output (additive).
+    try:
+        from src.intel.regime_detector import write_regime_state, read_regime_state
+        try:
+            write_regime_state()
+        except Exception:
+            pass
+        rs = read_regime_state()
+        regime_label = str(rs.get("regime_label", "NEUTRAL") or "NEUTRAL")
+    except Exception:
+        regime_label = "NEUTRAL"
+
+    try:
+        scored_v2 = []
+        for sym in sorted(cands):
+            feats = rm.get(sym, {}) if isinstance(rm, dict) else {}
+            sv2, bd2, ctx2 = _score_symbol_v2(sym, feats if isinstance(feats, dict) else {}, regime_label=regime_label)
+            scored_v2.append({"symbol": sym, "score": float(round(sv2, 6)), "breakdown": bd2, "context": ctx2})
+        scored_v2.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+        daily_v2 = scored_v2[: max(1, int(args.max))]
+        v2_ver = str((DAILY_UNIVERSE_SCORING_V2 or {}).get("version") or "")
+        daily_out_v2 = {"_meta": {"ts": now, "version": v2_ver, "mock": mock, "regime_label": str(regime_label)}, "symbols": daily_v2}
+        _atomic_write(OUT_DAILY_V2, daily_out_v2)
+    except Exception:
+        pass
+
     try:
         log_system_event(
             subsystem="uw",
             event_type="daily_universe_built",
             severity="INFO",
-            details={"daily": len(daily), "core": len(core), "mock": mock, "version": DAILY_UNIVERSE_SCORING_V1.get("version")},
+            details={
+                "daily": len(daily),
+                "core": len(core),
+                "mock": mock,
+                "version": DAILY_UNIVERSE_SCORING_V1.get("version"),
+                "universe_scoring_v2_version": str((DAILY_UNIVERSE_SCORING_V2 or {}).get("version") or ""),
+                "wrote_daily_universe_v2": OUT_DAILY_V2.exists(),
+            },
         )
     except Exception:
         pass

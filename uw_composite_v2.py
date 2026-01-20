@@ -1511,13 +1511,38 @@ def compute_composite_score_v3_v2(
         "sentiment": 0.0,
         "earnings_proximity": 0.0,
         "sector_alignment": 0.0,
+        "regime_alignment": 0.0,
         "total": 0.0,
     }
     uw_intel_version = ""
+    v2_uw_sector_profile: Dict[str, Any] = {}
+    v2_uw_regime_profile: Dict[str, Any] = {}
     try:
         uw_cfg = v2_params.get("uw", {}) if isinstance(v2_params, dict) else {}
         if isinstance(uw_cfg, dict) and uw_cfg:
             from utils.state_io import read_json_self_heal
+            # Sector/regime context (safe defaults)
+            try:
+                from src.intel.sector_intel import get_sector_multipliers, get_sector_profile_version
+                sector, sm = get_sector_multipliers(symbol)
+                v2_uw_sector_profile = {
+                    "sector": sector,
+                    "version": str(uw_cfg.get("sector_profile_version") or get_sector_profile_version() or ""),
+                    "multipliers": dict(sm),
+                }
+            except Exception:
+                sector, sm = "UNKNOWN", {"flow_weight": 1.0, "darkpool_weight": 1.0, "earnings_weight": 1.0, "short_interest_weight": 1.0}
+                v2_uw_sector_profile = {"sector": sector, "version": str(uw_cfg.get("sector_profile_version") or ""), "multipliers": dict(sm)}
+            try:
+                from src.intel.regime_detector import read_regime_state, regime_alignment_score
+                rs = read_regime_state()
+                r_label = str(rs.get("regime_label", "NEUTRAL") or "NEUTRAL")
+                r_ver = str(((rs.get("_meta", {}) if isinstance(rs, dict) else {}) or {}).get("version") or uw_cfg.get("regime_profile_version") or "")
+                r_align = float(regime_alignment_score(r_label, direction))
+                v2_uw_regime_profile = {"regime_label": r_label, "version": r_ver, "alignment": r_align}
+            except Exception:
+                r_label, r_ver, r_align = "NEUTRAL", str(uw_cfg.get("regime_profile_version") or ""), 0.0
+                v2_uw_regime_profile = {"regime_label": r_label, "version": r_ver, "alignment": r_align}
 
             pm = read_json_self_heal("state/premarket_intel.json", default={}, heal=True, mkdir=True)
             post = read_json_self_heal("state/postmarket_intel.json", default={}, heal=True, mkdir=True)
@@ -1540,8 +1565,8 @@ def compute_composite_score_v3_v2(
                     earnings_days = None
 
                 # Apply bounded adjustments
-                uw_adj["flow_strength"] = float(uw_cfg.get("flow_strength_bonus_max", 0.20)) * float(flow_strength) * float(align_mult)
-                uw_adj["darkpool_bias"] = float(uw_cfg.get("darkpool_bias_bonus_max", 0.12)) * float(abs(darkpool_bias)) * float(align_mult)
+                uw_adj["flow_strength"] = float(uw_cfg.get("flow_strength_bonus_max", 0.20)) * float(flow_strength) * float(align_mult) * float(sm.get("flow_weight", 1.0))
+                uw_adj["darkpool_bias"] = float(uw_cfg.get("darkpool_bias_bonus_max", 0.12)) * float(abs(darkpool_bias)) * float(align_mult) * float(sm.get("darkpool_weight", 1.0))
                 if sentiment_s == "BULLISH" and direction == "bullish":
                     uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult)
                 elif sentiment_s == "BEARISH" and direction == "bearish":
@@ -1550,9 +1575,10 @@ def compute_composite_score_v3_v2(
                 # Earnings proximity penalty (risk reduction)
                 pen_days = int(uw_cfg.get("earnings_penalty_days", 3) or 3)
                 if earnings_days is not None and earnings_days <= pen_days:
-                    uw_adj["earnings_proximity"] = float(uw_cfg.get("earnings_proximity_penalty_max", -0.12)) * float(align_mult)
+                    uw_adj["earnings_proximity"] = float(uw_cfg.get("earnings_proximity_penalty_max", -0.12)) * float(align_mult) * float(sm.get("earnings_weight", 1.0))
 
                 uw_adj["sector_alignment"] = float(uw_cfg.get("sector_alignment_bonus_max", 0.12)) * float(max(0.0, sector_alignment)) * float(align_mult)
+                uw_adj["regime_alignment"] = float(uw_cfg.get("regime_alignment_bonus_max", 0.08)) * float(max(0.0, r_align)) * float(align_mult)
 
                 uw_adj["total"] = float(sum(float(v) for k, v in uw_adj.items() if k != "total"))
                 uw_inputs = {
@@ -1561,6 +1587,7 @@ def compute_composite_score_v3_v2(
                     "sentiment": sentiment_s,
                     "earnings_proximity": earnings_days,
                     "sector_alignment": float(sector_alignment),
+                    "regime_alignment": float(r_align),
                     "uw_intel_version": uw_intel_version,
                 }
                 # Apply to score
@@ -1573,9 +1600,12 @@ def compute_composite_score_v3_v2(
             "sentiment": 0.0,
             "earnings_proximity": 0.0,
             "sector_alignment": 0.0,
+            "regime_alignment": 0.0,
             "total": 0.0,
         }
         uw_intel_version = ""
+        v2_uw_sector_profile = {}
+        v2_uw_regime_profile = {}
 
     # Annotate
     try:
@@ -1612,9 +1642,42 @@ def compute_composite_score_v3_v2(
             base["v2_uw_inputs"] = uw_inputs
             base["v2_uw_adjustments"] = {k: round(float(v), 4) for k, v in (uw_adj or {}).items()}
             base["uw_intel_version"] = str(uw_intel_version)
+            if v2_uw_sector_profile:
+                base["v2_uw_sector_profile"] = v2_uw_sector_profile
+            if v2_uw_regime_profile:
+                base["v2_uw_regime_profile"] = v2_uw_regime_profile
         # Preserve existing notes while making adjustments explicit.
         base["notes"] = (str(base.get("notes", "") or "") + f"; v2_adj={round(float(total_adj), 3)}").strip("; ").strip()
         base["version"] = str(base.get("version", "V3")) + "+V2"
+    except Exception:
+        pass
+
+    # Shadow-only attribution (append-only, never raises).
+    try:
+        if uw_inputs and isinstance(uw_adj, dict):
+            from src.uw.uw_attribution import emit_uw_attribution
+            emit_uw_attribution(
+                symbol=str(symbol),
+                direction=str(direction),
+                composite_version="v2",
+                uw_intel_version=str(uw_intel_version or ""),
+                uw_features={
+                    "flow_strength": uw_inputs.get("flow_strength", 0.0),
+                    "darkpool_bias": uw_inputs.get("darkpool_bias", 0.0),
+                    "sentiment": uw_inputs.get("sentiment", "NEUTRAL"),
+                    "earnings_proximity": uw_inputs.get("earnings_proximity"),
+                    "sector_alignment": uw_inputs.get("sector_alignment", 0.0),
+                    "regime_alignment": uw_inputs.get("regime_alignment", 0.0),
+                },
+                uw_contribution={
+                    "score_delta": float(uw_adj.get("total", 0.0) or 0.0),
+                    "weight_profile": {
+                        "uw_version": str((v2_params or {}).get("uw", {}).get("version", "")) if isinstance(v2_params, dict) else "",
+                        "sector_profile": v2_uw_sector_profile,
+                        "regime_profile": v2_uw_regime_profile,
+                    },
+                },
+            )
     except Exception:
         pass
 

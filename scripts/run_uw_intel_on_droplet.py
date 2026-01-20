@@ -41,8 +41,12 @@ from scripts.droplet_sync_utils import (
 from scripts.uw_intel_schema import (
     validate_core_universe,
     validate_daily_universe,
+    validate_daily_universe_v2,
+    validate_intel_health_state,
     validate_postmarket_intel,
     validate_premarket_intel,
+    validate_regime_state,
+    validate_uw_intel_pnl_summary,
     validate_uw_usage_state,
 )
 
@@ -92,18 +96,31 @@ def main() -> int:
         os.system(f"{os.sys.executable} scripts/build_daily_universe.py --mock --max 20 --core 10")
         os.system(f"{os.sys.executable} scripts/run_premarket_intel.py --mock")
         os.system(f"{os.sys.executable} scripts/run_postmarket_intel.py --mock")
+        os.system(f"{os.sys.executable} scripts/run_regime_detector.py")
+        os.system(f"{os.sys.executable} scripts/run_daily_intel_pnl.py --date {date}")
+        os.system(f"{os.sys.executable} scripts/run_intel_health_checks.py --mock")
+        os.system(f"{os.sys.executable} reports/_dashboard/intel_dashboard_generator.py --date {date}")
         # Copy artifacts into droplet_sync folder
         for src, dst in [
             ("state/daily_universe.json", out_dir / "daily_universe.json"),
             ("state/core_universe.json", out_dir / "core_universe.json"),
+            ("state/daily_universe_v2.json", out_dir / "daily_universe_v2.json"),
             ("state/premarket_intel.json", out_dir / "premarket_intel.json"),
             ("state/postmarket_intel.json", out_dir / "postmarket_intel.json"),
+            ("state/regime_state.json", out_dir / "regime_state.json"),
+            ("state/uw_intel_pnl_summary.json", out_dir / "uw_intel_pnl_summary.json"),
+            ("state/intel_health_state.json", out_dir / "intel_health_state.json"),
         ]:
             p = Path(src)
             if p.exists():
                 write_bytes(dst, p.read_bytes())
+        # Best-effort: copy intel dashboard (if generated)
+        dash = Path("reports") / f"INTEL_DASHBOARD_{date}.md"
+        if dash.exists():
+            write_bytes(out_dir / f"INTEL_DASHBOARD_{date}.md", dash.read_bytes())
         write_text(out_dir / "shadow_tail.jsonl", "")
         write_text(out_dir / "system_events_tail.jsonl", "")
+        write_text(out_dir / "uw_attribution_tail.jsonl", "")
         append_sync_log(sync_log, {"event": "sync_complete", "mode": "no_ssh_mock"})
         return 0
 
@@ -118,6 +135,10 @@ def main() -> int:
             ("run_premarket_intel", _remote_py("scripts/run_premarket_intel.py", mock=bool(args.mock))),
             ("run_postmarket_intel", _remote_py("scripts/run_postmarket_intel.py", mock=bool(args.mock))),
             ("run_regression_checks", _remote_py("scripts/run_regression_checks.py", mock=True)),  # always mock-safe
+            ("run_regime_detector", "bash -c \"./venv/bin/python scripts/run_regime_detector.py\""),
+            ("run_daily_intel_pnl", f"bash -c \"set -a && source .env >/dev/null 2>&1 || true; set +a; ./venv/bin/python scripts/run_daily_intel_pnl.py --date {date}\""),
+            ("run_intel_health_checks", _remote_py("scripts/run_intel_health_checks.py", mock=True)),
+            ("run_intel_dashboard", f"bash -c \"./venv/bin/python reports/_dashboard/intel_dashboard_generator.py --date {date}\""),
         ]:
             name, cmd = step
             rr = _run_remote(c, cmd, timeout=600)
@@ -130,9 +151,14 @@ def main() -> int:
         fetch_map = {
             "state/daily_universe.json": out_dir / "daily_universe.json",
             "state/core_universe.json": out_dir / "core_universe.json",
+            "state/daily_universe_v2.json": out_dir / "daily_universe_v2.json",
             "state/premarket_intel.json": out_dir / "premarket_intel.json",
             "state/postmarket_intel.json": out_dir / "postmarket_intel.json",
             "state/uw_usage_state.json": out_dir / "uw_usage_state.json",
+            "state/regime_state.json": out_dir / "regime_state.json",
+            "state/uw_intel_pnl_summary.json": out_dir / "uw_intel_pnl_summary.json",
+            "state/intel_health_state.json": out_dir / "intel_health_state.json",
+            f"reports/INTEL_DASHBOARD_{date}.md": out_dir / f"INTEL_DASHBOARD_{date}.md",
         }
         for remote, local in fetch_map.items():
             res = droplet_b64_read_file(c, remote, timeout=60)
@@ -146,6 +172,7 @@ def main() -> int:
         for remote, local_name in [
             ("logs/shadow.jsonl", "shadow_tail.jsonl"),
             ("logs/system_events.jsonl", "system_events_tail.jsonl"),
+            ("logs/uw_attribution.jsonl", "uw_attribution_tail.jsonl"),
         ]:
             res = droplet_b64_tail_file(c, remote, lines=500, timeout=60)
             if res.success:
@@ -156,9 +183,17 @@ def main() -> int:
     try:
         _validate_json(out_dir / "daily_universe.json", validate_daily_universe)
         _validate_json(out_dir / "core_universe.json", validate_core_universe)
+        if (out_dir / "daily_universe_v2.json").exists():
+            _validate_json(out_dir / "daily_universe_v2.json", validate_daily_universe_v2)
         _validate_json(out_dir / "premarket_intel.json", validate_premarket_intel)
         _validate_json(out_dir / "postmarket_intel.json", validate_postmarket_intel)
         _validate_json(out_dir / "uw_usage_state.json", validate_uw_usage_state)
+        if (out_dir / "regime_state.json").exists():
+            _validate_json(out_dir / "regime_state.json", validate_regime_state)
+        if (out_dir / "uw_intel_pnl_summary.json").exists():
+            _validate_json(out_dir / "uw_intel_pnl_summary.json", validate_uw_intel_pnl_summary)
+        if (out_dir / "intel_health_state.json").exists():
+            _validate_json(out_dir / "intel_health_state.json", validate_intel_health_state)
         append_sync_log(sync_log, {"event": "schema_validated", "success": True})
     except Exception as e:
         append_sync_log(sync_log, {"event": "schema_validated", "success": False, "error": str(e)})

@@ -304,12 +304,17 @@ COMPOSITE_WEIGHTS_V2: Dict[str, Any] = {
     # UW intelligence layer (shadow-only, additive)
     "uw": {
         "version": "2026-01-20_uw_v1",
+        # Versioning for downstream attribution/dashboard (additive metadata only)
+        "sector_profile_version": "2026-01-20_sector_profiles_v1",
+        "regime_profile_version": "2026-01-20_regime_v1",
+        "pnl_tuning_version": "2026-01-20_pnl_tuning_v1",
         # Inputs are expected from state/premarket_intel.json and/or state/postmarket_intel.json
         "flow_strength_bonus_max": 0.20,
         "darkpool_bias_bonus_max": 0.12,
         "sentiment_bonus_max": 0.10,
         "earnings_proximity_penalty_max": -0.12,  # closer earnings => more risk
         "sector_alignment_bonus_max": 0.12,
+        "regime_alignment_bonus_max": 0.08,
         # normalization knobs
         "earnings_penalty_days": 3,  # within N days => penalize
     },
@@ -360,6 +365,21 @@ DAILY_UNIVERSE_SCORING_V1: Dict[str, Any] = {
         "uw_darkpool": 0.10,
         "uw_sentiment": 0.10,
         "earnings_proximity": 0.10,
+    },
+}
+
+# Daily dynamic universe scoring config (v2, shadow-only for now)
+DAILY_UNIVERSE_SCORING_V2: Dict[str, Any] = {
+    "version": "2026-01-20_universe_v2",
+    "weights": {
+        "volatility": 0.25,
+        "premarket_activity": 0.20,
+        "uw_flow": 0.20,
+        "uw_darkpool": 0.10,
+        "uw_sentiment": 0.10,
+        "earnings_proximity": 0.10,
+        "sector_alignment": 0.05,
+        "regime_alignment": 0.05,
     },
 }
 

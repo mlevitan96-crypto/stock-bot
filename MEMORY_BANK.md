@@ -520,6 +520,35 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - `premarket_intel_ready`
   - `postmarket_intel_ready`
 
+## 7.9 INTELLIGENCE & PROFITABILITY LAYER (ATTRIBUTION + P&L + SECTOR/REGIME + UNIVERSE v2 + DASHBOARD + HEALTH) (2026-01-20)
+
+### Invariants (non-negotiable)
+- **v1 remains sacred**: no behavior changes, no sizing/gates/exits changes.
+- **v2 remains shadow-only**: attribution/P&L/dashboard are sourced from v2 computations and state files only.
+- **Attribution is append-only and non-blocking**:
+  - Writer: `src/uw/uw_attribution.py`
+  - Output: `logs/uw_attribution.jsonl`
+  - Attribution MUST NEVER raise inside scoring.
+- **Sector profiles are config-driven**:
+  - Config: `config/sector_profiles.json`
+  - Resolver: `src/intel/sector_intel.py` (safe defaults to `UNKNOWN`)
+- **Regime state is a stable snapshot**:
+  - Engine: `src/intel/regime_detector.py`
+  - Output: `state/regime_state.json`
+- **Universe scoring v2 is shadow-only**:
+  - Config: `DAILY_UNIVERSE_SCORING_V2` in `config/registry.py`
+  - Output: `state/daily_universe_v2.json` (additive; v1 outputs remain unchanged)
+- **Daily Intel P&L is best-effort and additive**:
+  - Script: `scripts/run_daily_intel_pnl.py`
+  - Outputs: `reports/UW_INTEL_PNL_YYYY-MM-DD.md`, `state/uw_intel_pnl_summary.json`
+- **Intel dashboard is generated from state + logs**:
+  - Generator: `reports/_dashboard/intel_dashboard_generator.py`
+  - Output: `reports/INTEL_DASHBOARD_YYYY-MM-DD.md`
+- **Intel health checks are required for visibility (self-heal optional)**:
+  - Script: `scripts/run_intel_health_checks.py`
+  - Output: `state/intel_health_state.json`
+  - Self-heal attempts MUST be logged in the health state under `self_heal` and MUST NOT impact v1.
+
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)
 
 ## 8.1 SCORE TELEMETRY MODULE

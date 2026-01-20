@@ -143,6 +143,75 @@ Rules:
 Canonical runner:
 - `scripts/run_uw_intel_on_droplet.py`
 
+### 4.10 Intelligence Attribution & P&L Contract (v2-only, additive)
+Inputs:
+- v2 composite scoring outputs (shadow-only)
+- UW intel state files: `state/premarket_intel.json`, `state/postmarket_intel.json`
+- Exit/PnL sources (best-effort): `logs/exits.jsonl`, `logs/shadow.jsonl`
+
+Outputs:
+- Attribution stream (append-only): `logs/uw_attribution.jsonl`
+- Daily Intel P&L report: `reports/UW_INTEL_PNL_YYYY-MM-DD.md`
+- Daily Intel P&L summary state: `state/uw_intel_pnl_summary.json`
+
+Rules:
+- Attribution MUST be non-blocking (never crash scoring).
+- Attribution + P&L MUST NOT affect v1 trading behavior.
+- P&L generation may be sparse if exit logs are unavailable; it must still run safely.
+
+### 4.11 Sector & Regime Awareness Contract (v2-only, additive)
+Sector:
+- Profiles live in: `config/sector_profiles.json`
+- Resolver lives in: `src/intel/sector_intel.py`
+- Unknown symbols MUST default to sector=`UNKNOWN` and multipliers=1.0.
+
+Regime:
+- Engine lives in: `src/intel/regime_detector.py`
+- Output state lives in: `state/regime_state.json`
+- Engine MUST be safe-by-default and must not require live network calls.
+
+### 4.12 Universe Scoring v2 Contract (shadow-only)
+Inputs:
+- Symbol risk features: `state/symbol_risk_features.json`
+- Regime snapshot: `state/regime_state.json` (if present)
+- Sector profiles (optional): `config/sector_profiles.json`
+
+Outputs:
+- v1 outputs (unchanged): `state/daily_universe.json`, `state/core_universe.json`
+- v2 output (additive, shadow-only): `state/daily_universe_v2.json`
+
+Rules:
+- v2 universe output MUST NOT be consumed by v1 trading without explicit promotion.
+- v1 universe behavior must remain unchanged.
+
+### 4.13 Composite v2 Tuning Contract (shadow-only)
+Rules:
+- v2 composite MUST read UW intel only from state files (no live UW calls in scoring).
+- Sector/regime multipliers MAY shape v2 UW adjustments, but MUST NOT affect v1.
+- v2 metadata MUST be logged in the v2 output dict (inputs/versions).
+
+### 4.14 Intel Dashboard Contract (additive)
+Generator:
+- `reports/_dashboard/intel_dashboard_generator.py`
+
+Output:
+- `reports/INTEL_DASHBOARD_YYYY-MM-DD.md`
+
+Rules:
+- Dashboard MUST be derivable from state/logs only (no live network calls).
+- Dashboard generation MUST be safe (never crashes engine).
+
+### 4.15 Health & Self-Healing Contract (additive)
+Health check runner:
+- `scripts/run_intel_health_checks.py`
+
+Output:
+- `state/intel_health_state.json`
+
+Rules:
+- Health checks MUST validate freshness + schema and report status.
+- Self-heal attempts (when enabled) MUST be best-effort and MUST NOT impact v1 trading.
+
 ### 4.3 Missing/Empty/Corrupt Cache Behavior
 If the cache is missing, empty, or corrupted:
 - engine MUST continue running  

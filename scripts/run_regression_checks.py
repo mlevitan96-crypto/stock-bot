@@ -88,16 +88,23 @@ def main() -> int:
     from scripts.uw_intel_schema import (
         validate_core_universe,
         validate_daily_universe,
+        validate_daily_universe_v2,
+        validate_intel_health_state,
         validate_postmarket_intel,
         validate_premarket_intel,
+        validate_regime_state,
+        validate_uw_intel_pnl_summary,
         validate_uw_usage_state,
     )
     daily = json.loads(Path("state/daily_universe.json").read_text(encoding="utf-8"))
     core = json.loads(Path("state/core_universe.json").read_text(encoding="utf-8"))
+    daily_v2 = json.loads(Path("state/daily_universe_v2.json").read_text(encoding="utf-8")) if Path("state/daily_universe_v2.json").exists() else {}
     pm = json.loads(Path("state/premarket_intel.json").read_text(encoding="utf-8"))
     post = json.loads(Path("state/postmarket_intel.json").read_text(encoding="utf-8"))
     ok, msg = validate_daily_universe(daily); _assert(ok, f"daily_universe schema: {msg}")
     ok, msg = validate_core_universe(core); _assert(ok, f"core_universe schema: {msg}")
+    if daily_v2:
+        ok, msg = validate_daily_universe_v2(daily_v2); _assert(ok, f"daily_universe_v2 schema: {msg}")
     ok, msg = validate_premarket_intel(pm); _assert(ok, f"premarket_intel schema: {msg}")
     ok, msg = validate_postmarket_intel(post); _assert(ok, f"postmarket_intel schema: {msg}")
 
@@ -194,6 +201,37 @@ def main() -> int:
 
     # 7) v2 composite computes with mock UW intel (shadow-only)
     _run([sys.executable, "-c", "import json; from uw_composite_v2 import compute_composite_score_v3_v2; from config.registry import COMPOSITE_WEIGHTS_V2; enriched={'sentiment':'BULLISH','conviction':0.62,'trade_count':10,'realized_vol_20d':0.35,'beta_vs_spy':1.4}; r=compute_composite_score_v3_v2('AAPL', enriched, market_context={}, posture_state={'posture':'long','regime_confidence':0.8}, base_override={'score':3.5}, v2_params=COMPOSITE_WEIGHTS_V2); assert r.get('composite_version')=='v2'; print('ok')"], env=base_env)
+
+    # 8) regime state exists + schema valid (additive)
+    _run([sys.executable, "scripts/run_regime_detector.py"], env=base_env)
+    _assert(Path("state/regime_state.json").exists(), "state/regime_state.json not written")
+    reg = json.loads(Path("state/regime_state.json").read_text(encoding="utf-8"))
+    ok, msg = validate_regime_state(reg); _assert(ok, f"regime_state schema: {msg}")
+
+    # 9) attribution log created (additive, append-only)
+    _assert(Path("logs/uw_attribution.jsonl").exists(), "logs/uw_attribution.jsonl not created by v2 scoring")
+    try:
+        tail = Path("logs/uw_attribution.jsonl").read_text(encoding="utf-8", errors="replace").splitlines()[-1].strip()
+        rec = json.loads(tail) if tail else {}
+        _assert(isinstance(rec, dict) and "symbol" in rec and "uw_features" in rec and "uw_contribution" in rec, "uw_attribution schema missing keys")
+    except Exception:
+        _assert(False, "failed to parse last uw_attribution record")
+
+    # 10) daily intel P&L script runs and writes summary state (best-effort)
+    _run([sys.executable, "scripts/run_daily_intel_pnl.py", "--date", "2026-01-01"], env=base_env)
+    _assert(Path("state/uw_intel_pnl_summary.json").exists(), "state/uw_intel_pnl_summary.json not written")
+    pnl = json.loads(Path("state/uw_intel_pnl_summary.json").read_text(encoding="utf-8"))
+    ok, msg = validate_uw_intel_pnl_summary(pnl); _assert(ok, f"uw_intel_pnl_summary schema: {msg}")
+
+    # 11) intel health checks run and write health state
+    _run([sys.executable, "scripts/run_intel_health_checks.py", "--mock"], env=base_env)
+    _assert(Path("state/intel_health_state.json").exists(), "state/intel_health_state.json not written")
+    hs = json.loads(Path("state/intel_health_state.json").read_text(encoding="utf-8"))
+    ok, msg = validate_intel_health_state(hs); _assert(ok, f"intel_health_state schema: {msg}")
+
+    # 12) intel dashboard generator runs
+    _run([sys.executable, "reports/_dashboard/intel_dashboard_generator.py", "--date", "2026-01-01"], env=base_env)
+    _assert(Path("reports/INTEL_DASHBOARD_2026-01-01.md").exists(), "intel dashboard not generated")
 
     print("REGRESSION_OK")
     return 0
