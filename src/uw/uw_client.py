@@ -198,7 +198,9 @@ def uw_http_get(
     per_min, per_day, buf = _limits()
 
     # Mock mode (regression-safe)
-    if str(os.getenv("UW_MOCK", "")).strip() in ("1", "true", "TRUE", "yes", "YES"):
+    mock_mode = str(os.getenv("UW_MOCK", "")).strip() in ("1", "true", "TRUE", "yes", "YES")
+    mock_enforce_limits = str(os.getenv("UW_MOCK_ENFORCE_LIMITS", "")).strip() in ("1", "true", "TRUE", "yes", "YES")
+    if mock_mode and not mock_enforce_limits:
         return 200, _mock_response(endpoint, params=params), {}
 
     # Resolve URL
@@ -279,26 +281,31 @@ def uw_http_get(
     except Exception:
         pass
 
-    # Execute request
+    # Execute request (or deterministic mock with limits enforced)
     t0 = time.time()
     status = 0
     data: Dict[str, Any] = {"data": []}
     resp_headers: Dict[str, Any] = {}
     try:
-        r = requests.get(url, headers=headers, params=params or {}, timeout=float(timeout_s))
-        status = int(getattr(r, "status_code", 0) or 0)
-        try:
-            resp_headers = dict(getattr(r, "headers", {}) or {})
-        except Exception:
+        if mock_mode and mock_enforce_limits:
+            status = 200
+            data = _mock_response(endpoint, params=params)
             resp_headers = {}
-        try:
-            if status == 200:
-                data = r.json() if r.content else {"data": []}
-            else:
-                # Keep body best-effort for observability, but never raise.
-                data = r.json() if r.content else {"data": []}
-        except Exception:
-            data = {"data": []}
+        else:
+            r = requests.get(url, headers=headers, params=params or {}, timeout=float(timeout_s))
+            status = int(getattr(r, "status_code", 0) or 0)
+            try:
+                resp_headers = dict(getattr(r, "headers", {}) or {})
+            except Exception:
+                resp_headers = {}
+            try:
+                if status == 200:
+                    data = r.json() if r.content else {"data": []}
+                else:
+                    # Keep body best-effort for observability, but never raise.
+                    data = r.json() if r.content else {"data": []}
+            except Exception:
+                data = {"data": []}
     except Exception as e:
         status = 0
         data = {"data": []}

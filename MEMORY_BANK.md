@@ -474,6 +474,32 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Post-market pass**: `scripts/run_postmarket_intel.py` → `state/postmarket_intel.json`
 - **Regression runner**: `scripts/run_regression_checks.py`
 
+### Droplet execution + state sync (operational phase) (2026-01-20)
+
+#### Invariants (non-negotiable)
+- **Droplet execution must be runnable end-to-end**:
+  - `scripts/build_daily_universe.py`
+  - `scripts/run_premarket_intel.py`
+  - `scripts/run_postmarket_intel.py`
+  - `scripts/run_regression_checks.py`
+- **Order of operations is binding**:
+  - Universe build → premarket intel → postmarket intel → regression
+- **State is synced locally for review**:
+  - All synced artifacts MUST be written under: `droplet_sync/YYYY-MM-DD/`
+  - Each sync MUST append to: `droplet_sync/YYYY-MM-DD/sync_log.jsonl`
+- **Safety on failure**:
+  - If droplet regression fails, sync MUST abort (no partial “success”).
+  - Sync failures MUST be logged and MUST NOT break v1 trading.
+- **Shadow-only enforcement**:
+  - v2 composite MUST consume UW intel only from `state/premarket_intel.json` / `state/postmarket_intel.json` (no live UW calls in scoring).
+
+#### Operator scripts
+- **Full run + sync**: `scripts/run_uw_intel_on_droplet.py`
+  - Fetches: `state/daily_universe.json`, `state/core_universe.json`, `state/premarket_intel.json`, `state/postmarket_intel.json`, `state/uw_usage_state.json`
+  - Fetches tails: `logs/shadow.jsonl` (last 500 lines), `logs/system_events.jsonl` (last 500 lines)
+- **Premarket trigger**: `scripts/run_premarket_on_droplet.py`
+- **Postmarket trigger**: `scripts/run_postmarket_on_droplet.py`
+
 ### Observability
 - `logs/system_events.jsonl` (subsystem=`uw`):
   - `uw_call`

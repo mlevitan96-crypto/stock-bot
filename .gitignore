@@ -17,6 +17,9 @@ logs/
 feature_store/
 *.jsonl
 
+# Droplet sync artifacts (pulled locally for review)
+droplet_sync/
+
 # IDE
 .vscode/
 .idea/

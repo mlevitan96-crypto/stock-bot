@@ -93,6 +93,33 @@ Contracts:
   - `daily_universe ∪ core_universe`
 - v2 remains shadow-only until `COMPOSITE_VERSION` is manually flipped.
 
+### 4.6 UW Intelligence Execution Contract
+The UW intelligence lifecycle MUST be executed in this order:
+- **Universe build (daily, before market open)**:
+  - `scripts/build_daily_universe.py` → `state/daily_universe.json`, `state/core_universe.json`
+- **Premarket intel (before market open)**:
+  - `scripts/run_premarket_intel.py` → `state/premarket_intel.json`
+- **Postmarket intel (after market close)**:
+  - `scripts/run_postmarket_intel.py` → `state/postmarket_intel.json`
+
+Additional rules:
+- All UW calls MUST route through `src/uw/uw_client.py`.
+- UW symbol-level calls MUST be restricted to `daily_universe ∪ core_universe`.
+- v2 composite scoring MUST read UW intel from state files only (no live UW calls during scoring).
+
+### 4.7 Droplet Execution + State Sync Contract
+Droplet runners are an operational convenience and MUST NOT affect live trading behavior.
+
+Rules:
+- Droplet execution MUST run scripts in the correct order and MUST stop if regression fails.
+- Droplet state files MUST persist under `state/` on the droplet.
+- Local sync MUST store fetched artifacts under: `droplet_sync/YYYY-MM-DD/`
+- Local sync MUST append to: `droplet_sync/YYYY-MM-DD/sync_log.jsonl`
+- Sync failures MUST be logged and MUST NOT break v1.
+
+Canonical runner:
+- `scripts/run_uw_intel_on_droplet.py`
+
 ### 4.3 Missing/Empty/Corrupt Cache Behavior
 If the cache is missing, empty, or corrupted:
 - engine MUST continue running  

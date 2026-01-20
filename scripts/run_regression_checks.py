@@ -23,6 +23,8 @@ from typing import Any, Dict, List
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 def _run(cmd: List[str], *, env: Dict[str, str] | None = None) -> None:
@@ -43,6 +45,7 @@ def _assert(cond: bool, msg: str) -> None:
 def main() -> int:
     base_env = dict(os.environ)
     base_env["UW_MOCK"] = "1"
+    base_env["PYTHONIOENCODING"] = "utf-8"
 
     # 1) uw_client importable
     _run([sys.executable, "-c", "from src.uw.uw_client import uw_get; assert callable(uw_get)"], env=base_env)
@@ -63,6 +66,43 @@ def main() -> int:
     _run([sys.executable, "scripts/run_postmarket_intel.py", "--mock"], env=base_env)
     _assert(Path("state/premarket_intel.json").exists(), "state/premarket_intel.json not written")
     _assert(Path("state/postmarket_intel.json").exists(), "state/postmarket_intel.json not written")
+
+    # 5b) schema validation for intel/universe state
+    from scripts.uw_intel_schema import (
+        validate_core_universe,
+        validate_daily_universe,
+        validate_postmarket_intel,
+        validate_premarket_intel,
+        validate_uw_usage_state,
+    )
+    daily = json.loads(Path("state/daily_universe.json").read_text(encoding="utf-8"))
+    core = json.loads(Path("state/core_universe.json").read_text(encoding="utf-8"))
+    pm = json.loads(Path("state/premarket_intel.json").read_text(encoding="utf-8"))
+    post = json.loads(Path("state/postmarket_intel.json").read_text(encoding="utf-8"))
+    ok, msg = validate_daily_universe(daily); _assert(ok, f"daily_universe schema: {msg}")
+    ok, msg = validate_core_universe(core); _assert(ok, f"core_universe schema: {msg}")
+    ok, msg = validate_premarket_intel(pm); _assert(ok, f"premarket_intel schema: {msg}")
+    ok, msg = validate_postmarket_intel(post); _assert(ok, f"postmarket_intel schema: {msg}")
+
+    # 5c) UW client dry-run validation (rate limit + persistence + cache)
+    # - Rate limit: set per-minute cap to 1; second call should be blocked.
+    rate_env = dict(base_env)
+    rate_env["UW_RATE_LIMIT_PER_MIN"] = "1"
+    rate_env["UW_MOCK_ENFORCE_LIMITS"] = "1"
+    _run([sys.executable, "-c", "import os; os.environ['UW_MOCK']='1'; os.environ['UW_MOCK_ENFORCE_LIMITS']='1'; "
+                               "from src.uw.uw_client import uw_http_get; "
+                               "uw_http_get('/api/market/top-net-impact', {'limit':1}); "
+                               "st, data, _=uw_http_get('/api/market/top-net-impact', {'limit':1}); "
+                               "assert (st==429 or (isinstance(data,dict) and data.get('_blocked'))); print('ok')"], env=rate_env)
+    # - Usage persistence file exists and validates
+    _assert(Path("state/uw_usage_state.json").exists(), "state/uw_usage_state.json not written")
+    usage = json.loads(Path("state/uw_usage_state.json").read_text(encoding="utf-8"))
+    ok, msg = validate_uw_usage_state(usage); _assert(ok, f"uw_usage_state schema: {msg}")
+
+    # 5d) droplet runner scripts importable + local-only mock sync works (no SSH)
+    _run([sys.executable, "-c", "import scripts.run_uw_intel_on_droplet, scripts.run_premarket_on_droplet, scripts.run_postmarket_on_droplet; print('ok')"], env=base_env)
+    _run([sys.executable, "scripts/run_uw_intel_on_droplet.py", "--no-ssh", "--mock", "--date", "2026-01-01"], env=base_env)
+    _assert(Path("droplet_sync/2026-01-01/daily_universe.json").exists(), "droplet_sync daily_universe missing")
 
     # 6) v1 composite outputs unchanged for fixed test set (golden embedded here)
     # NOTE: this checks the *function output* deterministically for mock enriched inputs.
