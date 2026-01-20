@@ -184,11 +184,11 @@ def main() -> int:
     lines.append("- We add an explicit UW-strength bonus (conviction+trade_count) and a futures/premarket alignment term (SPY/QQQ overnight proxy).")
     lines.append("")
     out_path = ROOT / "reports" / f"WEIGHT_TUNING_SUMMARY_{date}.md"
-    out_path.write_text(\"\\n\".join(lines), encoding=\"utf-8\")
+    out_path.write_text("\n".join(lines), encoding="utf-8")
     print(str(out_path))
     return 0
 
 
-if __name__ == \"__main__\":
+if __name__ == "__main__":
     raise SystemExit(main())
 

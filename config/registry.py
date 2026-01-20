@@ -14,7 +14,7 @@ Last Updated: 2025-11-28
 
 import os
 from pathlib import Path
-from typing import Any, Optional, TypeVar, Union
+from typing import Any, Dict, Optional, TypeVar, Union
 
 T = TypeVar('T')
 
