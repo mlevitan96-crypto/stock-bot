@@ -392,6 +392,20 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - real trades from `logs/attribution.jsonl`
   - shadow hypotheticals from `logs/shadow.jsonl` (`event_type="shadow_executed"`)
 
+### Shadow PnL reconstruction (optional, additive)
+- **Module**: `shadow/shadow_pnl_engine.py`
+- **State**: `state/shadow_positions.json` (append-only style ledger, managed by engine)
+- **Flags**:
+  - `SHADOW_PNL_ENABLED=true|false` (**default true**) — enables ledger + PnL logging (no real orders)
+  - `SHADOW_EXIT_ENABLED=true|false` (**default false**) — enables hypothetical shadow exits (still no real orders)
+- **Logging**:
+  - `logs/shadow.jsonl` event types: `shadow_pnl_tick`, `shadow_pnl_update`, `shadow_exit`, `shadow_ledger_update`
+  - `logs/system_events.jsonl` subsystem: `shadow_pnl` (tick, unrealized_update, shadow_exit, price_missing)
+- **Contract**:
+  - MUST NOT change v1 entries/exits
+  - MUST NOT submit orders
+  - MUST be wrapped / fail-safe (never blocks trading)
+
 ---
 
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)
