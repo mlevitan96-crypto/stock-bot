@@ -9,10 +9,15 @@ Output:
 from __future__ import annotations
 
 import argparse
+import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from report_data_fetcher import ReportDataFetcher
 from report_data_validator import validate_data_source, validate_report_data
@@ -42,15 +47,9 @@ def main() -> int:
         shadow = fetcher.get_shadow_events()
         gates = fetcher.get_gate_events()
         orders = fetcher.get_orders()
-        validate_report_data(
-            {
-                "attribution": trades,
-                "blocked_trades": fetcher.get_blocked_trades(),
-                "signals": fetcher.get_signals(),
-                "orders": orders,
-                "gate": gates,
-            }
-        )
+        blocked = fetcher.get_blocked_trades()
+        signals = fetcher.get_signals()
+        validate_report_data(trades, blocked, signals, date=date)
 
     # Summaries
     by_type = Counter()

@@ -9,9 +9,14 @@ Output:
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from report_data_fetcher import ReportDataFetcher
 from report_data_validator import validate_data_source, validate_report_data
@@ -43,15 +48,7 @@ def main() -> int:
         signals = fetcher.get_signals()
         shadow = fetcher.get_shadow_events()
 
-        validate_report_data(
-            {
-                "attribution": trades,
-                "blocked_trades": blocked,
-                "signals": signals,
-                "orders": orders,
-                "gate": gates,
-            }
-        )
+        validate_report_data(trades, blocked, signals, date=date)
 
     lines: List[str] = []
     lines.append(f"# DAILY_HEALTH_{date}")
