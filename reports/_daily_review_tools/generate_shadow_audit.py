@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
@@ -59,6 +59,9 @@ def main() -> int:
     v1_pass = 0
     v2_pass = 0
     deltas: List[float] = []
+    shadow_realized_pnl_usd = 0.0
+    unrealized_by_symbol: Dict[str, float] = {}
+    realized_by_symbol: Dict[str, float] = {}
 
     for r in shadow:
         et = str(r.get("event_type", "") or "")
@@ -76,8 +79,30 @@ def main() -> int:
                 v2_pass += 1
             ds = _safe_float(r.get("v2_score")) - _safe_float(r.get("v1_score"))
             deltas.append(ds)
+        if et == "shadow_exit":
+            sym = str(r.get("symbol") or "").upper()
+            pnl = _safe_float(r.get("realized_pnl_usd"))
+            shadow_realized_pnl_usd += pnl
+            if sym:
+                realized_by_symbol[sym] = realized_by_symbol.get(sym, 0.0) + pnl
+        if et == "shadow_pnl_update":
+            sym = str(r.get("symbol") or "").upper()
+            if sym:
+                unrealized_by_symbol[sym] = _safe_float(r.get("unrealized_pnl_usd"))
 
     avg_delta = sum(deltas) / len(deltas) if deltas else 0.0
+
+    shadow_unrealized_pnl_usd = sum(unrealized_by_symbol.values()) if unrealized_by_symbol else 0.0
+    shadow_total_pnl_usd = shadow_realized_pnl_usd + shadow_unrealized_pnl_usd
+
+    # Real PnL (approx): sum final pnl_usd per trade_id for the day.
+    pnl_by_trade_id: Dict[str, float] = {}
+    for t in trades:
+        tid = str(t.get("trade_id") or "")
+        if not tid:
+            continue
+        pnl_by_trade_id[tid] = _safe_float(t.get("pnl_usd"))
+    real_total_pnl_usd = sum(pnl_by_trade_id.values()) if pnl_by_trade_id else 0.0
 
     # Real vs shadow comparison
     real_symbols = set()
@@ -111,6 +136,25 @@ def main() -> int:
     lines.append(f"- **v2_pass_count(score_compare)**: `{v2_pass}`")
     lines.append(f"- **avg(v2_score - v1_score)**: `{avg_delta:.4f}`")
     lines.append("")
+    lines.append("## Shadow PnL (hypothetical)")
+    lines.append(f"- **shadow_realized_pnl_usd** (shadow_exit): `{shadow_realized_pnl_usd:.2f}`")
+    lines.append(f"- **shadow_unrealized_pnl_usd** (latest): `{shadow_unrealized_pnl_usd:.2f}`")
+    lines.append(f"- **shadow_total_pnl_usd**: `{shadow_total_pnl_usd:.2f}`")
+    lines.append("")
+    lines.append("## Real vs shadow PnL (approx)")
+    lines.append(f"- **real_total_pnl_usd** (attribution, per trade_id): `{real_total_pnl_usd:.2f}`")
+    lines.append(f"- **shadow_total_pnl_usd**: `{shadow_total_pnl_usd:.2f}`")
+    lines.append("")
+    if unrealized_by_symbol or realized_by_symbol:
+        lines.append("## Shadow PnL by symbol (top 15 by abs total)")
+        sym_totals: Dict[str, float] = {}
+        for s, v in unrealized_by_symbol.items():
+            sym_totals[s] = sym_totals.get(s, 0.0) + v
+        for s, v in realized_by_symbol.items():
+            sym_totals[s] = sym_totals.get(s, 0.0) + v
+        for s, v in sorted(sym_totals.items(), key=lambda kv: abs(kv[1]), reverse=True)[:15]:
+            lines.append(f"- `{s}`: `{v:.2f}` (realized `{realized_by_symbol.get(s, 0.0):.2f}`, unrealized `{unrealized_by_symbol.get(s, 0.0):.2f}`)")
+        lines.append("")
     lines.append("## Real vs shadow (symbol overlap)")
     lines.append(f"- **real_symbols**: `{len(real_symbols)}`")
     lines.append(f"- **shadow_executed_symbols**: `{len(shadow_exec_symbols)}`")

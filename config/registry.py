@@ -144,6 +144,7 @@ class StateFiles:
     MARKET_CONTEXT_V2 = Directories.STATE / "market_context_v2.json"
     REGIME_POSTURE_STATE = Directories.STATE / "regime_posture_state.json"
     SYMBOL_RISK_FEATURES = Directories.STATE / "symbol_risk_features.json"
+    SHADOW_POSITIONS = Directories.STATE / "shadow_positions.json"
 
 
 class LogFiles:
@@ -234,6 +235,12 @@ class StrategyFlags:
     # Shadow A/B evaluation:
     # - When true, compute v1 + v2 in parallel and log divergences (v1 still places real orders).
     SHADOW_TRADING_ENABLED = get_env_bool("SHADOW_TRADING_ENABLED", True)
+
+    # Shadow PnL reconstruction (OPTIONAL, additive):
+    # - Maintains `state/shadow_positions.json`
+    # - Logs PnL updates + hypothetical exits (never submits orders)
+    SHADOW_PNL_ENABLED = get_env_bool("SHADOW_PNL_ENABLED", False)
+    SHADOW_EXIT_ENABLED = get_env_bool("SHADOW_EXIT_ENABLED", False)
 
 
 class APIConfig:

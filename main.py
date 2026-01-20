@@ -7801,6 +7801,19 @@ class StrategyEngine:
                             market_regime=str(market_regime),
                             note="hypothetical_order_would_be_submitted_by_v2",
                         )
+                        # Shadow PnL (optional): update shadow ledger (non-fatal, non-trading).
+                        try:
+                            from config.registry import StrategyFlags
+                            if bool(getattr(StrategyFlags, "SHADOW_PNL_ENABLED", False)):
+                                from shadow.shadow_pnl_engine import record_shadow_executed
+                                record_shadow_executed(
+                                    symbol=str(symbol),
+                                    qty=int(qty),
+                                    entry_price=float(ref_price_check) if ref_price_check else 0.0,
+                                    side=("long" if c.get("direction") == "bullish" else "short"),
+                                )
+                        except Exception:
+                            pass
                     else:
                         log_shadow_event(
                             "shadow_blocked",
@@ -9984,6 +9997,37 @@ def run_once():
             pass
         
         audit_seg("run_once", "after_exits")
+
+        # SHADOW PnL (optional, additive): update unrealized PnL + evaluate hypothetical exits.
+        # Contract: never blocks trading; never submits real orders.
+        try:
+            from config.registry import StrategyFlags
+            shadow_enabled = bool(getattr(StrategyFlags, "SHADOW_TRADING_ENABLED", True))
+            shadow_pnl_enabled = bool(getattr(StrategyFlags, "SHADOW_PNL_ENABLED", False))
+            shadow_exit_enabled = bool(getattr(StrategyFlags, "SHADOW_EXIT_ENABLED", False))
+            if shadow_enabled and shadow_pnl_enabled and hasattr(engine, "executor") and hasattr(engine.executor, "api") and engine.executor.api is not None:
+                # Build a lightweight signal context map from current clusters (direction used for counter-signal exits).
+                sig_ctx = {}
+                try:
+                    for cl in clusters:
+                        sym = cl.get("ticker")
+                        if not sym:
+                            continue
+                        sig_ctx[str(sym).upper()] = {"direction": cl.get("direction")}
+                except Exception:
+                    sig_ctx = {}
+                posture_state = getattr(engine, "regime_posture_v2", None)
+                if not isinstance(posture_state, dict):
+                    posture_state = {}
+                from shadow.shadow_pnl_engine import shadow_pnl_tick
+                shadow_pnl_tick(
+                    engine.executor.api,
+                    signal_context=sig_ctx,
+                    posture_state=posture_state,
+                    enable_exits=shadow_exit_enabled,
+                )
+        except Exception:
+            pass
 
         print("DEBUG: Computing metrics", flush=True)
         metrics = compute_daily_metrics()
