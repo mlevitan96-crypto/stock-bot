@@ -239,6 +239,29 @@ def main() -> int:
     else:
         lines.append("- No shadow trade candidates logged yet (ensure `SHADOW_TRADING_ENABLED=true` and v2 compare is running).")
 
+    lines.append("")
+    # 9) Exit Intelligence Snapshot (v2)
+    lines.append("## 9. Exit Intelligence Snapshot (v2)")
+    exit_pnl = _read_json(Path("state/exit_intel_pnl_summary.json"))
+    if exit_pnl:
+        counts = exit_pnl.get("counts") if isinstance(exit_pnl.get("counts"), dict) else {}
+        lines.append(f"- Exit attributions: **{counts.get('exit_attributions', 0)}**")
+        by_reason = exit_pnl.get("by_exit_reason") if isinstance(exit_pnl.get("by_exit_reason"), dict) else {}
+        if by_reason:
+            lines.append("- Exit count / avg P&L by reason:")
+            for k in sorted(by_reason.keys()):
+                r = by_reason[k]
+                if isinstance(r, dict):
+                    lines.append(f"  - **{k}**: n={r.get('n')}, win_rate={r.get('win_rate')}, avg_pnl={r.get('avg_pnl')}")
+        es = exit_pnl.get("exit_score_stats") if isinstance(exit_pnl.get("exit_score_stats"), dict) else {}
+        if es:
+            lines.append(f"- Exit score stats: `{es}`")
+        bins = exit_pnl.get("time_in_trade_bins") if isinstance(exit_pnl.get("time_in_trade_bins"), dict) else {}
+        if bins:
+            lines.append(f"- Time-in-trade bins: `{bins}`")
+    else:
+        lines.append("- Exit intel P&L summary missing (run `scripts/run_exit_intel_pnl.py`).")
+
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(str(out_path))
     return 0

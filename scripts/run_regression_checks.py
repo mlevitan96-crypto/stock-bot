@@ -283,6 +283,35 @@ def main() -> int:
     # v2 tuning helper runs (suggestions only)
     _run([sys.executable, "-m", "src.intel.v2_tuning_helper"], env=base_env)
 
+    # 15) Exit intelligence layer (mock)
+    _run([sys.executable, "-c", "from src.exit.exit_score_v2 import compute_exit_score_v2; from src.exit.profit_targets_v2 import compute_profit_target; from src.exit.stops_v2 import compute_stop_price; from src.exit.replacement_logic_v2 import choose_replacement_candidate; print('ok')"], env=base_env)
+    _run([sys.executable, "-c", "from src.exit.exit_attribution import build_exit_attribution_record, append_exit_attribution; r=build_exit_attribution_record(symbol='AAPL', entry_timestamp='2026-01-01T00:00:00+00:00', exit_reason='profit', pnl=None, time_in_trade_minutes=None, entry_uw={}, exit_uw={}, entry_regime='NEUTRAL', exit_regime='NEUTRAL', entry_sector_profile={'sector':'TECH'}, exit_sector_profile={'sector':'TECH'}, score_deterioration=0.1, relative_strength_deterioration=0.0, v2_exit_score=0.5, v2_exit_components={'score_deterioration':0.1}); append_exit_attribution(r); print('ok')"], env=base_env)
+    from scripts.uw_intel_schema import validate_exit_attribution, validate_exit_intel_pnl_summary, validate_exit_intel_state
+    ea = Path("logs/exit_attribution.jsonl")
+    _assert(ea.exists(), "logs/exit_attribution.jsonl not created")
+    last_ea = ea.read_text(encoding="utf-8", errors="replace").splitlines()[-1].strip()
+    ea_rec = json.loads(last_ea) if last_ea else {}
+    ok, msg = validate_exit_attribution(ea_rec); _assert(ok, f"exit_attribution schema: {msg}")
+
+    # Pre/postmarket exit intel scripts run (mock)
+    _run([sys.executable, "scripts/run_premarket_exit_intel.py", "--mock"], env=base_env)
+    _run([sys.executable, "scripts/run_postmarket_exit_intel.py", "--mock"], env=base_env)
+    pre = json.loads(Path("state/premarket_exit_intel.json").read_text(encoding="utf-8"))
+    ok, msg = validate_exit_intel_state(pre, kind="premarket_exit_intel"); _assert(ok, msg)
+    post = json.loads(Path("state/postmarket_exit_intel.json").read_text(encoding="utf-8"))
+    ok, msg = validate_exit_intel_state(post, kind="postmarket_exit_intel"); _assert(ok, msg)
+
+    # Exit intel PnL + day summary
+    _run([sys.executable, "scripts/run_exit_intel_pnl.py", "--date", "2026-01-01"], env=base_env)
+    _assert(Path("state/exit_intel_pnl_summary.json").exists(), "exit_intel_pnl_summary missing")
+    ep = json.loads(Path("state/exit_intel_pnl_summary.json").read_text(encoding="utf-8"))
+    ok, msg = validate_exit_intel_pnl_summary(ep); _assert(ok, f"exit_intel_pnl_summary schema: {msg}")
+    _run([sys.executable, "scripts/run_exit_day_summary.py", "--date", "2026-01-01"], env=base_env)
+    _assert(Path("reports/EXIT_DAY_SUMMARY_2026-01-01.md").exists(), "exit day summary not generated")
+
+    dash_text = Path("reports/INTEL_DASHBOARD_2026-01-01.md").read_text(encoding="utf-8", errors="replace")
+    _assert("Exit Intelligence Snapshot (v2)" in dash_text, "intel dashboard missing exit intelligence section")
+
     print("REGRESSION_OK")
     return 0
 

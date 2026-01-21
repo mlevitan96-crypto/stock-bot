@@ -193,3 +193,48 @@ def validate_shadow_trade_log_entry(doc: Any) -> Tuple[bool, str]:
         return False, "shadow_trade: missing v2_score"
     return True, "ok"
 
+
+def validate_exit_attribution(doc: Any) -> Tuple[bool, str]:
+    if not isinstance(doc, dict):
+        return False, "exit_attribution: not dict"
+    if not doc.get("symbol"):
+        return False, "exit_attribution: missing symbol"
+    if not _is_iso_ts(doc.get("timestamp")):
+        return False, "exit_attribution: timestamp invalid"
+    if not doc.get("entry_timestamp"):
+        return False, "exit_attribution: missing entry_timestamp"
+    if not isinstance(doc.get("exit_reason"), str):
+        return False, "exit_attribution: exit_reason not str"
+    if "v2_exit_score" not in doc:
+        return False, "exit_attribution: missing v2_exit_score"
+    if not isinstance(doc.get("v2_exit_components"), dict):
+        return False, "exit_attribution: v2_exit_components not dict"
+    return True, "ok"
+
+
+def validate_exit_intel_pnl_summary(doc: Any) -> Tuple[bool, str]:
+    if not isinstance(doc, dict):
+        return False, "exit_intel_pnl_summary: not dict"
+    meta = doc.get("_meta")
+    if not isinstance(meta, dict):
+        return False, "exit_intel_pnl_summary: missing _meta"
+    if not _is_iso_ts(meta.get("ts")):
+        return False, "exit_intel_pnl_summary: _meta.ts invalid"
+    if not isinstance(doc.get("by_exit_reason"), dict):
+        return False, "exit_intel_pnl_summary: by_exit_reason not dict"
+    return True, "ok"
+
+
+def validate_exit_intel_state(doc: Any, *, kind: str) -> Tuple[bool, str]:
+    if not isinstance(doc, dict):
+        return False, f"{kind}: not dict"
+    meta = doc.get("_meta")
+    if not isinstance(meta, dict):
+        return False, f"{kind}: missing _meta"
+    if not _is_iso_ts(meta.get("ts")):
+        return False, f"{kind}: _meta.ts invalid"
+    sy = doc.get("symbols")
+    if not isinstance(sy, dict):
+        return False, f"{kind}: symbols not dict"
+    return True, "ok"
+

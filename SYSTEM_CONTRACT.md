@@ -262,6 +262,41 @@ Rules:
   - MUST fail if daemon health is `critical` or intel artifacts are stale/missing
   - MUST require `scripts/run_regression_checks.py` pass (unless explicitly skipped for regression harness)
 
+### 4.18 Exit Intelligence Contract (v2, shadow-only)
+Rules:
+- v1 exit logic is sacred and MUST NOT be modified.
+- v2 exit logic is shadow-only until explicitly promoted:
+  - MUST never submit live exit orders
+  - MUST log every exit decision and its attribution
+
+Exit attribution:
+- Engine: `src/exit/exit_attribution.py`
+- Output: `logs/exit_attribution.jsonl` (append-only)
+
+Exit score:
+- Engine: `src/exit/exit_score_v2.py`
+- MUST combine UW/sector/regime + deterioration metrics + thesis flags (best-effort).
+
+Dynamic targets/stops:
+- Profit targets: `src/exit/profit_targets_v2.py`
+- Stops: `src/exit/stops_v2.py`
+- MUST be used by v2 exit decisions when inputs are available (best-effort).
+
+Replacement:
+- Engine: `src/exit/replacement_logic_v2.py`
+- Replacement MUST require exit_score above threshold AND a superior candidate per margin.
+
+Pre/post-market exit intel:
+- `scripts/run_premarket_exit_intel.py` → `state/premarket_exit_intel.json`
+- `scripts/run_postmarket_exit_intel.py` → `state/postmarket_exit_intel.json`
+
+Exit analytics:
+- `scripts/run_exit_intel_pnl.py` → `state/exit_intel_pnl_summary.json`, `reports/EXIT_INTEL_PNL_YYYY-MM-DD.md`
+- `scripts/run_exit_day_summary.py` → `reports/EXIT_DAY_SUMMARY_YYYY-MM-DD.md`
+
+Dashboard:
+- Intel dashboard MUST display “Exit Intelligence Snapshot (v2)” derived from exit logs/state only.
+
 ### 4.3 Missing/Empty/Corrupt Cache Behavior
 If the cache is missing, empty, or corrupted:
 - engine MUST continue running  

@@ -49,6 +49,8 @@ from scripts.uw_intel_schema import (
     validate_uw_daemon_health_state,
     validate_uw_intel_pnl_summary,
     validate_uw_usage_state,
+    validate_exit_intel_pnl_summary,
+    validate_exit_intel_state,
 )
 
 
@@ -105,6 +107,10 @@ def main() -> int:
         os.environ["PREOPEN_SKIP_REGRESSION"] = "1"
         heal = " --heal-daemon" if bool(args.heal_daemon) else ""
         os.system(f"{os.sys.executable} scripts/run_preopen_readiness_check.py --allow-mock{heal}")
+        os.system(f"{os.sys.executable} scripts/run_premarket_exit_intel.py --mock")
+        os.system(f"{os.sys.executable} scripts/run_postmarket_exit_intel.py --mock")
+        os.system(f"{os.sys.executable} scripts/run_exit_intel_pnl.py --date {date}")
+        os.system(f"{os.sys.executable} scripts/run_exit_day_summary.py --date {date}")
         os.system(f"{os.sys.executable} reports/_dashboard/intel_dashboard_generator.py --date {date}")
         # Copy artifacts into droplet_sync folder
         for src, dst in [
@@ -117,6 +123,9 @@ def main() -> int:
             ("state/uw_intel_pnl_summary.json", out_dir / "uw_intel_pnl_summary.json"),
             ("state/intel_health_state.json", out_dir / "intel_health_state.json"),
             ("state/uw_daemon_health_state.json", out_dir / "uw_daemon_health_state.json"),
+            ("state/premarket_exit_intel.json", out_dir / "premarket_exit_intel.json"),
+            ("state/postmarket_exit_intel.json", out_dir / "postmarket_exit_intel.json"),
+            ("state/exit_intel_pnl_summary.json", out_dir / "exit_intel_pnl_summary.json"),
         ]:
             p = Path(src)
             if p.exists():
@@ -155,6 +164,10 @@ def main() -> int:
                 + (" --heal-daemon" if bool(args.heal_daemon) else "")
                 + "\"",
             ),
+            ("run_premarket_exit_intel", _remote_py("scripts/run_premarket_exit_intel.py", mock=True)),
+            ("run_postmarket_exit_intel", _remote_py("scripts/run_postmarket_exit_intel.py", mock=True)),
+            ("run_exit_intel_pnl", f"bash -c \"./venv/bin/python scripts/run_exit_intel_pnl.py --date {date}\""),
+            ("run_exit_day_summary", f"bash -c \"./venv/bin/python scripts/run_exit_day_summary.py --date {date}\""),
             ("run_intel_dashboard", f"bash -c \"./venv/bin/python reports/_dashboard/intel_dashboard_generator.py --date {date}\""),
             ("run_shadow_day_summary", f"bash -c \"./venv/bin/python scripts/run_shadow_day_summary.py --date {date}\""),
             ("run_v2_tuning_suggestions", "bash -c \"./venv/bin/python -m src.intel.v2_tuning_helper\""),
@@ -178,9 +191,14 @@ def main() -> int:
             "state/uw_intel_pnl_summary.json": out_dir / "uw_intel_pnl_summary.json",
             "state/intel_health_state.json": out_dir / "intel_health_state.json",
             "state/uw_daemon_health_state.json": out_dir / "uw_daemon_health_state.json",
+            "state/premarket_exit_intel.json": out_dir / "premarket_exit_intel.json",
+            "state/postmarket_exit_intel.json": out_dir / "postmarket_exit_intel.json",
+            "state/exit_intel_pnl_summary.json": out_dir / "exit_intel_pnl_summary.json",
             f"reports/INTEL_DASHBOARD_{date}.md": out_dir / f"INTEL_DASHBOARD_{date}.md",
             f"reports/SHADOW_DAY_SUMMARY_{date}.md": out_dir / f"SHADOW_DAY_SUMMARY_{date}.md",
             f"reports/V2_TUNING_SUGGESTIONS_{date}.md": out_dir / f"V2_TUNING_SUGGESTIONS_{date}.md",
+            f"reports/EXIT_INTEL_PNL_{date}.md": out_dir / f"EXIT_INTEL_PNL_{date}.md",
+            f"reports/EXIT_DAY_SUMMARY_{date}.md": out_dir / f"EXIT_DAY_SUMMARY_{date}.md",
         }
         for remote, local in fetch_map.items():
             res = droplet_b64_read_file(c, remote, timeout=60)
@@ -196,6 +214,7 @@ def main() -> int:
             ("logs/system_events.jsonl", "system_events_tail.jsonl"),
             ("logs/uw_attribution.jsonl", "uw_attribution_tail.jsonl"),
             ("logs/shadow_trades.jsonl", "shadow_trades_tail.jsonl"),
+            ("logs/exit_attribution.jsonl", "exit_attribution_tail.jsonl"),
         ]:
             res = droplet_b64_tail_file(c, remote, lines=500, timeout=60)
             if res.success:
@@ -219,6 +238,12 @@ def main() -> int:
             _validate_json(out_dir / "intel_health_state.json", validate_intel_health_state)
         if (out_dir / "uw_daemon_health_state.json").exists():
             _validate_json(out_dir / "uw_daemon_health_state.json", validate_uw_daemon_health_state)
+        if (out_dir / "premarket_exit_intel.json").exists():
+            _validate_json(out_dir / "premarket_exit_intel.json", lambda d: validate_exit_intel_state(d, kind="premarket_exit_intel"))
+        if (out_dir / "postmarket_exit_intel.json").exists():
+            _validate_json(out_dir / "postmarket_exit_intel.json", lambda d: validate_exit_intel_state(d, kind="postmarket_exit_intel"))
+        if (out_dir / "exit_intel_pnl_summary.json").exists():
+            _validate_json(out_dir / "exit_intel_pnl_summary.json", validate_exit_intel_pnl_summary)
         append_sync_log(sync_log, {"event": "schema_validated", "success": True})
     except Exception as e:
         append_sync_log(sync_log, {"event": "schema_validated", "success": False, "error": str(e)})

@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""
+Exit Attribution Engine (v2, shadow-only)
+========================================
+
+Contract:
+- Additive only; MUST NOT affect v1 live exits.
+- Append-only output: logs/exit_attribution.jsonl
+- Must never raise inside execution paths.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+
+OUT = Path("logs/exit_attribution.jsonl")
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def append_exit_attribution(rec: Dict[str, Any]) -> None:
+    try:
+        OUT.parent.mkdir(parents=True, exist_ok=True)
+        with OUT.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, default=str) + "\n")
+    except Exception:
+        return
+
+
+def build_exit_attribution_record(
+    *,
+    symbol: str,
+    entry_timestamp: str,
+    exit_reason: str,
+    pnl: Optional[float],
+    time_in_trade_minutes: Optional[float],
+    entry_uw: Dict[str, Any],
+    exit_uw: Dict[str, Any],
+    entry_regime: str,
+    exit_regime: str,
+    entry_sector_profile: Dict[str, Any],
+    exit_sector_profile: Dict[str, Any],
+    score_deterioration: float,
+    relative_strength_deterioration: float,
+    v2_exit_score: float,
+    v2_exit_components: Dict[str, Any],
+    replacement_candidate: Optional[str] = None,
+    replacement_reasoning: Optional[Dict[str, Any]] = None,
+    exit_timestamp: Optional[str] = None,
+) -> Dict[str, Any]:
+    return {
+        "symbol": str(symbol).upper(),
+        "timestamp": exit_timestamp or _now_iso(),
+        "entry_timestamp": str(entry_timestamp),
+        "exit_reason": str(exit_reason),
+        "pnl": pnl,
+        "time_in_trade_minutes": time_in_trade_minutes,
+        "entry_uw": dict(entry_uw or {}),
+        "exit_uw": dict(exit_uw or {}),
+        "entry_regime": str(entry_regime or ""),
+        "exit_regime": str(exit_regime or ""),
+        "entry_sector_profile": dict(entry_sector_profile or {}),
+        "exit_sector_profile": dict(exit_sector_profile or {}),
+        "score_deterioration": float(score_deterioration),
+        "relative_strength_deterioration": float(relative_strength_deterioration),
+        "v2_exit_score": float(v2_exit_score),
+        "v2_exit_components": dict(v2_exit_components or {}),
+        "replacement_candidate": replacement_candidate,
+        "replacement_reasoning": dict(replacement_reasoning or {}) if replacement_reasoning else None,
+        "composite_version": "v2",
+    }
+

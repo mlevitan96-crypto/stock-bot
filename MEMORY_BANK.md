@@ -600,6 +600,33 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Dashboard must expose v2 activity**:
   - Intel dashboard includes “Shadow Trading Snapshot (v2)” sourced from `logs/shadow_trades.jsonl` (+ regime + attribution).
 
+## 7.12 v2 EXIT INTELLIGENCE LAYER (SHADOW-ONLY) (2026-01-21)
+
+### Invariants (non-negotiable)
+- **v1 exits remain sacred**: no changes to v1 exit logic or live orders.
+- **v2 exit intelligence is shadow-only**:
+  - MUST never submit live exit orders.
+  - MUST log every v2 exit decision and attribution.
+- **Exit attribution must be logged for every v2 exit**:
+  - Engine: `src/exit/exit_attribution.py`
+  - Output: `logs/exit_attribution.jsonl`
+- **Exit score must be intel-driven (multi-factor)**:
+  - Engine: `src/exit/exit_score_v2.py`
+  - Includes UW/sector/regime + score deterioration + thesis flags.
+- **Dynamic targets and stops are required** (best-effort when prices are available):
+  - Targets: `src/exit/profit_targets_v2.py`
+  - Stops: `src/exit/stops_v2.py`
+- **Replacement logic is conservative and logged**:
+  - Engine: `src/exit/replacement_logic_v2.py`
+- **Pre/post-market exit intel must be generated**:
+  - `scripts/run_premarket_exit_intel.py` → `state/premarket_exit_intel.json`
+  - `scripts/run_postmarket_exit_intel.py` → `state/postmarket_exit_intel.json`
+- **Exit analytics must be produced daily**:
+  - `scripts/run_exit_intel_pnl.py` → `state/exit_intel_pnl_summary.json`, `reports/EXIT_INTEL_PNL_YYYY-MM-DD.md`
+  - `scripts/run_exit_day_summary.py` → `reports/EXIT_DAY_SUMMARY_YYYY-MM-DD.md`
+- **Dashboard must expose exit intel**:
+  - Intel dashboard includes “Exit Intelligence Snapshot (v2)”.
+
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)
 
 ## 8.1 SCORE TELEMETRY MODULE
