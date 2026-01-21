@@ -139,20 +139,45 @@ class JournalStormWindow:
 def check_daemon_and_systemd(*, unit: str, droplet: bool) -> None:
     print_section("1. UW daemon + systemd status")
     if droplet:
+        # Two supported modes:
+        # - Local machine -> droplet via DropletClient
+        # - Running on droplet itself -> call systemctl locally
         try:
-            from droplet_client import DropletClient
-        except Exception as e:
-            print(f"[ERROR] DropletClient import failed: {e}")
+            from droplet_client import DropletClient  # type: ignore
+        except Exception:
+            DropletClient = None  # type: ignore
+
+        if DropletClient is not None:
+            try:
+                with DropletClient() as c:  # type: ignore
+                    so, se, rc = c._execute(f"systemctl status {unit} --no-pager --plain", timeout=30)
+                    print(f"[INFO] droplet systemctl status rc={rc}")
+                    if se.strip():
+                        print(f"[WARN] stderr:\n{se.strip()[:1000]}")
+                    print("\n".join((so or "").splitlines()[:50]))
+                    so, se, rc = c._execute("pgrep -af uw_flow_daemon.py || true", timeout=20)
+                    print("\n[INFO] droplet uw_flow_daemon processes:")
+                    print((so or "").strip() or "(none)")
+                return
+            except Exception as e:
+                print(f"[WARN] DropletClient path failed, falling back to local systemctl: {e}")
+
+        # Fallback: assume we're executing on a Linux box (droplet) and can run systemctl directly.
+        if not _has_local_systemctl():
+            print("[ERROR] --droplet requested but neither DropletClient nor local systemctl is available.")
             return
-        with DropletClient() as c:
-            so, se, rc = c._execute(f"systemctl status {unit} --no-pager --plain", timeout=30)
-            print(f"[INFO] droplet systemctl status rc={rc}")
-            if se.strip():
-                print(f"[WARN] stderr:\n{se.strip()[:1000]}")
-            print("\n".join((so or "").splitlines()[:50]))
-            so, se, rc = c._execute("pgrep -af uw_flow_daemon.py || true", timeout=20)
-            print("\n[INFO] droplet uw_flow_daemon processes:")
-            print((so or "").strip() or "(none)")
+        code, out, err = run_cmd(["systemctl", "status", unit, "--no-pager", "--plain"])
+        if code != 0:
+            print(f"[ERROR] systemctl status failed: {err.strip()}")
+        else:
+            print("[INFO] systemctl status output (truncated):")
+            print("\n".join(out.splitlines()[:50]))
+        code, out, err = run_cmd(["pgrep", "-af", "uw_flow_daemon.py"])
+        print("\n[INFO] Matching uw_flow_daemon processes:")
+        if code != 0 or not out.strip():
+            print("  (none found)")
+        else:
+            print(out.strip())
         return
 
     if not _has_local_systemctl():
@@ -222,16 +247,32 @@ def parse_journal_for_restart_storm(*, unit: str, droplet: bool) -> Optional[Jou
     out = ""
     if droplet:
         try:
-            from droplet_client import DropletClient
-        except Exception as e:
-            print(f"[ERROR] DropletClient import failed: {e}")
-            return None
-        with DropletClient() as c:
-            so, se, rc = c._execute(f"journalctl -u {unit} --no-pager --output=short-iso -n 2000", timeout=60)
-            if rc != 0:
-                print(f"[ERROR] droplet journalctl failed: {se.strip()[:1000]}")
+            from droplet_client import DropletClient  # type: ignore
+        except Exception:
+            DropletClient = None  # type: ignore
+
+        if DropletClient is not None:
+            try:
+                with DropletClient() as c:  # type: ignore
+                    so, se, rc = c._execute(f"journalctl -u {unit} --no-pager --output=short-iso -n 2000", timeout=60)
+                    if rc != 0:
+                        print(f"[ERROR] droplet journalctl failed: {se.strip()[:1000]}")
+                        return None
+                    out = so or ""
+            except Exception as e:
+                print(f"[WARN] DropletClient journal path failed, falling back to local journalctl: {e}")
+                out = ""
+
+        if not out:
+            # Fallback: running on droplet itself.
+            if not _has_local_systemctl():
+                print("[ERROR] --droplet requested but neither DropletClient nor local journalctl is available.")
                 return None
-            out = so or ""
+            code, out2, err = run_cmd(["journalctl", "-u", unit, "--no-pager", "--output=short-iso", "-n", "2000"])
+            if code != 0:
+                print(f"[ERROR] journalctl failed: {err.strip()}")
+                return None
+            out = out2
     else:
         if not _has_local_systemctl():
             print("[INFO] Local journal analysis skipped (not a Linux systemctl environment).")
