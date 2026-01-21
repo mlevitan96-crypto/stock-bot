@@ -408,6 +408,37 @@ def analyze_trade_gaps(trades: List[Dict[str, Any]], *, gap_threshold_minutes: i
 
 def compute_shadow_pnl(trades: List[Dict[str, Any]]) -> None:
     print_section("6. Shadow PnL (best-effort)")
+    # Prefer realized exits from shadow simulator.
+    exits = [t for t in trades if str(t.get("event_type", "")) == "shadow_exit"]
+    if exits:
+        pnl = 0.0
+        wins = 0
+        losses = 0
+        n = 0
+        for e in exits:
+            p = e.get("pnl")
+            try:
+                pf = float(p) if p is not None else None
+            except Exception:
+                pf = None
+            if pf is None:
+                continue
+            pnl += pf
+            n += 1
+            if pf > 0:
+                wins += 1
+            elif pf < 0:
+                losses += 1
+        if n <= 0:
+            print("[WARN] Found shadow_exit events but none had numeric pnl.")
+            return
+        win_rate = wins / n if n > 0 else 0.0
+        print(f"[INFO] shadow_exit events with PnL: {n}")
+        print(f"  Total realized PnL (USD): {pnl:.2f}")
+        print(f"  Wins: {wins}, Losses: {losses}, Win rate: {win_rate:.2%}")
+        return
+
+    # Fallback: compute when explicit prices are present in entries/exits.
     pnl = 0.0
     wins = 0
     losses = 0
@@ -444,11 +475,11 @@ def compute_shadow_pnl(trades: List[Dict[str, Any]]) -> None:
             losses += 1
 
     if num_trades == 0:
-        print("[WARN] No trades with usable entry/exit/qty fields in this window (expected for shadow_trades.jsonl).")
+        print("[WARN] No usable PnL fields found in this window.")
         return
 
     win_rate = wins / num_trades if num_trades > 0 else 0.0
-    print(f"[INFO] Trades with PnL: {num_trades}")
+    print(f"[INFO] Trades with PnL (computed from prices): {num_trades}")
     print(f"  Total PnL: {pnl:.2f}")
     print(f"  Wins: {wins}, Losses: {losses}, Win rate: {win_rate:.2%}")
 
@@ -499,7 +530,7 @@ def main() -> int:
     ap.add_argument("--health-path", default=DEFAULT_UW_HEALTH_PATH)
     ap.add_argument("--shadow-trades-path", default=DEFAULT_SHADOW_TRADES_PATH)
     ap.add_argument("--hours", type=int, default=DEFAULT_TIME_WINDOW_HOURS)
-    ap.add_argument("--event-type", default="shadow_trade_candidate", help="Filter shadow trades by event_type (empty to disable filter)")
+    ap.add_argument("--event-type", default="", help="Filter shadow trades by event_type (empty = no filter; recommended for PnL)")
     ap.add_argument("--unit", default=DEFAULT_JOURNAL_UNIT)
     ap.add_argument("--known-fix-time-iso", default="", help="Optional trusted start ISO timestamp (UTC recommended)")
     ap.add_argument("--gap-threshold-min", type=int, default=60)
