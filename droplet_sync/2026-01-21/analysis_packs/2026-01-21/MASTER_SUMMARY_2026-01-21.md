@@ -1,0 +1,206 @@
+# MASTER SUMMARY — 2026-01-21
+
+## 2.1. Overview
+- Date (UTC): **2026-01-21**
+- v1 status: **LIVE (sacred, unchanged)**
+- v2 status: **SHADOW-ONLY**
+- Daemon health: **healthy**
+- Intel health: **NOT_OK/UNKNOWN**
+
+## 2.2. Universe & Regime Context
+- Universe v2 size: **20**
+- Top sectors: `[]`
+- Top symbols by universe score (v2):
+  - **AMD** score=0.3125 sector=
+  - **COIN** score=0.3125 sector=
+  - **HOOD** score=0.3125 sector=
+  - **LCID** score=0.3125 sector=
+  - **MRNA** score=0.3125 sector=
+  - **NFLX** score=0.3125 sector=
+  - **PLTR** score=0.3125 sector=
+  - **RIVN** score=0.3125 sector=
+  - **SOFI** score=0.3125 sector=
+  - **TSLA** score=0.2817 sector=
+- Regime: **BEAR** (conf 0.9622)
+- Regime engine version: `2026-01-20_regime_v1`
+
+## 2.3. v1 vs v2 Behavior Snapshot (best-effort)
+- v1 trade records (attribution.jsonl, best-effort): **0**
+- v2 shadow candidates: **6** | entries_opened: **0** | exits: **0**
+- Symbols v2 liked that v1 didn’t (up to 30): `['AAPL']`
+- Symbols v1 traded that v2 avoided (up to 30): `[]`
+
+## 2.4. v2 Entry Intelligence Summary (best-effort)
+- See: `reports/SHADOW_DAY_SUMMARY_2026-01-21.md` and `reports/UW_INTEL_PNL_2026-01-21.md` (if present in pack).
+
+## 2.5. v2 Exit Intelligence Summary (best-effort)
+- Exit count / avg P&L by reason:
+  - **profit**: n=3 win_rate=0.0 avg_pnl=0.0
+- See: `reports/EXIT_DAY_SUMMARY_2026-01-21.md` and `reports/EXIT_INTEL_PNL_2026-01-21.md` (if present in pack).
+
+## 2.6. v2 Paper P&L Snapshot (best-effort)
+- Overall: unavailable (needs exit attributions / exit intel pnl summary).
+
+## 2.7. Health & Reliability
+- Daemon status: **healthy** | pid_ok=True | lock_ok=True | poll_fresh=True
+- Restart storm detected: **False** (count=0)
+- Endpoint errors: {'uw_invalid_endpoint_attempt': 1, 'uw_rate_limit_block': 1}
+- Intel health ok: **False** (checks=18)
+- Recent system events: see `logs/system_events_tail.jsonl` in this pack.
+
+## 2.8. Promotion Readiness Notes (human-facing)
+### Reasons v2 looks ready
+- [ ] (fill in after reviewing pack)
+
+### Reasons v2 is not ready yet
+- [ ] (fill in after reviewing pack)
+
+### Questions to investigate before promotion
+- [ ] (fill in after reviewing pack)
+
+## Appendix: Pack Manifest (what was captured)
+
+```json
+{
+  "_meta": {
+    "ts": "2026-01-21T21:53:53.025228+00:00",
+    "version": "2026-01-21_postclose_pack_v1"
+  },
+  "captured": {
+    "log_tails": {
+      "logs/exit_attribution.jsonl": {
+        "file": "analysis_packs/2026-01-21/logs/exit_attribution_tail.jsonl",
+        "lines": 500,
+        "present": true
+      },
+      "logs/shadow_trades.jsonl": {
+        "file": "analysis_packs/2026-01-21/logs/shadow_trades_tail.jsonl",
+        "lines": 500,
+        "present": true
+      },
+      "logs/system_events.jsonl": {
+        "file": "analysis_packs/2026-01-21/logs/system_events_tail.jsonl",
+        "lines": 500,
+        "present": true
+      },
+      "logs/uw_attribution.jsonl": {
+        "file": "analysis_packs/2026-01-21/logs/uw_attribution_tail.jsonl",
+        "lines": 500,
+        "present": true
+      }
+    },
+    "reports": {
+      "reports/EXIT_DAY_SUMMARY_2026-01-21.md": true,
+      "reports/EXIT_INTEL_PNL_2026-01-21.md": true,
+      "reports/INTEL_DASHBOARD_2026-01-21.md": true,
+      "reports/SHADOW_DAY_SUMMARY_2026-01-21.md": true,
+      "reports/UW_INTEL_PNL_2026-01-21.md": true,
+      "reports/V2_TUNING_SUGGESTIONS_2026-01-21.md": true
+    },
+    "state": {
+      "state/daily_universe.json": true,
+      "state/daily_universe_v2.json": true,
+      "state/exit_intel_pnl_summary.json": true,
+      "state/intel_health_state.json": true,
+      "state/postmarket_exit_intel.json": true,
+      "state/postmarket_intel.json": true,
+      "state/premarket_exit_intel.json": true,
+      "state/premarket_intel.json": true,
+      "state/regime_state.json": true,
+      "state/shadow_heartbeat.json": false,
+      "state/shadow_v2_positions.json": false,
+      "state/uw_daemon_health_state.json": true,
+      "state/uw_intel_pnl_summary.json": true
+    }
+  },
+  "date": "2026-01-21",
+  "pack_dir": "analysis_packs/2026-01-21",
+  "steps": [
+    {
+      "cmd": [
+        "/root/stock-bot/venv/bin/python",
+        "scripts/run_shadow_day_summary.py",
+        "--date",
+        "2026-01-21"
+      ],
+      "ok": true,
+      "output_tail": "reports/SHADOW_DAY_SUMMARY_2026-01-21.md",
+      "step": "run_shadow_day_summary"
+    },
+    {
+      "cmd": [
+        "/root/stock-bot/venv/bin/python",
+        "scripts/run_exit_day_summary.py",
+        "--date",
+        "2026-01-21"
+      ],
+      "ok": true,
+      "output_tail": "reports/EXIT_DAY_SUMMARY_2026-01-21.md",
+      "step": "run_exit_day_summary"
+    },
+    {
+      "cmd": [
+        "/root/stock-bot/venv/bin/python",
+        "scripts/run_exit_intel_pnl.py",
+        "--date",
+        "2026-01-21"
+      ],
+      "ok": true,
+      "output_tail": "reports/EXIT_INTEL_PNL_2026-01-21.md",
+      "step": "run_exit_intel_pnl"
+    },
+    {
+      "cmd": [
+        "/root/stock-bot/venv/bin/python",
+        "scripts/run_daily_intel_pnl.py",
+        "--date",
+        "2026-01-21"
+      ],
+      "ok": true,
+      "output_tail": "reports/UW_INTEL_PNL_2026-01-21.md",
+      "step": "run_daily_intel_pnl"
+    },
+    {
+      "cmd": [
+        "/root/stock-bot/venv/bin/python",
+        "scripts/run_intel_health_checks.py",
+        "--nonfatal"
+      ],
+      "ok": true,
+      "output_tail": "state/intel_health_state.json",
+      "step": "run_intel_health_checks"
+    },
+    {
+      "cmd": [
+        "/root/stock-bot/venv/bin/python",
+        "scripts/run_daemon_health_check.py",
+        "--nonfatal"
+      ],
+      "ok": true,
+      "output_tail": "state/uw_daemon_health_state.json",
+      "step": "run_daemon_health_check"
+    },
+    {
+      "cmd": [
+        "/root/stock-bot/venv/bin/python",
+        "reports/_dashboard/intel_dashboard_generator.py",
+        "--date",
+        "2026-01-21"
+      ],
+      "ok": true,
+      "output_tail": "reports/INTEL_DASHBOARD_2026-01-21.md",
+      "step": "run_intel_dashboard"
+    },
+    {
+      "cmd": [
+        "/root/stock-bot/venv/bin/python",
+        "-m",
+        "src.intel.v2_tuning_helper"
+      ],
+      "ok": true,
+      "output_tail": "reports/V2_TUNING_SUGGESTIONS_2026-01-21.md",
+      "step": "run_v2_tuning_suggestions"
+    }
+  ]
+}
+```
