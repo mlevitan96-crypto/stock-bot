@@ -81,6 +81,7 @@ def main() -> int:
     ap.add_argument("--mock", action="store_true", help="Mock mode (no real UW calls)")
     ap.add_argument("--no-pull", action="store_true", help="Do not git pull on droplet before running")
     ap.add_argument("--no-ssh", action="store_true", help="Local-only mock sync (regression helper)")
+    ap.add_argument("--heal-daemon", action="store_true", help="Allow safe daemon restart if preopen readiness detects critical daemon health")
     args = ap.parse_args()
 
     date = args.date.strip() or _today_utc()
@@ -102,7 +103,8 @@ def main() -> int:
         os.system(f"{os.sys.executable} scripts/run_intel_health_checks.py --mock")
         os.system(f"{os.sys.executable} scripts/run_daemon_health_check.py --mock --nonfatal")
         os.environ["PREOPEN_SKIP_REGRESSION"] = "1"
-        os.system(f"{os.sys.executable} scripts/run_preopen_readiness_check.py --allow-mock")
+        heal = " --heal-daemon" if bool(args.heal_daemon) else ""
+        os.system(f"{os.sys.executable} scripts/run_preopen_readiness_check.py --allow-mock{heal}")
         os.system(f"{os.sys.executable} reports/_dashboard/intel_dashboard_generator.py --date {date}")
         # Copy artifacts into droplet_sync folder
         for src, dst in [
@@ -147,7 +149,12 @@ def main() -> int:
             ("run_daily_intel_pnl", f"bash -c \"set -a && source .env >/dev/null 2>&1 || true; set +a; ./venv/bin/python scripts/run_daily_intel_pnl.py --date {date}\""),
             ("run_intel_health_checks", _remote_py("scripts/run_intel_health_checks.py", mock=True)),
             ("run_daemon_health_check", "bash -c \"./venv/bin/python scripts/run_daemon_health_check.py --nonfatal\""),
-            ("run_preopen_readiness_check", "bash -c \"PREOPEN_SKIP_REGRESSION=1 ./venv/bin/python scripts/run_preopen_readiness_check.py --allow-mock\""),
+            (
+                "run_preopen_readiness_check",
+                "bash -c \"PREOPEN_SKIP_REGRESSION=1 ./venv/bin/python scripts/run_preopen_readiness_check.py --allow-mock"
+                + (" --heal-daemon" if bool(args.heal_daemon) else "")
+                + "\"",
+            ),
             ("run_intel_dashboard", f"bash -c \"./venv/bin/python reports/_dashboard/intel_dashboard_generator.py --date {date}\""),
             ("run_shadow_day_summary", f"bash -c \"./venv/bin/python scripts/run_shadow_day_summary.py --date {date}\""),
             ("run_v2_tuning_suggestions", "bash -c \"./venv/bin/python -m src.intel.v2_tuning_helper\""),

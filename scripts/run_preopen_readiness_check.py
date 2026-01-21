@@ -63,6 +63,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--max-age-min", type=int, default=240, help="Freshness window for pre-open (default 4h)")
     ap.add_argument("--allow-mock", action="store_true", help="Allow UW_MOCK=1 without failing readiness")
+    ap.add_argument("--heal-daemon", action="store_true", help="If daemon health is critical, attempt safe restart via sentinel")
     args = ap.parse_args()
 
     max_age_sec = int(args.max_age_min) * 60
@@ -100,6 +101,16 @@ def main() -> int:
     ok_dh, det_dh = _check_fresh(dhp, max_age_sec)
     dh = _read_json(dhp) if dhp.exists() else {}
     dh_status = str(dh.get("status", "missing"))
+    # Optional self-heal: if daemon is critical, attempt safe restart and re-evaluate.
+    if dh_status == "critical" and bool(args.heal_daemon) and os.name == "posix":
+        try:
+            p = subprocess.run([sys.executable, "scripts/run_daemon_health_check.py", "--heal", "--nonfatal"], capture_output=True, text=True)
+            checks["daemon_self_heal"] = {"attempted": True, "rc": int(p.returncode), "stdout_tail": (p.stdout or "")[-200:], "stderr_tail": (p.stderr or "")[-200:]}
+        except Exception as e:
+            checks["daemon_self_heal"] = {"attempted": True, "error": str(e)}
+        # re-read
+        dh = _read_json(dhp) if dhp.exists() else {}
+        dh_status = str(dh.get("status", "missing"))
     checks["uw_daemon_health_state"] = {"ok": ok_dh and (dh_status != "critical"), "detail": det_dh, "status": dh_status}
     ok = ok and ok_dh and (dh_status != "critical")
 
