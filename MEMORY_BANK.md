@@ -549,6 +549,34 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - Output: `state/intel_health_state.json`
   - Self-heal attempts MUST be logged in the health state under `self_heal` and MUST NOT impact v1.
 
+## 7.10 UW FLOW DAEMON HEALTH SENTINEL (WATCHDOG) (2026-01-20)
+
+### Invariants (non-negotiable)
+- **Daemon must be single-instance** (systemd + file lock): `uw-flow-daemon.service` + `state/uw_flow_daemon.lock`.
+- **PID must be valid**:
+  - systemd `ExecMainPID` must exist and must be present in `/proc` on the droplet.
+- **Lock must be consistent**:
+  - `state/uw_flow_daemon.lock` must exist
+  - lock must be held (advisory lock)
+  - lock file `pid=` should match `ExecMainPID` (best-effort verification)
+- **Polling output must be fresh**:
+  - Canonical output is `data/uw_flow_cache.json`
+  - If stale beyond threshold, sentinel logs a warning/critical health event.
+- **Crash loops must be detected**:
+  - systemd `NRestarts` above threshold is considered a crash loop.
+- **Endpoint error spikes must be detected**:
+  - Sentinel scans `logs/system_events.jsonl` for `uw_rate_limit_block` and `uw_invalid_endpoint_attempt`.
+- **Sentinel must write a health state file**:
+  - `state/uw_daemon_health_state.json`
+- **Dashboard must display daemon health**:
+  - Intel dashboard includes “UW Flow Daemon Health” section sourced from `state/uw_daemon_health_state.json`.
+- **Self-healing is optional and conservative**:
+  - Script may attempt `systemctl restart uw-flow-daemon.service` only when enabled (`--heal`)
+  - All attempts/results must be logged as system events.
+
+### Operator script
+- `scripts/run_daemon_health_check.py`
+
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)
 
 ## 8.1 SCORE TELEMETRY MODULE

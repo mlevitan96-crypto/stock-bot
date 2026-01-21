@@ -72,6 +72,7 @@ def main() -> int:
     regime = _read_json(Path("state/regime_state.json"))
     pnl = _read_json(Path("state/uw_intel_pnl_summary.json"))
     health = _read_json(Path("state/intel_health_state.json"))
+    daemon_health = _read_json(Path("state/uw_daemon_health_state.json"))
     attrib_tail = _tail_jsonl(Path("logs/uw_attribution.jsonl"), n=25)
 
     out_path = Path("reports") / f"INTEL_DASHBOARD_{day}.md"
@@ -152,6 +153,23 @@ def main() -> int:
                 lines.append(f"  - {c.get('name','')}: {c.get('status','')}")
     else:
         lines.append("- Health state missing (run `scripts/run_intel_health_checks.py`).")
+
+    lines.append("")
+    # 7) UW Flow Daemon Health
+    lines.append("## 7. UW Flow Daemon Health")
+    if daemon_health:
+        lines.append(f"- Status: **{daemon_health.get('status','unknown')}**")
+        det = daemon_health.get("details") if isinstance(daemon_health.get("details"), dict) else {}
+        lines.append(f"- PID ok: **{daemon_health.get('pid_ok')}** (ExecMainPID={det.get('exec_main_pid')})")
+        lines.append(f"- Lock ok: **{daemon_health.get('lock_ok')}** (lock_pid={det.get('lock_pid')}, held={det.get('lock_held')})")
+        lines.append(f"- Poll fresh: **{daemon_health.get('poll_fresh')}** (age_sec={det.get('flow_cache_age_sec')})")
+        lines.append(f"- Crash loop: **{daemon_health.get('crash_loop')}** (restarts={det.get('n_restarts')})")
+        lines.append(f"- Endpoint errors: **{daemon_health.get('endpoint_errors')}** (counts={det.get('endpoint_error_counts')})")
+        sh = det.get("self_heal") if isinstance(det.get("self_heal"), dict) else {}
+        if sh:
+            lines.append(f"- Self-heal attempted: **{sh.get('attempted', False)}** (success={sh.get('success', None)})")
+    else:
+        lines.append("- Daemon health state missing (run `scripts/run_daemon_health_check.py`).")
 
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(str(out_path))

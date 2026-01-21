@@ -46,6 +46,7 @@ from scripts.uw_intel_schema import (
     validate_postmarket_intel,
     validate_premarket_intel,
     validate_regime_state,
+    validate_uw_daemon_health_state,
     validate_uw_intel_pnl_summary,
     validate_uw_usage_state,
 )
@@ -99,6 +100,7 @@ def main() -> int:
         os.system(f"{os.sys.executable} scripts/run_regime_detector.py")
         os.system(f"{os.sys.executable} scripts/run_daily_intel_pnl.py --date {date}")
         os.system(f"{os.sys.executable} scripts/run_intel_health_checks.py --mock")
+        os.system(f"{os.sys.executable} scripts/run_daemon_health_check.py --mock --nonfatal")
         os.system(f"{os.sys.executable} reports/_dashboard/intel_dashboard_generator.py --date {date}")
         # Copy artifacts into droplet_sync folder
         for src, dst in [
@@ -110,6 +112,7 @@ def main() -> int:
             ("state/regime_state.json", out_dir / "regime_state.json"),
             ("state/uw_intel_pnl_summary.json", out_dir / "uw_intel_pnl_summary.json"),
             ("state/intel_health_state.json", out_dir / "intel_health_state.json"),
+            ("state/uw_daemon_health_state.json", out_dir / "uw_daemon_health_state.json"),
         ]:
             p = Path(src)
             if p.exists():
@@ -138,6 +141,7 @@ def main() -> int:
             ("run_regime_detector", "bash -c \"./venv/bin/python scripts/run_regime_detector.py\""),
             ("run_daily_intel_pnl", f"bash -c \"set -a && source .env >/dev/null 2>&1 || true; set +a; ./venv/bin/python scripts/run_daily_intel_pnl.py --date {date}\""),
             ("run_intel_health_checks", _remote_py("scripts/run_intel_health_checks.py", mock=True)),
+            ("run_daemon_health_check", "bash -c \"./venv/bin/python scripts/run_daemon_health_check.py --nonfatal\""),
             ("run_intel_dashboard", f"bash -c \"./venv/bin/python reports/_dashboard/intel_dashboard_generator.py --date {date}\""),
         ]:
             name, cmd = step
@@ -158,6 +162,7 @@ def main() -> int:
             "state/regime_state.json": out_dir / "regime_state.json",
             "state/uw_intel_pnl_summary.json": out_dir / "uw_intel_pnl_summary.json",
             "state/intel_health_state.json": out_dir / "intel_health_state.json",
+            "state/uw_daemon_health_state.json": out_dir / "uw_daemon_health_state.json",
             f"reports/INTEL_DASHBOARD_{date}.md": out_dir / f"INTEL_DASHBOARD_{date}.md",
         }
         for remote, local in fetch_map.items():
@@ -194,6 +199,8 @@ def main() -> int:
             _validate_json(out_dir / "uw_intel_pnl_summary.json", validate_uw_intel_pnl_summary)
         if (out_dir / "intel_health_state.json").exists():
             _validate_json(out_dir / "intel_health_state.json", validate_intel_health_state)
+        if (out_dir / "uw_daemon_health_state.json").exists():
+            _validate_json(out_dir / "uw_daemon_health_state.json", validate_uw_daemon_health_state)
         append_sync_log(sync_log, {"event": "schema_validated", "success": True})
     except Exception as e:
         append_sync_log(sync_log, {"event": "schema_validated", "success": False, "error": str(e)})

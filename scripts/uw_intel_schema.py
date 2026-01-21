@@ -161,3 +161,23 @@ def validate_intel_health_state(doc: Any) -> Tuple[bool, str]:
         return False, "intel_health_state: checks not list"
     return True, "ok"
 
+
+def validate_uw_daemon_health_state(doc: Any) -> Tuple[bool, str]:
+    if not isinstance(doc, dict):
+        return False, "uw_daemon_health_state: not a dict"
+    ts = doc.get("timestamp")
+    if not _is_iso_ts(ts):
+        return False, "uw_daemon_health_state: timestamp invalid"
+    for k in ("pid_ok", "lock_ok", "poll_fresh", "crash_loop", "endpoint_errors"):
+        if k not in doc:
+            return False, f"uw_daemon_health_state: missing {k}"
+        if not isinstance(doc.get(k), bool):
+            return False, f"uw_daemon_health_state: {k} not bool"
+    status = doc.get("status")
+    if str(status) not in ("healthy", "warning", "critical"):
+        return False, "uw_daemon_health_state: status invalid"
+    det = doc.get("details")
+    if not isinstance(det, dict):
+        return False, "uw_daemon_health_state: details not dict"
+    return True, "ok"
+

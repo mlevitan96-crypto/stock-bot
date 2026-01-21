@@ -212,6 +212,37 @@ Rules:
 - Health checks MUST validate freshness + schema and report status.
 - Self-heal attempts (when enabled) MUST be best-effort and MUST NOT impact v1 trading.
 
+### 4.16 UW Flow Daemon Health Contract
+Sentinel:
+- `scripts/run_daemon_health_check.py`
+
+Output:
+- `state/uw_daemon_health_state.json`
+
+Rules:
+- The daemon MUST run as a single instance under systemd:
+  - `uw-flow-daemon.service`
+- The daemon MUST hold:
+  - `state/uw_flow_daemon.lock`
+- The daemon MUST produce fresh polling output:
+  - canonical output file is `data/uw_flow_cache.json`
+- The sentinel MUST validate:
+  - systemd `ExecMainPID` exists and is alive on droplet (`/proc/<pid>`)
+  - lock exists, appears held, and best-effort PID match via lock file contents
+  - polling output freshness
+  - crash loop risk via systemd restart counters
+  - endpoint error spikes via `logs/system_events.jsonl` events:
+    - `uw_rate_limit_block`
+    - `uw_invalid_endpoint_attempt`
+- The sentinel MUST log health summary events:
+  - `uw_daemon_health_ok`
+  - `uw_daemon_health_warning`
+  - `uw_daemon_health_critical`
+- On critical failures, sentinel MAY attempt safe restart only when explicitly enabled:
+  - `systemctl restart uw-flow-daemon.service`
+  - Must log: `uw_daemon_self_heal_attempt` and success/failure events.
+- Sentinel MUST be additive and MUST NOT modify v1 trading behavior or trading state.
+
 ### 4.3 Missing/Empty/Corrupt Cache Behavior
 If the cache is missing, empty, or corrupted:
 - engine MUST continue running  

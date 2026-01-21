@@ -232,6 +232,20 @@ def main() -> int:
     # 12) intel dashboard generator runs
     _run([sys.executable, "reports/_dashboard/intel_dashboard_generator.py", "--date", "2026-01-01"], env=base_env)
     _assert(Path("reports/INTEL_DASHBOARD_2026-01-01.md").exists(), "intel dashboard not generated")
+    dash_text = Path("reports/INTEL_DASHBOARD_2026-01-01.md").read_text(encoding="utf-8", errors="replace")
+    _assert("UW Flow Daemon Health" in dash_text, "intel dashboard missing daemon health section")
+
+    # 13) daemon health sentinel (mock scenarios)
+    _run([sys.executable, "-c", "import scripts.run_daemon_health_check; print('ok')"], env=base_env)
+    from scripts.uw_intel_schema import validate_uw_daemon_health_state
+    for scenario in ["healthy", "missing_pid", "stale_lock", "stale_poll", "crash_loop", "endpoint_errors"]:
+        env = dict(base_env)
+        env["DAEMON_HEALTH_MOCK"] = "1"
+        env["DAEMON_HEALTH_SCENARIO"] = scenario
+        _run([sys.executable, "scripts/run_daemon_health_check.py", "--mock", "--nonfatal"], env=env)
+        _assert(Path("state/uw_daemon_health_state.json").exists(), "uw daemon health state not written")
+        dh = json.loads(Path("state/uw_daemon_health_state.json").read_text(encoding="utf-8"))
+        ok, msg = validate_uw_daemon_health_state(dh); _assert(ok, f"uw_daemon_health_state schema: {msg}")
 
     print("REGRESSION_OK")
     return 0
