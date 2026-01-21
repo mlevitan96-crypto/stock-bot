@@ -632,6 +632,19 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Dashboard must expose exit intel**:
   - Intel dashboard includes “Exit Intelligence Snapshot (v2)”.
 
+## 7.13 POST-CLOSE ANALYSIS PACK (DAILY REVIEW BUNDLE) (2026-01-21)
+
+### Invariants (non-negotiable)
+- **Additive + v1-safe**: pack generation must never modify v1 trading behavior.
+- **Canonical location**:
+  - `analysis_packs/YYYY-MM-DD/`
+- **Pack generator**:
+  - `scripts/run_postclose_analysis_pack.py`
+  - Produces: `analysis_packs/YYYY-MM-DD/MASTER_SUMMARY_YYYY-MM-DD.md`
+  - Includes best-effort copies of key `state/`, key `reports/`, and log tails under `analysis_packs/YYYY-MM-DD/{state, reports, logs}/`
+- **Droplet integration**:
+  - `scripts/run_uw_intel_on_droplet.py --postclose-pack` runs the pack on droplet and syncs it under `droplet_sync/YYYY-MM-DD/analysis_packs/YYYY-MM-DD/`
+
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)
 
 ## 8.1 SCORE TELEMETRY MODULE

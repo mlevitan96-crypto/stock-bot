@@ -84,6 +84,7 @@ def main() -> int:
     ap.add_argument("--no-pull", action="store_true", help="Do not git pull on droplet before running")
     ap.add_argument("--no-ssh", action="store_true", help="Local-only mock sync (regression helper)")
     ap.add_argument("--heal-daemon", action="store_true", help="Allow safe daemon restart if preopen readiness detects critical daemon health")
+    ap.add_argument("--postclose-pack", action="store_true", help="Run post-close analysis pack and sync it")
     args = ap.parse_args()
 
     date = args.date.strip() or _today_utc()
@@ -95,6 +96,25 @@ def main() -> int:
 
     # Local-only mock path (used by regression checks)
     if args.no_ssh:
+        if bool(args.postclose_pack):
+            # Build a deterministic post-close pack locally (mock-safe) and copy into droplet_sync.
+            os.environ["UW_MOCK"] = "1"
+            os.system(f"{os.sys.executable} scripts/run_postclose_analysis_pack.py --mock --archive --date {date}")
+            # mirror pack folder into droplet_sync
+            pack_src = Path("analysis_packs") / date
+            pack_dst = out_dir / "analysis_packs" / date
+            ensure_dir(pack_dst)
+            try:
+                for p in pack_src.rglob("*"):
+                    if p.is_file():
+                        rel = p.relative_to(pack_src)
+                        (pack_dst / rel.parent).mkdir(parents=True, exist_ok=True)
+                        write_bytes(pack_dst / rel, p.read_bytes())
+            except Exception:
+                pass
+            append_sync_log(sync_log, {"event": "sync_complete", "mode": "no_ssh_postclose_pack"})
+            return 0
+
         # Produce local state using mock scripts.
         os.environ["UW_MOCK"] = "1"
         os.system(f"{os.sys.executable} scripts/build_daily_universe.py --mock --max 20 --core 10")
@@ -144,6 +164,37 @@ def main() -> int:
         if not args.no_pull:
             r = _run_remote(c, "cd /root/stock-bot && git pull origin main", timeout=180)
             append_sync_log(sync_log, {"event": "git_pull", "success": bool(r.get("success"))})
+
+        if bool(args.postclose_pack):
+            # Post-close pack path: run regression (mock-safe) first, then run the pack.
+            rr = _run_remote(c, _remote_py("scripts/run_regression_checks.py", mock=True), timeout=600)
+            append_sync_log(sync_log, {"event": "run", "step": "run_regression_checks", "success": bool(rr.get("success"))})
+            if not bool(rr.get("success")):
+                append_sync_log(sync_log, {"event": "abort", "reason": "regression_failed", "stderr": (rr.get("stderr") or "")[:800]})
+                return 1
+
+            cmd = f"bash -c \"set -a && source .env >/dev/null 2>&1 || true; set +a; ./venv/bin/python scripts/run_postclose_analysis_pack.py --archive --date {date}" + (" --mock" if bool(args.mock) else "") + "\""
+            rr = _run_remote(c, cmd, timeout=900)
+            append_sync_log(sync_log, {"event": "run", "step": "run_postclose_analysis_pack", "success": bool(rr.get("success"))})
+
+            # Fetch pack artifacts into droplet_sync/YYYY-MM-DD/analysis_packs/YYYY-MM-DD/
+            pack_out = out_dir / "analysis_packs" / date
+            ensure_dir(pack_out)
+            for remote, local in [
+                (f"analysis_packs/{date}/MASTER_SUMMARY_{date}.md", pack_out / f"MASTER_SUMMARY_{date}.md"),
+                (f"analysis_packs/{date}/manifest.json", pack_out / "manifest.json"),
+                (f"analysis_packs/{date}/analysis_pack_{date}.tar.gz", pack_out / f"analysis_pack_{date}.tar.gz"),
+            ]:
+                res = droplet_b64_read_file(c, remote, timeout=120)
+                if not res.success:
+                    append_sync_log(sync_log, {"event": "fetch_failed", "path": remote, "stderr": res.stderr[:300]})
+                    continue
+                write_bytes(local, decode_b64(res.stdout.strip()))
+                append_sync_log(sync_log, {"event": "fetched", "path": remote})
+
+            append_sync_log(sync_log, {"event": "sync_complete", "date": date, "mode": "postclose_pack"})
+            print(str(out_dir))
+            return 0
 
         # Run in required order
         for step in [

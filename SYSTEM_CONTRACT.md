@@ -297,6 +297,26 @@ Exit analytics:
 Dashboard:
 - Intel dashboard MUST display “Exit Intelligence Snapshot (v2)” derived from exit logs/state only.
 
+### 4.19 Post-Close Analysis Contract (additive)
+Purpose:
+- After each market session, the system MUST be able to generate a single, comprehensive “analysis pack” for human review and v2 promotion decisions.
+
+Generator:
+- `scripts/run_postclose_analysis_pack.py`
+
+Outputs:
+- Folder: `analysis_packs/YYYY-MM-DD/`
+- Master report: `analysis_packs/YYYY-MM-DD/MASTER_SUMMARY_YYYY-MM-DD.md`
+- Best-effort copies of relevant state + reports + log tails under the pack folder.
+
+Rules:
+- MUST be additive and MUST NOT affect v1 trading behavior.
+- MUST be derivable from state/logs only (no required live network calls).
+- MUST be safe-by-default: missing artifacts are recorded; the pack still generates.
+- Droplet runner MAY sync the pack via:
+  - `scripts/run_uw_intel_on_droplet.py --postclose-pack`
+  - Synced location: `droplet_sync/YYYY-MM-DD/analysis_packs/YYYY-MM-DD/`
+
 ### 4.3 Missing/Empty/Corrupt Cache Behavior
 If the cache is missing, empty, or corrupted:
 - engine MUST continue running  

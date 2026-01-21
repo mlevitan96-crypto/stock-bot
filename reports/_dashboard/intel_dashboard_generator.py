@@ -262,6 +262,26 @@ def main() -> int:
     else:
         lines.append("- Exit intel P&L summary missing (run `scripts/run_exit_intel_pnl.py`).")
 
+    lines.append("")
+    # 10) Post-Close Analysis Pack (pointer)
+    lines.append("## 10. Post-Close Analysis Pack")
+    pack_dir = Path("analysis_packs") / day
+    master = pack_dir / f"MASTER_SUMMARY_{day}.md"
+    lines.append(f"- Pack folder: `{pack_dir.as_posix()}/`")
+    lines.append(f"- Master summary: `{master.as_posix()}`")
+    crit_flags: List[str] = []
+    try:
+        if isinstance(daemon_health, dict) and str(daemon_health.get("status", "")).lower() == "critical":
+            crit_flags.append("daemon_health=critical")
+        if isinstance(health, dict) and not bool(health.get("ok", False)):
+            crit_flags.append("intel_health=not_ok")
+    except Exception:
+        pass
+    if crit_flags:
+        lines.append(f"- Critical flags: **{crit_flags}**")
+    else:
+        lines.append("- Critical flags: (none detected from current health state)")
+
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(str(out_path))
     return 0

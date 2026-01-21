@@ -20,6 +20,9 @@ feature_store/
 # Droplet sync artifacts (pulled locally for review)
 droplet_sync/
 
+# Post-close analysis packs (runtime artifacts)
+analysis_packs/
+
 # IDE
 .vscode/
 .idea/

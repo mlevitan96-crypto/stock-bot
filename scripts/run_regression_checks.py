@@ -312,6 +312,15 @@ def main() -> int:
     dash_text = Path("reports/INTEL_DASHBOARD_2026-01-01.md").read_text(encoding="utf-8", errors="replace")
     _assert("Exit Intelligence Snapshot (v2)" in dash_text, "intel dashboard missing exit intelligence section")
 
+    # 16) Post-close analysis pack (mock)
+    _run([sys.executable, "-c", "import scripts.run_postclose_analysis_pack; print('ok')"], env=base_env)
+    _run([sys.executable, "scripts/run_postclose_analysis_pack.py", "--mock", "--archive", "--date", "2026-01-01"], env=base_env)
+    pack_dir = Path("analysis_packs/2026-01-01")
+    _assert(pack_dir.exists(), "analysis_packs/2026-01-01 not created")
+    _assert((pack_dir / "MASTER_SUMMARY_2026-01-01.md").exists(), "MASTER_SUMMARY not created")
+    _assert((pack_dir / "manifest.json").exists(), "postclose pack manifest.json missing")
+    _assert((pack_dir / "analysis_pack_2026-01-01.tar.gz").exists(), "postclose pack archive missing")
+
     print("REGRESSION_OK")
     return 0
 
