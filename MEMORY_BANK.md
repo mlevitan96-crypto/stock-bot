@@ -563,7 +563,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - Canonical output is `data/uw_flow_cache.json`
   - If stale beyond threshold, sentinel logs a warning/critical health event.
 - **Crash loops must be detected**:
-  - systemd `NRestarts` above threshold is considered a crash loop.
+  - Crash loop is considered **current instability** (failed/auto-restart/non-active), not historical `NRestarts` alone.
 - **Endpoint error spikes must be detected**:
   - Sentinel scans `logs/system_events.jsonl` for `uw_rate_limit_block` and `uw_invalid_endpoint_attempt`.
 - **Sentinel must write a health state file**:

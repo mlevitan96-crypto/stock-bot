@@ -12,7 +12,7 @@ WorkingDirectory=/root/stock-bot
 EnvironmentFile=-/root/stock-bot/.env
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/root/stock-bot/venv/bin/python /root/stock-bot/uw_flow_daemon.py
-Restart=always
+Restart=on-failure
 RestartSec=5
 
 # Safety: ensure a stuck process can be stopped
