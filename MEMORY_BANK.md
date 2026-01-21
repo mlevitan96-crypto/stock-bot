@@ -577,6 +577,29 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 ### Operator script
 - `scripts/run_daemon_health_check.py`
 
+## 7.11 v2 SHADOW TRADING READINESS + TUNING PIPELINE (2026-01-21)
+
+### Invariants (non-negotiable)
+- **v1 remains sacred**: v1 continues live trading; no sizing/gates/exits behavior changes.
+- **v2 remains shadow-only**:
+  - v2 MUST never submit live orders.
+  - v2 MUST consume intel from state files only (no live UW calls in scoring).
+- **v2 must log all decisions**:
+  - Shadow decision log: `logs/shadow_trades.jsonl`
+  - Emitted from the existing shadow A/B path in `main.py` (additive).
+- **Pre-open readiness must pass before session**:
+  - Script: `scripts/run_preopen_readiness_check.py`
+  - Must validate freshness of universe + premarket intel + regime + daemon health.
+  - Must fail if daemon health is `critical`.
+- **Shadow day summary is generated daily**:
+  - Script: `scripts/run_shadow_day_summary.py`
+  - Output: `reports/SHADOW_DAY_SUMMARY_YYYY-MM-DD.md`
+- **Tuning suggestions are advisory only**:
+  - Helper: `src/intel/v2_tuning_helper.py` → `reports/V2_TUNING_SUGGESTIONS_YYYY-MM-DD.md`
+  - No auto-application of weight changes.
+- **Dashboard must expose v2 activity**:
+  - Intel dashboard includes “Shadow Trading Snapshot (v2)” sourced from `logs/shadow_trades.jsonl` (+ regime + attribution).
+
 # 8. TELEMETRY CONTRACT (SYSTEM HARDENING - 2026-01-10)
 
 ## 8.1 SCORE TELEMETRY MODULE

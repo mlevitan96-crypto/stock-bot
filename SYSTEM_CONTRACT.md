@@ -243,6 +243,25 @@ Rules:
   - Must log: `uw_daemon_self_heal_attempt` and success/failure events.
 - Sentinel MUST be additive and MUST NOT modify v1 trading behavior or trading state.
 
+### 4.17 Shadow Trading Contract (v2)
+Rules:
+- v1 remains the ONLY live trading path.
+- v2 MUST be shadow-only:
+  - MUST never submit live orders
+  - MUST log decisions for review
+- v2 MUST use the full intelligence layer via state files:
+  - `state/daily_universe_v2.json` (fallback `state/daily_universe.json`)
+  - `state/premarket_intel.json`
+  - `state/postmarket_intel.json`
+  - `state/regime_state.json`
+  - sector profiles from `config/sector_profiles.json`
+- Shadow decision log:
+  - `logs/shadow_trades.jsonl`
+- Pre-open readiness MUST run on droplet before market open:
+  - `scripts/run_preopen_readiness_check.py`
+  - MUST fail if daemon health is `critical` or intel artifacts are stale/missing
+  - MUST require `scripts/run_regression_checks.py` pass (unless explicitly skipped for regression harness)
+
 ### 4.3 Missing/Empty/Corrupt Cache Behavior
 If the cache is missing, empty, or corrupted:
 - engine MUST continue running  

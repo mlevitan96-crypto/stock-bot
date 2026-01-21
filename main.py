@@ -9487,6 +9487,26 @@ def run_once():
                             v2_inputs=composite_v2.get("v2_inputs", {}),
                         )
 
+                        # Shadow trade decision logging (v2-only, never submits orders).
+                        # Writes logs/shadow_trades.jsonl for dashboard + daily summary.
+                        try:
+                            from src.trading.shadow_executor import log_shadow_decision
+                            log_shadow_decision(
+                                symbol=ticker,
+                                direction=str(flow_sentiment),
+                                v1_score=float(v1_score),
+                                v2_score=float(v2_score),
+                                v1_pass=bool(gate_result),
+                                v2_pass=bool(v2_pass),
+                                composite_v2=composite_v2,
+                                market_regime=str(market_regime),
+                                posture=str(rp.get("posture", "neutral") if isinstance(rp, dict) else "neutral"),
+                                regime_label=str(rp.get("regime_label", "chop") if isinstance(rp, dict) else "chop"),
+                                volatility_regime=str(mc.get("volatility_regime", "mid") if isinstance(mc, dict) else "mid"),
+                            )
+                        except Exception:
+                            pass
+
                         if bool(gate_result) != bool(v2_pass):
                             log_shadow_divergence(
                                 symbol=ticker,

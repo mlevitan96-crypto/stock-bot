@@ -308,6 +308,14 @@ COMPOSITE_WEIGHTS_V2: Dict[str, Any] = {
         "sector_profile_version": "2026-01-20_sector_profiles_v1",
         "regime_profile_version": "2026-01-20_regime_v1",
         "pnl_tuning_version": "2026-01-20_pnl_tuning_v1",
+        # Tuning hooks (weights; no auto-application)
+        # NOTE: These are used by v2 scoring as multipliers for each UW-derived adjustment term.
+        "flow_strength_weight": 1.0,
+        "darkpool_bias_weight": 1.0,
+        "sentiment_weight": 1.0,
+        "earnings_proximity_weight": 1.0,
+        "sector_alignment_weight": 1.0,
+        "regime_alignment_weight": 1.0,
         # Inputs are expected from state/premarket_intel.json and/or state/postmarket_intel.json
         "flow_strength_bonus_max": 0.20,
         "darkpool_bias_bonus_max": 0.12,

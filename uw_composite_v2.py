@@ -1517,10 +1517,37 @@ def compute_composite_score_v3_v2(
     uw_intel_version = ""
     v2_uw_sector_profile: Dict[str, Any] = {}
     v2_uw_regime_profile: Dict[str, Any] = {}
+    universe_scoring_version = ""
+    universe_source = ""
+    in_universe = None
     try:
         uw_cfg = v2_params.get("uw", {}) if isinstance(v2_params, dict) else {}
         if isinstance(uw_cfg, dict) and uw_cfg:
             from utils.state_io import read_json_self_heal
+            # Universe v2 (shadow-only) metadata
+            try:
+                u2 = read_json_self_heal("state/daily_universe_v2.json", default={}, heal=True, mkdir=True)
+                if isinstance(u2, dict) and isinstance(u2.get("_meta"), dict) and u2.get("symbols") is not None:
+                    universe_scoring_version = str((u2.get("_meta") or {}).get("version") or "")
+                    universe_source = "daily_universe_v2"
+                    try:
+                        syms = u2.get("symbols") or []
+                        sset = {str(r.get("symbol")).upper() for r in syms if isinstance(r, dict) and r.get("symbol")}
+                        in_universe = str(symbol).upper() in sset if sset else None
+                    except Exception:
+                        in_universe = None
+            except Exception:
+                pass
+            # Fallback: universe v1 metadata
+            if not universe_scoring_version:
+                try:
+                    u1 = read_json_self_heal("state/daily_universe.json", default={}, heal=True, mkdir=True)
+                    if isinstance(u1, dict) and isinstance(u1.get("_meta"), dict):
+                        universe_scoring_version = str((u1.get("_meta") or {}).get("version") or "")
+                        universe_source = "daily_universe_v1"
+                except Exception:
+                    pass
+
             # Sector/regime context (safe defaults)
             try:
                 from src.intel.sector_intel import get_sector_multipliers, get_sector_profile_version
@@ -1565,20 +1592,28 @@ def compute_composite_score_v3_v2(
                     earnings_days = None
 
                 # Apply bounded adjustments
-                uw_adj["flow_strength"] = float(uw_cfg.get("flow_strength_bonus_max", 0.20)) * float(flow_strength) * float(align_mult) * float(sm.get("flow_weight", 1.0))
-                uw_adj["darkpool_bias"] = float(uw_cfg.get("darkpool_bias_bonus_max", 0.12)) * float(abs(darkpool_bias)) * float(align_mult) * float(sm.get("darkpool_weight", 1.0))
+                # Tuning weights (multipliers; default 1.0)
+                w_flow = float(uw_cfg.get("flow_strength_weight", 1.0))
+                w_dp = float(uw_cfg.get("darkpool_bias_weight", 1.0))
+                w_sent = float(uw_cfg.get("sentiment_weight", 1.0))
+                w_earn = float(uw_cfg.get("earnings_proximity_weight", 1.0))
+                w_sector = float(uw_cfg.get("sector_alignment_weight", 1.0))
+                w_regime = float(uw_cfg.get("regime_alignment_weight", 1.0))
+
+                uw_adj["flow_strength"] = float(uw_cfg.get("flow_strength_bonus_max", 0.20)) * float(flow_strength) * float(align_mult) * float(sm.get("flow_weight", 1.0)) * w_flow
+                uw_adj["darkpool_bias"] = float(uw_cfg.get("darkpool_bias_bonus_max", 0.12)) * float(abs(darkpool_bias)) * float(align_mult) * float(sm.get("darkpool_weight", 1.0)) * w_dp
                 if sentiment_s == "BULLISH" and direction == "bullish":
-                    uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult)
+                    uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult) * w_sent
                 elif sentiment_s == "BEARISH" and direction == "bearish":
-                    uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult)
+                    uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult) * w_sent
 
                 # Earnings proximity penalty (risk reduction)
                 pen_days = int(uw_cfg.get("earnings_penalty_days", 3) or 3)
                 if earnings_days is not None and earnings_days <= pen_days:
-                    uw_adj["earnings_proximity"] = float(uw_cfg.get("earnings_proximity_penalty_max", -0.12)) * float(align_mult) * float(sm.get("earnings_weight", 1.0))
+                    uw_adj["earnings_proximity"] = float(uw_cfg.get("earnings_proximity_penalty_max", -0.12)) * float(align_mult) * float(sm.get("earnings_weight", 1.0)) * w_earn
 
-                uw_adj["sector_alignment"] = float(uw_cfg.get("sector_alignment_bonus_max", 0.12)) * float(max(0.0, sector_alignment)) * float(align_mult)
-                uw_adj["regime_alignment"] = float(uw_cfg.get("regime_alignment_bonus_max", 0.08)) * float(max(0.0, r_align)) * float(align_mult)
+                uw_adj["sector_alignment"] = float(uw_cfg.get("sector_alignment_bonus_max", 0.12)) * float(max(0.0, sector_alignment)) * float(align_mult) * w_sector
+                uw_adj["regime_alignment"] = float(uw_cfg.get("regime_alignment_bonus_max", 0.08)) * float(max(0.0, r_align)) * float(align_mult) * w_regime
 
                 uw_adj["total"] = float(sum(float(v) for k, v in uw_adj.items() if k != "total"))
                 uw_inputs = {
@@ -1646,6 +1681,11 @@ def compute_composite_score_v3_v2(
                 base["v2_uw_sector_profile"] = v2_uw_sector_profile
             if v2_uw_regime_profile:
                 base["v2_uw_regime_profile"] = v2_uw_regime_profile
+        if universe_scoring_version:
+            base["universe_scoring_version"] = str(universe_scoring_version)
+            base["universe_source"] = str(universe_source or "")
+            if in_universe is not None:
+                base["in_universe"] = bool(in_universe)
         # Preserve existing notes while making adjustments explicit.
         base["notes"] = (str(base.get("notes", "") or "") + f"; v2_adj={round(float(total_adj), 3)}").strip("; ").strip()
         base["version"] = str(base.get("version", "V3")) + "+V2"

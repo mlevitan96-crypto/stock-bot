@@ -234,6 +234,7 @@ def main() -> int:
     _assert(Path("reports/INTEL_DASHBOARD_2026-01-01.md").exists(), "intel dashboard not generated")
     dash_text = Path("reports/INTEL_DASHBOARD_2026-01-01.md").read_text(encoding="utf-8", errors="replace")
     _assert("UW Flow Daemon Health" in dash_text, "intel dashboard missing daemon health section")
+    _assert("Shadow Trading Snapshot (v2)" in dash_text, "intel dashboard missing shadow trading snapshot section")
 
     # 13) daemon health sentinel (mock scenarios)
     _run([sys.executable, "-c", "import scripts.run_daemon_health_check; print('ok')"], env=base_env)
@@ -246,6 +247,41 @@ def main() -> int:
         _assert(Path("state/uw_daemon_health_state.json").exists(), "uw daemon health state not written")
         dh = json.loads(Path("state/uw_daemon_health_state.json").read_text(encoding="utf-8"))
         ok, msg = validate_uw_daemon_health_state(dh); _assert(ok, f"uw_daemon_health_state schema: {msg}")
+
+    # 14) shadow trading artifacts: logger/executor + summary + readiness (mock)
+    _run([sys.executable, "-c", "from src.trading.shadow_executor import log_shadow_decision; from src.trading.shadow_logger import append_shadow_trade; print('ok')"], env=base_env)
+    # create a minimal shadow trade entry for schema validation
+    _run(
+        [
+            sys.executable,
+            "-c",
+            "from src.trading.shadow_logger import append_shadow_trade; "
+            "append_shadow_trade({'event_type':'shadow_trade_candidate','symbol':'AAPL','direction':'bullish','v1_score':3.2,'v2_score':3.6,'v1_pass':True,'v2_pass':True,'uw_attribution_snapshot':{}}); "
+            "print('ok')",
+        ],
+        env=base_env,
+    )
+    from scripts.uw_intel_schema import validate_shadow_trade_log_entry
+    st = Path("logs/shadow_trades.jsonl")
+    _assert(st.exists(), "logs/shadow_trades.jsonl not created")
+    last = st.read_text(encoding="utf-8", errors="replace").splitlines()[-1].strip()
+    got = json.loads(last) if last else {}
+    ok, msg = validate_shadow_trade_log_entry(got); _assert(ok, f"shadow_trades schema: {msg}")
+
+    # shadow day summary runs (uses placeholders if sparse)
+    _run([sys.executable, "scripts/run_shadow_day_summary.py", "--date", "2026-01-01"], env=base_env)
+    _assert(Path("reports/SHADOW_DAY_SUMMARY_2026-01-01.md").exists(), "shadow day summary not generated")
+
+    # preopen readiness check runs in regression with regression-skip
+    pre_env = dict(base_env)
+    pre_env["PREOPEN_SKIP_REGRESSION"] = "1"
+    pre_env["DAEMON_HEALTH_MOCK"] = "1"
+    pre_env["DAEMON_HEALTH_SCENARIO"] = "healthy"
+    _run([sys.executable, "scripts/run_daemon_health_check.py", "--mock", "--nonfatal"], env=pre_env)
+    _run([sys.executable, "scripts/run_preopen_readiness_check.py", "--allow-mock"], env=pre_env)
+
+    # v2 tuning helper runs (suggestions only)
+    _run([sys.executable, "-m", "src.intel.v2_tuning_helper"], env=base_env)
 
     print("REGRESSION_OK")
     return 0

@@ -181,3 +181,15 @@ def validate_uw_daemon_health_state(doc: Any) -> Tuple[bool, str]:
         return False, "uw_daemon_health_state: details not dict"
     return True, "ok"
 
+
+def validate_shadow_trade_log_entry(doc: Any) -> Tuple[bool, str]:
+    if not isinstance(doc, dict):
+        return False, "shadow_trade: not a dict"
+    if not _is_iso_ts(doc.get("ts")):
+        return False, "shadow_trade: ts invalid"
+    if "event_type" not in doc or "symbol" not in doc:
+        return False, "shadow_trade: missing event_type/symbol"
+    if "v2_score" not in doc:
+        return False, "shadow_trade: missing v2_score"
+    return True, "ok"
+

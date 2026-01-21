@@ -101,6 +101,8 @@ def main() -> int:
         os.system(f"{os.sys.executable} scripts/run_daily_intel_pnl.py --date {date}")
         os.system(f"{os.sys.executable} scripts/run_intel_health_checks.py --mock")
         os.system(f"{os.sys.executable} scripts/run_daemon_health_check.py --mock --nonfatal")
+        os.environ["PREOPEN_SKIP_REGRESSION"] = "1"
+        os.system(f"{os.sys.executable} scripts/run_preopen_readiness_check.py --allow-mock")
         os.system(f"{os.sys.executable} reports/_dashboard/intel_dashboard_generator.py --date {date}")
         # Copy artifacts into droplet_sync folder
         for src, dst in [
@@ -134,15 +136,21 @@ def main() -> int:
 
         # Run in required order
         for step in [
+            # Pre-open safe ordering:
+            # 1) regression (mock-safe) to catch contract violations early
+            # 2) universe + intel generation
+            ("run_regression_checks", _remote_py("scripts/run_regression_checks.py", mock=True)),  # always mock-safe
             ("build_daily_universe", _remote_py("scripts/build_daily_universe.py", mock=bool(args.mock))),
             ("run_premarket_intel", _remote_py("scripts/run_premarket_intel.py", mock=bool(args.mock))),
             ("run_postmarket_intel", _remote_py("scripts/run_postmarket_intel.py", mock=bool(args.mock))),
-            ("run_regression_checks", _remote_py("scripts/run_regression_checks.py", mock=True)),  # always mock-safe
             ("run_regime_detector", "bash -c \"./venv/bin/python scripts/run_regime_detector.py\""),
             ("run_daily_intel_pnl", f"bash -c \"set -a && source .env >/dev/null 2>&1 || true; set +a; ./venv/bin/python scripts/run_daily_intel_pnl.py --date {date}\""),
             ("run_intel_health_checks", _remote_py("scripts/run_intel_health_checks.py", mock=True)),
             ("run_daemon_health_check", "bash -c \"./venv/bin/python scripts/run_daemon_health_check.py --nonfatal\""),
+            ("run_preopen_readiness_check", "bash -c \"PREOPEN_SKIP_REGRESSION=1 ./venv/bin/python scripts/run_preopen_readiness_check.py --allow-mock\""),
             ("run_intel_dashboard", f"bash -c \"./venv/bin/python reports/_dashboard/intel_dashboard_generator.py --date {date}\""),
+            ("run_shadow_day_summary", f"bash -c \"./venv/bin/python scripts/run_shadow_day_summary.py --date {date}\""),
+            ("run_v2_tuning_suggestions", "bash -c \"./venv/bin/python -m src.intel.v2_tuning_helper\""),
         ]:
             name, cmd = step
             rr = _run_remote(c, cmd, timeout=600)
@@ -164,6 +172,8 @@ def main() -> int:
             "state/intel_health_state.json": out_dir / "intel_health_state.json",
             "state/uw_daemon_health_state.json": out_dir / "uw_daemon_health_state.json",
             f"reports/INTEL_DASHBOARD_{date}.md": out_dir / f"INTEL_DASHBOARD_{date}.md",
+            f"reports/SHADOW_DAY_SUMMARY_{date}.md": out_dir / f"SHADOW_DAY_SUMMARY_{date}.md",
+            f"reports/V2_TUNING_SUGGESTIONS_{date}.md": out_dir / f"V2_TUNING_SUGGESTIONS_{date}.md",
         }
         for remote, local in fetch_map.items():
             res = droplet_b64_read_file(c, remote, timeout=60)

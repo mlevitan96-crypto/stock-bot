@@ -58,6 +58,13 @@ def _tail_jsonl(path: Path, n: int = 30) -> List[Dict[str, Any]]:
         return []
 
 
+def _day_utc(ts: str) -> str:
+    try:
+        return str(ts)[:10]
+    except Exception:
+        return datetime.now(timezone.utc).date().isoformat()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default="", help="YYYY-MM-DD (default today UTC)")
@@ -74,6 +81,7 @@ def main() -> int:
     health = _read_json(Path("state/intel_health_state.json"))
     daemon_health = _read_json(Path("state/uw_daemon_health_state.json"))
     attrib_tail = _tail_jsonl(Path("logs/uw_attribution.jsonl"), n=25)
+    shadow_trades_tail = _tail_jsonl(Path("logs/shadow_trades.jsonl"), n=500)
 
     out_path = Path("reports") / f"INTEL_DASHBOARD_{day}.md"
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -170,6 +178,66 @@ def main() -> int:
             lines.append(f"- Self-heal attempted: **{sh.get('attempted', False)}** (success={sh.get('success', None)})")
     else:
         lines.append("- Daemon health state missing (run `scripts/run_daemon_health_check.py`).")
+
+    lines.append("")
+    # 8) Shadow Trading Snapshot (v2)
+    lines.append("## 8. Shadow Trading Snapshot (v2)")
+    today = day
+    trades_today = [r for r in shadow_trades_tail if _day_utc(str(r.get("ts") or "")) == today]
+    candidates = [r for r in trades_today if str(r.get("event_type", "")) == "shadow_trade_candidate"]
+    lines.append(f"- Shadow trade candidates today: **{len(candidates)}**")
+    if candidates:
+        by_sym: Dict[str, int] = {}
+        for r in candidates:
+            s = str(r.get("symbol", "")).upper()
+            if not s:
+                continue
+            by_sym[s] = by_sym.get(s, 0) + 1
+        top_syms = sorted(by_sym.items(), key=lambda kv: kv[1], reverse=True)[:5]
+        lines.append("- Top symbols by v2 activity:")
+        for s, c in top_syms:
+            lines.append(f"  - **{s}**: {c}")
+
+        # Winners/losers best-effort: rank by v2_score (P&L not yet in log)
+        ranked = sorted(candidates, key=lambda r: float(r.get("v2_score", 0.0) or 0.0), reverse=True)
+        lines.append("- Top 5 candidates (by v2 score):")
+        for r in ranked[:5]:
+            lines.append(f"  - **{r.get('symbol','')}** v2={r.get('v2_score')} v1={r.get('v1_score')} dir={r.get('direction')}")
+        lines.append("- Bottom 5 candidates (by v2 score):")
+        for r in list(reversed(ranked[-5:])):
+            lines.append(f"  - **{r.get('symbol','')}** v2={r.get('v2_score')} v1={r.get('v1_score')} dir={r.get('direction')}")
+
+        # Simple distribution snapshot
+        try:
+            v2s = [float(r.get("v2_score", 0.0) or 0.0) for r in candidates]
+            v1s = [float(r.get("v1_score", 0.0) or 0.0) for r in candidates]
+            lines.append(f"- v2 score range: {min(v2s):.2f}–{max(v2s):.2f} (n={len(v2s)})")
+            lines.append(f"- v1 score range: {min(v1s):.2f}–{max(v1s):.2f} (n={len(v1s)})")
+        except Exception:
+            pass
+
+        # Regime overlay (single snapshot)
+        if regime:
+            lines.append(f"- Regime overlay: **{regime.get('regime_label','NEUTRAL')}**")
+
+        # UW feature usage summary: count non-zero v2_uw_adjustments keys
+        feat_counts: Dict[str, int] = {}
+        for r in candidates:
+            snap = r.get("uw_attribution_snapshot") if isinstance(r.get("uw_attribution_snapshot"), dict) else {}
+            adj = snap.get("v2_uw_adjustments") if isinstance(snap.get("v2_uw_adjustments"), dict) else {}
+            for k, v in adj.items():
+                if k == "total":
+                    continue
+                try:
+                    if abs(float(v)) > 1e-6:
+                        feat_counts[k] = feat_counts.get(k, 0) + 1
+                except Exception:
+                    continue
+        if feat_counts:
+            top_feats = sorted(feat_counts.items(), key=lambda kv: kv[1], reverse=True)[:6]
+            lines.append(f"- UW feature usage (non-zero adjustment counts): {dict(top_feats)}")
+    else:
+        lines.append("- No shadow trade candidates logged yet (ensure `SHADOW_TRADING_ENABLED=true` and v2 compare is running).")
 
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(str(out_path))
