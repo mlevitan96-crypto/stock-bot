@@ -21,7 +21,7 @@ import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -55,6 +55,36 @@ def _iter_jsonl(path: Path) -> Iterable[Dict[str, Any]]:
             continue
 
 
+def _side_from_direction(direction: str) -> str:
+    d = str(direction or "").lower()
+    if d in ("bearish", "short", "sell"):
+        return "short"
+    return "long"
+
+
+def _safe_float(v: Any) -> Optional[float]:
+    try:
+        if v is None:
+            return None
+        return float(v)
+    except Exception:
+        return None
+
+
+def _compute_pnl_usd_pct(entry_price: float, exit_price: float, qty: float, side: str) -> Tuple[Optional[float], Optional[float]]:
+    try:
+        e = float(entry_price)
+        x = float(exit_price)
+        q = float(qty)
+        if e <= 0 or x <= 0 or q <= 0:
+            return None, None
+        pnl = q * (e - x) if str(side) == "short" else q * (x - e)
+        pct = pnl / (q * e) if (q * e) > 0 else None
+        return float(pnl), (float(pct) if pct is not None else None)
+    except Exception:
+        return None, None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default="", help="YYYY-MM-DD (default today UTC)")
@@ -67,12 +97,20 @@ def main() -> int:
     regime = _read_json(Path("state/regime_state.json"))
 
     trades = []
+    entries: Dict[str, Dict[str, Any]] = {}
+    exits: Dict[str, Dict[str, Any]] = {}
     for rec in _iter_jsonl(shadow_path):
         if _day_utc(str(rec.get("ts") or "")) != day:
             continue
-        if str(rec.get("event_type", "")) != "shadow_trade_candidate":
-            continue
-        trades.append(rec)
+        et = str(rec.get("event_type", "") or "")
+        if et == "shadow_trade_candidate":
+            trades.append(rec)
+        elif et == "shadow_entry_opened":
+            tid = str(rec.get("trade_id") or "") or f"{rec.get('symbol','')}-{rec.get('entry_ts','')}"
+            entries[tid] = rec
+        elif et == "shadow_exit":
+            tid = str(rec.get("trade_id") or "") or f"{rec.get('symbol','')}-{rec.get('entry_ts','')}"
+            exits[tid] = rec
 
     sectors = []
     syms = []
@@ -145,8 +183,87 @@ def main() -> int:
         lines.append("- Regime state missing.")
     lines.append("")
 
-    lines.append("## 5. Paper P&L estimate (placeholder)")
-    lines.append("- This summary currently ranks candidates by **v2 score**. To compute paper P&L, wire shadow positions/exits into `shadow_trades.jsonl` (future additive enhancement).")
+    lines.append("## 5. Paper P&L (realized, best-effort)")
+    realized: List[Dict[str, Any]] = []
+    for tid, ent in entries.items():
+        ex = exits.get(tid)
+        if not isinstance(ex, dict):
+            continue
+        sym = str(ent.get("symbol", "") or ex.get("symbol", "")).upper()
+        side = str(ent.get("side") or _side_from_direction(str(ent.get("direction", ""))))
+        ep = _safe_float(ent.get("entry_price"))
+        xp = _safe_float(ex.get("exit_price"))
+        qty = _safe_float(ex.get("qty") or ent.get("qty") or 0.0) or 0.0
+        pnl_usd = _safe_float(ex.get("pnl"))
+        pnl_pct = _safe_float(ex.get("pnl_pct"))
+        if pnl_usd is None and ep is not None and xp is not None and qty > 0:
+            pnl_usd, pnl_pct = _compute_pnl_usd_pct(ep, xp, qty, side)
+
+        sec = "UNKNOWN"
+        reg_lbl = ""
+        try:
+            snap = ent.get("intel_snapshot") if isinstance(ent.get("intel_snapshot"), dict) else {}
+            sp = snap.get("v2_uw_sector_profile") if isinstance(snap.get("v2_uw_sector_profile"), dict) else {}
+            rp = snap.get("v2_uw_regime_profile") if isinstance(snap.get("v2_uw_regime_profile"), dict) else {}
+            sec = str(sp.get("sector", sec) or sec)
+            reg_lbl = str(rp.get("regime_label", "") or "")
+        except Exception:
+            pass
+
+        realized.append(
+            {
+                "trade_id": tid,
+                "symbol": sym,
+                "side": side,
+                "entry_price": ep,
+                "exit_price": xp,
+                "qty": qty,
+                "pnl_usd": pnl_usd,
+                "pnl_pct": pnl_pct,
+                "exit_reason": str(ex.get("v2_exit_reason", "") or ""),
+                "sector": sec,
+                "regime": reg_lbl,
+            }
+        )
+
+    if not realized:
+        lines.append("- No realized shadow exits logged today (need `shadow_entry_opened` + `shadow_exit`).")
+    else:
+        total_pnl = sum(float(r.get("pnl_usd") or 0.0) for r in realized if r.get("pnl_usd") is not None)
+        wins = sum(1 for r in realized if (r.get("pnl_usd") is not None and float(r.get("pnl_usd") or 0.0) > 0))
+        lines.append(f"- Closed shadow trades: **{len(realized)}**")
+        lines.append(f"- Total realized PnL (USD): **{round(total_pnl, 2)}**")
+        lines.append(f"- Win rate: **{round((wins / max(1, len(realized))) * 100.0, 2)}%**")
+        lines.append("")
+
+        by_sym = defaultdict(float)
+        by_sec = defaultdict(float)
+        by_reg = defaultdict(float)
+        for r in realized:
+            p = float(r.get("pnl_usd") or 0.0)
+            by_sym[str(r.get("symbol", ""))] += p
+            by_sec[str(r.get("sector", "UNKNOWN") or "UNKNOWN")] += p
+            by_reg[str(r.get("regime", "") or "")] += p
+
+        lines.append("### PnL by symbol (USD)")
+        for k, v in sorted(by_sym.items(), key=lambda kv: kv[1], reverse=True)[:20]:
+            lines.append(f"- **{k}**: {round(v, 2)}")
+        lines.append("")
+        lines.append("### PnL by sector (USD)")
+        for k, v in sorted(by_sec.items(), key=lambda kv: kv[1], reverse=True)[:20]:
+            lines.append(f"- **{k or 'UNKNOWN'}**: {round(v, 2)}")
+        lines.append("")
+        lines.append("### PnL by regime (USD)")
+        for k, v in sorted(by_reg.items(), key=lambda kv: kv[1], reverse=True)[:20]:
+            lines.append(f"- **{k or 'UNKNOWN'}**: {round(v, 2)}")
+        lines.append("")
+        lines.append("### Closed trades (details, up to 20)")
+        for r in realized[:20]:
+            lines.append(
+                f"- **{r.get('symbol')}** side={r.get('side')} qty={r.get('qty')} "
+                f"entry={r.get('entry_price')} exit={r.get('exit_price')} "
+                f"pnl_usd={r.get('pnl_usd')} reason={r.get('exit_reason')} sector={r.get('sector')} regime={r.get('regime')}"
+            )
     lines.append("")
 
     lines.append("## Inputs")

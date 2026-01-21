@@ -170,8 +170,9 @@ def main() -> int:
     core = scored[: max(1, int(args.core))]
 
     now = datetime.now(timezone.utc).isoformat()
-    daily_out = {"_meta": {"ts": now, "version": DAILY_UNIVERSE_SCORING_V1.get("version"), "mock": mock}, "symbols": daily}
-    core_out = {"_meta": {"ts": now, "version": DAILY_UNIVERSE_SCORING_V1.get("version"), "mock": mock}, "symbols": core}
+    mode = "mock" if bool(mock) else "real"
+    daily_out = {"_meta": {"ts": now, "version": DAILY_UNIVERSE_SCORING_V1.get("version"), "mode": mode}, "symbols": daily}
+    core_out = {"_meta": {"ts": now, "version": DAILY_UNIVERSE_SCORING_V1.get("version"), "mode": mode}, "symbols": core}
 
     _atomic_write(OUT_DAILY, daily_out)
     _atomic_write(OUT_CORE, core_out)
@@ -197,7 +198,7 @@ def main() -> int:
         scored_v2.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
         daily_v2 = scored_v2[: max(1, int(args.max))]
         v2_ver = str((DAILY_UNIVERSE_SCORING_V2 or {}).get("version") or "")
-        daily_out_v2 = {"_meta": {"ts": now, "version": v2_ver, "mock": mock, "regime_label": str(regime_label)}, "symbols": daily_v2}
+        daily_out_v2 = {"_meta": {"ts": now, "version": v2_ver, "mode": mode, "regime_label": str(regime_label)}, "symbols": daily_v2}
         _atomic_write(OUT_DAILY_V2, daily_out_v2)
     except Exception:
         pass
@@ -210,7 +211,7 @@ def main() -> int:
             details={
                 "daily": len(daily),
                 "core": len(core),
-                "mock": mock,
+                "mode": mode,
                 "version": DAILY_UNIVERSE_SCORING_V1.get("version"),
                 "universe_scoring_v2_version": str((DAILY_UNIVERSE_SCORING_V2 or {}).get("version") or ""),
                 "wrote_daily_universe_v2": OUT_DAILY_V2.exists(),

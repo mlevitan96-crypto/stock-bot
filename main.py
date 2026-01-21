@@ -9491,6 +9491,28 @@ def run_once():
                         # Writes logs/shadow_trades.jsonl for dashboard + daily summary.
                         try:
                             from src.trading.shadow_executor import log_shadow_decision
+                            # Best-effort price + sizing context (no orders; simulator only).
+                            _shadow_px = None
+                            try:
+                                if hasattr(engine, "executor") and hasattr(engine.executor, "get_last_trade"):
+                                    _shadow_px = float(engine.executor.get_last_trade(ticker))
+                            except Exception:
+                                _shadow_px = None
+                            _acct_eq = None
+                            _buying_power = None
+                            try:
+                                _acct_eq = float(locals().get("account_equity") or 0.0) or None
+                            except Exception:
+                                _acct_eq = None
+                            try:
+                                _buying_power = float(locals().get("buying_power") or 0.0) or None
+                            except Exception:
+                                _buying_power = None
+                            _pos_size_usd = None
+                            try:
+                                _pos_size_usd = float(getattr(Config, "POSITION_SIZE_USD", None) or getattr(Config, "SIZE_BASE_USD", None) or 0.0) or None
+                            except Exception:
+                                _pos_size_usd = None
                             log_shadow_decision(
                                 symbol=ticker,
                                 direction=str(flow_sentiment),
@@ -9503,6 +9525,11 @@ def run_once():
                                 posture=str(rp.get("posture", "neutral") if isinstance(rp, dict) else "neutral"),
                                 regime_label=str(rp.get("regime_label", "chop") if isinstance(rp, dict) else "chop"),
                                 volatility_regime=str(mc.get("volatility_regime", "mid") if isinstance(mc, dict) else "mid"),
+                                current_price=_shadow_px,
+                                account_equity=_acct_eq,
+                                buying_power=_buying_power,
+                                position_size_usd=_pos_size_usd,
+                                api=engine.executor.api if hasattr(engine, "executor") and hasattr(engine.executor, "api") else None,
                             )
                         except Exception:
                             pass

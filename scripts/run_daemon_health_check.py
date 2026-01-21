@@ -465,7 +465,7 @@ def main() -> int:
             "endpoint_error_counts": snap.get("endpoint_errors"),
             "restart_storm": snap.get("restart_storm"),
             "self_heal": self_heal,
-            "mock": bool(mock),
+            "mode": ("mock" if bool(mock) else "real"),
             "mock_scenario": str(scenario or ""),
         },
     }

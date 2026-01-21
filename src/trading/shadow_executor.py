@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -124,6 +125,65 @@ def _pick_universe_replacement(exclude: set[str]) -> Tuple[Optional[str], Option
     return None, None
 
 
+def _side_from_direction(direction: str) -> str:
+    d = str(direction or "").lower()
+    if d in ("bearish", "short", "sell"):
+        return "short"
+    return "long"
+
+
+def _safe_float(v: Any) -> Optional[float]:
+    try:
+        if v is None:
+            return None
+        return float(v)
+    except Exception:
+        return None
+
+
+def _compute_pnl_usd_pct(*, entry_price: float, exit_price: float, qty: float, side: str) -> Tuple[Optional[float], Optional[float]]:
+    try:
+        e = float(entry_price)
+        x = float(exit_price)
+        q = float(qty)
+        if e <= 0 or x <= 0 or q <= 0:
+            return None, None
+        if str(side) == "short":
+            pnl_usd = q * (e - x)
+        else:
+            pnl_usd = q * (x - e)
+        pnl_pct = pnl_usd / (q * e) if (q * e) > 0 else None
+        return float(pnl_usd), (float(pnl_pct) if pnl_pct is not None else None)
+    except Exception:
+        return None, None
+
+
+def _resolve_price_from_api(*, api: Any, symbol: str) -> Optional[float]:
+    """
+    Best-effort live price read (no orders). Used only for shadow simulation.
+    """
+    if api is None:
+        return None
+    sym = str(symbol).upper()
+    try:
+        lt = api.get_last_trade(sym)
+        px = getattr(lt, "price", None)
+        pxf = _safe_float(px)
+        if pxf and pxf > 0:
+            return pxf
+    except Exception:
+        pass
+    try:
+        q = api.get_quote(sym)
+        bid = _safe_float(getattr(q, "bid", None))
+        ask = _safe_float(getattr(q, "ask", None))
+        if bid and ask and bid > 0 and ask > 0:
+            return float((bid + ask) / 2.0)
+    except Exception:
+        pass
+    return None
+
+
 def log_shadow_decision(
     *,
     symbol: str,
@@ -137,6 +197,12 @@ def log_shadow_decision(
     posture: str = "",
     regime_label: str = "",
     volatility_regime: str = "",
+    # Simulator inputs (best-effort)
+    current_price: Optional[float] = None,
+    account_equity: Optional[float] = None,
+    buying_power: Optional[float] = None,
+    position_size_usd: Optional[float] = None,
+    api: Any = None,
 ) -> None:
     """
     Emit a "shadow_trade_candidate" record when v2 would enter (v2_pass True).
@@ -169,6 +235,10 @@ def log_shadow_decision(
             "regime_label": str(regime_label),
             "volatility_regime": str(volatility_regime),
             "uw_attribution_snapshot": uw_attr,
+            "current_price": _safe_float(current_price),
+            "account_equity": _safe_float(account_equity),
+            "buying_power": _safe_float(buying_power),
+            "position_size_usd": _safe_float(position_size_usd),
         }
         append_shadow_trade(rec)
 
@@ -178,28 +248,139 @@ def log_shadow_decision(
         sym = str(symbol).upper()
         st = _read_positions()
         pos = (st.get("positions") or {}).get(sym) if isinstance(st.get("positions"), dict) else None
+        side = _side_from_direction(direction)
+
+        # Resolve price (real, best-effort).
+        px_now = _safe_float(current_price)
+        if (px_now is None or px_now <= 0) and api is not None:
+            px_now = _resolve_price_from_api(api=api, symbol=sym)
 
         # Entry snapshot
         if bool(v2_pass) and not isinstance(pos, dict):
+            if px_now is None or px_now <= 0:
+                append_shadow_trade(
+                    {
+                        "event_type": "shadow_entry_blocked",
+                        "symbol": sym,
+                        "direction": str(direction),
+                        "reason": "price_unavailable",
+                        "v2_score": float(v2_score),
+                        "v1_score": float(v1_score),
+                        "uw_attribution_snapshot": uw_attr,
+                    }
+                )
+                return
+
+            # Mirror v1-ish sizing behavior (best-effort):
+            # - Prefer passed position_size_usd; fall back to risk_management.calculate_position_size(account_equity).
+            psu = _safe_float(position_size_usd)
+            if (psu is None or psu <= 0) and account_equity is not None:
+                try:
+                    from risk_management import calculate_position_size
+
+                    psu = float(calculate_position_size(float(account_equity)))
+                except Exception:
+                    psu = None
+            if psu is None or psu <= 0:
+                psu = 0.0
+
+            qty: float
+            if psu > 0 and px_now > 0:
+                # If price exceeds cap, allow fractional (matches v1 executor fallback).
+                if px_now > psu:
+                    fq = psu / px_now if px_now > 0 else 0.0
+                    qty = float(fq) if fq >= 0.001 else 0.0
+                else:
+                    base_qty = max(1, int(psu / px_now))
+                    # Apply sizing overlay (best-effort) if available.
+                    try:
+                        from uw_composite_v2 import apply_sizing_overlay
+
+                        base_qty = int(apply_sizing_overlay(int(base_qty), composite_v2))
+                    except Exception:
+                        pass
+                    qty = float(max(1, int(base_qty)))
+            else:
+                qty = 1.0
+
+            # Buying power guard (best-effort, does not affect v1)
+            bp = _safe_float(buying_power) or 0.0
+            if bp > 0 and side == "long":
+                try:
+                    if (qty * px_now) > (bp * 0.95):
+                        append_shadow_trade(
+                            {
+                                "event_type": "shadow_entry_blocked",
+                                "symbol": sym,
+                                "direction": str(direction),
+                                "reason": "insufficient_buying_power",
+                                "required_notional": round(float(qty * px_now), 4),
+                                "buying_power": round(float(bp), 4),
+                                "v2_score": float(v2_score),
+                                "v1_score": float(v1_score),
+                                "uw_attribution_snapshot": uw_attr,
+                            }
+                        )
+                        return
+                except Exception:
+                    pass
+
             # Best-effort entry sector/regime snapshots from composite payload.
             sec = ((uw_attr.get("v2_uw_sector_profile") or {}) if isinstance(uw_attr.get("v2_uw_sector_profile"), dict) else {}).get("sector", "UNKNOWN")
             reg = ((uw_attr.get("v2_uw_regime_profile") or {}) if isinstance(uw_attr.get("v2_uw_regime_profile"), dict) else {}).get("regime_label", "")
+            trade_id = uuid.uuid4().hex
             (st.setdefault("positions", {}))[sym] = {
+                "trade_id": trade_id,
                 "entry_timestamp": _now_iso(),
                 "direction": str(direction),
+                "side": str(side),
                 "entry_v2_score": float(v2_score),
                 "entry_v1_score": float(v1_score),
                 "entry_uw": dict(uw_attr),
                 "entry_regime": str(reg),
                 "entry_sector": str(sec),
-                "entry_price": None,  # price unavailable in this call path (best-effort)
+                "entry_price": float(px_now),
+                "qty": float(qty),
+                "position_size_usd": float(psu),
+                "last_price": float(px_now),
+                "unrealized_pnl_usd": 0.0,
+                "unrealized_pnl_pct": 0.0,
             }
             _write_positions(st)
-            append_shadow_trade({"event_type": "shadow_entry_opened", "symbol": sym, "direction": str(direction), "v2_score": float(v2_score), "v1_score": float(v1_score)})
+            append_shadow_trade(
+                {
+                    "event_type": "shadow_entry_opened",
+                    "trade_id": trade_id,
+                    "symbol": sym,
+                    "direction": str(direction),
+                    "side": str(side),
+                    "entry_price": float(px_now),
+                    "entry_ts": (st.get("positions") or {}).get(sym, {}).get("entry_timestamp", _now_iso()),
+                    "qty": float(qty),
+                    "position_size_usd": float(psu),
+                    "v2_score": float(v2_score),
+                    "v1_score": float(v1_score),
+                    "intel_snapshot": uw_attr,
+                }
+            )
             return
 
         # Exit evaluation for open positions
         if isinstance(pos, dict):
+            # Mark-to-market update (persisted every evaluation)
+            if px_now is not None and px_now > 0:
+                epx = _safe_float(pos.get("entry_price")) or 0.0
+                qx = _safe_float(pos.get("qty")) or 0.0
+                pnl_usd_u, pnl_pct_u = _compute_pnl_usd_pct(entry_price=epx, exit_price=float(px_now), qty=float(qx), side=str(pos.get("side") or side))
+                try:
+                    pos["last_price"] = float(px_now)
+                    pos["unrealized_pnl_usd"] = float(pnl_usd_u or 0.0)
+                    pos["unrealized_pnl_pct"] = float(pnl_pct_u or 0.0)
+                    pos["last_update_ts"] = _now_iso()
+                    _write_positions(st)
+                except Exception:
+                    pass
+
             entry_ts = str(pos.get("entry_timestamp", "") or "")
             entry_v2 = float(pos.get("entry_v2_score", 0.0) or 0.0)
             entry_uw = pos.get("entry_uw") if isinstance(pos.get("entry_uw"), dict) else {}
@@ -273,19 +454,34 @@ def log_shadow_decision(
                 margin=0.25,
             )
 
-            # Exit trigger thresholds (conservative, shadow-only):
-            should_exit = float(exit_score) >= 0.70 and rec_reason in ("profit", "stop", "intel_deterioration", "replacement")
+            # Price-based triggers (profit/stop) when price is available.
+            entry_price = _safe_float(pos.get("entry_price")) or 0.0
+            qty = _safe_float(pos.get("qty")) or 0.0
+            profit_hit = False
+            stop_hit = False
+            if px_now is not None and px_now > 0 and entry_price > 0:
+                try:
+                    if pt_px is not None and float(pt_px) > 0:
+                        profit_hit = (float(px_now) >= float(pt_px)) if side == "long" else (float(px_now) <= float(pt_px))
+                    if stop_px is not None and float(stop_px) > 0:
+                        stop_hit = (float(px_now) <= float(stop_px)) if side == "long" else (float(px_now) >= float(stop_px))
+                except Exception:
+                    profit_hit = False
+                    stop_hit = False
+
+            # Exit trigger: any of
+            # - profit target hit
+            # - stop hit
+            # - replacement candidate chosen
+            # - intel/score exit signal
+            should_exit_score = float(exit_score) >= 0.70 and rec_reason in ("profit", "stop", "intel_deterioration", "replacement")
+            should_exit = bool(profit_hit or stop_hit or (replacement is not None) or should_exit_score)
             if should_exit:
-                # Compute paper PnL if price is known; else None
-                pnl = None
-                if pos.get("entry_price") is not None and pos.get("exit_price") is not None:
-                    try:
-                        e = float(pos.get("entry_price"))
-                        x = float(pos.get("exit_price"))
-                        if e > 0 and x > 0:
-                            pnl = ((x - e) / e) if str(direction).lower() == "bullish" else ((e - x) / e)
-                    except Exception:
-                        pnl = None
+                exit_ts = _now_iso()
+                exit_price = float(px_now) if (px_now is not None and px_now > 0) else None
+                pnl_usd, pnl_pct = (None, None)
+                if exit_price is not None and entry_price > 0 and qty > 0:
+                    pnl_usd, pnl_pct = _compute_pnl_usd_pct(entry_price=entry_price, exit_price=float(exit_price), qty=float(qty), side=str(pos.get("side") or side))
                 # Time in trade
                 tmin = None
                 try:
@@ -298,11 +494,16 @@ def log_shadow_decision(
                 rs_det = float(exit_components.get("score_deterioration", 0.0) or 0.0)  # placeholder
 
                 # Attribution record
+                exit_reason = "profit" if profit_hit else "stop" if stop_hit else ("replacement" if replacement else rec_reason)
                 arec = build_exit_attribution_record(
                     symbol=sym,
                     entry_timestamp=entry_ts,
-                    exit_reason=("replacement" if replacement else rec_reason),
-                    pnl=pnl,
+                    exit_reason=str(exit_reason),
+                    pnl=pnl_usd,
+                    pnl_pct=pnl_pct,
+                    entry_price=(float(entry_price) if entry_price > 0 else None),
+                    exit_price=exit_price,
+                    qty=float(qty) if qty > 0 else None,
                     time_in_trade_minutes=tmin,
                     entry_uw=dict(entry_uw or {}),
                     exit_uw=dict(now_uw or {}),
@@ -316,19 +517,30 @@ def log_shadow_decision(
                     v2_exit_components=dict(exit_components or {}),
                     replacement_candidate=replacement,
                     replacement_reasoning=repl_reason if replacement else None,
+                    exit_timestamp=exit_ts,
                 )
                 append_exit_attribution(arec)
 
                 append_shadow_trade(
                     {
                         "event_type": "shadow_exit",
+                        "trade_id": str(pos.get("trade_id", "") or ""),
                         "symbol": sym,
                         "direction": str(direction),
+                        "side": str(pos.get("side") or side),
                         "v1_score": float(v1_score),
                         "v2_score": float(v2_score),
                         "v2_exit_score": float(exit_score),
                         "v2_exit_components": dict(exit_components),
-                        "v2_exit_reason": ("replacement" if replacement else rec_reason),
+                        "v2_exit_reason": str(exit_reason),
+                        "exit_price": exit_price,
+                        "exit_ts": exit_ts,
+                        "entry_price": entry_price if entry_price > 0 else None,
+                        "entry_ts": entry_ts,
+                        "qty": float(qty),
+                        "pnl": pnl_usd,
+                        "pnl_pct": pnl_pct,
+                        "intel_snapshot": now_uw,
                         "profit_target_price": pt_px,
                         "profit_target_reasoning": pt_reason,
                         "stop_price": stop_px,

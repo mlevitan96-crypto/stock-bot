@@ -76,6 +76,7 @@ def main() -> int:
     args = ap.parse_args()
 
     mock = bool(args.mock) or str(os.getenv("UW_MOCK", "")).strip() in ("1", "true", "TRUE", "yes", "YES")
+    mode = "mock" if bool(mock) else "real"
 
     daily = _load_universe("state/daily_universe.json")
     core = _load_universe("state/core_universe.json")
@@ -114,7 +115,7 @@ def main() -> int:
         }
 
     out = {
-        "_meta": {"ts": datetime.now(timezone.utc).isoformat(), "uw_intel_version": uw_ver, "mock": mock},
+        "_meta": {"ts": datetime.now(timezone.utc).isoformat(), "uw_intel_version": uw_ver, "mode": mode},
         "symbols": symbols,
         "market": market,
     }
@@ -125,7 +126,7 @@ def main() -> int:
             subsystem="uw",
             event_type="postmarket_intel_ready",
             severity="INFO",
-            details={"symbols": len(symbols), "mock": mock, "uw_intel_version": uw_ver},
+            details={"symbols": len(symbols), "mode": mode, "uw_intel_version": uw_ver},
         )
     except Exception:
         pass

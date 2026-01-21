@@ -46,7 +46,7 @@ def main() -> int:
     regime = _read_json(Path("state/regime_state.json"))
     r_label = str(regime.get("regime_label", "NEUTRAL") or "NEUTRAL")
 
-    out: Dict[str, Any] = {"_meta": {"ts": _now_iso(), "version": "2026-01-21_exit_postmarket_v1", "mock": bool(args.mock)}, "symbols": {}, "regime": {"label": r_label}}
+    out: Dict[str, Any] = {"_meta": {"ts": _now_iso(), "version": "2026-01-21_exit_postmarket_v1", "mode": ("mock" if bool(args.mock) else "real")}, "symbols": {}, "regime": {"label": r_label}}
 
     positions = pos.get("positions") if isinstance(pos, dict) else {}
     post_sy = post.get("symbols") if isinstance(post, dict) else {}

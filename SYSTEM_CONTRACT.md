@@ -257,6 +257,10 @@ Rules:
   - sector profiles from `config/sector_profiles.json`
 - Shadow decision log:
   - `logs/shadow_trades.jsonl`
+- Shadow position state (simulator persistence):
+  - `state/shadow_v2_positions.json` (atomic updates; no live orders)
+- Exit attribution (shadow exits only):
+  - `logs/exit_attribution.jsonl`
 - Pre-open readiness MUST run on droplet before market open:
   - `scripts/run_preopen_readiness_check.py`
   - MUST fail if daemon health is `critical` or intel artifacts are stale/missing

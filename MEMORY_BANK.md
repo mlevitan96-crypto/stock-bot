@@ -591,7 +591,21 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - Emitted from the existing shadow A/B path in `main.py` (additive).
 - **Shadow continuity heartbeat (observability-only)**:
   - State file: `state/shadow_heartbeat.json` updated on each v2 shadow decision evaluation.
-  - `logs/shadow_trades.jsonl` entries always include `timestamp` plus placeholder fields `entry_price`, `exit_price`, `pnl` (no logic impact).
+  - `logs/shadow_trades.jsonl` entries always include `timestamp` and canonical simulator fields when available.
+
+### True simulator invariants (v2 shadow-only; no live orders)
+- **Shadow positions persist**:
+  - State file: `state/shadow_v2_positions.json` (atomic writes)
+  - Includes: `symbol`, `trade_id`, `entry_timestamp`, `entry_price`, `qty`, `direction/side`, `entry_v2_score`, `entry_intel_snapshot` (best-effort via UW/regime/sector profiles)
+- **Real price marks** (read-only; no orders):
+  - Shadow executor uses best-effort price from the main loop (and/or Alpaca quote/last trade when passed) to compute:
+    - unrealized PnL for open positions
+    - realized PnL on exits
+- **Exits are fully simulated**:
+  - Exit score + stops/targets + replacement logic are evaluated for open shadow positions
+  - On exit:
+    - `logs/shadow_trades.jsonl` emits `shadow_exit` with prices + pnl
+    - `logs/exit_attribution.jsonl` emits a full attribution record (entry/exit intel snapshots + pnl + time-in-trade)
 - **Pre-open readiness must pass before session**:
   - Script: `scripts/run_preopen_readiness_check.py`
   - Must validate freshness of universe + premarket intel + regime + daemon health.

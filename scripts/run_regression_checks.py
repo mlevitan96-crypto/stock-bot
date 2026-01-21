@@ -250,13 +250,23 @@ def main() -> int:
 
     # 14) shadow trading artifacts: logger/executor + summary + readiness (mock)
     _run([sys.executable, "-c", "from src.trading.shadow_executor import log_shadow_decision; from src.trading.shadow_logger import append_shadow_trade; print('ok')"], env=base_env)
-    # create a minimal shadow trade entry for schema validation
+    # true-sim smoke: open + exit a shadow position using real simulator fields
     _run(
         [
             sys.executable,
             "-c",
-            "from src.trading.shadow_logger import append_shadow_trade; "
-            "append_shadow_trade({'event_type':'shadow_trade_candidate','symbol':'AAPL','direction':'bullish','v1_score':3.2,'v2_score':3.6,'v1_pass':True,'v2_pass':True,'uw_attribution_snapshot':{}}); "
+            "import json; from pathlib import Path; "
+            "from src.trading.shadow_executor import log_shadow_decision; "
+            "Path('state').mkdir(exist_ok=True); "
+            "Path('state/shadow_v2_positions.json').write_text(json.dumps({'positions': {}}, indent=2)); "
+            "comp={'uw_intel_version':'test','v2_uw_inputs':{'flow_strength':0.6,'darkpool_bias':0.1,'sector_alignment':0.2,'regime_alignment':0.2},"
+            "'v2_uw_adjustments':{'flow_strength':0.05,'darkpool_bias':0.01,'sector_alignment':0.01,'regime_alignment':0.01,'total':0.08},"
+            "'v2_uw_sector_profile':{'sector':'TECH'},'v2_uw_regime_profile':{'regime_label':'NEUTRAL'}}; "
+            "log_shadow_decision(symbol='AAPL',direction='bullish',v1_score=3.2,v2_score=4.0,v1_pass=True,v2_pass=True,composite_v2=comp,current_price=100.0,account_equity=55000.0,buying_power=100000.0,position_size_usd=500.0); "
+            "assert Path('state/shadow_v2_positions.json').exists(); "
+            "pos=json.loads(Path('state/shadow_v2_positions.json').read_text()); "
+            "assert 'AAPL' in (pos.get('positions') or {}); "
+            "log_shadow_decision(symbol='AAPL',direction='bullish',v1_score=3.2,v2_score=3.9,v1_pass=True,v2_pass=False,composite_v2=comp,current_price=1000.0,account_equity=55000.0,buying_power=100000.0,position_size_usd=500.0); "
             "print('ok')",
         ],
         env=base_env,
@@ -268,7 +278,7 @@ def main() -> int:
     got = json.loads(last) if last else {}
     ok, msg = validate_shadow_trade_log_entry(got); _assert(ok, f"shadow_trades schema: {msg}")
 
-    # shadow day summary runs (uses placeholders if sparse)
+    # shadow day summary runs (realized PnL best-effort when entry/exit present)
     _run([sys.executable, "scripts/run_shadow_day_summary.py", "--date", "2026-01-01"], env=base_env)
     _assert(Path("reports/SHADOW_DAY_SUMMARY_2026-01-01.md").exists(), "shadow day summary not generated")
 
@@ -292,6 +302,7 @@ def main() -> int:
     last_ea = ea.read_text(encoding="utf-8", errors="replace").splitlines()[-1].strip()
     ea_rec = json.loads(last_ea) if last_ea else {}
     ok, msg = validate_exit_attribution(ea_rec); _assert(ok, f"exit_attribution schema: {msg}")
+    _assert("entry_price" in ea_rec and "exit_price" in ea_rec, "exit_attribution missing entry_price/exit_price fields")
 
     # Pre/postmarket exit intel scripts run (mock)
     _run([sys.executable, "scripts/run_premarket_exit_intel.py", "--mock"], env=base_env)

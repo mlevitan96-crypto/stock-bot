@@ -92,7 +92,7 @@ def main() -> int:
     ensure_dir(out_dir)
     sync_log = out_dir / "sync_log.jsonl"
 
-    append_sync_log(sync_log, {"event": "sync_start", "date": date, "mock": bool(args.mock), "no_ssh": bool(args.no_ssh)})
+    append_sync_log(sync_log, {"event": "sync_start", "date": date, "mode": ("mock" if bool(args.mock) else "real"), "no_ssh": bool(args.no_ssh)})
 
     # Local-only mock path (used by regression checks)
     if args.no_ssh:
