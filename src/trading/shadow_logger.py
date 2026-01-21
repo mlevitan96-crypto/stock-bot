@@ -27,8 +27,18 @@ def _now_iso() -> str:
 def append_shadow_trade(rec: Dict[str, Any]) -> None:
     try:
         OUT.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"ts": _now_iso(), "_ts": int(time.time())}
+        now = _now_iso()
+        payload: Dict[str, Any] = {"timestamp": now, "ts": now, "_ts": int(time.time())}
         payload.update(rec or {})
+        # Guarantee canonical timestamp field for downstream integrity tooling.
+        if "timestamp" not in payload:
+            payload["timestamp"] = payload.get("ts", now)
+        if "ts" not in payload:
+            payload["ts"] = payload.get("timestamp", now)
+        # Safe placeholders (observability only; no trading logic impact)
+        payload.setdefault("entry_price", None)
+        payload.setdefault("exit_price", None)
+        payload.setdefault("pnl", None)
         with OUT.open("a", encoding="utf-8") as f:
             f.write(json.dumps(payload, default=str) + "\n")
     except Exception:

@@ -244,17 +244,25 @@ class UWClient:
                 cache_policy={"ttl_seconds": 0, "endpoint_name": "", "max_calls_per_day": 0},
                 timeout_s=10.0,
             )
+            # NOTE: Do NOT reference enclosing locals inside a class body.
+            # Python executes class bodies in a separate namespace; referencing `status_code`
+            # would raise NameError. Keep this wrapper minimal and safe.
             class _R:
-                status_code = int(status_code)
-                headers = resp_headers or {}
-                content = b"1" if isinstance(response_data, dict) else b""
-                text = ""
+                def __init__(self, sc: int, hdrs: Optional[dict], data: Any):
+                    self.status_code = int(sc)
+                    self.headers = hdrs or {}
+                    self._data = data
+                    self.content = b"1" if isinstance(data, dict) else b""
+                    self.text = ""
+
                 def json(self):
-                    return response_data if isinstance(response_data, dict) else {"data": []}
+                    return self._data if isinstance(self._data, dict) else {"data": []}
+
                 def raise_for_status(self):
                     if int(self.status_code) != 200:
                         raise requests.exceptions.HTTPError(f"UW status {self.status_code}")
-            r = _R()
+
+            r = _R(int(status_code), resp_headers or {}, response_data)
             
             # Check rate limit headers
             daily_count = r.headers.get("x-uw-daily-req-count")
@@ -378,9 +386,22 @@ class UWClient:
             })
             return {"data": []}
         except Exception as e:
+            # Hardened logging: never throw, capture best-effort status code.
+            safe_status = None
+            try:
+                safe_status = locals().get("status_code", None)
+            except Exception:
+                safe_status = None
+            try:
+                rr = locals().get("r", None)
+                if safe_status is None and rr is not None:
+                    safe_status = getattr(rr, "status_code", None)
+            except Exception:
+                pass
             # #region agent log
             debug_log("uw_flow_daemon.py:_get", "API exception", {
                 "url": url,
+                "status_code": safe_status,
                 "error": str(e),
                 "error_type": type(e).__name__
             }, "H3")
@@ -388,6 +409,7 @@ class UWClient:
             append_jsonl(CacheFiles.UW_FLOW_CACHE_LOG, {
                 "event": "UW_API_ERROR",
                 "url": url,
+                "status_code": safe_status,
                 "error": str(e),
                 "ts": int(time.time())
             })

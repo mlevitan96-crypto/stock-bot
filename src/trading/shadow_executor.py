@@ -19,6 +19,7 @@ from src.trading.shadow_logger import append_shadow_trade
 
 
 STATE_POSITIONS = Path("state/shadow_v2_positions.json")
+STATE_HEARTBEAT = Path("state/shadow_heartbeat.json")
 
 
 def _now_iso() -> str:
@@ -41,6 +42,26 @@ def _write_positions(doc: Dict[str, Any]) -> None:
         tmp = STATE_POSITIONS.with_suffix(".tmp")
         tmp.write_text(json.dumps(doc, indent=2, sort_keys=True), encoding="utf-8")
         tmp.replace(STATE_POSITIONS)
+    except Exception:
+        return
+
+
+def _update_shadow_heartbeat(*, symbol: str, event_type: str) -> None:
+    """
+    Shadow continuity sentinel (observability-only).
+    Updated on every v2 shadow decision evaluation.
+    """
+    try:
+        STATE_HEARTBEAT.parent.mkdir(parents=True, exist_ok=True)
+        hb = {
+            "timestamp": _now_iso(),
+            "status": "alive",
+            "symbol": str(symbol).upper(),
+            "event_type": str(event_type),
+        }
+        tmp = STATE_HEARTBEAT.with_suffix(".tmp")
+        tmp.write_text(json.dumps(hb, indent=2, sort_keys=True), encoding="utf-8")
+        tmp.replace(STATE_HEARTBEAT)
     except Exception:
         return
 
@@ -122,6 +143,8 @@ def log_shadow_decision(
     Also emits lightweight compare records for distribution analysis.
     """
     try:
+        event_type = "shadow_trade_candidate" if bool(v2_pass) else "shadow_score_compare"
+        _update_shadow_heartbeat(symbol=str(symbol), event_type=event_type)
         uw_attr = {
             "uw_intel_version": composite_v2.get("uw_intel_version", ""),
             "v2_uw_inputs": composite_v2.get("v2_uw_inputs", {}),
@@ -130,7 +153,7 @@ def log_shadow_decision(
             "v2_uw_regime_profile": composite_v2.get("v2_uw_regime_profile", {}),
         }
         rec: Dict[str, Any] = {
-            "event_type": "shadow_trade_candidate" if bool(v2_pass) else "shadow_score_compare",
+            "event_type": event_type,
             "symbol": str(symbol).upper(),
             "direction": str(direction),
             "v1_score": float(v1_score),

@@ -568,6 +568,8 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - Sentinel scans `logs/system_events.jsonl` for `uw_rate_limit_block` and `uw_invalid_endpoint_attempt`.
 - **Sentinel must write a health state file**:
   - `state/uw_daemon_health_state.json`
+- **Restart-storm detection (observability-only)**:
+  - Sentinel may surface `restart_storm_detected` when journal shows repeated “Another instance is already running” patterns.
 - **Dashboard must display daemon health**:
   - Intel dashboard includes “UW Flow Daemon Health” section sourced from `state/uw_daemon_health_state.json`.
 - **Self-healing is optional and conservative**:
@@ -587,6 +589,9 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **v2 must log all decisions**:
   - Shadow decision log: `logs/shadow_trades.jsonl`
   - Emitted from the existing shadow A/B path in `main.py` (additive).
+- **Shadow continuity heartbeat (observability-only)**:
+  - State file: `state/shadow_heartbeat.json` updated on each v2 shadow decision evaluation.
+  - `logs/shadow_trades.jsonl` entries always include `timestamp` plus placeholder fields `entry_price`, `exit_price`, `pnl` (no logic impact).
 - **Pre-open readiness must pass before session**:
   - Script: `scripts/run_preopen_readiness_check.py`
   - Must validate freshness of universe + premarket intel + regime + daemon health.

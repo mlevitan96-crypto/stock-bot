@@ -214,6 +214,29 @@ def _count_endpoint_errors(window_sec: int) -> Dict[str, int]:
     return counts
 
 
+def _restart_storm_snapshot(*, service: str, max_lines: int = 2000) -> Dict[str, Any]:
+    """
+    Additive diagnostic only.
+
+    Detects repeated 'Another instance is already running' patterns in journal output,
+    which indicates a lock-contention restart storm.
+    """
+    if os.name != "posix":
+        return {"available": False, "count": 0, "detected": False}
+    ok, out = _run(
+        ["journalctl", "-u", service, "--no-pager", "--output=short-iso", "-n", str(int(max_lines))],
+        timeout=10,
+    )
+    if not ok or not out:
+        return {"available": False, "count": 0, "detected": False}
+    lines = out.splitlines()
+    needle = "Another instance is already running"
+    count = sum(1 for ln in lines if needle in ln)
+    # threshold is intentionally conservative; this is only an observability flag.
+    detected = bool(count > 50)
+    return {"available": True, "count": int(count), "detected": bool(detected)}
+
+
 def _mock_snapshot(scenario: str) -> Dict[str, Any]:
     # Deterministic snapshots for regression.
     base = {
@@ -228,6 +251,7 @@ def _mock_snapshot(scenario: str) -> Dict[str, Any]:
         "flow_cache_exists": True,
         "flow_cache_age_sec": 60.0,
         "endpoint_errors": {"uw_rate_limit_block": 0, "uw_invalid_endpoint_attempt": 0},
+        "restart_storm": {"available": True, "count": 0, "detected": False},
     }
     s = (scenario or "healthy").strip().lower()
     if s == "missing_pid":
@@ -244,6 +268,8 @@ def _mock_snapshot(scenario: str) -> Dict[str, Any]:
         base["sub_state"] = "auto-restart"
     elif s == "endpoint_errors":
         base["endpoint_errors"] = {"uw_rate_limit_block": 50, "uw_invalid_endpoint_attempt": 5}
+    elif s == "restart_storm":
+        base["restart_storm"] = {"available": True, "count": 120, "detected": True}
     return base
 
 
@@ -276,6 +302,7 @@ def main() -> int:
         lock_held = _lock_is_held_by_other_process(LOCK_PATH)
         flow_age = _file_age_sec(FLOW_CACHE)
         endpoint_errs = _count_endpoint_errors(int(args.endpoint_error_window_sec))
+        restart_storm = _restart_storm_snapshot(service=SERVICE_NAME, max_lines=2000)
 
         snap = {
             "exec_main_pid": pid,
@@ -291,6 +318,7 @@ def main() -> int:
             "flow_cache_exists": FLOW_CACHE.exists(),
             "flow_cache_age_sec": flow_age,
             "endpoint_errors": endpoint_errs,
+            "restart_storm": restart_storm,
         }
 
     # Evaluate
@@ -311,6 +339,8 @@ def main() -> int:
     high_restart_count = int(snap.get("n_restarts", 0) or 0) > int(args.crash_loop_restarts)
     endpoint_err = snap.get("endpoint_errors") if isinstance(snap.get("endpoint_errors"), dict) else {}
     endpoint_errors = (int(endpoint_err.get("uw_rate_limit_block", 0) or 0) + int(endpoint_err.get("uw_invalid_endpoint_attempt", 0) or 0)) >= int(args.endpoint_error_threshold)
+    restart_storm_info = snap.get("restart_storm") if isinstance(snap.get("restart_storm"), dict) else {}
+    restart_storm_detected = bool(restart_storm_info.get("detected", False))
 
     status = "healthy"
     details: Dict[str, Any] = {}
@@ -366,6 +396,19 @@ def main() -> int:
             pass
         if status == "healthy":
             status = "warning"
+    if restart_storm_detected:
+        details["restart_storm"] = True
+        try:
+            log_system_event(
+                subsystem="uw_poll",
+                event_type="uw_daemon_restart_storm",
+                severity="WARN",
+                details={"count": int(restart_storm_info.get("count", 0) or 0)},
+            )
+        except Exception:
+            pass
+        if status == "healthy":
+            status = "warning"
 
     # Optional self-heal (safe restart)
     self_heal: Dict[str, Any] = {"attempted": False}
@@ -406,6 +449,7 @@ def main() -> int:
         "poll_fresh": bool(poll_fresh),
         "crash_loop": bool(crash_loop),
         "endpoint_errors": bool(endpoint_errors),
+        "restart_storm_detected": bool(restart_storm_detected),
         "status": str(status),
         "details": {
             "service": SERVICE_NAME,
@@ -419,6 +463,7 @@ def main() -> int:
             "flow_cache": str(FLOW_CACHE),
             "flow_cache_age_sec": snap.get("flow_cache_age_sec"),
             "endpoint_error_counts": snap.get("endpoint_errors"),
+            "restart_storm": snap.get("restart_storm"),
             "self_heal": self_heal,
             "mock": bool(mock),
             "mock_scenario": str(scenario or ""),
