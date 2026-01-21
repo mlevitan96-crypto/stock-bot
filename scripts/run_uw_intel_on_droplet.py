@@ -188,6 +188,7 @@ def main() -> int:
             ("logs/shadow.jsonl", "shadow_tail.jsonl"),
             ("logs/system_events.jsonl", "system_events_tail.jsonl"),
             ("logs/uw_attribution.jsonl", "uw_attribution_tail.jsonl"),
+            ("logs/shadow_trades.jsonl", "shadow_trades_tail.jsonl"),
         ]:
             res = droplet_b64_tail_file(c, remote, lines=500, timeout=60)
             if res.success:

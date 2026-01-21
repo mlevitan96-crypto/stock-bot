@@ -63,7 +63,25 @@ def _run(cmd: list[str], *, timeout: int = 5) -> Tuple[bool, str]:
 
 
 def _systemctl_show(service: str) -> Dict[str, str]:
-    ok, out = _run(["systemctl", "show", service, "--no-page", "-p", "ExecMainPID", "-p", "NRestarts", "-p", "ActiveState", "-p", "SubState"], timeout=5)
+    ok, out = _run(
+        [
+            "systemctl",
+            "show",
+            service,
+            "--no-page",
+            "-p",
+            "ExecMainPID",
+            "-p",
+            "NRestarts",
+            "-p",
+            "ActiveState",
+            "-p",
+            "SubState",
+            "-p",
+            "Result",
+        ],
+        timeout=5,
+    )
     if not ok:
         return {}
     d: Dict[str, str] = {}
@@ -252,6 +270,7 @@ def main() -> int:
         n_restarts = int(show.get("NRestarts", "0") or "0")
         active_state = show.get("ActiveState", "")
         sub_state = show.get("SubState", "")
+        result = show.get("Result", "")
 
         lock_pid, lock_line = _parse_lock_file(LOCK_PATH)
         lock_held = _lock_is_held_by_other_process(LOCK_PATH)
@@ -263,6 +282,7 @@ def main() -> int:
             "pid_exists": _pid_exists(pid),
             "active_state": active_state,
             "sub_state": sub_state,
+            "result": result,
             "n_restarts": n_restarts,
             "lock_file_exists": LOCK_PATH.exists(),
             "lock_pid": lock_pid,
@@ -280,7 +300,15 @@ def main() -> int:
         lock_ok = lock_ok and (int(snap["lock_pid"]) == int(snap.get("exec_main_pid", 0)))
     poll_age = snap.get("flow_cache_age_sec")
     poll_fresh = (poll_age is not None) and (float(poll_age) <= float(args.max_poll_age_sec))
-    crash_loop = int(snap.get("n_restarts", 0) or 0) > int(args.crash_loop_restarts)
+    # Crash loop detection:
+    # - Treat "failed"/"auto-restart"/non-active as crash-loop (current condition).
+    # - Do NOT treat lifetime NRestarts as crash-loop when service is stable/running;
+    #   instead, surface it as a warning detail so preopen readiness doesn't get stuck "critical" forever.
+    astate = str(snap.get("active_state", "") or "").lower()
+    sstate = str(snap.get("sub_state", "") or "").lower()
+    crash_loop_now = (astate != "active") or (sstate in ("failed", "auto-restart", "dead"))
+    crash_loop = bool(crash_loop_now)
+    high_restart_count = int(snap.get("n_restarts", 0) or 0) > int(args.crash_loop_restarts)
     endpoint_err = snap.get("endpoint_errors") if isinstance(snap.get("endpoint_errors"), dict) else {}
     endpoint_errors = (int(endpoint_err.get("uw_rate_limit_block", 0) or 0) + int(endpoint_err.get("uw_invalid_endpoint_attempt", 0) or 0)) >= int(args.endpoint_error_threshold)
 
@@ -317,6 +345,19 @@ def main() -> int:
         except Exception:
             pass
         status = "critical"
+    elif high_restart_count:
+        details["high_restart_count"] = True
+        try:
+            log_system_event(
+                subsystem="uw_poll",
+                event_type="uw_daemon_high_restart_count",
+                severity="WARN",
+                details={"n_restarts": int(snap.get("n_restarts", 0) or 0), "threshold": int(args.crash_loop_restarts), "active_state": snap.get("active_state"), "sub_state": snap.get("sub_state")},
+            )
+        except Exception:
+            pass
+        if status == "healthy":
+            status = "warning"
     if endpoint_errors:
         details["endpoint_errors"] = True
         try:
