@@ -68,6 +68,30 @@ def _exit_adjustments(attrib: Dict[str, Any]) -> Dict[str, Any]:
     return adj if isinstance(adj, dict) else {}
 
 
+def _exit_inputs(attrib: Dict[str, Any]) -> Dict[str, Any]:
+    exit_uw = attrib.get("exit_uw") if isinstance(attrib.get("exit_uw"), dict) else {}
+    inputs = exit_uw.get("v2_uw_inputs") if isinstance(exit_uw.get("v2_uw_inputs"), dict) else {}
+    return inputs if isinstance(inputs, dict) else {}
+
+
+def _basic_stats(xs: List[float]) -> Dict[str, Any]:
+    if not xs:
+        return {}
+    ys = sorted(float(x) for x in xs)
+    n = len(ys)
+    mean = sum(ys) / float(n) if n else 0.0
+    med = ys[n // 2] if (n % 2 == 1) else (ys[n // 2 - 1] + ys[n // 2]) / 2.0
+
+    def pct(p: float) -> float:
+        if n == 1:
+            return ys[0]
+        i = int(round((p / 100.0) * (n - 1)))
+        i = max(0, min(n - 1, i))
+        return ys[i]
+
+    return {"n": n, "min": ys[0], "p25": pct(25), "p50": pct(50), "p75": pct(75), "max": ys[-1], "mean": mean, "median": med}
+
+
 def _active_features(attrib: Dict[str, Any]) -> List[str]:
     """
     Feature is considered active if entry adjustment abs(value) > 0.
@@ -89,6 +113,19 @@ def build_feature_equalizer(*, day: str, realized_trades: List[Dict[str, Any]]) 
         per_feature = defaultdict(lambda: {"count": 0, "win": 0, "loss": 0, "total_pnl_usd": 0.0, "by_side": {"long": {"count": 0, "total_pnl_usd": 0.0, "win": 0, "loss": 0}, "short": {"count": 0, "total_pnl_usd": 0.0, "win": 0, "loss": 0}}})
         per_feature_exit = defaultdict(lambda: {"count": 0, "avg_v2_exit_score_sum": 0.0, "avg_v2_exit_score_n": 0, "avg_score_det_sum": 0.0, "avg_score_det_n": 0, "avg_rs_det_sum": 0.0, "avg_rs_det_n": 0, "avg_vol_exp_sum": 0.0, "avg_vol_exp_n": 0})
         feature_clusters = Counter()
+        # Additional diagnostics requested by promotion readiness:
+        # - score evolution curves
+        # - volatility expansion curves
+        # - regime/sector alignment drift
+        # - feature contribution decay curves
+        score_evolution_points: List[Dict[str, Any]] = []
+        vol_expansion_points: List[Dict[str, Any]] = []
+        drift_regime_alignment: List[float] = []
+        drift_sector_alignment: List[float] = []
+        per_feature_decay: Dict[str, List[float]] = defaultdict(list)
+        exit_reason_by_sector: Dict[str, Counter] = defaultdict(Counter)
+        exit_reason_by_regime: Dict[str, Counter] = defaultdict(Counter)
+        exit_reason_by_feature_cluster: Dict[str, Counter] = defaultdict(Counter)
 
         for t in realized:
             pnl = float(_safe_float(t.get("pnl_usd")) or 0.0)
@@ -104,6 +141,54 @@ def build_feature_equalizer(*, day: str, realized_trades: List[Dict[str, Any]]) 
             rs_det = _safe_float((attrib.get("relative_strength_deterioration") if isinstance(attrib, dict) else None))
             comps = attrib.get("v2_exit_components") if isinstance(attrib.get("v2_exit_components"), dict) else {}
             vol_exp = _safe_float(comps.get("vol_expansion"))
+
+            # Score evolution curve point
+            tmin = _safe_float(t.get("time_in_trade_minutes"))
+            ev = _safe_float(t.get("entry_v2_score"))
+            xv = _safe_float(t.get("exit_v2_score"))
+            if ev is not None and xv is not None:
+                score_evolution_points.append(
+                    {
+                        "time_in_trade_minutes": tmin,
+                        "entry_v2_score": float(ev),
+                        "exit_v2_score": float(xv),
+                        "delta_v2_score": float(ev) - float(xv),
+                        "pnl_usd": pnl,
+                        "side": side,
+                    }
+                )
+            if vol_exp is not None:
+                vol_expansion_points.append({"time_in_trade_minutes": tmin, "vol_expansion": float(vol_exp), "pnl_usd": pnl, "side": side})
+
+            # Alignment drift (entry vs exit)
+            ent_inputs = _entry_inputs(attrib)
+            ex_inputs = _exit_inputs(attrib)
+            ra0 = _safe_float(ent_inputs.get("regime_alignment"))
+            ra1 = _safe_float(ex_inputs.get("regime_alignment"))
+            sa0 = _safe_float(ent_inputs.get("sector_alignment"))
+            sa1 = _safe_float(ex_inputs.get("sector_alignment"))
+            if ra0 is not None and ra1 is not None:
+                drift_regime_alignment.append(float(ra1 - ra0))
+            if sa0 is not None and sa1 is not None:
+                drift_sector_alignment.append(float(sa1 - sa0))
+
+            # Feature adjustment decay (exit_adj - entry_adj)
+            ent_adj = _entry_adjustments(attrib)
+            ex_adj = _exit_adjustments(attrib)
+            for feat in FEATURE_KEYS:
+                a0 = _safe_float(ent_adj.get(feat))
+                a1 = _safe_float(ex_adj.get(feat))
+                if a0 is not None and a1 is not None:
+                    per_feature_decay[feat].append(float(a1 - a0))
+
+            # Exit reason distributions by sector/regime/feature cluster
+            reason = _safe_str(t.get("exit_reason") or "")
+            sector = _safe_str(t.get("entry_sector") or "UNKNOWN") or "UNKNOWN"
+            regime = _safe_str(t.get("entry_regime") or "")
+            cluster = "+".join(sorted(active)) if active else "(none)"
+            exit_reason_by_sector[sector][reason] += 1
+            exit_reason_by_regime[regime][reason] += 1
+            exit_reason_by_feature_cluster[cluster][reason] += 1
 
             for feat in active:
                 pf = per_feature[feat]
@@ -181,6 +266,24 @@ def build_feature_equalizer(*, day: str, realized_trades: List[Dict[str, Any]]) 
             "features": out_features,
             "feature_exit_impact": out_exit,
             "feature_cluster_counts": dict(feature_clusters),
+            "exit_reason_distributions": {
+                "by_sector": {k: dict(v) for k, v in exit_reason_by_sector.items()},
+                "by_regime": {k: dict(v) for k, v in exit_reason_by_regime.items()},
+                "by_feature_cluster": {k: dict(v) for k, v in exit_reason_by_feature_cluster.items()},
+            },
+            "score_evolution": {
+                "points": score_evolution_points[:500],
+                "delta_stats": _basic_stats([float(p.get("delta_v2_score")) for p in score_evolution_points if p.get("delta_v2_score") is not None]),
+            },
+            "volatility_expansion": {
+                "points": vol_expansion_points[:500],
+                "vol_expansion_stats": _basic_stats([float(p.get("vol_expansion")) for p in vol_expansion_points if p.get("vol_expansion") is not None]),
+            },
+            "alignment_drift": {
+                "regime_alignment_drift_stats": _basic_stats(drift_regime_alignment),
+                "sector_alignment_drift_stats": _basic_stats(drift_sector_alignment),
+            },
+            "feature_contribution_decay": {k: {"delta_stats": _basic_stats(v)} for k, v in per_feature_decay.items()},
             "replacement_telemetry": {
                 "replacement_exit_count": len(repl),
                 "replacement_total_pnl_usd": sum(repl_pnls) if repl_pnls else 0.0,

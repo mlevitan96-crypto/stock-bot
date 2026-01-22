@@ -354,6 +354,10 @@ def main() -> int:
         "shadow_vs_live_parity.json",
     ]:
         _assert((comp / f).exists(), f"computed artifact missing: {f}")
+    feq = json.loads((comp / "feature_equalizer_builder.json").read_text(encoding="utf-8"))
+    _assert(isinstance(feq, dict), "feature_equalizer_builder not dict")
+    for k in ["features", "feature_exit_impact", "exit_reason_distributions", "score_evolution", "volatility_expansion", "alignment_drift", "feature_contribution_decay"]:
+        _assert(k in feq, f"feature_equalizer_builder missing {k}")
 
     # Manifest must include new computed fields and computed_files mapping
     man = json.loads((tdir / "telemetry_manifest.json").read_text(encoding="utf-8"))
