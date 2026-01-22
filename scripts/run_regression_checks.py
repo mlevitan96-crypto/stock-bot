@@ -148,6 +148,8 @@ def main() -> int:
     _run([sys.executable, "-c", "import scripts.run_uw_intel_on_droplet, scripts.run_premarket_on_droplet, scripts.run_postmarket_on_droplet; print('ok')"], env=base_env)
     _run([sys.executable, "scripts/run_uw_intel_on_droplet.py", "--no-ssh", "--mock", "--date", "2026-01-01"], env=base_env)
     _assert(Path("droplet_sync/2026-01-01/daily_universe.json").exists(), "droplet_sync daily_universe missing")
+    _run([sys.executable, "scripts/run_uw_intel_on_droplet.py", "--no-ssh", "--mock", "--date", "2026-01-01", "--full-telemetry"], env=base_env)
+    _assert(Path("telemetry/2026-01-01/FULL_TELEMETRY_2026-01-01.md").exists(), "full telemetry not generated in no-ssh mode")
 
     # 6) v1 composite outputs unchanged for fixed test set (golden embedded here)
     # NOTE: this checks the *function output* deterministically for mock enriched inputs.
@@ -331,6 +333,15 @@ def main() -> int:
     _assert((pack_dir / "MASTER_SUMMARY_2026-01-01.md").exists(), "MASTER_SUMMARY not created")
     _assert((pack_dir / "manifest.json").exists(), "postclose pack manifest.json missing")
     _assert((pack_dir / "analysis_pack_2026-01-01.tar.gz").exists(), "postclose pack archive missing")
+
+    # 17) Full telemetry extract (bundle + master report) (read-only)
+    _run([sys.executable, "scripts/run_full_telemetry_extract.py", "--date", "2026-01-01"], env=base_env)
+    tdir = Path("telemetry/2026-01-01")
+    _assert(tdir.exists(), "telemetry bundle dir missing")
+    _assert((tdir / "FULL_TELEMETRY_2026-01-01.md").exists(), "FULL_TELEMETRY master report missing")
+    _assert((tdir / "telemetry_manifest.json").exists(), "telemetry_manifest.json missing")
+    for sub in ["state", "logs", "reports"]:
+        _assert((tdir / sub).exists(), f"telemetry/{sub} missing")
 
     print("REGRESSION_OK")
     return 0

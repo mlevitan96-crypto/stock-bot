@@ -17,11 +17,14 @@ Safety:
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+import tarfile
+import io
 from typing import Any, Dict, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,6 +73,40 @@ def _remote_py(script_path: str, *, mock: bool) -> str:
     return f"bash -c \"set -a && source .env >/dev/null 2>&1 || true; set +a; {env}./venv/bin/python {script_path}{args}\""
 
 
+def _b64_tgz_of_remote_dir(client: DropletClient, remote_dir: str, *, timeout: int = 240) -> Dict[str, Any]:
+    """
+    Return base64(tar.gz(remote_dir)) emitted from droplet python.
+    Keeps implementation shell-agnostic and avoids relying on `tar`/`base64` flags.
+    """
+    py = (
+        "import io, os, tarfile, base64, sys; "
+        f"d='{remote_dir}'; "
+        "buf=io.BytesIO(); "
+        "tf=tarfile.open(fileobj=buf, mode='w:gz'); "
+        "tf.add(d, arcname=os.path.basename(d)); "
+        "tf.close(); "
+        "sys.stdout.write(base64.b64encode(buf.getvalue()).decode('ascii'))"
+    )
+    cmd = f"./venv/bin/python -c \"{py}\""
+    return client.execute_command(cmd, timeout=timeout)
+
+
+def _safe_extract_tgz_bytes(data: bytes, dest_dir: Path) -> None:
+    """
+    Extract a tar.gz archive into dest_dir, preventing path traversal.
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tf:
+        for m in tf.getmembers():
+            name = str(m.name or "")
+            if not name or name.startswith("/") or ".." in name.replace("\\", "/").split("/"):
+                continue
+            # Only extract regular files/dirs/symlinks are ignored.
+            if not (m.isfile() or m.isdir()):
+                continue
+            tf.extract(m, path=str(dest_dir))
+
+
 def _validate_json(path: Path, validator) -> None:
     obj = json.loads(path.read_text(encoding="utf-8"))
     ok, msg = validator(obj)
@@ -85,6 +122,7 @@ def main() -> int:
     ap.add_argument("--no-ssh", action="store_true", help="Local-only mock sync (regression helper)")
     ap.add_argument("--heal-daemon", action="store_true", help="Allow safe daemon restart if preopen readiness detects critical daemon health")
     ap.add_argument("--postclose-pack", action="store_true", help="Run post-close analysis pack and sync it")
+    ap.add_argument("--full-telemetry", action="store_true", help="Run full telemetry extract on droplet and sync it back")
     args = ap.parse_args()
 
     date = args.date.strip() or _today_utc()
@@ -132,6 +170,9 @@ def main() -> int:
         os.system(f"{os.sys.executable} scripts/run_exit_intel_pnl.py --date {date}")
         os.system(f"{os.sys.executable} scripts/run_exit_day_summary.py --date {date}")
         os.system(f"{os.sys.executable} reports/_dashboard/intel_dashboard_generator.py --date {date}")
+        if bool(args.full_telemetry):
+            os.environ["TELEMETRY_DATA_SOURCE"] = "local_no_ssh"
+            os.system(f"{os.sys.executable} scripts/run_full_telemetry_extract.py --date {date}")
         # Copy artifacts into droplet_sync folder
         for src, dst in [
             ("state/daily_universe.json", out_dir / "daily_universe.json"),
@@ -271,6 +312,27 @@ def main() -> int:
             if res.success:
                 write_bytes(out_dir / local_name, decode_b64(res.stdout.strip()))
                 append_sync_log(sync_log, {"event": "fetched_tail", "path": remote})
+
+        # Optional: full telemetry extract on droplet and sync bundle back to local telemetry/YYYY-MM-DD/
+        if bool(args.full_telemetry):
+            rr = _run_remote(
+                c,
+                f"bash -lc \"cd /root/stock-bot && TELEMETRY_DATA_SOURCE=droplet ./venv/bin/python scripts/run_full_telemetry_extract.py --date {date}\"",
+                timeout=300,
+            )
+            append_sync_log(sync_log, {"event": "run", "step": "run_full_telemetry_extract", "success": bool(rr.get("success"))})
+            if bool(rr.get("success")):
+                tgz = _b64_tgz_of_remote_dir(c, f"telemetry/{date}", timeout=240)
+                if bool(tgz.get("success")) and (tgz.get("stdout") or "").strip():
+                    try:
+                        b = base64.b64decode((tgz.get("stdout") or "").strip().encode("ascii"))
+                        # Extract into repo-root telemetry/
+                        _safe_extract_tgz_bytes(b, Path("telemetry"))
+                        append_sync_log(sync_log, {"event": "synced_full_telemetry", "dest": f"telemetry/{date}"})
+                    except Exception as e:
+                        append_sync_log(sync_log, {"event": "synced_full_telemetry_failed", "error": str(e)[:500]})
+                else:
+                    append_sync_log(sync_log, {"event": "synced_full_telemetry_failed", "error": (tgz.get("stderr") or "")[:500]})
 
     # Local schema validation on synced files (must not break v1)
     try:
