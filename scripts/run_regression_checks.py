@@ -342,6 +342,33 @@ def main() -> int:
     _assert((tdir / "telemetry_manifest.json").exists(), "telemetry_manifest.json missing")
     for sub in ["state", "logs", "reports"]:
         _assert((tdir / sub).exists(), f"telemetry/{sub} missing")
+    # New equalizer-ready computed artifacts
+    comp = tdir / "computed"
+    _assert(comp.exists(), "telemetry/computed missing")
+    for f in [
+        "feature_equalizer_builder.json",
+        "long_short_analysis.json",
+        "exit_intel_completeness.json",
+        "feature_value_curves.json",
+        "regime_sector_feature_matrix.json",
+        "shadow_vs_live_parity.json",
+    ]:
+        _assert((comp / f).exists(), f"computed artifact missing: {f}")
+
+    # Manifest must include new computed fields and computed_files mapping
+    man = json.loads((tdir / "telemetry_manifest.json").read_text(encoding="utf-8"))
+    _assert(isinstance(man, dict), "telemetry_manifest not dict")
+    comp_obj = man.get("computed") if isinstance(man.get("computed"), dict) else {}
+    _assert(isinstance(comp_obj.get("computed_files"), dict), "telemetry_manifest.computed.computed_files missing")
+    for k in [
+        "feature_equalizer",
+        "long_short_analysis",
+        "exit_intel_completeness",
+        "feature_value_curves",
+        "regime_sector_feature_matrix",
+        "shadow_vs_live_parity",
+    ]:
+        _assert(k in comp_obj, f"telemetry_manifest.computed missing {k}")
 
     print("REGRESSION_OK")
     return 0

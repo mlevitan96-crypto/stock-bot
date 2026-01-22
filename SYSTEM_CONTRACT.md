@@ -321,6 +321,71 @@ Rules:
   - `scripts/run_uw_intel_on_droplet.py --postclose-pack`
   - Synced location: `droplet_sync/YYYY-MM-DD/analysis_packs/YYYY-MM-DD/`
 
+### 4.20 Telemetry Completeness + Equalizer Contracts (v2-only, additive)
+These invariants define what “complete telemetry” means for v2 shadow promotion decisions.
+
+#### 4.20.1 Read-only + v1-safe (non-negotiable)
+- Telemetry builders MUST be **read-only** (no trading logic changes, no order placement, no state mutation beyond writing into `telemetry/YYYY-MM-DD/`).
+- Telemetry builders MUST be **idempotent** for a given date (same inputs → same outputs).
+- Telemetry builders MUST be **best-effort**: missing inputs are recorded; bundle still generates.
+
+#### 4.20.2 Required daily telemetry bundle (droplet-source-of-truth)
+Generator:
+- `scripts/run_full_telemetry_extract.py --date YYYY-MM-DD`
+
+Required output folder:
+- `telemetry/YYYY-MM-DD/`
+
+Required output files:
+- `telemetry/YYYY-MM-DD/FULL_TELEMETRY_YYYY-MM-DD.md`
+- `telemetry/YYYY-MM-DD/telemetry_manifest.json`
+- `telemetry/YYYY-MM-DD/computed/` containing:
+  - `feature_equalizer_builder.json`
+  - `long_short_analysis.json`
+  - `exit_intel_completeness.json`
+  - `feature_value_curves.json`
+  - `regime_sector_feature_matrix.json`
+  - `shadow_vs_live_parity.json`
+
+#### 4.20.3 Exit-intel completeness invariants
+Exit attribution records (`logs/exit_attribution.jsonl`) are considered “complete enough for debugging” when:
+- Top-level keys exist (best-effort):
+  - `pnl`, `pnl_pct`, `entry_price`, `exit_price`, `qty`, `time_in_trade_minutes`
+  - `entry_regime`, `exit_regime`
+  - `entry_sector_profile`, `exit_sector_profile`
+  - `v2_exit_score`, `v2_exit_components`
+- `v2_exit_components` includes the following keys (best-effort; tracked as missing when absent):
+  - `vol_expansion`, `regime_shift`, `sector_shift`
+  - `flow_deterioration`, `darkpool_deterioration`, `sentiment_deterioration`
+  - `score_deterioration`
+
+Rule:
+- Missing fields MUST NOT crash telemetry generation; they MUST be counted and reported in `exit_intel_completeness.json`.
+
+#### 4.20.4 Long/short asymmetry invariants
+Telemetry MUST compute, at minimum:
+- win-rate, avg PnL, avg win, avg loss, expectancy for:
+  - overall
+  - long-only
+  - short-only
+
+#### 4.20.5 Feature equalizer invariants
+Telemetry MUST produce “equalizer-ready” structures mapping feature strength to realized outcomes:
+- Per-feature realized PnL summaries (overall + by long/short) using v2 shadow exits only.
+- Per-feature value curves (binned/quantiled) with counts per bin and avg realized PnL per bin.
+- Regime-aware and sector-aware feature summaries (matrix output).
+
+#### 4.20.6 Replacement logic telemetry invariants
+Telemetry MUST capture replacement behavior (best-effort):
+- replacement exit counts
+- replacement candidate symbol (if present)
+- replacement reasoning blob (if present)
+
+#### 4.20.7 Shadow vs live parity invariants
+Telemetry MUST attempt a daily parity check when v1 trade logs are present:
+- overlap of symbols between v1 executed trades and v2 shadow entries/candidates
+- if v1 logs are missing, telemetry MUST state “parity unavailable” explicitly
+
 ### 4.3 Missing/Empty/Corrupt Cache Behavior
 If the cache is missing, empty, or corrupted:
 - engine MUST continue running  

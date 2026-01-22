@@ -117,6 +117,31 @@ def _read_json(path: Path) -> Any:
         return None
 
 
+def _write_json(path: Path, obj: Any) -> bytes:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    b = (json.dumps(obj, indent=2, sort_keys=True, default=str) + "\n").encode("utf-8", errors="replace")
+    path.write_bytes(b)
+    return b
+
+
+def _clean_dir_files(p: Path) -> None:
+    """
+    Best-effort: remove files under p (non-recursive).
+    Used only inside telemetry output folders to keep runs idempotent.
+    """
+    try:
+        if not p.exists() or not p.is_dir():
+            return
+        for child in p.iterdir():
+            try:
+                if child.is_file():
+                    child.unlink()
+            except Exception:
+                continue
+    except Exception:
+        return
+
+
 def _iter_jsonl(path: Path) -> Iterable[Dict[str, Any]]:
     if not path.exists():
         return
@@ -494,6 +519,7 @@ def _render_master_md(
     source_meta: Dict[str, Any],
     health: Dict[str, Any],
     shadow: Dict[str, Any],
+    computed: Dict[str, Any],
     universe: Dict[str, Any],
     intel: Dict[str, Any],
     tails: Dict[str, str],
@@ -568,6 +594,20 @@ def _render_master_md(
             lines.append(f"- **{r.get('symbol')}** → replacement_candidate={r.get('replacement_candidate')}")
     lines.append("")
 
+    # Long/short asymmetry summary (computed)
+    ls = computed.get("long_short_analysis") if isinstance(computed.get("long_short_analysis"), dict) else {}
+    if ls:
+        lines.append("### Long vs short asymmetry (realized shadow exits)")
+        for k in ("overall", "long", "short"):
+            g = ls.get(k) if isinstance(ls.get(k), dict) else {}
+            if not g:
+                continue
+            lines.append(
+                f"- **{k}**: n={g.get('count')} win_rate={g.get('win_rate')} "
+                f"avg_pnl_usd={g.get('avg_pnl_usd')} expectancy_usd={g.get('expectancy_usd')}"
+            )
+        lines.append("")
+
     lines.append("## 3. Entry Intelligence")
     lines.append(f"- UW feature usage (non-zero adjustments counts): **{shadow.get('uw_feature_usage_counts',{})}**")
     # Sector / regime alignment at entry (best-effort)
@@ -595,6 +635,13 @@ def _render_master_md(
     lines.append(f"- Exit score stats (v2_exit_score): **{_basic_stats(exit_scores)}**")
     lines.append(f"- Score deterioration stats (entry_v2_score - exit_v2_score): **{_basic_stats(det)}**")
     lines.append(f"- Exit reasons distribution: **{shadow.get('exit_reasons_distribution',{})}**")
+    excomp = computed.get("exit_intel_completeness") if isinstance(computed.get("exit_intel_completeness"), dict) else {}
+    if excomp:
+        cnts = excomp.get("counts") if isinstance(excomp.get("counts"), dict) else {}
+        lines.append(
+            f"- Exit intel completeness: complete_rate={cnts.get('complete_rate')} "
+            f"(complete={cnts.get('complete_records')} / total={cnts.get('exit_attribution_records')})"
+        )
     lines.append("")
 
     lines.append("## 5. PnL Analysis")
@@ -628,6 +675,20 @@ def _render_master_md(
     lines.append((tails.get("exit_attribution_tail") or "").strip() or "(missing)")
     lines.append("```")
     lines.append("")
+
+    # Feature equalizer summary (computed)
+    feq = computed.get("feature_equalizer") if isinstance(computed.get("feature_equalizer"), dict) else {}
+    if feq:
+        feats = feq.get("features") if isinstance(feq.get("features"), dict) else {}
+        lines.append("## 6b. Feature Equalizer Snapshot (shadow-only, realized)")
+        if not feats:
+            lines.append("- No feature-level stats available (no realized exits with attribution).")
+        else:
+            # Top 6 features by sample count
+            ranked = sorted(feats.items(), key=lambda kv: int((kv[1] or {}).get("count") or 0), reverse=True)
+            for name, st in ranked[:6]:
+                lines.append(f"- **{name}**: n={st.get('count')} win_rate={st.get('win_rate')} avg_pnl_usd={st.get('avg_pnl_usd')}")
+        lines.append("")
 
     lines.append("## 7. Health & Reliability")
     lines.append(f"- Daemon health summary: `{health.get('daemon_health',{})}`")
@@ -680,6 +741,20 @@ def _render_master_md(
     lines.append(f"- Regime state: {intel.get('regime_label','')}, conf={intel.get('regime_confidence')}")
     lines.append("")
 
+    # Parity summary (computed)
+    parity = computed.get("shadow_vs_live_parity") if isinstance(computed.get("shadow_vs_live_parity"), dict) else {}
+    if parity:
+        lines.append("## Shadow vs live parity (best-effort)")
+        notes = parity.get("notes") if isinstance(parity.get("notes"), dict) else {}
+        counts = parity.get("counts") if isinstance(parity.get("counts"), dict) else {}
+        lines.append(f"- Parity available: **{notes.get('parity_available')}**")
+        lines.append(f"- v1 unique symbols today: **{counts.get('v1_unique_symbols_today')}**")
+        lines.append(f"- v2 candidate symbols today: **{counts.get('shadow_candidate_symbols_today')}**")
+        ov = parity.get("overlap") if isinstance(parity.get("overlap"), dict) else {}
+        if isinstance(ov.get("v1_vs_shadow_candidates_symbols"), list):
+            lines.append(f"- Overlap symbols (v1 vs shadow candidates): **{len(ov.get('v1_vs_shadow_candidates_symbols') or [])}**")
+        lines.append("")
+
     lines.append("## Bundle contents (high-level)")
     lines.append(f"- Copied files: **{len([x for x in copied_files if x.kind in ('state','logs','reports')])}**")
     trunc = [x for x in copied_files if x.truncated]
@@ -718,6 +793,8 @@ def main() -> int:
     _ensure_dir(out_dir / "state")
     _ensure_dir(out_dir / "logs")
     _ensure_dir(out_dir / "reports")
+    _ensure_dir(out_dir / "computed")
+    _clean_dir_files(out_dir / "computed")
 
     copied: List[CopiedFile] = []
     missing: Dict[str, List[str]] = {"state": [], "logs": [], "reports": []}
@@ -833,11 +910,76 @@ def main() -> int:
         "date": day,
     }
 
+    # Additional computed telemetry artifacts (equalizer-ready)
+    # NOTE: imports happen here (after sys.path injection) to avoid ModuleNotFoundError
+    # when executing this script directly.
+    from telemetry.exit_intel_completeness import build_exit_intel_completeness  # type: ignore
+    from telemetry.feature_equalizer_builder import build_feature_equalizer  # type: ignore
+    from telemetry.feature_value_curves import build_feature_value_curves  # type: ignore
+    from telemetry.long_short_analysis import build_long_short_analysis  # type: ignore
+    from telemetry.regime_sector_feature_matrix import build_regime_sector_feature_matrix  # type: ignore
+    from telemetry.shadow_vs_live_parity import build_shadow_vs_live_parity  # type: ignore
+
+    exit_attrib_today: List[Dict[str, Any]] = []
+    for rec in _iter_jsonl(ROOT / "logs" / "exit_attribution.jsonl"):
+        ts = rec.get("timestamp") or rec.get("ts")
+        if _utc_day_from_ts(ts) == day:
+            exit_attrib_today.append(rec)
+
+    # v1 attribution log (best-effort parity input)
+    v1_attrib_path = ROOT / "logs" / "attribution.jsonl"
+    computed: Dict[str, Any] = {}
+    try:
+        computed["feature_equalizer"] = build_feature_equalizer(day=day, realized_trades=shadow.get("realized_trades") or [])
+    except Exception as e:
+        computed["feature_equalizer"] = {"error": str(e)}
+    try:
+        computed["long_short_analysis"] = build_long_short_analysis(day=day, realized_trades=shadow.get("realized_trades") or [])
+    except Exception as e:
+        computed["long_short_analysis"] = {"error": str(e)}
+    try:
+        computed["exit_intel_completeness"] = build_exit_intel_completeness(day=day, exit_attrib_recs=exit_attrib_today)
+    except Exception as e:
+        computed["exit_intel_completeness"] = {"error": str(e)}
+    try:
+        computed["feature_value_curves"] = build_feature_value_curves(day=day, realized_trades=shadow.get("realized_trades") or [])
+    except Exception as e:
+        computed["feature_value_curves"] = {"error": str(e)}
+    try:
+        computed["regime_sector_feature_matrix"] = build_regime_sector_feature_matrix(day=day, realized_trades=shadow.get("realized_trades") or [])
+    except Exception as e:
+        computed["regime_sector_feature_matrix"] = {"error": str(e)}
+    try:
+        computed["shadow_vs_live_parity"] = build_shadow_vs_live_parity(
+            day=day,
+            v1_attribution_log_path=str(v1_attrib_path),
+            shadow_trades_log_path=str(ROOT / "logs" / "shadow_trades.jsonl"),
+        )
+    except Exception as e:
+        computed["shadow_vs_live_parity"] = {"error": str(e)}
+
+    # Persist computed artifacts into bundle folder
+    computed_files: Dict[str, str] = {}
+    filename_map = {
+        "feature_equalizer": "feature_equalizer_builder.json",
+        "long_short_analysis": "long_short_analysis.json",
+        "exit_intel_completeness": "exit_intel_completeness.json",
+        "feature_value_curves": "feature_value_curves.json",
+        "regime_sector_feature_matrix": "regime_sector_feature_matrix.json",
+        "shadow_vs_live_parity": "shadow_vs_live_parity.json",
+    }
+    for name, obj in computed.items():
+        fp = out_dir / "computed" / filename_map.get(name, f"{name}.json")
+        _write_json(fp, obj)
+        copied.append(CopiedFile(kind="generated", source="", dest=str(fp.as_posix()), bytes=fp.stat().st_size, sha256=_sha256_file(fp)))
+        computed_files[name] = str(fp.as_posix())
+
     master = _render_master_md(
         day=day,
         source_meta=source_meta,
         health=health,
         shadow=shadow,
+        computed=computed,
         universe=universe_summary,
         intel=intel_summary,
         tails=tails,
@@ -851,16 +993,22 @@ def main() -> int:
     manifest = {
         "_meta": source_meta,
         "bundle_dir": str(out_dir.as_posix()),
-        "copied_files": [cf.__dict__ for cf in copied if cf.kind != "generated" or cf.dest.endswith(".md")],
+        "copied_files": [cf.__dict__ for cf in copied],
         "computed": {
             "shadow": shadow,
             "health": health,
+            "feature_equalizer": computed.get("feature_equalizer"),
+            "long_short_analysis": computed.get("long_short_analysis"),
+            "exit_intel_completeness": computed.get("exit_intel_completeness"),
+            "feature_value_curves": computed.get("feature_value_curves"),
+            "regime_sector_feature_matrix": computed.get("regime_sector_feature_matrix"),
+            "shadow_vs_live_parity": computed.get("shadow_vs_live_parity"),
+            "computed_files": computed_files,
         },
         "missing": missing,
     }
     man_path = out_dir / "telemetry_manifest.json"
-    man_bytes = (json.dumps(manifest, indent=2, sort_keys=True, default=str) + "\n").encode("utf-8")
-    man_path.write_bytes(man_bytes)
+    man_bytes = _write_json(man_path, manifest)
 
     # Add manifest to copied list (for completeness)
     copied.append(
