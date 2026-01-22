@@ -144,12 +144,13 @@ def build_feature_equalizer(*, day: str, realized_trades: List[Dict[str, Any]]) 
 
             # Score evolution curve point
             tmin = _safe_float(t.get("time_in_trade_minutes"))
+            tmin_n = float(tmin) if tmin is not None else 0.0
             ev = _safe_float(t.get("entry_v2_score"))
             xv = _safe_float(t.get("exit_v2_score"))
             if ev is not None and xv is not None:
                 score_evolution_points.append(
                     {
-                        "time_in_trade_minutes": tmin,
+                        "time_in_trade_minutes": tmin_n,
                         "entry_v2_score": float(ev),
                         "exit_v2_score": float(xv),
                         "delta_v2_score": float(ev) - float(xv),
@@ -158,7 +159,7 @@ def build_feature_equalizer(*, day: str, realized_trades: List[Dict[str, Any]]) 
                     }
                 )
             if vol_exp is not None:
-                vol_expansion_points.append({"time_in_trade_minutes": tmin, "vol_expansion": float(vol_exp), "pnl_usd": pnl, "side": side})
+                vol_expansion_points.append({"time_in_trade_minutes": tmin_n, "vol_expansion": float(vol_exp), "pnl_usd": pnl, "side": side})
 
             # Alignment drift (entry vs exit)
             ent_inputs = _entry_inputs(attrib)
@@ -231,15 +232,15 @@ def build_feature_equalizer(*, day: str, realized_trades: List[Dict[str, Any]]) 
                 "count": cnt,
                 "win": int(st["win"]),
                 "loss": int(st["loss"]),
-                "win_rate": (int(st["win"]) / float(cnt)) if cnt else None,
+                "win_rate": (int(st["win"]) / float(cnt)) if cnt else 0.0,
                 "total_pnl_usd": tot,
-                "avg_pnl_usd": (tot / float(cnt)) if cnt else None,
+                "avg_pnl_usd": (tot / float(cnt)) if cnt else 0.0,
                 "by_side": {
                     s: {
                         "count": int(st["by_side"][s]["count"]),
                         "total_pnl_usd": float(st["by_side"][s]["total_pnl_usd"]),
-                        "avg_pnl_usd": (float(st["by_side"][s]["total_pnl_usd"]) / float(st["by_side"][s]["count"])) if st["by_side"][s]["count"] else None,
-                        "win_rate": (int(st["by_side"][s]["win"]) / float(st["by_side"][s]["count"])) if st["by_side"][s]["count"] else None,
+                        "avg_pnl_usd": (float(st["by_side"][s]["total_pnl_usd"]) / float(st["by_side"][s]["count"])) if st["by_side"][s]["count"] else 0.0,
+                        "win_rate": (int(st["by_side"][s]["win"]) / float(st["by_side"][s]["count"])) if st["by_side"][s]["count"] else 0.0,
                     }
                     for s in ("long", "short")
                 },
@@ -249,10 +250,10 @@ def build_feature_equalizer(*, day: str, realized_trades: List[Dict[str, Any]]) 
         for feat, st in per_feature_exit.items():
             out_exit[feat] = {
                 "count": int(st["count"]),
-                "avg_v2_exit_score": (float(st["avg_v2_exit_score_sum"]) / float(st["avg_v2_exit_score_n"])) if st["avg_v2_exit_score_n"] else None,
-                "avg_score_deterioration": (float(st["avg_score_det_sum"]) / float(st["avg_score_det_n"])) if st["avg_score_det_n"] else None,
-                "avg_relative_strength_deterioration": (float(st["avg_rs_det_sum"]) / float(st["avg_rs_det_n"])) if st["avg_rs_det_n"] else None,
-                "avg_vol_expansion": (float(st["avg_vol_exp_sum"]) / float(st["avg_vol_exp_n"])) if st["avg_vol_exp_n"] else None,
+                "avg_v2_exit_score": (float(st["avg_v2_exit_score_sum"]) / float(st["avg_v2_exit_score_n"])) if st["avg_v2_exit_score_n"] else 0.0,
+                "avg_score_deterioration": (float(st["avg_score_det_sum"]) / float(st["avg_score_det_n"])) if st["avg_score_det_n"] else 0.0,
+                "avg_relative_strength_deterioration": (float(st["avg_rs_det_sum"]) / float(st["avg_rs_det_n"])) if st["avg_rs_det_n"] else 0.0,
+                "avg_vol_expansion": (float(st["avg_vol_exp_sum"]) / float(st["avg_vol_exp_n"])) if st["avg_vol_exp_n"] else 0.0,
             }
 
         # Replacement telemetry (best-effort)

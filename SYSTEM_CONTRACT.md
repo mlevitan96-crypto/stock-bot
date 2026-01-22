@@ -346,6 +346,11 @@ Required output files:
   - `feature_value_curves.json`
   - `regime_sector_feature_matrix.json`
   - `shadow_vs_live_parity.json`
+  - `entry_parity_details.json`
+  - `score_distribution_curves.json`
+  - `regime_timeline.json`
+  - `feature_family_summary.json`
+  - `replacement_telemetry_expanded.json`
 
 #### 4.20.3 Exit-intel completeness invariants
 Exit attribution records (`logs/exit_attribution.jsonl`) are considered “complete enough for debugging” when:
@@ -385,6 +390,36 @@ Telemetry MUST capture replacement behavior (best-effort):
 Telemetry MUST attempt a daily parity check when v1 trade logs are present:
 - overlap of symbols between v1 executed trades and v2 shadow entries/candidates
 - if v1 logs are missing, telemetry MUST state “parity unavailable” explicitly
+
+#### 4.20.8 Regression Enforcement Rule (binding)
+**Regression MUST fail if any computed artifact or required key is missing, malformed, or empty.**
+
+### 4.21 Parity Requirements (expanded schema) (additive)
+Telemetry MUST produce:
+
+- `telemetry/YYYY-MM-DD/computed/shadow_vs_live_parity.json` with:
+  - `overlap.*` symbol overlap (v1 vs shadow candidates/entries)
+  - `entry_parity.allowed_classifications` including:
+    - `perfect_match`, `near_match`, `divergent`, `missing_in_v1`, `missing_in_v2`
+  - `entry_parity.rows[]` rows containing:
+    - `symbol`
+    - `v1_entry_ts`, `v2_entry_ts`
+    - `entry_ts_delta_seconds`
+    - `v1_score_at_entry`, `v2_score_at_entry`, `score_delta`
+    - `v1_price_at_entry`, `v2_price_at_entry`, `price_delta_usd`
+    - `classification` (must be one of the allowed values)
+    - `missing_fields` (best-effort)
+    - `feature_family` (telemetry-only grouping)
+  - `aggregate_metrics` containing:
+    - `mean_entry_ts_delta_seconds`, `mean_score_delta`, `mean_price_delta_usd`, `match_rate`, `matched_pairs`
+  - `notes.parity_available` true/false
+
+- `telemetry/YYYY-MM-DD/computed/entry_parity_details.json` with:
+  - `rows[]` containing the same per-entry parity row schema as above (full detail rows).
+
+Rules:
+- Missing v1 logs MUST NOT crash telemetry generation.
+- Parity MUST be computed from existing logs only (no schema changes to v1 attribution or v2 shadow logs).
 
 ### 4.3 Missing/Empty/Corrupt Cache Behavior
 If the cache is missing, empty, or corrupted:

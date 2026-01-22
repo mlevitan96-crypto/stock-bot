@@ -38,13 +38,11 @@ def _compute_group(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     wins = [p for p in pnls if p > 0]
     losses = [p for p in pnls if p < 0]
     n = len(pnls)
-    win_rate = (len(wins) / float(n)) if n else None
-    avg_pnl = (sum(pnls) / float(n)) if n else None
-    avg_win = (sum(wins) / float(len(wins))) if wins else None
-    avg_loss = (sum(losses) / float(len(losses))) if losses else None
-    expectancy = None
-    if win_rate is not None and avg_win is not None and avg_loss is not None:
-        expectancy = (win_rate * avg_win) + ((1.0 - win_rate) * avg_loss)
+    win_rate = (len(wins) / float(n)) if n else 0.0
+    avg_pnl = (sum(pnls) / float(n)) if n else 0.0
+    avg_win = (sum(wins) / float(len(wins))) if wins else 0.0
+    avg_loss = (sum(losses) / float(len(losses))) if losses else 0.0
+    expectancy = (win_rate * avg_win) + ((1.0 - win_rate) * avg_loss) if n else 0.0
     return {
         "count": n,
         "win_count": len(wins),

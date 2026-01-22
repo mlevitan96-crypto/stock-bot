@@ -85,7 +85,7 @@ def build_regime_sector_feature_matrix(*, day: str, realized_trades: List[Dict[s
             out[rk][sk]["_cell"] = {
                 "count": cell_total[(regime, sector)]["count"],
                 "total_pnl_usd": cell_total[(regime, sector)]["total_pnl_usd"],
-                "avg_pnl_usd": (cell_total[(regime, sector)]["total_pnl_usd"] / float(cell_total[(regime, sector)]["count"])) if cell_total[(regime, sector)]["count"] else None,
+                "avg_pnl_usd": (cell_total[(regime, sector)]["total_pnl_usd"] / float(cell_total[(regime, sector)]["count"])) if cell_total[(regime, sector)]["count"] else 0.0,
             }
             for feat, st in feats.items():
                 cnt = int(st.get("count") or 0)
@@ -93,8 +93,8 @@ def build_regime_sector_feature_matrix(*, day: str, realized_trades: List[Dict[s
                 out[rk][sk]["features"][feat] = {
                     "count": cnt,
                     "total_pnl_usd": tot,
-                    "avg_pnl_usd": (tot / float(cnt)) if cnt else None,
-                    "avg_input": (float(st.get("avg_input_sum") or 0.0) / float(st.get("avg_input_count") or 1)) if (st.get("avg_input_count") or 0) else None,
+                    "avg_pnl_usd": (tot / float(cnt)) if cnt else 0.0,
+                    "avg_input": (float(st.get("avg_input_sum") or 0.0) / float(st.get("avg_input_count") or 1)) if (st.get("avg_input_count") or 0) else 0.0,
                 }
 
         return {

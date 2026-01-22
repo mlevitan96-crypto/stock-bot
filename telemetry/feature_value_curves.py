@@ -97,7 +97,7 @@ def _bin_stats(points: List[Tuple[float, float]], bins: List[Tuple[float, float]
     for lo, hi in bins:
         ys = [pnl for (x, pnl) in points if (x >= lo and x <= hi)]
         if not ys:
-            out.append({"x_lo": lo, "x_hi": hi, "count": 0, "avg_pnl_usd": None, "total_pnl_usd": 0.0})
+            out.append({"x_lo": lo, "x_hi": hi, "count": 0, "avg_pnl_usd": 0.0, "total_pnl_usd": 0.0})
             continue
         out.append(
             {
@@ -139,12 +139,13 @@ def build_feature_value_curves(
         curves: Dict[str, Any] = {}
         for feat, pts in points_by_feature.items():
             xs = [x for (x, _p) in pts]
-            b = _quantile_bins(xs, bins=bins) if xs else []
+            # Ensure non-empty bins and non-empty arrays even when no points exist.
+            b = _quantile_bins(xs, bins=bins) if xs else [(0.0, 0.0)]
             curves[feat] = {
                 "bins": bins,
-                "overall": _bin_stats(pts, b) if b else [],
-                "long": _bin_stats(points_by_feature_side[feat]["long"], b) if b else [],
-                "short": _bin_stats(points_by_feature_side[feat]["short"], b) if b else [],
+                "overall": _bin_stats(pts, b),
+                "long": _bin_stats(points_by_feature_side[feat]["long"], b),
+                "short": _bin_stats(points_by_feature_side[feat]["short"], b),
                 "point_count": len(pts),
             }
 

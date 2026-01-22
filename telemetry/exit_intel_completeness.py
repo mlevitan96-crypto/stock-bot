@@ -97,7 +97,7 @@ def build_exit_intel_completeness(*, day: str, exit_attrib_recs: List[Dict[str, 
             top_level_completeness[k] = {
                 "present": present_n,
                 "missing": missing_n,
-                "present_rate": (present_n / float(total)) if total else None,
+                "present_rate": (present_n / float(total)) if total else 0.0,
             }
 
         component_completeness = {}
@@ -107,7 +107,7 @@ def build_exit_intel_completeness(*, day: str, exit_attrib_recs: List[Dict[str, 
             component_completeness[k] = {
                 "present": present_n,
                 "missing": missing_n,
-                "present_rate": (present_n / float(total)) if total else None,
+                "present_rate": (present_n / float(total)) if total else 0.0,
             }
 
         # Overall completeness: count record as complete if all required components present
@@ -129,7 +129,7 @@ def build_exit_intel_completeness(*, day: str, exit_attrib_recs: List[Dict[str, 
             "counts": {
                 "exit_attribution_records": total,
                 "complete_records": int(complete_records),
-                "complete_rate": (complete_records / float(total)) if total else None,
+                "complete_rate": (complete_records / float(total)) if total else 0.0,
             },
             "required_top_level_keys": list(REQUIRED_TOP_LEVEL_KEYS),
             "required_exit_component_keys": list(REQUIRED_EXIT_COMPONENT_KEYS),

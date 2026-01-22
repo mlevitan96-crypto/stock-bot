@@ -548,6 +548,32 @@ def _render_master_md(
         lines.append(f"- Intel health checks: **{ih.get('status_counts',{})}** (n={ih.get('check_count',0)})")
     lines.append("")
 
+    # Computed artifacts index
+    desc = {
+        "feature_equalizer_builder.json": "Equalizer-ready per-feature realized outcome summaries.",
+        "long_short_analysis.json": "Long vs short expectancy stats from realized shadow exits.",
+        "exit_intel_completeness.json": "Exit attribution completeness + missing-key counts.",
+        "feature_value_curves.json": "Per-feature value curves (binned) vs realized PnL.",
+        "regime_sector_feature_matrix.json": "Regime/Sector → per-feature realized PnL matrix.",
+        "shadow_vs_live_parity.json": "Shadow vs live entry-time parity (score/price/time) + aggregates.",
+        "entry_parity_details.json": "Full per-entry parity rows (v1 vs v2) with deltas + classification.",
+        "score_distribution_curves.json": "Score histograms + delta histograms by feature family (long/short split).",
+        "regime_timeline.json": "Hourly (UTC) regime/posture timeline (best-effort) + day summary.",
+        "feature_family_summary.json": "Per-family parity deltas + realized EV contribution + stability.",
+        "replacement_telemetry_expanded.json": "Replacement rates by feature/family + cause histogram + anomaly flag.",
+    }
+    computed_files = [
+        x for x in copied_files if x.kind == "generated" and "/computed/" in str(x.dest) and str(x.dest).endswith(".json")
+    ]
+    lines.append("## 1b. Computed Artifacts Index")
+    if not computed_files:
+        lines.append("- None (computed artifacts missing).")
+    else:
+        for cf in sorted(computed_files, key=lambda c: str(c.dest)):
+            name = str(cf.dest).split("/")[-1]
+            lines.append(f"- `{name}` — {desc.get(name, 'Computed telemetry artifact.')}")
+    lines.append("")
+
     lines.append("## 2. v2 Shadow Trading Summary")
     c = shadow.get("counts") or {}
     lines.append(f"- Entries (opened): **{c.get('shadow_entries_opened_today',0)}**")
@@ -643,6 +669,39 @@ def _render_master_md(
             f"(complete={cnts.get('complete_records')} / total={cnts.get('exit_attribution_records')})"
         )
     lines.append("")
+
+    # Feature value curve highlights (computed)
+    fvc = computed.get("feature_value_curves") if isinstance(computed.get("feature_value_curves"), dict) else {}
+    if fvc and isinstance(fvc.get("features"), dict):
+        lines.append("## 4b. Feature Value Curve Highlights")
+        for feat, fb in list((fvc.get("features") or {}).items())[:50]:
+            if not isinstance(fb, dict):
+                continue
+            bins = fb.get("overall") if isinstance(fb.get("overall"), list) else []
+            if not bins:
+                continue
+            best = max(bins, key=lambda r: float((r or {}).get("avg_pnl_usd") or 0.0))
+            worst = min(bins, key=lambda r: float((r or {}).get("avg_pnl_usd") or 0.0))
+            # crude monotonicity: fraction of adjacent deltas matching overall slope
+            ys = [float((r or {}).get("avg_pnl_usd") or 0.0) for r in bins]
+            slope = ys[-1] - ys[0] if ys else 0.0
+            good = 0
+            tot = 0
+            for i in range(1, len(ys)):
+                dy = ys[i] - ys[i - 1]
+                if dy == 0:
+                    continue
+                tot += 1
+                if slope >= 0 and dy > 0:
+                    good += 1
+                if slope < 0 and dy < 0:
+                    good += 1
+            mono = (good / float(tot)) if tot else 0.0
+            lines.append(
+                f"- **{feat}** best[{best.get('x_lo')},{best.get('x_hi')}] avg_pnl_usd={best.get('avg_pnl_usd')} | "
+                f"worst[{worst.get('x_lo')},{worst.get('x_hi')}] avg_pnl_usd={worst.get('avg_pnl_usd')} | monotonicity={round(mono,3)}"
+            )
+        lines.append("")
 
     lines.append("## 5. PnL Analysis")
     lines.append("### PnL by symbol (USD)")
@@ -741,18 +800,94 @@ def _render_master_md(
     lines.append(f"- Regime state: {intel.get('regime_label','')}, conf={intel.get('regime_confidence')}")
     lines.append("")
 
-    # Parity summary (computed)
+    # Regime/sector matrix highlights (computed)
+    rsm = computed.get("regime_sector_feature_matrix") if isinstance(computed.get("regime_sector_feature_matrix"), dict) else {}
+    if rsm and isinstance(rsm.get("matrix"), dict):
+        lines.append("## Regime/Sector Matrix Highlights")
+        best_cell = None
+        worst_cell = None
+        for reg, sectors in (rsm.get("matrix") or {}).items():
+            if not isinstance(sectors, dict):
+                continue
+            for sec, cell in sectors.items():
+                if not isinstance(cell, dict):
+                    continue
+                ccell = cell.get("_cell") if isinstance(cell.get("_cell"), dict) else {}
+                key = (str(reg), str(sec))
+                row = {"key": key, **ccell}
+                if best_cell is None or float(row.get("total_pnl_usd") or 0.0) > float(best_cell.get("total_pnl_usd") or 0.0):
+                    best_cell = row
+                if worst_cell is None or float(row.get("total_pnl_usd") or 0.0) < float(worst_cell.get("total_pnl_usd") or 0.0):
+                    worst_cell = row
+        if best_cell:
+            lines.append(f"- Strongest cell: **{best_cell.get('key')}** total_pnl_usd={best_cell.get('total_pnl_usd')} count={best_cell.get('count')}")
+        if worst_cell:
+            lines.append(f"- Weakest cell: **{worst_cell.get('key')}** total_pnl_usd={worst_cell.get('total_pnl_usd')} count={worst_cell.get('count')}")
+        lines.append("")
+
+    # Entry-time parity summary (computed)
     parity = computed.get("shadow_vs_live_parity") if isinstance(computed.get("shadow_vs_live_parity"), dict) else {}
     if parity:
-        lines.append("## Shadow vs live parity (best-effort)")
+        lines.append("## Entry-Time Parity Summary")
         notes = parity.get("notes") if isinstance(parity.get("notes"), dict) else {}
-        counts = parity.get("counts") if isinstance(parity.get("counts"), dict) else {}
+        agg = parity.get("aggregate_metrics") if isinstance(parity.get("aggregate_metrics"), dict) else {}
         lines.append(f"- Parity available: **{notes.get('parity_available')}**")
-        lines.append(f"- v1 unique symbols today: **{counts.get('v1_unique_symbols_today')}**")
-        lines.append(f"- v2 candidate symbols today: **{counts.get('shadow_candidate_symbols_today')}**")
-        ov = parity.get("overlap") if isinstance(parity.get("overlap"), dict) else {}
-        if isinstance(ov.get("v1_vs_shadow_candidates_symbols"), list):
-            lines.append(f"- Overlap symbols (v1 vs shadow candidates): **{len(ov.get('v1_vs_shadow_candidates_symbols') or [])}**")
+        lines.append(f"- Match rate (perfect|near): **{agg.get('match_rate')}** (pairs={agg.get('matched_pairs')})")
+        lines.append(f"- Mean ts delta (s): **{agg.get('mean_entry_ts_delta_seconds')}**")
+        lines.append(f"- Mean score delta (v2-v1): **{agg.get('mean_score_delta')}**")
+        lines.append(f"- Mean price delta (USD): **{agg.get('mean_price_delta_usd')}**")
+        # Top divergences (by abs score delta then abs price delta)
+        try:
+            rows = []
+            ep = parity.get("entry_parity") if isinstance(parity.get("entry_parity"), dict) else {}
+            if isinstance(ep.get("rows"), list):
+                rows = [r for r in ep.get("rows") if isinstance(r, dict)]
+            rows2 = sorted(
+                rows,
+                key=lambda r: (abs(float(r.get("score_delta") or 0.0)), abs(float(r.get("price_delta_usd") or 0.0))),
+                reverse=True,
+            )
+            if rows2:
+                lines.append("- Top divergences (by |score_delta|, |price_delta_usd|):")
+                for r in rows2[:10]:
+                    lines.append(
+                        f"  - **{r.get('symbol')}** cls={r.get('classification')} "
+                        f"ts_delta_s={r.get('entry_ts_delta_seconds')} score_delta={r.get('score_delta')} price_delta_usd={r.get('price_delta_usd')}"
+                    )
+        except Exception:
+            pass
+        lines.append("")
+
+    # Score distribution summary (computed)
+    sdc = computed.get("score_distribution_curves") if isinstance(computed.get("score_distribution_curves"), dict) else {}
+    if sdc and isinstance(sdc.get("families"), dict):
+        lines.append("## Score Distribution Summary")
+        # report a couple of high-signal families
+        for fam in ("flow", "darkpool", "alignment"):
+            fam_block = (sdc.get("families") or {}).get(fam) if isinstance((sdc.get("families") or {}).get(fam), dict) else {}
+            overall = fam_block.get("overall") if isinstance(fam_block.get("overall"), dict) else {}
+            delta_hist = overall.get("score_delta_hist") if isinstance(overall.get("score_delta_hist"), dict) else {}
+            lines.append(f"- **{fam}** delta_hist.n={delta_hist.get('n')} bins={len(delta_hist.get('counts') or [])}")
+        lines.append("")
+
+    # Replacement telemetry summary (computed)
+    rte = computed.get("replacement_telemetry_expanded") if isinstance(computed.get("replacement_telemetry_expanded"), dict) else {}
+    if rte:
+        lines.append("## Replacement Telemetry Summary")
+        cnts = rte.get("counts") if isinstance(rte.get("counts"), dict) else {}
+        lines.append(f"- Replacement rate: **{cnts.get('replacement_rate')}** (repl={cnts.get('replacement_trades')} / total={cnts.get('realized_trades')})")
+        lines.append(f"- Replacement anomaly detected: **{rte.get('replacement_anomaly_detected')}**")
+        # top replaced features (by rate, denom>=3)
+        pf = rte.get("per_feature_replacement_rate") if isinstance(rte.get("per_feature_replacement_rate"), dict) else {}
+        ranked = sorted(
+            [(k, v) for k, v in pf.items() if isinstance(v, dict)],
+            key=lambda kv: float((kv[1] or {}).get("replacement_rate") or 0.0),
+            reverse=True,
+        )
+        if ranked:
+            lines.append("- Top replaced features:")
+            for k, v in ranked[:10]:
+                lines.append(f"  - **{k}** rate={v.get('replacement_rate')} denom={v.get('denom')} numer={v.get('numer')}")
         lines.append("")
 
     lines.append("## Bundle contents (high-level)")
@@ -831,6 +966,7 @@ def main() -> int:
     log_targets = [
         # v1 live (optional)
         "logs/live_trades.jsonl",
+        "logs/attribution.jsonl",
         "logs/shadow_trades.jsonl",
         "logs/exit_attribution.jsonl",
         "logs/shadow.jsonl",
@@ -916,8 +1052,12 @@ def main() -> int:
     from telemetry.exit_intel_completeness import build_exit_intel_completeness  # type: ignore
     from telemetry.feature_equalizer_builder import build_feature_equalizer  # type: ignore
     from telemetry.feature_value_curves import build_feature_value_curves  # type: ignore
+    from telemetry.feature_family_summary import build_feature_family_summary  # type: ignore
     from telemetry.long_short_analysis import build_long_short_analysis  # type: ignore
     from telemetry.regime_sector_feature_matrix import build_regime_sector_feature_matrix  # type: ignore
+    from telemetry.regime_timeline import build_regime_timeline  # type: ignore
+    from telemetry.replacement_telemetry_expanded import build_replacement_telemetry_expanded  # type: ignore
+    from telemetry.score_distribution_curves import build_score_distribution_curves  # type: ignore
     from telemetry.shadow_vs_live_parity import build_shadow_vs_live_parity  # type: ignore
 
     exit_attrib_today: List[Dict[str, Any]] = []
@@ -958,6 +1098,54 @@ def main() -> int:
     except Exception as e:
         computed["shadow_vs_live_parity"] = {"error": str(e)}
 
+    # Derived from parity rows (separate required artifact)
+    parity_rows: List[Dict[str, Any]] = []
+    try:
+        parity_doc = computed.get("shadow_vs_live_parity")
+        if isinstance(parity_doc, dict):
+            ep = parity_doc.get("entry_parity") if isinstance(parity_doc.get("entry_parity"), dict) else {}
+            rows = ep.get("rows") if isinstance(ep.get("rows"), list) else []
+            parity_rows = [r for r in rows if isinstance(r, dict)]
+        computed["entry_parity_details"] = {
+            "_meta": {"date": str(day), "kind": "entry_parity_details", "version": "2026-01-22_v1"},
+            "rows": parity_rows,
+        }
+    except Exception as e:
+        computed["entry_parity_details"] = {"error": str(e), "rows": []}
+
+    try:
+        computed["score_distribution_curves"] = build_score_distribution_curves(day=day, entry_parity_rows=parity_rows)
+    except Exception as e:
+        computed["score_distribution_curves"] = {"error": str(e)}
+
+    try:
+        computed["regime_timeline"] = build_regime_timeline(
+            day=day,
+            v1_attribution_log_path=str(v1_attrib_path),
+            shadow_trades_log_path=str(ROOT / "logs" / "shadow_trades.jsonl"),
+            regime_state=regime_state if isinstance(regime_state, dict) else None,
+            posture_state=_read_json(ROOT / "state" / "regime_posture_state.json") if (ROOT / "state" / "regime_posture_state.json").exists() else None,
+            market_context=_read_json(ROOT / "state" / "market_context_v2.json") if (ROOT / "state" / "market_context_v2.json").exists() else None,
+        )
+    except Exception as e:
+        computed["regime_timeline"] = {"error": str(e)}
+
+    try:
+        computed["feature_family_summary"] = build_feature_family_summary(
+            day=day,
+            entry_parity_rows=parity_rows,
+            realized_trades=shadow.get("realized_trades") or [],
+        )
+    except Exception as e:
+        computed["feature_family_summary"] = {"error": str(e)}
+
+    try:
+        computed["replacement_telemetry_expanded"] = build_replacement_telemetry_expanded(
+            day=day, realized_trades=shadow.get("realized_trades") or []
+        )
+    except Exception as e:
+        computed["replacement_telemetry_expanded"] = {"error": str(e)}
+
     # Persist computed artifacts into bundle folder
     computed_files: Dict[str, str] = {}
     filename_map = {
@@ -967,6 +1155,11 @@ def main() -> int:
         "feature_value_curves": "feature_value_curves.json",
         "regime_sector_feature_matrix": "regime_sector_feature_matrix.json",
         "shadow_vs_live_parity": "shadow_vs_live_parity.json",
+        "entry_parity_details": "entry_parity_details.json",
+        "score_distribution_curves": "score_distribution_curves.json",
+        "regime_timeline": "regime_timeline.json",
+        "feature_family_summary": "feature_family_summary.json",
+        "replacement_telemetry_expanded": "replacement_telemetry_expanded.json",
     }
     for name, obj in computed.items():
         fp = out_dir / "computed" / filename_map.get(name, f"{name}.json")
@@ -1003,6 +1196,11 @@ def main() -> int:
             "feature_value_curves": computed.get("feature_value_curves"),
             "regime_sector_feature_matrix": computed.get("regime_sector_feature_matrix"),
             "shadow_vs_live_parity": computed.get("shadow_vs_live_parity"),
+            "entry_parity_details": computed.get("entry_parity_details"),
+            "score_distribution_curves": computed.get("score_distribution_curves"),
+            "regime_timeline": computed.get("regime_timeline"),
+            "feature_family_summary": computed.get("feature_family_summary"),
+            "replacement_telemetry_expanded": computed.get("replacement_telemetry_expanded"),
             "computed_files": computed_files,
         },
         "missing": missing,

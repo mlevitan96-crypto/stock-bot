@@ -18,6 +18,7 @@ import json
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -46,6 +47,7 @@ def main() -> int:
     base_env = dict(os.environ)
     base_env["UW_MOCK"] = "1"
     base_env["PYTHONIOENCODING"] = "utf-8"
+    telemetry_date = (os.environ.get("REGRESSION_TELEMETRY_DATE") or datetime.now(timezone.utc).strftime("%Y-%m-%d")).strip()
 
     # 0) UW spec integrity (must exist + load + sanity size)
     _run(
@@ -335,10 +337,10 @@ def main() -> int:
     _assert((pack_dir / "analysis_pack_2026-01-01.tar.gz").exists(), "postclose pack archive missing")
 
     # 17) Full telemetry extract (bundle + master report) (read-only)
-    _run([sys.executable, "scripts/run_full_telemetry_extract.py", "--date", "2026-01-01"], env=base_env)
-    tdir = Path("telemetry/2026-01-01")
+    _run([sys.executable, "scripts/run_full_telemetry_extract.py", "--date", telemetry_date], env=base_env)
+    tdir = Path(f"telemetry/{telemetry_date}")
     _assert(tdir.exists(), "telemetry bundle dir missing")
-    _assert((tdir / "FULL_TELEMETRY_2026-01-01.md").exists(), "FULL_TELEMETRY master report missing")
+    _assert((tdir / f"FULL_TELEMETRY_{telemetry_date}.md").exists(), "FULL_TELEMETRY master report missing")
     _assert((tdir / "telemetry_manifest.json").exists(), "telemetry_manifest.json missing")
     for sub in ["state", "logs", "reports"]:
         _assert((tdir / sub).exists(), f"telemetry/{sub} missing")
@@ -352,12 +354,61 @@ def main() -> int:
         "feature_value_curves.json",
         "regime_sector_feature_matrix.json",
         "shadow_vs_live_parity.json",
+        "entry_parity_details.json",
+        "score_distribution_curves.json",
+        "regime_timeline.json",
+        "feature_family_summary.json",
+        "replacement_telemetry_expanded.json",
     ]:
         _assert((comp / f).exists(), f"computed artifact missing: {f}")
     feq = json.loads((comp / "feature_equalizer_builder.json").read_text(encoding="utf-8"))
     _assert(isinstance(feq, dict), "feature_equalizer_builder not dict")
     for k in ["features", "feature_exit_impact", "exit_reason_distributions", "score_evolution", "volatility_expansion", "alignment_drift", "feature_contribution_decay"]:
         _assert(k in feq, f"feature_equalizer_builder missing {k}")
+
+    # Strict schema validation for computed telemetry artifacts
+    from scripts.telemetry_schema import (
+        validate_exit_intel_completeness,
+        validate_feature_value_curves,
+        validate_entry_parity_details,
+        validate_feature_family_summary,
+        validate_long_short_analysis,
+        validate_regime_timeline,
+        validate_regime_sector_feature_matrix,
+        validate_replacement_telemetry_expanded,
+        validate_score_distribution_curves,
+        validate_shadow_vs_live_parity,
+    )
+
+    lsa = json.loads((comp / "long_short_analysis.json").read_text(encoding="utf-8"))
+    ok, msg = validate_long_short_analysis(lsa); _assert(ok, f"long_short_analysis schema: {msg}")
+
+    eic = json.loads((comp / "exit_intel_completeness.json").read_text(encoding="utf-8"))
+    ok, msg = validate_exit_intel_completeness(eic); _assert(ok, f"exit_intel_completeness schema: {msg}")
+
+    fvc = json.loads((comp / "feature_value_curves.json").read_text(encoding="utf-8"))
+    ok, msg = validate_feature_value_curves(fvc); _assert(ok, f"feature_value_curves schema: {msg}")
+
+    rsm = json.loads((comp / "regime_sector_feature_matrix.json").read_text(encoding="utf-8"))
+    ok, msg = validate_regime_sector_feature_matrix(rsm); _assert(ok, f"regime_sector_feature_matrix schema: {msg}")
+
+    parity = json.loads((comp / "shadow_vs_live_parity.json").read_text(encoding="utf-8"))
+    ok, msg = validate_shadow_vs_live_parity(parity); _assert(ok, f"shadow_vs_live_parity schema: {msg}")
+
+    epd = json.loads((comp / "entry_parity_details.json").read_text(encoding="utf-8"))
+    ok, msg = validate_entry_parity_details(epd); _assert(ok, f"entry_parity_details schema: {msg}")
+
+    sdc = json.loads((comp / "score_distribution_curves.json").read_text(encoding="utf-8"))
+    ok, msg = validate_score_distribution_curves(sdc); _assert(ok, f"score_distribution_curves schema: {msg}")
+
+    rt = json.loads((comp / "regime_timeline.json").read_text(encoding="utf-8"))
+    ok, msg = validate_regime_timeline(rt); _assert(ok, f"regime_timeline schema: {msg}")
+
+    ffs = json.loads((comp / "feature_family_summary.json").read_text(encoding="utf-8"))
+    ok, msg = validate_feature_family_summary(ffs); _assert(ok, f"feature_family_summary schema: {msg}")
+
+    rte = json.loads((comp / "replacement_telemetry_expanded.json").read_text(encoding="utf-8"))
+    ok, msg = validate_replacement_telemetry_expanded(rte); _assert(ok, f"replacement_telemetry_expanded schema: {msg}")
 
     # Manifest must include new computed fields and computed_files mapping
     man = json.loads((tdir / "telemetry_manifest.json").read_text(encoding="utf-8"))
@@ -371,6 +422,11 @@ def main() -> int:
         "feature_value_curves",
         "regime_sector_feature_matrix",
         "shadow_vs_live_parity",
+        "entry_parity_details",
+        "score_distribution_curves",
+        "regime_timeline",
+        "feature_family_summary",
+        "replacement_telemetry_expanded",
     ]:
         _assert(k in comp_obj, f"telemetry_manifest.computed missing {k}")
 
