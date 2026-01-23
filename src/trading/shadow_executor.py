@@ -363,6 +363,53 @@ def log_shadow_decision(
                     "intel_snapshot": uw_attr,
                 }
             )
+            # Master trade log (append-only, additive).
+            try:
+                from utils.master_trade_log import append_master_trade
+
+                adjustments = {}
+                try:
+                    adjustments = (
+                        ((uw_attr.get("v2_uw_adjustments") or {}) if isinstance(uw_attr, dict) else {})
+                        if isinstance(uw_attr, dict)
+                        else {}
+                    )
+                except Exception:
+                    adjustments = {}
+                signals = []
+                try:
+                    from telemetry.feature_families import active_v2_families_from_adjustments  # type: ignore
+
+                    signals = active_v2_families_from_adjustments(adjustments) or []
+                except Exception:
+                    signals = []
+                append_master_trade(
+                    {
+                        "trade_id": str(trade_id),
+                        "symbol": sym,
+                        "side": str(side),
+                        "is_live": False,
+                        "is_shadow": True,
+                        "entry_ts": str((st.get("positions") or {}).get(sym, {}).get("entry_timestamp", _now_iso())),
+                        "exit_ts": None,
+                        "entry_price": float(px_now),
+                        "exit_price": None,
+                        "size": float(qty),
+                        "realized_pnl_usd": None,
+                        "signals": signals,
+                        "feature_snapshot": dict(adjustments or {}),
+                        "regime_snapshot": {
+                            "regime": str(((uw_attr.get("v2_uw_regime_profile") or {}) if isinstance(uw_attr.get("v2_uw_regime_profile"), dict) else {}).get("regime_label", "") or ""),
+                            "sector_posture": str(((uw_attr.get("v2_uw_sector_profile") or {}) if isinstance(uw_attr.get("v2_uw_sector_profile"), dict) else {}).get("sector", "UNKNOWN") or "UNKNOWN"),
+                            "volatility_bucket": None,
+                            "trend_bucket": None,
+                        },
+                        "exit_reason": None,
+                        "source": "shadow",
+                    }
+                )
+            except Exception:
+                pass
             return
 
         # Exit evaluation for open positions
@@ -549,6 +596,51 @@ def log_shadow_decision(
                         "replacement_reasoning": repl_reason if replacement else None,
                     }
                 )
+                # Master trade log (append-only, additive).
+                try:
+                    from utils.master_trade_log import append_master_trade
+
+                    tid2 = str(pos.get("trade_id", "") or "")
+                    adjustments2 = {}
+                    try:
+                        snap2 = now_uw if isinstance(now_uw, dict) else {}
+                        adjustments2 = (snap2.get("v2_uw_adjustments") or {}) if isinstance(snap2.get("v2_uw_adjustments"), dict) else {}
+                    except Exception:
+                        adjustments2 = {}
+                    signals2 = []
+                    try:
+                        from telemetry.feature_families import active_v2_families_from_adjustments  # type: ignore
+
+                        signals2 = active_v2_families_from_adjustments(adjustments2) or []
+                    except Exception:
+                        signals2 = []
+                    append_master_trade(
+                        {
+                            "trade_id": tid2,
+                            "symbol": sym,
+                            "side": str(pos.get("side") or side),
+                            "is_live": False,
+                            "is_shadow": True,
+                            "entry_ts": str(pos.get("entry_timestamp") or entry_ts),
+                            "exit_ts": str(exit_ts),
+                            "entry_price": float(entry_price) if entry_price > 0 else 0.0,
+                            "exit_price": float(exit_price) if exit_price is not None else None,
+                            "size": float(qty) if qty > 0 else 0.0,
+                            "realized_pnl_usd": float(pnl_usd or 0.0) if pnl_usd is not None else None,
+                            "signals": signals2,
+                            "feature_snapshot": dict(adjustments2 or {}),
+                            "regime_snapshot": {
+                                "regime": str(now_reg or ""),
+                                "sector_posture": str(now_sec or "UNKNOWN"),
+                                "volatility_bucket": None,
+                                "trend_bucket": None,
+                            },
+                            "exit_reason": str(exit_reason or ""),
+                            "source": "shadow",
+                        }
+                    )
+                except Exception:
+                    pass
                 # Close position
                 try:
                     (st.get("positions") or {}).pop(sym, None)

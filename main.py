@@ -1268,6 +1268,43 @@ def log_attribution(trade_id: str, symbol: str, pnl_usd: float, context: dict):
         "pnl_usd": pnl_usd,
         "context": context
     })
+    # Master trade log (append-only, additive).
+    # Only emit entry records for filled entries (avoid synthetic prices for pending fills).
+    try:
+        if str(trade_id or "").startswith("open_") and isinstance(context, dict) and not bool(context.get("pending_fill")):
+            from utils.master_trade_log import append_master_trade
+
+            entry_ts = str(context.get("entry_ts") or "")
+            stable_trade_id = f"live:{str(symbol).upper()}:{entry_ts}" if entry_ts else str(trade_id)
+            comps = context.get("components") if isinstance(context.get("components"), dict) else {}
+            signals = sorted([str(k) for k in comps.keys()]) if isinstance(comps, dict) else []
+            append_master_trade(
+                {
+                    "trade_id": stable_trade_id,
+                    "symbol": str(symbol).upper(),
+                    "side": str(context.get("position_side") or ("long" if str(context.get("side")) == "buy" else "short")),
+                    "is_live": True,
+                    "is_shadow": False,
+                    "entry_ts": entry_ts or str(context.get("ts") or ""),
+                    "exit_ts": None,
+                    "entry_price": float(context.get("entry_price") or 0.0),
+                    "exit_price": None,
+                    "size": float(context.get("qty") or context.get("entry_qty") or 0.0),
+                    "realized_pnl_usd": None,
+                    "signals": signals,
+                    "feature_snapshot": dict(comps or {}),
+                    "regime_snapshot": {
+                        "regime": str(context.get("market_regime") or context.get("regime") or ""),
+                        "sector_posture": None,
+                        "volatility_bucket": None,
+                        "trend_bucket": None,
+                    },
+                    "exit_reason": None,
+                    "source": "live",
+                }
+            )
+    except Exception:
+        pass
 
 def _normalize_position_side(side: str) -> str:
     """
@@ -1547,6 +1584,43 @@ def log_exit_attribution(
     }
     
     jsonl_write("attribution", attribution_record)
+
+    # Master trade log (append-only, additive).
+    # Emit a full close record (entry + exit) keyed by stable (symbol, entry_ts).
+    try:
+        from utils.master_trade_log import append_master_trade
+
+        entry_ts_iso = str(context.get("entry_ts") or "")
+        stable_trade_id = f"live:{str(symbol).upper()}:{entry_ts_iso}" if entry_ts_iso else str(attribution_record.get("trade_id") or "")
+        comps2 = context.get("components") if isinstance(context.get("components"), dict) else {}
+        signals2 = sorted([str(k) for k in comps2.keys()]) if isinstance(comps2, dict) else []
+        append_master_trade(
+            {
+                "trade_id": stable_trade_id,
+                "symbol": str(symbol).upper(),
+                "side": str(context.get("position_side") or _normalize_position_side(str(context.get("side") or ""))),
+                "is_live": True,
+                "is_shadow": False,
+                "entry_ts": entry_ts_iso,
+                "exit_ts": now_aware.isoformat(),
+                "entry_price": float(context.get("entry_price") or entry_price or 0.0),
+                "exit_price": float(exit_price or 0.0),
+                "size": float(context.get("qty") or 0.0),
+                "realized_pnl_usd": float(attribution_record.get("pnl_usd") or 0.0),
+                "signals": signals2,
+                "feature_snapshot": dict(comps2 or {}),
+                "regime_snapshot": {
+                    "regime": str(context.get("market_regime") or ""),
+                    "sector_posture": None,
+                    "volatility_bucket": None,
+                    "trend_bucket": None,
+                },
+                "exit_reason": str(close_reason or ""),
+                "source": "live",
+            }
+        )
+    except Exception:
+        pass
     
     # DATA INTEGRITY CHECK: Verify log was written successfully
     try:

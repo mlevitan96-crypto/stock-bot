@@ -263,3 +263,67 @@ def validate_regime_sector_feature_matrix(doc: Any) -> Tuple[bool, str]:
     except Exception as e:
         return False, str(e)
 
+
+def validate_live_vs_shadow_pnl(doc: Any) -> Tuple[bool, str]:
+    try:
+        d = _req_dict(doc, "live_vs_shadow_pnl")
+        _req(d, "as_of_ts")
+        wins = _req_dict(_req(d, "windows"), "windows")
+        for wn in ["24h", "48h", "5d"]:
+            w = _req_dict(_req(wins, wn), f"windows[{wn}]")
+            for side in ["live", "shadow", "delta"]:
+                s = _req_dict(_req(w, side), f"{wn}.{side}")
+                for k in ["pnl_usd", "expectancy_usd", "trade_count", "win_rate"]:
+                    if not _is_num(_req(s, k)):
+                        raise AssertionError(f"{wn}.{side}.{k} must be numeric")
+            # insufficient_data must exist (bool-ish), but do not over-validate type here.
+            if "insufficient_data" not in w:
+                raise AssertionError(f"{wn}.insufficient_data missing")
+        _req_list(_req(d, "per_symbol"), "per_symbol", non_empty=False)
+        return True, "ok"
+    except Exception as e:
+        return False, str(e)
+
+
+def validate_signal_performance(doc: Any) -> Tuple[bool, str]:
+    try:
+        d = _req_dict(doc, "signal_performance")
+        _req(d, "as_of_ts")
+        sigs = _req_list(_req(d, "signals"), "signals", non_empty=False)
+        for r in sigs[:500]:
+            rr = _req_dict(r, "signal")
+            _req(rr, "name")
+            for k in ["win_rate", "avg_pnl_usd", "expectancy_usd", "trade_count", "contribution_to_total_pnl"]:
+                if not _is_num(_req(rr, k)):
+                    raise AssertionError(f"signal.{k} must be numeric")
+            lsb = _req_dict(_req(rr, "long_short_breakdown"), "long_short_breakdown")
+            for side in ["long", "short"]:
+                sb = _req_dict(_req(lsb, side), f"long_short_breakdown.{side}")
+                for k in ["win_rate", "expectancy_usd", "trade_count"]:
+                    if not _is_num(_req(sb, k)):
+                        raise AssertionError(f"{side}.{k} must be numeric")
+            _req_list(_req(rr, "regime_breakdown"), "regime_breakdown", non_empty=False)
+        return True, "ok"
+    except Exception as e:
+        return False, str(e)
+
+
+def validate_signal_weight_recommendations(doc: Any) -> Tuple[bool, str]:
+    try:
+        d = _req_dict(doc, "signal_weight_recommendations")
+        _req(d, "as_of_ts")
+        recs = _req_list(_req(d, "recommendations"), "recommendations", non_empty=False)
+        allowed = {"low", "medium", "high"}
+        for r in recs[:500]:
+            rr = _req_dict(r, "recommendation")
+            _req(rr, "signal")
+            if not _is_num(_req(rr, "suggested_delta_weight")):
+                raise AssertionError("suggested_delta_weight must be numeric")
+            conf = str(_req(rr, "confidence") or "").lower()
+            if conf not in allowed:
+                raise AssertionError(f"confidence must be one of {sorted(allowed)}")
+            _req(rr, "rationale")
+        return True, "ok"
+    except Exception as e:
+        return False, str(e)
+

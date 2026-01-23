@@ -67,6 +67,31 @@ def _is_fresh(path: Path, max_age_sec: int) -> Tuple[bool, float]:
         return False, 1e18
 
 
+def _tail_lines(path: Path, n: int) -> List[str]:
+    try:
+        if not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        return lines[-int(n) :] if lines else []
+    except Exception:
+        return []
+
+
+def _parse_iso(ts: Any) -> Optional[datetime]:
+    try:
+        if ts is None:
+            return None
+        s = str(ts).strip().replace("Z", "+00:00")
+        if not s:
+            return None
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
 def _check_schema(name: str, path: Path, fn) -> Dict[str, Any]:
     if not path.exists():
         return {"name": name, "status": "missing", "path": str(path)}
@@ -157,6 +182,58 @@ def main() -> int:
         checks.append({"name": "uw_usage", "status": "warn" if warn else "ok", "calls_today": calls})
     else:
         checks.append({"name": "uw_usage", "status": "missing"})
+
+    # Master trade log health (append-only, additive observability)
+    try:
+        mtl = Path("logs/master_trade_log.jsonl")
+        if not mtl.exists():
+            checks.append({"name": "master_trade_log", "status": "missing", "path": str(mtl)})
+        else:
+            # Basic freshness via mtime
+            ok_fresh, age = _is_fresh(mtl, max_age_sec=max_age_sec)
+            # Basic integrity: last N lines parse as JSON, required fields present when present.
+            bad = 0
+            parsed = 0
+            newest_dt: Optional[datetime] = None
+            for ln in _tail_lines(mtl, n=500):
+                ln = (ln or "").strip()
+                if not ln:
+                    continue
+                try:
+                    obj = json.loads(ln)
+                    if not isinstance(obj, dict):
+                        bad += 1
+                        continue
+                    parsed += 1
+                    for k in ["trade_id", "symbol", "side", "entry_ts", "source"]:
+                        if k not in obj:
+                            bad += 1
+                            break
+                    # Find newest timestamp (best-effort)
+                    dt = _parse_iso(obj.get("exit_ts") or obj.get("entry_ts") or obj.get("timestamp"))
+                    if dt and (newest_dt is None or dt > newest_dt):
+                        newest_dt = dt
+                except Exception:
+                    bad += 1
+                    continue
+            status = "ok"
+            if bad > 0:
+                status = "bad_schema"
+            elif not ok_fresh:
+                status = "stale"
+            checks.append(
+                {
+                    "name": "master_trade_log",
+                    "status": status,
+                    "path": str(mtl),
+                    "age_sec": round(float(age), 1),
+                    "parsed_lines": int(parsed),
+                    "bad_lines": int(bad),
+                    "newest_ts": newest_dt.isoformat() if newest_dt else None,
+                }
+            )
+    except Exception as e:
+        checks.append({"name": "master_trade_log", "status": "error", "detail": str(e)})
 
     # Droplet sync completeness (local-only; skip on droplet/servers without local sync dirs)
     latest = _latest_droplet_sync_dir()

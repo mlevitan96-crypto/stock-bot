@@ -351,6 +351,9 @@ Required output files:
   - `regime_timeline.json`
   - `feature_family_summary.json`
   - `replacement_telemetry_expanded.json`
+  - `live_vs_shadow_pnl.json`
+  - `signal_performance.json`
+  - `signal_weight_recommendations.json`
 
 #### 4.20.3 Exit-intel completeness invariants
 Exit attribution records (`logs/exit_attribution.jsonl`) are considered “complete enough for debugging” when:
@@ -393,6 +396,36 @@ Telemetry MUST attempt a daily parity check when v1 trade logs are present:
 
 #### 4.20.8 Regression Enforcement Rule (binding)
 **Regression MUST fail if any computed artifact or required key is missing, malformed, or empty.**
+
+#### 4.20.9 Live vs Shadow PnL telemetry invariants (additive)
+Telemetry MUST produce `telemetry/YYYY-MM-DD/computed/live_vs_shadow_pnl.json`:
+- Rolling windows: `24h`, `48h`, `5d` (UTC)
+- Per-window blocks: `live`, `shadow`, `delta`, each containing:
+  - `pnl_usd`, `expectancy_usd`, `trade_count`, `win_rate`
+- `per_symbol[]` table with:
+  - `symbol`, `window`, `live_pnl_usd`, `shadow_pnl_usd`, `delta_pnl_usd`, `live_trade_count`, `shadow_trade_count`
+
+#### 4.20.10 Signal performance telemetry invariants (additive)
+Telemetry MUST produce:
+- `telemetry/YYYY-MM-DD/computed/signal_performance.json`
+- `telemetry/YYYY-MM-DD/computed/signal_weight_recommendations.json` (advisory only; no auto-application)
+
+Rules:
+- “Signals” MUST be derived from existing telemetry (feature families / signal groupings) and MUST NOT modify any weights/config.
+- Output MUST be schema-valid even if arrays are empty (but keys must exist).
+
+#### 4.20.11 Master trade log requirements (append-only, additive)
+System MUST maintain an append-only unified trade log:
+- Path: `logs/master_trade_log.jsonl`
+- Each line MUST be a JSON object containing (best-effort):
+  - `trade_id`, `symbol`, `side`, `is_live`, `is_shadow`, `entry_ts`, `exit_ts`
+  - `entry_price`, `exit_price`, `size`, `realized_pnl_usd`
+  - `signals[]`, `feature_snapshot{}`, `regime_snapshot{}`
+  - `exit_reason`, `source` (`live|shadow`)
+
+Rules:
+- Append-only; never rewrites history.
+- MUST be wired into both live and shadow paths without changing trading/scoring/exit logic.
 
 ### 4.21 Parity Requirements (expanded schema) (additive)
 Telemetry MUST produce:

@@ -450,6 +450,8 @@ def _extract_shadow_telemetry(day: str) -> Dict[str, Any]:
                 "exit_v2_score": exit_v2_score,
                 "v2_exit_score": v2_exit_score,
                 "exit_attribution": attrib,
+                # Additive: preserve entry intel snapshot for downstream signal-family analytics.
+                "entry_intel_snapshot": intel_ent,
                 "entry_universe_rank_v2": entry_rank,
                 "entry_universe_score_v2": entry_u_score,
                 "entry_sector": sec_ent or "UNKNOWN",
@@ -561,6 +563,9 @@ def _render_master_md(
         "regime_timeline.json": "Hourly (UTC) regime/posture timeline (best-effort) + day summary.",
         "feature_family_summary.json": "Per-family parity deltas + realized EV contribution + stability.",
         "replacement_telemetry_expanded.json": "Replacement rates by feature/family + cause histogram + anomaly flag.",
+        "live_vs_shadow_pnl.json": "Rolling (24h/48h/5d) live vs shadow PnL/expectancy/win-rate deltas + per-symbol table.",
+        "signal_performance.json": "Per-signal (feature-family) win rate/expectancy/trade count + regime/side breakdowns.",
+        "signal_weight_recommendations.json": "Advisory (read-only) signal weight delta suggestions derived from performance.",
     }
     computed_files = [
         x for x in copied_files if x.kind == "generated" and "/computed/" in str(x.dest) and str(x.dest).endswith(".json")
@@ -1054,11 +1059,14 @@ def main() -> int:
     from telemetry.feature_value_curves import build_feature_value_curves  # type: ignore
     from telemetry.feature_family_summary import build_feature_family_summary  # type: ignore
     from telemetry.long_short_analysis import build_long_short_analysis  # type: ignore
+    from telemetry.live_vs_shadow_pnl import build_live_vs_shadow_pnl  # type: ignore
     from telemetry.regime_sector_feature_matrix import build_regime_sector_feature_matrix  # type: ignore
     from telemetry.regime_timeline import build_regime_timeline  # type: ignore
     from telemetry.replacement_telemetry_expanded import build_replacement_telemetry_expanded  # type: ignore
     from telemetry.score_distribution_curves import build_score_distribution_curves  # type: ignore
     from telemetry.shadow_vs_live_parity import build_shadow_vs_live_parity  # type: ignore
+    from telemetry.signal_performance import build_signal_performance  # type: ignore
+    from telemetry.signal_weight_recommendations import build_signal_weight_recommendations  # type: ignore
 
     exit_attrib_today: List[Dict[str, Any]] = []
     for rec in _iter_jsonl(ROOT / "logs" / "exit_attribution.jsonl"):
@@ -1146,6 +1154,26 @@ def main() -> int:
     except Exception as e:
         computed["replacement_telemetry_expanded"] = {"error": str(e)}
 
+    # Live vs shadow PnL (rolling windows, UTC)
+    try:
+        computed["live_vs_shadow_pnl"] = build_live_vs_shadow_pnl(
+            attribution_log_path=str(ROOT / "logs" / "attribution.jsonl"),
+            shadow_exit_attribution_log_path=str(ROOT / "logs" / "exit_attribution.jsonl"),
+        )
+    except Exception as e:
+        computed["live_vs_shadow_pnl"] = {"error": str(e), "as_of_ts": _now_iso(), "windows": {}, "per_symbol": []}
+
+    # Per-signal performance + advisory recommendations (shadow realized trades)
+    try:
+        computed["signal_performance"] = build_signal_performance(realized_trades=shadow.get("realized_trades") or [])
+    except Exception as e:
+        computed["signal_performance"] = {"error": str(e), "as_of_ts": _now_iso(), "signals": []}
+    try:
+        sp = computed.get("signal_performance") if isinstance(computed.get("signal_performance"), dict) else {}
+        computed["signal_weight_recommendations"] = build_signal_weight_recommendations(signal_performance=sp)
+    except Exception as e:
+        computed["signal_weight_recommendations"] = {"error": str(e), "as_of_ts": _now_iso(), "recommendations": []}
+
     # Persist computed artifacts into bundle folder
     computed_files: Dict[str, str] = {}
     filename_map = {
@@ -1160,6 +1188,9 @@ def main() -> int:
         "regime_timeline": "regime_timeline.json",
         "feature_family_summary": "feature_family_summary.json",
         "replacement_telemetry_expanded": "replacement_telemetry_expanded.json",
+        "live_vs_shadow_pnl": "live_vs_shadow_pnl.json",
+        "signal_performance": "signal_performance.json",
+        "signal_weight_recommendations": "signal_weight_recommendations.json",
     }
     for name, obj in computed.items():
         fp = out_dir / "computed" / filename_map.get(name, f"{name}.json")
@@ -1201,6 +1232,9 @@ def main() -> int:
             "regime_timeline": computed.get("regime_timeline"),
             "feature_family_summary": computed.get("feature_family_summary"),
             "replacement_telemetry_expanded": computed.get("replacement_telemetry_expanded"),
+            "live_vs_shadow_pnl": computed.get("live_vs_shadow_pnl"),
+            "signal_performance": computed.get("signal_performance"),
+            "signal_weight_recommendations": computed.get("signal_weight_recommendations"),
             "computed_files": computed_files,
         },
         "missing": missing,

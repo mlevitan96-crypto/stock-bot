@@ -359,6 +359,9 @@ def main() -> int:
         "regime_timeline.json",
         "feature_family_summary.json",
         "replacement_telemetry_expanded.json",
+        "live_vs_shadow_pnl.json",
+        "signal_performance.json",
+        "signal_weight_recommendations.json",
     ]:
         _assert((comp / f).exists(), f"computed artifact missing: {f}")
     feq = json.loads((comp / "feature_equalizer_builder.json").read_text(encoding="utf-8"))
@@ -372,12 +375,15 @@ def main() -> int:
         validate_feature_value_curves,
         validate_entry_parity_details,
         validate_feature_family_summary,
+        validate_live_vs_shadow_pnl,
         validate_long_short_analysis,
         validate_regime_timeline,
         validate_regime_sector_feature_matrix,
         validate_replacement_telemetry_expanded,
         validate_score_distribution_curves,
         validate_shadow_vs_live_parity,
+        validate_signal_performance,
+        validate_signal_weight_recommendations,
     )
 
     lsa = json.loads((comp / "long_short_analysis.json").read_text(encoding="utf-8"))
@@ -410,6 +416,27 @@ def main() -> int:
     rte = json.loads((comp / "replacement_telemetry_expanded.json").read_text(encoding="utf-8"))
     ok, msg = validate_replacement_telemetry_expanded(rte); _assert(ok, f"replacement_telemetry_expanded schema: {msg}")
 
+    lvs = json.loads((comp / "live_vs_shadow_pnl.json").read_text(encoding="utf-8"))
+    ok, msg = validate_live_vs_shadow_pnl(lvs); _assert(ok, f"live_vs_shadow_pnl schema: {msg}")
+    # Freshness: as_of_ts should be "recent" (this regression run just generated it).
+    try:
+        from datetime import timedelta
+
+        as_of_ts = str((lvs or {}).get("as_of_ts", "") or "")
+        dt = datetime.fromisoformat(as_of_ts.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - dt.astimezone(timezone.utc)
+        _assert(age <= timedelta(days=2), f"live_vs_shadow_pnl.as_of_ts stale: age={age}")
+    except Exception as e:
+        _assert(False, f"live_vs_shadow_pnl.as_of_ts parse/freshness failed: {e}")
+
+    sp = json.loads((comp / "signal_performance.json").read_text(encoding="utf-8"))
+    ok, msg = validate_signal_performance(sp); _assert(ok, f"signal_performance schema: {msg}")
+
+    swr = json.loads((comp / "signal_weight_recommendations.json").read_text(encoding="utf-8"))
+    ok, msg = validate_signal_weight_recommendations(swr); _assert(ok, f"signal_weight_recommendations schema: {msg}")
+
     # Manifest must include new computed fields and computed_files mapping
     man = json.loads((tdir / "telemetry_manifest.json").read_text(encoding="utf-8"))
     _assert(isinstance(man, dict), "telemetry_manifest not dict")
@@ -427,6 +454,9 @@ def main() -> int:
         "regime_timeline",
         "feature_family_summary",
         "replacement_telemetry_expanded",
+        "live_vs_shadow_pnl",
+        "signal_performance",
+        "signal_weight_recommendations",
     ]:
         _assert(k in comp_obj, f"telemetry_manifest.computed missing {k}")
 

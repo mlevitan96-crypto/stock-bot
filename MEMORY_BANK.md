@@ -737,6 +737,20 @@ The following computed artifacts are considered **daily-required** for a full te
 - `regime_timeline.json`
 - `feature_family_summary.json`
 - `replacement_telemetry_expanded.json`
+- `live_vs_shadow_pnl.json`
+- `signal_performance.json`
+- `signal_weight_recommendations.json`
+
+### Master Trade Log (append-only)
+Path:
+- `logs/master_trade_log.jsonl`
+
+Purpose:
+- A single, append-only stream of live + shadow trade records for long-term learning and auditing.
+
+Rules:
+- Append-only (never rewrite history).
+- MUST NOT change trading/scoring/exit behavior; this is a passive “tap” off existing live/shadow logging.
 
 ### Feature Families (definition)
 “Feature families” are **telemetry-only groupings** used to summarize score behavior and parity deltas without changing any trading logic.

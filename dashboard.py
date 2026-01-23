@@ -208,6 +208,7 @@ DASHBOARD_HTML = """
             <button class="tab" onclick="switchTab('executive', event)">📈 Executive Summary</button>
             <button class="tab" onclick="switchTab('xai', event)">🧠 Natural Language Auditor</button>
             <button class="tab" onclick="switchTab('failure_points', event)">⚠️ Trading Readiness</button>
+            <button class="tab" onclick="switchTab('telemetry', event)">📦 Telemetry</button>
         </div>
         
         <div id="positions-tab" class="tab-content active">
@@ -273,6 +274,12 @@ DASHBOARD_HTML = """
                 <div class="loading">Loading Trading Readiness...</div>
             </div>
         </div>
+
+        <div id="telemetry-tab" class="tab-content">
+            <div id="telemetry-content">
+                <div class="loading">Loading telemetry...</div>
+            </div>
+        </div>
         
         <div id="signal_review-tab" class="tab-content">
             <div class="positions-table">
@@ -326,6 +333,8 @@ DASHBOARD_HTML = """
                 loadFailurePoints();
             } else if (tabName === 'signal_review') {
                 loadSignalReview();
+            } else if (tabName === 'telemetry') {
+                loadTelemetryContent();
             } else if (tabName === 'positions') {
                 // Refresh positions when switching back - force fresh data
                 updateDashboard();
@@ -688,6 +697,14 @@ DASHBOARD_HTML = """
                 loadSignalReview();
             }
         }, 30000);  // Refresh every 30 seconds
+
+        // Auto-refresh Telemetry if on telemetry tab
+        setInterval(() => {
+            const tTab = document.getElementById('telemetry-tab');
+            if (tTab && tTab.classList.contains('active')) {
+                loadTelemetryContent();
+            }
+        }, 60000);  // Refresh every 60 seconds
         
         function updateLastSignalTimestamp() {
             fetch('/api/signal_history')
@@ -720,6 +737,202 @@ DASHBOARD_HTML = """
                 .catch(error => {
                     document.getElementById('last-signal').textContent = 'Error';
                 });
+        }
+
+        async function loadTelemetryContent() {
+            const container = document.getElementById('telemetry-content');
+            if (!container) return;
+
+            try {
+                const [idx, lvs, sp, swr, health] = await Promise.all([
+                    fetch('/api/telemetry/latest/index').then(r => r.json()),
+                    fetch('/api/telemetry/latest/computed?name=live_vs_shadow_pnl').then(r => r.json()),
+                    fetch('/api/telemetry/latest/computed?name=signal_performance').then(r => r.json()),
+                    fetch('/api/telemetry/latest/computed?name=signal_weight_recommendations').then(r => r.json()),
+                    fetch('/api/telemetry/latest/health').then(r => r.json()),
+                ]);
+
+                if (idx && idx.error) {
+                    container.innerHTML = `<div class="loading" style="color: #ef4444;">Telemetry unavailable: ${idx.error}</div>`;
+                    return;
+                }
+
+                const latestDate = (idx && idx.latest_date) ? idx.latest_date : (health && health.latest_date) ? health.latest_date : '-';
+                const computedIndex = (idx && idx.computed) ? idx.computed : (health && health.computed_index && health.computed_index.computed) ? health.computed_index.computed : [];
+
+                const lvsData = (lvs && lvs.data) ? lvs.data : {};
+                const spData = (sp && sp.data) ? sp.data : {};
+                const swrData = (swr && swr.data) ? swr.data : {};
+
+                const parity = (health && health.parity_health) ? health.parity_health : {};
+                const repl = (health && health.replacement_health) ? health.replacement_health : {};
+                const mtl = (health && health.master_trade_log) ? health.master_trade_log : {};
+
+                const fmtUsd = (x) => {
+                    const v = Number(x || 0);
+                    return (v >= 0 ? '$' : '-$') + Math.abs(v).toFixed(2);
+                };
+                const fmtPct = (x) => {
+                    const v = Number(x || 0);
+                    return (v * 100).toFixed(1) + '%';
+                };
+                const fmtAge = (ageSec) => {
+                    if (ageSec === null || ageSec === undefined) return 'N/A';
+                    const a = Number(ageSec);
+                    if (!isFinite(a)) return 'N/A';
+                    if (a < 60) return `${Math.floor(a)}s`;
+                    if (a < 3600) return `${Math.floor(a / 60)}m`;
+                    return `${Math.floor(a / 3600)}h`;
+                };
+
+                const windows = (lvsData && lvsData.windows) ? lvsData.windows : {};
+                const w24 = windows['24h'] || {};
+                const w48 = windows['48h'] || {};
+                const w5d = windows['5d'] || {};
+
+                const delta24 = (w24.delta && w24.delta.pnl_usd !== undefined) ? Number(w24.delta.pnl_usd) : 0;
+                const delta48 = (w48.delta && w48.delta.pnl_usd !== undefined) ? Number(w48.delta.pnl_usd) : 0;
+                const delta5d = (w5d.delta && w5d.delta.pnl_usd !== undefined) ? Number(w5d.delta.pnl_usd) : 0;
+
+                const cls = (v) => v > 0 ? 'positive' : (v < 0 ? 'negative' : '');
+
+                let html = `
+                    <div class="positions-table" style="margin-bottom: 20px;">
+                        <h2 style="margin-bottom: 15px;">📦 Telemetry (latest bundle: ${latestDate})</h2>
+                        <div style="color:#666;">These panels read from telemetry/${latestDate}/computed/*.json (read-only).</div>
+                    </div>
+
+                    <div class="positions-table" style="margin-bottom: 20px;">
+                        <h2 style="margin-bottom: 15px;">Live vs Shadow (PnL delta)</h2>
+                        <div class="stats">
+                            <div class="stat-card">
+                                <div class="stat-label">24h Δ (shadow - live)</div>
+                                <div class="stat-value ${cls(delta24)}">${fmtUsd(delta24)}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">48h Δ (shadow - live)</div>
+                                <div class="stat-value ${cls(delta48)}">${fmtUsd(delta48)}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">5d Δ (shadow - live)</div>
+                                <div class="stat-value ${cls(delta5d)}">${fmtUsd(delta5d)}</div>
+                            </div>
+                        </div>
+                `;
+
+                // Per-symbol table
+                const rows = (lvsData && Array.isArray(lvsData.per_symbol)) ? lvsData.per_symbol : [];
+                if (rows.length) {
+                    const sorted = rows.slice().sort((a, b) => Math.abs(Number(b.delta_pnl_usd || 0)) - Math.abs(Number(a.delta_pnl_usd || 0)));
+                    html += `<div class="positions-table" style="margin-top: 15px;"><h3 style="margin-bottom: 10px;">Per-symbol deltas</h3>`;
+                    html += `<table><thead><tr>
+                        <th>Symbol</th><th>Window</th><th>Live PnL</th><th>Shadow PnL</th><th>Delta</th><th>Live Trades</th><th>Shadow Trades</th>
+                    </tr></thead><tbody>`;
+                    for (const r of sorted.slice(0, 200)) {
+                        const d = Number(r.delta_pnl_usd || 0);
+                        html += `<tr>
+                            <td class="symbol">${r.symbol || ''}</td>
+                            <td>${r.window || ''}</td>
+                            <td>${fmtUsd(r.live_pnl_usd)}</td>
+                            <td>${fmtUsd(r.shadow_pnl_usd)}</td>
+                            <td class="${cls(d)}"><strong>${fmtUsd(d)}</strong></td>
+                            <td>${Number(r.live_trade_count || 0)}</td>
+                            <td>${Number(r.shadow_trade_count || 0)}</td>
+                        </tr>`;
+                    }
+                    html += `</tbody></table></div>`;
+                } else {
+                    html += `<div style="color:#666;margin-top:10px;">No per-symbol rows available.</div>`;
+                }
+                html += `</div>`;
+
+                // Signal performance
+                const sigs = (spData && Array.isArray(spData.signals)) ? spData.signals : [];
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Signal Performance</h2>`;
+                if (!sigs.length) {
+                    html += `<div class="loading">No signal performance rows (no realized trades or no signal-family snapshots yet).</div>`;
+                } else {
+                    const sigSorted = sigs.slice().sort((a, b) => Number(b.expectancy_usd || 0) - Number(a.expectancy_usd || 0));
+                    html += `<table><thead><tr>
+                        <th>Signal</th><th>Win Rate</th><th>Expectancy (USD)</th><th>Trades</th><th>Contribution</th>
+                    </tr></thead><tbody>`;
+                    for (const r of sigSorted.slice(0, 200)) {
+                        const exp = Number(r.expectancy_usd || 0);
+                        html += `<tr>
+                            <td class="symbol">${r.name || ''}</td>
+                            <td>${fmtPct(r.win_rate || 0)}</td>
+                            <td class="${cls(exp)}"><strong>${fmtUsd(exp)}</strong></td>
+                            <td>${Number(r.trade_count || 0)}</td>
+                            <td>${(Number(r.contribution_to_total_pnl || 0) * 100).toFixed(1)}%</td>
+                        </tr>`;
+                    }
+                    html += `</tbody></table>`;
+                }
+                html += `</div>`;
+
+                // Recommendations
+                const recs = (swrData && Array.isArray(swrData.recommendations)) ? swrData.recommendations : [];
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Signal Weight Recommendations (advisory)</h2>`;
+                if (!recs.length) {
+                    html += `<div class="loading">No recommendations available.</div>`;
+                } else {
+                    html += `<table><thead><tr>
+                        <th>Signal</th><th>Δ Weight</th><th>Confidence</th><th>Rationale</th>
+                    </tr></thead><tbody>`;
+                    for (const r of recs.slice(0, 200)) {
+                        const dw = Number(r.suggested_delta_weight || 0);
+                        html += `<tr>
+                            <td class="symbol">${r.signal || ''}</td>
+                            <td class="${cls(dw)}"><strong>${dw.toFixed(3)}</strong></td>
+                            <td>${r.confidence || ''}</td>
+                            <td style="color:#555;">${r.rationale || ''}</td>
+                        </tr>`;
+                    }
+                    html += `</tbody></table>`;
+                }
+                html += `</div>`;
+
+                // Computed artifacts index + Telemetry health summary
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Computed Artifacts</h2>`;
+                if (!computedIndex || !computedIndex.length) {
+                    html += `<div class="loading">No computed index available.</div>`;
+                } else {
+                    html += `<table><thead><tr>
+                        <th>Artifact</th><th>Status</th><th>Age</th><th>Size</th>
+                    </tr></thead><tbody>`;
+                    for (const r of computedIndex) {
+                        const st = r.status || 'unknown';
+                        const c = st === 'healthy' ? 'positive' : (st === 'warning' ? 'warning' : (st === 'stale' || st === 'missing') ? 'negative' : '');
+                        html += `<tr>
+                            <td class="symbol">${r.name || ''}</td>
+                            <td class="${c}"><strong>${st}</strong></td>
+                            <td>${fmtAge(r.age_sec)}</td>
+                            <td>${Number(r.bytes || 0)}</td>
+                        </tr>`;
+                    }
+                    html += `</tbody></table>`;
+                }
+                html += `</div>`;
+
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Telemetry Health</h2>
+                    <div class="stat-card">
+                        <div><strong>Parity available:</strong> ${(parity.parity_available === true) ? 'true' : (parity.parity_available === false ? 'false' : 'unknown')}</div>
+                        <div><strong>Parity match_rate:</strong> ${parity.match_rate !== null && parity.match_rate !== undefined ? parity.match_rate : 'N/A'}</div>
+                        <div><strong>Parity mean score delta:</strong> ${parity.mean_score_delta !== null && parity.mean_score_delta !== undefined ? parity.mean_score_delta : 'N/A'}</div>
+                        <div><strong>Replacement rate:</strong> ${repl.replacement_rate !== null && repl.replacement_rate !== undefined ? repl.replacement_rate : 'N/A'}</div>
+                        <div><strong>Replacement anomaly:</strong> ${(repl.replacement_anomaly_detected === true) ? 'true' : (repl.replacement_anomaly_detected === false ? 'false' : 'unknown')}</div>
+                        <div><strong>Master trade log:</strong> ${mtl.exists ? 'present' : 'missing'} ${mtl.status ? '(' + mtl.status + ')' : ''}</div>
+                    </div>
+                </div>`;
+
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading telemetry: ${e.message || e}</div>`;
+            }
         }
         
         function loadSignalReview() {
@@ -3792,6 +4005,210 @@ def api_regime_and_posture():
         ), 200
     except Exception as e:
         return jsonify({"error": str(e), "timestamp": datetime.utcnow().isoformat()}), 500
+
+
+# ============================================================
+# Telemetry bundle + computed artifacts (read-only dashboard API)
+# ============================================================
+def _latest_telemetry_dir():
+    try:
+        from pathlib import Path
+
+        root = Path("telemetry")
+        if not root.exists():
+            return None
+        dirs = [p for p in root.iterdir() if p.is_dir() and len(p.name) == 10 and p.name[4] == "-" and p.name[7] == "-"]
+        if not dirs:
+            return None
+        # Lexicographic sort works for YYYY-MM-DD.
+        latest = sorted(dirs, key=lambda p: p.name)[-1]
+        if (latest / "computed").exists():
+            return latest
+        return None
+    except Exception:
+        return None
+
+
+_TELEMETRY_COMPUTED_MAP = {
+    "live_vs_shadow_pnl": "live_vs_shadow_pnl.json",
+    "signal_performance": "signal_performance.json",
+    "signal_weight_recommendations": "signal_weight_recommendations.json",
+    # Existing computed artifacts (for index/panels)
+    "shadow_vs_live_parity": "shadow_vs_live_parity.json",
+    "entry_parity_details": "entry_parity_details.json",
+    "score_distribution_curves": "score_distribution_curves.json",
+    "regime_timeline": "regime_timeline.json",
+    "feature_family_summary": "feature_family_summary.json",
+    "replacement_telemetry_expanded": "replacement_telemetry_expanded.json",
+    "long_short_analysis": "long_short_analysis.json",
+    "exit_intel_completeness": "exit_intel_completeness.json",
+    "feature_value_curves": "feature_value_curves.json",
+    "regime_sector_feature_matrix": "regime_sector_feature_matrix.json",
+    "feature_equalizer_builder": "feature_equalizer_builder.json",
+}
+
+
+def _freshness_status(age_sec) -> str:
+    try:
+        if age_sec is None:
+            return "unknown"
+        a = float(age_sec)
+        if a < 6 * 3600:
+            return "healthy"
+        if a < 24 * 3600:
+            return "warning"
+        return "stale"
+    except Exception:
+        return "unknown"
+
+
+def _build_latest_computed_index(tdir):
+    """
+    Returns a list of computed artifact status rows for the latest telemetry bundle (best-effort).
+    """
+    try:
+        import time
+
+        comp_dir = tdir / "computed"
+        out = []
+        for key, fn in sorted(_TELEMETRY_COMPUTED_MAP.items(), key=lambda kv: kv[0]):
+            fp = comp_dir / fn
+            if fp.exists():
+                age_sec = float(time.time() - fp.stat().st_mtime)
+                out.append(
+                    {
+                        "name": key,
+                        "filename": fn,
+                        "path": str(fp),
+                        "age_sec": age_sec,
+                        "status": _freshness_status(age_sec),
+                        "bytes": int(fp.stat().st_size),
+                    }
+                )
+            else:
+                out.append({"name": key, "filename": fn, "path": str(fp), "age_sec": None, "status": "missing", "bytes": 0})
+        return out
+    except Exception:
+        return []
+
+
+@app.route("/api/telemetry/latest/index", methods=["GET"])
+def api_telemetry_latest_index():
+    try:
+        tdir = _latest_telemetry_dir()
+        if tdir is None:
+            return jsonify({"error": "no telemetry bundles found under telemetry/", "latest_date": None, "computed": []}), 404
+
+        out = _build_latest_computed_index(tdir)
+        return jsonify({"latest_date": tdir.name, "computed": out, "as_of_ts": datetime.now(timezone.utc).isoformat()})
+    except Exception as e:
+        return jsonify({"error": str(e), "latest_date": None, "computed": []}), 500
+
+
+@app.route("/api/telemetry/latest/computed", methods=["GET"])
+def api_telemetry_latest_computed():
+    try:
+        name = (request.args.get("name") or "").strip()
+        if not name:
+            return jsonify({"error": "missing query param: name"}), 400
+
+        tdir = _latest_telemetry_dir()
+        if tdir is None:
+            return jsonify({"error": "no telemetry bundles found under telemetry/"}), 404
+
+        comp_dir = tdir / "computed"
+        fn = _TELEMETRY_COMPUTED_MAP.get(name) or name
+        # Allow passing a filename directly (must end with .json).
+        if not str(fn).endswith(".json"):
+            return jsonify({"error": f"unknown computed artifact: {name}"}), 404
+        fp = comp_dir / str(fn)
+        if not fp.exists():
+            return jsonify({"error": f"computed artifact missing: {fn}", "latest_date": tdir.name}), 404
+
+        data = json.loads(fp.read_text(encoding="utf-8", errors="replace"))
+        return jsonify({"latest_date": tdir.name, "name": name, "filename": str(fn), "data": data})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/telemetry/latest/health", methods=["GET"])
+def api_telemetry_latest_health():
+    """
+    Telemetry Health summary for dashboard panels (best-effort).
+    """
+    try:
+        from pathlib import Path
+        import time
+
+        tdir = _latest_telemetry_dir()
+        if tdir is None:
+            return jsonify({"error": "no telemetry bundles found under telemetry/", "as_of_ts": datetime.now(timezone.utc).isoformat()}), 404
+        idx = {"latest_date": tdir.name, "computed": _build_latest_computed_index(tdir), "as_of_ts": datetime.now(timezone.utc).isoformat()}
+
+        parity = {}
+        repl = {}
+        try:
+            # Pull key signals from computed artifacts (if present)
+            if tdir is not None:
+                p = (tdir / "computed" / "shadow_vs_live_parity.json")
+                if p.exists():
+                    parity = json.loads(p.read_text(encoding="utf-8", errors="replace"))
+                r = (tdir / "computed" / "replacement_telemetry_expanded.json")
+                if r.exists():
+                    repl = json.loads(r.read_text(encoding="utf-8", errors="replace"))
+        except Exception:
+            parity = parity if isinstance(parity, dict) else {}
+            repl = repl if isinstance(repl, dict) else {}
+
+        parity_health = {}
+        try:
+            notes = parity.get("notes") if isinstance(parity, dict) else {}
+            agg = parity.get("aggregate_metrics") if isinstance(parity, dict) else {}
+            ep = parity.get("entry_parity") if isinstance(parity, dict) else {}
+            counts = ep.get("classification_counts") if isinstance(ep, dict) else {}
+            parity_health = {
+                "parity_available": (notes.get("parity_available") if isinstance(notes, dict) else None),
+                "match_rate": (agg.get("match_rate") if isinstance(agg, dict) else None),
+                "mean_entry_ts_delta_seconds": (agg.get("mean_entry_ts_delta_seconds") if isinstance(agg, dict) else None),
+                "mean_score_delta": (agg.get("mean_score_delta") if isinstance(agg, dict) else None),
+                "mean_price_delta_usd": (agg.get("mean_price_delta_usd") if isinstance(agg, dict) else None),
+                "classification_counts": counts if isinstance(counts, dict) else {},
+            }
+        except Exception:
+            parity_health = {}
+
+        replacement_health = {}
+        try:
+            cnts = repl.get("counts") if isinstance(repl, dict) else {}
+            replacement_health = {
+                "replacement_rate": (cnts.get("replacement_rate") if isinstance(cnts, dict) else None),
+                "replacement_anomaly_detected": (repl.get("replacement_anomaly_detected") if isinstance(repl, dict) else None),
+            }
+        except Exception:
+            replacement_health = {}
+
+        # Master trade log status (best-effort)
+        mtl = Path("logs/master_trade_log.jsonl")
+        mtl_status = {"exists": mtl.exists()}
+        try:
+            if mtl.exists():
+                age_sec = float(time.time() - mtl.stat().st_mtime)
+                mtl_status.update({"age_sec": age_sec, "status": _freshness_status(age_sec)})
+        except Exception:
+            pass
+
+        return jsonify(
+            {
+                "latest_date": (tdir.name if tdir is not None else None),
+                "computed_index": idx,
+                "parity_health": parity_health,
+                "replacement_health": replacement_health,
+                "master_trade_log": mtl_status,
+                "as_of_ts": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e), "as_of_ts": datetime.now(timezone.utc).isoformat()}), 500
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
