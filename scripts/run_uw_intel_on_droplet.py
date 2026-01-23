@@ -82,7 +82,7 @@ def _b64_tgz_of_remote_dir(client: DropletClient, remote_dir: str, *, timeout: i
         "import io, os, tarfile, base64, sys; "
         f"d='{remote_dir}'; "
         "buf=io.BytesIO(); "
-        "tf=tarfile.open(fileobj=buf, mode='w:gz'); "
+        "tf=tarfile.open(fileobj=buf, mode='w:gz', compresslevel=1); "
         "tf.add(d, arcname=os.path.basename(d)); "
         "tf.close(); "
         "sys.stdout.write(base64.b64encode(buf.getvalue()).decode('ascii'))"
@@ -123,6 +123,8 @@ def main() -> int:
     ap.add_argument("--heal-daemon", action="store_true", help="Allow safe daemon restart if preopen readiness detects critical daemon health")
     ap.add_argument("--postclose-pack", action="store_true", help="Run post-close analysis pack and sync it")
     ap.add_argument("--full-telemetry", action="store_true", help="Run full telemetry extract on droplet and sync it back")
+    ap.add_argument("--telemetry-max-log-bytes", type=int, default=500_000, help="Max bytes before tailing logs for full telemetry bundle (default: 500,000)")
+    ap.add_argument("--telemetry-tail-lines", type=int, default=2000, help="Tail lines for logs larger than telemetry-max-log-bytes (default: 2000)")
     args = ap.parse_args()
 
     date = args.date.strip() or _today_utc()
@@ -172,7 +174,10 @@ def main() -> int:
         os.system(f"{os.sys.executable} reports/_dashboard/intel_dashboard_generator.py --date {date}")
         if bool(args.full_telemetry):
             os.environ["TELEMETRY_DATA_SOURCE"] = "local_no_ssh"
-            os.system(f"{os.sys.executable} scripts/run_full_telemetry_extract.py --date {date}")
+            os.system(
+                f"{os.sys.executable} scripts/run_full_telemetry_extract.py --date {date} "
+                f"--max-log-bytes {int(args.telemetry_max_log_bytes)} --tail-lines {int(args.telemetry_tail_lines)}"
+            )
         # Copy artifacts into droplet_sync folder
         for src, dst in [
             ("state/daily_universe.json", out_dir / "daily_universe.json"),
@@ -317,12 +322,13 @@ def main() -> int:
         if bool(args.full_telemetry):
             rr = _run_remote(
                 c,
-                f"bash -lc \"cd /root/stock-bot && TELEMETRY_DATA_SOURCE=droplet ./venv/bin/python scripts/run_full_telemetry_extract.py --date {date}\"",
-                timeout=300,
+                f"bash -lc \"cd /root/stock-bot && TELEMETRY_DATA_SOURCE=droplet ./venv/bin/python scripts/run_full_telemetry_extract.py --date {date} "
+                f"--max-log-bytes {int(args.telemetry_max_log_bytes)} --tail-lines {int(args.telemetry_tail_lines)}\"",
+                timeout=600,
             )
             append_sync_log(sync_log, {"event": "run", "step": "run_full_telemetry_extract", "success": bool(rr.get("success"))})
             if bool(rr.get("success")):
-                tgz = _b64_tgz_of_remote_dir(c, f"telemetry/{date}", timeout=240)
+                tgz = _b64_tgz_of_remote_dir(c, f"telemetry/{date}", timeout=600)
                 if bool(tgz.get("success")) and (tgz.get("stdout") or "").strip():
                     try:
                         b = base64.b64decode((tgz.get("stdout") or "").strip().encode("ascii"))
