@@ -863,6 +863,51 @@ def _render_master_md(
             pass
         lines.append("")
 
+    # Live vs Shadow PnL (computed; rolling windows)
+    lvs = computed.get("live_vs_shadow_pnl") if isinstance(computed.get("live_vs_shadow_pnl"), dict) else {}
+    if lvs and isinstance(lvs.get("windows"), dict):
+        lines.append("## Live vs Shadow PnL (rolling windows)")
+        lines.append(f"- As-of (UTC): **{lvs.get('as_of_ts')}**")
+        wins = lvs.get("windows") if isinstance(lvs.get("windows"), dict) else {}
+        for wn in ("24h", "48h", "5d"):
+            w = wins.get(wn) if isinstance(wins.get(wn), dict) else {}
+            dlt = w.get("delta") if isinstance(w.get("delta"), dict) else {}
+            lines.append(
+                f"- **{wn}** delta_pnl_usd={round(float(dlt.get('pnl_usd') or 0.0), 2)} "
+                f"delta_expectancy_usd={round(float(dlt.get('expectancy_usd') or 0.0), 4)} "
+                f"delta_win_rate={round(float(dlt.get('win_rate') or 0.0), 4)} "
+                f"(insufficient_data={w.get('insufficient_data')})"
+            )
+        lines.append("")
+
+    # Signal performance + recommendations (computed; shadow realized trades)
+    sp = computed.get("signal_performance") if isinstance(computed.get("signal_performance"), dict) else {}
+    if sp and isinstance(sp.get("signals"), list):
+        lines.append("## Signal Performance (shadow-only, realized)")
+        sigs = [r for r in (sp.get("signals") or []) if isinstance(r, dict)]
+        sigs_sorted = sorted(sigs, key=lambda r: float(r.get("expectancy_usd") or 0.0), reverse=True)
+        if not sigs_sorted:
+            lines.append("- None (no realized trades or no signal-family snapshots available).")
+        else:
+            for r in sigs_sorted[:10]:
+                lines.append(
+                    f"- **{r.get('name')}** n={r.get('trade_count')} "
+                    f"win_rate={r.get('win_rate')} expectancy_usd={r.get('expectancy_usd')} "
+                    f"contrib={r.get('contribution_to_total_pnl')}"
+                )
+        lines.append("")
+    swr = computed.get("signal_weight_recommendations") if isinstance(computed.get("signal_weight_recommendations"), dict) else {}
+    if swr and isinstance(swr.get("recommendations"), list):
+        recs = [r for r in (swr.get("recommendations") or []) if isinstance(r, dict)]
+        if recs:
+            lines.append("### Signal weight recommendations (advisory)")
+            for r in recs[:10]:
+                lines.append(
+                    f"- **{r.get('signal')}** delta_weight={r.get('suggested_delta_weight')} "
+                    f"confidence={r.get('confidence')} rationale={r.get('rationale')}"
+                )
+            lines.append("")
+
     # Score distribution summary (computed)
     sdc = computed.get("score_distribution_curves") if isinstance(computed.get("score_distribution_curves"), dict) else {}
     if sdc and isinstance(sdc.get("families"), dict):
