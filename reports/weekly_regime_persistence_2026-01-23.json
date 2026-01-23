@@ -1,0 +1,48 @@
+{
+  "report_date": "2026-01-23",
+  "report_timestamp": "2026-01-23T20:30:32.060498+00:00",
+  "report_type": "weekly_regime_persistence_audit",
+  "authoritative_source": "MEMORY_BANK.md",
+  "regime_analysis": {
+    "current_regime": "NEUTRAL",
+    "regime_confidence": 1.0,
+    "dominant_regime": "MIXED",
+    "regime_distribution": {
+      "MIXED": 2014,
+      "UNKNOWN": 14
+    },
+    "regime_statistics": {
+      "MIXED": {
+        "trades": 2014,
+        "win_rate": 0.1509,
+        "avg_pnl_pct": -0.0144,
+        "distribution_pct": 0.9931
+      },
+      "UNKNOWN": {
+        "trades": 14,
+        "win_rate": 0.3571,
+        "avg_pnl_pct": -0.0668,
+        "distribution_pct": 0.0069
+      }
+    },
+    "transition_analysis": {
+      "total_transitions": 22,
+      "total_trades": 2028,
+      "transition_rate": 0.0108,
+      "stability_score": 0.9892,
+      "is_stable": true
+    },
+    "weight_alignment": {
+      "current_regime": "NEUTRAL",
+      "dominant_regime": "MIXED",
+      "aligned": false,
+      "recommendation": "Consider aligning weights with MIXED"
+    }
+  },
+  "assessment": {
+    "regime_stability": "STABLE",
+    "stability_score": 0.9892,
+    "weight_alignment_status": "MISALIGNED",
+    "recommendation": "Consider aligning weights with MIXED"
+  }
+}
