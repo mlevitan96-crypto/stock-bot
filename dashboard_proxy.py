@@ -23,11 +23,27 @@ PORT_A = 5001  # Instance A internal port
 PORT_B = 5002  # Instance B internal port
 PROXY_PORT = 5000  # Public port (always 5000)
 
+def _load_dotenv_if_available() -> None:
+    """
+    Best-effort: load `/root/stock-bot/.env` so proxy manual starts inherit auth env vars.
+    """
+    try:
+        from dotenv import load_dotenv  # type: ignore
+    except Exception:
+        return
+    try:
+        env_path = Path("/root/stock-bot/.env")
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+    except Exception:
+        return
+
 def _require_auth_or_die() -> None:
     """
     Fail-closed if auth env vars are missing.
     Mirrors dashboard.py auth contract for proxy deployments.
     """
+    _load_dotenv_if_available()
     try:
         from config.registry import DashboardAuthConfig
         DashboardAuthConfig.validate_or_die()

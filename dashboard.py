@@ -12,6 +12,7 @@ import json
 import threading
 import secrets
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Optional env checks (non-blocking)
 _FLASK_AVAILABLE = True
@@ -48,6 +49,25 @@ except Exception:
 else:
     print("[Dashboard] Starting Flask app...", flush=True)
     app = Flask(__name__)
+
+    def _load_dotenv_if_available() -> None:
+        """
+        Best-effort: load `/root/stock-bot/.env` so manual dashboard starts inherit secrets.
+
+        WHY:
+        - MEMORY_BANK.md allows manual `nohup python3 dashboard.py ...` starts.
+        - The dashboard auth contract requires DASHBOARD_USER/PASS, which are stored in `/root/stock-bot/.env`.
+        """
+        try:
+            from dotenv import load_dotenv  # type: ignore
+        except Exception:
+            return
+        try:
+            env_path = Path("/root/stock-bot/.env")
+            if env_path.exists():
+                load_dotenv(env_path, override=True)
+        except Exception:
+            return
 
     # ===========================
     # SECURITY: HTTP BASIC AUTH
@@ -4265,6 +4285,12 @@ if __name__ == "__main__":
     if not _FLASK_AVAILABLE:
         print("[Dashboard] ERROR: Flask is not installed in this runtime. Install flask and restart the dashboard service.", flush=True)
         raise SystemExit(1)
+
+    # Best-effort load `.env` for manual starts (systemd/supervisor already exports env vars).
+    try:
+        _load_dotenv_if_available()
+    except Exception:
+        pass
 
     # Fail-closed: dashboard must not start without auth credentials.
     try:
