@@ -40,7 +40,8 @@ def _run_checks() -> List[Tuple[str, bool, str]]:
 
     # 1) Paper-only invariant
     base_url = os.getenv("ALPACA_BASE_URL", "") or ""
-    out.append(("alpaca_paper_endpoint", *_ok(base_url) if _is_paper_endpoint(base_url) else _fail(f"ALPACA_BASE_URL not paper: {base_url}")))
+    ok, detail = _ok(base_url) if _is_paper_endpoint(base_url) else _fail(f"ALPACA_BASE_URL not paper: {base_url}")
+    out.append(("alpaca_paper_endpoint", ok, detail))
 
     # 2) Alpaca reachable (no orders)
     try:
@@ -62,7 +63,8 @@ def _run_checks() -> List[Tuple[str, bool, str]]:
         from src.uw.uw_spec_loader import get_valid_uw_paths
 
         n = len(get_valid_uw_paths() or set())
-        out.append(("uw_spec_loader", *_ok(str(n)) if n >= 50 else _fail(f"too_few_paths={n}")))
+        ok, detail = _ok(str(n)) if n >= 50 else _fail(f"too_few_paths={n}")
+        out.append(("uw_spec_loader", ok, detail))
     except Exception as e:
         out.append(("uw_spec_loader", *_fail(f"{type(e).__name__}: {e}")))
 
@@ -90,7 +92,8 @@ def _run_checks() -> List[Tuple[str, bool, str]]:
         }
         r = compute_composite_score_v2("SPY", enriched, regime="NEUTRAL")
         score = r.get("score") if isinstance(r, dict) else None
-        out.append(("v2_scoring_runs", *_ok(f"score={score}") if isinstance(score, (int, float)) else _fail(f"bad_result_type={type(r).__name__}")))
+        ok, detail = _ok(f"score={score}") if isinstance(score, (int, float)) else _fail(f"bad_result_type={type(r).__name__}")
+        out.append(("v2_scoring_runs", ok, detail))
     except Exception as e:
         out.append(("v2_scoring_runs", *_fail(f"{type(e).__name__}: {e}")))
 
