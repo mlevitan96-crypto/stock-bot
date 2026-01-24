@@ -93,13 +93,16 @@ def main() -> int:
         print(f"{name}: {'OK' if ok else 'FAIL'} (present={present})")
         ok_all = ok_all and ok
 
-    # Telemetry manifest realized trades list
+    # Telemetry manifest realized trades list (prefer trade_id when provided)
     try:
         m_present = False
         if manifest.exists():
             d = json.loads(_read_text(manifest) or "{}")
             rt = (((d.get("computed") or {}).get("shadow") or {}).get("realized_trades") or [])
-            m_present = any(isinstance(r, dict) and str(r.get("symbol", "")).upper() == sym for r in rt)
+            if trade_id:
+                m_present = any(isinstance(r, dict) and str(r.get("trade_id", "")) == trade_id for r in rt)
+            else:
+                m_present = any(isinstance(r, dict) and str(r.get("symbol", "")).upper() == sym for r in rt)
         ok = m_present if want_present else (not m_present)
         print(f"telemetry_manifest.realized_trades: {'OK' if ok else 'FAIL'} (present={m_present})")
         ok_all = ok_all and ok
@@ -107,11 +110,15 @@ def main() -> int:
         print(f"telemetry_manifest.realized_trades: FAIL (error={e})")
         ok_all = False
 
-    # Deep dive mentions symbol
+    # Deep dive mentions trade_id (preferred) or symbol (fallback)
     try:
         d_present = False
         if deep.exists():
-            d_present = sym in _read_text(deep)
+            txt = _read_text(deep)
+            if trade_id:
+                d_present = trade_id in txt
+            else:
+                d_present = sym in txt
         ok = d_present if want_present else (not d_present)
         print(f"deep_dive.contains_symbol: {'OK' if ok else 'FAIL'} (present={d_present})")
         ok_all = ok_all and ok
