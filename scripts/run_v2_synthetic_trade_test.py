@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import alpaca_trade_api as tradeapi  # type: ignore
+import hashlib
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -200,7 +201,11 @@ def main() -> int:
             raise SystemExit("REJECTED: invalid entry_price")
 
         if str(args.exit_price or "").strip().lower() in ("n/a", "na", "none", ""):
-            _gate_reject(symbol, reason="invalid_exit_price", details={"exit_price": args.exit_price})
+            _gate_reject(
+                symbol,
+                reason="invalid_exit_price",
+                details={"exit_price": args.exit_price, "fake_ts_start": args.fake_ts_start, "side": side, "entry_price": entry_price},
+            )
             raise SystemExit("REJECTED: invalid exit_price")
         try:
             exit_price = float(args.exit_price)
@@ -229,7 +234,18 @@ def main() -> int:
 
         # Guardrail: market hours
         if not _is_market_hours_et(dt0):
-            _gate_reject(symbol, reason="market_hours", details={"fake_ts_start": args.fake_ts_start})
+            _gate_reject(
+                symbol,
+                reason="market_hours",
+                details={
+                    "fake_ts_start": args.fake_ts_start,
+                    "fake_ts_end": args.fake_ts_end,
+                    "side": side,
+                    "entry_price": entry_price,
+                    "exit_price": exit_price,
+                    "size": size,
+                },
+            )
             raise SystemExit("REJECTED: market_hours")
 
         # Guardrail: price sanity (max move between entry and exit)
@@ -246,7 +262,9 @@ def main() -> int:
             )
             raise SystemExit("REJECTED: price_sanity_gap")
 
-        trade_id = f"synthetic:{symbol}:{dt0.isoformat()}"
+        attempt_sig = f"{symbol}|{dt0.isoformat()}|{side}|{entry_price}|{exit_price}|{size}".encode("utf-8", errors="replace")
+        attempt_hash = hashlib.sha256(attempt_sig).hexdigest()[:12]
+        trade_id = f"synthetic:{symbol}:{dt0.isoformat()}:{attempt_hash}"
         mt_path = Path(os.environ.get("MASTER_TRADE_LOG_PATH", "logs/master_trade_log.jsonl"))
         ea_path = Path(os.environ.get("EXIT_ATTRIBUTION_LOG_PATH", "logs/exit_attribution.jsonl"))
         live_path = Path("logs/live_trades.jsonl")
@@ -275,6 +293,7 @@ def main() -> int:
                     "is_live": True,
                     "is_shadow": False,
                     "synthetic": True,
+                    "synthetic_attempt_hash": attempt_hash,
                     "composite_version": "v2",
                     "entry_ts": dt0.isoformat().replace("+00:00", "Z"),
                     "exit_ts": None,
@@ -301,6 +320,7 @@ def main() -> int:
                     "is_live": True,
                     "is_shadow": False,
                     "synthetic": True,
+                    "synthetic_attempt_hash": attempt_hash,
                     "composite_version": "v2",
                     "entry_ts": dt0.isoformat().replace("+00:00", "Z"),
                     "exit_ts": dt1.isoformat().replace("+00:00", "Z"),
@@ -357,6 +377,7 @@ def main() -> int:
                 "side": side,
                 "is_live": True,
                 "synthetic": True,
+                "synthetic_attempt_hash": attempt_hash,
                 "composite_version": "v2",
                 "entry_ts": dt0.isoformat().replace("+00:00", "Z"),
                 "exit_ts": dt1.isoformat().replace("+00:00", "Z"),
