@@ -274,6 +274,17 @@ def check_api_compatibility():
         alpaca_key = os.getenv("ALPACA_KEY")
         alpaca_secret = os.getenv("ALPACA_SECRET")
         alpaca_url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+
+        # v2-only engine is paper-only: refuse live endpoint on supervisor checks too.
+        try:
+            if "paper-api.alpaca.markets" not in (alpaca_url or ""):
+                msg = f"Alpaca base URL must be paper endpoint (got {alpaca_url})"
+                errors.append(f"Alpaca API: {msg}")
+                update_service_health("trading-bot", "FAILED", msg)
+                log(f"CRITICAL: {msg}")
+                return False, errors
+        except Exception:
+            pass
         
         if alpaca_key and alpaca_secret:
             is_ok, error = check_alpaca_compat(alpaca_key, alpaca_secret, alpaca_url)

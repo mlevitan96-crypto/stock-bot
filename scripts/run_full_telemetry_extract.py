@@ -30,10 +30,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+from utils.signal_normalization import normalize_signals  # noqa: E402
 
 
 def _now_iso() -> str:
@@ -152,6 +153,10 @@ def _iter_jsonl(path: Path) -> Iterable[Dict[str, Any]]:
         try:
             obj = json.loads(ln)
             if isinstance(obj, dict):
+                # Defensive normalization for legacy logs:
+                # - ensure signals is always a JSON list (never set/stringified-set)
+                if "signals" in obj:
+                    obj["signals"] = normalize_signals(obj.get("signals"))
                 yield obj
         except Exception:
             continue
@@ -333,15 +338,15 @@ def _summarize_health(day: str) -> Dict[str, Any]:
     return out
 
 
-def _extract_shadow_telemetry(day: str) -> Dict[str, Any]:
+def _extract_v2_live_telemetry(day: str) -> Dict[str, Any]:
     """
-    Build v2 shadow trade/exits telemetry for the given UTC day from:
-    - logs/shadow_trades.jsonl
+    Build v2 live (paper) trade/exits telemetry for the given UTC day from:
+    - logs/master_trade_log.jsonl
     - logs/exit_attribution.jsonl
     - state/daily_universe_v2.json (rank at entry)
     - state/regime_state.json (session regime)
     """
-    shadow_path = ROOT / "logs" / "shadow_trades.jsonl"
+    master_path = ROOT / "logs" / "master_trade_log.jsonl"
     exit_attr_path = ROOT / "logs" / "exit_attribution.jsonl"
     universe_v2 = _read_json(ROOT / "state" / "daily_universe_v2.json")
     regime = _read_json(ROOT / "state" / "regime_state.json")
@@ -350,18 +355,16 @@ def _extract_shadow_telemetry(day: str) -> Dict[str, Any]:
     entries_by_trade: Dict[str, Dict[str, Any]] = {}
     exits_by_trade: Dict[str, Dict[str, Any]] = {}
 
-    for rec in _iter_jsonl(shadow_path):
-        ts = rec.get("ts") or rec.get("timestamp")
+    for rec in _iter_jsonl(master_path):
+        ts = rec.get("entry_ts") or rec.get("ts") or rec.get("timestamp")
         if _utc_day_from_ts(ts) != day:
             continue
         trades_today.append(rec)
-        et = str(rec.get("event_type", "") or "")
-        if et == "shadow_entry_opened":
-            tid = str(rec.get("trade_id") or "") or f"{rec.get('symbol','')}-{rec.get('entry_ts','')}"
-            entries_by_trade[tid] = rec
-        elif et == "shadow_exit":
-            tid = str(rec.get("trade_id") or "") or f"{rec.get('symbol','')}-{rec.get('entry_ts','')}"
+        tid = str(rec.get("trade_id") or "") or f"{rec.get('symbol','')}-{rec.get('entry_ts','')}"
+        if rec.get("exit_ts"):
             exits_by_trade[tid] = rec
+        else:
+            entries_by_trade[tid] = rec
 
     # Exit attribution (today) – keyed by (symbol, entry_timestamp) best-effort.
     exit_attrib_today: List[Dict[str, Any]] = []
@@ -475,30 +478,18 @@ def _extract_shadow_telemetry(day: str) -> Dict[str, Any]:
         pnl_by_regime[str(r.get("entry_regime", "") or "")] += p
         pnl_by_exit_reason[str(r.get("exit_reason", "") or "")] += p
 
-    # Simple entry intelligence: UW feature usage counts from shadow candidates
+    # v2-only world: feature usage counts are derived from realized trades + exit attribution (best-effort).
+    # Keep this as a simple counter placeholder until we define a stable "feature family" contract for the master log.
     feat_counts = Counter()
-    candidates = [r for r in trades_today if str(r.get("event_type", "")) == "shadow_trade_candidate"]
-    for r in candidates:
-        snap = r.get("uw_attribution_snapshot") if isinstance(r.get("uw_attribution_snapshot"), dict) else {}
-        adj = snap.get("v2_uw_adjustments") if isinstance(snap.get("v2_uw_adjustments"), dict) else {}
-        for k, v in adj.items():
-            if k == "total":
-                continue
-            try:
-                if abs(float(v)) > 1e-6:
-                    feat_counts[k] += 1
-            except Exception:
-                continue
 
     replacement_events = [r for r in realized if r.get("replacement_candidate")]
     exit_reasons = Counter([str(r.get("exit_reason", "") or "") for r in realized])
 
     return {
         "counts": {
-            "shadow_log_records_today": len(trades_today),
-            "shadow_trade_candidates_today": len(candidates),
-            "shadow_entries_opened_today": len(entries_by_trade),
-            "shadow_exits_today": len(exits_by_trade),
+            "master_trade_log_records_today": len(trades_today),
+            "live_entries_opened_today": len(entries_by_trade),
+            "live_exits_today": len(exits_by_trade),
             "realized_closed_trades": len(realized),
             "exit_attribution_records_today": len(exit_attrib_today),
             "replacement_events": len(replacement_events),
@@ -541,7 +532,7 @@ def _render_master_md(
     lines.append("### Status snapshot")
     v1_live_present = bool(universe.get("v1_live_log_present"))
     lines.append(f"- v1 status: **{'present' if v1_live_present else 'unknown / no live log found'}**")
-    lines.append(f"- v2 status: **shadow-only telemetry**")
+    lines.append(f"- v2 status: **v2-only engine (paper)**")
     dh = health.get("daemon_health") or {}
     ih = health.get("intel_health") or {}
     if dh:
@@ -553,17 +544,14 @@ def _render_master_md(
     # Computed artifacts index
     desc = {
         "feature_equalizer_builder.json": "Equalizer-ready per-feature realized outcome summaries.",
-        "long_short_analysis.json": "Long vs short expectancy stats from realized shadow exits.",
+        "long_short_analysis.json": "Long vs short expectancy stats from realized exits.",
         "exit_intel_completeness.json": "Exit attribution completeness + missing-key counts.",
         "feature_value_curves.json": "Per-feature value curves (binned) vs realized PnL.",
         "regime_sector_feature_matrix.json": "Regime/Sector → per-feature realized PnL matrix.",
-        "shadow_vs_live_parity.json": "Shadow vs live entry-time parity (score/price/time) + aggregates.",
-        "entry_parity_details.json": "Full per-entry parity rows (v1 vs v2) with deltas + classification.",
         "score_distribution_curves.json": "Score histograms + delta histograms by feature family (long/short split).",
         "regime_timeline.json": "Hourly (UTC) regime/posture timeline (best-effort) + day summary.",
-        "feature_family_summary.json": "Per-family parity deltas + realized EV contribution + stability.",
         "replacement_telemetry_expanded.json": "Replacement rates by feature/family + cause histogram + anomaly flag.",
-        "live_vs_shadow_pnl.json": "Rolling (24h/48h/5d) live vs shadow PnL/expectancy/win-rate deltas + per-symbol table.",
+        "pnl_windows.json": "Rolling (24h/48h/5d) PnL/expectancy/win-rate + per-symbol table.",
         "signal_performance.json": "Per-signal (feature-family) win rate/expectancy/trade count + regime/side breakdowns.",
         "signal_weight_recommendations.json": "Advisory (read-only) signal weight delta suggestions derived from performance.",
     }
@@ -579,10 +567,10 @@ def _render_master_md(
             lines.append(f"- `{name}` — {desc.get(name, 'Computed telemetry artifact.')}")
     lines.append("")
 
-    lines.append("## 2. v2 Shadow Trading Summary")
+    lines.append("## 2. v2 Trading Summary (paper)")
     c = shadow.get("counts") or {}
-    lines.append(f"- Entries (opened): **{c.get('shadow_entries_opened_today',0)}**")
-    lines.append(f"- Exits: **{c.get('shadow_exits_today',0)}**")
+    lines.append(f"- Live entries (opened): **{c.get('live_entries_opened_today',0)}**")
+    lines.append(f"- Live exits: **{c.get('live_exits_today',0)}**")
     lines.append(f"- Closed trades (realized): **{c.get('realized_closed_trades',0)}**")
     lines.append(f"- Total PnL (USD): **{shadow.get('pnl_total_usd',0.0)}**")
     lines.append(f"- Replacement events: **{c.get('replacement_events',0)}**")
@@ -628,7 +616,7 @@ def _render_master_md(
     # Long/short asymmetry summary (computed)
     ls = computed.get("long_short_analysis") if isinstance(computed.get("long_short_analysis"), dict) else {}
     if ls:
-        lines.append("### Long vs short asymmetry (realized shadow exits)")
+        lines.append("### Long vs short asymmetry (realized exits)")
         for k in ("overall", "long", "short"):
             g = ls.get(k) if isinstance(ls.get(k), dict) else {}
             if not g:
@@ -744,7 +732,7 @@ def _render_master_md(
     feq = computed.get("feature_equalizer") if isinstance(computed.get("feature_equalizer"), dict) else {}
     if feq:
         feats = feq.get("features") if isinstance(feq.get("features"), dict) else {}
-        lines.append("## 6b. Feature Equalizer Snapshot (shadow-only, realized)")
+        lines.append("## 6b. Feature Equalizer Snapshot (v2-only, realized)")
         if not feats:
             lines.append("- No feature-level stats available (no realized exits with attribution).")
         else:
@@ -771,13 +759,13 @@ def _render_master_md(
     reasons_ready: List[str] = []
     reasons_not: List[str] = []
     if c.get("realized_closed_trades", 0) and pnl_total > 0:
-        reasons_ready.append(f"Positive realized PnL today: {round(pnl_total,2)} USD (shadow)")
+        reasons_ready.append(f"Positive realized PnL today: {round(pnl_total,2)} USD (v2)")
     if daemon_ok and intel_ok:
         reasons_ready.append("Daemon + intel health look OK (best-effort)")
     if not c.get("realized_closed_trades", 0):
-        reasons_not.append("No realized shadow exits today (cannot validate exit quality/PnL)")
+        reasons_not.append("No realized exits today (cannot validate exit quality/PnL)")
     if pnl_total < 0:
-        reasons_not.append(f"Negative realized PnL today: {round(pnl_total,2)} USD (shadow)")
+        reasons_not.append(f"Negative realized PnL today: {round(pnl_total,2)} USD (v2)")
     if not daemon_ok:
         reasons_not.append("Daemon health not healthy (quota/data freshness risk)")
     if not intel_ok:
@@ -830,60 +818,26 @@ def _render_master_md(
             lines.append(f"- Weakest cell: **{worst_cell.get('key')}** total_pnl_usd={worst_cell.get('total_pnl_usd')} count={worst_cell.get('count')}")
         lines.append("")
 
-    # Entry-time parity summary (computed)
-    parity = computed.get("shadow_vs_live_parity") if isinstance(computed.get("shadow_vs_live_parity"), dict) else {}
-    if parity:
-        lines.append("## Entry-Time Parity Summary")
-        notes = parity.get("notes") if isinstance(parity.get("notes"), dict) else {}
-        agg = parity.get("aggregate_metrics") if isinstance(parity.get("aggregate_metrics"), dict) else {}
-        lines.append(f"- Parity available: **{notes.get('parity_available')}**")
-        lines.append(f"- Match rate (perfect|near): **{agg.get('match_rate')}** (pairs={agg.get('matched_pairs')})")
-        lines.append(f"- Mean ts delta (s): **{agg.get('mean_entry_ts_delta_seconds')}**")
-        lines.append(f"- Mean score delta (v2-v1): **{agg.get('mean_score_delta')}**")
-        lines.append(f"- Mean price delta (USD): **{agg.get('mean_price_delta_usd')}**")
-        # Top divergences (by abs score delta then abs price delta)
-        try:
-            rows = []
-            ep = parity.get("entry_parity") if isinstance(parity.get("entry_parity"), dict) else {}
-            if isinstance(ep.get("rows"), list):
-                rows = [r for r in ep.get("rows") if isinstance(r, dict)]
-            rows2 = sorted(
-                rows,
-                key=lambda r: (abs(float(r.get("score_delta") or 0.0)), abs(float(r.get("price_delta_usd") or 0.0))),
-                reverse=True,
-            )
-            if rows2:
-                lines.append("- Top divergences (by |score_delta|, |price_delta_usd|):")
-                for r in rows2[:10]:
-                    lines.append(
-                        f"  - **{r.get('symbol')}** cls={r.get('classification')} "
-                        f"ts_delta_s={r.get('entry_ts_delta_seconds')} score_delta={r.get('score_delta')} price_delta_usd={r.get('price_delta_usd')}"
-                    )
-        except Exception:
-            pass
-        lines.append("")
-
-    # Live vs Shadow PnL (computed; rolling windows)
-    lvs = computed.get("live_vs_shadow_pnl") if isinstance(computed.get("live_vs_shadow_pnl"), dict) else {}
-    if lvs and isinstance(lvs.get("windows"), dict):
-        lines.append("## Live vs Shadow PnL (rolling windows)")
-        lines.append(f"- As-of (UTC): **{lvs.get('as_of_ts')}**")
-        wins = lvs.get("windows") if isinstance(lvs.get("windows"), dict) else {}
+    # PnL windows (computed; rolling windows)
+    pw = computed.get("pnl_windows") if isinstance(computed.get("pnl_windows"), dict) else {}
+    if pw and isinstance(pw.get("windows"), dict):
+        lines.append("## PnL Windows (rolling)")
+        lines.append(f"- As-of (UTC): **{pw.get('as_of_ts')}**")
+        wins = pw.get("windows") if isinstance(pw.get("windows"), dict) else {}
         for wn in ("24h", "48h", "5d"):
             w = wins.get(wn) if isinstance(wins.get(wn), dict) else {}
-            dlt = w.get("delta") if isinstance(w.get("delta"), dict) else {}
             lines.append(
-                f"- **{wn}** delta_pnl_usd={round(float(dlt.get('pnl_usd') or 0.0), 2)} "
-                f"delta_expectancy_usd={round(float(dlt.get('expectancy_usd') or 0.0), 4)} "
-                f"delta_win_rate={round(float(dlt.get('win_rate') or 0.0), 4)} "
+                f"- **{wn}** pnl_usd={round(float(w.get('pnl_usd') or 0.0), 2)} "
+                f"expectancy_usd={round(float(w.get('expectancy_usd') or 0.0), 4)} "
+                f"win_rate={round(float(w.get('win_rate') or 0.0), 4)} "
                 f"(insufficient_data={w.get('insufficient_data')})"
             )
         lines.append("")
 
-    # Signal performance + recommendations (computed; shadow realized trades)
+    # Signal performance + recommendations (computed; realized trades)
     sp = computed.get("signal_performance") if isinstance(computed.get("signal_performance"), dict) else {}
     if sp and isinstance(sp.get("signals"), list):
-        lines.append("## Signal Performance (shadow-only, realized)")
+        lines.append("## Signal Performance (realized)")
         sigs = [r for r in (sp.get("signals") or []) if isinstance(r, dict)]
         sigs_sorted = sorted(sigs, key=lambda r: float(r.get("expectancy_usd") or 0.0), reverse=True)
         if not sigs_sorted:
@@ -986,7 +940,6 @@ def main() -> int:
 
     # Required state artifacts (best-effort)
     state_targets = [
-        "state/shadow_v2_positions.json",
         "state/daily_universe.json",
         "state/daily_universe_v2.json",
         "state/premarket_intel.json",
@@ -1017,9 +970,10 @@ def main() -> int:
         # v1 live (optional)
         "logs/live_trades.jsonl",
         "logs/attribution.jsonl",
-        "logs/shadow_trades.jsonl",
+        # v2 live
+        "logs/master_trade_log.jsonl",
         "logs/exit_attribution.jsonl",
-        "logs/shadow.jsonl",
+        # system/intel logs
         "logs/uw_attribution.jsonl",
         "logs/system_events.jsonl",
         # general system tails (helpful for "all system events / all logs tails")
@@ -1043,7 +997,6 @@ def main() -> int:
 
     # Reports (date-scoped)
     report_targets = [
-        f"reports/SHADOW_DAY_SUMMARY_{day}.md",
         f"reports/EXIT_DAY_SUMMARY_{day}.md",
         f"reports/EXIT_INTEL_PNL_{day}.md",
         f"reports/UW_INTEL_PNL_{day}.md",
@@ -1059,7 +1012,7 @@ def main() -> int:
 
     # Compute telemetry sections
     health = _summarize_health(day)
-    shadow = _extract_shadow_telemetry(day)
+    shadow = _extract_v2_live_telemetry(day)
     daily_universe = _read_json(ROOT / "state" / "daily_universe.json")
     daily_universe_v2 = _read_json(ROOT / "state" / "daily_universe_v2.json")
     regime_state = _read_json(ROOT / "state" / "regime_state.json")
@@ -1102,16 +1055,14 @@ def main() -> int:
     from telemetry.exit_intel_completeness import build_exit_intel_completeness  # type: ignore
     from telemetry.feature_equalizer_builder import build_feature_equalizer  # type: ignore
     from telemetry.feature_value_curves import build_feature_value_curves  # type: ignore
-    from telemetry.feature_family_summary import build_feature_family_summary  # type: ignore
     from telemetry.long_short_analysis import build_long_short_analysis  # type: ignore
-    from telemetry.live_vs_shadow_pnl import build_live_vs_shadow_pnl  # type: ignore
     from telemetry.regime_sector_feature_matrix import build_regime_sector_feature_matrix  # type: ignore
     from telemetry.regime_timeline import build_regime_timeline  # type: ignore
     from telemetry.replacement_telemetry_expanded import build_replacement_telemetry_expanded  # type: ignore
     from telemetry.score_distribution_curves import build_score_distribution_curves  # type: ignore
-    from telemetry.shadow_vs_live_parity import build_shadow_vs_live_parity  # type: ignore
     from telemetry.signal_performance import build_signal_performance  # type: ignore
     from telemetry.signal_weight_recommendations import build_signal_weight_recommendations  # type: ignore
+    from telemetry.pnl_windows import build_pnl_windows  # type: ignore
 
     exit_attrib_today: List[Dict[str, Any]] = []
     for rec in _iter_jsonl(ROOT / "logs" / "exit_attribution.jsonl"):
@@ -1119,8 +1070,6 @@ def main() -> int:
         if _utc_day_from_ts(ts) == day:
             exit_attrib_today.append(rec)
 
-    # v1 attribution log (best-effort parity input)
-    v1_attrib_path = ROOT / "logs" / "attribution.jsonl"
     computed: Dict[str, Any] = {}
     try:
         computed["feature_equalizer"] = build_feature_equalizer(day=day, realized_trades=shadow.get("realized_trades") or [])
@@ -1143,39 +1092,15 @@ def main() -> int:
     except Exception as e:
         computed["regime_sector_feature_matrix"] = {"error": str(e)}
     try:
-        computed["shadow_vs_live_parity"] = build_shadow_vs_live_parity(
-            day=day,
-            v1_attribution_log_path=str(v1_attrib_path),
-            shadow_trades_log_path=str(ROOT / "logs" / "shadow_trades.jsonl"),
-        )
-    except Exception as e:
-        computed["shadow_vs_live_parity"] = {"error": str(e)}
-
-    # Derived from parity rows (separate required artifact)
-    parity_rows: List[Dict[str, Any]] = []
-    try:
-        parity_doc = computed.get("shadow_vs_live_parity")
-        if isinstance(parity_doc, dict):
-            ep = parity_doc.get("entry_parity") if isinstance(parity_doc.get("entry_parity"), dict) else {}
-            rows = ep.get("rows") if isinstance(ep.get("rows"), list) else []
-            parity_rows = [r for r in rows if isinstance(r, dict)]
-        computed["entry_parity_details"] = {
-            "_meta": {"date": str(day), "kind": "entry_parity_details", "version": "2026-01-22_v1"},
-            "rows": parity_rows,
-        }
-    except Exception as e:
-        computed["entry_parity_details"] = {"error": str(e), "rows": []}
-
-    try:
-        computed["score_distribution_curves"] = build_score_distribution_curves(day=day, entry_parity_rows=parity_rows)
+        computed["score_distribution_curves"] = build_score_distribution_curves(day=day, entry_parity_rows=[])
     except Exception as e:
         computed["score_distribution_curves"] = {"error": str(e)}
 
     try:
         computed["regime_timeline"] = build_regime_timeline(
             day=day,
-            v1_attribution_log_path=str(v1_attrib_path),
-            shadow_trades_log_path=str(ROOT / "logs" / "shadow_trades.jsonl"),
+            v1_attribution_log_path=str(ROOT / "logs" / "attribution.jsonl"),
+            shadow_trades_log_path=str(ROOT / "logs" / "master_trade_log.jsonl"),
             regime_state=regime_state if isinstance(regime_state, dict) else None,
             posture_state=_read_json(ROOT / "state" / "regime_posture_state.json") if (ROOT / "state" / "regime_posture_state.json").exists() else None,
             market_context=_read_json(ROOT / "state" / "market_context_v2.json") if (ROOT / "state" / "market_context_v2.json").exists() else None,
@@ -1184,29 +1109,17 @@ def main() -> int:
         computed["regime_timeline"] = {"error": str(e)}
 
     try:
-        computed["feature_family_summary"] = build_feature_family_summary(
-            day=day,
-            entry_parity_rows=parity_rows,
-            realized_trades=shadow.get("realized_trades") or [],
-        )
-    except Exception as e:
-        computed["feature_family_summary"] = {"error": str(e)}
-
-    try:
         computed["replacement_telemetry_expanded"] = build_replacement_telemetry_expanded(
             day=day, realized_trades=shadow.get("realized_trades") or []
         )
     except Exception as e:
         computed["replacement_telemetry_expanded"] = {"error": str(e)}
 
-    # Live vs shadow PnL (rolling windows, UTC)
+    # Rolling PnL windows (UTC)
     try:
-        computed["live_vs_shadow_pnl"] = build_live_vs_shadow_pnl(
-            attribution_log_path=str(ROOT / "logs" / "attribution.jsonl"),
-            shadow_exit_attribution_log_path=str(ROOT / "logs" / "exit_attribution.jsonl"),
-        )
+        computed["pnl_windows"] = build_pnl_windows(master_trade_log_path=str(ROOT / "logs" / "master_trade_log.jsonl"))
     except Exception as e:
-        computed["live_vs_shadow_pnl"] = {"error": str(e), "as_of_ts": _now_iso(), "windows": {}, "per_symbol": []}
+        computed["pnl_windows"] = {"error": str(e), "as_of_ts": _now_iso(), "windows": {}, "per_symbol": []}
 
     # Per-signal performance + advisory recommendations (shadow realized trades)
     try:
@@ -1227,13 +1140,10 @@ def main() -> int:
         "exit_intel_completeness": "exit_intel_completeness.json",
         "feature_value_curves": "feature_value_curves.json",
         "regime_sector_feature_matrix": "regime_sector_feature_matrix.json",
-        "shadow_vs_live_parity": "shadow_vs_live_parity.json",
-        "entry_parity_details": "entry_parity_details.json",
         "score_distribution_curves": "score_distribution_curves.json",
         "regime_timeline": "regime_timeline.json",
-        "feature_family_summary": "feature_family_summary.json",
         "replacement_telemetry_expanded": "replacement_telemetry_expanded.json",
-        "live_vs_shadow_pnl": "live_vs_shadow_pnl.json",
+        "pnl_windows": "pnl_windows.json",
         "signal_performance": "signal_performance.json",
         "signal_weight_recommendations": "signal_weight_recommendations.json",
     }
@@ -1271,13 +1181,10 @@ def main() -> int:
             "exit_intel_completeness": computed.get("exit_intel_completeness"),
             "feature_value_curves": computed.get("feature_value_curves"),
             "regime_sector_feature_matrix": computed.get("regime_sector_feature_matrix"),
-            "shadow_vs_live_parity": computed.get("shadow_vs_live_parity"),
-            "entry_parity_details": computed.get("entry_parity_details"),
             "score_distribution_curves": computed.get("score_distribution_curves"),
             "regime_timeline": computed.get("regime_timeline"),
-            "feature_family_summary": computed.get("feature_family_summary"),
             "replacement_telemetry_expanded": computed.get("replacement_telemetry_expanded"),
-            "live_vs_shadow_pnl": computed.get("live_vs_shadow_pnl"),
+            "pnl_windows": computed.get("pnl_windows"),
             "signal_performance": computed.get("signal_performance"),
             "signal_weight_recommendations": computed.get("signal_weight_recommendations"),
             "computed_files": computed_files,

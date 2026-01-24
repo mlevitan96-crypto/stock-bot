@@ -156,37 +156,8 @@ def _count_trades_from_attribution(date: str) -> Tuple[int, List[str]]:
 
 
 def _count_shadow_activity(date: str) -> Dict[str, Any]:
-    p = Path("logs/shadow_trades.jsonl")
-    if not p.exists():
-        return {"candidates": 0, "entries_opened": 0, "exits": 0, "symbols": []}
-    candidates = 0
-    entries = 0
-    exits = 0
-    syms: Dict[str, int] = {}
-    for ln in p.read_text(encoding="utf-8", errors="replace").splitlines()[-200000:]:
-        ln = ln.strip()
-        if not ln:
-            continue
-        try:
-            rec = json.loads(ln)
-        except Exception:
-            continue
-        if not isinstance(rec, dict):
-            continue
-        ts = str(rec.get("timestamp") or rec.get("ts") or "")
-        if ts[:10] != date:
-            continue
-        et = str(rec.get("event_type", "") or "")
-        sym = str(rec.get("symbol", "") or "").upper()
-        if sym:
-            syms[sym] = syms.get(sym, 0) + 1
-        if et == "shadow_trade_candidate":
-            candidates += 1
-        elif et == "shadow_entry_opened":
-            entries += 1
-        elif et == "shadow_exit":
-            exits += 1
-    return {"candidates": int(candidates), "entries_opened": int(entries), "exits": int(exits), "symbols": sorted(syms.keys())}
+    # Shadow trading removed (v2-only engine).
+    return {"candidates": 0, "entries_opened": 0, "exits": 0, "symbols": []}
 
 
 def _pnl_snapshot_from_exit_summary(exit_pnl: Dict[str, Any]) -> Dict[str, Any]:
@@ -277,7 +248,7 @@ def _write_master_summary(
 
     lines.append("## 2.3. v1 vs v2 Behavior Snapshot (best-effort)")
     lines.append(f"- v1 trade records (attribution.jsonl, best-effort): **{v1_trade_count}**")
-    lines.append(f"- v2 shadow candidates: **{v2_act.get('candidates', 0)}** | entries_opened: **{v2_act.get('entries_opened', 0)}** | exits: **{v2_act.get('exits', 0)}**")
+    lines.append(f"- v2 activity: **n/a (shadow removed)**")
     lines.append(f"- Symbols v2 liked that v1 didn’t (up to 30): `{v2_only}`")
     lines.append(f"- Symbols v1 traded that v2 avoided (up to 30): `{v1_only}`")
     lines.append("")
@@ -291,7 +262,7 @@ def _write_master_summary(
         lines.append("- Worst UW feature buckets by avg_pnl_pct:")
         for k, avg, n in feat_worst:
             lines.append(f"  - **{k}**: avg_pnl_pct={round(avg, 6)} n={n}")
-    lines.append(f"- See: `reports/SHADOW_DAY_SUMMARY_{date}.md` and `reports/UW_INTEL_PNL_{date}.md` (if present in pack).")
+    lines.append(f"- See: `reports/UW_INTEL_PNL_{date}.md` (if present in pack).")
     lines.append("")
 
     lines.append("## 2.5. v2 Exit Intelligence Summary (best-effort)")
@@ -378,7 +349,6 @@ def main() -> int:
         env["UW_MOCK"] = "1"
 
     steps: List[Tuple[str, List[str]]] = [
-        ("run_shadow_day_summary", [env.get("PYTHON", "") or os.sys.executable, "scripts/run_shadow_day_summary.py", "--date", date]),
         ("run_exit_day_summary", [env.get("PYTHON", "") or os.sys.executable, "scripts/run_exit_day_summary.py", "--date", date]),
         ("run_exit_intel_pnl", [env.get("PYTHON", "") or os.sys.executable, "scripts/run_exit_intel_pnl.py", "--date", date]),
         ("run_daily_intel_pnl", [env.get("PYTHON", "") or os.sys.executable, "scripts/run_daily_intel_pnl.py", "--date", date]),
@@ -406,22 +376,19 @@ def main() -> int:
         "state/intel_health_state.json",
         "state/premarket_exit_intel.json",
         "state/postmarket_exit_intel.json",
-        "state/shadow_v2_positions.json",
-        "state/shadow_heartbeat.json",
     ]
     report_files = [
         f"reports/INTEL_DASHBOARD_{date}.md",
-        f"reports/SHADOW_DAY_SUMMARY_{date}.md",
         f"reports/EXIT_DAY_SUMMARY_{date}.md",
         f"reports/UW_INTEL_PNL_{date}.md",
         f"reports/EXIT_INTEL_PNL_{date}.md",
         f"reports/V2_TUNING_SUGGESTIONS_{date}.md",
     ]
     log_tails = [
-        ("logs/shadow_trades.jsonl", "shadow_trades_tail.jsonl"),
         ("logs/uw_attribution.jsonl", "uw_attribution_tail.jsonl"),
         ("logs/exit_attribution.jsonl", "exit_attribution_tail.jsonl"),
         ("logs/system_events.jsonl", "system_events_tail.jsonl"),
+        ("logs/master_trade_log.jsonl", "master_trade_log_tail.jsonl"),
     ]
 
     captured: Dict[str, Any] = {"state": {}, "reports": {}, "log_tails": {}}

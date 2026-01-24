@@ -26,6 +26,14 @@ These rules define how the system is structured. They MUST NEVER be violated.
 - No module in the repo may start background work on import.
 - Importing any file MUST be safe and inert.
 
+### 1.4 Engine Versioning + Trading Mode (v2-only, paper)
+- The system MUST run a **single** trading engine implementation: **v2**.
+- **v1 logic and code paths are removed** and MUST NOT be reintroduced.
+- **Shadow trading is removed** and MUST NOT be reintroduced.
+- The engine MUST be **paper-only** until explicitly approved otherwise:
+  - The engine MUST refuse to start (or MUST refuse entries) if `ALPACA_BASE_URL` is not the Alpaca **paper** endpoint.
+  - The engine MUST treat any “live” configuration pointing at paper (or paper configuration pointing at live) as a misconfiguration and hard-block entries.
+
 ---
 
 # 2. Engine Resilience Guarantees
@@ -78,10 +86,10 @@ data/uw_flow_cache.json
 - No other path may be used for UW data.
 
 ### 4.5 UW Intelligence Layer (Additive, v2-only)
-This section adds a *new* UW intelligence layer WITHOUT changing the v1 flow cache contract above.
+This section adds a *new* UW intelligence layer WITHOUT changing the UW flow cache contract above.
 
 Contracts:
-- `data/uw_flow_cache.json` remains the canonical v1 UW flow cache (engine + daemon).
+- `data/uw_flow_cache.json` remains the canonical UW flow cache (engine + daemon).
 - The v2 intelligence layer MAY use additional state files under `state/` for:
   - rate limiting + usage accounting: `state/uw_usage_state.json`
   - cached UW API responses: `state/uw_cache/`
@@ -91,7 +99,7 @@ Contracts:
   - `src/uw/uw_client.py`
 - Symbol-level UW calls MUST be restricted to:
   - `daily_universe ∪ core_universe`
-- v2 remains shadow-only until `COMPOSITE_VERSION` is manually flipped.
+- v2 composite scoring MUST read UW intel from state files only (no live UW calls during scoring).
 
 ### 4.8 UW Endpoint Validation Contract
 To permanently prevent silent 404s and hallucinated URLs:
@@ -138,16 +146,16 @@ Rules:
 - Droplet state files MUST persist under `state/` on the droplet.
 - Local sync MUST store fetched artifacts under: `droplet_sync/YYYY-MM-DD/`
 - Local sync MUST append to: `droplet_sync/YYYY-MM-DD/sync_log.jsonl`
-- Sync failures MUST be logged and MUST NOT break v1.
+- Sync failures MUST be logged and MUST NOT break trading.
 
 Canonical runner:
 - `scripts/run_uw_intel_on_droplet.py`
 
 ### 4.10 Intelligence Attribution & P&L Contract (v2-only, additive)
 Inputs:
-- v2 composite scoring outputs (shadow-only)
+- v2 composite scoring outputs (live paper engine)
 - UW intel state files: `state/premarket_intel.json`, `state/postmarket_intel.json`
-- Exit/PnL sources (best-effort): `logs/exits.jsonl`, `logs/shadow.jsonl`
+- Exit/PnL sources (best-effort): `logs/exits.jsonl`, `logs/exit_attribution.jsonl`, `logs/master_trade_log.jsonl`
 
 Outputs:
 - Attribution stream (append-only): `logs/uw_attribution.jsonl`
@@ -156,7 +164,7 @@ Outputs:
 
 Rules:
 - Attribution MUST be non-blocking (never crash scoring).
-- Attribution + P&L MUST NOT affect v1 trading behavior.
+- Attribution + P&L MUST NOT affect trading behavior (observability only).
 - P&L generation may be sparse if exit logs are unavailable; it must still run safely.
 
 ### 4.11 Sector & Regime Awareness Contract (v2-only, additive)
@@ -170,24 +178,22 @@ Regime:
 - Output state lives in: `state/regime_state.json`
 - Engine MUST be safe-by-default and must not require live network calls.
 
-### 4.12 Universe Scoring v2 Contract (shadow-only)
+### 4.12 Universe Scoring v2 Contract (v2-only)
 Inputs:
 - Symbol risk features: `state/symbol_risk_features.json`
 - Regime snapshot: `state/regime_state.json` (if present)
 - Sector profiles (optional): `config/sector_profiles.json`
 
 Outputs:
-- v1 outputs (unchanged): `state/daily_universe.json`, `state/core_universe.json`
-- v2 output (additive, shadow-only): `state/daily_universe_v2.json`
+- Universe outputs: `state/daily_universe.json`, `state/core_universe.json`, `state/daily_universe_v2.json`
 
 Rules:
-- v2 universe output MUST NOT be consumed by v1 trading without explicit promotion.
-- v1 universe behavior must remain unchanged.
+- The v2 engine MAY consume `state/daily_universe_v2.json` as the primary universe when present.
+- The engine MUST fall back safely to `state/daily_universe.json` / `state/core_universe.json` if v2 universe is missing.
 
-### 4.13 Composite v2 Tuning Contract (shadow-only)
+### 4.13 Composite v2 Tuning Contract (v2-only)
 Rules:
 - v2 composite MUST read UW intel only from state files (no live UW calls in scoring).
-- Sector/regime multipliers MAY shape v2 UW adjustments, but MUST NOT affect v1.
 - v2 metadata MUST be logged in the v2 output dict (inputs/versions).
 
 ### 4.14 Intel Dashboard Contract (additive)
@@ -241,37 +247,26 @@ Rules:
 - On critical failures, sentinel MAY attempt safe restart only when explicitly enabled:
   - `systemctl restart uw-flow-daemon.service`
   - Must log: `uw_daemon_self_heal_attempt` and success/failure events.
-- Sentinel MUST be additive and MUST NOT modify v1 trading behavior or trading state.
+- Sentinel MUST be additive and MUST NOT modify trading behavior or trading state.
 
-### 4.17 Shadow Trading Contract (v2)
+### 4.17 Trading Contract (v2-only, paper)
 Rules:
-- v1 remains the ONLY live trading path.
-- v2 MUST be shadow-only:
-  - MUST never submit live orders
-  - MUST log decisions for review
-- v2 MUST use the full intelligence layer via state files:
+- The trading engine MUST be v2-only (no v1, no shadow).
+- The engine MUST use the full intelligence layer via state files:
   - `state/daily_universe_v2.json` (fallback `state/daily_universe.json`)
   - `state/premarket_intel.json`
   - `state/postmarket_intel.json`
   - `state/regime_state.json`
   - sector profiles from `config/sector_profiles.json`
-- Shadow decision log:
-  - `logs/shadow_trades.jsonl`
-- Shadow position state (simulator persistence):
-  - `state/shadow_v2_positions.json` (atomic updates; no live orders)
-- Exit attribution (shadow exits only):
-  - `logs/exit_attribution.jsonl`
-- Pre-open readiness MUST run on droplet before market open:
+- Pre-open readiness MUST run on droplet before market open and MUST fail hard if prerequisites are missing/stale:
   - `scripts/run_preopen_readiness_check.py`
   - MUST fail if daemon health is `critical` or intel artifacts are stale/missing
   - MUST require `scripts/run_regression_checks.py` pass (unless explicitly skipped for regression harness)
 
-### 4.18 Exit Intelligence Contract (v2, shadow-only)
+### 4.18 Exit Intelligence Contract (v2-only, paper)
 Rules:
-- v1 exit logic is sacred and MUST NOT be modified.
-- v2 exit logic is shadow-only until explicitly promoted:
-  - MUST never submit live exit orders
-  - MUST log every exit decision and its attribution
+- Exit logic MUST be v2-only and MUST be fully active in paper trading.
+- Exit decisions MUST be logged with full attribution (append-only).
 
 Exit attribution:
 - Engine: `src/exit/exit_attribution.py`
@@ -314,7 +309,7 @@ Outputs:
 - Best-effort copies of relevant state + reports + log tails under the pack folder.
 
 Rules:
-- MUST be additive and MUST NOT affect v1 trading behavior.
+- MUST be additive and MUST NOT affect trading behavior (no orders).
 - MUST be derivable from state/logs only (no required live network calls).
 - MUST be safe-by-default: missing artifacts are recorded; the pack still generates.
 - Droplet runner MAY sync the pack via:
@@ -322,9 +317,9 @@ Rules:
   - Synced location: `droplet_sync/YYYY-MM-DD/analysis_packs/YYYY-MM-DD/`
 
 ### 4.20 Telemetry Completeness + Equalizer Contracts (v2-only, additive)
-These invariants define what “complete telemetry” means for v2 shadow promotion decisions.
+These invariants define what “complete telemetry” means for the v2-only (paper) engine.
 
-#### 4.20.1 Read-only + v1-safe (non-negotiable)
+#### 4.20.1 Read-only (non-negotiable)
 - Telemetry builders MUST be **read-only** (no trading logic changes, no order placement, no state mutation beyond writing into `telemetry/YYYY-MM-DD/`).
 - Telemetry builders MUST be **idempotent** for a given date (same inputs → same outputs).
 - Telemetry builders MUST be **best-effort**: missing inputs are recorded; bundle still generates.
@@ -345,13 +340,11 @@ Required output files:
   - `exit_intel_completeness.json`
   - `feature_value_curves.json`
   - `regime_sector_feature_matrix.json`
-  - `shadow_vs_live_parity.json`
-  - `entry_parity_details.json`
   - `score_distribution_curves.json`
   - `regime_timeline.json`
   - `feature_family_summary.json`
   - `replacement_telemetry_expanded.json`
-  - `live_vs_shadow_pnl.json`
+  - `pnl_windows.json`
   - `signal_performance.json`
   - `signal_weight_recommendations.json`
 
@@ -379,7 +372,7 @@ Telemetry MUST compute, at minimum:
 
 #### 4.20.5 Feature equalizer invariants
 Telemetry MUST produce “equalizer-ready” structures mapping feature strength to realized outcomes:
-- Per-feature realized PnL summaries (overall + by long/short) using v2 shadow exits only.
+- Per-feature realized PnL summaries (overall + by long/short) using v2 realized exits.
 - Per-feature value curves (binned/quantiled) with counts per bin and avg realized PnL per bin.
 - Regime-aware and sector-aware feature summaries (matrix output).
 
@@ -389,21 +382,16 @@ Telemetry MUST capture replacement behavior (best-effort):
 - replacement candidate symbol (if present)
 - replacement reasoning blob (if present)
 
-#### 4.20.7 Shadow vs live parity invariants
-Telemetry MUST attempt a daily parity check when v1 trade logs are present:
-- overlap of symbols between v1 executed trades and v2 shadow entries/candidates
-- if v1 logs are missing, telemetry MUST state “parity unavailable” explicitly
-
 #### 4.20.8 Regression Enforcement Rule (binding)
 **Regression MUST fail if any computed artifact or required key is missing, malformed, or empty.**
 
-#### 4.20.9 Live vs Shadow PnL telemetry invariants (additive)
-Telemetry MUST produce `telemetry/YYYY-MM-DD/computed/live_vs_shadow_pnl.json`:
+#### 4.20.9 PnL windows telemetry invariants (additive)
+Telemetry MUST produce `telemetry/YYYY-MM-DD/computed/pnl_windows.json`:
 - Rolling windows: `24h`, `48h`, `5d` (UTC)
-- Per-window blocks: `live`, `shadow`, `delta`, each containing:
+- Per-window blocks containing:
   - `pnl_usd`, `expectancy_usd`, `trade_count`, `win_rate`
 - `per_symbol[]` table with:
-  - `symbol`, `window`, `live_pnl_usd`, `shadow_pnl_usd`, `delta_pnl_usd`, `live_trade_count`, `shadow_trade_count`
+  - `symbol`, `window`, `pnl_usd`, `trade_count`, `win_rate`
 
 #### 4.20.10 Signal performance telemetry invariants (additive)
 Telemetry MUST produce:
@@ -418,41 +406,14 @@ Rules:
 System MUST maintain an append-only unified trade log:
 - Path: `logs/master_trade_log.jsonl`
 - Each line MUST be a JSON object containing (best-effort):
-  - `trade_id`, `symbol`, `side`, `is_live`, `is_shadow`, `entry_ts`, `exit_ts`
+  - `trade_id`, `symbol`, `side`, `is_live`, `entry_ts`, `exit_ts`
   - `entry_price`, `exit_price`, `size`, `realized_pnl_usd`
   - `signals[]`, `feature_snapshot{}`, `regime_snapshot{}`
-  - `exit_reason`, `source` (`live|shadow`)
+  - `exit_reason`, `source` (`live`)
 
 Rules:
 - Append-only; never rewrites history.
-- MUST be wired into both live and shadow paths without changing trading/scoring/exit logic.
-
-### 4.21 Parity Requirements (expanded schema) (additive)
-Telemetry MUST produce:
-
-- `telemetry/YYYY-MM-DD/computed/shadow_vs_live_parity.json` with:
-  - `overlap.*` symbol overlap (v1 vs shadow candidates/entries)
-  - `entry_parity.allowed_classifications` including:
-    - `perfect_match`, `near_match`, `divergent`, `missing_in_v1`, `missing_in_v2`
-  - `entry_parity.rows[]` rows containing:
-    - `symbol`
-    - `v1_entry_ts`, `v2_entry_ts`
-    - `entry_ts_delta_seconds`
-    - `v1_score_at_entry`, `v2_score_at_entry`, `score_delta`
-    - `v1_price_at_entry`, `v2_price_at_entry`, `price_delta_usd`
-    - `classification` (must be one of the allowed values)
-    - `missing_fields` (best-effort)
-    - `feature_family` (telemetry-only grouping)
-  - `aggregate_metrics` containing:
-    - `mean_entry_ts_delta_seconds`, `mean_score_delta`, `mean_price_delta_usd`, `match_rate`, `matched_pairs`
-  - `notes.parity_available` true/false
-
-- `telemetry/YYYY-MM-DD/computed/entry_parity_details.json` with:
-  - `rows[]` containing the same per-entry parity row schema as above (full detail rows).
-
-Rules:
-- Missing v1 logs MUST NOT crash telemetry generation.
-- Parity MUST be computed from existing logs only (no schema changes to v1 attribution or v2 shadow logs).
+- MUST be wired into the live trading + exit lifecycle without changing trading/scoring/exit behavior beyond logging.
 
 ### 4.3 Missing/Empty/Corrupt Cache Behavior
 If the cache is missing, empty, or corrupted:

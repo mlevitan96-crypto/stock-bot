@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Exit Attribution Engine (v2, shadow-only)
-========================================
+Exit Attribution Engine (v2)
+============================
 
 Contract:
-- Additive only; MUST NOT affect v1 live exits.
+- Additive only; MUST NOT affect execution decisions.
 - Append-only output: logs/exit_attribution.jsonl
 - Must never raise inside execution paths.
 """
@@ -12,12 +12,16 @@ Contract:
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from utils.signal_normalization import normalize_signals
 
-OUT = Path("logs/exit_attribution.jsonl")
+
+# Allow regression runs to isolate log outputs (prevents polluting droplet logs).
+OUT = Path(os.environ.get("EXIT_ATTRIBUTION_LOG_PATH", "logs/exit_attribution.jsonl"))
 
 
 def _now_iso() -> str:
@@ -27,6 +31,10 @@ def _now_iso() -> str:
 def append_exit_attribution(rec: Dict[str, Any]) -> None:
     try:
         OUT.parent.mkdir(parents=True, exist_ok=True)
+        # Defensive: if signals are ever passed through, ensure schema correctness.
+        if isinstance(rec, dict) and "signals" in rec:
+            rec = dict(rec)
+            rec["signals"] = normalize_signals(rec.get("signals"))
         with OUT.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
     except Exception:

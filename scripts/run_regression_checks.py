@@ -7,9 +7,8 @@ This repo previously lacked a canonical regression runner; this script is now th
 single place to validate "no-break" guarantees for new additive layers.
 
 Contracts enforced:
-- v1 composite MUST remain unchanged for a fixed test set.
 - UW client + intel scripts MUST run in mock mode without network.
-- v2 composite MUST compute with mock UW intel (shadow-only).
+- v2 composite MUST compute deterministically for a fixed mock payload.
 """
 
 from __future__ import annotations
@@ -22,10 +21,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+from utils.signal_normalization import normalize_signals  # noqa: E402
 
 
 def _run(cmd: List[str], *, env: Dict[str, str] | None = None) -> None:
@@ -43,11 +43,67 @@ def _assert(cond: bool, msg: str) -> None:
         raise AssertionError(msg)
 
 
+def _assert_signals_schema(rec: Any, *, where: str) -> None:
+    if not isinstance(rec, dict):
+        return
+    if "signals" not in rec:
+        return
+    sig = rec.get("signals")
+    _assert(isinstance(sig, list), f"{where}: signals must be a list, got {type(sig)}")
+    for i, x in enumerate(sig):
+        _assert(isinstance(x, str), f"{where}: signals[{i}] must be str, got {type(x)}")
+        _assert(x.strip() == x, f"{where}: signals[{i}] has surrounding whitespace")
+        _assert(x != "", f"{where}: signals[{i}] empty")
+
+
+def _scan_jsonl_signals(path: Path, *, limit_lines: int = 2000) -> None:
+    if not path.exists():
+        return
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()[-int(limit_lines) :]
+    except Exception:
+        return
+    bad = 0
+    for idx, ln in enumerate(lines):
+        s = ln.strip()
+        if not s:
+            continue
+        try:
+            rec = json.loads(s)
+        except Exception:
+            continue
+        # Enforce schema: must be list (and never a stringified set).
+        try:
+            _assert_signals_schema(rec, where=f"{path.as_posix()}[tail:{idx}]")
+        except AssertionError:
+            bad += 1
+            raise
+        # Additionally, ensure normalize_signals would not materially change the record.
+        # (i.e., writer is already producing canonical list form)
+        if isinstance(rec, dict) and "signals" in rec:
+            norm = normalize_signals(rec.get("signals"))
+            _assert(norm == rec.get("signals"), f"{path.as_posix()}[tail:{idx}]: signals not normalized (would change on normalize_signals())")
+    _assert(bad == 0, f"{path.as_posix()}: found {bad} signals schema violations")
+
+
 def main() -> int:
     base_env = dict(os.environ)
     base_env["UW_MOCK"] = "1"
     base_env["PYTHONIOENCODING"] = "utf-8"
     telemetry_date = (os.environ.get("REGRESSION_TELEMETRY_DATE") or datetime.now(timezone.utc).strftime("%Y-%m-%d")).strip()
+
+    # Regression MUST NOT pollute real logs (especially on droplet).
+    # Route exit/master_trade logs to an isolated directory via env overrides.
+    reg_log_dir = (ROOT / "logs" / "regression")
+    try:
+        reg_log_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    base_env["EXIT_ATTRIBUTION_LOG_PATH"] = str((reg_log_dir / "exit_attribution.jsonl").as_posix())
+    base_env["MASTER_TRADE_LOG_PATH"] = str((reg_log_dir / "master_trade_log.jsonl").as_posix())
+    # Also apply to current process for in-process smoke tests below.
+    os.environ["EXIT_ATTRIBUTION_LOG_PATH"] = base_env["EXIT_ATTRIBUTION_LOG_PATH"]
+    os.environ["MASTER_TRADE_LOG_PATH"] = base_env["MASTER_TRADE_LOG_PATH"]
 
     # 0) UW spec integrity (must exist + load + sanity size)
     _run(
@@ -153,14 +209,14 @@ def main() -> int:
     _run([sys.executable, "scripts/run_uw_intel_on_droplet.py", "--no-ssh", "--mock", "--date", "2026-01-01", "--full-telemetry"], env=base_env)
     _assert(Path("telemetry/2026-01-01/FULL_TELEMETRY_2026-01-01.md").exists(), "full telemetry not generated in no-ssh mode")
 
-    # 6) v1 composite outputs unchanged for fixed test set (golden embedded here)
+    # 6) v2 composite determinism (golden embedded here)
     # NOTE: this checks the *function output* deterministically for mock enriched inputs.
-    v1_check = _read(ROOT / "uw_composite_v2.py")
-    _assert("def compute_composite_score_v3(" in v1_check, "v1 composite function missing")
+    v2_check = _read(ROOT / "uw_composite_v2.py")
+    _assert("def compute_composite_score_v2(" in v2_check, "v2 composite function missing")
 
-    # compute v1 for a fixed enriched payload
-    gold_path = Path("reports/_regression_v1_composite_golden.json")
-    input_path = Path("reports/_regression_v1_composite_input.json")
+    # compute v2 for a fixed enriched payload
+    gold_path = Path("reports/_regression_v2_composite_golden.json")
+    input_path = Path("reports/_regression_v2_composite_input.json")
     test_payload = {
         "symbol": "AAPL",
         "enriched": {
@@ -186,8 +242,8 @@ def main() -> int:
             "import json,time; import uw_composite_v2 as m; "
             # Freeze weights to deterministic baseline (avoid adaptive/state-driven drift on droplet).
             "m._cached_weights = m.WEIGHTS_V3.copy(); m._weights_cache_ts = time.time(); "
-            "p=json.load(open('reports/_regression_v1_composite_input.json','r')); "
-            "r=m.compute_composite_score_v3(p['symbol'], p['enriched']); "
+            "p=json.load(open('reports/_regression_v2_composite_input.json','r')); "
+            "r=m.compute_composite_score_v2(p['symbol'], p['enriched'], 'NEUTRAL', use_adaptive_weights=False); "
             "print(json.dumps(r, sort_keys=True))",
         ],
         cwd=str(ROOT),
@@ -198,13 +254,13 @@ def main() -> int:
     if gold_path.exists():
         golden = json.loads(gold_path.read_text(encoding="utf-8"))
         got = json.loads(out)
-        _assert(float(got.get("score", 0.0)) == float(golden.get("score", 0.0)), "v1 composite score changed (regression)")
+        _assert(float(got.get("score", 0.0)) == float(golden.get("score", 0.0)), "v2 composite score changed (regression)")
     else:
         # First run creates the golden file in-repo (explicit, visible).
         gold_path.write_text(out + "\n", encoding="utf-8")
 
-    # 7) v2 composite computes with mock UW intel (shadow-only)
-    _run([sys.executable, "-c", "import json; from uw_composite_v2 import compute_composite_score_v3_v2; from config.registry import COMPOSITE_WEIGHTS_V2; enriched={'sentiment':'BULLISH','conviction':0.62,'trade_count':10,'realized_vol_20d':0.35,'beta_vs_spy':1.4}; r=compute_composite_score_v3_v2('AAPL', enriched, market_context={}, posture_state={'posture':'long','regime_confidence':0.8}, base_override={'score':3.5}, v2_params=COMPOSITE_WEIGHTS_V2); assert r.get('composite_version')=='v2'; print('ok')"], env=base_env)
+    # 7) v2 composite computes with mock UW intel (v2-only)
+    _run([sys.executable, "-c", "import json; from uw_composite_v2 import compute_composite_score_v2; from config.registry import COMPOSITE_WEIGHTS_V2; enriched={'sentiment':'BULLISH','conviction':0.62,'trade_count':10,'realized_vol_20d':0.35,'beta_vs_spy':1.4}; r=compute_composite_score_v2('AAPL', enriched, market_context={}, posture_state={'posture':'long','regime_confidence':0.8}, v2_params=COMPOSITE_WEIGHTS_V2, use_adaptive_weights=False); assert r.get('composite_version')=='v2'; print('ok')"], env=base_env)
 
     # 8) regime state exists + schema valid (additive)
     _run([sys.executable, "scripts/run_regime_detector.py"], env=base_env)
@@ -238,7 +294,7 @@ def main() -> int:
     _assert(Path("reports/INTEL_DASHBOARD_2026-01-01.md").exists(), "intel dashboard not generated")
     dash_text = Path("reports/INTEL_DASHBOARD_2026-01-01.md").read_text(encoding="utf-8", errors="replace")
     _assert("UW Flow Daemon Health" in dash_text, "intel dashboard missing daemon health section")
-    _assert("Shadow Trading Snapshot (v2)" in dash_text, "intel dashboard missing shadow trading snapshot section")
+    _assert("Exit Intelligence Snapshot (v2)" in dash_text, "intel dashboard missing exit intelligence section")
 
     # 13) daemon health sentinel (mock scenarios)
     _run([sys.executable, "-c", "import scripts.run_daemon_health_check; print('ok')"], env=base_env)
@@ -252,39 +308,9 @@ def main() -> int:
         dh = json.loads(Path("state/uw_daemon_health_state.json").read_text(encoding="utf-8"))
         ok, msg = validate_uw_daemon_health_state(dh); _assert(ok, f"uw_daemon_health_state schema: {msg}")
 
-    # 14) shadow trading artifacts: logger/executor + summary + readiness (mock)
-    _run([sys.executable, "-c", "from src.trading.shadow_executor import log_shadow_decision; from src.trading.shadow_logger import append_shadow_trade; print('ok')"], env=base_env)
-    # true-sim smoke: open + exit a shadow position using real simulator fields
-    _run(
-        [
-            sys.executable,
-            "-c",
-            "import json; from pathlib import Path; "
-            "from src.trading.shadow_executor import log_shadow_decision; "
-            "Path('state').mkdir(exist_ok=True); "
-            "Path('state/shadow_v2_positions.json').write_text(json.dumps({'positions': {}}, indent=2)); "
-            "comp={'uw_intel_version':'test','v2_uw_inputs':{'flow_strength':0.6,'darkpool_bias':0.1,'sector_alignment':0.2,'regime_alignment':0.2},"
-            "'v2_uw_adjustments':{'flow_strength':0.05,'darkpool_bias':0.01,'sector_alignment':0.01,'regime_alignment':0.01,'total':0.08},"
-            "'v2_uw_sector_profile':{'sector':'TECH'},'v2_uw_regime_profile':{'regime_label':'NEUTRAL'}}; "
-            "log_shadow_decision(symbol='AAPL',direction='bullish',v1_score=3.2,v2_score=4.0,v1_pass=True,v2_pass=True,composite_v2=comp,current_price=100.0,account_equity=55000.0,buying_power=100000.0,position_size_usd=500.0); "
-            "assert Path('state/shadow_v2_positions.json').exists(); "
-            "pos=json.loads(Path('state/shadow_v2_positions.json').read_text()); "
-            "assert 'AAPL' in (pos.get('positions') or {}); "
-            "log_shadow_decision(symbol='AAPL',direction='bullish',v1_score=3.2,v2_score=3.9,v1_pass=True,v2_pass=False,composite_v2=comp,current_price=1000.0,account_equity=55000.0,buying_power=100000.0,position_size_usd=500.0); "
-            "print('ok')",
-        ],
-        env=base_env,
-    )
-    from scripts.uw_intel_schema import validate_shadow_trade_log_entry
-    st = Path("logs/shadow_trades.jsonl")
-    _assert(st.exists(), "logs/shadow_trades.jsonl not created")
-    last = st.read_text(encoding="utf-8", errors="replace").splitlines()[-1].strip()
-    got = json.loads(last) if last else {}
-    ok, msg = validate_shadow_trade_log_entry(got); _assert(ok, f"shadow_trades schema: {msg}")
-
-    # shadow day summary runs (realized PnL best-effort when entry/exit present)
-    _run([sys.executable, "scripts/run_shadow_day_summary.py", "--date", "2026-01-01"], env=base_env)
-    _assert(Path("reports/SHADOW_DAY_SUMMARY_2026-01-01.md").exists(), "shadow day summary not generated")
+    # 14) log schema enforcement: signals must always be a JSON array (list) in trade logs.
+    _scan_jsonl_signals(Path(os.environ.get("MASTER_TRADE_LOG_PATH", "logs/master_trade_log.jsonl")), limit_lines=2000)
+    _scan_jsonl_signals(Path(os.environ.get("EXIT_ATTRIBUTION_LOG_PATH", "logs/exit_attribution.jsonl")), limit_lines=2000)
 
     # preopen readiness check runs in regression with regression-skip
     pre_env = dict(base_env)
@@ -301,7 +327,7 @@ def main() -> int:
     _run([sys.executable, "-c", "from src.exit.exit_score_v2 import compute_exit_score_v2; from src.exit.profit_targets_v2 import compute_profit_target; from src.exit.stops_v2 import compute_stop_price; from src.exit.replacement_logic_v2 import choose_replacement_candidate; print('ok')"], env=base_env)
     _run([sys.executable, "-c", "from src.exit.exit_attribution import build_exit_attribution_record, append_exit_attribution; r=build_exit_attribution_record(symbol='AAPL', entry_timestamp='2026-01-01T00:00:00+00:00', exit_reason='profit', pnl=None, time_in_trade_minutes=None, entry_uw={}, exit_uw={}, entry_regime='NEUTRAL', exit_regime='NEUTRAL', entry_sector_profile={'sector':'TECH'}, exit_sector_profile={'sector':'TECH'}, score_deterioration=0.1, relative_strength_deterioration=0.0, v2_exit_score=0.5, v2_exit_components={'score_deterioration':0.1}); append_exit_attribution(r); print('ok')"], env=base_env)
     from scripts.uw_intel_schema import validate_exit_attribution, validate_exit_intel_pnl_summary, validate_exit_intel_state
-    ea = Path("logs/exit_attribution.jsonl")
+    ea = Path(os.environ.get("EXIT_ATTRIBUTION_LOG_PATH", "logs/exit_attribution.jsonl"))
     _assert(ea.exists(), "logs/exit_attribution.jsonl not created")
     last_ea = ea.read_text(encoding="utf-8", errors="replace").splitlines()[-1].strip()
     ea_rec = json.loads(last_ea) if last_ea else {}
@@ -344,6 +370,9 @@ def main() -> int:
     _assert((tdir / "telemetry_manifest.json").exists(), "telemetry_manifest.json missing")
     for sub in ["state", "logs", "reports"]:
         _assert((tdir / sub).exists(), f"telemetry/{sub} missing")
+    # Enforce signals schema in the telemetry-bundled log copies too.
+    for p in (tdir / "logs").glob("*.jsonl"):
+        _scan_jsonl_signals(p, limit_lines=5000)
     # New equalizer-ready computed artifacts
     comp = tdir / "computed"
     _assert(comp.exists(), "telemetry/computed missing")
@@ -353,13 +382,10 @@ def main() -> int:
         "exit_intel_completeness.json",
         "feature_value_curves.json",
         "regime_sector_feature_matrix.json",
-        "shadow_vs_live_parity.json",
-        "entry_parity_details.json",
         "score_distribution_curves.json",
         "regime_timeline.json",
-        "feature_family_summary.json",
         "replacement_telemetry_expanded.json",
-        "live_vs_shadow_pnl.json",
+        "pnl_windows.json",
         "signal_performance.json",
         "signal_weight_recommendations.json",
     ]:
@@ -373,15 +399,12 @@ def main() -> int:
     from scripts.telemetry_schema import (
         validate_exit_intel_completeness,
         validate_feature_value_curves,
-        validate_entry_parity_details,
-        validate_feature_family_summary,
-        validate_live_vs_shadow_pnl,
         validate_long_short_analysis,
+        validate_pnl_windows,
         validate_regime_timeline,
         validate_regime_sector_feature_matrix,
         validate_replacement_telemetry_expanded,
         validate_score_distribution_curves,
-        validate_shadow_vs_live_parity,
         validate_signal_performance,
         validate_signal_weight_recommendations,
     )
@@ -398,38 +421,17 @@ def main() -> int:
     rsm = json.loads((comp / "regime_sector_feature_matrix.json").read_text(encoding="utf-8"))
     ok, msg = validate_regime_sector_feature_matrix(rsm); _assert(ok, f"regime_sector_feature_matrix schema: {msg}")
 
-    parity = json.loads((comp / "shadow_vs_live_parity.json").read_text(encoding="utf-8"))
-    ok, msg = validate_shadow_vs_live_parity(parity); _assert(ok, f"shadow_vs_live_parity schema: {msg}")
-
-    epd = json.loads((comp / "entry_parity_details.json").read_text(encoding="utf-8"))
-    ok, msg = validate_entry_parity_details(epd); _assert(ok, f"entry_parity_details schema: {msg}")
-
     sdc = json.loads((comp / "score_distribution_curves.json").read_text(encoding="utf-8"))
     ok, msg = validate_score_distribution_curves(sdc); _assert(ok, f"score_distribution_curves schema: {msg}")
 
     rt = json.loads((comp / "regime_timeline.json").read_text(encoding="utf-8"))
     ok, msg = validate_regime_timeline(rt); _assert(ok, f"regime_timeline schema: {msg}")
 
-    ffs = json.loads((comp / "feature_family_summary.json").read_text(encoding="utf-8"))
-    ok, msg = validate_feature_family_summary(ffs); _assert(ok, f"feature_family_summary schema: {msg}")
-
     rte = json.loads((comp / "replacement_telemetry_expanded.json").read_text(encoding="utf-8"))
     ok, msg = validate_replacement_telemetry_expanded(rte); _assert(ok, f"replacement_telemetry_expanded schema: {msg}")
 
-    lvs = json.loads((comp / "live_vs_shadow_pnl.json").read_text(encoding="utf-8"))
-    ok, msg = validate_live_vs_shadow_pnl(lvs); _assert(ok, f"live_vs_shadow_pnl schema: {msg}")
-    # Freshness: as_of_ts should be "recent" (this regression run just generated it).
-    try:
-        from datetime import timedelta
-
-        as_of_ts = str((lvs or {}).get("as_of_ts", "") or "")
-        dt = datetime.fromisoformat(as_of_ts.replace("Z", "+00:00"))
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        age = datetime.now(timezone.utc) - dt.astimezone(timezone.utc)
-        _assert(age <= timedelta(days=2), f"live_vs_shadow_pnl.as_of_ts stale: age={age}")
-    except Exception as e:
-        _assert(False, f"live_vs_shadow_pnl.as_of_ts parse/freshness failed: {e}")
+    pw = json.loads((comp / "pnl_windows.json").read_text(encoding="utf-8"))
+    ok, msg = validate_pnl_windows(pw); _assert(ok, f"pnl_windows schema: {msg}")
 
     sp = json.loads((comp / "signal_performance.json").read_text(encoding="utf-8"))
     ok, msg = validate_signal_performance(sp); _assert(ok, f"signal_performance schema: {msg}")
@@ -448,13 +450,10 @@ def main() -> int:
         "exit_intel_completeness",
         "feature_value_curves",
         "regime_sector_feature_matrix",
-        "shadow_vs_live_parity",
-        "entry_parity_details",
         "score_distribution_curves",
         "regime_timeline",
-        "feature_family_summary",
         "replacement_telemetry_expanded",
-        "live_vs_shadow_pnl",
+        "pnl_windows",
         "signal_performance",
         "signal_weight_recommendations",
     ]:

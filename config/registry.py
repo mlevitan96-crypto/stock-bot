@@ -144,7 +144,6 @@ class StateFiles:
     MARKET_CONTEXT_V2 = Directories.STATE / "market_context_v2.json"
     REGIME_POSTURE_STATE = Directories.STATE / "regime_posture_state.json"
     SYMBOL_RISK_FEATURES = Directories.STATE / "symbol_risk_features.json"
-    SHADOW_POSITIONS = Directories.STATE / "shadow_positions.json"
 
 
 class LogFiles:
@@ -174,9 +173,6 @@ class LogFiles:
 
     # Permanent, unified system events stream (append-only).
     SYSTEM_EVENTS = Directories.LOGS / "system_events.jsonl"
-
-    # STRUCTURAL UPGRADE (2026-01-20): Shadow A/B stream (append-only).
-    SHADOW = Directories.LOGS / "shadow.jsonl"
 
 
 class ConfigFiles:
@@ -224,35 +220,20 @@ class Thresholds:
 
 class StrategyFlags:
     """
-    Structural upgrade feature flags (config-gated, safe defaults).
+    v2-only engine flags.
+
+    NOTE:
+    - Composite is v2-only (no version switching).
     """
 
-    # Composite scoring version selector:
-    # - v1: current production composite (compute_composite_score_v3)
-    # - v2: volatility/regime-aware composite (shadow by default)
-    COMPOSITE_VERSION = str(os.getenv("COMPOSITE_VERSION", "v1") or "v1").strip().lower()
-
-    # Shadow A/B evaluation:
-    # - When true, compute v1 + v2 in parallel and log divergences (v1 still places real orders).
-    SHADOW_TRADING_ENABLED = get_env_bool("SHADOW_TRADING_ENABLED", True)
-
-    # Shadow PnL reconstruction (OPTIONAL, additive):
-    # - Maintains `state/shadow_positions.json`
-    # - Logs PnL updates + hypothetical exits (never submits orders)
-    SHADOW_PNL_ENABLED = get_env_bool("SHADOW_PNL_ENABLED", True)
-    SHADOW_EXIT_ENABLED = get_env_bool("SHADOW_EXIT_ENABLED", False)
-
-    # V2 score shaping (OPTIONAL):
-    # - Nonlinear shaping functions applied inside compute_composite_score_v3_v2
-    # - MUST remain off unless explicitly enabled (shadow-safe, but keep conservative)
-    V2_SHAPING_ENABLED = get_env_bool("V2_SHAPING_ENABLED", False)
+    # Reserved for future gating toggles (keep empty for now).
+    pass
 
 
-# Composite V2 weights (shadow-only until promotion)
+# Composite v2 weights (active engine)
 # -------------------------------------------------
 # Contract:
-# - v1 composite remains unchanged
-# - v2 is an additive adjustment layer used for shadow A/B and optional future promotion
+# - v2 is the only composite engine in production (paper-only)
 # - weights are explicit, documented, and safe-by-default
 COMPOSITE_WEIGHTS_V2: Dict[str, Any] = {
     "version": "2026-01-20_wt1",
@@ -293,7 +274,7 @@ COMPOSITE_WEIGHTS_V2: Dict[str, Any] = {
     "misalign_dampen": 0.25,
     "neutral_dampen": 0.60,
 
-    # Optional shaping (applied ONLY when COMPOSITE_VERSION=="v2" and V2_SHAPING_ENABLED==true)
+    # Optional shaping (applied when V2_SHAPING_ENABLED==true)
     "shape_vol_gamma": 1.8,
     "shape_vol_bonus_max": 0.15,
     "shape_regime_align_bonus": 0.10,
@@ -301,7 +282,7 @@ COMPOSITE_WEIGHTS_V2: Dict[str, Any] = {
     "shape_uw_weak_threshold": 0.35,
     "shape_trade_count_strong": 15,
 
-    # UW intelligence layer (shadow-only, additive)
+    # UW intelligence layer (v2-only, additive)
     "uw": {
         "version": "2026-01-20_uw_v1",
         # Versioning for downstream attribution/dashboard (additive metadata only)
@@ -376,7 +357,7 @@ DAILY_UNIVERSE_SCORING_V1: Dict[str, Any] = {
     },
 }
 
-# Daily dynamic universe scoring config (v2, shadow-only for now)
+# Daily dynamic universe scoring config (v2-only)
 DAILY_UNIVERSE_SCORING_V2: Dict[str, Any] = {
     "version": "2026-01-20_universe_v2",
     "weights": {

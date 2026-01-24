@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Composite Exit Score (v2, shadow-only)
-=====================================
+Composite Exit Score (v2)
+=========================
 
 Computes an exit_score and recommended exit reason from:
 - UW deterioration (flow/darkpool/sentiment)
@@ -10,6 +10,10 @@ Computes an exit_score and recommended exit reason from:
 - Relative strength deterioration (placeholder/best-effort)
 - Volatility expansion (best-effort)
 - Thesis invalidation flags (from pre/postmarket exit intel, optional)
+
+Contract:
+- Read-only intelligence: MUST NOT place orders.
+- Safe-by-default: if inputs are missing, output should remain conservative.
 """
 
 from __future__ import annotations

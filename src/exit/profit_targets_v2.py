@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Dynamic Profit Targets (v2, shadow-only)
-=======================================
+Dynamic Profit Targets (v2)
+==========================
 
 Best-effort target calculator. If prices/vol inputs are missing, returns None target.
+
+Contract:
+- Read-only helper: target is advisory; executor decides actual orders.
 """
 
 from __future__ import annotations

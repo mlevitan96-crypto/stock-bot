@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Dynamic Stops (v2, shadow-only)
-==============================
+Dynamic Stops (v2)
+==================
 
 Best-effort stop calculator. If prices/vol inputs are missing, returns None stop.
+
+Contract:
+- Read-only helper: stop is advisory; executor decides actual orders.
 """
 
 from __future__ import annotations

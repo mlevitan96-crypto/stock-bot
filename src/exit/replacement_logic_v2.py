@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Replacement Logic (v2, shadow-only)
-==================================
+Replacement Logic (v2)
+======================
 
 Contract:
 - Replacement only triggers when:

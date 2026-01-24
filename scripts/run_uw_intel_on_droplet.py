@@ -5,7 +5,6 @@ Run UW intelligence layer on droplet and sync artifacts locally.
 Outputs (local):
   droplet_sync/YYYY-MM-DD/
     - state_*.json
-    - shadow_tail.jsonl
     - system_events_tail.jsonl
     - sync_log.jsonl
 
@@ -200,7 +199,7 @@ def main() -> int:
         dash = Path("reports") / f"INTEL_DASHBOARD_{date}.md"
         if dash.exists():
             write_bytes(out_dir / f"INTEL_DASHBOARD_{date}.md", dash.read_bytes())
-        write_text(out_dir / "shadow_tail.jsonl", "")
+        # Shadow trading removed (v2-only engine).
         write_text(out_dir / "system_events_tail.jsonl", "")
         write_text(out_dir / "uw_attribution_tail.jsonl", "")
         append_sync_log(sync_log, {"event": "sync_complete", "mode": "no_ssh_mock"})
@@ -266,7 +265,7 @@ def main() -> int:
             ("run_exit_intel_pnl", f"bash -c \"./venv/bin/python scripts/run_exit_intel_pnl.py --date {date}\""),
             ("run_exit_day_summary", f"bash -c \"./venv/bin/python scripts/run_exit_day_summary.py --date {date}\""),
             ("run_intel_dashboard", f"bash -c \"./venv/bin/python reports/_dashboard/intel_dashboard_generator.py --date {date}\""),
-            ("run_shadow_day_summary", f"bash -c \"./venv/bin/python scripts/run_shadow_day_summary.py --date {date}\""),
+            # Shadow trading removed (v2-only engine).
             ("run_v2_tuning_suggestions", "bash -c \"./venv/bin/python -m src.intel.v2_tuning_helper\""),
         ]:
             name, cmd = step
@@ -292,7 +291,6 @@ def main() -> int:
             "state/postmarket_exit_intel.json": out_dir / "postmarket_exit_intel.json",
             "state/exit_intel_pnl_summary.json": out_dir / "exit_intel_pnl_summary.json",
             f"reports/INTEL_DASHBOARD_{date}.md": out_dir / f"INTEL_DASHBOARD_{date}.md",
-            f"reports/SHADOW_DAY_SUMMARY_{date}.md": out_dir / f"SHADOW_DAY_SUMMARY_{date}.md",
             f"reports/V2_TUNING_SUGGESTIONS_{date}.md": out_dir / f"V2_TUNING_SUGGESTIONS_{date}.md",
             f"reports/EXIT_INTEL_PNL_{date}.md": out_dir / f"EXIT_INTEL_PNL_{date}.md",
             f"reports/EXIT_DAY_SUMMARY_{date}.md": out_dir / f"EXIT_DAY_SUMMARY_{date}.md",
@@ -307,10 +305,8 @@ def main() -> int:
 
         # Fetch tails
         for remote, local_name in [
-            ("logs/shadow.jsonl", "shadow_tail.jsonl"),
             ("logs/system_events.jsonl", "system_events_tail.jsonl"),
             ("logs/uw_attribution.jsonl", "uw_attribution_tail.jsonl"),
-            ("logs/shadow_trades.jsonl", "shadow_trades_tail.jsonl"),
             ("logs/exit_attribution.jsonl", "exit_attribution_tail.jsonl"),
         ]:
             res = droplet_b64_tail_file(c, remote, lines=500, timeout=60)

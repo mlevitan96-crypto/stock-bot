@@ -45,71 +45,6 @@ def _req_list(x: Any, name: str, *, non_empty: bool = True) -> List[Any]:
     return x
 
 
-def validate_shadow_vs_live_parity(doc: Any) -> Tuple[bool, str]:
-    try:
-        d = _req_dict(doc, "shadow_vs_live_parity")
-        _req_dict(_req(d, "_meta"), "_meta")
-        entry_parity = _req_dict(_req(d, "entry_parity"), "entry_parity")
-        rows = _req_list(_req(entry_parity, "rows"), "entry_parity.rows", non_empty=True)
-        allowed = set(_req_list(_req(entry_parity, "allowed_classifications"), "entry_parity.allowed_classifications", non_empty=True))
-        for cls in ["perfect_match", "near_match", "divergent", "missing_in_v1", "missing_in_v2"]:
-            if cls not in allowed:
-                raise AssertionError(f"allowed_classifications missing {cls}")
-        agg = _req_dict(_req(d, "aggregate_metrics"), "aggregate_metrics")
-        for k in ["mean_entry_ts_delta_seconds", "mean_score_delta", "mean_price_delta_usd", "match_rate", "matched_pairs"]:
-            if k not in agg:
-                raise AssertionError(f"aggregate_metrics missing {k}")
-        if not _is_num(agg.get("match_rate")):
-            raise AssertionError("aggregate_metrics.match_rate must be numeric")
-
-        for r in rows[:2000]:  # cap validation work
-            rr = _req_dict(r, "entry_parity.row")
-            cls = str(_req(rr, "classification"))
-            if cls not in allowed:
-                raise AssertionError(f"unknown parity classification: {cls}")
-            for nk in [
-                "entry_ts_delta_seconds",
-                "v1_score_at_entry",
-                "v2_score_at_entry",
-                "score_delta",
-                "v1_price_at_entry",
-                "v2_price_at_entry",
-                "price_delta_usd",
-            ]:
-                if not _is_num(_req(rr, nk)):
-                    raise AssertionError(f"parity row numeric invalid: {nk}")
-        return True, "ok"
-    except Exception as e:
-        return False, str(e)
-
-
-def validate_entry_parity_details(doc: Any) -> Tuple[bool, str]:
-    try:
-        d = _req_dict(doc, "entry_parity_details")
-        rows = _req_list(_req(d, "rows"), "rows", non_empty=True)
-        # Reuse row schema rules from parity
-        allowed = {"perfect_match", "near_match", "divergent", "missing_in_v1", "missing_in_v2"}
-        for r in rows[:2000]:
-            rr = _req_dict(r, "row")
-            cls = str(_req(rr, "classification"))
-            if cls not in allowed:
-                raise AssertionError(f"unknown classification: {cls}")
-            for nk in [
-                "entry_ts_delta_seconds",
-                "v1_score_at_entry",
-                "v2_score_at_entry",
-                "score_delta",
-                "v1_price_at_entry",
-                "v2_price_at_entry",
-                "price_delta_usd",
-            ]:
-                if not _is_num(_req(rr, nk)):
-                    raise AssertionError(f"row numeric invalid: {nk}")
-        return True, "ok"
-    except Exception as e:
-        return False, str(e)
-
-
 def validate_score_distribution_curves(doc: Any) -> Tuple[bool, str]:
     try:
         d = _req_dict(doc, "score_distribution_curves")
@@ -154,23 +89,6 @@ def validate_regime_timeline(doc: Any) -> Tuple[bool, str]:
             for _, v in list(cnts.items())[:20]:
                 if not _is_num(v):
                     raise AssertionError("counts values must be numeric")
-        return True, "ok"
-    except Exception as e:
-        return False, str(e)
-
-
-def validate_feature_family_summary(doc: Any) -> Tuple[bool, str]:
-    try:
-        d = _req_dict(doc, "feature_family_summary")
-        fams = _req_dict(_req(d, "families"), "families")
-        if not fams:
-            raise AssertionError("families must be non-empty")
-        for fam, row in list(fams.items())[:100]:
-            rr = _req_dict(row, f"families[{fam}]")
-            _req_dict(_req(rr, "counts"), "counts")
-            for k in ["mean_value", "variance", "long_short_skew", "ev_contribution", "stability_score"]:
-                if not _is_num(_req(rr, k)):
-                    raise AssertionError(f"{fam}.{k} must be numeric")
         return True, "ok"
     except Exception as e:
         return False, str(e)
@@ -264,19 +182,16 @@ def validate_regime_sector_feature_matrix(doc: Any) -> Tuple[bool, str]:
         return False, str(e)
 
 
-def validate_live_vs_shadow_pnl(doc: Any) -> Tuple[bool, str]:
+def validate_pnl_windows(doc: Any) -> Tuple[bool, str]:
     try:
-        d = _req_dict(doc, "live_vs_shadow_pnl")
+        d = _req_dict(doc, "pnl_windows")
         _req(d, "as_of_ts")
         wins = _req_dict(_req(d, "windows"), "windows")
         for wn in ["24h", "48h", "5d"]:
             w = _req_dict(_req(wins, wn), f"windows[{wn}]")
-            for side in ["live", "shadow", "delta"]:
-                s = _req_dict(_req(w, side), f"{wn}.{side}")
-                for k in ["pnl_usd", "expectancy_usd", "trade_count", "win_rate"]:
-                    if not _is_num(_req(s, k)):
-                        raise AssertionError(f"{wn}.{side}.{k} must be numeric")
-            # insufficient_data must exist (bool-ish), but do not over-validate type here.
+            for k in ["pnl_usd", "expectancy_usd", "trade_count", "win_rate"]:
+                if not _is_num(_req(w, k)):
+                    raise AssertionError(f"{wn}.{k} must be numeric")
             if "insufficient_data" not in w:
                 raise AssertionError(f"{wn}.insufficient_data missing")
         _req_list(_req(d, "per_symbol"), "per_symbol", non_empty=False)

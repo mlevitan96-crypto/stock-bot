@@ -109,7 +109,7 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - `structural_intelligence/market_context_v2.py` — market context snapshot (premarket/overnight + vol term proxy)
 - `structural_intelligence/symbol_risk_features.py` — realized vol + beta feature store (per-symbol)
 - `structural_intelligence/regime_posture_v2.py` — regime label + posture (log-only context layer)
-- `telemetry/shadow_ab.py` — shadow A/B JSONL stream writer (`logs/shadow.jsonl`)
+- (REMOVED) Shadow A/B modules — shadow trading is not supported in v2-only mode.
 
 ## 2.3 CONFIG FILES
 - `config/registry.py` — **single source of truth**  
@@ -360,11 +360,9 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 ## 7.6 STRUCTURAL UPGRADE: COMPOSITE V2 + SHADOW A/B (2026-01-20)
 
 ### Composite versioning (contract)
-- **Production default remains v1**:
-  - v1 composite: `uw_composite_v2.compute_composite_score_v3()`
-- **Additive v2 composite (shadow-first)**:
-  - v2 composite: `uw_composite_v2.compute_composite_score_v3_v2()`
-  - v2 is an **adjustment layer** on top of the finalized v1 composite (uses `base_override`) for apples-to-apples comparability.
+- **v2 is the only composite**:
+  - The system exposes a single composite scorer in `uw_composite_v2.py` (v2-only).
+  - v1 composite functions and version flags are removed and MUST NOT be reintroduced.
 
 ### Feature inputs added (log-only until promotion)
 - Per-symbol risk features attached in enrichment:
@@ -374,46 +372,21 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - Regime/posture snapshot:
   - `state/regime_posture_state.json`
 
-### Shadow trading A/B mode (contract)
-- **Flag**: `SHADOW_TRADING_ENABLED=true|false` (default true)
-- **Selector**: `COMPOSITE_VERSION=v1|v2` (default v1)
-- Shadow MUST:
-  - compute v1 (real) and v2 (shadow) side-by-side
-  - NEVER submit real orders for v2
-  - log all shadow comparisons to:
-    - `logs/shadow.jsonl` (append-only)
-    - `logs/system_events.jsonl` with `subsystem="shadow"` for divergences
+### Trading mode (contract)
+- Trading is **paper-only** for now.
+- The engine MUST refuse entries if `ALPACA_BASE_URL` is not the Alpaca paper endpoint.
 
-### Real vs shadow comparison (operator workflow)
-- Generate the daily shadow audit (droplet-source-of-truth):
-  - `python reports/_daily_review_tools/generate_shadow_audit.py --date YYYY-MM-DD`
-  - Report output: `reports/SHADOW_TRADING_AUDIT_YYYY-MM-DD.md`
-- This report includes a **real-vs-shadow symbol overlap** section using:
-  - real trades from `logs/attribution.jsonl`
-  - shadow hypotheticals from `logs/shadow.jsonl` (`event_type="shadow_executed"`)
-
-### Shadow PnL reconstruction (optional, additive)
-- **Module**: `shadow/shadow_pnl_engine.py`
-- **State**: `state/shadow_positions.json` (append-only style ledger, managed by engine)
-- **Flags**:
-  - `SHADOW_PNL_ENABLED=true|false` (**default true**) — enables ledger + PnL logging (no real orders)
-  - `SHADOW_EXIT_ENABLED=true|false` (**default false**) — enables hypothetical shadow exits (still no real orders)
-- **Logging**:
-  - `logs/shadow.jsonl` event types: `shadow_pnl_tick`, `shadow_pnl_update`, `shadow_exit`, `shadow_ledger_update`
-  - `logs/system_events.jsonl` subsystem: `shadow_pnl` (tick, unrealized_update, shadow_exit, price_missing)
-- **Contract**:
-  - MUST NOT change v1 entries/exits
-  - MUST NOT submit orders
-  - MUST be wrapped / fail-safe (never blocks trading)
+### Daily review
+- Daily review artifacts are derived from **v2 live paper logs/state only** (no shadow comparisons).
 
 ---
 
 ## 7.7 COMPOSITE V2 WEIGHT TUNING (SHADOW-ONLY) (2026-01-20)
 
 ### Contract (do not break)
-- **Live trading remains v1**: `StrategyFlags.COMPOSITE_VERSION` stays `v1` unless flipped manually.
-- **Risk posture unchanged**: no sizing / max-positions / exits changes.
-- **Logging preserved**: only additive fields for observability.
+- **v2-only**: weights affect the only engine.
+- **Paper-only**: tuning is validated in paper trading; no live deployment without explicit approval.
+- **Logging preserved**: tuning never bypasses safety/guards; observability remains append-only.
 
 ### Config-driven weights
 - **Location**: `config/registry.py` → `COMPOSITE_WEIGHTS_V2`
@@ -426,15 +399,13 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - alignment dampening: `misalign_dampen`, `neutral_dampen`
 
 ### Score-shaping (optional, OFF by default)
-- **Gate**: only applied when `COMPOSITE_VERSION=="v2"` AND `V2_SHAPING_ENABLED==true`
+- **Gate**: only applied when explicitly enabled (env/config), and MUST be regression-covered.
 - **Params**: `shape_*` keys in `COMPOSITE_WEIGHTS_V2`
 - **Purpose**: nonlinear volatility reward, extra regime-aligned boost, and weak-UW penalties under heavy print counts.
 
 ### Observability additions (additive)
 - `logs/system_events.jsonl`:
   - `subsystem="scoring" event_type="composite_version_used"` includes `v2_weights_version`
-- `logs/shadow.jsonl`:
-  - `event_type="score_compare"` includes `v2_inputs` (with `weights_version`) and `v2_adjustments`
 
 ### Diagnostics + reports (droplet-source-of-truth)
 - **Weight impact**:
@@ -466,7 +437,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Pre/post intel must be generated daily**:
   - `state/premarket_intel.json`
   - `state/postmarket_intel.json`
-- **COMPOSITE v2 remains shadow-only** until `COMPOSITE_VERSION` is manually flipped.
+- **Composite scoring is v2-only**; there is no composite version flag.
 
 ### UW endpoint validation (anti-404 contract) (2026-01-20)
 - **Official spec location**: `unusual_whales_api/api_spec.yaml` (downloaded from UW and committed).
@@ -497,7 +468,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - Each sync MUST append to: `droplet_sync/YYYY-MM-DD/sync_log.jsonl`
 - **Safety on failure**:
   - If droplet regression fails, sync MUST abort (no partial “success”).
-  - Sync failures MUST be logged and MUST NOT break v1 trading.
+  - Sync failures MUST be logged and MUST NOT break trading.
 - **Shadow-only enforcement**:
   - v2 composite MUST consume UW intel only from `state/premarket_intel.json` / `state/postmarket_intel.json` (no live UW calls in scoring).
 - **UW polling must be single-instance (quota safety)**:
@@ -508,7 +479,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 #### Operator scripts
 - **Full run + sync**: `scripts/run_uw_intel_on_droplet.py`
   - Fetches: `state/daily_universe.json`, `state/core_universe.json`, `state/premarket_intel.json`, `state/postmarket_intel.json`, `state/uw_usage_state.json`
-  - Fetches tails: `logs/shadow.jsonl` (last 500 lines), `logs/system_events.jsonl` (last 500 lines)
+  - Fetches tails: `logs/system_events.jsonl` (last 500 lines), `logs/master_trade_log.jsonl` (tail), `logs/exit_attribution.jsonl` (tail)
 - **Premarket trigger**: `scripts/run_premarket_on_droplet.py`
 - **Postmarket trigger**: `scripts/run_postmarket_on_droplet.py`
 
@@ -523,8 +494,9 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 ## 7.9 INTELLIGENCE & PROFITABILITY LAYER (ATTRIBUTION + P&L + SECTOR/REGIME + UNIVERSE v2 + DASHBOARD + HEALTH) (2026-01-20)
 
 ### Invariants (non-negotiable)
-- **v1 remains sacred**: no behavior changes, no sizing/gates/exits changes.
-- **v2 remains shadow-only**: attribution/P&L/dashboard are sourced from v2 computations and state files only.
+- **v2-only engine**: v1 code paths are removed and MUST NOT be reintroduced.
+- **No shadow trading**: shadow A/B artifacts are not produced in v2-only mode.
+- **Attribution/P&L/dashboard are sourced from v2 live paper logs + state only**.
 - **Attribution is append-only and non-blocking**:
   - Writer: `src/uw/uw_attribution.py`
   - Output: `logs/uw_attribution.jsonl`
@@ -535,9 +507,9 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Regime state is a stable snapshot**:
   - Engine: `src/intel/regime_detector.py`
   - Output: `state/regime_state.json`
-- **Universe scoring v2 is shadow-only**:
+- **Universe scoring v2 is active (v2-only)**:
   - Config: `DAILY_UNIVERSE_SCORING_V2` in `config/registry.py`
-  - Output: `state/daily_universe_v2.json` (additive; v1 outputs remain unchanged)
+  - Output: `state/daily_universe_v2.json`
 - **Daily Intel P&L is best-effort and additive**:
   - Script: `scripts/run_daily_intel_pnl.py`
   - Outputs: `reports/UW_INTEL_PNL_YYYY-MM-DD.md`, `state/uw_intel_pnl_summary.json`
@@ -547,7 +519,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Intel health checks are required for visibility (self-heal optional)**:
   - Script: `scripts/run_intel_health_checks.py`
   - Output: `state/intel_health_state.json`
-  - Self-heal attempts MUST be logged in the health state under `self_heal` and MUST NOT impact v1.
+  - Self-heal attempts MUST be logged in the health state under `self_heal` and MUST NOT impact trading.
 
 ## 7.10 UW FLOW DAEMON HEALTH SENTINEL (WATCHDOG) (2026-01-20)
 
@@ -582,49 +554,24 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 ## 7.11 v2 SHADOW TRADING READINESS + TUNING PIPELINE (2026-01-21)
 
 ### Invariants (non-negotiable)
-- **v1 remains sacred**: v1 continues live trading; no sizing/gates/exits behavior changes.
-- **v2 remains shadow-only**:
-  - v2 MUST never submit live orders.
+- (UPDATED) v2 LIVE READINESS (paper-only):
   - v2 MUST consume intel from state files only (no live UW calls in scoring).
-- **v2 must log all decisions**:
-  - Shadow decision log: `logs/shadow_trades.jsonl`
-  - Emitted from the existing shadow A/B path in `main.py` (additive).
-- **Shadow continuity heartbeat (observability-only)**:
-  - State file: `state/shadow_heartbeat.json` updated on each v2 shadow decision evaluation.
-  - `logs/shadow_trades.jsonl` entries always include `timestamp` and canonical simulator fields when available.
+  - v2 MUST enforce paper endpoint configuration (misconfig => block entries).
+  - v2 MUST log all trade lifecycle events for audit/telemetry (master trade log + attribution).
+  - Pre-open readiness MUST pass before session:
+    - Script: `scripts/run_preopen_readiness_check.py`
+    - Must validate freshness of universe + premarket intel + regime + daemon health.
+    - Must fail if daemon health is `critical`.
+  - Tuning suggestions are advisory only:
+    - Helper: `src/intel/v2_tuning_helper.py` → `reports/V2_TUNING_SUGGESTIONS_YYYY-MM-DD.md`
+    - No auto-application of weight changes.
+  - Dashboard must expose v2 activity via v2 live logs/state (no shadow).
 
-### True simulator invariants (v2 shadow-only; no live orders)
-- **Shadow positions persist**:
-  - State file: `state/shadow_v2_positions.json` (atomic writes)
-  - Includes: `symbol`, `trade_id`, `entry_timestamp`, `entry_price`, `qty`, `direction/side`, `entry_v2_score`, `entry_intel_snapshot` (best-effort via UW/regime/sector profiles)
-- **Real price marks** (read-only; no orders):
-  - Shadow executor uses best-effort price from the main loop (and/or Alpaca quote/last trade when passed) to compute:
-    - unrealized PnL for open positions
-    - realized PnL on exits
-- **Exits are fully simulated**:
-  - Exit score + stops/targets + replacement logic are evaluated for open shadow positions
-  - On exit:
-    - `logs/shadow_trades.jsonl` emits `shadow_exit` with prices + pnl
-    - `logs/exit_attribution.jsonl` emits a full attribution record (entry/exit intel snapshots + pnl + time-in-trade)
-- **Pre-open readiness must pass before session**:
-  - Script: `scripts/run_preopen_readiness_check.py`
-  - Must validate freshness of universe + premarket intel + regime + daemon health.
-  - Must fail if daemon health is `critical`.
-- **Shadow day summary is generated daily**:
-  - Script: `scripts/run_shadow_day_summary.py`
-  - Output: `reports/SHADOW_DAY_SUMMARY_YYYY-MM-DD.md`
-- **Tuning suggestions are advisory only**:
-  - Helper: `src/intel/v2_tuning_helper.py` → `reports/V2_TUNING_SUGGESTIONS_YYYY-MM-DD.md`
-  - No auto-application of weight changes.
-- **Dashboard must expose v2 activity**:
-  - Intel dashboard includes “Shadow Trading Snapshot (v2)” sourced from `logs/shadow_trades.jsonl` (+ regime + attribution).
-
-## 7.12 v2 EXIT INTELLIGENCE LAYER (SHADOW-ONLY) (2026-01-21)
+## 7.12 v2 EXIT INTELLIGENCE LAYER (PAPER LIVE) (2026-01-21)
 
 ### Invariants (non-negotiable)
-- **v1 exits remain sacred**: no changes to v1 exit logic or live orders.
-- **v2 exit intelligence is shadow-only**:
-  - MUST never submit live exit orders.
+- **v2 exit intelligence is live (paper)**:
+  - MUST submit paper exit orders when required.
   - MUST log every v2 exit decision and attribution.
 - **Exit attribution must be logged for every v2 exit**:
   - Engine: `src/exit/exit_attribution.py`
@@ -649,7 +596,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 ## 7.13 POST-CLOSE ANALYSIS PACK (DAILY REVIEW BUNDLE) (2026-01-21)
 
 ### Invariants (non-negotiable)
-- **Additive + v1-safe**: pack generation must never modify v1 trading behavior.
+- **Additive (no orders)**: pack generation must never submit orders or affect trading behavior.
 - **Canonical location**:
   - `analysis_packs/YYYY-MM-DD/`
 - **Pack generator**:
@@ -702,7 +649,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - Returns:
     - `state/market_context_v2.json` snapshot
     - `state/regime_posture_state.json` snapshot
-    - `COMPOSITE_VERSION`, `SHADOW_TRADING_ENABLED` (config flags)
+    - `composite_version: "v2"` (static)
 
 ---
 
@@ -713,7 +660,7 @@ Goal:
 
 Invariants (non-negotiable):
 - **Read-only**: telemetry builders MUST read from logs/state only and MUST NOT write anywhere except `telemetry/YYYY-MM-DD/`.
-- **v1-safe**: MUST NOT affect v1 scoring, gating, sizing, or order execution.
+- **Trading-safe**: MUST NOT affect trading/scoring/exit behavior (observability only).
 - **Idempotent**: running multiple times for the same date must produce the same files given the same inputs.
 - **Best-effort**: missing logs/fields are recorded as missing; bundle still generates.
 
@@ -731,13 +678,10 @@ The following computed artifacts are considered **daily-required** for a full te
 - `exit_intel_completeness.json`
 - `feature_value_curves.json`
 - `regime_sector_feature_matrix.json`
-- `shadow_vs_live_parity.json`
-- `entry_parity_details.json`
 - `score_distribution_curves.json`
 - `regime_timeline.json`
-- `feature_family_summary.json`
 - `replacement_telemetry_expanded.json`
-- `live_vs_shadow_pnl.json`
+- `pnl_windows.json`
 - `signal_performance.json`
 - `signal_weight_recommendations.json`
 
@@ -746,23 +690,22 @@ Path:
 - `logs/master_trade_log.jsonl`
 
 Purpose:
-- A single, append-only stream of live + shadow trade records for long-term learning and auditing.
+- A single, append-only stream of v2 live (paper) trade lifecycle records for long-term learning and auditing.
 
 Rules:
 - Append-only (never rewrite history).
-- MUST NOT change trading/scoring/exit behavior; this is a passive “tap” off existing live/shadow logging.
+- MUST NOT change trading/scoring/exit behavior; this is a passive “tap” off existing live logging.
 
 ### Feature Families (definition)
 “Feature families” are **telemetry-only groupings** used to summarize score behavior and parity deltas without changing any trading logic.
 - Families are used in:
   - `score_distribution_curves.json`
-  - `feature_family_summary.json`
-  - `shadow_vs_live_parity.json` (`feature_family` per parity row)
+- (Optional) future dashboards/analysis pack summaries
 - Canonical family set (coarse, stable): `flow`, `darkpool`, `sentiment`, `earnings`, `alignment`, `greeks`, `volatility`, `regime`, `event`, `short_interest`, `etf_flow`, `calendar`, `toxicity`, plus `other/unknown` fallbacks.
 
 ### Equalizer Knob Families (definition)
 “Equalizer knob families” are the **operator-facing** counterparts of feature families:
-- They define the buckets you would tune in a future equalizer UI (still shadow-only analysis).
+- They define the buckets you would tune in a future equalizer UI (analysis-only).
 - They MUST be derived only from telemetry artifacts (no live weight changes).
 
 Required contents (minimum):
@@ -775,7 +718,7 @@ Required contents (minimum):
 ## 8.6 [LONG_SHORT_ASYMMETRY_CONTRACT] (v2-only, additive) (2026-01-22)
 
 Goal:
-- Track long vs short asymmetry using the v2 shadow simulator’s realized exits.
+- Track long vs short asymmetry using v2 live (paper) realized exits.
 
 Required metrics (minimum):
 - **Win rate**, **avg PnL**, **avg win**, **avg loss**, **expectancy** for:
@@ -851,23 +794,9 @@ Requirements:
   - realized PnL summary for replacement vs non-replacement exits (when PnL exists)
 
 Where captured:
-- `logs/shadow_trades.jsonl` (`event_type="shadow_exit"`)
+- `logs/master_trade_log.jsonl` (replacement fields when present)
 - `logs/exit_attribution.jsonl` (`replacement_candidate`, `replacement_reasoning`)
 - summarized into `telemetry/YYYY-MM-DD/FULL_TELEMETRY_YYYY-MM-DD.md` and `telemetry_manifest.json`.
-
----
-
-## 8.11 [SHADOW_VS_LIVE_PARITY_CONTRACT] (additive) (2026-01-22)
-
-Goal:
-- Provide a daily parity check between v1 live trades (if present) and v2 shadow actions.
-
-Rules:
-- Parity checks MUST be best-effort and MUST NOT fail the telemetry extract.
-- If v1 live logs are missing, the report must explicitly state that parity cannot be computed.
-
-Output:
-- `telemetry/YYYY-MM-DD/computed/shadow_vs_live_parity.json`
 
 ---
 
@@ -952,7 +881,7 @@ Cursor MUST:
 - **Contract**:
   - MUST use droplet logs/state as source-of-truth
   - MUST be brutally honest (explicit YES/NO verdicts)
-  - MUST compare v1 real vs v2 shadow and include buy-and-hold benchmark (best-effort)
+  - MUST review v2 live paper trades (no shadow comparison) and include buy-and-hold benchmark (best-effort)
 
 ---
 

@@ -331,11 +331,8 @@ class Config:
     ALPACA_BASE_URL = get_env("ALPACA_BASE_URL", APIConfig.ALPACA_BASE_URL)
 
     # Runtime
-    TRADING_MODE = get_env("TRADING_MODE", "PAPER")  # PAPER or LIVE - v3.1.1
-    # Live-trading arming gate (prevents accidental real-money trading)
-    # In LIVE mode, bot will refuse to place new entry orders unless explicitly acknowledged.
-    LIVE_TRADING_ACK = get_env("LIVE_TRADING_ACK", "")
-    REQUIRE_LIVE_ACK = get_env("REQUIRE_LIVE_ACK", "true").lower() == "true"
+    # v2-only engine is paper-only (hard invariant).
+    TRADING_MODE = "PAPER"
     # Optional safety mode: block opening short positions (bearish entries).
     LONG_ONLY = get_env("LONG_ONLY", "false").lower() == "true"
     RUN_INTERVAL_SEC = get_env("RUN_INTERVAL_SEC", 60, int)
@@ -495,22 +492,7 @@ class Config:
     ENABLE_REGIME_GATING = get_env("ENABLE_REGIME_GATING", "true").lower() == "true"
     REGIME_MIN_CONF = float(get_env("REGIME_MIN_CONF", "0.0"))
 
-    # Shadow experiments
-    ENABLE_SHADOW_LAB = get_env("ENABLE_SHADOW_LAB", "true").lower() == "true"
-    EXP_MIN_TRADES = get_env("EXP_MIN_TRADES", 60, int)
-    EXP_MIN_CONF = float(get_env("EXP_MIN_CONF", "0.5"))
-    PROMOTE_MIN_DELTA_SHARPE = float(get_env("PROMOTE_MIN_DELTA_SHARPE", "0.15"))
-    PROMOTE_MAX_DD_INCREASE = float(get_env("PROMOTE_MAX_DD_INCREASE", "0.02"))
-    
-    # Confidence calibration for shadow lab promotions
-    ENABLE_CONFIDENCE_CALIBRATION = get_env("ENABLE_CONFIDENCE_CALIBRATION", "true").lower() == "true"
-    PROMOTE_MIN_TRADES = get_env("PROMOTE_MIN_TRADES", 100, int)
-    PROMOTE_MIN_WINRATE_WILSON = float(get_env("PROMOTE_MIN_WINRATE_WILSON", "0.52"))
-    PROMOTE_MIN_SHARPE_DELTA = float(get_env("PROMOTE_MIN_SHARPE_DELTA", "0.20"))
-    PROMOTE_MIN_SHARPE_DELTA_CI = float(get_env("PROMOTE_MIN_SHARPE_DELTA_CI", "0.10"))
-    PROMOTE_ALPHA = float(get_env("PROMOTE_ALPHA", "0.05"))
-    PROMOTE_BOOTSTRAP_SAMPLES = get_env("PROMOTE_BOOTSTRAP_SAMPLES", 2000, int)
-    PROMOTE_EFFECT_SIZE_MIN = float(get_env("PROMOTE_EFFECT_SIZE_MIN", "0.25"))
+    # Shadow trading/lab removed (v2-only engine).
 
     # Execution model
     ENABLE_EXEC_PREDICTOR = get_env("ENABLE_EXEC_PREDICTOR", "true").lower() == "true"
@@ -769,21 +751,30 @@ def trading_is_armed() -> bool:
     Returns True if the bot is allowed to place NEW entry orders.
     Exits and monitoring may still run when unarmed.
     """
-    mode = (Config.TRADING_MODE or "PAPER").upper()
+    # v2-only engine is paper-only (hard invariant).
     base_url = Config.ALPACA_BASE_URL or ""
-
-    # If LIVE but pointed at paper, refuse entries (misconfiguration).
-    if mode == "LIVE" and _is_paper_endpoint(base_url):
+    if not _is_paper_endpoint(base_url):
         return False
-
-    # If PAPER but pointed at live, refuse entries (misconfiguration).
-    if mode == "PAPER" and _is_live_endpoint(base_url):
+    if _is_live_endpoint(base_url):
         return False
-
-    if mode == "LIVE" and Config.REQUIRE_LIVE_ACK:
-        return (Config.LIVE_TRADING_ACK or "").strip() == "YES_I_UNDERSTAND"
-
     return True
+
+
+def enforce_paper_only_or_die() -> None:
+    """
+    Hard safety gate:
+    - Refuse to start if Alpaca base URL is not the paper endpoint.
+    """
+    try:
+        base_url = Config.ALPACA_BASE_URL or ""
+        if not _is_paper_endpoint(base_url) or _is_live_endpoint(base_url):
+            raise RuntimeError(f"Paper-only enforcement failed (ALPACA_BASE_URL={base_url})")
+    except Exception as e:
+        try:
+            log_event("startup", "paper_only_enforcement_failed", error=str(e), base_url=Config.ALPACA_BASE_URL)
+        except Exception:
+            pass
+        raise
 
 def build_client_order_id(symbol: str, side: str, cluster: dict, suffix: str = "") -> str:
     """
@@ -869,22 +860,7 @@ def log_signal_to_history(symbol: str, direction: str, raw_score: float, whale_b
             except:
                 sector_tide_count = 0
         
-        # Get virtual P&L if shadow position exists
-        virtual_pnl = None
-        shadow_created = False
-        try:
-            from shadow_tracker import get_shadow_tracker
-            shadow_tracker = get_shadow_tracker()
-            shadow_pos = shadow_tracker.get_position(symbol)
-            if shadow_pos:
-                virtual_pnl = shadow_pos.max_profit_pct
-                shadow_created = True
-        except Exception:
-            pass
-        
-        # Extract shadow_created from metadata if present
-        if metadata and metadata.get("shadow_created") is not None:
-            shadow_created = metadata.get("shadow_created", False)
+        # Shadow tracking removed (v2-only engine).
         
         append_signal_history({
             "symbol": symbol,
@@ -899,8 +875,8 @@ def log_signal_to_history(symbol: str, direction: str, raw_score: float, whale_b
             "sector": sector,
             "persistence_count": persistence_count,
             "sector_tide_count": sector_tide_count,
-            "virtual_pnl": virtual_pnl if virtual_pnl is not None else (metadata.get("virtual_pnl") if metadata else 0.0),
-            "shadow_created": shadow_created,
+            "virtual_pnl": None,
+            "shadow_created": False,
             "metadata": metadata or {}
         })
     except ImportError:
@@ -1007,8 +983,6 @@ def generate_nightly_report():
     """Aggregate attribution, risk, and experiment outcomes into one JSON report"""
     attribution_summary = {}
     theme_exposure = {}
-    shadow_results = []
-    
     path = os.path.join(LOG_DIR, "attribution.jsonl")
     if os.path.exists(path):
         try:
@@ -1040,23 +1014,10 @@ def generate_nightly_report():
     except Exception as e:
         log_event("report", "theme_exposure_failed", error=str(e))
     
-    path = os.path.join(LOG_DIR, "shadow_lab.jsonl")
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        shadow_results.append(json.loads(line))
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-    
     report = {
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "attribution": attribution_summary,
         "theme_exposure": theme_exposure,
-        "shadow_lab": shadow_results[-50:] if shadow_results else []
     }
     
     report_path = os.path.join(REPORT_DIR, f"daily_report_{report['date']}.json")
@@ -1144,7 +1105,8 @@ def is_market_open_now():
         try:
             from zoneinfo import ZoneInfo
         except ImportError:
-            from backports.zoneinfo import ZoneInfo
+            # Optional dependency for older Pythons (e.g., 3.8 on some droplets).
+            from backports.zoneinfo import ZoneInfo  # type: ignore
         now = datetime.now(timezone.utc)
         et_now = now.astimezone(ZoneInfo("America/New_York"))
         h, m = et_now.hour, et_now.minute
@@ -1167,7 +1129,8 @@ def is_after_close_now():
     try:
         from zoneinfo import ZoneInfo
     except ImportError:
-        from backports.zoneinfo import ZoneInfo
+        # Optional dependency for older Pythons (e.g., 3.8 on some droplets).
+        from backports.zoneinfo import ZoneInfo  # type: ignore
     now = datetime.now(timezone.utc)
     et_now = now.astimezone(ZoneInfo("America/New_York"))
     
@@ -1285,12 +1248,16 @@ def log_attribution(trade_id: str, symbol: str, pnl_usd: float, context: dict):
                     "side": str(context.get("position_side") or ("long" if str(context.get("side")) == "buy" else "short")),
                     "is_live": True,
                     "is_shadow": False,
+                    "composite_version": "v2",
                     "entry_ts": entry_ts or str(context.get("ts") or ""),
                     "exit_ts": None,
                     "entry_price": float(context.get("entry_price") or 0.0),
                     "exit_price": None,
                     "size": float(context.get("qty") or context.get("entry_qty") or 0.0),
                     "realized_pnl_usd": None,
+                    "v2_score": float(context.get("entry_score") or 0.0),
+                    "entry_v2_score": float(context.get("entry_score") or 0.0),
+                    "intel_snapshot": (context.get("intel_snapshot") if isinstance(context.get("intel_snapshot"), dict) else {}),
                     "signals": signals,
                     "feature_snapshot": dict(comps or {}),
                     "regime_snapshot": {
@@ -1601,12 +1568,25 @@ def log_exit_attribution(
                 "side": str(context.get("position_side") or _normalize_position_side(str(context.get("side") or ""))),
                 "is_live": True,
                 "is_shadow": False,
+                "composite_version": "v2",
                 "entry_ts": entry_ts_iso,
                 "exit_ts": now_aware.isoformat(),
                 "entry_price": float(context.get("entry_price") or entry_price or 0.0),
                 "exit_price": float(exit_price or 0.0),
                 "size": float(context.get("qty") or 0.0),
                 "realized_pnl_usd": float(attribution_record.get("pnl_usd") or 0.0),
+                # v2 score snapshots (entry score is stored in attribution context; exit score is best-effort).
+                "entry_v2_score": float(context.get("entry_score") or 0.0),
+                "exit_v2_score": float(((metadata or {}).get("v2_exit", {}) if isinstance(metadata, dict) else {}).get("now_v2_score") or 0.0),
+                "v2_score": float(((metadata or {}).get("v2_exit", {}) if isinstance(metadata, dict) else {}).get("now_v2_score") or 0.0),
+                "v2_exit_score": float(((metadata or {}).get("v2_exit", {}) if isinstance(metadata, dict) else {}).get("v2_exit_score") or 0.0),
+                "v2_exit_reason": str(((metadata or {}).get("v2_exit", {}) if isinstance(metadata, dict) else {}).get("v2_exit_reason") or ""),
+                "replacement_candidate": ((metadata or {}).get("v2_exit", {}) if isinstance(metadata, dict) else {}).get("replacement_candidate"),
+                "intel_snapshot": (
+                    (((metadata or {}).get("v2_exit", {}) if isinstance(metadata, dict) else {}).get("now_v2", {}))
+                    if isinstance((((metadata or {}).get("v2_exit", {}) if isinstance(metadata, dict) else {}).get("now_v2", {})), dict)
+                    else {}
+                ),
                 "signals": signals2,
                 "feature_snapshot": dict(comps2 or {}),
                 "regime_snapshot": {
@@ -1619,6 +1599,58 @@ def log_exit_attribution(
                 "source": "live",
             }
         )
+    except Exception:
+        pass
+
+    # v2 exit attribution (append-only, never blocks).
+    try:
+        from src.exit.exit_attribution import build_exit_attribution_record, append_exit_attribution
+
+        meta = metadata if isinstance(metadata, dict) else {}
+        v2_entry = meta.get("v2", {}) if isinstance(meta.get("v2"), dict) else {}
+        v2_exit = meta.get("v2_exit", {}) if isinstance(meta.get("v2_exit"), dict) else {}
+
+        entry_uw = v2_entry.get("v2_uw_inputs", {}) if isinstance(v2_entry.get("v2_uw_inputs"), dict) else {}
+        exit_uw = ((v2_exit.get("now_v2", {}) or {}).get("v2_uw_inputs", {})) if isinstance(v2_exit.get("now_v2"), dict) and isinstance((v2_exit.get("now_v2") or {}).get("v2_uw_inputs"), dict) else {}
+
+        entry_reg_prof = v2_entry.get("v2_uw_regime_profile", {}) if isinstance(v2_entry.get("v2_uw_regime_profile"), dict) else {}
+        exit_reg_prof = ((v2_exit.get("now_v2", {}) or {}).get("v2_uw_regime_profile", {})) if isinstance(v2_exit.get("now_v2"), dict) and isinstance((v2_exit.get("now_v2") or {}).get("v2_uw_regime_profile"), dict) else {}
+
+        entry_sec_prof = v2_entry.get("v2_uw_sector_profile", {}) if isinstance(v2_entry.get("v2_uw_sector_profile"), dict) else {"sector": "UNKNOWN"}
+        exit_sec_prof = ((v2_exit.get("now_v2", {}) or {}).get("v2_uw_sector_profile", {})) if isinstance(v2_exit.get("now_v2"), dict) and isinstance((v2_exit.get("now_v2") or {}).get("v2_uw_sector_profile"), dict) else {"sector": "UNKNOWN"}
+
+        entry_regime = str(entry_reg_prof.get("regime_label") or meta.get("market_regime") or context.get("market_regime") or "NEUTRAL")
+        exit_regime = str(exit_reg_prof.get("regime_label") or v2_exit.get("now_regime_label") or context.get("market_regime") or "NEUTRAL")
+
+        v2_exit_score = float(v2_exit.get("v2_exit_score") or 0.0)
+        v2_exit_components = v2_exit.get("v2_exit_components", {}) if isinstance(v2_exit.get("v2_exit_components"), dict) else {}
+        score_det = float(v2_exit.get("score_deterioration") or 0.0)
+
+        rec = build_exit_attribution_record(
+            symbol=str(symbol).upper(),
+            entry_timestamp=str(context.get("entry_ts") or ""),
+            exit_reason=str(close_reason or ""),
+            pnl=float(pnl_usd) if pnl_usd is not None else None,
+            pnl_pct=float(pnl_pct) if pnl_pct is not None else None,
+            entry_price=float(entry_price) if entry_price else None,
+            exit_price=float(exit_price) if exit_price else None,
+            qty=float(context.get("qty") or 0.0) if context.get("qty") is not None else None,
+            time_in_trade_minutes=float(hold_minutes) if hold_minutes is not None else None,
+            entry_uw=dict(entry_uw or {}),
+            exit_uw=dict(exit_uw or {}),
+            entry_regime=entry_regime,
+            exit_regime=exit_regime,
+            entry_sector_profile=dict(entry_sec_prof or {}),
+            exit_sector_profile=dict(exit_sec_prof or {}),
+            score_deterioration=float(score_det),
+            relative_strength_deterioration=0.0,
+            v2_exit_score=float(v2_exit_score),
+            v2_exit_components=dict(v2_exit_components or {}),
+            replacement_candidate=v2_exit.get("replacement_candidate"),
+            replacement_reasoning=v2_exit.get("replacement_reasoning") if isinstance(v2_exit.get("replacement_reasoning"), dict) else None,
+            exit_timestamp=now_aware.isoformat(),
+        )
+        append_exit_attribution(rec)
     except Exception:
         pass
     
@@ -2770,205 +2802,10 @@ def compute_market_regime(gex_map, net_map, vol_map):
     return regime
 
 # =========================
-# SHADOW EXPERIMENTS
+# Shadow trading removed (v2-only engine)
 # =========================
 
-# Metrics extraction helpers for confidence-calibrated promotions
-def extract_bucket_pnls(path: str, label_field: str, label_value: str) -> list:
-    """Extract PnL values from attribution.jsonl for a specific label"""
-    pnls = []
-    if not os.path.exists(path):
-        return pnls
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            try:
-                rec = json.loads(line)
-                if rec.get("type") != "attribution":
-                    continue
-                ctx = rec.get("context", {})
-                if ctx.get(label_field) == label_value:
-                    pnls.append(float(rec.get("pnl_usd", 0.0)))
-            except (json.JSONDecodeError, ValueError):
-                continue
-    return pnls
-
-def compute_experiment_vs_prod_metrics(symbol: str) -> tuple:
-    """Returns (prod_pnls, exp_pnls) from attribution.jsonl"""
-    path = os.path.join(LOG_DIR, "attribution.jsonl")
-    prod = []
-    exp = []
-    
-    if not os.path.exists(path):
-        return (prod, exp)
-    
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            try:
-                rec = json.loads(line)
-                if rec.get("type") != "attribution":
-                    continue
-                ctx = rec.get("context", {})
-                if ctx.get("symbol") == symbol:
-                    pnl = float(rec.get("pnl_usd", 0.0))
-                    if ctx.get("is_experiment") is True:
-                        exp.append(pnl)
-                    else:
-                        prod.append(pnl)
-            except (json.JSONDecodeError, ValueError):
-                continue
-    
-    # If no experiment data yet and we have production data, use last 40% as synthetic experiment
-    if not exp and len(prod) > 40:
-        split_idx = len(prod) - 40
-        exp = prod[split_idx:]
-        prod = prod[:split_idx]
-    
-    return (prod, exp)
-
-def confident_promotion_decision(symbol: str) -> dict:
-    """
-    Confidence-calibrated promotion decision with multi-gate logic:
-    - Wilson score intervals for win rates
-    - Bootstrap confidence intervals for Sharpe ratios
-    - Cohen's d effect size
-    - All gates must pass for promotion
-    """
-    if not Config.ENABLE_CONFIDENCE_CALIBRATION:
-        return {"promote": False, "reason": "calibration_disabled"}
-    
-    prod_pnls, exp_pnls = compute_experiment_vs_prod_metrics(symbol)
-    n_prod, n_exp = len(prod_pnls), len(exp_pnls)
-    
-    # Require minimum sample size for both buckets
-    if n_prod < Config.PROMOTE_MIN_TRADES or n_exp < Config.PROMOTE_MIN_TRADES:
-        return {
-            "promote": False,
-            "reason": f"insufficient_samples prod={n_prod} exp={n_exp} min={Config.PROMOTE_MIN_TRADES}"
-        }
-    
-    # Compute win rate Wilson lower bounds
-    prod_wins = sum(1 for x in prod_pnls if x > 0)
-    exp_wins = sum(1 for x in exp_pnls if x > 0)
-    prod_wr_lb = wilson_lower_bound(prod_wins, n_prod, Config.PROMOTE_ALPHA)
-    exp_wr_lb = wilson_lower_bound(exp_wins, n_exp, Config.PROMOTE_ALPHA)
-    
-    # Compute Sharpe ratio confidence intervals via bootstrap
-    prod_ci = bootstrap_sharpe_ci(prod_pnls, Config.PROMOTE_ALPHA, Config.PROMOTE_BOOTSTRAP_SAMPLES)
-    exp_ci = bootstrap_sharpe_ci(exp_pnls, Config.PROMOTE_ALPHA, Config.PROMOTE_BOOTSTRAP_SAMPLES)
-    
-    # Cohen's d effect size
-    d = cohen_d(exp_pnls, prod_pnls)
-    
-    # Compute deltas
-    sharpe_point_delta = exp_ci[1] - prod_ci[1]
-    sharpe_lb_delta = exp_ci[0] - prod_ci[0]
-    
-    # Multi-gate decision logic
-    gates = {
-        "winrate_lb_gate": exp_wr_lb >= Config.PROMOTE_MIN_WINRATE_WILSON,
-        "sharpe_point_gate": sharpe_point_delta >= Config.PROMOTE_MIN_SHARPE_DELTA,
-        "sharpe_lb_gate": sharpe_lb_delta >= Config.PROMOTE_MIN_SHARPE_DELTA_CI,
-        "effect_size_gate": d >= Config.PROMOTE_EFFECT_SIZE_MIN
-    }
-    
-    # Detailed metrics for audit trail
-    prod_metrics = {
-        "n": n_prod,
-        "wr_lb": round(prod_wr_lb, 3),
-        "sharpe_ci": [round(x, 3) for x in prod_ci]
-    }
-    exp_metrics = {
-        "n": n_exp,
-        "wr_lb": round(exp_wr_lb, 3),
-        "sharpe_ci": [round(x, 3) for x in exp_ci]
-    }
-    
-    # Check if all gates passed
-    if not all(gates.values()):
-        return {
-            "promote": False,
-            "reason": f"failed_gates {gates} wr_lb_exp={round(exp_wr_lb, 3)} wr_lb_prod={round(prod_wr_lb, 3)} "
-                      f"sharpe_delta={round(sharpe_point_delta, 3)} sharpe_lb_delta={round(sharpe_lb_delta, 3)} d={round(d, 3)}",
-            "prod": prod_metrics,
-            "exp": exp_metrics
-        }
-    
-    # All gates passed - promote!
-    return {
-        "promote": True,
-        "reason": f"passed_gates wr_lb_exp={round(exp_wr_lb, 3)} sharpe_delta={round(sharpe_point_delta, 3)} "
-                  f"sharpe_lb_delta={round(sharpe_lb_delta, 3)} d={round(d, 3)}",
-        "prod": prod_metrics,
-        "exp": exp_metrics
-    }
-
-def should_run_experiment(ticker_profile: dict, min_trades: int, min_conf: float) -> bool:
-    return ticker_profile.get("samples", 0) >= min_trades and ticker_profile.get("confidence", 0.0) >= min_conf
-
-def promote_if_better(prod_metrics: dict, exp_metrics: dict, min_delta_sharpe: float, max_drawdown_increase: float) -> bool:
-    if exp_metrics.get("sharpe", 0.0) - prod_metrics.get("sharpe", 0.0) >= min_delta_sharpe and \
-       exp_metrics.get("max_dd", 0.0) - prod_metrics.get("max_dd", 0.0) <= max_drawdown_increase:
-        return True
-    return False
-
-def try_promotion_if_ready(symbol: str, prod_metrics: dict = None, exp_metrics: dict = None):
-    """
-    Evaluate promotion decision for shadow lab experiments.
-    If confidence calibration is enabled, uses rigorous statistical tests.
-    Otherwise, falls back to simple point-estimate comparison.
-    """
-    if not Config.ENABLE_SHADOW_LAB:
-        return False
-    
-    # Use confidence-calibrated decision if enabled
-    if Config.ENABLE_CONFIDENCE_CALIBRATION:
-        decision = confident_promotion_decision(symbol)
-        
-        if decision["promote"]:
-            # Promotion approved with detailed audit trail
-            log_event("promotion", "approved", 
-                     symbol=symbol, 
-                     reason=decision["reason"],
-                     prod_metrics=decision.get("prod", {}),
-                     exp_metrics=decision.get("exp", {}))
-            # Copy experiment parameters into production profile
-            try:
-                profiles = load_profiles()
-                if symbol in profiles:
-                    exp_profile = profiles[symbol]
-                    # Copy experiment parameters (bandit actions, component weights, etc.)
-                    if "entry_bandit" in exp_profile:
-                        exp_profile["entry_bandit"] = exp_profile.get("entry_bandit", {})
-                    if "stop_bandit" in exp_profile:
-                        exp_profile["stop_bandit"] = exp_profile.get("stop_bandit", {})
-                    if "component_weights" in exp_profile:
-                        exp_profile["component_weights"] = exp_profile.get("component_weights", {})
-                    # Mark as promoted
-                    exp_profile["promoted_to_prod"] = datetime.utcnow().isoformat()
-                    save_profiles(profiles)
-                    log_event("promotion", "parameters_copied", symbol=symbol, 
-                             exp_metrics=decision.get("exp", {}))
-            except Exception as e:
-                log_event("promotion", "parameter_copy_failed", symbol=symbol, error=str(e))
-            return True
-        else:
-            # Promotion rejected with detailed audit trail
-            log_event("promotion", "rejected", 
-                     symbol=symbol, 
-                     reason=decision["reason"],
-                     prod_metrics=decision.get("prod", {}),
-                     exp_metrics=decision.get("exp", {}))
-            return False
-    
-    # Fall back to simple comparison if confidence calibration disabled
-    if prod_metrics and exp_metrics:
-        if promote_if_better(prod_metrics, exp_metrics, Config.PROMOTE_MIN_DELTA_SHARPE, Config.PROMOTE_MAX_DD_INCREASE):
-            log_event("promotion", "experiment_promoted", symbol=symbol, delta_sharpe=exp_metrics["sharpe"] - prod_metrics["sharpe"])
-            return True
-        log_event("promotion", "experiment_rejected", symbol=symbol)
-        return False
-    
-    return False
+# Shadow lab automation removed (v2-only engine).
 
 # =========================
 # EXECUTION QUALITY PREDICTOR
@@ -3027,244 +2864,7 @@ def apply_weekly_stability_decay():
     save_profiles(profiles)
     log_event("profiles", "stability_decay_applied", updated=updated)
 
-# =========================
-# SHADOW LAB AUTOMATION (Weekly Orchestration)
-# =========================
-PROMOTION_POLICY_PATH = "promotion_policy.json"
-
-def load_promotion_policy():
-    """Load dynamic promotion thresholds with Config defaults as fallback"""
-    defaults = {
-        "min_winrate_wilson": Config.PROMOTE_MIN_WINRATE_WILSON,
-        "min_sharpe_delta": Config.PROMOTE_MIN_SHARPE_DELTA,
-        "min_sharpe_delta_ci": Config.PROMOTE_MIN_SHARPE_DELTA_CI,
-        "effect_size_min": Config.PROMOTE_EFFECT_SIZE_MIN,
-        "updated_at": None,
-        "regime": None
-    }
-    if os.path.exists(PROMOTION_POLICY_PATH):
-        try:
-            with open(PROMOTION_POLICY_PATH, "r", encoding="utf-8") as f:
-                policy = json.load(f)
-                return {**defaults, **policy}
-        except Exception:
-            pass
-    return defaults
-
-def save_promotion_policy(policy: dict):
-    """Persist promotion policy overrides"""
-    policy["updated_at"] = now_iso()
-    with open(PROMOTION_POLICY_PATH, "w", encoding="utf-8") as f:
-        json.dump(policy, f, indent=2)
-
-def seed_profiles_from_history():
-    """Bootstrap per-ticker profiles from feature store historical data (run once weekly)"""
-    if not Config.ENABLE_PER_TICKER_LEARNING or not Config.ENABLE_SHADOW_LAB:
-        return
-    
-    if not os.path.exists(Config.FEATURE_STORE_DIR):
-        return
-    
-    profiles = load_profiles()
-    seeded = 0
-    
-    # Handle both list and string formats for Config.TICKERS
-    tickers = Config.TICKERS if isinstance(Config.TICKERS, list) else Config.TICKERS.split(",")
-    for ticker in tickers:
-        ticker = ticker.strip() if isinstance(ticker, str) else ticker
-        if not ticker or ticker in profiles:
-            continue
-        
-        history_path = os.path.join(Config.FEATURE_STORE_DIR, f"{ticker}_history.jsonl")
-        if not os.path.exists(history_path):
-            continue
-        
-        history = []
-        with open(history_path, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    history.append(json.loads(line))
-                except (json.JSONDecodeError, ValueError):
-                    continue
-        
-        if not history:
-            continue
-        
-        wins = sum(1 for h in history if h.get("outcome", {}).get("pnl_usd", 0) > 0)
-        total = len(history)
-        
-        profiles[ticker] = get_or_init_profile(profiles, ticker)
-        profiles[ticker]["samples"] = total
-        profiles[ticker]["confidence"] = wins / max(1, total)
-        seeded += 1
-    
-    if seeded > 0:
-        save_profiles(profiles)
-        log_event("profiles", "seeded_from_history", seeded=seeded)
-
-def adjust_thresholds_by_regime(regime: str, policy: dict) -> dict:
-    """Dynamically adjust promotion thresholds based on market regime"""
-    if not Config.ENABLE_SHADOW_LAB:
-        return policy
-    
-    # Regime-specific multipliers
-    if regime == "low_vol_uptrend":
-        policy["min_winrate_wilson"] = 0.50
-        policy["min_sharpe_delta"] = 0.15
-    elif regime == "high_vol_neg_gamma":
-        policy["min_winrate_wilson"] = 0.55
-        policy["min_sharpe_delta"] = 0.25
-    elif regime == "downtrend_flow_heavy":
-        policy["min_winrate_wilson"] = 0.54
-        policy["min_sharpe_delta"] = 0.22
-    else:  # mixed
-        policy["min_winrate_wilson"] = Config.PROMOTE_MIN_WINRATE_WILSON
-        policy["min_sharpe_delta"] = Config.PROMOTE_MIN_SHARPE_DELTA
-    
-    policy["regime"] = regime
-    log_event("promotion_policy", "thresholds_adjusted", regime=regime, policy=policy)
-    return policy
-
-def rollback_if_degraded(symbol: str) -> bool:
-    """Guardrail to detect and flag degraded promotions for rollback"""
-    if not Config.ENABLE_SHADOW_LAB:
-        return False
-    
-    # Load promotion history
-    history_path = os.path.join(LOG_DIR, "promotions.jsonl")
-    if not os.path.exists(history_path):
-        return False
-    
-    # Find last promotion for this symbol
-    last_promotion = None
-    with open(history_path, "r", encoding="utf-8") as f:
-        for line in f:
-            try:
-                rec = json.loads(line)
-                if rec.get("symbol") == symbol and rec.get("action") == "approved":
-                    last_promotion = rec
-            except (json.JSONDecodeError, ValueError):
-                continue
-    
-    if not last_promotion:
-        return False
-    
-    # Get current performance
-    prod_pnls, _ = compute_experiment_vs_prod_metrics(symbol)
-    if len(prod_pnls) < 20:
-        return False  # Not enough data yet
-    
-    recent_pnls = prod_pnls[-20:]
-    recent_sharpe = sharpe_ratio(recent_pnls)
-    baseline_sharpe = last_promotion.get("exp_metrics", {}).get("sharpe_ci", [0, 0, 0])[1]
-    
-    # Check for degradation
-    if recent_sharpe < baseline_sharpe - 0.15 or recent_sharpe < 0.0:
-        log_event("promotion", "rollback_triggered", symbol=symbol, 
-                 recent_sharpe=round(recent_sharpe, 3), 
-                 baseline_sharpe=round(baseline_sharpe, 3))
-        return True
-    
-    return False
-
-def portfolio_aware_promotion(symbol: str, api, theme_map: dict) -> bool:
-    """Check theme exposure limits before allowing promotion"""
-    if not Config.ENABLE_SHADOW_LAB or not Config.ENABLE_THEME_RISK:
-        return True
-    
-    try:
-        positions = api.list_positions()
-        violations = correlated_exposure_guard(positions, theme_map, Config.MAX_THEME_NOTIONAL_USD)
-        sym_theme = theme_map.get(symbol, "general")
-        
-        if sym_theme in violations:
-            log_event("promotion", "blocked_theme_exposure", 
-                     symbol=symbol, theme=sym_theme, 
-                     notional=round(violations[sym_theme], 2))
-            return False
-    except Exception as e:
-        log_event("promotion", "portfolio_check_error", symbol=symbol, error=str(e))
-    
-    return True
-
-def weekly_shadow_lab_promotions(api, current_regime: str):
-    """Orchestrate weekly shadow lab promotion decisions"""
-    if not Config.ENABLE_SHADOW_LAB:
-        return
-    
-    # Load and adjust promotion policy by regime
-    policy = load_promotion_policy()
-    policy = adjust_thresholds_by_regime(current_regime, policy)
-    save_promotion_policy(policy)
-    
-    # Load theme map for portfolio awareness
-    theme_map = load_theme_map() if Config.ENABLE_THEME_RISK else {}
-    
-    # Get active symbols from profiles or config
-    profiles = load_profiles() if Config.ENABLE_PER_TICKER_LEARNING else {}
-    # Handle both list and string formats for Config.TICKERS
-    fallback_tickers = Config.TICKERS if isinstance(Config.TICKERS, list) else Config.TICKERS.split(",")
-    symbols = list(profiles.keys()) if profiles else fallback_tickers
-    
-    approved = 0
-    rejected = 0
-    
-    for symbol in symbols:
-        symbol = symbol.strip()
-        if not symbol:
-            continue
-        
-        # Check for degradation first
-        if rollback_if_degraded(symbol):
-            continue
-        
-        # Portfolio awareness check
-        if not portfolio_aware_promotion(symbol, api, theme_map):
-            rejected += 1
-            continue
-        
-        # Make promotion decision (using policy thresholds in confident_promotion_decision)
-        # Note: We'd need to pass policy to confident_promotion_decision or temporarily override Config
-        # For now, just call the standard decision and log
-        decision = confident_promotion_decision(symbol)
-        
-        # Log to promotions history
-        history_path = os.path.join(LOG_DIR, "promotions.jsonl")
-        with open(history_path, "a", encoding="utf-8") as f:
-            record = {
-                "ts": now_iso(),
-                "symbol": symbol,
-                "action": "approved" if decision["promote"] else "rejected",
-                "reason": decision["reason"],
-                "prod_metrics": decision.get("prod", {}),
-                "exp_metrics": decision.get("exp", {}),
-                "policy": policy
-            }
-            f.write(json.dumps(record) + "\n")
-        
-        if decision["promote"]:
-            approved += 1
-            # Copy experiment parameters into production profile
-            try:
-                profiles = load_profiles()
-                if symbol in profiles:
-                    exp_profile = profiles[symbol]
-                    # Copy experiment parameters
-                    if "entry_bandit" in exp_profile:
-                        exp_profile["entry_bandit"] = exp_profile.get("entry_bandit", {})
-                    if "stop_bandit" in exp_profile:
-                        exp_profile["stop_bandit"] = exp_profile.get("stop_bandit", {})
-                    if "component_weights" in exp_profile:
-                        exp_profile["component_weights"] = exp_profile.get("component_weights", {})
-                    exp_profile["promoted_to_prod"] = datetime.utcnow().isoformat()
-                    save_profiles(profiles)
-                    log_event("weekly_promotions", "parameters_copied", symbol=symbol)
-            except Exception as e:
-                log_event("weekly_promotions", "parameter_copy_failed", symbol=symbol, error=str(e))
-        else:
-            rejected += 1
-    
-    log_event("weekly_promotions", "completed", approved=approved, rejected=rejected, regime=current_regime)
+# Shadow lab orchestration removed (v2-only engine).
 
 # =========================
 # PORTFOLIO/THEME RISK MANAGEMENT
@@ -4617,7 +4217,7 @@ class AlpacaExecutor:
                                         enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, "mixed") or enriched
                                     except Exception:
                                         enriched_live = enriched
-                                    composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, "mixed")
+                                    composite = uw_v2.compute_composite_score_v2(symbol, enriched_live, "mixed")
                                     if composite:
                                         current_score = composite.get("score", entry_score)
                         except Exception:
@@ -4701,7 +4301,7 @@ class AlpacaExecutor:
                                         enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, "mixed") or enriched
                                     except Exception:
                                         enriched_live = enriched
-                                    composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, "mixed")
+                                    composite = uw_v2.compute_composite_score_v2(symbol, enriched_live, "mixed")
                                     if composite:
                                         current_score = composite.get("score", pos_meta.get("entry_score", 0.0))
                         except Exception:
@@ -5176,7 +4776,7 @@ class AlpacaExecutor:
             log_event("displacement", "failed", symbol=symbol, error=str(e))
             return False
 
-    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", alpha_signature: dict = None):
+    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", alpha_signature: dict = None, v2_context: dict = None):
         # VALIDATION: Warn if entry_score is 0.0 (should not happen in normal flow)
         if entry_score <= 0.0:
             print(f"WARNING {symbol}: mark_open called with entry_score={entry_score:.2f} - this may indicate a bug", flush=True)
@@ -5198,6 +4798,8 @@ class AlpacaExecutor:
             "initial_qty": qty,
             "entry_score": entry_score,  # V1.0: Store for displacement comparison
             "components": components or {},  # V2.0: Store signal components for ML learning
+            "v2": v2_context or {},  # v2-only: store composite/uw context for exit attribution
+            "composite_version": "v2",
             "market_regime": market_regime,
             "direction": direction,
             "regime_modifier": regime_modifier,  # V4.0: Store regime multiplier applied to composite score
@@ -5239,6 +4841,7 @@ class AlpacaExecutor:
             ignition_status=ignition_status,
             correlation_id=correlation_id,
             alpha_signature=alpha_signature,
+            v2_context=v2_context,
         )
         
         # Update state manager (Risk #6 - State Persistence)
@@ -5255,12 +4858,13 @@ class AlpacaExecutor:
                     entry_time=now.isoformat()
                 )
                 # Record order ID if available
-                if res and hasattr(res, 'id'):
-                    state_manager.record_order_id(symbol, str(res.id))
+                _res = locals().get("res")
+                if _res is not None and hasattr(_res, "id"):
+                    state_manager.record_order_id(symbol, str(_res.id))
         except Exception as e:
             log_event("state_manager", "update_position_failed", symbol=symbol, error=str(e))
     
-    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None, alpha_signature: dict = None):
+    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None, alpha_signature: dict = None, v2_context: dict = None):
         """Persist position metadata to durable file for restart recovery with atomic write.
         
         V2.0: Now stores all 21 signal components for ML learning when trade closes.
@@ -5285,6 +4889,8 @@ class AlpacaExecutor:
                 "side": side,
                 "entry_score": entry_score,  # V1.0: Store for displacement comparison
                 "components": components or {},  # V2.0: Store all 21 signal components for ML
+                "v2": v2_context or {},  # v2-only: store composite/uw context for exit attribution
+                "composite_version": "v2",
                 "market_regime": market_regime,
                 "direction": direction,
                 "regime_modifier": regime_modifier,  # V4.0: Store regime multiplier applied to composite score
@@ -5471,6 +5077,7 @@ class AlpacaExecutor:
         
         to_close = []
         exit_reasons = {}  # Track composite exit reasons per symbol
+        exit_intel_by_symbol = {}  # v2 exit intel snapshot per symbol (for attribution on close)
         # BULLETPROOF: Safe position fetching with error handling
         positions_index = {}
         try:
@@ -5735,6 +5342,7 @@ class AlpacaExecutor:
             # Get current composite score for signal decay detection
             current_composite_score = 0.0
             flow_reversal = False
+            current_v2_intel_snapshot = {}
             try:
                 enriched = uw_cache.get(symbol, {})
                 if enriched:
@@ -5745,9 +5353,21 @@ class AlpacaExecutor:
                         enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, current_regime_global) or enriched
                     except Exception:
                         enriched_live = enriched
-                    composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, current_regime_global)
+                    composite = uw_v2.compute_composite_score_v2(symbol, enriched_live, current_regime_global)
                     if composite:
                         current_composite_score = composite.get("score", 0.0)
+                        # Capture v2 intel snapshot for exit attribution (best-effort).
+                        try:
+                            current_v2_intel_snapshot = {
+                                "v2_inputs": composite.get("v2_inputs") if isinstance(composite.get("v2_inputs"), dict) else {},
+                                "v2_uw_inputs": composite.get("v2_uw_inputs") if isinstance(composite.get("v2_uw_inputs"), dict) else {},
+                                "v2_uw_sector_profile": composite.get("v2_uw_sector_profile") if isinstance(composite.get("v2_uw_sector_profile"), dict) else {},
+                                "v2_uw_regime_profile": composite.get("v2_uw_regime_profile") if isinstance(composite.get("v2_uw_regime_profile"), dict) else {},
+                                "uw_intel_version": composite.get("uw_intel_version", ""),
+                                "now_v2_score": float(composite.get("score", 0.0) or 0.0),
+                            }
+                        except Exception:
+                            current_v2_intel_snapshot = {}
                         # Check for flow reversal
                         flow_sent = enriched_live.get("sentiment", "NEUTRAL")
                         entry_direction = info.get("direction", "unknown")
@@ -5757,6 +5377,112 @@ class AlpacaExecutor:
                             flow_reversal = True
             except Exception:
                 pass  # If we can't get current score, continue with defaults
+
+            # v2 exit intelligence (live/paper)
+            # Compute once per symbol and attach to exit attribution on full closes.
+            try:
+                from src.exit.exit_score_v2 import compute_exit_score_v2
+                from src.exit.profit_targets_v2 import compute_profit_target
+                from src.exit.stops_v2 import compute_stop_price
+
+                meta_for_symbol = all_metadata.get(symbol, {}) if isinstance(all_metadata, dict) else {}
+                entry_v2_ctx = meta_for_symbol.get("v2", {}) if isinstance(meta_for_symbol, dict) else {}
+                if not isinstance(entry_v2_ctx, dict):
+                    entry_v2_ctx = {}
+
+                entry_uw_inputs = entry_v2_ctx.get("v2_uw_inputs") if isinstance(entry_v2_ctx.get("v2_uw_inputs"), dict) else {}
+                now_uw_inputs = current_v2_intel_snapshot.get("v2_uw_inputs") if isinstance(current_v2_intel_snapshot.get("v2_uw_inputs"), dict) else {}
+
+                entry_reg_prof = entry_v2_ctx.get("v2_uw_regime_profile") if isinstance(entry_v2_ctx.get("v2_uw_regime_profile"), dict) else {}
+                now_reg_prof = current_v2_intel_snapshot.get("v2_uw_regime_profile") if isinstance(current_v2_intel_snapshot.get("v2_uw_regime_profile"), dict) else {}
+                entry_sec_prof = entry_v2_ctx.get("v2_uw_sector_profile") if isinstance(entry_v2_ctx.get("v2_uw_sector_profile"), dict) else {}
+                now_sec_prof = current_v2_intel_snapshot.get("v2_uw_sector_profile") if isinstance(current_v2_intel_snapshot.get("v2_uw_sector_profile"), dict) else {}
+
+                entry_reg_label = str(entry_reg_prof.get("regime_label") or meta_for_symbol.get("market_regime") or "NEUTRAL")
+                now_reg_label = str(now_reg_prof.get("regime_label") or current_regime_global or "NEUTRAL")
+                entry_sector = str(entry_sec_prof.get("sector") or "UNKNOWN")
+                now_sector = str(now_sec_prof.get("sector") or "UNKNOWN")
+
+                direction_norm = str(info.get("direction", "") or ("bullish" if str(info.get("side", "buy")) == "buy" else "bearish"))
+
+                v2_exit_score, v2_exit_components, v2_exit_reason = compute_exit_score_v2(
+                    symbol=str(symbol),
+                    direction=direction_norm,
+                    entry_v2_score=float(info.get("entry_score", 0.0) or 0.0),
+                    now_v2_score=float(current_composite_score or 0.0),
+                    entry_uw_inputs=entry_uw_inputs,
+                    now_uw_inputs=now_uw_inputs,
+                    entry_regime=entry_reg_label,
+                    now_regime=now_reg_label,
+                    entry_sector=entry_sector,
+                    now_sector=now_sector,
+                    realized_vol_20d=(current_v2_intel_snapshot.get("v2_inputs", {}) or {}).get("realized_vol_20d") if isinstance(current_v2_intel_snapshot.get("v2_inputs"), dict) else None,
+                    thesis_flags=None,
+                )
+
+                # Advisory targets (best-effort)
+                realized_vol_20d = None
+                try:
+                    rv = (current_v2_intel_snapshot.get("v2_inputs", {}) or {}).get("realized_vol_20d") if isinstance(current_v2_intel_snapshot.get("v2_inputs"), dict) else None
+                    realized_vol_20d = float(rv) if rv is not None else None
+                except Exception:
+                    realized_vol_20d = None
+
+                flow_strength_now = float((now_uw_inputs or {}).get("flow_strength", 0.0) or 0.0)
+                profit_target_px, profit_reasoning = compute_profit_target(
+                    entry_price=float(entry_price) if entry_price else None,
+                    realized_vol_20d=realized_vol_20d,
+                    flow_strength=flow_strength_now,
+                    regime_label=now_reg_label,
+                    sector=now_sector,
+                    direction=direction_norm,
+                )
+                stop_px, stop_reasoning = compute_stop_price(
+                    entry_price=float(entry_price) if entry_price else None,
+                    realized_vol_20d=realized_vol_20d,
+                    flow_reversal=bool(flow_reversal),
+                    regime_label=now_reg_label,
+                    sector_collapse=False,
+                    direction=direction_norm,
+                )
+
+                exit_intel_by_symbol[str(symbol).upper()] = {
+                    "v2_exit_score": float(v2_exit_score),
+                    "v2_exit_components": dict(v2_exit_components or {}),
+                    "v2_exit_reason": str(v2_exit_reason or ""),
+                    "entry_v2_score": float(info.get("entry_score", 0.0) or 0.0),
+                    "now_v2_score": float(current_composite_score or 0.0),
+                    "score_deterioration": float(max(0.0, float(info.get("entry_score", 0.0) or 0.0) - float(current_composite_score or 0.0))),
+                    "entry_v2": dict(entry_v2_ctx or {}),
+                    "now_v2": dict(current_v2_intel_snapshot or {}),
+                    "profit_target_price": profit_target_px,
+                    "profit_target_reasoning": dict(profit_reasoning or {}),
+                    "stop_price": stop_px,
+                    "stop_reasoning": dict(stop_reasoning or {}),
+                    "replacement_candidate": None,
+                    "replacement_reasoning": None,
+                    "now_regime_label": now_reg_label,
+                    "now_sector": now_sector,
+                }
+
+                # v2 exit promotion: allow v2 exit score to trigger a close (conservative threshold).
+                if float(v2_exit_score) >= 0.80:
+                    exit_signals["v2_exit_score"] = round(float(v2_exit_score), 4)
+                    exit_signals["primary_reason"] = f"v2_exit({v2_exit_reason})"
+                    exit_reasons[symbol] = build_composite_close_reason(exit_signals)
+                    log_event(
+                        "exit",
+                        "v2_exit_triggered",
+                        symbol=symbol,
+                        v2_exit_score=float(v2_exit_score),
+                        v2_exit_reason=str(v2_exit_reason),
+                        now_v2_score=float(current_composite_score or 0.0),
+                    )
+                    to_close.append(symbol)
+                    continue
+            except Exception:
+                # Exit intelligence is best-effort; never block other exit logic.
+                pass
             
             # V3.2: Use adaptive exit urgency from optimizer
             position_data = {
@@ -6065,6 +5791,8 @@ class AlpacaExecutor:
                         scale_exit_signals["profit_target"] = tgt["pct"]
                         close_reason = build_composite_close_reason(scale_exit_signals)
                         
+                        # Partial exits are logged for learning; keep legacy attribution stream for now.
+                        # v2 exit attribution (logs/exit_attribution.jsonl) is emitted on full closes.
                         jsonl_write("attribution", {
                             "type": "attribution",
                             "trade_id": f"scale_{symbol}_{now_iso()}",
@@ -6327,7 +6055,14 @@ class AlpacaExecutor:
                 
                 log_order({"action": "close_position", "symbol": symbol, "reason": close_reason})
                 
-                symbol_metadata = all_metadata.get(symbol, {})
+                symbol_metadata = all_metadata.get(symbol, {}) if isinstance(all_metadata, dict) else {}
+                # Attach v2 exit intel snapshot for attribution (best-effort).
+                try:
+                    sm = dict(symbol_metadata) if isinstance(symbol_metadata, dict) else {}
+                    sm["v2_exit"] = exit_intel_by_symbol.get(str(symbol).upper(), {})
+                    symbol_metadata = sm
+                except Exception:
+                    pass
                 # Only log exit attribution when we have executed fill fields.
                 if exit_fill_price > 0 and exit_fill_qty > 0:
                     log_exit_attribution(
@@ -6736,7 +6471,7 @@ class StrategyEngine:
                                 enriched_live = uw_enrich.enrich_signal(symbol, self.uw_flow_cache, market_regime) or enriched
                             except Exception:
                                 enriched_live = enriched
-                            temp_composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, market_regime)
+                            temp_composite = uw_v2.compute_composite_score_v2(symbol, enriched_live, market_regime)
                             if temp_composite:
                                 whale_boost = temp_composite.get("whale_conviction_boost", 0.0)
                                 composite_result = temp_composite
@@ -6831,39 +6566,7 @@ class StrategyEngine:
                 # Also capture expanded intel features for comprehensive learning
                 if not comps and "features_for_learning" in c:
                     comps = c.get("features_for_learning", {})
-                # Shadow tracking wants to understand the impact of slower-changing intel too.
-                # IMPORTANT: Do not include raw flow_trades arrays (too large); only include compact summaries.
-                try:
-                    uw_raw = self.uw_flow_cache.get(symbol, {}) if hasattr(self, "uw_flow_cache") else {}
-                    if isinstance(uw_raw, dict) and uw_raw:
-                        uw_shadow_intel = {
-                            "_last_update": uw_raw.get("_last_update", uw_raw.get("last_update")),
-                            "sentiment": uw_raw.get("sentiment"),
-                            "conviction": uw_raw.get("conviction"),
-                            "trade_count": uw_raw.get("trade_count"),
-                            "flow_trades_n": len(uw_raw.get("flow_trades") or []),
-                            "dark_pool": uw_raw.get("dark_pool", {}),
-                            "insider": uw_raw.get("insider", {}),
-                            "calendar": uw_raw.get("calendar", {}),
-                            "market_tide": uw_raw.get("market_tide", {}),
-                            "greeks": uw_raw.get("greeks", {}),
-                            "oi_change": uw_raw.get("oi_change", {}),
-                            "iv_rank": uw_raw.get("iv_rank", {}),
-                            "etf_flow": uw_raw.get("etf_flow", {}),
-                            "ftd_pressure": uw_raw.get("ftd_pressure", {}),
-                            # These are currently placeholders if UW per-ticker endpoints are unavailable
-                            "congress": uw_raw.get("congress", {}),
-                            "institutional": uw_raw.get("institutional", {}),
-                        }
-                        # Embed into comps so shadow logger can track potential impact vs trade outcomes.
-                        if isinstance(comps, dict):
-                            comps.setdefault("_shadow_inputs", {})
-                            if isinstance(comps.get("_shadow_inputs"), dict):
-                                comps["_shadow_inputs"]["uw_intel"] = uw_shadow_intel
-                                comps["_shadow_inputs"]["component_sources"] = composite_meta.get("component_sources", {})
-                                comps["_shadow_inputs"]["expanded_intel"] = composite_meta.get("expanded_intel", {})
-                except Exception:
-                    pass
+                # Shadow tracking removed (v2-only engine).
             elif Config.ENABLE_PER_TICKER_LEARNING and decisions_map:
                 prof = get_or_init_profile(self.profiles, symbol)
                 cluster_key = f"{symbol}|{c['direction']}|{c['start_ts']}"
@@ -7143,25 +6846,7 @@ class StrategyEngine:
             ticker_profile = bayes_profiles.get("profiles", {}).get(ticker_key, {})
             ticker_bayes_expectancy = ticker_profile.get("expectancy", 0.0)
 
-            # STRUCTURAL UPGRADE: Decision-level shadow A/B (v2) — evaluate v2 through the same downstream gates.
-            # This is read-only/hypothetical and only emits telemetry.
-            shadow_enabled = False
-            v2_shadow = None
-            v2_score = None
-            try:
-                from config.registry import StrategyFlags
-                shadow_enabled = bool(getattr(StrategyFlags, "SHADOW_TRADING_ENABLED", True))
-            except Exception:
-                shadow_enabled = False
-            if shadow_enabled:
-                try:
-                    cm = c.get("composite_meta", {}) if isinstance(c, dict) else {}
-                    v2_shadow = cm.get("shadow_v2", {}) if isinstance(cm, dict) else {}
-                    if isinstance(v2_shadow, dict) and "score" in v2_shadow:
-                        v2_score = float(v2_shadow.get("score", 0.0) or 0.0)
-                except Exception:
-                    v2_shadow = None
-                    v2_score = None
+            # Shadow A/B removed (v2-only engine).
             
             # Get regime forecast modifier and TCA quality
             try:
@@ -7191,35 +6876,7 @@ class StrategyEngine:
                 toxicity_penalty=toxicity_penalty
             )
 
-            # Shadow expectancy (v2) using the exact same inputs, substituting v2 score.
-            v2_expectancy = None
-            v2_should_trade = None
-            v2_gate_reason = None
-            if shadow_enabled and v2_score is not None:
-                try:
-                    v2_expectancy = v32.ExpectancyGate.calculate_expectancy(
-                        composite_score=float(v2_score),
-                        ticker_bayes_expectancy=ticker_bayes_expectancy,
-                        regime_modifier=regime_modifier,
-                        tca_modifier=tca_modifier,
-                        theme_risk_penalty=theme_risk_penalty,
-                        toxicity_penalty=toxicity_penalty,
-                    )
-                    v2_should_trade, v2_gate_reason = v32.ExpectancyGate.should_enter(
-                        ticker=symbol,
-                        expectancy=float(v2_expectancy),
-                        composite_score=float(v2_score),
-                        stage=system_stage,
-                        regime=market_regime,
-                        tca_modifier=tca_modifier,
-                        freeze_active=freeze_active,
-                        score_floor_breach=(float(v2_score) < float(Config.MIN_EXEC_SCORE)),
-                        broker_health_degraded=False,
-                    )
-                except Exception:
-                    v2_expectancy = None
-                    v2_should_trade = None
-                    v2_gate_reason = None
+            # Shadow A/B removed (v2-only engine).
             
             # Check expectancy gate (v3.2.1 enhanced with telemetry)
             freeze_active = check_freeze_state() == False
@@ -7242,47 +6899,7 @@ class StrategyEngine:
                 log_event("gate", "expectancy_blocked", symbol=symbol, 
                          expectancy=expectancy, reason=gate_reason, stage=system_stage, gate_type="expectancy_gate", signal_type=c.get("signal_type", "UNKNOWN"))
 
-                # Shadow decision telemetry: would v2 have passed expectancy here?
-                try:
-                    if shadow_enabled and v2_score is not None:
-                        from telemetry.shadow_ab import log_shadow_event, log_shadow_divergence
-                        log_shadow_event(
-                            "shadow_blocked",
-                            symbol=symbol,
-                            reason="expectancy_gate_v1_blocked",
-                            v1_score=float(score),
-                            v2_score=float(v2_score),
-                            v1_reason=str(gate_reason),
-                            v2_reason=str(v2_gate_reason) if v2_gate_reason is not None else None,
-                            v2_would_trade=bool(v2_should_trade) if v2_should_trade is not None else None,
-                        )
-                        if v2_should_trade is True:
-                            log_shadow_event(
-                                "shadow_candidate",
-                                symbol=symbol,
-                                note="v2_would_pass_expectancy_where_v1_blocked",
-                                v2_score=float(v2_score),
-                                v2_expectancy=float(v2_expectancy) if v2_expectancy is not None else None,
-                            )
-                            log_shadow_divergence(
-                                symbol=symbol,
-                                v1_score=float(score),
-                                v2_score=float(v2_score),
-                                v1_pass=False,
-                                v2_pass=True,
-                                details={"gate": "expectancy_gate", "v1_reason": str(gate_reason), "v2_reason": str(v2_gate_reason)},
-                            )
-                except Exception:
-                    pass
-                
-                # SHADOW LOGGER: Track rejected signal
-                try:
-                    from self_healing import get_shadow_logger
-                    shadow = get_shadow_logger()
-                    threshold = shadow.get_gate_threshold("expectancy_gate", "min_expectancy", 0.0)
-                    shadow.log_rejected_signal(symbol, f"expectancy_blocked:{gate_reason}", score, comps, "expectancy_gate", threshold)
-                except:
-                    pass
+                # Shadow A/B removed (v2-only engine).
                 
                 log_blocked_trade(symbol, f"expectancy_blocked:{gate_reason}", score, 
                                   direction=c.get("direction"),
@@ -7318,59 +6935,7 @@ class StrategyEngine:
                                   components=comps,
                                   cycle_count=new_positions_this_cycle)
                 
-                # SHADOW TRACKING: Create shadow position for signals > 3.0 blocked by capacity_limit
-                try:
-                    from shadow_tracker import get_shadow_tracker
-                    from alpha_signature_capture import capture_alpha_signature
-                    from risk_management import get_sector
-                    from persistence_tracker import get_persistence_tracker
-                    from sector_tide_tracker import get_sector_tide_tracker
-                    
-                    if final_score >= 3.0:
-                        shadow_tracker = get_shadow_tracker()
-                        entry_price = ref_price_check
-                        shadow_created = shadow_tracker.create_shadow_position(
-                            symbol=symbol,
-                            direction=direction,
-                            entry_price=entry_price,
-                            entry_score=final_score,
-                            block_reason="capacity_limit"
-                        )
-                        
-                        # Capture alpha signature
-                        alpha_signature = {}
-                        try:
-                            if hasattr(engine, 'executor') and hasattr(engine.executor, 'api'):
-                                # Get UW cache for alpha signature
-                                uw_cache = read_json(CacheFiles.UW_FLOW_CACHE, default={})
-                                alpha_signature = capture_alpha_signature(engine.executor.api, symbol, uw_cache)
-                        except Exception:
-                            pass
-                        
-                        # Get sector and persistence info
-                        sector = get_sector(symbol)
-                        persistence_count = 0
-                        sector_tide_count = 0
-                        try:
-                            persistence_tracker = get_persistence_tracker()
-                            persistence_check = persistence_tracker.check_persistence(symbol)
-                            persistence_count = persistence_check.get("count", 0)
-                            
-                            tide_tracker = get_sector_tide_tracker()
-                            tide_info = tide_tracker.check_sector_tide(symbol)
-                            sector_tide_count = tide_info.get("count", 0)
-                        except Exception:
-                            pass
-                        
-                        if shadow_created:
-                            print(f"DEBUG {symbol}: Shadow position created for capacity_limit block (score={final_score:.2f})", flush=True)
-                    else:
-                        shadow_created = False
-                except ImportError:
-                    shadow_created = False
-                except Exception as e:
-                    print(f"DEBUG: Failed to create shadow position for {symbol}: {e}", flush=True)
-                    shadow_created = False
+                # Shadow tracking removed (v2-only engine).
                 
                 # SIGNAL HISTORY: Log blocked signal with alpha signature
                 log_signal_to_history(
@@ -7386,11 +6951,6 @@ class StrategyEngine:
                     metadata={
                         "cycle_count": new_positions_this_cycle,
                         "max_allowed": MAX_NEW_POSITIONS_PER_CYCLE,
-                        "shadow_created": shadow_created if 'shadow_created' in locals() else False,
-                        "alpha_signature": alpha_signature if 'alpha_signature' in locals() else {},
-                        "sector": sector if 'sector' in locals() else "Unknown",
-                        "persistence_count": persistence_count if 'persistence_count' in locals() else 0,
-                        "sector_tide_count": sector_tide_count if 'sector_tide_count' in locals() else 0
                     }
                 )
                 continue
@@ -7439,47 +6999,7 @@ class StrategyEngine:
                 _inc_gate("score_below_min")
                 log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=min_score, stage=system_stage, gate_type="score_gate", signal_type=c.get("signal_type", "UNKNOWN"))
 
-                # Shadow decision telemetry: would v2 have cleared the score floor here?
-                try:
-                    if shadow_enabled and v2_score is not None:
-                        from telemetry.shadow_ab import log_shadow_event, log_shadow_divergence
-                        v2_pass_floor = float(v2_score) >= float(min_score)
-                        log_shadow_event(
-                            "shadow_blocked",
-                            symbol=symbol,
-                            reason="score_gate_v1_blocked",
-                            min_required=float(min_score),
-                            v1_score=float(score),
-                            v2_score=float(v2_score),
-                            v2_pass_floor=bool(v2_pass_floor),
-                        )
-                        if v2_pass_floor:
-                            log_shadow_event(
-                                "shadow_candidate",
-                                symbol=symbol,
-                                note="v2_would_pass_score_floor_where_v1_blocked",
-                                v2_score=float(v2_score),
-                                min_required=float(min_score),
-                            )
-                            log_shadow_divergence(
-                                symbol=symbol,
-                                v1_score=float(score),
-                                v2_score=float(v2_score),
-                                v1_pass=False,
-                                v2_pass=True,
-                                details={"gate": "score_gate", "min_required": float(min_score)},
-                            )
-                except Exception:
-                    pass
-                
-                # SHADOW LOGGER: Track rejected signal
-                try:
-                    from self_healing import get_shadow_logger
-                    shadow = get_shadow_logger()
-                    threshold = shadow.get_gate_threshold("score_gate", "min_score", min_score)
-                    shadow.log_rejected_signal(symbol, "score_below_min", score, comps, "score_gate", threshold)
-                except:
-                    pass
+                # Shadow A/B removed (v2-only engine).
                 
                 log_blocked_trade(symbol, "score_below_min", score,
                                   direction=c.get("direction"),
@@ -7571,57 +7091,7 @@ class StrategyEngine:
                                       alpaca_positions=actual_positions,
                                       executor_opens=len(self.executor.opens),
                                       max_positions=Config.MAX_CONCURRENT_POSITIONS)
-                    # SHADOW TRACKING: Create shadow position for signals > 3.0 blocked by capacity_limit
-                    shadow_created = False
-                    alpha_signature = {}
-                    sector = "Unknown"
-                    persistence_count = 0
-                    sector_tide_count = 0
-                    try:
-                        from shadow_tracker import get_shadow_tracker
-                        from alpha_signature_capture import capture_alpha_signature
-                        from risk_management import get_sector
-                        from persistence_tracker import get_persistence_tracker
-                        from sector_tide_tracker import get_sector_tide_tracker
-                        
-                        if final_score >= 3.0:
-                            shadow_tracker = get_shadow_tracker()
-                            entry_price = ref_price_check
-                            shadow_created = shadow_tracker.create_shadow_position(
-                                symbol=symbol,
-                                direction=direction,
-                                entry_price=entry_price,
-                                entry_score=final_score,
-                                block_reason="capacity_limit"
-                            )
-                            
-                            # Capture alpha signature
-                            try:
-                                if hasattr(engine, 'executor') and hasattr(engine.executor, 'api'):
-                                    uw_cache = read_json(CacheFiles.UW_FLOW_CACHE, default={})
-                                    alpha_signature = capture_alpha_signature(engine.executor.api, symbol, uw_cache)
-                            except Exception:
-                                pass
-                            
-                            # Get sector and persistence info
-                            sector = get_sector(symbol)
-                            try:
-                                persistence_tracker = get_persistence_tracker()
-                                persistence_check = persistence_tracker.check_persistence(symbol)
-                                persistence_count = persistence_check.get("count", 0)
-                                
-                                tide_tracker = get_sector_tide_tracker()
-                                tide_info = tide_tracker.check_sector_tide(symbol)
-                                sector_tide_count = tide_info.get("count", 0)
-                            except Exception:
-                                pass
-                            
-                            if shadow_created:
-                                print(f"DEBUG {symbol}: Shadow position created for capacity_limit block (score={final_score:.2f})", flush=True)
-                    except ImportError:
-                        pass
-                    except Exception as e:
-                        print(f"DEBUG: Failed to create shadow position for {symbol}: {e}", flush=True)
+                    # Shadow tracking removed (v2-only engine).
                     
                     # SIGNAL HISTORY: Log blocked signal with alpha signature
                     log_signal_to_history(
@@ -7637,11 +7107,6 @@ class StrategyEngine:
                         metadata={
                             "alpaca_positions": actual_positions,
                             "max": Config.MAX_CONCURRENT_POSITIONS,
-                            "shadow_created": shadow_created,
-                            "alpha_signature": alpha_signature,
-                            "sector": sector,
-                            "persistence_count": persistence_count,
-                            "sector_tide_count": sector_tide_count
                         }
                     )
                     continue
@@ -7840,59 +7305,69 @@ class StrategyEngine:
 
             print(f"DEBUG {symbol}: PASSED ALL GATES! Calling submit_entry...", flush=True)
 
-            # Shadow decision telemetry: if v2 would also pass downstream gates at this point, record hypothetical execution.
-            try:
-                if shadow_enabled and v2_score is not None:
-                    from telemetry.shadow_ab import log_shadow_event
-                    # At this point, all non-score gates have passed for v1; for v2, the main uncertainty is score/expectancy.
-                    v2_pass_floor = float(v2_score) >= float(min_score)
-                    v2_ok = bool(v2_pass_floor and (v2_should_trade is True or v2_should_trade is None))
-                    if v2_ok:
-                        log_shadow_event(
-                            "shadow_executed",
-                            symbol=symbol,
-                            side=("buy" if c.get("direction") == "bullish" else "sell"),
-                            qty=int(qty),
-                            entry_price=float(ref_price_check) if ref_price_check else None,
-                            v2_score=float(v2_score),
-                            market_regime=str(market_regime),
-                            note="hypothetical_order_would_be_submitted_by_v2",
-                        )
-                        # Shadow PnL (optional): update shadow ledger (non-fatal, non-trading).
-                        try:
-                            from config.registry import StrategyFlags
-                            if bool(getattr(StrategyFlags, "SHADOW_PNL_ENABLED", False)):
-                                from shadow.shadow_pnl_engine import record_shadow_executed
-                                from shadow.shadow_pnl_engine import shadow_pnl_tick
-                                record_shadow_executed(
-                                    symbol=str(symbol),
-                                    qty=int(qty),
-                                    entry_price=float(ref_price_check) if ref_price_check else 0.0,
-                                    side=("long" if c.get("direction") == "bullish" else "short"),
-                                )
-                                # Also emit a best-effort PnL tick immediately (unrealized only).
-                                try:
-                                    if hasattr(self, "executor") and hasattr(self.executor, "api") and self.executor.api is not None:
-                                        shadow_pnl_tick(self.executor.api, signal_context=None, posture_state=None, enable_exits=False)
-                                except Exception:
-                                    pass
-                        except Exception:
-                            pass
-                    else:
-                        log_shadow_event(
-                            "shadow_blocked",
-                            symbol=symbol,
-                            reason="v2_failed_score_or_expectancy",
-                            v2_score=float(v2_score),
-                            min_required=float(min_score),
-                            v2_should_trade=bool(v2_should_trade) if v2_should_trade is not None else None,
-                            v2_reason=str(v2_gate_reason) if v2_gate_reason is not None else None,
-                        )
-            except Exception:
-                pass
+            # Shadow A/B removed (v2-only engine).
             
             side = "buy" if c["direction"] == "bullish" else "sell"
             print(f"DEBUG {symbol}: Side determined: {side}, qty={qty}, ref_price={ref_price_check}", flush=True)
+
+            # Guardrail: never submit entries outside market hours (defense in depth).
+            try:
+                if not is_market_open_now():
+                    log_event("gate", "market_closed_block_entry", symbol=symbol, side=side, score=score)
+                    log_signal_to_history(
+                        symbol=symbol,
+                        direction=direction,
+                        raw_score=raw_score,
+                        whale_boost=whale_boost,
+                        final_score=final_score,
+                        atr_multiplier=atr_multiplier or 0.0,
+                        momentum_pct=momentum_pct,
+                        momentum_required_pct=momentum_required_pct,
+                        decision="Blocked: market_closed",
+                        metadata={"market_open": False},
+                    )
+                    continue
+            except Exception:
+                # If market check fails, fail safe by blocking entry (prevents accidental after-hours orders).
+                log_event("gate", "market_hours_check_failed_block_entry", symbol=symbol, side=side, score=score)
+                continue
+
+            # Guardrail: price sanity (block extreme gaps / invalid prices).
+            try:
+                import math as _math
+
+                px = float(ref_price_check or 0.0)
+                if (not _math.isfinite(px)) or px <= 0:
+                    log_event("gate", "price_sanity_blocked_invalid_price", symbol=symbol, price=ref_price_check, side=side)
+                    continue
+
+                # Best-effort gap check vs prior daily close.
+                max_gap_pct = float(get_env("MAX_PRICE_GAP_PCT", 0.25, float))
+                prev_close = None
+                try:
+                    bars = self.executor.api.get_bars(symbol, "1Day", limit=2).df
+                    if hasattr(bars, "__len__") and len(bars) >= 2 and "close" in bars:
+                        prev_close = float(bars["close"].iloc[-2])
+                except Exception:
+                    prev_close = None
+                if prev_close and prev_close > 0:
+                    gap = abs(px - prev_close) / prev_close
+                    if _math.isfinite(gap) and gap > max_gap_pct:
+                        log_event(
+                            "gate",
+                            "price_sanity_blocked_gap",
+                            symbol=symbol,
+                            price=px,
+                            prev_close=prev_close,
+                            gap_pct=round(gap * 100.0, 3),
+                            max_gap_pct=round(max_gap_pct * 100.0, 3),
+                            side=side,
+                            score=score,
+                        )
+                        continue
+            except Exception:
+                # If price sanity check errors, fail open (don't block trading due to telemetry failures).
+                pass
             
             # RISK MANAGEMENT: Validate order size before submission (qty already calculated above)
             # V5.0: Capture account_equity and position_size_usd for attribution logging
@@ -8061,9 +7536,7 @@ class StrategyEngine:
                     )
                     continue
 
-                print(f"DEBUG {symbol}: Building client_order_id_base...", flush=True)
-                client_order_id_base = build_client_order_id(symbol, side, c)
-                print(f"DEBUG {symbol}: client_order_id_base={client_order_id_base}", flush=True)
+                # client_order_id_base already generated above (and includes correlation_id).
                 
                 # CRITICAL: Add exception handling and logging around submit_entry
                 try:
@@ -8231,9 +7704,34 @@ class StrategyEngine:
                         self.executor.opens[symbol]["correlation_id"] = correlation_id_for_metadata
                     
                     # Call _persist_position_metadata directly to include correlation_id
-                    self.executor.mark_open(symbol, exec_price, atr_mult, side, exec_qty, entry_score=score,
-                                            components=comps, market_regime=market_regime, direction=c["direction"],
-                                            regime_modifier=regime_modifier, ignition_status=ignition_status)
+                    # Persist v2 composite/intel context for later exit attribution.
+                    v2_context_for_metadata = {}
+                    try:
+                        if isinstance(composite_result, dict):
+                            v2_context_for_metadata = {
+                                "v2_inputs": composite_result.get("v2_inputs") if isinstance(composite_result.get("v2_inputs"), dict) else {},
+                                "v2_uw_inputs": composite_result.get("v2_uw_inputs") if isinstance(composite_result.get("v2_uw_inputs"), dict) else {},
+                                "v2_uw_sector_profile": composite_result.get("v2_uw_sector_profile") if isinstance(composite_result.get("v2_uw_sector_profile"), dict) else {},
+                                "v2_uw_regime_profile": composite_result.get("v2_uw_regime_profile") if isinstance(composite_result.get("v2_uw_regime_profile"), dict) else {},
+                                "uw_intel_version": composite_result.get("uw_intel_version", ""),
+                            }
+                    except Exception:
+                        v2_context_for_metadata = {}
+
+                    self.executor.mark_open(
+                        symbol,
+                        exec_price,
+                        atr_mult,
+                        side,
+                        exec_qty,
+                        entry_score=score,
+                        components=comps,
+                        market_regime=market_regime,
+                        direction=c["direction"],
+                        regime_modifier=regime_modifier,
+                        ignition_status=ignition_status,
+                        v2_context=v2_context_for_metadata,
+                    )
                     # Update metadata with correlation_id after mark_open
                     if correlation_id_for_metadata:
                         try:
@@ -8292,6 +7790,11 @@ class StrategyEngine:
                     "score": score,
                     "order_type": order_type
                 }
+                # v2-only: include best-effort intel snapshot for master_trade_log ingestion.
+                try:
+                    context["intel_snapshot"] = v2_context_for_metadata if "v2_context_for_metadata" in locals() and isinstance(v2_context_for_metadata, dict) else {}
+                except Exception:
+                    context["intel_snapshot"] = {}
                 # Entry attribution contract:
                 # - entry_price must come from executed entry fill (Alpaca order.filled_avg_price).
                 # - entry_qty must come from executed entry fill qty (Alpaca order.filled_qty).
@@ -8608,6 +8111,9 @@ def run_once():
         pass
     print("DEBUG: run_once() ENTRY", flush=True)
     _pipeline_heartbeat_maybe()
+
+    # Hard safety gate: v2-only engine is paper-only.
+    enforce_paper_only_or_die()
     
     # CRITICAL FIX: Ensure StateFiles is available - re-import if needed
     global StateFiles
@@ -9169,25 +8675,19 @@ def run_once():
                     log_event("composite_scoring", "exception_skipped", symbol=ticker, error=str(e), error_type=type(e).__name__)
                     continue
 
-                # Shadow/rollout observability: record composite version selection once per cycle.
-                # NOTE: production currently remains v1; v2 is shadow-only unless explicitly enabled later.
+                # Observability: record composite version once per cycle.
                 try:
                     if symbols_processed == 0:
-                        from config.registry import StrategyFlags
                         from config.registry import COMPOSITE_WEIGHTS_V2
-                        try:
-                            log_system_event(
-                                subsystem="scoring",
-                                event_type="composite_version_used",
-                                severity="INFO",
-                                details={
-                                    "composite_version": getattr(StrategyFlags, "COMPOSITE_VERSION", "v1"),
-                                    "shadow_trading_enabled": bool(getattr(StrategyFlags, "SHADOW_TRADING_ENABLED", True)),
-                                    "v2_weights_version": str((COMPOSITE_WEIGHTS_V2 or {}).get("version", "")) if isinstance(COMPOSITE_WEIGHTS_V2, dict) else "",
-                                },
-                            )
-                        except Exception:
-                            pass
+                        log_system_event(
+                            subsystem="scoring",
+                            event_type="composite_version_used",
+                            severity="INFO",
+                            details={
+                                "composite_version": "v2",
+                                "v2_weights_version": str((COMPOSITE_WEIGHTS_V2 or {}).get("version", "")) if isinstance(COMPOSITE_WEIGHTS_V2, dict) else "",
+                            },
+                        )
                 except Exception:
                     pass
                 
@@ -9267,11 +8767,11 @@ def run_once():
                     except Exception as e:
                         log_event("cache_update", "error", error=str(e))
                 
-                # Use V3 scoring with all expanded intelligence (congress, shorts, institutional, etc.)
+                # Use v2-only composite scoring with all expanded intelligence (congress, shorts, institutional, etc.)
                 # NOTE: market_regime is computed later, use "mixed" as default for now
                 symbols_processed += 1
                 print(f"DEBUG: Computing composite score for {ticker} (symbol {symbols_processed}/{len(all_symbols_to_process)})", flush=True)
-                composite = uw_v2.compute_composite_score_v3(ticker, enriched, "mixed")
+                composite = uw_v2.compute_composite_score_v2(ticker, enriched, "mixed")
                 if composite is None:
                     print(f"DEBUG: Composite scoring returned None for {ticker} - skipping", flush=True)
                     log_event("scoring_flow", "composite_none", symbol=ticker)
@@ -9487,143 +8987,7 @@ def run_once():
                 # Pass api for exhaustion filter (EMA/ATR check)
                 gate_result = uw_v2.should_enter_v2(composite, ticker, mode="base", api=engine.executor.api if hasattr(engine, 'executor') and hasattr(engine.executor, 'api') else None)
 
-                # STRUCTURAL UPGRADE: Shadow A/B compare (v1 vs v2 composite) - v1 remains production.
-                # v2 is computed as an additive adjustment layer on the finalized v1 composite for comparability.
-                try:
-                    from config.registry import StrategyFlags
-                    shadow_enabled = bool(getattr(StrategyFlags, "SHADOW_TRADING_ENABLED", True))
-                except Exception:
-                    shadow_enabled = True
-                try:
-                    if shadow_enabled:
-                        from telemetry.shadow_ab import log_shadow_event, log_shadow_divergence
-
-                        mc = getattr(engine, "market_context_v2", None)
-                        if not isinstance(mc, dict):
-                            mc = {}
-                        rp = getattr(engine, "regime_posture_v2", None)
-                        if not isinstance(rp, dict):
-                            rp = {}
-
-                        # Use structural regime for directional weighting when available, else fall back to "mixed".
-                        v2_regime = (rp.get("structural_regime") or "mixed") if isinstance(rp, dict) else "mixed"
-
-                        composite_v2 = uw_v2.compute_composite_score_v3_v2(
-                            ticker,
-                            enriched,
-                            regime=str(v2_regime),
-                            market_context=mc,
-                            posture_state=rp,
-                            base_override=composite,
-                        ) or {}
-
-                        v2_pass = False
-                        try:
-                            v2_pass = bool(
-                                uw_v2.should_enter_v2(
-                                    composite_v2,
-                                    ticker,
-                                    mode="base",
-                                    api=engine.executor.api if hasattr(engine, "executor") and hasattr(engine.executor, "api") else None,
-                                )
-                            )
-                        except Exception:
-                            v2_pass = False
-
-                        v1_score = float(composite.get("score", 0.0) or 0.0)
-                        v2_score = float(composite_v2.get("score", 0.0) or 0.0)
-
-                        # Attach shadow metadata to the composite payload for downstream decision-path comparability.
-                        # This is safe, additive metadata only.
-                        try:
-                            composite["shadow_v2"] = {
-                                "score": v2_score,
-                                "pass_composite_gate": bool(v2_pass),
-                                "adjustments": composite_v2.get("v2_adjustments", {}),
-                                "inputs": composite_v2.get("v2_inputs", {}),
-                                "notes": composite_v2.get("notes", ""),
-                            }
-                        except Exception:
-                            pass
-
-                        log_shadow_event(
-                            "score_compare",
-                            symbol=ticker,
-                            v1_score=v1_score,
-                            v2_score=v2_score,
-                            v1_pass=bool(gate_result),
-                            v2_pass=bool(v2_pass),
-                            market_regime=str(market_regime),
-                            posture=str(rp.get("posture", "neutral") if isinstance(rp, dict) else "neutral"),
-                            regime_label=str(rp.get("regime_label", "chop") if isinstance(rp, dict) else "chop"),
-                            volatility_regime=str(mc.get("volatility_regime", "mid") if isinstance(mc, dict) else "mid"),
-                            v2_adjustments=composite_v2.get("v2_adjustments", {}),
-                            v2_inputs=composite_v2.get("v2_inputs", {}),
-                        )
-
-                        # Shadow trade decision logging (v2-only, never submits orders).
-                        # Writes logs/shadow_trades.jsonl for dashboard + daily summary.
-                        try:
-                            from src.trading.shadow_executor import log_shadow_decision
-                            # Best-effort price + sizing context (no orders; simulator only).
-                            _shadow_px = None
-                            try:
-                                if hasattr(engine, "executor") and hasattr(engine.executor, "get_last_trade"):
-                                    _shadow_px = float(engine.executor.get_last_trade(ticker))
-                            except Exception:
-                                _shadow_px = None
-                            _acct_eq = None
-                            _buying_power = None
-                            try:
-                                _acct_eq = float(locals().get("account_equity") or 0.0) or None
-                            except Exception:
-                                _acct_eq = None
-                            try:
-                                _buying_power = float(locals().get("buying_power") or 0.0) or None
-                            except Exception:
-                                _buying_power = None
-                            _pos_size_usd = None
-                            try:
-                                _pos_size_usd = float(getattr(Config, "POSITION_SIZE_USD", None) or getattr(Config, "SIZE_BASE_USD", None) or 0.0) or None
-                            except Exception:
-                                _pos_size_usd = None
-                            log_shadow_decision(
-                                symbol=ticker,
-                                direction=str(flow_sentiment),
-                                v1_score=float(v1_score),
-                                v2_score=float(v2_score),
-                                v1_pass=bool(gate_result),
-                                v2_pass=bool(v2_pass),
-                                composite_v2=composite_v2,
-                                market_regime=str(market_regime),
-                                posture=str(rp.get("posture", "neutral") if isinstance(rp, dict) else "neutral"),
-                                regime_label=str(rp.get("regime_label", "chop") if isinstance(rp, dict) else "chop"),
-                                volatility_regime=str(mc.get("volatility_regime", "mid") if isinstance(mc, dict) else "mid"),
-                                current_price=_shadow_px,
-                                account_equity=_acct_eq,
-                                buying_power=_buying_power,
-                                position_size_usd=_pos_size_usd,
-                                api=engine.executor.api if hasattr(engine, "executor") and hasattr(engine.executor, "api") else None,
-                            )
-                        except Exception:
-                            pass
-
-                        if bool(gate_result) != bool(v2_pass):
-                            log_shadow_divergence(
-                                symbol=ticker,
-                                v1_score=v1_score,
-                                v2_score=v2_score,
-                                v1_pass=bool(gate_result),
-                                v2_pass=bool(v2_pass),
-                                details={
-                                    "market_regime": str(market_regime),
-                                    "posture": str(rp.get("posture", "neutral") if isinstance(rp, dict) else "neutral"),
-                                    "regime_label": str(rp.get("regime_label", "chop") if isinstance(rp, dict) else "chop"),
-                                    "v2_weights_version": str((composite_v2.get("v2_inputs", {}) or {}).get("weights_version", "")),
-                                },
-                            )
-                except Exception:
-                    pass
+                # Shadow A/B removed (v2-only engine).
                 
                 # V3 Attribution: Store enriched composite with FULL INTELLIGENCE features for learning
                 try:
@@ -9825,7 +9189,6 @@ def run_once():
                         from signal_history_storage import append_signal_history
                         from risk_management import get_sector
                         from persistence_tracker import get_persistence_tracker
-                        from shadow_tracker import get_shadow_tracker
                         from alpha_signature_capture import capture_alpha_signature
                         
                         # Get direction from enriched data
@@ -9861,27 +9224,9 @@ def run_once():
                         except Exception as e:
                             print(f"DEBUG: Failed to capture alpha signature for {ticker}: {e}", flush=True)
                         
-                        # Create shadow position if score > 2.3
+                        # Shadow tracking removed (v2-only engine).
                         shadow_created = False
                         virtual_pnl = None
-                        try:
-                            if score >= 2.3:
-                                entry_price = engine.executor.get_last_trade(ticker) if hasattr(engine, 'executor') else 0.0
-                                if entry_price > 0:
-                                    shadow_tracker = get_shadow_tracker()
-                                    shadow_created = shadow_tracker.create_shadow_position(
-                                        symbol=ticker,
-                                        direction=direction,
-                                        entry_price=entry_price,
-                                        entry_score=score
-                                    )
-                                    if shadow_created:
-                                        # Get initial virtual P&L (should be 0.0 at creation)
-                                        shadow_pos = shadow_tracker.get_position(ticker)
-                                        if shadow_pos:
-                                            virtual_pnl = shadow_pos.max_profit_pct
-                        except Exception as e:
-                            print(f"DEBUG: Failed to create shadow position for {ticker}: {e}", flush=True)
                         
                         # Determine rejection reason with sector/persistence context
                         decision_reason = f"Blocked: score_too_low"
@@ -9915,8 +9260,8 @@ def run_once():
                             "sector": sector,
                             "persistence_count": persistence_count,
                             "sector_tide_count": sector_tide_count,
-                            "virtual_pnl": virtual_pnl if virtual_pnl is not None else 0.0,
-                            "shadow_created": shadow_created,
+                            "virtual_pnl": None,
+                            "shadow_created": False,
                             "metadata": {
                                 "threshold_used": threshold_used,
                                 "toxicity": toxicity,
@@ -10013,8 +9358,7 @@ def run_once():
             orders = []
         elif not armed:
             log_event("run_once", "not_armed_skip_entries",
-                      trading_mode=Config.TRADING_MODE, base_url=Config.ALPACA_BASE_URL,
-                      require_live_ack=Config.REQUIRE_LIVE_ACK)
+                      trading_mode=Config.TRADING_MODE, base_url=Config.ALPACA_BASE_URL)
             orders = []
         elif not reconciled_ok:
             log_event("run_once", "not_reconciled_skip_entries", action="skip_entries")
@@ -10113,36 +9457,7 @@ def run_once():
         
         audit_seg("run_once", "after_exits")
 
-        # SHADOW PnL (optional, additive): update unrealized PnL + evaluate hypothetical exits.
-        # Contract: never blocks trading; never submits real orders.
-        try:
-            from config.registry import StrategyFlags
-            shadow_enabled = bool(getattr(StrategyFlags, "SHADOW_TRADING_ENABLED", True))
-            shadow_pnl_enabled = bool(getattr(StrategyFlags, "SHADOW_PNL_ENABLED", False))
-            shadow_exit_enabled = bool(getattr(StrategyFlags, "SHADOW_EXIT_ENABLED", False))
-            if shadow_enabled and shadow_pnl_enabled and hasattr(engine, "executor") and hasattr(engine.executor, "api") and engine.executor.api is not None:
-                # Build a lightweight signal context map from current clusters (direction used for counter-signal exits).
-                sig_ctx = {}
-                try:
-                    for cl in (locals().get("clusters") or []):
-                        sym = cl.get("ticker")
-                        if not sym:
-                            continue
-                        sig_ctx[str(sym).upper()] = {"direction": cl.get("direction")}
-                except Exception:
-                    sig_ctx = {}
-                posture_state = getattr(engine, "regime_posture_v2", None)
-                if not isinstance(posture_state, dict):
-                    posture_state = {}
-                from shadow.shadow_pnl_engine import shadow_pnl_tick
-                shadow_pnl_tick(
-                    engine.executor.api,
-                    signal_context=sig_ctx,
-                    posture_state=posture_state,
-                    enable_exits=shadow_exit_enabled,
-                )
-        except Exception:
-            pass
+        # Shadow trading/PnL removed (v2-only engine).
 
         print("DEBUG: Computing metrics", flush=True)
         metrics = compute_daily_metrics()
@@ -10404,7 +9719,7 @@ def run_once():
 # =========================
 _last_report_day = None
 _last_weekly_adjust_day = None
-_last_market_regime = "mixed"  # Cache for weekly shadow lab automation
+_last_market_regime = "mixed"  # Cached regime label (best-effort)
 
 def daily_and_weekly_tasks_if_needed():
     global _last_report_day, _last_weekly_adjust_day, _last_market_regime
@@ -10478,9 +9793,7 @@ def daily_and_weekly_tasks_if_needed():
 
     if is_friday() and is_after_close_now():
         if _last_weekly_adjust_day != day:
-            # Shadow lab: seed profiles from history (first time)
-            if Config.ENABLE_SHADOW_LAB and Config.ENABLE_PER_TICKER_LEARNING:
-                seed_profiles_from_history()
+            # Shadow lab removed (v2-only engine).
             
             # Standard weekly adjustments
             weights = apply_weekly_adjustments()
@@ -10493,22 +9806,7 @@ def daily_and_weekly_tasks_if_needed():
             if Config.ENABLE_STABILITY_DECAY:
                 apply_weekly_stability_decay()
             
-            # Shadow lab: weekly promotion decisions
-            if Config.ENABLE_SHADOW_LAB:
-                try:
-                    # Use cached regime or default to "mixed" for weekly automation
-                    regime = _last_market_regime if _last_market_regime else "mixed"
-                    
-                    # Run weekly shadow lab automation
-                    api = tradeapi.REST(
-                        Config.ALPACA_KEY,
-                        Config.ALPACA_SECRET,
-                        Config.ALPACA_BASE_URL,
-                        api_version='v2'
-                    )
-                    weekly_shadow_lab_promotions(api, regime)
-                except Exception as e:
-                    log_event("weekly", "shadow_lab_error", error=str(e))
+            # Shadow lab removed (v2-only engine).
 
 # =========================
 # WATCHDOG & HEALTH SERVER
@@ -10835,76 +10133,7 @@ class Watchdog:
                     })
                     log_event("run", "complete", clusters=0, orders=0, metrics=metrics, market_open=False)
                 
-                # Update shadow positions with live prices (even when market closed, for after-hours tracking)
-                try:
-                    from shadow_tracker import get_shadow_tracker
-                    shadow_tracker = get_shadow_tracker()
-                    shadow_positions = shadow_tracker.get_all_positions()
-                    
-                    if shadow_positions:
-                        for symbol, shadow_pos in shadow_positions.items():
-                            if not shadow_pos.closed:
-                                try:
-                                    current_price = engine.executor.get_last_trade(symbol) if hasattr(engine, 'executor') else 0.0
-                                    if not current_price or current_price <= 0:
-                                        # Fallback: try Alpaca latest trade/quote if available
-                                        # WHY: Some symbols never get a valid last trade through executor; shadow P&L freezes at 0 otherwise.
-                                        # HOW TO VERIFY: state/shadow_positions.json shows non-zero max_profit_pct/max_loss_pct after this change.
-                                        try:
-                                            api = getattr(getattr(engine, "executor", None), "api", None)
-                                            if api is not None:
-                                                alpaca_price = 0.0
-                                                try:
-                                                    t = api.get_latest_trade(symbol)
-                                                    alpaca_price = float(getattr(t, "price", 0.0))
-                                                except Exception:
-                                                    alpaca_price = 0.0
-                                                if not alpaca_price or alpaca_price <= 0:
-                                                    try:
-                                                        q = api.get_latest_quote(symbol)
-                                                        bid = float(getattr(q, "bp", 0.0) or 0.0)
-                                                        ask = float(getattr(q, "ap", 0.0) or 0.0)
-                                                        alpaca_price = (bid + ask) / 2.0 if bid > 0 and ask > 0 else 0.0
-                                                    except Exception:
-                                                        alpaca_price = 0.0
-                                                if alpaca_price and alpaca_price > 0:
-                                                    current_price = alpaca_price
-                                        except Exception as e:
-                                            log_event("shadow_tracker", "price_fallback_failed", symbol=symbol, error=str(e))
-
-                                    if current_price and current_price > 0:
-                                        update_result = shadow_tracker.update_position(symbol, current_price)
-                                        if update_result and update_result.get("closed"):
-                                            # Shadow position closed - update signal history with final P&L
-                                            try:
-                                                from signal_history_storage import get_signal_history
-                                                signals = get_signal_history(limit=50)
-                                                # Find most recent signal for this symbol
-                                                for signal in reversed(signals):
-                                                    if signal.get("symbol") == symbol and signal.get("shadow_created"):
-                                                        # Update virtual P&L
-                                                        signal["virtual_pnl"] = shadow_pos.max_profit_pct
-                                                        signal["shadow_closed"] = True
-                                                        signal["shadow_close_reason"] = update_result.get("close_reason")
-                                                        # Re-write to history (this is a simple approach)
-                                                        break
-                                            except Exception:
-                                                pass
-                                    else:
-                                        # still no price; let duration-based expiry handle it
-                                        try:
-                                            shadow_tracker.mark_no_price(symbol)
-                                        except Exception:
-                                            pass
-                                except Exception as e:
-                                    print(f"DEBUG: Failed to update shadow position for {symbol}: {e}", flush=True)
-                    
-                    # Cleanup expired positions
-                    shadow_tracker.cleanup_expired()
-                except ImportError:
-                    pass  # Shadow tracker not available
-                except Exception as e:
-                    print(f"DEBUG: Shadow position update error: {e}", flush=True)
+                # Shadow tracking removed (v2-only engine).
                 
                 daily_and_weekly_tasks_if_needed()
                 self.state.iter_count += 1
@@ -11668,9 +10897,9 @@ def api_regime():
 
 @app.route("/api/policy", methods=["GET"])
 def api_policy():
-    policy = load_promotion_policy()
     weights = load_weights()
-    return jsonify({"policy": policy, "weights": weights}), 200
+    # Shadow lab promotion policy removed (v2-only engine).
+    return jsonify({"policy": None, "weights": weights}), 200
 
 @app.route("/api/profiles", methods=["GET"])
 def api_profiles():
@@ -11794,24 +11023,6 @@ def dashboard_attribution():
         except Exception:
             pass
     return jsonify(summary), 200
-
-@app.route("/dashboard/shadow_lab", methods=["GET"])
-def dashboard_shadow_lab():
-    """Return shadow lab experiment status"""
-    path = os.path.join(LOG_DIR, "shadow_lab.jsonl")
-    experiments = []
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        rec = json.loads(line)
-                        experiments.append(rec)
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-    return jsonify({"experiments": experiments[-100:]}), 200
 
 @app.route("/dashboard/theme_exposure", methods=["GET"])
 def dashboard_theme_exposure():

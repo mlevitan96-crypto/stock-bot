@@ -36,7 +36,7 @@ def run_startup_contract_check() -> bool:
         warnings.append(f"Contract validator not available: {e}")
     
     try:
-        from uw_composite_v2 import compute_composite_score_v3
+        from uw_composite_v2 import compute_composite_score_v2
         
         test_signal = {
             "sentiment": "BULLISH",
@@ -54,7 +54,7 @@ def run_startup_contract_check() -> bool:
             "squeeze_score": {"signals": 0, "high_squeeze_potential": False}
         }
         
-        result = compute_composite_score_v3("TEST", test_signal, "NEUTRAL")
+        result = compute_composite_score_v2("TEST", test_signal, "NEUTRAL")
         
         required_fields = ["score", "components", "features_for_learning"]
         missing = [f for f in required_fields if f not in result]
@@ -86,7 +86,7 @@ def run_startup_contract_check() -> bool:
                 sample_symbol = list(cache.keys())[0]
                 sample_data = cache[sample_symbol]
                 
-                result = compute_composite_score_v3(sample_symbol, sample_data, "NEUTRAL")
+                result = compute_composite_score_v2(sample_symbol, sample_data, "NEUTRAL")
                 print(f"✅ Live cache smoke test passed ({sample_symbol}: {result['score']:.3f})")
             else:
                 warnings.append("Cache is empty, skipping live test")

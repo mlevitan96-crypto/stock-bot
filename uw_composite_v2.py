@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-UW Composite Scoring V3.1
+UW Composite Scoring (v2-only engine)
 Full Intelligence Pipeline with Adaptive Signal Weight Optimization
 
 V3.1 Enhancements:
@@ -18,6 +18,7 @@ V3 Features (retained):
 """
 
 import json
+import os
 import time
 import math
 from pathlib import Path
@@ -229,19 +230,7 @@ WEIGHTS_V3 = {
     "squeeze_score": 0.2,          # Combined squeeze indicator bonus
 }
 
-# Legacy V2 weights for backward compatibility
-WEIGHTS_V2 = {
-    "options_flow": 2.6,
-    "dark_pool": 1.4,
-    "insider": 0.6,
-    "iv_term_skew": 0.7,
-    "smile_slope": 0.4,
-    "whale_persistence": 0.8,
-    "event_alignment": 0.5,
-    "toxicity_penalty": -0.9,
-    "temporal_motif": 0.6,
-    "regime_modifier": 0.35
-}
+# NOTE: legacy v1/v2 weight tables have been removed (v2-only engine).
 
 # V2 Thresholds
 # ROOT CAUSE FIX: Thresholds were raised to 3.5/3.8/4.2 which blocked ALL trading
@@ -706,11 +695,11 @@ def compute_calendar_component(calendar_data: Optional[Dict], symbol: str, regim
     return round(component, 4), "; ".join(notes_parts)
 
 @global_failure_wrapper("scoring")
-def compute_composite_score_v3(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL", 
-                                expanded_intel: Dict = None,
-                                use_adaptive_weights: bool = True) -> Dict[str, Any]:
+def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL",
+                                  expanded_intel: Dict = None,
+                                  use_adaptive_weights: bool = True) -> Dict[str, Any]:
     """
-    V3.1 FULL INTELLIGENCE Composite scoring with Adaptive Weights
+    Core composite scoring used by the v2-only engine.
     
     Incorporates ALL expanded endpoints:
     - Congress/politician trading
@@ -1323,29 +1312,28 @@ def _clamp(x: float, lo: float, hi: float) -> float:
 
 
 @global_failure_wrapper("scoring")
-def compute_composite_score_v3_v2(
+def compute_composite_score_v2(
     symbol: str,
     enriched_data: Dict,
     regime: str = "NEUTRAL",
     *,
     market_context: Optional[Dict[str, Any]] = None,
     posture_state: Optional[Dict[str, Any]] = None,
-    base_override: Optional[Dict[str, Any]] = None,
     expanded_intel: Dict = None,
     use_adaptive_weights: bool = True,
     v2_params: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """
-    Composite V2 (for A/B shadow):
-    - Uses the current production composite (v1) as a base
+    Composite V2 (v2-only engine):
+    - Uses the core composite as a base
     - Applies explicit, parameterized adjustments for:
       - realized volatility
       - beta vs SPY
       - regime/posture alignment
 
     IMPORTANT:
-    - This function is additive and does not replace production scoring unless explicitly enabled.
-    - It is designed for shadow comparison and observability.
+    - This function is the single composite scorer for the engine (paper-only).
+    - It is designed to be safe-by-default and fully observable.
     """
     if market_context is None:
         market_context = {}
@@ -1384,20 +1372,14 @@ def compute_composite_score_v3_v2(
                 "neutral_dampen": 0.60,
             }
 
-    # Base score source:
-    # - If base_override is provided, we treat it as the already-finalized v1 composite (including upstream boosts)
-    #   and only apply the v2 adjustment layer for comparability.
-    # - Otherwise compute v1 from scratch.
-    if isinstance(base_override, dict) and base_override:
-        base = dict(base_override)
-    else:
-        base = compute_composite_score_v3(
-            symbol,
-            enriched_data,
-            regime=regime,
-            expanded_intel=expanded_intel,
-            use_adaptive_weights=use_adaptive_weights,
-        ) or {}
+    # Base score source: compute from scratch using the core composite.
+    base = _compute_composite_score_core(
+        symbol,
+        enriched_data,
+        regime=regime,
+        expanded_intel=expanded_intel,
+        use_adaptive_weights=use_adaptive_weights,
+    ) or {}
 
     base_score = _to_num(base.get("score", 0.0))
 
@@ -1478,12 +1460,7 @@ def compute_composite_score_v3_v2(
 
     # Optional nonlinear shaping (strictly gated; disabled by default).
     shaping_adj = 0.0
-    try:
-        from config.registry import StrategyFlags
-
-        shaping_on = bool(getattr(StrategyFlags, "V2_SHAPING_ENABLED", False)) and str(getattr(StrategyFlags, "COMPOSITE_VERSION", "v1")) == "v2"
-    except Exception:
-        shaping_on = False
+    shaping_on = str(os.getenv("V2_SHAPING_ENABLED", "") or "").strip().lower() in ("1", "true", "yes", "on")
     if shaping_on:
         try:
             # Nonlinear volatility reward
@@ -1524,7 +1501,7 @@ def compute_composite_score_v3_v2(
         uw_cfg = v2_params.get("uw", {}) if isinstance(v2_params, dict) else {}
         if isinstance(uw_cfg, dict) and uw_cfg:
             from utils.state_io import read_json_self_heal
-            # Universe v2 (shadow-only) metadata
+            # Universe v2 metadata
             try:
                 u2 = read_json_self_heal("state/daily_universe_v2.json", default={}, heal=True, mkdir=True)
                 if isinstance(u2, dict) and isinstance(u2.get("_meta"), dict) and u2.get("symbols") is not None:
@@ -1646,7 +1623,7 @@ def compute_composite_score_v3_v2(
     try:
         base["score"] = round(float(score_v2), 3)
         base["composite_version"] = "v2"
-        base["base_score_v1"] = round(float(base_score), 3)
+        base["base_score"] = round(float(base_score), 3)
         base["v2_adjustments"] = {
             "vol_bonus": round(float(vol_bonus), 4),
             "low_vol_penalty": round(float(low_vol_pen), 4),
@@ -1688,11 +1665,11 @@ def compute_composite_score_v3_v2(
                 base["in_universe"] = bool(in_universe)
         # Preserve existing notes while making adjustments explicit.
         base["notes"] = (str(base.get("notes", "") or "") + f"; v2_adj={round(float(total_adj), 3)}").strip("; ").strip()
-        base["version"] = str(base.get("version", "V3")) + "+V2"
+        base["version"] = "V2"
     except Exception:
         pass
 
-    # Shadow-only attribution (append-only, never raises).
+    # Attribution (append-only, never raises).
     try:
         # Emit when there is meaningful v2 evaluation context (trade_count>0) OR UW intel exists.
         if (int(trade_count) > 0 or bool(uw_inputs)) and isinstance(uw_adj, dict):
@@ -1724,9 +1701,9 @@ def compute_composite_score_v3_v2(
 
     return base
 
-def compute_composite_score_v2(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL") -> Dict[str, Any]:
+def _compute_composite_score_legacy_v2(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL") -> Dict[str, Any]:
     """
-    V2 Composite scoring with expanded features and motif awareness
+    Legacy composite scoring implementation (deprecated).
     
     Returns:
     {
@@ -1739,6 +1716,10 @@ def compute_composite_score_v2(symbol: str, enriched_data: Dict, regime: str = "
       "notes": str
     }
     """
+
+    # Deprecated alias retained for backward compatibility in old diagnostic scripts.
+    # v2-only engine: delegate to the canonical scorer.
+    return compute_composite_score_v2(symbol, enriched_data, regime=regime)
     
     # Base flow components
     flow_sent = enriched_data.get("sentiment", "NEUTRAL")
@@ -2115,51 +2096,4 @@ def apply_sizing_overlay(base_qty: int, composite: Dict) -> int:
     return max(min_qty, min(max_qty, int(adjusted_qty)))
 
 if __name__ == "__main__":
-    # Test V3 FULL INTELLIGENCE scoring
-    test_data_v3 = {
-        "sentiment": "BULLISH",
-        "conviction": 0.85,
-        "dark_pool": {"sentiment": "BULLISH", "total_premium": 45000000},
-        "insider": {"sentiment": "BULLISH", "conviction_modifier": 0.05, "net_buys": 5, "net_sells": 1, "total_usd": 2500000},
-        "iv_term_skew": 0.12,
-        "smile_slope": 0.08,
-        "toxicity": 0.65,
-        "event_alignment": 0.85,
-        "freshness": 0.95,
-        "motif_staircase": {"detected": True, "steps": 4, "slope": 0.05},
-        "motif_sweep_block": {"detected": False},
-        "motif_burst": {"detected": False},
-        "motif_whale": {"detected": True, "avg_conviction": 0.82},
-        # V3 NEW: Expanded Intelligence
-        "congress": {"recent_count": 3, "buys": 2, "sells": 0, "net_sentiment": "BULLISH", "conviction_boost": 0.1},
-        "shorts": {"interest_pct": 22.5, "days_to_cover": 6.2, "ftd_count": 250000, "squeeze_risk": True}
-    }
-    
-    # Test expanded intel cache
-    test_expanded_intel = {
-        "AAPL": {
-            "market_tide": {"call_premium": 120000000, "put_premium": 80000000, "net_delta": 40000000, "sentiment": "BULLISH"},
-            "calendar": {"has_earnings": True, "earnings_date": "2025-01-30", "days_to_earnings": 5, "has_fda": False, "economic_events": ["FOMC", "CPI"]}
-        }
-    }
-    
-    print("=" * 60)
-    print("V3 FULL INTELLIGENCE COMPOSITE SCORING TEST")
-    print("=" * 60)
-    
-    result_v3 = compute_composite_score_v3("AAPL", test_data_v3, "RISK_ON", test_expanded_intel)
-    print(json.dumps(result_v3, indent=2))
-    print(f"\nV3 Score: {result_v3['score']:.3f}")
-    print(f"Should enter: {should_enter_v2(result_v3, 'AAPL', 'base')}")
-    print(f"Sizing overlay: {result_v3['sizing_overlay']:.2%}")
-    print(f"\nExpanded Intel Active: {result_v3['expanded_intel']}")
-    print(f"Notes: {result_v3['notes']}")
-    print(f"\nFeatures for Learning: {json.dumps(result_v3['features_for_learning'], indent=2)}")
-    
-    print("\n" + "=" * 60)
-    print("V2 LEGACY SCORING (for comparison)")
-    print("=" * 60)
-    
-    result_v2 = compute_composite_score_v2("AAPL", test_data_v3, "RISK_ON")
-    print(f"V2 Score: {result_v2['score']:.3f}")
-    print(f"Score difference (V3-V2): {result_v3['score'] - result_v2['score']:.3f}")
+    raise SystemExit("uw_composite_v2 is a library module; run scripts/run_regression_checks.py for validation.")
