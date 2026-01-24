@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 
@@ -37,6 +38,15 @@ def _is_paper_endpoint(url: str) -> bool:
 
 def _run_checks() -> List[Tuple[str, bool, str]]:
     out: List[Tuple[str, bool, str]] = []
+
+    # Ensure repo root is importable when running as `python3 src/main.py`
+    # (sys.path[0] is /root/stock-bot/src, which does not contain the `src` package).
+    try:
+        root = Path(__file__).resolve().parents[1]
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+    except Exception:
+        pass
 
     # 1) Paper-only invariant
     base_url = os.getenv("ALPACA_BASE_URL", "") or ""
