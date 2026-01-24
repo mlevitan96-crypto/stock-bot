@@ -113,11 +113,37 @@ def _run_checks() -> List[Tuple[str, bool, str]]:
         from src.exit.profit_targets_v2 import compute_profit_target
         from src.exit.stops_v2 import compute_stop_price
 
-        pos = {"symbol": "SPY", "side": "long", "entry_price": 100.0, "qty": 1.0, "current_price": 101.0}
-        exit_score = compute_exit_score_v2(symbol="SPY", position=pos, entry_context={}, intel_snapshot={})
-        pt = compute_profit_target(symbol="SPY", position=pos, intel_snapshot={})
-        st = compute_stop_price(symbol="SPY", position=pos, intel_snapshot={})
-        out.append(("v2_exit_intel_runs", *_ok(f"exit_score={exit_score} profit_target={pt} stop={st}")))
+        exit_score, comps, reason = compute_exit_score_v2(
+            symbol="SPY",
+            direction="bullish",
+            entry_v2_score=2.0,
+            now_v2_score=1.5,
+            entry_uw_inputs={"flow_strength": 0.6, "darkpool_bias": 0.0, "sentiment": "NEUTRAL"},
+            now_uw_inputs={"flow_strength": 0.4, "darkpool_bias": 0.0, "sentiment": "NEUTRAL"},
+            entry_regime="NEUTRAL",
+            now_regime="NEUTRAL",
+            entry_sector="UNKNOWN",
+            now_sector="UNKNOWN",
+            realized_vol_20d=0.30,
+            thesis_flags={},
+        )
+        pt, pt_reason = compute_profit_target(
+            entry_price=100.0,
+            realized_vol_20d=0.30,
+            flow_strength=0.6,
+            regime_label="NEUTRAL",
+            sector="UNKNOWN",
+            direction="bullish",
+        )
+        st, st_reason = compute_stop_price(
+            entry_price=100.0,
+            realized_vol_20d=0.30,
+            flow_reversal=False,
+            regime_label="NEUTRAL",
+            sector_collapse=False,
+            direction="bullish",
+        )
+        out.append(("v2_exit_intel_runs", *_ok(f"exit_score={exit_score} reason={reason} profit_target={pt} stop={st}")))
     except Exception as e:
         out.append(("v2_exit_intel_runs", *_fail(f"{type(e).__name__}: {e}")))
 
