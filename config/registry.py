@@ -334,6 +334,37 @@ class APIConfig:
         }
 
 
+class DashboardAuthConfig:
+    """
+    Dashboard authentication config (HTTP Basic).
+
+    Contract:
+    - The dashboard MUST fail-closed if credentials are missing.
+    - Credentials MUST come from environment variables (loaded from `/root/stock-bot/.env` on droplet).
+    """
+
+    DASHBOARD_USER = get_env("DASHBOARD_USER", None, str)
+    DASHBOARD_PASS = get_env("DASHBOARD_PASS", None, str)
+
+    @classmethod
+    def validate_or_die(cls) -> None:
+        """Fail-closed if required auth env vars are missing/empty."""
+        missing = []
+        for k in ("DASHBOARD_USER", "DASHBOARD_PASS"):
+            v = os.getenv(k)
+            if v is None or str(v).strip() == "":
+                missing.append(k)
+
+        if missing:
+            print(
+                "[DashboardAuth] CONTRACT VIOLATION: Missing required environment variables "
+                f"{missing}. Refusing to start dashboard. "
+                "Set these in `/root/stock-bot/.env` (droplet) and restart the dashboard.",
+                flush=True,
+            )
+            raise SystemExit(1)
+
+
 # UW intelligence layer (v2) limits (aggressive but safe)
 # ------------------------------------------------------
 # Contract:

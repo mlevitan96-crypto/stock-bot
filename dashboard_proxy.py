@@ -9,17 +9,51 @@ Always accessible on port 5000, regardless of which instance is active.
 import os
 import json
 import time
+import secrets
 from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 import requests
 from threading import Thread
+import base64
 
 BASE_DIR = Path(__file__).parent
 STATE_FILE = BASE_DIR / "state" / "deployment_state.json"
 PORT_A = 5001  # Instance A internal port
 PORT_B = 5002  # Instance B internal port
 PROXY_PORT = 5000  # Public port (always 5000)
+
+def _require_auth_or_die() -> None:
+    """
+    Fail-closed if auth env vars are missing.
+    Mirrors dashboard.py auth contract for proxy deployments.
+    """
+    try:
+        from config.registry import DashboardAuthConfig
+        DashboardAuthConfig.validate_or_die()
+    except Exception as e:
+        # In proxy deployments, config.registry should still exist, but fail closed either way.
+        print(f"[PROXY][DashboardAuth] CONTRACT VIOLATION: {e}", flush=True)
+        raise SystemExit(1)
+
+def _parse_basic_auth(header_value: str):
+    """
+    Parse an Authorization: Basic ... header into (username, password).
+    Returns (None, None) if invalid.
+    """
+    try:
+        if not header_value:
+            return (None, None)
+        parts = header_value.strip().split(" ", 1)
+        if len(parts) != 2 or parts[0].lower() != "basic":
+            return (None, None)
+        decoded = base64.b64decode(parts[1].strip()).decode("utf-8", errors="replace")
+        if ":" not in decoded:
+            return (None, None)
+        u, p = decoded.split(":", 1)
+        return (u, p)
+    except Exception:
+        return (None, None)
 
 def get_active_port() -> int:
     """Get the port of the currently active instance."""
@@ -57,6 +91,34 @@ class ProxyHandler(BaseHTTPRequestHandler):
     
     def _proxy_request(self):
         """Proxy request to active instance."""
+        # Enforce HTTP Basic Auth on ALL proxy requests (fail closed).
+        try:
+            _require_auth_or_die()
+            expected_user = os.getenv("DASHBOARD_USER", "")
+            expected_pass = os.getenv("DASHBOARD_PASS", "")
+            u, p = _parse_basic_auth(self.headers.get("Authorization", ""))
+            if u is None or p is None:
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="stock-bot-dashboard"')
+                self.end_headers()
+                self.wfile.write(b"Authentication required")
+                return
+            if not secrets.compare_digest(str(u), str(expected_user)) or not secrets.compare_digest(str(p), str(expected_pass)):
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="stock-bot-dashboard"')
+                self.end_headers()
+                self.wfile.write(b"Authentication required")
+                return
+        except SystemExit:
+            raise
+        except Exception:
+            # Fail closed on unexpected errors.
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="stock-bot-dashboard"')
+            self.end_headers()
+            self.wfile.write(b"Authentication required")
+            return
+
         # Handle proxy's own health endpoint
         if self.path == "/proxy/health":
             self.send_response(200)
@@ -114,6 +176,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
 def run_proxy():
     """Run the proxy server."""
+    _require_auth_or_die()
     server = HTTPServer(('0.0.0.0', PROXY_PORT), ProxyHandler)
     print(f"[PROXY] Dashboard proxy running on port {PROXY_PORT}")
     print(f"[PROXY] Routing to active instance (checking every request)")

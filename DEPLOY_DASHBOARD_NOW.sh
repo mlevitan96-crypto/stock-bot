@@ -46,7 +46,7 @@ echo "✅ Dashboard restart initiated"
 echo ""
 
 echo "[5/5] Verifying dashboard is responding..."
-HEALTH=$(ssh $DEPLOY_TARGET "curl -s http://localhost:5000/health 2>&1 | head -5" || echo "")
+HEALTH=$(ssh $DEPLOY_TARGET "bash -lc 'cd /root/stock-bot && set -a && source .env && set +a && curl -s -u \"\$DASHBOARD_USER:\$DASHBOARD_PASS\" http://localhost:5000/health 2>&1 | head -5'" || echo "")
 if echo "$HEALTH" | grep -q "healthy\|status"; then
     echo "✅ Dashboard is responding"
     echo "   $HEALTH"

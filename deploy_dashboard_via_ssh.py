@@ -98,8 +98,13 @@ def deploy_dashboard():
         # Step 6: Verify dashboard is responding
         print("[6/6] Verifying dashboard is responding...")
         # Use IPv4 loopback explicitly: some droplets don't have IPv6 ::1 bound for "localhost".
+        # Dashboard now requires HTTP Basic Auth (DASHBOARD_USER / DASHBOARD_PASS from /root/stock-bot/.env).
         stdout, stderr, exit_code = client._execute(
-            "curl -s http://127.0.0.1:5000/health 2>&1 | head -5"
+            "bash -lc 'cd /root/stock-bot && set -a && source .env && set +a && "
+            "if [ -z \"$DASHBOARD_USER\" ] || [ -z \"$DASHBOARD_PASS\" ]; then "
+            "echo \"[ERROR] Missing DASHBOARD_USER/DASHBOARD_PASS in /root/stock-bot/.env\"; exit 2; "
+            "fi && "
+            "curl -s -u \"$DASHBOARD_USER:$DASHBOARD_PASS\" http://127.0.0.1:5000/health 2>&1 | head -5'"
         )
         
         if exit_code == 0 and stdout:
@@ -127,6 +132,7 @@ def deploy_dashboard():
         print("   http://104.236.102.57:5000/")
         print()
         print("Test endpoints:")
+        print("   (HTTP Basic Auth required)")
         print("   http://104.236.102.57:5000/health")
         print("   http://104.236.102.57:5000/api/positions")
         print("   http://104.236.102.57:5000/api/health_status")

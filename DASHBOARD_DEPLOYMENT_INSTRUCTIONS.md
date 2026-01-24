@@ -40,11 +40,13 @@ source venv/bin/activate
 python3 deploy_supervisor.py &
 
 # 6. Verify dashboard is responding
-curl http://localhost:5000/health
+# Dashboard now requires HTTP Basic Auth.
+set -a && source /root/stock-bot/.env && set +a
+curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health
 # Should return: {"status":"healthy",...}
 
 # 7. Test the fixed endpoint
-curl http://localhost:5000/api/health_status | python3 -m json.tool
+curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/api/health_status | python3 -m json.tool
 ```
 
 ---
@@ -76,13 +78,14 @@ After deployment, verify the fixes:
 ps aux | grep dashboard | grep -v grep
 
 # 2. Test health endpoint
-curl http://localhost:5000/health
+set -a && source /root/stock-bot/.env && set +a
+curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health
 
 # 3. Test positions endpoint (should be fast even with large logs)
-time curl http://localhost:5000/api/positions
+time curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/api/positions
 
 # 4. Test XAI auditor (should handle large files)
-time curl http://localhost:5000/api/xai/auditor
+time curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/api/xai/auditor
 
 # 5. Check dashboard logs for errors
 tail -50 logs/dashboard*.log

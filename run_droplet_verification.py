@@ -87,7 +87,10 @@ def main():
         
         # 6. Dashboard
         print("\n6. Checking Dashboard...")
-        r = client.execute_command('curl -s http://localhost:5000/health 2>&1 | head -1')
+        r = client.execute_command(
+            'bash -lc \'cd /root/stock-bot && set -a && source .env && set +a && '
+            'curl -s -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health 2>&1 | head -1\''
+        )
         if r.get('output', '').strip():
             print("   OK: Dashboard responding")
         else:

@@ -51,8 +51,12 @@ def main():
         stdout, stderr, code = client._execute_with_cd('cd /root/stock-bot && test -f mock_signal_injection.py && echo YES || echo NO', 20)
         results["sre_files"]["mock_signal"] = stdout and 'YES' in stdout
         
-        # 6. Dashboard
-        stdout, stderr, code = client._execute_with_cd('curl -s http://localhost:5000/health 2>&1 | head -1', 10)
+        # 6. Dashboard (HTTP Basic Auth required)
+        stdout, stderr, code = client._execute_with_cd(
+            'bash -lc \'cd /root/stock-bot && set -a && source .env && set +a && '
+            'curl -s -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health 2>&1 | head -1\'',
+            10
+        )
         results["dashboard"] = bool(stdout and stdout.strip())
         
         # 7. API Keys (simplified check)

@@ -196,5 +196,6 @@ This bot was migrated from manual supervisor execution to systemd management. Th
 journalctl -u stockbot -f
 
 # Or check dashboard
-curl http://localhost:5000/api/positions
+set -a && source /root/stock-bot/.env && set +a
+curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/api/positions
 ```

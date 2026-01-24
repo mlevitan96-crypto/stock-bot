@@ -10,6 +10,7 @@ import os
 import sys
 import json
 import threading
+import secrets
 from datetime import datetime, timezone
 
 # Optional env checks (non-blocking)
@@ -47,6 +48,49 @@ except Exception:
 else:
     print("[Dashboard] Starting Flask app...", flush=True)
     app = Flask(__name__)
+
+    # ===========================
+    # SECURITY: HTTP BASIC AUTH
+    # ===========================
+    #
+    # Contract:
+    # - Must protect ALL routes (HTML + APIs) before any content loads.
+    # - Must NOT hardcode credentials.
+    # - Must be fail-closed on startup if env vars missing (enforced in __main__).
+    #
+    def _unauthorized_response():
+        return Response(
+            "Authentication required",
+            401,
+            {"WWW-Authenticate": 'Basic realm="stock-bot-dashboard"'},
+        )
+
+    @app.before_request
+    def _enforce_basic_auth():  # type: ignore
+        try:
+            # Validate env contract at request time too (defensive).
+            # Primary fail-closed enforcement is in __main__ before binding the port.
+            from config.registry import DashboardAuthConfig
+            DashboardAuthConfig.validate_or_die()
+
+            expected_user = os.getenv("DASHBOARD_USER", "")
+            expected_pass = os.getenv("DASHBOARD_PASS", "")
+
+            auth = request.authorization
+            if not auth:
+                return _unauthorized_response()
+
+            # Constant-time comparisons to avoid timing side-channels.
+            if not secrets.compare_digest(str(auth.username or ""), str(expected_user)):
+                return _unauthorized_response()
+            if not secrets.compare_digest(str(auth.password or ""), str(expected_pass)):
+                return _unauthorized_response()
+            return None
+        except SystemExit:
+            raise
+        except Exception:
+            # Fail closed on unexpected auth errors.
+            return _unauthorized_response()
 
 _alpaca_api = None
 _registry_loaded = False
@@ -4220,6 +4264,16 @@ if __name__ == "__main__":
     # HOW TO VERIFY: Logs show this message and process exits non-zero; install Flask in the runtime to resolve.
     if not _FLASK_AVAILABLE:
         print("[Dashboard] ERROR: Flask is not installed in this runtime. Install flask and restart the dashboard service.", flush=True)
+        raise SystemExit(1)
+
+    # Fail-closed: dashboard must not start without auth credentials.
+    try:
+        from config.registry import DashboardAuthConfig
+        DashboardAuthConfig.validate_or_die()
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f"[DashboardAuth] CONTRACT VIOLATION: Could not validate dashboard auth config: {e}", flush=True)
         raise SystemExit(1)
     
     loader_thread = threading.Thread(target=lazy_load_dependencies, daemon=True)

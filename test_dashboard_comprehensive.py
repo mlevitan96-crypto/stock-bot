@@ -6,22 +6,39 @@ Tests all dashboard endpoints and identifies issues
 
 import sys
 import json
+import os
 import requests
 import time
 from pathlib import Path
 from datetime import datetime
 
+def _get_dashboard_auth():
+    """Return (user, pass) tuple if configured, else None."""
+    user = os.getenv("DASHBOARD_USER", "").strip()
+    pw = os.getenv("DASHBOARD_PASS", "").strip()
+    if user and pw:
+        return (user, pw)
+    return None
+
 def test_endpoint(name, url, method="GET", data=None, timeout=5):
     """Test a single endpoint"""
     try:
+        auth = _get_dashboard_auth()
         if method == "GET":
-            resp = requests.get(url, timeout=timeout)
+            resp = requests.get(url, timeout=timeout, auth=auth)
         else:
-            resp = requests.post(url, json=data, timeout=timeout)
+            resp = requests.post(url, json=data, timeout=timeout, auth=auth)
         
         status = "✅" if resp.status_code == 200 else "❌"
         print(f"{status} {name}: {resp.status_code}")
         
+        if resp.status_code == 401:
+            if auth is None:
+                print("   ⚠️  Dashboard requires HTTP Basic Auth. Set DASHBOARD_USER and DASHBOARD_PASS and re-run.")
+            else:
+                print("   ❌ Unauthorized (check DASHBOARD_USER/DASHBOARD_PASS).")
+            return False, None
+
         if resp.status_code == 200:
             try:
                 data = resp.json()

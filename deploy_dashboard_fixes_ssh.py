@@ -121,7 +121,11 @@ def main():
     print("[5/5] Verifying dashboard is responding...")
     success, stdout, stderr = run_ssh_command(
         deploy_target,
-        f"curl -s http://localhost:5000/health 2>&1 | head -5",
+        "bash -lc 'cd /root/stock-bot && set -a && source .env && set +a && "
+        "if [ -z \"$DASHBOARD_USER\" ] || [ -z \"$DASHBOARD_PASS\" ]; then "
+        "echo \"[ERROR] Missing DASHBOARD_USER/DASHBOARD_PASS in /root/stock-bot/.env\"; exit 2; "
+        "fi && "
+        "curl -s -u \"$DASHBOARD_USER:$DASHBOARD_PASS\" http://localhost:5000/health 2>&1 | head -5'",
         timeout=10
     )
     

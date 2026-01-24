@@ -919,7 +919,8 @@ Cursor MUST:
 - ✅ SSH connection via `droplet_client.py` works (paramiko installed)
 - ✅ Deployment script `deploy_dashboard_via_ssh.py` successfully deploys
 - ✅ Dashboard can be started with: `nohup python3 dashboard.py > logs/dashboard.log 2>&1 &`
-- ✅ Health check endpoint responds: `curl http://localhost:5000/health`  
+- ✅ Health check endpoint responds (Basic Auth required):
+  - `set -a && source /root/stock-bot/.env && set +a && curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health`  
 
 ---
 
@@ -971,6 +972,8 @@ The `.env` file contains:
 - `ALPACA_SECRET=...` - Alpaca API secret
 - `ALPACA_BASE_URL=...` - Alpaca API base URL (default: https://paper-api.alpaca.markets)
 - `UW_API_KEY=...` - Unusual Whales API key
+- `DASHBOARD_USER=...` - Dashboard HTTP Basic Auth username (email)
+- `DASHBOARD_PASS=...` - Dashboard HTTP Basic Auth password (rotate as needed)
 
 ### Credential Loading
 - The systemd service (`stock-bot.service`) automatically loads credentials via `EnvironmentFile=/root/stock-bot/.env`
@@ -1008,7 +1011,8 @@ nohup python3 dashboard.py > logs/dashboard.log 2>&1 &
 
 **Dashboard Health Check:**
 ```bash
-curl http://localhost:5000/health
+set -a && source /root/stock-bot/.env && set +a
+curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health
 # Should return: {"status":"degraded"|"healthy",...}
 ```
 
@@ -1074,7 +1078,7 @@ If service won't start:
 4. **Restart Dashboard:** 
    - Kill existing: `pkill -f 'python.*dashboard.py'`
    - Start new: `nohup python3 dashboard.py > logs/dashboard.log 2>&1 &`
-5. **Verify:** `curl http://localhost:5000/health`
+5. **Verify (Basic Auth required):** `set -a && source /root/stock-bot/.env && set +a && curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health`
 
 ### Dashboard Startup
 **VERIFIED METHOD (2026-01-12):**
@@ -1085,7 +1089,8 @@ nohup python3 dashboard.py > logs/dashboard.log 2>&1 &
 
 **Health Check:**
 ```bash
-curl http://localhost:5000/health
+set -a && source /root/stock-bot/.env && set +a
+curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health
 # Expected: {"status":"degraded"|"healthy","alpaca_connected":true,...}
 ```
 

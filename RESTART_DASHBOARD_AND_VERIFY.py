@@ -87,7 +87,11 @@ def restart_and_verify():
         # Step 5: Verify dashboard is responding
         print("Step 5: Verifying dashboard is responding...")
         stdout, stderr, exit_code = client._execute(
-            "curl -s http://localhost:5000/health 2>&1 | head -5",
+            "bash -lc 'cd /root/stock-bot && set -a && source .env && set +a && "
+            "if [ -z \"$DASHBOARD_USER\" ] || [ -z \"$DASHBOARD_PASS\" ]; then "
+            "echo \"[ERROR] Missing DASHBOARD_USER/DASHBOARD_PASS in /root/stock-bot/.env\"; exit 2; "
+            "fi && "
+            "curl -s -u \"$DASHBOARD_USER:$DASHBOARD_PASS\" http://localhost:5000/health 2>&1 | head -5'",
             timeout=10
         )
         
@@ -103,7 +107,11 @@ def restart_and_verify():
         # Step 6: Test API endpoint with current_score
         print("Step 6: Testing /api/positions endpoint for current_score field...")
         stdout, stderr, exit_code = client._execute(
-            "curl -s http://localhost:5000/api/positions 2>&1",
+            "bash -lc 'cd /root/stock-bot && set -a && source .env && set +a && "
+            "if [ -z \"$DASHBOARD_USER\" ] || [ -z \"$DASHBOARD_PASS\" ]; then "
+            "echo \"[ERROR] Missing DASHBOARD_USER/DASHBOARD_PASS in /root/stock-bot/.env\"; exit 2; "
+            "fi && "
+            "curl -s -u \"$DASHBOARD_USER:$DASHBOARD_PASS\" http://localhost:5000/api/positions 2>&1'",
             timeout=10
         )
         
