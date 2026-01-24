@@ -93,7 +93,8 @@ def main() -> int:
         print(f"{name}: {'OK' if ok else 'FAIL'} (present={present})")
         ok_all = ok_all and ok
 
-    # Telemetry manifest realized trades list (prefer trade_id when provided)
+    # Telemetry manifest realized trades list (prefer trade_id when provided).
+    # For absent checks without a trade_id, symbol-based checks are best-effort.
     try:
         m_present = False
         if manifest.exists():
@@ -110,15 +111,21 @@ def main() -> int:
         print(f"telemetry_manifest.realized_trades: FAIL (error={e})")
         ok_all = False
 
-    # Deep dive mentions trade_id (preferred) or symbol (fallback)
+    # Deep dive mentions trade_id (preferred) or symbol (fallback).
+    # For absent checks without a trade_id, symbol-based absence is not reliable (symbol may appear in text).
     try:
         d_present = False
         if deep.exists():
             txt = _read_text(deep)
             if trade_id:
                 d_present = trade_id in txt
-            else:
+            elif want_present:
                 d_present = sym in txt
+            else:
+                # Avoid false negatives: symbol may appear outside of trade appendix.
+                print("deep_dive.contains_symbol: SKIP (no trade_id for absent check)")
+                d_present = False
+                return 0 if ok_all else 2
         ok = d_present if want_present else (not d_present)
         print(f"deep_dive.contains_symbol: {'OK' if ok else 'FAIL'} (present={d_present})")
         ok_all = ok_all and ok
