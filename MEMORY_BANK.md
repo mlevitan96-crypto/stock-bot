@@ -1274,3 +1274,50 @@ tail -20 logs/self_healing.jsonl | jq '.'
    - **Reason:** Critical system component failed
    - **Source:** Various (daemon, cache, API, bot process)
    - **Action Required:** Check self-healing status, may require manual intervention
+
+---
+
+## 6.9 ALPHA UPGRADE (Displacement Policy, Shorts, EOD) — 2026-01-26
+
+### New Config Keys (env)
+
+- **`DISPLACEMENT_ENABLED`** (default `true`): Master switch for displacement policy.
+- **`DISPLACEMENT_MIN_HOLD_SECONDS`** (default `1200`, 20 min): Min hold before displacement unless emergency (score &lt; 3 or pnl &lt; -0.5%).
+- **`DISPLACEMENT_MIN_DELTA_SCORE`** (default `0.75`): Challenger must beat current by at least this.
+- **`DISPLACEMENT_REQUIRE_THESIS_DOMINANCE`** (default `true`): Require at least one of flow/regime/dark_pool win.
+- **`DISPLACEMENT_THESIS_DOMINANCE_MODE`** (default `flow_or_regime`): Mode for thesis dominance.
+- **`DISPLACEMENT_LOG_EVERY_DECISION`** (default `true`): Log every displacement evaluate to system_events.
+
+### New Logs / Events
+
+- **`logs/system_events.jsonl`**: `subsystem=displacement`, `event_type=displacement_evaluated`, `severity=INFO`, `details={allowed, reason, ...}`.
+- **`close_reason`** for displacement exits: `displaced_by_<SYMBOL>|delta=<x>|age_s=<y>|thesis=<reason>` (when policy diagnostics present).
+
+### Toggle-Back (Revert Displacement Tuning)
+
+Do **not** remove code; revert by config:
+
+- `DISPLACEMENT_MIN_HOLD_SECONDS=0`
+- `DISPLACEMENT_MIN_DELTA_SCORE=0`
+- `DISPLACEMENT_REQUIRE_THESIS_DOMINANCE=false`
+
+### Verification
+
+```bash
+python scripts/verify_alpha_upgrade.py
+```
+
+Exits non-zero on any FAIL. Checks: displacement policy present, displacement logging, shorts sanity, feature snapshot, shadow experiments (if enabled), EOD report.
+
+### EOD Alpha Diagnostic
+
+```bash
+python reports/_daily_review_tools/generate_eod_alpha_diagnostic.py --date YYYY-MM-DD
+```
+
+Output: `reports/EOD_ALPHA_DIAGNOSTIC_<DATE>.md`. Headline PnL, win rate, top/bottom symbols, displacement summary, data availability.
+
+### Displacement Logs / Variant Scoreboard
+
+- **Displacement:** Filter `logs/system_events.jsonl` for `subsystem=displacement`, `event_type=displacement_evaluated`. Use `details.allowed`, `details.reason`, `details.delta_score`, `details.age_seconds` for audit.
+- **Shadows / variants:** When shadow experiments enabled, see `logs/shadow.jsonl` for `event_type=shadow_variant_decision` and `shadow_variant_summary`.

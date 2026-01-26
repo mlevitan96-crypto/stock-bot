@@ -384,6 +384,13 @@ class Config:
     DISPLACEMENT_MAX_PNL_PCT = float(get_env("DISPLACEMENT_MAX_PNL_PCT", "0.01"))  # Only displace truly stagnant positions
     DISPLACEMENT_SCORE_ADVANTAGE = float(get_env("DISPLACEMENT_SCORE_ADVANTAGE", "2.0"))  # Require significantly better signal
     DISPLACEMENT_COOLDOWN_HOURS = get_env("DISPLACEMENT_COOLDOWN_HOURS", 6, int)  # Reduce churn frequency
+    # Displacement policy (alpha upgrade): min hold, min delta, thesis dominance
+    DISPLACEMENT_ENABLED = get_env("DISPLACEMENT_ENABLED", "true").lower() == "true"
+    DISPLACEMENT_MIN_HOLD_SECONDS = get_env("DISPLACEMENT_MIN_HOLD_SECONDS", 20 * 60, int)  # 20 min
+    DISPLACEMENT_MIN_DELTA_SCORE = float(get_env("DISPLACEMENT_MIN_DELTA_SCORE", "0.75"))
+    DISPLACEMENT_REQUIRE_THESIS_DOMINANCE = get_env("DISPLACEMENT_REQUIRE_THESIS_DOMINANCE", "true").lower() == "true"
+    DISPLACEMENT_THESIS_DOMINANCE_MODE = get_env("DISPLACEMENT_THESIS_DOMINANCE_MODE", "flow_or_regime", str)
+    DISPLACEMENT_LOG_EVERY_DECISION = get_env("DISPLACEMENT_LOG_EVERY_DECISION", "true").lower() == "true"
     
     # Institutional Remediation Phase 7: kill zombie trades quickly (120 minutes)
     STALE_TRADE_EXIT_MINUTES = get_env("STALE_TRADE_EXIT_MINUTES", 120, int)  # 120 minutes
@@ -4605,11 +4612,13 @@ class AlpacaExecutor:
         
         return best
     
-    def execute_displacement(self, candidate: Dict, new_symbol: str, new_signal_score: float) -> bool:
+    def execute_displacement(self, candidate: Dict, new_symbol: str, new_signal_score: float,
+                             policy_diagnostics: Optional[Dict] = None) -> bool:
         """
         V1.0: Execute displacement - exit old position to make room for new signal.
         Returns True if displacement successful.
         FIX 2025-12-05: Now logs proper exit attribution with P&L for ML learning.
+        Alpha upgrade: policy_diagnostics optional; when provided, close_reason suffix |delta=|age_s=|thesis=.
         """
         # SAFETY: Candidate dict is external input (from selector). Never assume keys exist.
         if not isinstance(candidate, dict):
@@ -4710,6 +4719,14 @@ class AlpacaExecutor:
                 "age_hours": (datetime.utcnow() - info.get("ts", datetime.utcnow())).total_seconds() / 3600.0
             }
             close_reason = build_composite_close_reason(displacement_signals)
+            if policy_diagnostics:
+                delta = policy_diagnostics.get("delta_score")
+                age_s = policy_diagnostics.get("age_seconds")
+                thesis = policy_diagnostics.get("reason", "displacement_allowed") or "displacement_allowed"
+                d = delta if delta is not None else 0
+                a = age_s if age_s is not None else 0
+                suffix = f"|delta={d}|age_s={a}|thesis={thesis}"
+                close_reason = (close_reason + suffix) if isinstance(close_reason, str) else suffix
             
             # Only attribute exits when we have executed fill fields.
             if exit_fill_price > 0 and exit_fill_qty > 0:
@@ -7030,16 +7047,71 @@ class StrategyEngine:
                 )
                 if displacement_candidate:
                     # SAFETY: Debug/telemetry must never crash trading.
-                    # WHY: Production saw KeyError('score_advantage') here, which bubbled up and killed run_once().
-                    # HOW TO VERIFY: logs/worker_error.jsonl no longer shows KeyError('score_advantage'); loop continues.
                     dc_symbol = displacement_candidate.get("symbol", "UNKNOWN") if isinstance(displacement_candidate, dict) else "UNKNOWN"
                     dc_adv = displacement_candidate.get("score_advantage") if isinstance(displacement_candidate, dict) else None
                     dc_adv_str = f"{float(dc_adv):.1f}" if isinstance(dc_adv, (int, float)) else "n/a"
                     print(f"DEBUG {symbol}: Attempting displacement of {dc_symbol} (score advantage: {dc_adv_str})", flush=True)
+
+                    # Displacement policy (alpha upgrade): min hold, min delta, thesis dominance
+                    policy_allowed = True
+                    policy_diag = None
+                    try:
+                        from trading.displacement_policy import evaluate_displacement
+                        opens = getattr(self.executor, "opens", {}) or {}
+                        entry_ts = None
+                        if isinstance(opens, dict) and dc_symbol in opens:
+                            entry_ts = opens[dc_symbol].get("ts")
+                        current_position = dict(displacement_candidate)
+                        if entry_ts is not None:
+                            current_position["entry_ts"] = entry_ts
+                        challenger_candidate = {"symbol": symbol, "score": score, "new_signal_score": score}
+                        rp = getattr(self, "regime_posture_v2", None) or {}
+                        context = {
+                            "regime_label": rp.get("regime_label") or market_regime,
+                            "posture": rp.get("posture") or "NEUTRAL",
+                        }
+                        config_overrides = {
+                            "DISPLACEMENT_ENABLED": Config.DISPLACEMENT_ENABLED,
+                            "DISPLACEMENT_MIN_HOLD_SECONDS": getattr(Config, "DISPLACEMENT_MIN_HOLD_SECONDS", 20 * 60),
+                            "DISPLACEMENT_MIN_DELTA_SCORE": getattr(Config, "DISPLACEMENT_MIN_DELTA_SCORE", 0.75),
+                            "DISPLACEMENT_REQUIRE_THESIS_DOMINANCE": getattr(Config, "DISPLACEMENT_REQUIRE_THESIS_DOMINANCE", True),
+                        }
+                        policy_allowed, policy_reason, policy_diag = evaluate_displacement(
+                            current_position, challenger_candidate, context, config_overrides=config_overrides
+                        )
+                        if getattr(Config, "DISPLACEMENT_LOG_EVERY_DECISION", True):
+                            log_system_event(
+                                "displacement", "displacement_evaluated", "INFO",
+                                allowed=policy_allowed, reason=policy_reason, details=policy_diag,
+                            )
+                    except Exception as pol_ex:
+                        log_event("displacement", "policy_eval_error", symbol=symbol, error=str(pol_ex))
+                        policy_allowed = True
+                        policy_diag = None
+
+                    if not policy_allowed:
+                        print(f"DEBUG {symbol}: BLOCKED - displacement policy ({policy_reason})", flush=True)
+                        log_event("gate", "displacement_blocked", symbol=symbol, displaced_symbol=dc_symbol,
+                                  reason=policy_reason, diagnostics=policy_diag)
+                        log_blocked_trade(symbol, "displacement_blocked", score,
+                                          direction=c.get("direction"),
+                                          decision_price=ref_price_check,
+                                          components=comps,
+                                          displaced_symbol=dc_symbol,
+                                          policy_reason=policy_reason)
+                        log_signal_to_history(
+                            symbol=symbol, direction=direction, raw_score=raw_score, whale_boost=whale_boost,
+                            final_score=final_score, atr_multiplier=atr_multiplier or 0.0,
+                            momentum_pct=momentum_pct, momentum_required_pct=momentum_required_pct,
+                            decision="Blocked: displacement_blocked", metadata={"displaced_symbol": dc_symbol, "policy_reason": policy_reason},
+                        )
+                        continue
+
                     displacement_success = self.executor.execute_displacement(
                         candidate=displacement_candidate,
                         new_symbol=symbol,
-                        new_signal_score=score
+                        new_signal_score=score,
+                        policy_diagnostics=policy_diag,
                     )
                     if not displacement_success:
                         print(f"DEBUG {symbol}: BLOCKED - displacement failed", flush=True)
