@@ -122,6 +122,7 @@ def main() -> int:
             local = REPO / "scripts" / name
             if local.exists():
                 sftp.put(str(local), f"{REMOTE}/scripts/{name}")
+        before, _, _ = run("(venv/bin/python scripts/phase2_count_run_events.py 2>/dev/null || python3 scripts/phase2_count_run_events.py 2>/dev/null) || echo 0 0", timeout=30)
         dry_out, dry_err, dry_rc = run("(venv/bin/python scripts/phase2_dryrun_signal_emit.py 2>&1 || python3 scripts/phase2_dryrun_signal_emit.py 2>&1)", timeout=60)
         if dry_rc != 0:
             fails.append(f"dry-run exit {dry_rc}: {dry_err[:300] if dry_err else dry_out[:300]}")
@@ -131,6 +132,7 @@ def main() -> int:
         ne = _num(parts[1]) if len(parts) >= 2 else 0
         if nt < 1 or ne < 1:
             fails.append("trade_intent or exit_intent missing after dry-run")
+            fails.append(f"count before dry-run: {(before or '').strip()}; after: {(check or '').strip()}")
             if dry_out or dry_err:
                 fails.append(f"dry-run stdout (last 400): {(dry_out or '')[-400:]}")
                 if dry_err:
