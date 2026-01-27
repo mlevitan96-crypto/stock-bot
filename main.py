@@ -1305,8 +1305,13 @@ def _emit_trade_intent(
     *,
     decision_outcome: str = "entered",
     blocked_reason: Optional[str] = None,
+    intelligence_trace: Optional[dict] = None,
 ) -> None:
-    """Emit trade_intent to logs/run.jsonl (feature_snapshot + thesis_tags). Additive only."""
+    """Emit trade_intent to logs/run.jsonl (feature_snapshot + thesis_tags). Additive only.
+    When intelligence_trace is provided, adds intent_id, intelligence_trace, active_signal_names,
+    opposing_signal_names, gate_summary, final_decision_primary_reason; when blocked, adds
+    blocked_reason_code and blocked_reason_details (existing blocked_reason kept for backward compat).
+    """
     if not getattr(Config, "PHASE2_TELEMETRY_ENABLED", True):
         return
     try:
@@ -1333,6 +1338,22 @@ def _emit_trade_intent(
             "decision_outcome": decision_outcome,
             "blocked_reason": blocked_reason,
         }
+        if intelligence_trace:
+            try:
+                from telemetry.decision_intelligence_trace import trace_to_emit_fields
+                blocked = (decision_outcome or "").lower() == "blocked"
+                extra = trace_to_emit_fields(intelligence_trace, blocked=blocked)
+                rec["intent_id"] = extra.get("intent_id")
+                rec["intelligence_trace"] = extra.get("intelligence_trace")
+                rec["active_signal_names"] = extra.get("active_signal_names", [])
+                rec["opposing_signal_names"] = extra.get("opposing_signal_names", [])
+                rec["gate_summary"] = extra.get("gate_summary", {})
+                rec["final_decision_primary_reason"] = extra.get("final_decision_primary_reason")
+                if blocked:
+                    rec["blocked_reason_code"] = extra.get("blocked_reason_code", "other")
+                    rec["blocked_reason_details"] = extra.get("blocked_reason_details", {})
+            except Exception:
+                pass
         jsonl_write("run", rec)
         try:
             _PHASE2_CYCLE_COUNTS["trade_intent"] += 1
@@ -1354,13 +1375,19 @@ def _emit_trade_intent_blocked(
     market_regime: str,
     engine: object,
     blocked_reason: str,
+    *,
+    intelligence_trace: Optional[dict] = None,
 ) -> None:
-    """Emit trade_intent with decision_outcome=blocked. No-op if PHASE2_TELEMETRY disabled."""
+    """Emit trade_intent with decision_outcome=blocked. No-op if PHASE2_TELEMETRY disabled.
+    When intelligence_trace is provided, it must already have final_decision.outcome='blocked'
+    and primary_reason set; blocked_reason_code and blocked_reason_details are derived from it.
+    """
     side = "buy" if (direction or "").lower() == "bullish" else "sell"
     _emit_trade_intent(
         symbol=symbol, side=side, score=score, comps=comps or {}, cluster=cluster,
         market_regime=market_regime, engine=engine, displacement_context=None,
         decision_outcome="blocked", blocked_reason=blocked_reason,
+        intelligence_trace=intelligence_trace,
     )
 
 
@@ -8262,9 +8289,22 @@ class StrategyEngine:
                     if not dg_ok:
                         print(f"DEBUG {symbol}: BLOCKED - directional gate HIGH_VOL ({dg_reason})", flush=True)
                         try:
+                            _trace = None
+                            try:
+                                from telemetry.decision_intelligence_trace import build_initial_trace, append_gate_result, set_final_decision
+                                _trace = build_initial_trace(symbol, side, score, comps or {}, c, None, None, self)
+                                append_gate_result(_trace, "score_gate", True)
+                                append_gate_result(_trace, "capacity_gate", True)
+                                append_gate_result(_trace, "risk_gate", True)
+                                append_gate_result(_trace, "momentum_gate", True)
+                                append_gate_result(_trace, "directional_gate", False, dg_reason)
+                                set_final_decision(_trace, "blocked", "blocked_high_vol_no_alignment", [dg_reason])
+                            except Exception:
+                                pass
                             _emit_trade_intent_blocked(
                                 symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
                                 "blocked_high_vol_no_alignment",
+                                intelligence_trace=_trace,
                             )
                         except Exception:
                             pass
@@ -8286,10 +8326,23 @@ class StrategyEngine:
                             decision=f"Blocked: {dg_reason}", metadata={"reason": dg_reason},
                         )
                         continue
+                    _trace_entered = None
+                    try:
+                        from telemetry.decision_intelligence_trace import build_initial_trace, append_gate_result, set_final_decision
+                        _trace_entered = build_initial_trace(symbol, side, score, comps or {}, c, None, None, self)
+                        append_gate_result(_trace_entered, "score_gate", True)
+                        append_gate_result(_trace_entered, "capacity_gate", True)
+                        append_gate_result(_trace_entered, "risk_gate", True)
+                        append_gate_result(_trace_entered, "momentum_gate", True)
+                        append_gate_result(_trace_entered, "directional_gate", True)
+                        set_final_decision(_trace_entered, "entered", "all_gates_passed", [])
+                    except Exception:
+                        pass
                     _emit_trade_intent(
                         symbol=symbol, side=side, score=score, comps=comps or {}, cluster=c,
                         market_regime=market_regime, engine=self, displacement_context=_disp_ctx,
                         decision_outcome="entered", blocked_reason=None,
+                        intelligence_trace=_trace_entered,
                     )
                 except Exception as telem_ex:
                     try:

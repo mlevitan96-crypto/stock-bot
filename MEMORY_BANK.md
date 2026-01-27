@@ -1408,3 +1408,84 @@ python scripts/run_phase2_audit_on_droplet.py --date YYYY-MM-DD
 Uploads audit/proof/runtime-identity scripts, runs them on droplet, fetches reports and CSVs.
 
 **Success criteria:** phase2_heartbeat present; trade_intent present; shadow_variant_decision present (when enabled); symbol_risk_features.json exists and >0 symbols; EOD has all required sections.
+
+---
+
+# 10. DECISION INTELLIGENCE TRACE CONTRACT (2026-01)
+
+Every trade or block decision MUST be explained by a **multi-layer intelligence trace**. There must never be a single opaque reason. Every decision must show: which signals fired, which opposed, how they combined, and why the final decision was made.
+
+## 10.1 Schema: DecisionIntelligenceTrace
+
+```text
+DecisionIntelligenceTrace {
+  intent_id          : str (UUID)
+  symbol             : str
+  side_intended      : str ("buy" | "sell")
+  ts                 : str (ISO)
+  cycle_id           : int | null
+
+  signal_layers: {
+    alpha_signals    : [{ name, value, score, direction, confidence }]
+    flow_signals     : [{ name, value, score, direction, confidence }]
+    regime_signals   : [{ name, value, score, direction, confidence }]
+    volatility_signals : [{ name, value, score, direction, confidence }]
+    dark_pool_signals  : [{ name, value, score, direction, confidence }]
+  }
+
+  opposing_signals   : [{ name, layer, reason, magnitude }]
+
+  aggregation: {
+    raw_score, normalized_score, direction_confidence, score_components
+  }
+
+  gates: {
+    directional_gate : { passed, reason }
+    risk_gate        : { passed, reason }
+    capacity_gate    : { passed, reason }
+    displacement_gate: { evaluated, passed, incumbent_symbol, challenger_delta, min_hold_remaining }
+  }
+
+  final_decision: {
+    outcome          : "entered" | "blocked"
+    primary_reason    : str
+    secondary_reasons : [str]
+  }
+}
+```
+
+Object MUST be serializable and logged verbatim with every trade_intent.
+
+## 10.2 Invariants
+
+- **At least 2 signal layers** must contribute; otherwise the decision is INVALID.
+- **Incremental build only:** use `build_initial_trace`, then `append_gate_result` per gate, then `set_final_decision` before emit. Gates and `final_decision` must always be present before emit.
+- **Size cap:** serialized trace MUST be &lt; 500KB per trace.
+- If **blocked**, `primary_reason` MUST map to a gate OR opposing signal.
+- **No module overwrites another** when appending to the trace; each gate/signal appends only its own slice.
+
+## 10.3 Blocked reason codes (enum)
+
+Replace opaque `blocked_reason` strings with:
+
+- `blocked_reason_code` — one of: `capacity_full`, `displacement_min_hold`, `displacement_no_dominance`, `displacement_blocked`, `displacement_failed`, `directional_conflict`, `blocked_high_vol_no_alignment`, `risk_exceeded`, `symbol_exposure_limit`, `sector_exposure_limit`, `opposing_signal_override`, `score_below_min`, `max_positions_reached`, `symbol_on_cooldown`, `momentum_ignition_filter`, `market_closed`, `long_only_blocked_short_entry`, `regime_blocked`, `concentration_gate`, `theme_exposure_blocked`, `other`.
+- `blocked_reason_details` — structured: `{ primary_reason, gates }`. Each MUST reference the trace.
+
+## 10.4 trade_intent extensions (additive only)
+
+- `intent_id`
+- `intelligence_trace` (full object)
+- `active_signal_names[]`
+- `opposing_signal_names[]`
+- `gate_summary`
+- `final_decision_primary_reason`
+- When blocked: `blocked_reason_code`, `blocked_reason_details`
+
+**DO NOT** remove existing fields (`blocked_reason` retained for backward compat).
+
+## 10.5 Rules for future contributors
+
+1. Every call to `_emit_trade_intent` / `_emit_trade_intent_blocked` MUST pass a populated `intelligence_trace` when telemetry is enabled.
+2. Build the trace incrementally: `build_initial_trace` at decision start, `append_gate_result` at each gate, `set_final_decision` before emit.
+3. Validate with `validate_trace()` before emit; if invalid, log and do not treat the decision as explained.
+4. Dry-run validation: `python3 scripts/validate_intelligence_trace_dryrun.py` MUST pass (trace exists, ≥2 layers, gates populated, final_decision coherent, size &lt; 500KB).
