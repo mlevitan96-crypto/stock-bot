@@ -32,6 +32,8 @@ def main() -> int:
             v = v.strip().strip("'\"").strip()
             if k:
                 os.environ.setdefault(k, v)
+    # Force Phase-2 telemetry on for dry-run (override .env)
+    os.environ["PHASE2_TELEMETRY_ENABLED"] = "true"
 
     # Import same Config and emit helpers as live bot
     import main as main_mod
