@@ -7794,9 +7794,26 @@ class StrategyEngine:
                         print(f"DEBUG {symbol}: BLOCKED - displacement failed", flush=True)
                         displaced_sym = displacement_candidate.get("symbol", "UNKNOWN") if isinstance(displacement_candidate, dict) else "UNKNOWN"
                         try:
+                            _trace_df = None
+                            try:
+                                from telemetry.decision_intelligence_trace import build_initial_trace, append_gate_result, set_final_decision
+                                _side_df = "buy" if (c.get("direction") or "").lower() == "bullish" else "sell"
+                                _trace_df = build_initial_trace(symbol, _side_df, score, comps or {}, c, None, None, self)
+                                append_gate_result(_trace_df, "capacity_gate", True)
+                                _adv_df = displacement_candidate.get("score_advantage") if isinstance(displacement_candidate, dict) else None
+                                _diag_df = policy_diag if isinstance(policy_diag, dict) else {}
+                                append_gate_result(_trace_df, "displacement_gate", False, "displacement_failed", {
+                                    "evaluated": True, "incumbent_symbol": displaced_sym,
+                                    "challenger_delta": float(_adv_df) if _adv_df is not None else None,
+                                    "min_hold_remaining": _diag_df.get("min_hold_remaining"),
+                                })
+                                set_final_decision(_trace_df, "blocked", "displacement_failed", [])
+                            except Exception:
+                                pass
                             _emit_trade_intent_blocked(
                                 symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
                                 "displacement_failed",
+                                intelligence_trace=_trace_df,
                             )
                         except Exception:
                             pass
