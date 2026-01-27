@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "date": "2026-01-24",
+    "kind": "feature_equalizer",
+    "version": "2026-01-22_v1"
+  },
+  "alignment_drift": {
+    "regime_alignment_drift_stats": {},
+    "sector_alignment_drift_stats": {}
+  },
+  "exit_reason_distributions": {
+    "by_feature_cluster": {},
+    "by_regime": {},
+    "by_sector": {}
+  },
+  "feature_cluster_counts": {},
+  "feature_contribution_decay": {},
+  "feature_exit_impact": {},
+  "features": {},
+  "replacement_telemetry": {
+    "non_replacement_exit_count": 0,
+    "non_replacement_total_pnl_usd": 0.0,
+    "replacement_exit_count": 0,
+    "replacement_total_pnl_usd": 0.0
+  },
+  "score_evolution": {
+    "delta_stats": {},
+    "points": []
+  },
+  "volatility_expansion": {
+    "points": [],
+    "vol_expansion_stats": {}
+  }
+}

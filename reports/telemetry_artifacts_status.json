@@ -1,0 +1,99 @@
+{
+  "timestamp": "2026-01-26T20:11:12.663591+00:00",
+  "telemetry_dirs": {},
+  "computed_artifacts": {
+    "exit_intel_completeness": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 17980,
+      "stale": false
+    },
+    "feature_equalizer_builder": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 774,
+      "stale": false
+    },
+    "feature_value_curves": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 3732,
+      "stale": false
+    },
+    "long_short_analysis": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 777,
+      "stale": false
+    },
+    "regime_sector_feature_matrix": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 138,
+      "stale": false
+    },
+    "regime_timeline": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 12196,
+      "stale": false
+    },
+    "replacement_telemetry_expanded": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 629,
+      "stale": false
+    },
+    "score_distribution_curves": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 161782,
+      "stale": false
+    },
+    "signal_performance": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 70,
+      "stale": false
+    },
+    "signal_weight_recommendations": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 78,
+      "stale": false
+    },
+    "entry_parity_details": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 301,
+      "stale": false
+    },
+    "feature_family_summary": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 94,
+      "stale": false
+    },
+    "live_vs_shadow_pnl": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 310,
+      "stale": false
+    },
+    "shadow_vs_live_parity": {
+      "exists": true,
+      "age_hours": 0.0,
+      "size": 432,
+      "stale": false
+    }
+  },
+  "generation_scripts": {
+    "run_full_telemetry_extract": {
+      "exists": true
+    },
+    "scheduled": null
+  },
+  "issues": [],
+  "latest_telemetry_dir": "telemetry/2026-01-26",
+  "latest_telemetry_age_hours": 0.1
+}

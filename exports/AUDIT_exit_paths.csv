@@ -1,0 +1,16 @@
+symbol,close_reason,thesis_break_reason,has_feature_snapshot_at_exit
+SPY,dryrun_exit,dryrun,True
+QQQ,dryrun_exit,dryrun,True
+AAPL,dryrun_exit,dryrun,True
+AUDIT-STOP,audit_stop_exit,audit_stop,True
+AUDIT-TP,audit_tp_exit,audit_tp,True
+AUDIT-TIME,audit_time_exit,audit_time,True
+AUDIT-STOP,audit_stop_exit,audit_stop,True
+AUDIT-TP,audit_tp_exit,audit_tp,True
+AUDIT-TIME,audit_time_exit,audit_time,True
+AUDIT-STOP,audit_stop_exit,audit_stop,True
+AUDIT-TP,audit_tp_exit,audit_tp,True
+AUDIT-TIME,audit_time_exit,audit_time,True
+AUDIT-STOP,audit_stop_exit,audit_stop,True
+AUDIT-TP,audit_tp_exit,audit_tp,True
+AUDIT-TIME,audit_time_exit,audit_time,True

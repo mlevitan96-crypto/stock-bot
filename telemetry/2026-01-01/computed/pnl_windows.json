@@ -1,0 +1,49 @@
+{
+  "as_of_ts": "2026-01-24T02:44:23.942257+00:00",
+  "per_symbol": [
+    {
+      "pnl_usd": 4500.0,
+      "symbol": "AAPL",
+      "trade_count": 1,
+      "win_rate": 1.0,
+      "window": "24h"
+    },
+    {
+      "pnl_usd": 22500.0,
+      "symbol": "AAPL",
+      "trade_count": 5,
+      "win_rate": 1.0,
+      "window": "48h"
+    },
+    {
+      "pnl_usd": 22500.0,
+      "symbol": "AAPL",
+      "trade_count": 5,
+      "win_rate": 1.0,
+      "window": "5d"
+    }
+  ],
+  "windows": {
+    "24h": {
+      "expectancy_usd": 4500.0,
+      "insufficient_data": false,
+      "pnl_usd": 4500.0,
+      "trade_count": 1,
+      "win_rate": 1.0
+    },
+    "48h": {
+      "expectancy_usd": 4500.0,
+      "insufficient_data": false,
+      "pnl_usd": 22500.0,
+      "trade_count": 5,
+      "win_rate": 1.0
+    },
+    "5d": {
+      "expectancy_usd": 4500.0,
+      "insufficient_data": false,
+      "pnl_usd": 22500.0,
+      "trade_count": 5,
+      "win_rate": 1.0
+    }
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "_meta": {
+    "bins": 8,
+    "date": "2026-01-01",
+    "kind": "feature_value_curves",
+    "version": "2026-01-22_v1"
+  },
+  "features": {
+    "darkpool_bias": {
+      "bins": 8,
+      "long": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "overall": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "point_count": 0,
+      "short": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ]
+    },
+    "earnings_proximity": {
+      "bins": 8,
+      "long": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "overall": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "point_count": 0,
+      "short": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ]
+    },
+    "flow_strength": {
+      "bins": 8,
+      "long": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "overall": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "point_count": 0,
+      "short": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ]
+    },
+    "regime_alignment": {
+      "bins": 8,
+      "long": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "overall": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "point_count": 0,
+      "short": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ]
+    },
+    "sector_alignment": {
+      "bins": 8,
+      "long": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "overall": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "point_count": 0,
+      "short": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ]
+    },
+    "sentiment": {
+      "bins": 8,
+      "long": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "overall": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ],
+      "point_count": 0,
+      "short": [
+        {
+          "avg_pnl_usd": 0.0,
+          "count": 0,
+          "total_pnl_usd": 0.0,
+          "x_hi": 0.0,
+          "x_lo": 0.0
+        }
+      ]
+    }
+  }
+}

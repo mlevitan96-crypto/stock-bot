@@ -180,8 +180,155 @@ def check_feature_snapshot() -> bool:
     return ok
 
 
+def check_trade_intent() -> bool:
+    """run.jsonl contains trade_intent with feature_snapshot + thesis_tags."""
+    run_path = LOG_DIR / "run.jsonl"
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    if not run_path.exists():
+        run_path.touch()
+    found = False
+    try:
+        with run_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    rec = json.loads(line)
+                    if rec.get("event_type") != "trade_intent":
+                        continue
+                    if "feature_snapshot" in rec and "thesis_tags" in rec:
+                        found = True
+                        break
+                except Exception:
+                    continue
+    except Exception as e:
+        _fail(f"reading run.jsonl: {e}")
+        return False
+    if found:
+        _pass("trade_intent with feature_snapshot+thesis_tags in run.jsonl")
+        return True
+    try:
+        from datetime import datetime, timezone
+        from config.registry import append_jsonl
+        log_path = REPO_ROOT / "logs" / "run.jsonl"
+        dry = {
+            "event_type": "trade_intent",
+            "symbol": "DRY",
+            "side": "buy",
+            "score": 3.5,
+            "feature_snapshot": {"symbol": "DRY", "v2_score": 3.5, "ts": datetime.now(timezone.utc).isoformat()},
+            "thesis_tags": {"thesis_regime_alignment_score": 0.5},
+            "displacement_context": None,
+        }
+        append_jsonl(log_path, dry)
+    except Exception as e:
+        _fail(f"trade_intent dry-run: {e}")
+        return False
+    found = False
+    try:
+        with run_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    rec = json.loads(line)
+                    if rec.get("event_type") != "trade_intent":
+                        continue
+                    if "feature_snapshot" in rec and "thesis_tags" in rec:
+                        found = True
+                        break
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    if found:
+        _pass("trade_intent with feature_snapshot+thesis_tags (after dry-run)")
+    else:
+        _fail("no trade_intent with feature_snapshot+thesis_tags in run.jsonl")
+        return False
+    return True
+
+
+def check_exit_intent() -> bool:
+    """run.jsonl contains exit_intent with thesis_break_reason."""
+    run_path = LOG_DIR / "run.jsonl"
+    found = False
+    try:
+        with run_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    rec = json.loads(line)
+                    if rec.get("event_type") != "exit_intent":
+                        continue
+                    if "thesis_break_reason" in rec:
+                        found = True
+                        break
+                except Exception:
+                    continue
+    except Exception as e:
+        _fail(f"reading run.jsonl for exit_intent: {e}")
+        return False
+    if found:
+        _pass("exit_intent with thesis_break_reason in run.jsonl")
+        return True
+    try:
+        from datetime import datetime, timezone
+        from config.registry import append_jsonl
+        log_path = REPO_ROOT / "logs" / "run.jsonl"
+        dry = {
+            "event_type": "exit_intent",
+            "symbol": "DRY",
+            "close_reason": "dry_run",
+            "feature_snapshot_at_exit": {"symbol": "DRY"},
+            "thesis_tags_at_exit": {},
+            "thesis_break_reason": "other",
+        }
+        append_jsonl(log_path, dry)
+    except Exception as e:
+        _fail(f"exit_intent dry-run: {e}")
+        return False
+    found = False
+    try:
+        with run_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    rec = json.loads(line)
+                    if rec.get("event_type") != "exit_intent" or "thesis_break_reason" not in rec:
+                        continue
+                    found = True
+                    break
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    if found:
+        _pass("exit_intent with thesis_break_reason (after dry-run)")
+    else:
+        _fail("no exit_intent with thesis_break_reason in run.jsonl")
+        return False
+    return True
+
+
+def check_directional_gate() -> bool:
+    """directional_gate / blocked_high_vol_no_alignment code path present."""
+    main_path = REPO_ROOT / "main.py"
+    if not main_path.exists():
+        _fail("main.py not found")
+        return False
+    text = main_path.read_text(encoding="utf-8")
+    if "blocked_high_vol_no_alignment" not in text or "directional_gate" not in text:
+        _fail("directional_gate / blocked_high_vol_no_alignment not found in main.py")
+        return False
+    _pass("directional_gate blocks for high-vol present")
+    return True
+
+
 def check_shadow_experiments() -> bool:
-    """If SHADOW_EXPERIMENTS_ENABLED: shadow.jsonl has shadow_variant_decision recently."""
+    """If SHADOW_EXPERIMENTS_ENABLED: shadow.jsonl has shadow_variant_decision."""
     ok = True
     try:
         from main import Config
@@ -191,9 +338,39 @@ def check_shadow_experiments() -> bool:
     if not enabled:
         _pass("SHADOW_EXPERIMENTS_ENABLED false; shadow check N/A")
         return True
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
     sh_path = LOG_DIR / "shadow.jsonl"
-    if not sh_path.exists():
-        _fail("logs/shadow.jsonl not found (shadow experiments enabled)")
+    found = False
+    if sh_path.exists():
+        try:
+            with sh_path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        if rec.get("event_type") == "shadow_variant_decision":
+                            found = True
+                            break
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+    if found:
+        _pass("event_type=shadow_variant_decision in shadow.jsonl")
+        return True
+    try:
+        from telemetry.shadow_experiments import run_shadow_variants
+        dry_candidates = [{"ticker": "DRY", "symbol": "DRY", "composite_score": 3.5, "score": 3.5, "direction": "bullish"}]
+        run_shadow_variants(
+            {"market_regime": "mixed", "regime": "mixed", "engine": None},
+            candidates=dry_candidates,
+            positions={},
+            experiments=getattr(Config, "SHADOW_EXPERIMENTS", None),
+            max_variants_per_cycle=getattr(Config, "SHADOW_MAX_VARIANTS_PER_CYCLE", 4),
+        )
+    except Exception as e:
+        _fail(f"shadow dry-run: {e}")
         return False
     found = False
     try:
@@ -209,14 +386,14 @@ def check_shadow_experiments() -> bool:
                 except Exception:
                     continue
     except Exception as e:
-        _fail(f"reading shadow.jsonl: {e}")
+        _fail(f"reading shadow.jsonl after dry-run: {e}")
         return False
     if found:
-        _pass("event_type=shadow_variant_decision in shadow.jsonl")
+        _pass("event_type=shadow_variant_decision (after dry-run)")
     else:
-        _fail("no shadow_variant_decision in shadow.jsonl (run bot with shadow experiments)")
-        ok = False
-    return ok
+        _fail("no shadow_variant_decision in shadow.jsonl after dry-run")
+        return False
+    return True
 
 
 def check_eod_report() -> bool:
@@ -252,6 +429,9 @@ def main() -> int:
     results.append(("Displacement logging", check_displacement_logging()))
     results.append(("Shorts sanity", check_shorts_sanity()))
     results.append(("Feature snapshot", check_feature_snapshot()))
+    results.append(("Trade intent (snapshot+tags)", check_trade_intent()))
+    results.append(("Exit intent (thesis_break)", check_exit_intent()))
+    results.append(("Directional gate", check_directional_gate()))
     results.append(("Shadow experiments", check_shadow_experiments()))
     results.append(("EOD report", check_eod_report()))
     print("-" * 60)

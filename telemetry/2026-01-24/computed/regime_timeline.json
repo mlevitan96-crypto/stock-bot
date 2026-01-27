@@ -1,0 +1,455 @@
+{
+  "_meta": {
+    "date": "2026-01-24",
+    "kind": "regime_timeline",
+    "version": "2026-01-22_v1"
+  },
+  "day_summary": {
+    "dominant_market_regime": "NEUTRAL",
+    "dominant_posture": "",
+    "dominant_regime_label": "NEUTRAL",
+    "trend_bucket": "unknown",
+    "volatility_bucket": ""
+  },
+  "hourly": [
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 0,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 1,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 2,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 3,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 4,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 5,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 6,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 7,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 8,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 9,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 10,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 11,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 12,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 13,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 14,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 15,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 16,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 17,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 18,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 19,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 20,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 21,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 22,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    },
+    {
+      "counts": {
+        "v1_gamma_regime": 0,
+        "v1_market_regime": 0,
+        "v2_market_regime": 0,
+        "v2_posture": 0,
+        "v2_regime_label": 0,
+        "v2_volatility_regime": 0
+      },
+      "dominant_market_regime": "NEUTRAL",
+      "dominant_posture": "",
+      "dominant_regime_label": "NEUTRAL",
+      "equalizer_posture": "",
+      "feature_posture": "",
+      "hour_utc": 23,
+      "trend_bucket": "unknown",
+      "volatility_bucket": ""
+    }
+  ],
+  "notes": {
+    "fallbacks_used": {
+      "market_context_present": false,
+      "posture_state_present": false,
+      "regime_state_present": true
+    }
+  }
+}

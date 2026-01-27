@@ -1,0 +1,40 @@
+{
+  "_meta": {
+    "date": "2026-01-24",
+    "kind": "long_short_analysis",
+    "version": "2026-01-22_v1"
+  },
+  "long": {
+    "avg_loss_usd": 0.0,
+    "avg_pnl_usd": 0.0,
+    "avg_win_usd": 0.0,
+    "count": 0,
+    "expectancy_usd": 0.0,
+    "loss_count": 0,
+    "total_pnl_usd": 0.0,
+    "win_count": 0,
+    "win_rate": 0.0
+  },
+  "overall": {
+    "avg_loss_usd": 0.0,
+    "avg_pnl_usd": 0.0,
+    "avg_win_usd": 0.0,
+    "count": 0,
+    "expectancy_usd": 0.0,
+    "loss_count": 0,
+    "total_pnl_usd": 0.0,
+    "win_count": 0,
+    "win_rate": 0.0
+  },
+  "short": {
+    "avg_loss_usd": 0.0,
+    "avg_pnl_usd": 0.0,
+    "avg_win_usd": 0.0,
+    "count": 0,
+    "expectancy_usd": 0.0,
+    "loss_count": 0,
+    "total_pnl_usd": 0.0,
+    "win_count": 0,
+    "win_rate": 0.0
+  }
+}

@@ -1,0 +1,347 @@
+{
+  "timestamp": "2026-01-26T20:03:24.395691+00:00",
+  "processes": {
+    "deploy_supervisor.py": {
+      "running": true,
+      "pids": [
+        "1743075",
+        "1836004",
+        "1836006"
+      ],
+      "count": 3
+    },
+    "uw_flow_daemon.py": {
+      "running": true,
+      "pids": [
+        "1793750",
+        "1836004",
+        "1836008"
+      ],
+      "count": 3
+    },
+    "main.py": {
+      "running": true,
+      "pids": [
+        "1743255",
+        "1836004",
+        "1836010"
+      ],
+      "count": 3
+    },
+    "dashboard.py": {
+      "running": true,
+      "pids": [
+        "1763412",
+        "1763413",
+        "1763568",
+        "1836004",
+        "1836012"
+      ],
+      "count": 5
+    }
+  },
+  "files": {
+    "uw_cache": {
+      "exists": true,
+      "recent": true,
+      "age_min": 0.25,
+      "size": 6815753
+    },
+    "position_metadata": {
+      "exists": true,
+      "recent": true,
+      "age_min": 0.07,
+      "size": 19550
+    },
+    "bot_heartbeat": {
+      "exists": true,
+      "recent": true,
+      "age_min": 0.67,
+      "size": 1062
+    }
+  },
+  "logs": {
+    "attribution": {
+      "exists": true,
+      "total": 2141,
+      "recent": 291
+    },
+    "run": {
+      "exists": true,
+      "total": 7340,
+      "recent": 69
+    },
+    "orders": {
+      "exists": true,
+      "total": 23011,
+      "recent": 892
+    },
+    "exit": {
+      "exists": true,
+      "total": 13250,
+      "recent": 663
+    },
+    "gate": {
+      "exists": true,
+      "total": 9014,
+      "recent": 1051
+    }
+  },
+  "cache": {
+    "exists": true,
+    "symbol_count": 53
+  },
+  "issues": [],
+  "recent_trades": [
+    {
+      "symbol": "UNH",
+      "age_min": 8.6,
+      "pnl": -0.0484
+    },
+    {
+      "symbol": "SLB",
+      "age_min": 8.4,
+      "pnl": -0.0605
+    },
+    {
+      "symbol": "TSLA",
+      "age_min": 8.3,
+      "pnl": null
+    },
+    {
+      "symbol": "GM",
+      "age_min": 8.1,
+      "pnl": null
+    },
+    {
+      "symbol": "F",
+      "age_min": 7.9,
+      "pnl": null
+    },
+    {
+      "symbol": "CVX",
+      "age_min": 7.7,
+      "pnl": null
+    },
+    {
+      "symbol": "CVX",
+      "age_min": 7.6,
+      "pnl": -0.012
+    },
+    {
+      "symbol": "XOM",
+      "age_min": 7.4,
+      "pnl": null
+    },
+    {
+      "symbol": "XOM",
+      "age_min": 7.3,
+      "pnl": -0.0148
+    },
+    {
+      "symbol": "TGT",
+      "age_min": 7.1,
+      "pnl": null
+    },
+    {
+      "symbol": "F",
+      "age_min": 6.4,
+      "pnl": -0.0743
+    },
+    {
+      "symbol": "MRNA",
+      "age_min": 6.2,
+      "pnl": null
+    },
+    {
+      "symbol": "GM",
+      "age_min": 6.1,
+      "pnl": 0.138
+    },
+    {
+      "symbol": "AMZN",
+      "age_min": 6.0,
+      "pnl": null
+    },
+    {
+      "symbol": "BA",
+      "age_min": 5.9,
+      "pnl": -0.1762
+    },
+    {
+      "symbol": "META",
+      "age_min": 5.6,
+      "pnl": null
+    },
+    {
+      "symbol": "HD",
+      "age_min": 5.0,
+      "pnl": null
+    },
+    {
+      "symbol": "HD",
+      "age_min": 4.9,
+      "pnl": -0.0233
+    },
+    {
+      "symbol": "AAPL",
+      "age_min": 4.7,
+      "pnl": null
+    },
+    {
+      "symbol": "AAPL",
+      "age_min": 4.6,
+      "pnl": -0.0039
+    },
+    {
+      "symbol": "PFE",
+      "age_min": 4.4,
+      "pnl": null
+    },
+    {
+      "symbol": "PFE",
+      "age_min": 4.3,
+      "pnl": -0.0387
+    },
+    {
+      "symbol": "UNH",
+      "age_min": 4.0,
+      "pnl": null
+    },
+    {
+      "symbol": "UNH",
+      "age_min": 3.8,
+      "pnl": -0.0085
+    },
+    {
+      "symbol": "COIN",
+      "age_min": 3.1,
+      "pnl": null
+    },
+    {
+      "symbol": "LCID",
+      "age_min": 3.0,
+      "pnl": -0.5602
+    },
+    {
+      "symbol": "SLB",
+      "age_min": 2.9,
+      "pnl": null
+    },
+    {
+      "symbol": "RIVN",
+      "age_min": 2.8,
+      "pnl": -0.0637
+    },
+    {
+      "symbol": "WMT",
+      "age_min": 2.6,
+      "pnl": null
+    },
+    {
+      "symbol": "WMT",
+      "age_min": 2.5,
+      "pnl": 0.034
+    },
+    {
+      "symbol": "NVDA",
+      "age_min": 2.4,
+      "pnl": 0.0054
+    },
+    {
+      "symbol": "MRNA",
+      "age_min": 2.4,
+      "pnl": -0.1492
+    },
+    {
+      "symbol": "COP",
+      "age_min": 2.3,
+      "pnl": null
+    },
+    {
+      "symbol": "MS",
+      "age_min": 1.9,
+      "pnl": null
+    },
+    {
+      "symbol": "XOM",
+      "age_min": 1.5,
+      "pnl": null
+    },
+    {
+      "symbol": "AMD",
+      "age_min": 1.3,
+      "pnl": -0.2182
+    },
+    {
+      "symbol": "SOFI",
+      "age_min": 1.3,
+      "pnl": -0.1157
+    },
+    {
+      "symbol": "HOOD",
+      "age_min": 1.3,
+      "pnl": -0.214
+    },
+    {
+      "symbol": "PLTR",
+      "age_min": 1.2,
+      "pnl": -0.131
+    },
+    {
+      "symbol": "TSLA",
+      "age_min": 1.0,
+      "pnl": -0.0985
+    },
+    {
+      "symbol": "COIN",
+      "age_min": 1.0,
+      "pnl": 0.0235
+    },
+    {
+      "symbol": "MS",
+      "age_min": 0.9,
+      "pnl": 0.011
+    },
+    {
+      "symbol": "NIO",
+      "age_min": 0.8,
+      "pnl": -0.4338
+    },
+    {
+      "symbol": "SLB",
+      "age_min": 0.8,
+      "pnl": 0.121
+    },
+    {
+      "symbol": "COP",
+      "age_min": 0.7,
+      "pnl": 0.0203
+    },
+    {
+      "symbol": "XOM",
+      "age_min": 0.7,
+      "pnl": 0.0
+    },
+    {
+      "symbol": "XLK",
+      "age_min": 0.3,
+      "pnl": null
+    },
+    {
+      "symbol": "IWM",
+      "age_min": 0.3,
+      "pnl": null
+    },
+    {
+      "symbol": "XLE",
+      "age_min": 0.1,
+      "pnl": null
+    },
+    {
+      "symbol": "XLI",
+      "age_min": 0.0,
+      "pnl": null
+    }
+  ]
+}

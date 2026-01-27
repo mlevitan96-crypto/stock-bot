@@ -1,0 +1,4 @@
+symbol,has_trade_intent,has_order,has_exit_intent,has_metadata,component_count,joinable
+AUDIT-STOP,False,False,True,True,2,True
+AUDIT-TP,False,False,True,True,2,True
+AUDIT-TIME,False,False,True,True,2,True

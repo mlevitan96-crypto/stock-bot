@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "date": "2026-01-24",
+    "kind": "replacement_telemetry_expanded",
+    "version": "2026-01-22_v1"
+  },
+  "counts": {
+    "realized_trades": 0,
+    "replacement_rate": 0.0,
+    "replacement_trades": 0
+  },
+  "notes": {
+    "active_feature_definition": "abs(v2_uw_adjustments[feature])>0 (entry_uw, best-effort)",
+    "anomaly_rule": "overall replacement_rate>0.25 with >=3 events OR any feature replacement_rate>0.5 with denom>=5"
+  },
+  "per_family_replacement_rate": {},
+  "per_feature_replacement_rate": {},
+  "replacement_anomaly_detected": false,
+  "replacement_cause_histogram": {
+    "unknown": 0
+  }
+}

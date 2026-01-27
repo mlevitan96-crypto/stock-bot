@@ -1,0 +1,137 @@
+{
+  "_meta": {
+    "date": "2026-01-01",
+    "kind": "exit_intel_completeness",
+    "version": "2026-01-22_v1"
+  },
+  "by_exit_reason_missing_counts": {},
+  "counts": {
+    "complete_rate": 0.0,
+    "complete_records": 0,
+    "exit_attribution_records": 0
+  },
+  "exit_component_completeness": {
+    "darkpool_deterioration": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "flow_deterioration": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "regime_shift": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "score_deterioration": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "sector_shift": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "sentiment_deterioration": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "vol_expansion": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    }
+  },
+  "missing_component_counts": {},
+  "missing_top_level_counts": {},
+  "required_exit_component_keys": [
+    "vol_expansion",
+    "regime_shift",
+    "sector_shift",
+    "flow_deterioration",
+    "darkpool_deterioration",
+    "sentiment_deterioration",
+    "score_deterioration"
+  ],
+  "required_top_level_keys": [
+    "pnl",
+    "pnl_pct",
+    "entry_price",
+    "exit_price",
+    "qty",
+    "time_in_trade_minutes",
+    "entry_regime",
+    "exit_regime",
+    "entry_sector_profile",
+    "exit_sector_profile",
+    "v2_exit_score",
+    "v2_exit_components"
+  ],
+  "top_level_completeness": {
+    "entry_price": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "entry_regime": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "entry_sector_profile": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "exit_price": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "exit_regime": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "exit_sector_profile": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "pnl": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "pnl_pct": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "qty": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "time_in_trade_minutes": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "v2_exit_components": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    },
+    "v2_exit_score": {
+      "missing": 0,
+      "present": 0,
+      "present_rate": 0.0
+    }
+  }
+}

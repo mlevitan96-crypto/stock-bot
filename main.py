@@ -3674,6 +3674,19 @@ class AlpacaExecutor:
         Close a position with retries and first-class exit failure logging.
         Contract: never raises; logs every failure permanently.
         """
+        # AUDIT_MODE: Safety check - no live closes in audit mode
+        audit_mode = os.getenv("AUDIT_MODE", "").strip().lower() in ("1", "true", "yes")
+        if audit_mode:
+            assert os.getenv("AUDIT_DRY_RUN", "").strip().lower() in ("1", "true", "yes"), "AUDIT_MODE requires AUDIT_DRY_RUN=1"
+            import uuid
+            fake_id = f"AUDIT-DRYRUN-CLOSE-{uuid.uuid4().hex[:12]}"
+            try:
+                log_system_event("audit", "audit_mode_enabled", "INFO", details={"symbol": symbol, "action": "close_position"})
+                log_order({"action": "audit_dry_run_close", "symbol": symbol, "order_id": fake_id, "dry_run": True})
+            except Exception:
+                pass
+            _mock = type("_MockOrder", (), {"id": fake_id})()
+            return _mock
         for attempt in range(1, int(max_attempts) + 1):
             try:
                 try:
@@ -3706,6 +3719,18 @@ class AlpacaExecutor:
     @global_failure_wrapper("exit")
     def close_position_api_once(self, symbol: str):
         """Single close_position attempt (wrapped) for exit evaluation loops."""
+        # AUDIT_MODE: Safety check - no live closes in audit mode
+        audit_mode = os.getenv("AUDIT_MODE", "").strip().lower() in ("1", "true", "yes")
+        if audit_mode:
+            assert os.getenv("AUDIT_DRY_RUN", "").strip().lower() in ("1", "true", "yes"), "AUDIT_MODE requires AUDIT_DRY_RUN=1"
+            import uuid
+            fake_id = f"AUDIT-DRYRUN-CLOSE-{uuid.uuid4().hex[:12]}"
+            try:
+                log_order({"action": "audit_dry_run_close", "symbol": symbol, "order_id": fake_id, "dry_run": True})
+            except Exception:
+                pass
+            _mock = type("_MockOrder", (), {"id": fake_id})()
+            return _mock
         try:
             return self.api.close_position(symbol, cancel_orders=True)
         except TypeError:
@@ -4012,6 +4037,37 @@ class AlpacaExecutor:
         # else: NEUTRAL uses default Config.ENTRY_MODE
         
         limit_price = self.compute_entry_price(symbol, side)
+
+        # AUDIT_MODE: Safety check - no live orders in audit mode
+        audit_mode = os.getenv("AUDIT_MODE", "").strip().lower() in ("1", "true", "yes")
+        if audit_mode:
+            assert os.getenv("AUDIT_DRY_RUN", "").strip().lower() in ("1", "true", "yes"), "AUDIT_MODE requires AUDIT_DRY_RUN=1"
+            try:
+                log_system_event("audit", "audit_mode_enabled", "INFO", details={"symbol": symbol, "side": side, "qty": qty})
+            except Exception:
+                pass
+
+        # AUDIT_DRY_RUN: full validation exercised, no live order. Log to orders.jsonl, return fake result.
+        audit_dry_run_val = os.getenv("AUDIT_DRY_RUN", "").strip().lower()
+        if audit_dry_run_val in ("1", "true", "yes"):
+            import uuid
+            fake_id = f"AUDIT-DRYRUN-{uuid.uuid4().hex[:12]}"
+            try:
+                log_order({
+                    "action": "audit_dry_run",
+                    "symbol": symbol,
+                    "side": side,
+                    "qty": qty,
+                    "limit_price": limit_price or ref_price,
+                    "order_id": fake_id,
+                    "dry_run": True,
+                    "entry_score": entry_score,
+                    "market_regime": effective_regime,
+                })
+            except Exception as e:
+                log_event("submit_entry", "audit_dry_run_log_failed", symbol=symbol, error=str(e))
+            _mock = type("_MockOrder", (), {"id": fake_id})()
+            return _mock, ref_price, "limit", qty, "dry_run"
 
         if limit_price is not None and Config.ENTRY_POST_ONLY:
             for attempt in range(1, Config.ENTRY_MAX_RETRIES + 1):
