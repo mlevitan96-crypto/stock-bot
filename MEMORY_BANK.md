@@ -1458,11 +1458,17 @@ Object MUST be serializable and logged verbatim with every trade_intent.
 
 ## 10.2 Invariants
 
+- **All trade_intent emits MUST include intelligence_trace.** Every emit (entered or blocked) must carry a populated trace; there are no exceptions once this contract is in force.
+- **Coverage rule:** No block site may emit without a trace. Every call to `_emit_trade_intent` / `_emit_trade_intent_blocked` must pass `intelligence_trace`.
 - **At least 2 signal layers** must contribute; otherwise the decision is INVALID.
 - **Incremental build only:** use `build_initial_trace`, then `append_gate_result` per gate, then `set_final_decision` before emit. Gates and `final_decision` must always be present before emit.
 - **Size cap:** serialized trace MUST be &lt; 500KB per trace.
 - If **blocked**, `primary_reason` MUST map to a gate OR opposing signal.
 - **No module overwrites another** when appending to the trace; each gate/signal appends only its own slice.
+
+### 10.2.1 Missing-trace behavior
+
+If a trade_intent is emitted with `decision_outcome` in `{entered, blocked}` and `intelligence_trace` is missing, the runtime MUST emit a **CRITICAL** system_event: `subsystem="telemetry"`, `event_type="missing_intelligence_trace"`, with `symbol`, `decision_outcome`, `blocked_reason` (if any). The trade_intent is still written (no crash); the CRITICAL event makes omissions impossible to ignore in production.
 
 ## 10.3 Blocked reason codes (enum)
 

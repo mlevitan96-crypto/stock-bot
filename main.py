@@ -1338,6 +1338,14 @@ def _emit_trade_intent(
             "decision_outcome": decision_outcome,
             "blocked_reason": blocked_reason,
         }
+        if (decision_outcome or "").lower() in ("entered", "blocked") and not intelligence_trace:
+            try:
+                log_system_event(
+                    "telemetry", "missing_intelligence_trace", "CRITICAL",
+                    symbol=symbol, decision_outcome=decision_outcome, blocked_reason=blocked_reason,
+                )
+            except Exception:
+                pass
         if intelligence_trace:
             try:
                 from telemetry.decision_intelligence_trace import trace_to_emit_fields
@@ -7641,9 +7649,19 @@ class StrategyEngine:
                 print(f"DEBUG {symbol}: BLOCKED by score_below_min ({score} < {min_score}, stage={system_stage})", flush=True)
                 _inc_gate("score_below_min")
                 try:
+                    _trace_sb = None
+                    try:
+                        from telemetry.decision_intelligence_trace import build_initial_trace, append_gate_result, set_final_decision
+                        _side_sb = "buy" if (c.get("direction") or "").lower() == "bullish" else "sell"
+                        _trace_sb = build_initial_trace(symbol, _side_sb, score, comps or {}, c, None, None, self)
+                        append_gate_result(_trace_sb, "score_gate", False, "score_below_min")
+                        set_final_decision(_trace_sb, "blocked", "score_below_min", [])
+                    except Exception:
+                        pass
                     _emit_trade_intent_blocked(
                         symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
                         "score_below_min",
+                        intelligence_trace=_trace_sb,
                     )
                 except Exception:
                     pass
@@ -7725,9 +7743,26 @@ class StrategyEngine:
                     if not policy_allowed:
                         print(f"DEBUG {symbol}: BLOCKED - displacement policy ({policy_reason})", flush=True)
                         try:
+                            _trace_disp = None
+                            try:
+                                from telemetry.decision_intelligence_trace import build_initial_trace, append_gate_result, set_final_decision
+                                _side_d = "buy" if (c.get("direction") or "").lower() == "bullish" else "sell"
+                                _trace_disp = build_initial_trace(symbol, _side_d, score, comps or {}, c, None, None, self)
+                                append_gate_result(_trace_disp, "capacity_gate", True)
+                                _adv = displacement_candidate.get("score_advantage") if isinstance(displacement_candidate, dict) else None
+                                _diag = policy_diag if isinstance(policy_diag, dict) else {}
+                                append_gate_result(_trace_disp, "displacement_gate", False, policy_reason, {
+                                    "evaluated": True, "incumbent_symbol": dc_symbol,
+                                    "challenger_delta": float(_adv) if _adv is not None else None,
+                                    "min_hold_remaining": _diag.get("min_hold_remaining"),
+                                })
+                                set_final_decision(_trace_disp, "blocked", "displacement_blocked", [])
+                            except Exception:
+                                pass
                             _emit_trade_intent_blocked(
                                 symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
                                 "displacement_blocked",
+                                intelligence_trace=_trace_disp,
                             )
                         except Exception:
                             pass
@@ -8238,9 +8273,21 @@ class StrategyEngine:
                 if Config.LONG_ONLY and side == "sell":
                     print(f"DEBUG {symbol}: BLOCKED by LONG_ONLY mode (short entry not allowed)", flush=True)
                     try:
+                        _trace_lo = None
+                        try:
+                            from telemetry.decision_intelligence_trace import build_initial_trace, append_gate_result, set_final_decision
+                            _trace_lo = build_initial_trace(symbol, side, score, comps or {}, c, None, None, self)
+                            append_gate_result(_trace_lo, "score_gate", True)
+                            append_gate_result(_trace_lo, "capacity_gate", True)
+                            append_gate_result(_trace_lo, "risk_gate", True)
+                            append_gate_result(_trace_lo, "directional_gate", False, "long_only_blocked_short_entry")
+                            set_final_decision(_trace_lo, "blocked", "long_only_blocked_short_entry", [])
+                        except Exception:
+                            pass
                         _emit_trade_intent_blocked(
                             symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
                             "long_only_blocked_short_entry",
+                            intelligence_trace=_trace_lo,
                         )
                     except Exception:
                         pass
