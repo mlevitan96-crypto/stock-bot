@@ -69,7 +69,7 @@ def main() -> int:
     # 1) Phase-2 heartbeats (last 50)
     lines.append("## 1. Phase-2 heartbeats (last 50)")
     lines.append("")
-    pattern = '"subsystem":"phase2"'
+    pattern = '"phase2"'  # match subsystem "phase2" or event_type "phase2_heartbeat" etc.
     all_matches: List[str] = []
     if se_path.exists():
         out, err, rc = _run(
@@ -94,7 +94,7 @@ def main() -> int:
     ti_lines = []
     if run_path.exists():
         out2, _, _ = _run(
-            ["grep", "-n", "event_type.*trade_intent", str(run_path)],
+            ["grep", "-n", "trade_intent", str(run_path)],
             timeout=15,
         )
         ti_lines = (out2 or "").splitlines()
@@ -113,7 +113,7 @@ def main() -> int:
     sv_lines: List[str] = []
     if sh_path.exists():
         out3, _, _ = _run(
-            ["grep", "-n", "event_type.*shadow_variant_decision", str(sh_path)],
+            ["grep", "-n", "shadow_variant_decision", str(sh_path)],
             timeout=15,
         )
         sv_lines = (out3 or "").splitlines()

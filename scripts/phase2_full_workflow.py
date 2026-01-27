@@ -122,9 +122,11 @@ def main() -> int:
             local = REPO / "scripts" / name
             if local.exists():
                 sftp.put(str(local), f"{REMOTE}/scripts/{name}")
-        run("python3 scripts/phase2_dryrun_signal_emit.py 2>&1", timeout=60)
-        out, _, _ = run("grep -c 'event_type.*trade_intent' logs/run.jsonl 2>/dev/null || echo 0")
-        out2, _, _ = run("grep -c 'event_type.*exit_intent' logs/run.jsonl 2>/dev/null || echo 0")
+        dry_out, dry_err, dry_rc = run("python3 scripts/phase2_dryrun_signal_emit.py 2>&1", timeout=60)
+        if dry_rc != 0:
+            fails.append(f"dry-run exit {dry_rc}: {dry_err[:300] if dry_err else dry_out[:300]}")
+        out, _, _ = run("grep -c trade_intent logs/run.jsonl 2>/dev/null || echo 0")
+        out2, _, _ = run("grep -c exit_intent logs/run.jsonl 2>/dev/null || echo 0")
         nt, ne = _num(out), _num(out2)
         if nt < 1 or ne < 1:
             fails.append("trade_intent or exit_intent missing after dry-run")
