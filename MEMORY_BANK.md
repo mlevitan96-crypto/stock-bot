@@ -1321,3 +1321,90 @@ Output: `reports/EOD_ALPHA_DIAGNOSTIC_<DATE>.md`. Headline PnL, win rate, top/bo
 
 - **Displacement:** Filter `logs/system_events.jsonl` for `subsystem=displacement`, `event_type=displacement_evaluated`. Use `details.allowed`, `details.reason`, `details.delta_score`, `details.age_seconds` for audit.
 - **Shadows / variants:** When shadow experiments enabled, see `logs/shadow.jsonl` for `event_type=shadow_variant_decision` and `shadow_variant_summary`.
+
+---
+
+## 6.10 ALPHA DISCOVERY (Thesis Tags, Directional Gate, Shadow Matrix) — 2026-01-27
+
+### Thesis Tags
+
+- **Module:** `telemetry/thesis_tags.py` — `derive_thesis_tags(snapshot) -> dict`
+- **Tags:** `thesis_flow_continuation`, `thesis_flow_reversal`, `thesis_dark_pool_accumulation`, `thesis_dark_pool_distribution`, `thesis_premarket_gap_continuation`, `thesis_event_earnings_drift`, `thesis_congress_tailwind`, `thesis_insider_tailwind`, `thesis_regime_alignment_score` (0–1), `thesis_vol_expansion`, `thesis_vol_compression`
+- **Contract:** Missing data => `None` (never silently `False`).
+
+### Directional Gate (HIGH_VOL)
+
+- **HIGH_VOL:** Top quartile `realized_vol_20d`. For HIGH_VOL only:
+  - **Longs:** Require at least one of `thesis_flow_continuation`, `thesis_dark_pool_accumulation`, `thesis_regime_alignment_score >= 0.6`.
+  - **Shorts:** Require at least one of `thesis_flow_reversal`, `thesis_dark_pool_distribution`, `thesis_regime_alignment_score <= 0.4`.
+- **Logging:** `subsystem=directional_gate`, `event_type=blocked_high_vol_no_alignment`, `feature_snapshot`, `thesis_tags` in `logs/system_events.jsonl`. Does **not** reduce vol exposure; prevents directional guessing in volatile names.
+
+### Shadow Experiment Matrix
+
+- **Config:** `SHADOW_EXPERIMENTS_ENABLED`, `SHADOW_EXPERIMENTS` (list of variants), `SHADOW_MAX_VARIANTS_PER_CYCLE` (default 4).
+- **Module:** `telemetry/shadow_experiments.py` — `run_shadow_variants(live_context, candidates, positions)`. Writes **only** to `logs/shadow.jsonl`; **no** live orders.
+- **Events:** `shadow_variant_decision` (per symbol/variant), `shadow_variant_summary` (per variant/cycle).
+
+### Trade / Exit Intent (Run Log)
+
+- **`logs/run.jsonl`:** `event_type=trade_intent` (feature_snapshot, thesis_tags, displacement_context) at entry; `event_type=exit_intent` (feature_snapshot_at_exit, thesis_tags_at_exit, thesis_break_reason) at exit. Additive only.
+
+### How to Interpret EOD Alpha Tables
+
+- **Headline:** Total PnL, win rate, top/bottom symbols — same as before.
+- **Winners vs Losers:** Counts; use for feature effect-size (mean winners vs mean losers) when you have trade-level snapshots.
+- **Telemetry:** `trade_intent` / `exit_intent` counts and `directional_gate` blocks — confirm live decisions are explained.
+- **Shadow scoreboard:** Per-variant `would_enter` / `would_exit` / blocked — use to see **what to turn up** (variants that would have traded more) and **what to turn down** (variants that block more).
+- **Data availability:** PASS/FAIL per dataset; use substitutes when documented.
+
+---
+
+## 6.11 Phase-2 Activation (Log Sinks, Heartbeat, Verification) — 2026-01-27
+
+### Config (env)
+
+- **`PHASE2_TELEMETRY_ENABLED`** (default `true`): Gate trade_intent/exit_intent emission.
+- **`PHASE2_HEARTBEAT_ENABLED`** (default `true`): Emit phase2_heartbeat once per cycle.
+- **`PHASE2_REQUIRE_SYMBOL_RISK_FEATURES`** (default `true`): If symbol_risk missing, emit CRITICAL and set high_vol_count=0.
+
+### Canonical Log Sinks
+
+- **Startup:** `_phase2_confirm_log_sinks()` runs when bot starts (`__main__`). Ensures `logs/run.jsonl`, `logs/system_events.jsonl`, `logs/shadow.jsonl`, `logs/orders.jsonl` are writable.
+- **Event:** `subsystem=phase2`, `event_type=log_sink_confirmed`, `details={resolved_paths, writable}`. If any not writable → CRITICAL + fail fast (exit 1).
+
+### Phase-2 Heartbeat
+
+- **Once per cycle** (after run_once + evaluate_exits): `subsystem=phase2`, `event_type=phase2_heartbeat`, `details={ts, cycle_id, telemetry_enabled, shadow_enabled, wrote_trade_intent_count_this_cycle, wrote_exit_intent_count_this_cycle, wrote_shadow_decision_count_this_cycle, symbol_risk_feature_count, high_vol_threshold, high_vol_symbol_count}`.
+- If **`PHASE2_REQUIRE_SYMBOL_RISK_FEATURES`** and symbol_risk empty → `event_type=symbol_risk_missing_required`, `severity=CRITICAL` before heartbeat.
+
+### Trade / Exit Intent (Extended)
+
+- **trade_intent:** Emitted for **every** entry attempt (blocked or entered). Includes `decision_outcome` (`entered`|`blocked`), `blocked_reason` when blocked.
+- **exit_intent:** `thesis_break_reason` required; use `unknown` + `thesis_break_unknown_reason` when indeterminable.
+
+### Shadow
+
+- After `run_shadow_variants`: `subsystem=phase2`, `event_type=shadow_variants_rotated`, `details={variants_run_this_cycle}`.
+- Shadow **never** places orders; only writes to `logs/shadow.jsonl`.
+
+### EOD Diagnostic
+
+- **Sections:** Winners vs Losers, High-Volatility Alpha, Shadow Scoreboard, Data availability, **Section presence and FAIL reasons**.
+- If a section cannot be populated (e.g. symbol_risk missing), report **explicit FAIL** reasons; do not silently omit.
+
+### Verification (run on droplet)
+
+1. **Restart** service safely; **wait 5 minutes** of runtime.
+2. **Runtime identity:** `python3 scripts/phase2_runtime_identity.py` → `reports/PHASE2_RUNTIME_IDENTITY.md` (systemd units, WorkingDirectory, git rev, python path).
+3. **Activation proof:** `python3 scripts/phase2_activation_proof.py --date YYYY-MM-DD` → `reports/PHASE2_ACTIVATION_PROOF_<DATE>.md` (heartbeats, trade_intent, shadow, symbol_risk, EOD, PASS/FAIL).
+4. **Audit:** `python3 scripts/phase2_forensic_audit.py --date YYYY-MM-DD --local` → `reports/PHASE2_VERIFICATION_SUMMARY_<DATE>.md` + `exports/VERIFY_*.csv`.
+
+**From local (fetch from droplet):**
+
+```bash
+python scripts/run_phase2_audit_on_droplet.py --date YYYY-MM-DD
+```
+
+Uploads audit/proof/runtime-identity scripts, runs them on droplet, fetches reports and CSVs.
+
+**Success criteria:** phase2_heartbeat present; trade_intent present; shadow_variant_decision present (when enabled); symbol_risk_features.json exists and >0 symbols; EOD has all required sections.

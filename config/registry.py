@@ -173,6 +173,9 @@ class LogFiles:
 
     # Permanent, unified system events stream (append-only).
     SYSTEM_EVENTS = Directories.LOGS / "system_events.jsonl"
+    SHADOW = Directories.LOGS / "shadow.jsonl"
+    # Phase-2: canonical run log (trade_intent, exit_intent, cycle summaries).
+    RUN = Directories.LOGS / "run.jsonl"
 
 
 class ConfigFiles:

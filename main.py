@@ -391,6 +391,24 @@ class Config:
     DISPLACEMENT_REQUIRE_THESIS_DOMINANCE = get_env("DISPLACEMENT_REQUIRE_THESIS_DOMINANCE", "true").lower() == "true"
     DISPLACEMENT_THESIS_DOMINANCE_MODE = get_env("DISPLACEMENT_THESIS_DOMINANCE_MODE", "flow_or_regime", str)
     DISPLACEMENT_LOG_EVERY_DECISION = get_env("DISPLACEMENT_LOG_EVERY_DECISION", "true").lower() == "true"
+
+    # Shadow experiment matrix (alpha discovery)
+    SHADOW_EXPERIMENTS_ENABLED = get_env("SHADOW_EXPERIMENTS_ENABLED", "true").lower() == "true"
+    SHADOW_MAX_VARIANTS_PER_CYCLE = get_env("SHADOW_MAX_VARIANTS_PER_CYCLE", 4, int)
+    SHADOW_EXPERIMENTS = [
+        {"name": "exp_flow_8", "uw_flow_weight": 8},
+        {"name": "exp_darkpool_8", "dark_pool_weight": 8},
+        {"name": "exp_regime_8", "regime_multiplier": 8},
+        {"name": "exp_vol_8", "volatility_weight": 8},
+        {"name": "exp_no_disp", "displacement_disabled": True},
+        {"name": "exp_fast_disp", "DISPLACEMENT_MIN_HOLD_SECONDS": 5 * 60, "DISPLACEMENT_MIN_DELTA_SCORE": 0.3},
+        {"name": "exp_strict_disp", "DISPLACEMENT_MIN_HOLD_SECONDS": 45 * 60, "DISPLACEMENT_MIN_DELTA_SCORE": 1.5},
+        {"name": "exp_shorts_aggr", "shorts_when_regime_not_bull": True},
+    ]
+    # Phase-2 activation (telemetry, heartbeat, symbol risk)
+    PHASE2_TELEMETRY_ENABLED = get_env("PHASE2_TELEMETRY_ENABLED", "true").lower() == "true"
+    PHASE2_HEARTBEAT_ENABLED = get_env("PHASE2_HEARTBEAT_ENABLED", "true").lower() == "true"
+    PHASE2_REQUIRE_SYMBOL_RISK_FEATURES = get_env("PHASE2_REQUIRE_SYMBOL_RISK_FEATURES", "true").lower() == "true"
     
     # Institutional Remediation Phase 7: kill zombie trades quickly (120 minutes)
     STALE_TRADE_EXIT_MINUTES = get_env("STALE_TRADE_EXIT_MINUTES", 120, int)  # 120 minutes
@@ -594,6 +612,49 @@ except Exception:
             return fn
         return _d
 
+
+def _phase2_confirm_log_sinks():
+    """Phase-2: ensure canonical log sinks are writable. Emit log_sink_confirmed; CRITICAL + exit if not."""
+    canonical = [
+        ("run", os.path.join(LOG_DIR, "run.jsonl")),
+        ("system_events", os.path.join(LOG_DIR, "system_events.jsonl")),
+        ("shadow", os.path.join(LOG_DIR, "shadow.jsonl")),
+        ("orders", os.path.join(LOG_DIR, "orders.jsonl")),
+    ]
+    resolved = {}
+    ok = True
+    for name, p in canonical:
+        path = os.path.abspath(p)
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                pass
+            resolved[name] = {"path": path, "writable": True}
+        except Exception as e:
+            resolved[name] = {"path": path, "writable": False, "error": str(e)}
+            ok = False
+    try:
+        log_system_event(
+            "phase2", "log_sink_confirmed", "INFO",
+            resolved_paths=resolved, writable=ok,
+        )
+    except Exception:
+        pass
+    if not ok:
+        try:
+            log_system_event(
+                "phase2", "log_sink_not_writable", "CRITICAL",
+                resolved_paths=resolved, writable=False,
+            )
+        except Exception:
+            pass
+        print("[Phase2] CRITICAL: canonical log sink(s) not writable; failing fast.", file=sys.stderr)
+        for k, v in resolved.items():
+            if not v.get("writable"):
+                print(f"  {k}: {v.get('path')} - {v.get('error', 'unknown')}", file=sys.stderr)
+        sys.exit(1)
+
+
 # =========================
 # UTILITIES
 # =========================
@@ -625,6 +686,7 @@ def jsonl_write(name, record):
         f.write(json.dumps({"ts": now_iso(), **record}) + "\n")
 
 _CYCLE_GATE_SYMBOLS = set()
+_PHASE2_CYCLE_COUNTS = {"trade_intent": 0, "exit_intent": 0, "shadow_decisions": 0}
 
 def _infer_system_severity(kind: str, msg: str, kw: dict) -> str:
     try:
@@ -1230,6 +1292,268 @@ def log_signal(cluster: dict):
 def log_order(event: dict):
     jsonl_write("orders", {"type": "order", **event})
 
+
+def _emit_trade_intent(
+    symbol: str,
+    side: str,
+    score: float,
+    comps: dict,
+    cluster: dict,
+    market_regime: str,
+    engine: object,
+    displacement_context: Optional[dict] = None,
+    *,
+    decision_outcome: str = "entered",
+    blocked_reason: Optional[str] = None,
+) -> None:
+    """Emit trade_intent to logs/run.jsonl (feature_snapshot + thesis_tags). Additive only."""
+    if not getattr(Config, "PHASE2_TELEMETRY_ENABLED", True):
+        return
+    try:
+        from telemetry.feature_snapshot import build_feature_snapshot
+        from telemetry.thesis_tags import derive_thesis_tags
+        enriched = {"symbol": symbol, "score": score, "composite_score": score}
+        if isinstance(comps, dict):
+            enriched.update(comps)
+        enriched.setdefault("direction", cluster.get("direction"))
+        enriched.setdefault("uw_flow_strength", comps.get("flow_strength") if isinstance(comps, dict) else None)
+        enriched.setdefault("dark_pool_bias", comps.get("dark_pool_bias") if isinstance(comps, dict) else None)
+        mc = getattr(engine, "market_context_v2", None) or {}
+        rs = getattr(engine, "regime_posture_v2", None) or {}
+        snap = build_feature_snapshot(enriched, mc if isinstance(mc, dict) else {}, rs if isinstance(rs, dict) else {})
+        tags = derive_thesis_tags(snap)
+        rec = {
+            "event_type": "trade_intent",
+            "symbol": symbol,
+            "side": side,
+            "score": score,
+            "feature_snapshot": snap,
+            "thesis_tags": tags,
+            "displacement_context": displacement_context,
+            "decision_outcome": decision_outcome,
+            "blocked_reason": blocked_reason,
+        }
+        jsonl_write("run", rec)
+        try:
+            _PHASE2_CYCLE_COUNTS["trade_intent"] += 1
+        except Exception:
+            pass
+    except Exception as e:
+        try:
+            log_event("telemetry", "trade_intent_emit_failed", symbol=symbol, error=str(e))
+        except Exception:
+            pass
+
+
+def _emit_trade_intent_blocked(
+    symbol: str,
+    direction: str,
+    score: float,
+    comps: dict,
+    cluster: dict,
+    market_regime: str,
+    engine: object,
+    blocked_reason: str,
+) -> None:
+    """Emit trade_intent with decision_outcome=blocked. No-op if PHASE2_TELEMETRY disabled."""
+    side = "buy" if (direction or "").lower() == "bullish" else "sell"
+    _emit_trade_intent(
+        symbol=symbol, side=side, score=score, comps=comps or {}, cluster=cluster,
+        market_regime=market_regime, engine=engine, displacement_context=None,
+        decision_outcome="blocked", blocked_reason=blocked_reason,
+    )
+
+
+def _emit_exit_intent(
+    symbol: str,
+    info: dict,
+    close_reason: str,
+    metadata: dict = None,
+    *,
+    feature_snapshot_at_exit: Optional[dict] = None,
+    thesis_tags_at_exit: Optional[dict] = None,
+    thesis_break_reason: Optional[str] = None,
+) -> None:
+    """Emit exit_intent to logs/run.jsonl. Additive only. Use thesis_break_reason 'unknown' when indeterminable."""
+    if not getattr(Config, "PHASE2_TELEMETRY_ENABLED", True):
+        return
+    try:
+        if feature_snapshot_at_exit is None or thesis_tags_at_exit is None:
+            from telemetry.feature_snapshot import build_feature_snapshot
+            from telemetry.thesis_tags import derive_thesis_tags
+            enriched = {"symbol": symbol, "score": info.get("entry_score")}
+            if isinstance(metadata, dict) and isinstance(metadata.get("v2_exit"), dict):
+                v2 = metadata["v2_exit"]
+                now_v2 = v2.get("now_v2") or {}
+                v2_in = (now_v2.get("v2_inputs") or {}) if isinstance(now_v2.get("v2_inputs"), dict) else {}
+                enriched["realized_vol_20d"] = v2_in.get("realized_vol_20d")
+            snap = build_feature_snapshot(enriched, None, None)
+            tags = derive_thesis_tags(snap)
+            feature_snapshot_at_exit = feature_snapshot_at_exit or snap
+            thesis_tags_at_exit = thesis_tags_at_exit or tags
+        br = thesis_break_reason
+        unknown_why: Optional[str] = None
+        if not br and close_reason:
+            cr = (close_reason or "").lower()
+            if "flow_reversal" in cr:
+                br = "flow_reversal"
+            elif "v2_exit" in cr:
+                br = "v2_exit"
+            elif "displaced" in cr:
+                br = "displacement"
+            elif "trail" in cr:
+                br = "trail_stop"
+            elif "time_exit" in cr:
+                br = "time_exit"
+            else:
+                br = "other"
+        if not br:
+            br = "unknown"
+            unknown_why = "close_reason_missing_or_unmapped"
+        rec = {
+            "event_type": "exit_intent",
+            "symbol": symbol,
+            "close_reason": close_reason,
+            "feature_snapshot_at_exit": feature_snapshot_at_exit,
+            "thesis_tags_at_exit": thesis_tags_at_exit,
+            "thesis_break_reason": br,
+        }
+        if unknown_why:
+            rec["thesis_break_unknown_reason"] = unknown_why
+        jsonl_write("run", rec)
+        try:
+            _PHASE2_CYCLE_COUNTS["exit_intent"] += 1
+        except Exception:
+            pass
+    except Exception as e:
+        try:
+            log_event("telemetry", "exit_intent_emit_failed", symbol=symbol, error=str(e))
+        except Exception:
+            pass
+
+
+def _emit_phase2_heartbeat(cycle_id: int) -> None:
+    """Emit phase2_heartbeat to system_events. No-op if PHASE2_HEARTBEAT_ENABLED false."""
+    if not getattr(Config, "PHASE2_HEARTBEAT_ENABLED", True):
+        return
+    try:
+        from datetime import datetime, timezone
+        symbol_risk = {}
+        try:
+            from config.registry import StateFiles, read_json
+            if hasattr(StateFiles, "SYMBOL_RISK_FEATURES") and StateFiles.SYMBOL_RISK_FEATURES.exists():
+                symbol_risk = read_json(StateFiles.SYMBOL_RISK_FEATURES, default={}) or {}
+        except Exception:
+            pass
+        vol_list = []
+        for sym, info in (symbol_risk or {}).items():
+            if not isinstance(info, dict):
+                continue
+            v = info.get("realized_vol_20d") or info.get("rv_20d") or info.get("rv20")
+            if v is not None:
+                vol_list.append((sym, float(v)))
+        vol_list.sort(key=lambda x: x[1], reverse=True)
+        n = len(vol_list)
+        import math as _m
+        p75_idx = max(0, int(_m.ceil(0.75 * n)) - 1) if n else 0
+        high_vol_threshold = vol_list[p75_idx][1] if vol_list else 0.0
+        high_vol_count = sum(1 for _s, v in vol_list if v >= high_vol_threshold)
+        symbol_risk_feature_count = len([k for k in (symbol_risk or {}) if not str(k).startswith("_")])
+        require_risk = getattr(Config, "PHASE2_REQUIRE_SYMBOL_RISK_FEATURES", True)
+        if require_risk and symbol_risk_feature_count == 0:
+            try:
+                log_system_event(
+                    "phase2", "symbol_risk_missing_required", "CRITICAL",
+                    details={"reason": "symbol_risk_features empty or missing", "high_vol_symbol_count": 0},
+                )
+            except Exception:
+                pass
+            high_vol_count = 0
+        details = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "cycle_id": cycle_id,
+            "telemetry_enabled": getattr(Config, "PHASE2_TELEMETRY_ENABLED", True),
+            "shadow_enabled": getattr(Config, "SHADOW_EXPERIMENTS_ENABLED", True),
+            "wrote_trade_intent_count_this_cycle": _PHASE2_CYCLE_COUNTS.get("trade_intent", 0),
+            "wrote_exit_intent_count_this_cycle": _PHASE2_CYCLE_COUNTS.get("exit_intent", 0),
+            "wrote_shadow_decision_count_this_cycle": _PHASE2_CYCLE_COUNTS.get("shadow_decisions", 0),
+            "symbol_risk_feature_count": symbol_risk_feature_count,
+            "high_vol_threshold": high_vol_threshold,
+            "high_vol_symbol_count": high_vol_count,
+        }
+        log_system_event("phase2", "phase2_heartbeat", "INFO", details=details)
+    except Exception:
+        pass
+
+
+def _check_directional_gate_high_vol(
+    symbol: str,
+    side: str,
+    snapshot: dict,
+    thesis_tags: dict,
+    symbol_risk_map: dict,
+) -> tuple:
+    """
+    HIGH_VOL = top quartile realized_vol_20d. For HIGH_VOL only, require directional alignment.
+    Returns (passed: bool, reason: str).
+    """
+    try:
+        vol = None
+        if isinstance(symbol_risk_map, dict) and symbol in symbol_risk_map:
+            r = symbol_risk_map[symbol]
+            v = (r.get("realized_vol_20d") or r.get("rv_20d") or r.get("rv20"))
+            if v is not None:
+                vol = float(v)
+        if vol is None and isinstance(snapshot, dict):
+            vol = snapshot.get("realized_vol_20d")
+            if vol is not None:
+                vol = float(vol)
+        if vol is None:
+            return True, "no_vol_data"
+        all_vols = []
+        for s, r in (symbol_risk_map or {}).items():
+            v = (r.get("realized_vol_20d") or r.get("rv_20d") or r.get("rv20"))
+            if v is not None:
+                all_vols.append(float(v))
+        if not all_vols:
+            all_vols = [vol]
+        import math
+        p75_idx = max(0, int(math.ceil(0.75 * len(all_vols)) - 1))
+        p75 = sorted(all_vols)[p75_idx] if all_vols else 0.0
+        if vol < p75:
+            return True, "not_high_vol"
+        # HIGH_VOL: check alignment
+        flow_cont = thesis_tags.get("thesis_flow_continuation")
+        flow_rev = thesis_tags.get("thesis_flow_reversal")
+        dp_acc = thesis_tags.get("thesis_dark_pool_accumulation")
+        dp_dist = thesis_tags.get("thesis_dark_pool_distribution")
+        regime_sc = thesis_tags.get("thesis_regime_alignment_score")
+        try:
+            rs = float(regime_sc) if regime_sc is not None else None
+        except Exception:
+            rs = None
+        is_long = (side or "").lower() in ("buy", "long")
+        if is_long:
+            ok = (
+                flow_cont is True
+                or (dp_acc is True)
+                or (rs is not None and rs >= 0.6)
+            )
+            if not ok:
+                return False, "blocked_high_vol_no_alignment"
+        else:
+            ok = (
+                flow_rev is True
+                or (dp_dist is True)
+                or (rs is not None and rs <= 0.4)
+            )
+            if not ok:
+                return False, "blocked_high_vol_no_alignment"
+        return True, "aligned"
+    except Exception as e:
+        return True, f"gate_error:{e}"
+
+
 def log_attribution(trade_id: str, symbol: str, pnl_usd: float, context: dict):
     jsonl_write("attribution", {
         "type": "attribution",
@@ -1339,6 +1663,9 @@ def log_exit_attribution(
     exit_qty: int = None,
     entry_order_id: str = None,
     exit_order_id: str = None,
+    feature_snapshot_at_exit: Optional[dict] = None,
+    thesis_tags_at_exit: Optional[dict] = None,
+    thesis_break_reason: Optional[str] = None,
 ):
     """
     Log complete exit attribution with actual P&L for ML learning.
@@ -1685,7 +2012,21 @@ def log_exit_attribution(
               pnl_pct=round(pnl_pct, 2),
               hold_min=round(hold_minutes, 1),
               reason=close_reason)
-    
+
+    # Alpha discovery: emit exit_intent (feature_snapshot_at_exit + thesis_tags + thesis_break_reason)
+    try:
+        _emit_exit_intent(
+            symbol=symbol,
+            info=info,
+            close_reason=close_reason,
+            metadata=metadata,
+            feature_snapshot_at_exit=feature_snapshot_at_exit,
+            thesis_tags_at_exit=thesis_tags_at_exit,
+            thesis_break_reason=thesis_break_reason,
+        )
+    except Exception:
+        pass
+
     # SHORT-TERM LEARNING: Immediate learning after trade close
     # This enables fast adaptation to market changes
     try:
@@ -6080,6 +6421,33 @@ class AlpacaExecutor:
                     symbol_metadata = sm
                 except Exception:
                     pass
+                # Alpha discovery: build exit snapshot + thesis tags for exit_intent
+                _ex_snap = _ex_tags = None
+                _ex_break = "flow_reversal" if flow_reversal else None
+                if _ex_break is None and close_reason:
+                    cr = (close_reason or "").lower()
+                    if "v2_exit" in cr:
+                        _ex_break = "v2_exit"
+                    elif "displaced" in cr:
+                        _ex_break = "displacement"
+                    elif "trail" in cr:
+                        _ex_break = "trail_stop"
+                    elif "time_exit" in cr:
+                        _ex_break = "time_exit"
+                    else:
+                        _ex_break = "other"
+                try:
+                    from telemetry.feature_snapshot import build_feature_snapshot
+                    from telemetry.thesis_tags import derive_thesis_tags
+                    enriched = {"symbol": symbol, "score": info.get("entry_score")}
+                    v2e = (symbol_metadata or {}).get("v2_exit") or {}
+                    now_v2 = v2e.get("now_v2") or {}
+                    v2_in = (now_v2.get("v2_inputs") or {}) if isinstance(now_v2.get("v2_inputs"), dict) else {}
+                    enriched["realized_vol_20d"] = v2_in.get("realized_vol_20d")
+                    _ex_snap = build_feature_snapshot(enriched, None, None)
+                    _ex_tags = derive_thesis_tags(_ex_snap)
+                except Exception:
+                    pass
                 # Only log exit attribution when we have executed fill fields.
                 if exit_fill_price > 0 and exit_fill_qty > 0:
                     log_exit_attribution(
@@ -6089,7 +6457,11 @@ class AlpacaExecutor:
                         close_reason=close_reason,
                         metadata=symbol_metadata,
                         exit_qty=exit_fill_qty,
+                        entry_order_id=None,
                         exit_order_id=str(exit_order_id) if exit_order_id else None,
+                        feature_snapshot_at_exit=_ex_snap,
+                        thesis_tags_at_exit=_ex_tags,
+                        thesis_break_reason=_ex_break,
                     )
                 else:
                     log_event(
@@ -6215,8 +6587,11 @@ class StrategyEngine:
         orders = []
         # Reset per-cycle gate symbol tracker (used for missed-candidate detection).
         try:
-            global _CYCLE_GATE_SYMBOLS
+            global _CYCLE_GATE_SYMBOLS, _PHASE2_CYCLE_COUNTS
             _CYCLE_GATE_SYMBOLS = set()
+            _PHASE2_CYCLE_COUNTS["trade_intent"] = 0
+            _PHASE2_CYCLE_COUNTS["exit_intent"] = 0
+            _PHASE2_CYCLE_COUNTS["shadow_decisions"] = 0
         except Exception:
             pass
 
@@ -6312,6 +6687,37 @@ class StrategyEngine:
         
         # CRITICAL: Sort clusters by composite_score DESC to trade strongest signals first
         clusters_sorted = sorted(clusters, key=lambda x: x.get("composite_score", 0.0), reverse=True)
+
+        # Shadow experiment matrix (alpha discovery). No orders; writes logs/shadow.jsonl only.
+        if getattr(Config, "SHADOW_EXPERIMENTS_ENABLED", False):
+            try:
+                from telemetry.shadow_experiments import run_shadow_variants
+                live_ctx = {
+                    "market_regime": market_regime,
+                    "regime": market_regime,
+                    "engine": self,
+                }
+                sh_out = run_shadow_variants(
+                    live_ctx,
+                    candidates=clusters_sorted,
+                    positions=getattr(self.executor, "opens", {}) or {},
+                    experiments=getattr(Config, "SHADOW_EXPERIMENTS", None),
+                    max_variants_per_cycle=getattr(Config, "SHADOW_MAX_VARIANTS_PER_CYCLE", 4),
+                )
+                if isinstance(sh_out, dict):
+                    _PHASE2_CYCLE_COUNTS["shadow_decisions"] = sh_out.get("decisions_count", 0)
+                    try:
+                        log_system_event(
+                            "phase2", "shadow_variants_rotated", "INFO",
+                            details={"variants_run_this_cycle": sh_out.get("variants_run", [])},
+                        )
+                    except Exception:
+                        pass
+            except Exception as sh_ex:
+                try:
+                    log_event("shadow", "run_shadow_variants_error", error=str(sh_ex))
+                except Exception:
+                    pass
         
         print(f"DEBUG decide_and_execute: Processing {len(clusters_sorted)} clusters (sorted by strength), stage={system_stage}", flush=True)
         
@@ -6332,6 +6738,7 @@ class StrategyEngine:
         for c in clusters_sorted:
             log_signal(c)
             symbol = c["ticker"]
+            _disp_ctx = None  # set when we successfully displace; used for trade_intent
             direction = c.get("direction", "unknown")
             # CRITICAL FIX: Initialize score but recalculate if source is unknown or composite_score is 0.0
             score = c.get("composite_score", 0.0)
@@ -7014,6 +7421,13 @@ class StrategyEngine:
             if score < min_score:
                 print(f"DEBUG {symbol}: BLOCKED by score_below_min ({score} < {min_score}, stage={system_stage})", flush=True)
                 _inc_gate("score_below_min")
+                try:
+                    _emit_trade_intent_blocked(
+                        symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
+                        "score_below_min",
+                    )
+                except Exception:
+                    pass
                 log_event("gate", "score_below_min", symbol=symbol, score=score, min_required=min_score, stage=system_stage, gate_type="score_gate", signal_type=c.get("signal_type", "UNKNOWN"))
 
                 # Shadow A/B removed (v2-only engine).
@@ -7091,6 +7505,13 @@ class StrategyEngine:
 
                     if not policy_allowed:
                         print(f"DEBUG {symbol}: BLOCKED - displacement policy ({policy_reason})", flush=True)
+                        try:
+                            _emit_trade_intent_blocked(
+                                symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
+                                "displacement_blocked",
+                            )
+                        except Exception:
+                            pass
                         log_event("gate", "displacement_blocked", symbol=symbol, displaced_symbol=dc_symbol,
                                   reason=policy_reason, diagnostics=policy_diag)
                         log_blocked_trade(symbol, "displacement_blocked", score,
@@ -7113,9 +7534,18 @@ class StrategyEngine:
                         new_signal_score=score,
                         policy_diagnostics=policy_diag,
                     )
+                    if displacement_success:
+                        _disp_ctx = {"displaced_symbol": dc_symbol}
                     if not displacement_success:
                         print(f"DEBUG {symbol}: BLOCKED - displacement failed", flush=True)
                         displaced_sym = displacement_candidate.get("symbol", "UNKNOWN") if isinstance(displacement_candidate, dict) else "UNKNOWN"
+                        try:
+                            _emit_trade_intent_blocked(
+                                symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
+                                "displacement_failed",
+                            )
+                        except Exception:
+                            pass
                         log_event("gate", "displacement_failed", symbol=symbol, 
                                  displaced_symbol=displaced_sym)
                         log_blocked_trade(symbol, "displacement_failed", score,
@@ -7588,6 +8018,13 @@ class StrategyEngine:
                 # Long-only safety: do not open shorts in LONG_ONLY mode.
                 if Config.LONG_ONLY and side == "sell":
                     print(f"DEBUG {symbol}: BLOCKED by LONG_ONLY mode (short entry not allowed)", flush=True)
+                    try:
+                        _emit_trade_intent_blocked(
+                            symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
+                            "long_only_blocked_short_entry",
+                        )
+                    except Exception:
+                        pass
                     log_event("gate", "long_only_blocked_short_entry", symbol=symbol, score=score)
                     log_blocked_trade(symbol, "long_only_blocked_short_entry", score,
                                       direction=c.get("direction"),
@@ -7607,6 +8044,66 @@ class StrategyEngine:
                         metadata={"side": side}
                     )
                     continue
+
+                # Alpha discovery: snapshot + thesis tags, directional gate (HIGH_VOL), trade_intent
+                try:
+                    from telemetry.feature_snapshot import build_feature_snapshot
+                    from telemetry.thesis_tags import derive_thesis_tags
+                    enriched = {"symbol": symbol, "score": score, "composite_score": score}
+                    if isinstance(comps, dict):
+                        enriched.update(comps)
+                    enriched.setdefault("direction", c.get("direction"))
+                    mc = getattr(self, "market_context_v2", None) or {}
+                    rs = getattr(self, "regime_posture_v2", None) or {}
+                    _snap = build_feature_snapshot(enriched, mc if isinstance(mc, dict) else {}, rs if isinstance(rs, dict) else {})
+                    _tags = derive_thesis_tags(_snap)
+                    _risk = getattr(self, "symbol_risk_features", None) or {}
+                    try:
+                        from config.registry import StateFiles, read_json
+                        if not _risk and hasattr(StateFiles, "SYMBOL_RISK_FEATURES"):
+                            _p = getattr(StateFiles, "SYMBOL_RISK_FEATURES", None)
+                            if _p and getattr(_p, "exists", lambda: False)():
+                                _risk = read_json(_p, default={}) or {}
+                    except Exception:
+                        pass
+                    dg_ok, dg_reason = _check_directional_gate_high_vol(symbol, side, _snap, _tags, _risk)
+                    if not dg_ok:
+                        print(f"DEBUG {symbol}: BLOCKED - directional gate HIGH_VOL ({dg_reason})", flush=True)
+                        try:
+                            _emit_trade_intent_blocked(
+                                symbol, c.get("direction"), score, comps or {}, c, market_regime, self,
+                                "blocked_high_vol_no_alignment",
+                            )
+                        except Exception:
+                            pass
+                        log_system_event(
+                            "directional_gate", "blocked_high_vol_no_alignment", "INFO",
+                            symbol=symbol, reason=dg_reason, feature_snapshot=_snap, thesis_tags=_tags,
+                        )
+                        log_event("gate", "blocked_high_vol_no_alignment", symbol=symbol, reason=dg_reason,
+                                  feature_snapshot=_snap, thesis_tags=_tags)
+                        log_blocked_trade(symbol, "blocked_high_vol_no_alignment", score,
+                                          direction=c.get("direction"),
+                                          decision_price=ref_price_check,
+                                          components=comps,
+                                          reason=dg_reason)
+                        log_signal_to_history(
+                            symbol=symbol, direction=direction, raw_score=raw_score, whale_boost=whale_boost,
+                            final_score=final_score, atr_multiplier=atr_multiplier or 0.0,
+                            momentum_pct=momentum_pct, momentum_required_pct=momentum_required_pct,
+                            decision=f"Blocked: {dg_reason}", metadata={"reason": dg_reason},
+                        )
+                        continue
+                    _emit_trade_intent(
+                        symbol=symbol, side=side, score=score, comps=comps or {}, cluster=c,
+                        market_regime=market_regime, engine=self, displacement_context=_disp_ctx,
+                        decision_outcome="entered", blocked_reason=None,
+                    )
+                except Exception as telem_ex:
+                    try:
+                        log_event("telemetry", "trade_intent_or_gate_error", symbol=symbol, error=str(telem_ex))
+                    except Exception:
+                        pass
 
                 # client_order_id_base already generated above (and includes correlation_id).
                 
@@ -10212,6 +10709,10 @@ class Watchdog:
                 self.state.fail_count = 0
                 self.state.save_fail_count(0)
                 self.state.backoff_sec = Config.BACKOFF_BASE_SEC
+                try:
+                    _emit_phase2_heartbeat(self.state.iter_count)
+                except Exception:
+                    pass
                 self.heartbeat(metrics)
                 
                 log_event("worker", "iter_end", iter=self.state.iter_count, success=True, market_open=market_open)
@@ -10388,6 +10889,7 @@ def run_self_healing_periodic():
 
 # Start self-healing thread
 if __name__ == "__main__":
+    _phase2_confirm_log_sinks()
     healing_thread = threading.Thread(target=run_self_healing_periodic, daemon=True, name="SelfHealingMonitor")
     healing_thread.start()
     
