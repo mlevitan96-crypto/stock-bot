@@ -59,7 +59,7 @@ except Exception:
         return False
     setattr(_dotenv, "load_dotenv", load_dotenv)
     sys.modules["dotenv"] = _dotenv  # type: ignore
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 # Optional: Flask import (non-blocking for local structural audits).
 _MISSING_FLASK = False
@@ -3434,6 +3434,21 @@ def _probe_1min_bar_freshness_maybe(api, *, symbol: str = "SPY", every_sec: floa
 class AlpacaExecutor:
     def __init__(self, defer_reconcile=False):
         self.api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL)
+        # Import audit guard for order submission protection
+        try:
+            from src.audit_guard import assert_no_live_orders, should_use_dry_run, create_mock_order, is_audit_dry_run
+            self._audit_guard = True
+            self._assert_no_live_orders = assert_no_live_orders
+            self._should_use_dry_run = should_use_dry_run
+            self._create_mock_order = create_mock_order
+            self._is_audit_dry_run = is_audit_dry_run
+        except ImportError:
+            self._audit_guard = False
+            self._assert_no_live_orders = None
+            self._should_use_dry_run = lambda: False
+            self._create_mock_order = None
+            self._is_audit_dry_run = lambda: False
+        
         self.cooldowns = {}
         self.opens = {}
         self.high_water = {}
@@ -3455,6 +3470,111 @@ class AlpacaExecutor:
         # Defer reconciliation to avoid crash during market open API latency
         if not defer_reconcile:
             self._safe_reconcile()
+    
+    def _submit_order_guarded(self, symbol: str, qty: int, side: str, order_type: str = "market",
+                              time_in_force: str = "day", limit_price: Optional[float] = None,
+                              client_order_id: Optional[str] = None, caller: str = "unknown", **kwargs) -> Any:
+        """
+        Guarded order submission - enforces AUDIT_MODE and AUDIT_DRY_RUN.
+        
+        This is the single point of control for all order submissions.
+        If AUDIT_MODE or AUDIT_DRY_RUN is enabled, returns a mock order instead of submitting.
+        """
+        import uuid
+        import inspect
+        
+        # Determine caller if not provided
+        if caller == "unknown":
+            try:
+                frame = inspect.currentframe().f_back
+                caller = f"{frame.f_code.co_filename}:{frame.f_code.co_name}:{frame.f_lineno}"
+            except Exception:
+                caller = "unknown"
+        
+        # Check audit guard
+        if self._audit_guard:
+            # Assert no live orders if AUDIT_MODE
+            try:
+                self._assert_no_live_orders({
+                    "op": "submit_order",
+                    "symbol": symbol,
+                    "side": side,
+                    "qty": qty,
+                    "order_type": order_type,
+                    "caller": caller,
+                })
+            except RuntimeError:
+                # AUDIT_MODE blocked it - re-raise
+                raise
+            
+            # If AUDIT_DRY_RUN, return mock order
+            if self._should_use_dry_run():
+                fake_id = f"AUDIT-DRYRUN-{uuid.uuid4().hex[:12]}"
+                try:
+                    log_order({
+                        "action": "audit_dry_run",
+                        "symbol": symbol,
+                        "side": side,
+                        "qty": qty,
+                        "order_type": order_type,
+                        "limit_price": limit_price,
+                        "order_id": fake_id,
+                        "dry_run": True,
+                        "caller": caller,
+                    })
+                except Exception as e:
+                    log_event("submit_order_guarded", "audit_dry_run_log_failed", symbol=symbol, error=str(e))
+                
+                # Log to system_events
+                try:
+                    from src.audit_guard import is_audit_mode
+                    log_system_event("audit", "audit_dry_run_check", "INFO", details={
+                        "audit_mode": is_audit_mode() if self._audit_guard else False,
+                        "audit_dry_run": self._is_audit_dry_run(),
+                        "branch_taken": "mock_return",
+                        "symbol": symbol,
+                        "caller": caller,
+                    })
+                except Exception:
+                    pass
+                
+                return self._create_mock_order(fake_id, symbol, qty, side, order_type, limit_price)
+        
+        # Real order submission
+        try:
+            from src.audit_guard import is_audit_mode
+            log_system_event("audit", "audit_dry_run_check", "INFO", details={
+                "audit_mode": is_audit_mode() if self._audit_guard else False,
+                "audit_dry_run": self._is_audit_dry_run() if self._audit_guard else False,
+                "branch_taken": "real_submit",
+                "symbol": symbol,
+                "caller": caller,
+            })
+        except Exception:
+            pass
+        
+        # Submit real order (guard has already passed - this is the final network call)
+        if order_type == "limit" and limit_price is not None:
+            return self.api.submit_order(
+                symbol=symbol,
+                qty=qty,
+                side=side,
+                type=order_type,
+                time_in_force=time_in_force,
+                limit_price=str(limit_price),
+                client_order_id=client_order_id,
+                **kwargs
+            )
+        else:
+            return self.api.submit_order(
+                symbol=symbol,
+                qty=qty,
+                side=side,
+                type=order_type,
+                time_in_force=time_in_force,
+                client_order_id=client_order_id,
+                **kwargs
+            )
     
     def _safe_reconcile(self, max_retries=3):
         """Safely reconcile positions with retry and exponential backoff."""
@@ -4047,9 +4167,10 @@ class AlpacaExecutor:
             except Exception:
                 pass
 
-        # AUDIT_DRY_RUN: full validation exercised, no live order. Log to orders.jsonl, return fake result.
-        audit_dry_run_val = os.getenv("AUDIT_DRY_RUN", "").strip().lower()
-        if audit_dry_run_val in ("1", "true", "yes"):
+        # AUDIT_DRY_RUN: Check early and return mock if enabled
+        # This check is redundant with _submit_order_guarded, but provides early exit
+        # and explicit logging for audit verification
+        if self._audit_guard and self._should_use_dry_run():
             import uuid
             fake_id = f"AUDIT-DRYRUN-{uuid.uuid4().hex[:12]}"
             try:
@@ -4064,9 +4185,21 @@ class AlpacaExecutor:
                     "entry_score": entry_score,
                     "market_regime": effective_regime,
                 })
+                # Log explicit audit check
+                try:
+                    from src.audit_guard import is_audit_mode
+                    log_system_event("audit", "audit_dry_run_check", "INFO", details={
+                        "audit_mode": is_audit_mode(),
+                        "audit_dry_run": self._is_audit_dry_run(),
+                        "branch_taken": "mock_return",
+                        "symbol": symbol,
+                        "caller": "submit_entry:early_check",
+                    })
+                except Exception:
+                    pass
             except Exception as e:
                 log_event("submit_entry", "audit_dry_run_log_failed", symbol=symbol, error=str(e))
-            _mock = type("_MockOrder", (), {"id": fake_id})()
+            _mock = self._create_mock_order(fake_id, symbol, qty, side, "limit", limit_price or ref_price) if self._create_mock_order else type("_MockOrder", (), {"id": fake_id})()
             return _mock, ref_price, "limit", qty, "dry_run"
 
         if limit_price is not None and Config.ENTRY_POST_ONLY:
@@ -4096,15 +4229,16 @@ class AlpacaExecutor:
                             unique_client_order_id = f"{client_order_id}-retry{backoff_attempt[0]}"
                         else:
                             unique_client_order_id = client_order_id
-                        return self.api.submit_order(
+                        return self._submit_order_guarded(
                             symbol=symbol,
                             qty=qty,
                             side=side,
-                            type="limit",
+                            order_type="limit",
                             time_in_force="day",
-                            limit_price=str(limit_price),
-                            extended_hours=False,
-                            client_order_id=unique_client_order_id
+                            limit_price=limit_price,
+                            client_order_id=unique_client_order_id,
+                            caller="submit_entry:backoff_retry",
+                            extended_hours=False
                         )
                     
                     o = backoff(submit_order)()
@@ -4254,15 +4388,16 @@ class AlpacaExecutor:
                     except ImportError:
                         client_order_id = None
                 
-                o = self.api.submit_order(
+                o = self._submit_order_guarded(
                     symbol=symbol,
                     qty=qty,
                     side=side,
-                    type="limit",
+                    order_type="limit",
                     time_in_force="day",
-                    limit_price=str(limit_price),
-                    extended_hours=False,
-                    client_order_id=client_order_id
+                    limit_price=limit_price,
+                    client_order_id=client_order_id,
+                    caller="submit_entry:limit_fallback",
+                    extended_hours=False
                 )
                 order_id = getattr(o, "id", None)
                 # CRITICAL: Log if order was submitted but has no ID (API rejection)
@@ -4400,14 +4535,15 @@ class AlpacaExecutor:
                     unique_client_order_id = f"{client_order_id}-retry{backoff_attempt[0]}" if client_order_id else None
                 else:
                     unique_client_order_id = client_order_id
-                return self.api.submit_order(
+                return self._submit_order_guarded(
                     symbol=symbol,
                     qty=qty,
                     side=side,
-                    type="market",
+                    order_type="market",
                     time_in_force="day",
-                    extended_hours=False,
-                    client_order_id=unique_client_order_id
+                    client_order_id=unique_client_order_id,
+                    caller="submit_entry:market_backoff_retry",
+                    extended_hours=False
                 )
             
             o = backoff(submit_market_order)()
@@ -5330,7 +5466,7 @@ class AlpacaExecutor:
                 return False
             close_qty = max(1, int(abs(current_qty) * fraction))
             exit_side = "sell" if side == "buy" else "buy"
-            o = self.api.submit_order(symbol=symbol, qty=close_qty, side=exit_side, type="market", time_in_force="day")
+            o = self._submit_order_guarded(symbol=symbol, qty=close_qty, side=exit_side, order_type="market", time_in_force="day", caller="_scale_out_partial")
             log_order({"action": "scale_out", "symbol": symbol, "qty": close_qty, "fraction": fraction})
             return True
         except Exception as e:
@@ -5344,10 +5480,10 @@ class AlpacaExecutor:
             return False
 
     def market_buy(self, symbol: str, qty: int):
-        return self.api.submit_order(symbol=symbol, qty=qty, side="buy", type="market", time_in_force="day")
+        return self._submit_order_guarded(symbol=symbol, qty=qty, side="buy", order_type="market", time_in_force="day", caller="market_buy")
 
     def market_sell(self, symbol: str, qty: int):
-        return self.api.submit_order(symbol=symbol, qty=qty, side="sell", type="market", time_in_force="day")
+        return self._submit_order_guarded(symbol=symbol, qty=qty, side="sell", order_type="market", time_in_force="day", caller="market_sell")
 
     def get_quote_price(self, symbol: str) -> float:
         try:

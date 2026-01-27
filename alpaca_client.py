@@ -290,6 +290,40 @@ class AlpacaClient:
         Raises:
             Exception: If order submission fails after retries
         """
+        # AUDIT GUARD: Check before any network call
+        try:
+            from src.audit_guard import assert_no_live_orders, should_use_dry_run, create_mock_order
+            import uuid
+            import inspect
+            
+            # Determine caller
+            try:
+                frame = inspect.currentframe().f_back
+                caller = f"{frame.f_code.co_filename}:{frame.f_code.co_name}:{frame.f_lineno}"
+            except Exception:
+                caller = "alpaca_client.submit_order"
+            
+            # Assert no live orders if AUDIT_MODE
+            assert_no_live_orders({
+                "op": "submit_order",
+                "symbol": symbol,
+                "side": side,
+                "qty": qty,
+                "order_type": order_type,
+                "caller": caller,
+            })
+            
+            # If AUDIT_DRY_RUN, return mock
+            if should_use_dry_run():
+                fake_id = f"AUDIT-DRYRUN-{uuid.uuid4().hex[:12]}"
+                return create_mock_order(fake_id, symbol, qty, side, order_type, limit_price)
+        except ImportError:
+            # Audit guard not available - proceed (should not happen in production)
+            pass
+        except RuntimeError:
+            # AUDIT_MODE blocked - re-raise
+            raise
+        
         def _submit():
             return self.api.submit_order(
                 symbol=symbol,

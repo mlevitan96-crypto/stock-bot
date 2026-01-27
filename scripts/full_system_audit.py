@@ -385,9 +385,20 @@ if hasattr(res, '__iter__') and len(res) > 0:
     ord_log = _load_jsonl(LOGS / "orders.jsonl", filter_date=None)
     dry = [r for r in ord_log if r.get("dry_run") is True or r.get("action") == "audit_dry_run"]
     out["evidence"]["orders_dry_run_count"] = len(dry)
+    
+    # Also check system_events for audit_dry_run_check with mock_return
+    se = _load_jsonl(LOGS / "system_events.jsonl", filter_date=None)
+    audit_checks = [r for r in se if r.get("subsystem") == "audit" and r.get("event_type") == "audit_dry_run_check"]
+    mock_returns = [r for r in audit_checks if r.get("details", {}).get("branch_taken") == "mock_return"]
+    out["evidence"]["audit_dry_run_check_count"] = len(audit_checks)
+    out["evidence"]["mock_return_count"] = len(mock_returns)
+    
     if len(dry) == 0:
         out["pass"] = False
         out["reason"] = "no audit_dry_run entries in orders.jsonl (submit_entry path not exercised or failed)"
+    elif len(mock_returns) == 0:
+        out["pass"] = False
+        out["reason"] = "no audit_dry_run_check with branch_taken=mock_return in system_events.jsonl (guard may not be working)"
     else:
         out["reason"] = "OK"
     return out
