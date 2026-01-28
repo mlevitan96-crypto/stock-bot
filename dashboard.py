@@ -727,7 +727,7 @@ DASHBOARD_HTML = """
                         </table>
                     </div>
                 </div>
-                <script>
+                <scr` + `ipt>
                 (function() {
                     function loadLedger() {
                         const check = document.getElementById('ledger-filter-check') && document.getElementById('ledger-filter-check').value;
@@ -774,7 +774,7 @@ DASHBOARD_HTML = """
                     });
                     loadLedger();
                 })();
-                </script>
+                </scr` + `ipt>
                 
                 <div class="positions-table" style="margin-bottom: 20px;">
                     <h2 style="margin-bottom: 15px;">📊 Signal Components</h2>
