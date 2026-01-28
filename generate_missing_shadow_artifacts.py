@@ -13,16 +13,17 @@ import sys
 import json
 from pathlib import Path
 
-# Inline script to run on droplet
+# Inline script to run on droplet (use TELEMETRY_DATE=YYYY-MM-DD to target a specific bundle)
 GENERATE_SCRIPT = '''python3 << 'GENERATE_EOF'
 import json
+import os
 import time
 from pathlib import Path
 from datetime import datetime, timezone
 
 def generate_missing_artifacts():
     """Generate missing shadow artifacts"""
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = os.environ.get("TELEMETRY_DATE") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     telemetry_dir = Path(f"telemetry/{today}/computed")
     telemetry_dir.mkdir(parents=True, exist_ok=True)
     
@@ -92,42 +93,70 @@ def generate_missing_artifacts():
         results["issues"].append(f"feature_family_summary: {str(e)}")
     
     # 3. live_vs_shadow_pnl.json - PnL comparison between live and shadow
+    # Dashboard expects windows["24h"].delta.pnl_usd, per_symbol[{symbol,window,live_pnl_usd,shadow_pnl_usd,delta_pnl_usd,...}]
     try:
-        # This requires shadow trading data
         live_vs_shadow = {
             "as_of_ts": datetime.now(timezone.utc).isoformat(),
             "date": today,
             "comparison_available": False,
             "note": "Live vs shadow PnL comparison requires shadow trading data",
-            "live_pnl_usd": None,
-            "shadow_pnl_usd": None,
-            "delta_pnl_usd": None,
-            "live_trade_count": None,
-            "shadow_trade_count": None
+            "windows": {
+                "24h": {"delta": {"pnl_usd": 0.0}, "pnl_usd": 0.0, "trade_count": 0},
+                "48h": {"delta": {"pnl_usd": 0.0}, "pnl_usd": 0.0, "trade_count": 0},
+                "5d": {"delta": {"pnl_usd": 0.0}, "pnl_usd": 0.0, "trade_count": 0},
+            },
+            "per_symbol": [],
         }
         
-        # Try to get live PnL from master_trade_log
+        # Optional: merge from pnl_windows.json (full extract) for live-only stats; delta remains 0 without shadow
         try:
-            master_log = Path("logs/master_trade_log.jsonl")
-            if master_log.exists():
-                live_pnl = 0.0
-                live_count = 0
-                with open(master_log, 'r') as f:
-                    for line in f:
-                        try:
-                            trade = json.loads(line)
-                            ts = trade.get("entry_ts") or trade.get("ts") or trade.get("timestamp")
-                            if ts and str(ts).startswith(today):
-                                pnl = float(trade.get("pnl_usd") or trade.get("final_pnl_usd") or 0.0)
-                                live_pnl += pnl
-                                if pnl != 0:
-                                    live_count += 1
-                        except:
-                            continue
-                live_vs_shadow["live_pnl_usd"] = live_pnl
-                live_vs_shadow["live_trade_count"] = live_count
-        except:
+            pnl_path = telemetry_dir / "pnl_windows.json"
+            if pnl_path.exists():
+                pnl_w = json.loads(pnl_path.read_text())
+                w = pnl_w.get("windows") or {}
+                for k in ("24h", "48h", "5d"):
+                    if k in w and isinstance(w[k], dict):
+                        pnl = float(w[k].get("pnl_usd") or 0.0)
+                        live_vs_shadow["windows"][k]["pnl_usd"] = pnl
+                        live_vs_shadow["windows"][k]["trade_count"] = int(w[k].get("trade_count") or 0)
+                rows = pnl_w.get("per_symbol") or []
+                for r in rows:
+                    if isinstance(r, dict) and r.get("symbol"):
+                        live_vs_shadow["per_symbol"].append({
+                            "symbol": str(r["symbol"]),
+                            "window": str(r.get("window") or "24h"),
+                            "live_pnl_usd": float(r.get("pnl_usd") or 0.0),
+                            "shadow_pnl_usd": 0.0,
+                            "delta_pnl_usd": 0.0,
+                            "live_trade_count": int(r.get("trade_count") or 0),
+                            "shadow_trade_count": 0,
+                        })
+        except Exception:
             pass
+        
+        # Fallback: live totals from master_trade_log (today only)
+        if not live_vs_shadow["per_symbol"]:
+            try:
+                master_log = Path("logs/master_trade_log.jsonl")
+                if master_log.exists():
+                    live_pnl = 0.0
+                    live_count = 0
+                    with open(master_log, 'r') as f:
+                        for line in f:
+                            try:
+                                trade = json.loads(line)
+                                ts = trade.get("entry_ts") or trade.get("ts") or trade.get("timestamp")
+                                if ts and str(ts).startswith(today):
+                                    pnl = float(trade.get("pnl_usd") or trade.get("realized_pnl_usd") or trade.get("final_pnl_usd") or 0.0)
+                                    live_pnl += pnl
+                                    live_count += 1
+                            except Exception:
+                                continue
+                    for k in ("24h", "48h", "5d"):
+                        live_vs_shadow["windows"][k]["pnl_usd"] = live_pnl
+                        live_vs_shadow["windows"][k]["trade_count"] = live_count
+            except Exception:
+                pass
         
         live_vs_shadow_path = telemetry_dir / "live_vs_shadow_pnl.json"
         with open(live_vs_shadow_path, 'w') as f:
@@ -175,10 +204,17 @@ GENERATE_EOF
 '''
 
 def main():
-    """Generate missing shadow artifacts on droplet"""
+    """Generate missing shadow artifacts on droplet. Use --date YYYY-MM-DD to target a bundle (default: today on droplet)."""
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate missing shadow artifacts on droplet")
+    parser.add_argument("--date", default=None, help="Telemetry bundle date (YYYY-MM-DD). Default: today on droplet.")
+    args = parser.parse_args()
+    
     print("=" * 80)
     print("GENERATING MISSING SHADOW ARTIFACTS ON DROPLET")
     print("=" * 80)
+    if args.date:
+        print(f"Target date: {args.date}")
     print()
     
     try:
@@ -190,10 +226,8 @@ def main():
         print("Generating missing artifacts...")
         print()
         
-        stdout, stderr, exit_code = client._execute_with_cd(
-            GENERATE_SCRIPT,
-            timeout=60
-        )
+        script = f"export TELEMETRY_DATE={args.date} && " + GENERATE_SCRIPT if args.date else GENERATE_SCRIPT
+        stdout, stderr, exit_code = client._execute_with_cd(script, timeout=60)
         
         print("=" * 80)
         print("GENERATION OUTPUT")

@@ -1026,6 +1026,11 @@ DASHBOARD_HTML = """
                 const delta24 = (w24.delta && w24.delta.pnl_usd !== undefined) ? Number(w24.delta.pnl_usd) : 0;
                 const delta48 = (w48.delta && w48.delta.pnl_usd !== undefined) ? Number(w48.delta.pnl_usd) : 0;
                 const delta5d = (w5d.delta && w5d.delta.pnl_usd !== undefined) ? Number(w5d.delta.pnl_usd) : 0;
+                const live24 = (w24.pnl_usd !== undefined) ? Number(w24.pnl_usd) : null;
+                const live48 = (w48.pnl_usd !== undefined) ? Number(w48.pnl_usd) : null;
+                const live5d = (w5d.pnl_usd !== undefined) ? Number(w5d.pnl_usd) : null;
+                const hasLive = live24 !== null || live48 !== null || live5d !== null;
+                const comparisonAvailable = !!(lvsData && lvsData.comparison_available === true);
 
                 const cls = (v) => v > 0 ? 'positive' : (v < 0 ? 'negative' : '');
 
@@ -1037,20 +1042,29 @@ DASHBOARD_HTML = """
 
                     <div class="positions-table" style="margin-bottom: 20px;">
                         <h2 style="margin-bottom: 15px;">Live vs Shadow (PnL delta)</h2>
+                        ${!comparisonAvailable && (lvsData && lvsData.note) ? `<div style="color:#64748b; font-size: 0.9em; margin-bottom: 10px;">${lvsData.note}</div>` : ''}
                         <div class="stats">
                             <div class="stat-card">
-                                <div class="stat-label">24h Δ (shadow - live)</div>
+                                <div class="stat-label">24h Δ (shadow − live)</div>
                                 <div class="stat-value ${cls(delta24)}">${fmtUsd(delta24)}</div>
                             </div>
                             <div class="stat-card">
-                                <div class="stat-label">48h Δ (shadow - live)</div>
+                                <div class="stat-label">48h Δ (shadow − live)</div>
                                 <div class="stat-value ${cls(delta48)}">${fmtUsd(delta48)}</div>
                             </div>
                             <div class="stat-card">
-                                <div class="stat-label">5d Δ (shadow - live)</div>
+                                <div class="stat-label">5d Δ (shadow − live)</div>
                                 <div class="stat-value ${cls(delta5d)}">${fmtUsd(delta5d)}</div>
                             </div>
                         </div>
+                        ${hasLive ? `
+                        <div style="margin-top: 15px;"><h3 style="margin-bottom: 10px;">Live PnL (from pnl_windows)</h3>
+                        <div class="stats">
+                            <div class="stat-card"><div class="stat-label">24h live</div><div class="stat-value ${cls(live24 || 0)}">${fmtUsd(live24 != null ? live24 : 0)}</div></div>
+                            <div class="stat-card"><div class="stat-label">48h live</div><div class="stat-value ${cls(live48 || 0)}">${fmtUsd(live48 != null ? live48 : 0)}</div></div>
+                            <div class="stat-card"><div class="stat-label">5d live</div><div class="stat-value ${cls(live5d || 0)}">${fmtUsd(live5d != null ? live5d : 0)}</div></div>
+                        </div></div>
+                        ` : ''}
                 `;
 
                 // Per-symbol table
