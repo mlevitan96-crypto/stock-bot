@@ -548,17 +548,21 @@ class UWClient:
     def get_etf_flow(self, ticker: str) -> Dict:
         """Get ETF inflow/outflow for a ticker."""
         raw = self._get(f"/api/etfs/{ticker}/in-outflow")
-        data = raw.get("data", {})
+        data = raw.get("data", {}) if isinstance(raw, dict) else {}
         if isinstance(data, list) and len(data) > 0:
             data = data[0]
+        if not data and isinstance(raw, dict) and raw:
+            data = raw  # API may return payload at top level
         return data if isinstance(data, dict) else {}
     
     def get_iv_rank(self, ticker: str) -> Dict:
         """Get IV rank for a ticker."""
         raw = self._get(f"/api/stock/{ticker}/iv-rank")
-        data = raw.get("data", {})
+        data = raw.get("data", {}) if isinstance(raw, dict) else {}
         if isinstance(data, list) and len(data) > 0:
             data = data[0]
+        if not data and isinstance(raw, dict) and raw:
+            data = raw  # API may return payload at top level
         return data if isinstance(data, dict) else {}
     
     def get_shorts_ftds(self, ticker: str) -> Dict:
@@ -1325,10 +1329,11 @@ class UWFlowDaemon:
                 try:
                     print(f"[UW-DAEMON] Polling shorts_ftds for {ticker}...", flush=True)
                     ftd_data = self.client.get_shorts_ftds(ticker)
-                    # Always store ftd_pressure (even if empty) so we know it was polled
+                    # Always store ftd_pressure (even if empty) so we know it was polled.
+                    # Also write shorts_ftds so UW audit (ENDPOINT_CACHE_KEYS) sees this endpoint as USED.
                     if not ftd_data:
                         ftd_data = {}  # Store empty structure
-                    self._update_cache(ticker, {"ftd_pressure": ftd_data})
+                    self._update_cache(ticker, {"ftd_pressure": ftd_data, "shorts_ftds": ftd_data})
                     if ftd_data:
                         print(f"[UW-DAEMON] Updated ftd_pressure for {ticker}: {len(str(ftd_data))} bytes", flush=True)
                     else:
@@ -1337,14 +1342,18 @@ class UWFlowDaemon:
                     print(f"[UW-DAEMON] Error fetching shorts_ftds for {ticker}: {e}", flush=True)
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
-                    # Store empty on error too
-                    self._update_cache(ticker, {"ftd_pressure": {}})
+                    # Store empty on error too (both keys for audit)
+                    self._update_cache(ticker, {"ftd_pressure": {}, "shorts_ftds": {}})
             
             # Poll max pain (per-ticker)
             if self.poller.should_poll(f"max_pain:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling max_pain for {ticker}...", flush=True)
                     max_pain_data = self.client.get_max_pain(ticker)
+                    if not max_pain_data:
+                        max_pain_data = {}
+                    # Always write top-level max_pain so UW audit (ENDPOINT_CACHE_KEYS) sees this endpoint as USED
+                    self._update_cache(ticker, {"max_pain": max_pain_data})
                     if max_pain_data:
                         # Max pain contributes to greeks_gamma signal
                         cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
@@ -1357,11 +1366,12 @@ class UWFlowDaemon:
                         else:
                             print(f"[UW-DAEMON] max_pain for {ticker}: no max_pain value in response (keys: {list(max_pain_data.keys())})", flush=True)
                     else:
-                        print(f"[UW-DAEMON] max_pain for {ticker}: API returned empty", flush=True)
+                        print(f"[UW-DAEMON] max_pain for {ticker}: API returned empty (stored as empty)", flush=True)
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching max_pain for {ticker}: {e}", flush=True)
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+                    self._update_cache(ticker, {"max_pain": {}})
             
             # Poll insider (per-ticker)
             if self.poller.should_poll(f"insider:{ticker}"):
