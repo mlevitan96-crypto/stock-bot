@@ -1,0 +1,342 @@
+{
+  "generated_at_utc": "2026-01-28T20:03:26.658612+00:00",
+  "tabs": [
+    {
+      "tab": "Positions",
+      "panels": [
+        {
+          "panel": "Positions stats + table",
+          "endpoints": [
+            {
+              "route": "/api/positions",
+              "method": "GET",
+              "query_params": []
+            },
+            {
+              "route": "/api/health_status",
+              "method": "GET",
+              "query_params": []
+            }
+          ],
+          "expected_schema_positions": {
+            "positions": "array",
+            "total_value": "number",
+            "unrealized_pnl": "number",
+            "day_pnl": "number"
+          },
+          "expected_schema_health_status": {
+            "last_order": "object",
+            "doctor": "object",
+            "market": "object"
+          },
+          "freshness_sla_sec": 120,
+          "evidence_sources": [
+            "Alpaca API",
+            "state/position_metadata.json",
+            "data/uw_flow_cache.json",
+            "state/bot_heartbeat.json",
+            "data/live_orders.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "tab": "Signal Review",
+      "panels": [
+        {
+          "panel": "Signal history (last 50)",
+          "endpoints": [
+            {
+              "route": "/api/signal_history",
+              "method": "GET",
+              "query_params": []
+            }
+          ],
+          "expected_schema": {
+            "signals": "array",
+            "last_signal_timestamp": "string",
+            "count": "number"
+          },
+          "freshness_sla_sec": 300,
+          "evidence_sources": [
+            "signal_history_storage",
+            "shadow_tracker"
+          ]
+        }
+      ]
+    },
+    {
+      "tab": "SRE Monitoring",
+      "panels": [
+        {
+          "panel": "SRE health + funnel + ledger",
+          "endpoints": [
+            {
+              "route": "/api/sre/health",
+              "method": "GET",
+              "query_params": []
+            },
+            {
+              "route": "/api/sre/self_heal_events",
+              "method": "GET",
+              "query_params": [
+                "limit",
+                "since",
+                "check_name",
+                "severity",
+                "auto_healed"
+              ]
+            }
+          ],
+          "expected_schema_sre_health": {
+            "overall_health": "string"
+          },
+          "_schema_note_sre_health": "market_open, health_subsystem, signal_funnel are optional; UI tolerates missing with defaults",
+          "warn_justification_sre_health": "EMPTY_DATA/sre_health_timeout acceptable: dashboard tries localhost:8081 first; on timeout falls back to local sre_monitoring. SLA 120s; reason_code SRE_FALLBACK_OK when error key present.",
+          "expected_schema_self_heal": {
+            "events": "array",
+            "count": "number"
+          },
+          "freshness_sla_sec": 120,
+          "evidence_sources": [
+            "data/health_status.json",
+            "sre_monitoring",
+            "data/self_heal_events.jsonl",
+            "logs/run.jsonl",
+            "logs/attribution.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "tab": "Executive Summary",
+      "panels": [
+        {
+          "panel": "Executive summary",
+          "endpoints": [
+            {
+              "route": "/api/executive_summary",
+              "method": "GET",
+              "query_params": []
+            }
+          ],
+          "expected_schema": {
+            "trades": "array",
+            "total_trades": "number",
+            "pnl_metrics": "object",
+            "written_summary": "string"
+          },
+          "freshness_sla_sec": 86400,
+          "sla_reason": "post-market; updated after market close",
+          "evidence_sources": [
+            "executive_summary_generator",
+            "logs/attribution.jsonl",
+            "reports"
+          ]
+        }
+      ]
+    },
+    {
+      "tab": "Natural Language Auditor (XAI)",
+      "panels": [
+        {
+          "panel": "XAI auditor",
+          "endpoints": [
+            {
+              "route": "/api/xai/auditor",
+              "method": "GET",
+              "query_params": []
+            },
+            {
+              "route": "/api/xai/export",
+              "method": "GET",
+              "query_params": []
+            }
+          ],
+          "expected_schema_auditor": {
+            "trades": "array",
+            "weights": "array"
+          },
+          "freshness_sla_sec": 600,
+          "evidence_sources": [
+            "xai/explainable_logger",
+            "data/explainable_logs.jsonl",
+            "logs/attribution.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "tab": "Trading Readiness",
+      "panels": [
+        {
+          "panel": "Failure points",
+          "endpoints": [
+            {
+              "route": "/api/failure_points",
+              "method": "GET",
+              "query_params": []
+            }
+          ],
+          "expected_schema": {
+            "readiness": "string",
+            "critical_count": "number",
+            "warning_count": "number"
+          },
+          "freshness_sla_sec": 300,
+          "evidence_sources": [
+            "failure_point_monitor"
+          ]
+        }
+      ]
+    },
+    {
+      "tab": "Telemetry",
+      "panels": [
+        {
+          "panel": "Telemetry latest index + computed + health",
+          "endpoints": [
+            {
+              "route": "/api/telemetry/latest/index",
+              "method": "GET",
+              "query_params": []
+            },
+            {
+              "route": "/api/telemetry/latest/computed",
+              "method": "GET",
+              "query_params": [
+                "name"
+              ]
+            },
+            {
+              "route": "/api/telemetry/latest/health",
+              "method": "GET",
+              "query_params": []
+            }
+          ],
+          "expected_schema_index": {
+            "latest_date": "string",
+            "computed": "array",
+            "as_of_ts": "string"
+          },
+          "expected_schema_computed": {
+            "latest_date": "string",
+            "name": "string",
+            "data": "object"
+          },
+          "expected_schema_health": {
+            "latest_date": "string",
+            "parity_health": "object",
+            "replacement_health": "object",
+            "as_of_ts": "string"
+          },
+          "freshness_sla_sec": 86400,
+          "evidence_sources": [
+            "telemetry/YYYY-MM-DD/computed/*.json",
+            "telemetry/YYYY-MM-DD/computed/live_vs_shadow_pnl.json",
+            "telemetry/YYYY-MM-DD/computed/signal_performance.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "standalone_endpoints": [
+    {
+      "route": "/api/system-events",
+      "method": "GET",
+      "query_params": [
+        "limit",
+        "subsystem",
+        "severity",
+        "symbol"
+      ],
+      "evidence_sources": [
+        "logs/system_events.jsonl"
+      ]
+    },
+    {
+      "route": "/api/regime-and-posture",
+      "method": "GET",
+      "query_params": [],
+      "evidence_sources": [
+        "state/market_context_v2.json",
+        "state/regime_posture_state.json"
+      ]
+    },
+    {
+      "route": "/api/scores/distribution",
+      "method": "GET",
+      "query_params": [
+        "symbol",
+        "lookback_hours"
+      ],
+      "evidence_sources": [
+        "telemetry.score_telemetry"
+      ]
+    },
+    {
+      "route": "/api/scores/components",
+      "method": "GET",
+      "query_params": [
+        "lookback_hours"
+      ],
+      "evidence_sources": [
+        "telemetry.score_telemetry"
+      ]
+    },
+    {
+      "route": "/api/scores/telemetry",
+      "method": "GET",
+      "query_params": [],
+      "evidence_sources": [
+        "telemetry.score_telemetry"
+      ]
+    },
+    {
+      "route": "/api/closed_positions",
+      "method": "GET",
+      "query_params": [],
+      "evidence_sources": [
+        "Alpaca API",
+        "logs/attribution.jsonl"
+      ]
+    },
+    {
+      "route": "/api/pnl/reconcile",
+      "method": "GET",
+      "query_params": [
+        "date"
+      ],
+      "evidence_sources": [
+        "Alpaca API",
+        "state/daily_start_equity.json"
+      ]
+    },
+    {
+      "route": "/health",
+      "method": "GET",
+      "query_params": [],
+      "evidence_sources": [
+        "sre_monitoring"
+      ]
+    },
+    {
+      "route": "/api/version",
+      "method": "GET",
+      "query_params": [],
+      "expected_schema_version": {
+        "service": "string",
+        "git_commit": "string",
+        "git_commit_short": "string",
+        "build_time_utc": "string",
+        "process_start_time_utc": "string",
+        "python_version": "string",
+        "cwd": "string"
+      },
+      "evidence_sources": [
+        "git rev-parse HEAD",
+        "GIT_COMMIT env"
+      ]
+    }
+  ]
+}

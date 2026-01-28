@@ -9,10 +9,21 @@ IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK.md
 import os
 import sys
 import json
+import subprocess
 import threading
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
+
+# Ensure repo root is on path so health/config import when cwd differs (e.g. systemd)
+_DASHBOARD_ROOT = Path(__file__).resolve().parent
+if str(_DASHBOARD_ROOT) not in sys.path:
+    sys.path.insert(0, str(_DASHBOARD_ROOT))
+
+# Process-start timestamps for /api/version (source of truth for build/version contract)
+_BUILD_TIME_UTC = datetime.now(timezone.utc).isoformat()
+_PROCESS_START_TIME_UTC = _BUILD_TIME_UTC
 
 # Optional env checks (non-blocking)
 _FLASK_AVAILABLE = True
@@ -416,6 +427,9 @@ DASHBOARD_HTML = """
                     .then(data => {
                         sreContent.dataset.loaded = 'true';
                         renderSREContent(data, sreContent);
+                        fetch('/api/version').then(r => r.ok ? r.json() : null).then(versionData => {
+                            renderVersionPanel(versionData, sreContent);
+                        }).catch(() => renderVersionPanel(null, sreContent));
                         // Restore scroll position after render
                         if (scrollTop > 0) {
                             requestAnimationFrame(() => {
@@ -428,6 +442,28 @@ DASHBOARD_HTML = """
                         sreContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading SRE data: ${error.message}</div>`;
                     });
             }
+        }
+        
+        function renderVersionPanel(versionData, container) {
+            let existing = document.getElementById('dashboard-version-panel');
+            if (existing) existing.remove();
+            const div = document.createElement('div');
+            div.id = 'dashboard-version-panel';
+            div.className = 'stat-card';
+            div.style.marginTop = '20px';
+            div.style.padding = '12px 16px';
+            if (!versionData) {
+                div.innerHTML = '<div style="font-weight: 600;">Dashboard Version</div><div style="color: #ef4444; font-size: 0.9em;">Version unavailable</div>';
+                div.style.borderLeft = '4px solid #ef4444';
+            } else {
+                const shortSha = versionData.git_commit_short || versionData.git_commit || '—';
+                const startTime = versionData.process_start_time_utc || '—';
+                const match = versionData.matches_expected === true;
+                const color = match ? '#10b981' : (versionData.matches_expected === false ? '#ef4444' : '#6b7280');
+                div.innerHTML = '<div style="font-weight: 600;">Dashboard Version</div><div style="font-size: 0.9em;">Commit: <code>' + shortSha + '</code></div><div style="font-size: 0.85em; color: #666;">Process start: ' + startTime + '</div>';
+                div.style.borderLeft = '4px solid ' + color;
+            }
+            container.appendChild(div);
         }
         
         function renderSREContent(data, container) {
@@ -477,8 +513,34 @@ DASHBOARD_HTML = """
             
             // Recent RCA fixes
             const recentFixes = data.recent_rca_fixes || [];
-            
-            let html = `
+            const healthSub = data.health_subsystem || {};
+            const bannerLevel = healthSub.banner_level || 'none';
+            const safeModeActive = healthSub.health_safe_mode_active;
+            const escalationsActive = healthSub.escalations_active || [];
+            const showCriticalBanner = bannerLevel === 'critical' && (safeModeActive || escalationsActive.length > 0);
+
+            let html = '';
+            if (showCriticalBanner) {
+                const firstEsc = escalationsActive[0] || {};
+                const title = safeModeActive ? 'Safe mode active' : 'Operational incident: self-healing escalated';
+                const reason = safeModeActive ? (healthSub.self_heal_reason_codes && healthSub.self_heal_reason_codes[0]) || 'decision_integrity' : (firstEsc.check_name + ' :: ' + firstEsc.reason_code);
+                const counts = firstEsc.count_6h != null ? firstEsc.count_6h + ' in 6h, ' + (firstEsc.count_24h || 0) + ' in 24h' : '';
+                const cooldownUntil = firstEsc.cooldown_until_ts ? new Date(firstEsc.cooldown_until_ts).toLocaleString() : '';
+                html += `
+                <div id="sre-critical-banner" style="width: 100%; margin: -10px -15px 20px -15px; padding: 20px 20px; background: #7f1d1d; color: #fef2f2; border-bottom: 4px solid #dc2626; font-size: 1.1em; box-sizing: border-box;">
+                    <div style="font-weight: bold; font-size: 1.3em; margin-bottom: 10px;">🛑 ${title}</div>
+                    <div style="margin-bottom: 8px;"><strong>Reason:</strong> ${reason}</div>
+                    ${counts ? '<div style="margin-bottom: 8px;"><strong>Counts:</strong> ' + counts + '</div>' : ''}
+                    ${cooldownUntil ? '<div style="margin-bottom: 8px;"><strong>Cooldown until:</strong> ' + cooldownUntil + '</div>' : ''}
+                    <div style="margin-top: 12px; display: flex; gap: 12px; flex-wrap: wrap;">
+                        <a href="#self-heal-ledger" style="padding: 8px 16px; background: #dc2626; color: white; border-radius: 6px; text-decoration: none;">Open Self-Healing Ledger</a>
+                        <a href="#self-heal-patterns" style="padding: 8px 16px; background: #b91c1c; color: white; border-radius: 6px; text-decoration: none;">Open Pattern Report</a>
+                    </div>
+                </div>
+                `;
+            }
+
+            html += `
                 <div class="stat-card" style="border: 3px solid ${healthClass === 'healthy' ? '#10b981' : healthClass === 'degraded' ? '#f59e0b' : '#ef4444'}; margin-bottom: 20px;">
                     <h2 style="color: ${healthClass === 'healthy' ? '#10b981' : healthClass === 'degraded' ? '#f59e0b' : '#ef4444'}; margin-bottom: 10px;">
                         Overall Health: ${overallHealth.toUpperCase()}
@@ -489,6 +551,13 @@ DASHBOARD_HTML = """
                     ${isStagnating ? '<p style="color: #ef4444; margin-top: 10px; font-weight: bold; font-size: 1.1em;"><strong>⚠️ STAGNATION DETECTED:</strong> ' + stagnationAlert.alerts_30m + ' alerts but ' + stagnationAlert.orders_30m + ' trades in 30min</p>' : ''}
                     ${data.critical_issues ? '<p style="color: #ef4444; margin-top: 10px;"><strong>Critical:</strong> ' + data.critical_issues.join(', ') + '</p>' : ''}
                     ${data.warnings ? '<p style="color: #f59e0b; margin-top: 10px;"><strong>Warnings:</strong> ' + data.warnings.join(', ') + '</p>' : ''}
+                    ${(data.health_subsystem && data.health_subsystem.self_heal_required) ? `
+                    <div style="margin-top: 15px; padding: 12px; background: ${data.health_subsystem.health_safe_mode_active ? '#fef2f2' : '#fffbeb'}; border: 2px solid ${data.health_subsystem.health_safe_mode_active ? '#ef4444' : '#f59e0b'}; border-radius: 8px;">
+                        <strong>${data.health_subsystem.health_safe_mode_active ? '🛑 Self-healing blocked (manual action required)' : '🔧 Self-healing invoked'}</strong>
+                        ${(data.health_subsystem.self_heal_reason_codes && data.health_subsystem.self_heal_reason_codes.length) ? '<br/><span style="font-size: 0.9em;">Reasons: ' + data.health_subsystem.self_heal_reason_codes.join(', ') + '</span>' : ''}
+                        <br/><a href="#self-heal-ledger" data-active-ids="${(data.health_subsystem.active_heal_ids || []).join(',')}" class="self-heal-ledger-link" style="font-size: 0.9em;">View Self-Healing Ledger</a>
+                    </div>
+                    ` : ''}
                 </div>
                 
                 ${funnelMetrics.alerts !== undefined ? `
@@ -606,6 +675,85 @@ DASHBOARD_HTML = """
                     </div>
                 </div>
                 ` : ''}
+                
+                <div class="positions-table" style="margin-bottom: 20px;" id="self-heal-ledger">
+                    <h2 style="margin-bottom: 15px;" id="self-heal-patterns">📋 Self-Healing Ledger</h2>
+                    <div style="margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                        <label>Check: <select id="ledger-filter-check"><option value="">All</option></select></label>
+                        <label>Severity: <select id="ledger-filter-severity"><option value="">All</option><option value="FAIL">FAIL</option><option value="WARN">WARN</option><option value="INFO">INFO</option></select></label>
+                        <label>Auto-healed: <select id="ledger-filter-auto"><option value="">All</option><option value="true">Y</option><option value="false">N</option></select></label>
+                        <label>Window: <select id="ledger-filter-window"><option value="">All</option><option value="24h">24h</option><option value="7d">7d</option></select></label>
+                        <button type="button" id="ledger-refresh" style="padding: 6px 12px;">Refresh</button>
+                    </div>
+                    <div id="ledger-summary" style="margin-bottom: 10px; padding: 10px; background: #f3f4f6; border-radius: 6px; font-size: 0.9em;"></div>
+                    <div style="overflow-x: auto;">
+                        <table id="ledger-table">
+                            <thead>
+                                <tr>
+                                    <th>Heal ID</th>
+                                    <th>Time detected</th>
+                                    <th>Check name</th>
+                                    <th>Severity</th>
+                                    <th>Issue summary</th>
+                                    <th>Remediation</th>
+                                    <th>Auto-healed</th>
+                                    <th>Verification</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ledger-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <script>
+                (function() {
+                    function loadLedger() {
+                        const check = document.getElementById('ledger-filter-check') && document.getElementById('ledger-filter-check').value;
+                        const severity = document.getElementById('ledger-filter-severity') && document.getElementById('ledger-filter-severity').value;
+                        const auto = document.getElementById('ledger-filter-auto') && document.getElementById('ledger-filter-auto').value;
+                        const window_ = document.getElementById('ledger-filter-window') && document.getElementById('ledger-filter-window').value;
+                        let url = '/api/sre/self_heal_events?limit=200';
+                        if (check) url += '&check_name=' + encodeURIComponent(check);
+                        if (severity) url += '&severity=' + encodeURIComponent(severity);
+                        if (auto !== '') url += '&auto_healed=' + (auto === 'true');
+                        if (window_) url += '&since=' + encodeURIComponent(window_);
+                        fetch(url).then(r => r.json()).then(data => {
+                            const events = data.events || [];
+                            const tbody = document.getElementById('ledger-tbody');
+                            if (!tbody) return;
+                            tbody.innerHTML = events.map(e => {
+                                const detected = e.ts_detected ? new Date(e.ts_detected).toLocaleString() : '-';
+                                const completed = e.ts_action_completed ? new Date(e.ts_action_completed) : null;
+                                const start = e.ts_detected ? new Date(e.ts_detected) : null;
+                                let duration = '-';
+                                if (completed && start) { const s = (completed - start) / 1000; duration = s < 60 ? s.toFixed(1) + 's' : (s / 60).toFixed(1) + 'm'; }
+                                const status = e.required_human_ack ? 'Escalated' : (e.verification_result === 'PASS' ? 'Resolved' : (e.verification_result === 'FAIL' ? 'Failed' : 'Pending'));
+                                return '<tr><td style="font-size:0.8em;">' + (e.heal_id || '').slice(0,8) + '</td><td>' + detected + '</td><td>' + (e.check_name || '') + '</td><td>' + (e.severity || '') + '</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="' + (e.issue_summary || '') + '">' + (e.issue_summary || '').slice(0, 60) + '</td><td>' + (e.remediation_action || '') + '</td><td>' + (e.auto_healed ? 'Y' : 'N') + '</td><td>' + (e.verification_result || '-') + '</td><td>' + duration + '</td><td>' + status + '</td></tr>';
+                            }).join('') || '<tr><td colspan="10">No events</td></tr>';
+                            const summary = document.getElementById('ledger-summary');
+                            if (summary && events.length) {
+                                const byCheck = {};
+                                events.forEach(ev => { byCheck[ev.check_name] = (byCheck[ev.check_name] || 0) + 1; });
+                                const top = Object.entries(byCheck).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                                summary.innerHTML = '<strong>Top recurring (this window):</strong> ' + top.map(([k,v]) => k + ': ' + v).join(', ');
+                            } else if (summary) summary.innerHTML = '';
+                            const sel = document.getElementById('ledger-filter-check');
+                            if (sel && sel.options.length <= 1) {
+                                const names = [...new Set((events || []).map(e => e.check_name).filter(Boolean))].sort();
+                                names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o); });
+                            }
+                        }).catch(() => { const tbody = document.getElementById('ledger-tbody'); if (tbody) tbody.innerHTML = '<tr><td colspan="10">Error loading ledger</td></tr>'; });
+                    }
+                    const refresh = document.getElementById('ledger-refresh');
+                    if (refresh) refresh.addEventListener('click', loadLedger);
+                    ['ledger-filter-check','ledger-filter-severity','ledger-filter-auto','ledger-filter-window'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.addEventListener('change', loadLedger);
+                    });
+                    loadLedger();
+                })();
+                </script>
                 
                 <div class="positions-table" style="margin-bottom: 20px;">
                     <h2 style="margin-bottom: 15px;">📊 Signal Components</h2>
@@ -960,7 +1108,8 @@ DASHBOARD_HTML = """
 
                 // Computed artifacts index + Telemetry health summary
                 html += `<div class="positions-table" style="margin-bottom: 20px;">
-                    <h2 style="margin-bottom: 15px;">Computed Artifacts</h2>`;
+                    <h2 style="margin-bottom: 15px;">Computed Artifacts</h2>
+                    <div style="color:#666; margin-bottom: 10px; font-size: 0.9em;">Built by the <strong>daily telemetry extract</strong> (e.g. 20:30 UTC). Age = time since last run. &quot;Missing&quot; = not produced for this bundle (some come from shadow/parity scripts). Live trading data (orders, positions, signals) is separate and updates in real time.</div>`;
                 if (!computedIndex || !computedIndex.length) {
                     html += `<div class="loading">No computed index available.</div>`;
                 } else {
@@ -2348,6 +2497,49 @@ def health():
             "alpaca_connected": _alpaca_api is not None
         }), 500
 
+
+@app.route("/api/version", methods=["GET"])
+def api_version():
+    """
+    Source of truth for dashboard build/version contract. Never raises; returns 503 with reason_code on error.
+    """
+    try:
+        git_commit = os.getenv("GIT_COMMIT", "").strip()
+        if not git_commit:
+            try:
+                r = subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=_DASHBOARD_ROOT,
+                    capture_output=True,
+                    text=True,
+                    timeout=2,
+                )
+                if r.returncode == 0 and r.stdout:
+                    git_commit = r.stdout.strip()
+            except Exception:
+                pass
+        git_commit_short = (git_commit[:7] if git_commit else "")
+        expected = os.getenv("EXPECTED_GIT_COMMIT", "").strip()
+        payload = {
+            "service": "stock-bot-dashboard",
+            "git_commit": git_commit,
+            "git_commit_short": git_commit_short,
+            "build_time_utc": _BUILD_TIME_UTC,
+            "process_start_time_utc": _PROCESS_START_TIME_UTC,
+            "python_version": sys.version,
+            "cwd": os.getcwd(),
+        }
+        if expected:
+            payload["matches_expected"] = git_commit == expected
+        return jsonify(payload)
+    except Exception as e:
+        return (
+            jsonify({"error": str(e), "reason_code": "version_unavailable"}),
+            503,
+            {"Content-Type": "application/json"},
+        )
+
+
 @app.route("/api/positions")
 def api_positions():
     try:
@@ -2822,6 +3014,35 @@ def _get_supervisor_health():
         pass
     return None
 
+def _merge_health_subsystem(health_dict):
+    """Merge data/health_status.json (health runner snapshot) into SRE health response."""
+    try:
+        from config.registry import CacheFiles
+        p = CacheFiles.HEALTH_STATUS
+        if p.exists() and p.stat().st_size > 0:
+            data = json.loads(p.read_text(encoding="utf-8", errors="replace"))
+            health_dict["health_subsystem"] = {
+                "overall": data.get("overall"),
+                "checks": data.get("checks"),
+                "last_remediation_attempts": data.get("last_remediation_attempts"),
+                "health_safe_mode_active": data.get("health_safe_mode_active"),
+                "self_heal_required": data.get("self_heal_required"),
+                "self_heal_reason_codes": data.get("self_heal_reason_codes", []),
+                "active_heal_ids": data.get("active_heal_ids", []),
+                "escalations_active": data.get("escalations_active", []),
+                "banner_level": data.get("banner_level", "none"),
+                "ts": data.get("ts"),
+            }
+            if data.get("overall") == "fail":
+                health_dict["overall_health"] = "critical"
+            elif data.get("health_safe_mode_active"):
+                health_dict["overall_health"] = "critical"
+            elif data.get("banner_level") == "critical":
+                health_dict["overall_health"] = "critical"
+    except Exception:
+        pass
+
+
 @app.route("/api/sre/health", methods=["GET"])
 def api_sre_health():
     """Get comprehensive SRE health data"""
@@ -2832,6 +3053,7 @@ def api_sre_health():
             resp = requests.get("http://localhost:8081/api/sre/health", timeout=2)
             if resp.status_code == 200:
                 health_data = resp.json()
+                _merge_health_subsystem(health_data)
                 # Enhance with SRE metrics and RCA fixes
                 try:
                     from sre_diagnostics import get_sre_metrics, SREDiagnostics
@@ -2910,11 +3132,105 @@ def api_sre_health():
                         "stagnation_detected": False
                     }
             
+            _merge_health_subsystem(health)
             return jsonify(health), 200
         except Exception as e:
             return jsonify({"error": f"Failed to load SRE health: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+def _read_self_heal_events_fallback(
+    path: Path,
+    since_ts: Optional[str] = None,
+    check_name: Optional[str] = None,
+    severity: Optional[str] = None,
+    auto_healed: Optional[bool] = None,
+    limit: int = 500,
+) -> list:
+    """Read self_heal_events.jsonl when health module not available (e.g. systemd cwd)."""
+    if not path.exists():
+        return []
+    raw: list = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            raw.append(json.loads(line))
+        except Exception:
+            continue
+    by_id: dict = {}
+    for rec in raw:
+        hid = rec.get("heal_id")
+        if not hid:
+            continue
+        if rec.get("_update"):
+            if hid in by_id:
+                for k, v in rec.items():
+                    if k not in ("heal_id", "_update") and v is not None:
+                        by_id[hid][k] = v
+        else:
+            by_id[hid] = dict(rec)
+    out = list(by_id.values())
+    if since_ts:
+        out = [e for e in out if (e.get("ts_detected") or "") >= since_ts]
+    if check_name:
+        out = [e for e in out if e.get("check_name") == check_name]
+    if severity:
+        out = [e for e in out if e.get("severity") == severity]
+    if auto_healed is not None:
+        out = [e for e in out if e.get("auto_healed") is auto_healed]
+    out.sort(key=lambda e: e.get("ts_detected") or "", reverse=True)
+    return out[:limit]
+
+
+@app.route("/api/sre/self_heal_events", methods=["GET"])
+def api_sre_self_heal_events():
+    """Self-healing ledger: durable, queryable events (like closed trades)."""
+    try:
+        check_name = request.args.get("check_name")
+        severity = request.args.get("severity")
+        auto_healed = request.args.get("auto_healed")
+        since = request.args.get("since")  # ISO ts or "24h" / "7d"
+        limit = request.args.get("limit", 200, type=int)
+        if auto_healed is not None:
+            auto_healed = auto_healed.lower() in ("1", "true", "yes", "y")
+        since_ts = None
+        if since:
+            from datetime import datetime, timezone, timedelta
+            if since == "24h":
+                since_ts = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+            elif since == "7d":
+                since_ts = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            else:
+                since_ts = since
+        events_path = _DASHBOARD_ROOT / "data" / "self_heal_events.jsonl"
+        try:
+            from config.registry import CacheFiles
+            from health.self_heal_events import read_self_heal_events
+            events_path = CacheFiles.SELF_HEAL_EVENTS
+            events = read_self_heal_events(
+                path=events_path,
+                since_ts=since_ts,
+                check_name=check_name or None,
+                severity=severity or None,
+                auto_healed=auto_healed,
+                limit=limit,
+            )
+        except ImportError:
+            events = _read_self_heal_events_fallback(
+                events_path,
+                since_ts=since_ts,
+                check_name=check_name or None,
+                severity=severity or None,
+                auto_healed=auto_healed,
+                limit=limit,
+            )
+        return jsonify({"events": events, "count": len(events)}), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "events": []}), 500
+
 
 def _calculate_signal_funnel():
     """Calculate Signal Funnel metrics: [UW Alerts] -> [Parsed] -> [Scored > 3.0] -> [Orders]"""
