@@ -233,6 +233,24 @@ DASHBOARD_HTML = """
         .loading { text-align: center; padding: 40px; color: #666; }
         .no-positions { text-align: center; padding: 40px; color: #666; }
         .health-ok { color: #10b981; }
+        /* Version badge - fixed top-right */
+        .version-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .version-badge.ok { background: #d1fae5; color: #065f46; border-color: #10b981; }
+        .version-badge.mismatch { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
+        .version-badge.unknown { background: #f3f4f6; color: #6b7280; border-color: #9ca3af; }
+        .version-badge:hover { opacity: 0.85; transform: scale(1.02); }
+        .header { position: relative; }
         .tabs {
             display: flex;
             gap: 10px;
@@ -274,6 +292,9 @@ DASHBOARD_HTML = """
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
             <p class="update-info">Auto-refresh: 60 seconds | Last update: <span id="last-update">-</span> | Last Signal: <span id="last-signal">-</span></p>
+            <div id="version-badge" class="version-badge unknown" onclick="switchTab('sre', event); setTimeout(function(){document.getElementById('dashboard-version-panel')?.scrollIntoView({behavior:'smooth'});}, 300);" title="Loading version...">
+                Dashboard v...
+            </div>
         </div>
         
         <div class="tabs">
@@ -2118,6 +2139,53 @@ DASHBOARD_HTML = """
                 console.error('Error fetching health status:', error);
             });
         }
+        
+        // Fetch version badge once on page load (no polling)
+        function loadVersionBadge() {
+            fetch('/api/version')
+                .then(response => response.ok ? response.json() : null)
+                .then(data => {
+                    const badge = document.getElementById('version-badge');
+                    if (!badge) return;
+                    if (!data) {
+                        badge.textContent = 'Dashboard v???';
+                        badge.className = 'version-badge mismatch';
+                        badge.title = 'Version unavailable';
+                        return;
+                    }
+                    const shortSha = data.git_commit_short || (data.git_commit || '').substring(0, 7) || '???';
+                    badge.textContent = 'Dashboard v' + shortSha;
+                    // Determine badge color based on matches_expected
+                    if (data.matches_expected === true) {
+                        badge.className = 'version-badge ok';
+                    } else if (data.matches_expected === false) {
+                        badge.className = 'version-badge mismatch';
+                    } else {
+                        badge.className = 'version-badge unknown';
+                    }
+                    // Build tooltip
+                    const lines = [
+                        'Full SHA: ' + (data.git_commit || 'unknown'),
+                        'Process start: ' + (data.process_start_time_utc || 'unknown'),
+                        'Build time: ' + (data.build_time_utc || 'unknown'),
+                    ];
+                    if (data.matches_expected === true) {
+                        lines.push('Status: OK (matches expected)');
+                    } else if (data.matches_expected === false) {
+                        lines.push('Status: MISMATCH (process drift)');
+                    }
+                    badge.title = lines.join('\\n');
+                })
+                .catch(() => {
+                    const badge = document.getElementById('version-badge');
+                    if (badge) {
+                        badge.textContent = 'Dashboard v???';
+                        badge.className = 'version-badge mismatch';
+                        badge.title = 'Version fetch failed';
+                    }
+                });
+        }
+        loadVersionBadge();
         
         updateDashboard();
         updateLastSignalTimestamp();  // Initial load

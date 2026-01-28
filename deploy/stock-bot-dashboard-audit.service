@@ -1,0 +1,22 @@
+# stock-bot-dashboard-audit.service
+# Nightly dashboard endpoint audit. Does NOT deploy or restart services.
+# Install: sudo cp /root/stock-bot/deploy/stock-bot-dashboard-audit.* /etc/systemd/system/
+#         sudo systemctl daemon-reload && sudo systemctl enable stock-bot-dashboard-audit.timer && sudo systemctl start stock-bot-dashboard-audit.timer
+
+[Unit]
+Description=STOCK-BOT Dashboard Endpoint Audit (nightly)
+After=network-online.target stock-bot-dashboard.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/stock-bot
+EnvironmentFile=-/root/stock-bot/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=DASHBOARD_AUDIT_ARCHIVE=1
+ExecStart=/usr/bin/python3 /root/stock-bot/scripts/dashboard_audit_local.py
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
