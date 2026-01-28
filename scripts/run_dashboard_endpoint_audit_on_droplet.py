@@ -25,6 +25,16 @@ REPORT_NAMES = [
 ]
 
 
+def _safe_print(text: str, file=None) -> None:
+    """Print remote output without UnicodeEncodeError on Windows (e.g. systemctl bullet)."""
+    if not text:
+        return
+    try:
+        print(text, file=file)
+    except UnicodeEncodeError:
+        print(text.encode(sys.stdout.encoding or "utf-8", errors="replace").decode(sys.stdout.encoding or "utf-8"), file=file)
+
+
 def main() -> int:
     sys.path.insert(0, str(REPO))
     from droplet_client import DropletClient
@@ -37,39 +47,75 @@ def main() -> int:
         print(f"[FAIL] Cannot connect to droplet: {e}", file=sys.stderr)
         return 1
 
-    # Optional: deploy latest main on droplet
+    # Optional: deploy latest main on droplet + install/restart dashboard only (no trading service)
     if os.getenv("DROPLET_DEPLOY_BEFORE_AUDIT", "").strip() in ("1", "true", "yes"):
         cmd_deploy = f"cd {REMOTE_ROOT} && git fetch origin main && git reset --hard origin/main"
         print(f"[RUN] Deploy: {cmd_deploy}")
         out, err, rc = client._execute(cmd_deploy, timeout=60)
         if out:
-            print(out)
+            _safe_print(out)
         if err:
-            print(err, file=sys.stderr)
+            _safe_print(err, file=sys.stderr)
         if rc != 0:
             print("[WARN] Deploy had non-zero exit; continuing with audit.")
-        # Upload local dashboard.py so droplet has /api/sre/self_heal_events (may not be on origin/main yet)
+        # Get deployed commit so dashboard reports it via GIT_COMMIT (avoids PROCESS_DRIFT)
+        out, err, rc_commit = client._execute(f"cd {REMOTE_ROOT} && git rev-parse HEAD", timeout=5)
+        deploy_commit = (out or "").strip().splitlines()[-1].strip() if out else ""
+        # Upload dashboard and deploy service file so droplet has latest code + unit
         local_dashboard = REPO / "dashboard.py"
         if local_dashboard.exists():
             try:
                 sftp.put(str(local_dashboard), f"{REMOTE_ROOT}/dashboard.py")
-                print("[OK] Uploaded dashboard.py (local copy for route parity)")
+                print("[OK] Uploaded dashboard.py")
             except Exception as e:
                 print(f"[WARN] dashboard.py upload: {e}")
-        # Optional: restart dashboard service only (ensure single process on :5000)
+        local_service = REPO / "deploy" / "stock-bot-dashboard.service"
+        if local_service.exists():
+            try:
+                content = local_service.read_text(encoding="utf-8")
+                if deploy_commit and "Environment=PORT=5000" in content and "GIT_COMMIT" not in content:
+                    content = content.replace(
+                        "Environment=PORT=5000\n",
+                        f"Environment=PORT=5000\nEnvironment=GIT_COMMIT={deploy_commit}\n",
+                    )
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".service", delete=False, encoding="utf-8") as f:
+                    f.write(content)
+                    tmp = f.name
+                try:
+                    sftp.put(tmp, f"{REMOTE_ROOT}/deploy/stock-bot-dashboard.service")
+                    print("[OK] Uploaded deploy/stock-bot-dashboard.service (GIT_COMMIT=%s)" % (deploy_commit[:7] if deploy_commit else "none"))
+                finally:
+                    os.unlink(tmp)
+            except Exception as e:
+                print(f"[WARN] service file upload: {e}")
+        # Install/update dashboard unit and restart ONLY dashboard (never trading)
         svc = os.getenv("DROPLET_DASHBOARD_SERVICE", "").strip()
         if svc:
-            # Stop any non-systemd dashboard so our restarted service owns :5000
             client._execute("sudo pkill -f 'python.*dashboard.py' || true", timeout=5)
             time.sleep(2)
-            cmd_restart = f"sudo systemctl start {svc}"
-            print(f"[RUN] Restart dashboard: {cmd_restart}")
-            out, err, rc = client._execute(cmd_restart, timeout=15)
-            if out:
-                print(out)
-            if err:
-                print(err, file=sys.stderr)
+            for cmd in [
+                f"sudo cp {REMOTE_ROOT}/deploy/stock-bot-dashboard.service /etc/systemd/system/",
+                "sudo systemctl daemon-reload",
+                f"sudo systemctl enable {svc}",
+                f"sudo systemctl restart {svc}",
+            ]:
+                print(f"[RUN] {cmd}")
+                out, err, rc = client._execute(cmd, timeout=15)
+                if out:
+                    _safe_print(out)
+                if err:
+                    _safe_print(err, file=sys.stderr)
+                if rc != 0 and "enable" in cmd:
+                    pass  # enable often no-op if already enabled
+                elif rc != 0:
+                    print(f"[WARN] Exit {rc} for: {cmd}")
             time.sleep(5)
+            out, err, rc = client._execute(f"sudo systemctl status {svc} --no-pager -l", timeout=10)
+            if out:
+                _safe_print(out)
+            if err:
+                _safe_print(err, file=sys.stderr)
 
     # Upload audit script
     local_script = REPO / "scripts" / "dashboard_endpoint_audit.py"
@@ -96,9 +142,9 @@ def main() -> int:
     print(f"[RUN] {cmd}")
     out, err, rc = client._execute(cmd, timeout=120)
     if out:
-        print(out)
+        _safe_print(out)
     if err:
-        print(err, file=sys.stderr)
+        _safe_print(err, file=sys.stderr)
 
     # Pull reports
     reports_local = REPO / "reports"

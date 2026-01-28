@@ -2506,18 +2506,20 @@ def api_version():
     try:
         git_commit = os.getenv("GIT_COMMIT", "").strip()
         if not git_commit:
-            try:
-                r = subprocess.run(
-                    ["git", "rev-parse", "HEAD"],
-                    cwd=_DASHBOARD_ROOT,
-                    capture_output=True,
-                    text=True,
-                    timeout=2,
-                )
-                if r.returncode == 0 and r.stdout:
-                    git_commit = r.stdout.strip()
-            except Exception:
-                pass
+            for git_cmd in ("git", "/usr/bin/git"):
+                try:
+                    r = subprocess.run(
+                        [git_cmd, "rev-parse", "HEAD"],
+                        cwd=_DASHBOARD_ROOT,
+                        capture_output=True,
+                        text=True,
+                        timeout=2,
+                    )
+                    if r.returncode == 0 and r.stdout:
+                        git_commit = r.stdout.strip()
+                        break
+                except Exception:
+                    continue
         git_commit_short = (git_commit[:7] if git_commit else "")
         expected = os.getenv("EXPECTED_GIT_COMMIT", "").strip()
         payload = {

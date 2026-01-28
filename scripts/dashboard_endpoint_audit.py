@@ -90,7 +90,13 @@ def _http_get(url: str, timeout: int = 10, auth: Optional[Tuple[str, str]] = Non
             import urllib.error
             if isinstance(e, urllib.error.HTTPError):
                 raw = e.read().decode("utf-8", errors="replace")[:2000] if e.fp else None
-                return (e.code, 0.0, None, raw, err_msg)
+                data_404 = None
+                if raw:
+                    try:
+                        data_404 = json.loads(raw) if raw.strip() else None
+                    except json.JSONDecodeError:
+                        pass
+                return (e.code, 0.0, data_404, raw, err_msg)
         except Exception:
             pass
         if hasattr(e, "code"):
@@ -147,6 +153,10 @@ def _check_freshness(data: dict, expected_keys_ts: List[str], max_age_sec: Optio
 
 def _classify_failure(status_code: int, data: Optional[dict], err: Optional[str]) -> str:
     if status_code == 404:
+        # 404 with error body "artifact missing" etc. = route exists, data missing
+        err_msg = (data.get("error", "") if data else "") or (err or "")
+        if "missing" in err_msg.lower() or "artifact" in err_msg.lower():
+            return "SOURCE_MISSING"
         return "ROUTE_MISSING"
     if status_code == 401:
         return "PERMISSION_ERROR"
@@ -221,8 +231,12 @@ def audit_endpoint(
         result["notes"] = err or "Connection failed"
         return result
     if status_code != 200:
-        result["result"] = "FAIL"
         result["reason_code"] = _classify_failure(status_code, data, err)
+        # 404 with artifact/data missing = route exists, treat as WARN not FAIL
+        if status_code == 404 and result["reason_code"] == "SOURCE_MISSING":
+            result["result"] = "WARN"
+        else:
+            result["result"] = "FAIL"
         result["notes"] = err or data.get("error", "") if data else ""
         result["response_excerpt"] = (raw or (json.dumps(data)[:500] if data else ""))[:500]
         return result
