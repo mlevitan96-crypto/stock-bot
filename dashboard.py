@@ -294,7 +294,7 @@ DASHBOARD_HTML = """
             <p>Live position monitoring with real-time P&L updates</p>
             <p class="update-info">Auto-refresh: 60 seconds | Last update: <span id="last-update">-</span> | Last Signal: <span id="last-signal">-</span></p>
             <p id="dashboard-diagnostic" style="font-size:0.75em;color:#6b7280;margin-top:4px;display:none;">If version and data stay loading: open DevTools (F12) → Console and Network; refresh page and log in again.</p>
-            <div id="version-badge" class="version-badge unknown" onclick="switchTab('sre', event); setTimeout(function(){document.getElementById('dashboard-version-panel')?.scrollIntoView({behavior:'smooth'});}, 300);" title="Loading version...">
+            <div id="version-badge" class="version-badge unknown" onclick="switchTab('sre', event); setTimeout(function(){var p=document.getElementById('dashboard-version-panel');if(p)p.scrollIntoView({behavior:'smooth'});}, 300);" title="Loading version...">
                 Dashboard v...
             </div>
         </div>
@@ -388,7 +388,24 @@ DASHBOARD_HTML = """
             </div>
         </div>
     </div>
-    
+    <script>
+    (function(){/* Minimal tab switch so tabs always work even if main script fails */
+    window.switchTab=function(tabName,event){
+    var t=document.querySelectorAll('.tab');for(var i=0;i<t.length;i++)t[i].classList.remove('active');
+    if(event&&event.target)event.target.classList.add('active');
+    var c=document.querySelectorAll('.tab-content');for(var i=0;i<c.length;i++)c[i].classList.remove('active');
+    var el=document.getElementById(tabName+'-tab');if(el)el.classList.add('active');
+    if(typeof loadSREContent==='function'&&tabName==='sre')loadSREContent();
+    else if(typeof loadExecutiveSummary==='function'&&tabName==='executive')loadExecutiveSummary();
+    else if(typeof loadXAIAuditor==='function'&&tabName==='xai')loadXAIAuditor();
+    else if(typeof loadFailurePoints==='function'&&tabName==='failure_points')loadFailurePoints();
+    else if(typeof loadSignalReview==='function'&&tabName==='signal_review')loadSignalReview();
+    else if(typeof loadTelemetryContent==='function'&&tabName==='telemetry')loadTelemetryContent();
+    else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
+    };
+    try{document.body.setAttribute('data-js','1');}catch(e){}
+    })();
+    </script>
     <script>
         function switchTab(tabName, event) {
             // Update tab buttons
@@ -2463,28 +2480,27 @@ DASHBOARD_HTML = """
                     }
                 });
         }
-        // Boot marker so we know script ran; show diagnostic if things hang
-        try {
-            document.body.setAttribute('data-dashboard-js', 'ok');
-            setTimeout(function() {
-                var vb = document.getElementById('version-badge');
-                if (vb && vb.textContent === 'Dashboard v...') {
-                    document.getElementById('dashboard-diagnostic').style.display = 'block';
-                }
-            }, 12000);
-        } catch (e) {}
-        try { loadVersionBadge(); } catch (e) {
-            var b = document.getElementById('version-badge');
-            if (b) { b.textContent = 'Dashboard v???'; b.title = 'JS error: ' + (e.message || e); }
-        }
-        try { updateDashboard(); } catch (e) {
-            var pc = document.getElementById('positions-content');
-            if (pc) pc.innerHTML = '<p class="no-positions">Startup error: ' + (e.message || e) + '. Check console (F12).</p>';
-        }
-        try { updateLastSignalTimestamp(); } catch (e) {}
-        // Refresh less frequently to reduce flicker and improve UX
-        setInterval(updateDashboard, 60000);  // 60 seconds instead of 10
-        setInterval(updateLastSignalTimestamp, 30000);  // Update last signal every 30 seconds
+        try { document.body.setAttribute('data-dashboard-js', 'ok'); } catch (e) {}
+        setTimeout(function() {
+            try { loadVersionBadge(); } catch (e) {
+                var b = document.getElementById('version-badge');
+                if (b) { b.textContent = 'Dashboard v???'; b.title = 'JS error: ' + (e.message || e); }
+            }
+            try { updateDashboard(); } catch (e) {
+                var pc = document.getElementById('positions-content');
+                if (pc) pc.innerHTML = '<p class="no-positions">Startup error: ' + (e.message || e) + '. Check console (F12).</p>';
+            }
+            try { updateLastSignalTimestamp(); } catch (e) {}
+        }, 0);
+        setTimeout(function() {
+            var vb = document.getElementById('version-badge');
+            if (vb && vb.textContent === 'Dashboard v...') {
+                var d = document.getElementById('dashboard-diagnostic');
+                if (d) d.style.display = 'block';
+            }
+        }, 12000);
+        setInterval(function() { try { updateDashboard(); } catch (e) {} }, 60000);
+        setInterval(function() { try { updateLastSignalTimestamp(); } catch (e) {} }, 30000);
     </script>
 </body>
 </html>
