@@ -40,16 +40,22 @@ def deploy_dashboard():
             return False
         print()
         
-        # Step 2: Pull latest code
-        print("[2/6] Pulling latest code from GitHub...")
-        result = client.git_pull()
-        if result.get("success"):
-            print("[OK] Code pulled successfully")
-            if result.get("output"):
-                output = result["output"][:200]
-                print(f"   {output}")
+        # Step 2: Deploy latest code (fetch + reset, per Memory Bank 6.1 / run_full_deploy)
+        print("[2/6] Deploying latest code from GitHub (fetch + reset)...")
+        out, err, rc = client._execute(
+            "cd /root/stock-bot && git fetch origin main && git reset --hard origin/main",
+            timeout=60,
+        )
+        if rc == 0:
+            print("[OK] Code deployed successfully")
+            if out:
+                print(f"   {out.strip()[:200]}")
         else:
-            print(f"[ERROR] Git pull failed: {result.get('error', 'Unknown error')}")
+            print(f"[ERROR] Git deploy failed (rc={rc})")
+            if err:
+                print(f"   {err.strip()[:300]}")
+            if out:
+                print(f"   stdout: {out.strip()[:200]}")
             return False
         print()
         
@@ -79,15 +85,14 @@ def deploy_dashboard():
             print("[INFO] Dashboard process not found (may be under systemd/supervisor)")
         print()
         
-        # Step 5: Restart dashboard
+        # Step 5: Restart dashboard (Memory Bank 6.6: stock-bot-dashboard or nohup)
         print("[5/6] Restarting dashboard...")
-        # Try killing dashboard first (supervisor will restart)
-        stdout, stderr, exit_code = client._execute("pkill -f 'python.*dashboard.py' || true")
-        print("   Killed dashboard process (supervisor will restart)")
-        
-        # Also try systemd restart
-        stdout, stderr, exit_code = client._execute("systemctl restart trading-bot.service || true")
-        print("   Restarted via systemd")
+        client._execute("pkill -f 'python.*dashboard.py' || true")
+        out, _, rc = client._execute("sudo systemctl restart stock-bot-dashboard", timeout=15)
+        if rc != 0:
+            # Fallback: start manually (Memory Bank 6.6 verified)
+            client._execute("bash -lc 'cd /root/stock-bot && nohup python3 dashboard.py > logs/dashboard.log 2>&1 &'", timeout=10)
+        print("   Dashboard restart triggered")
         
         import time
         print("   Waiting 5 seconds for restart...")
