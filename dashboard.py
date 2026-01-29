@@ -18,6 +18,7 @@ from typing import Optional
 
 # Ensure repo root is on path so health/config import when cwd differs (e.g. systemd)
 _DASHBOARD_ROOT = Path(__file__).resolve().parent
+TELEMETRY_ROOT = _DASHBOARD_ROOT / "telemetry"
 if str(_DASHBOARD_ROOT) not in sys.path:
     sys.path.insert(0, str(_DASHBOARD_ROOT))
 
@@ -446,11 +447,21 @@ DASHBOARD_HTML = """
                 fetch('/api/sre/health')
                     .then(response => response.json())
                     .then(data => {
+                        return Promise.all([
+                            Promise.resolve(data),
+                            fetch('/api/telemetry/latest/computed?name=bar_health_summary').then(r => r.ok ? r.json() : {}).catch(() => ({}))
+                        ]);
+                    })
+                    .then(([data, barHealthResp]) => {
+                        const barHealth = (barHealthResp && barHealthResp.data) ? barHealthResp.data : null;
                         sreContent.dataset.loaded = 'true';
-                        renderSREContent(data, sreContent);
+                        renderSREContent(data, sreContent, barHealth);
                         fetch('/api/version').then(r => r.ok ? r.json() : null).then(versionData => {
                             renderVersionPanel(versionData, sreContent);
                         }).catch(() => renderVersionPanel(null, sreContent));
+                        fetch('/api/versions').then(r => r.ok ? r.json() : {}).then(versionsData => {
+                            renderVersionParityPanel(versionsData, sreContent);
+                        }).catch(() => renderVersionParityPanel({}, sreContent));
                         // Restore scroll position after render
                         if (scrollTop > 0) {
                             requestAnimationFrame(() => {
@@ -487,7 +498,45 @@ DASHBOARD_HTML = """
             container.appendChild(div);
         }
         
-        function renderSREContent(data, container) {
+        function renderVersionParityPanel(versionsData, container) {
+            let existing = document.getElementById('version-parity-panel');
+            if (existing) existing.remove();
+            const div = document.createElement('div');
+            div.id = 'version-parity-panel';
+            div.className = 'stat-card';
+            div.style.marginTop = '20px';
+            div.style.padding = '12px 16px';
+            div.style.borderLeft = '4px solid #6b7280';
+            const live = versionsData.live || {};
+            const paper = versionsData.paper || {};
+            const shadow = versionsData.shadow || {};
+            const lv = live.version || '—';
+            const lc = (live.commit && live.commit.substring(0, 7)) || '—';
+            const pv = paper.version || '—';
+            const pc = (paper.commit && paper.commit.substring(0, 7)) || '—';
+            const sv = shadow.version || '—';
+            const sc = (shadow.commit && shadow.commit.substring(0, 7)) || '—';
+            const sameCommit = lc !== '—' && lc === pc && pc === sc;
+            const sameVersion = lv === pv && pv === sv && lv !== '—';
+            const parity = sameCommit || sameVersion;
+            if (parity) {
+                div.style.borderLeftColor = '#10b981';
+            }
+            let html = '<div style="font-weight: 600;">Version Parity</div>';
+            html += '<table style="width:100%; font-size: 0.9em; margin-top: 8px;"><tr><th>Mode</th><th>Version</th><th>Commit</th></tr>';
+            html += '<tr><td>live</td><td><code>' + lv + '</code></td><td><code>' + lc + '</code></td></tr>';
+            html += '<tr><td>paper</td><td><code>' + pv + '</code></td><td><code>' + pc + '</code></td></tr>';
+            html += '<tr><td>shadow</td><td><code>' + sv + '</code></td><td><code>' + sc + '</code></td></tr></table>';
+            if (parity) {
+                html += '<div style="margin-top: 10px; color: #065f46; font-weight: 600;">PROMOTED TO LATEST</div>';
+            } else if (lc !== '—' || pc !== '—' || sc !== '—') {
+                html += '<div style="margin-top: 10px; color: #92400e; font-size: 0.9em;">Mismatch — run promote_all_to_latest.py to align</div>';
+            }
+            div.innerHTML = html;
+            container.appendChild(div);
+        }
+        
+        function renderSREContent(data, container, barHealth) {
             // NEVER show 'unknown' - default to 'degraded' if not set
             const overallHealth = (data.overall_health && data.overall_health !== 'unknown') ? data.overall_health : 'degraded';
             const healthClass = overallHealth === 'healthy' ? 'healthy' : 
@@ -658,6 +707,39 @@ DASHBOARD_HTML = """
                         ` : ''}
                     </div>
                 </div>
+                
+                ${barHealth && (barHealth.total_symbols !== undefined || barHealth.missing_list) ? (function() {
+                    const total = barHealth.total_symbols || 0;
+                    const withBars = barHealth.symbols_with_bars || 0;
+                    const missingBars = barHealth.symbols_missing_bars || 0;
+                    const pctMissing = barHealth.percent_missing || (total ? (missingBars / total * 100) : 0);
+                    const missingList = barHealth.missing_list || [];
+                    const details = barHealth.details || {};
+                    const warnHighMissing = total > 0 && pctMissing > 20;
+                    let rows = '';
+                    const symbols = Object.keys(details).length ? Object.keys(details).sort() : missingList.slice();
+                    symbols.forEach(sym => {
+                        const d = details[sym] || {};
+                        const status = d.status || (missingList.indexOf(sym) >= 0 ? 'MISSING' : 'OK');
+                        const count = d.count != null ? d.count : (status === 'OK' ? '—' : '0');
+                        const color = status === 'OK' ? '#10b981' : '#ef4444';
+                        rows += '<tr><td>' + sym + '</td><td style="color:' + color + '; font-weight: bold;">' + status + '</td><td>' + count + '</td></tr>';
+                    });
+                    if (!rows && missingList.length) missingList.forEach(sym => { rows += '<tr><td>' + sym + '</td><td style="color:#ef4444; font-weight: bold;">MISSING</td><td>0</td></tr>'; });
+                    return `
+                <div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">📊 Bar Health (Alpaca 1m bars)</h2>
+                    ${warnHighMissing ? '<div style="padding: 12px; background: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; margin-bottom: 12px; color: #991b1b;"><strong>⚠️ &gt;20% symbols missing bars.</strong> Counterfactuals and exit attribution may be incomplete.</div>' : ''}
+                    <div style="margin-bottom: 10px;">${withBars} / ${total} symbols have 1m bars · ${missingBars} missing (${pctMissing.toFixed(1)}%)</div>
+                    <div style="overflow-x: auto;">
+                        <table style="width:100%; font-size: 0.9em;">
+                            <thead><tr><th>Symbol</th><th>Status</th><th>Count</th></tr></thead>
+                            <tbody>${rows || '<tr><td colspan="3">No symbol data</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
+                    `;
+                })() : ''}
                 
                 ${recentFixes.length > 0 ? `
                 <div class="positions-table" style="margin-bottom: 20px;">
@@ -977,12 +1059,18 @@ DASHBOARD_HTML = """
             if (!container) return;
 
             try {
-                const [idx, lvs, sp, swr, health] = await Promise.all([
+                const [idx, lvs, sp, swr, health, blockedCf, exitQual, sigProf, gateProf, intelRec, paperIntel] = await Promise.all([
                     fetch('/api/telemetry/latest/index').then(r => r.json()),
                     fetch('/api/telemetry/latest/computed?name=live_vs_shadow_pnl').then(r => r.json()),
                     fetch('/api/telemetry/latest/computed?name=signal_performance').then(r => r.json()),
                     fetch('/api/telemetry/latest/computed?name=signal_weight_recommendations').then(r => r.json()),
                     fetch('/api/telemetry/latest/health').then(r => r.json()),
+                    fetch('/api/telemetry/latest/computed?name=blocked_counterfactuals_summary').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/telemetry/latest/computed?name=exit_quality_summary').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/telemetry/latest/computed?name=signal_profitability').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/telemetry/latest/computed?name=gate_profitability').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/telemetry/latest/computed?name=intelligence_recommendations').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/paper-mode-intel-state').then(r => r.ok ? r.json() : {}).catch(() => ({})),
                 ]);
 
                 if (idx && idx.error) {
@@ -992,10 +1080,17 @@ DASHBOARD_HTML = """
 
                 const latestDate = (idx && idx.latest_date) ? idx.latest_date : (health && health.latest_date) ? health.latest_date : '-';
                 const computedIndex = (idx && idx.computed) ? idx.computed : (health && health.computed_index && health.computed_index.computed) ? health.computed_index.computed : [];
+                const noBundleMessage = (idx && idx.message) ? idx.message : (health && health.message) ? health.message : null;
 
                 const lvsData = (lvs && lvs.data) ? lvs.data : {};
                 const spData = (sp && sp.data) ? sp.data : {};
                 const swrData = (swr && swr.data) ? swr.data : {};
+                const blockedCfData = (blockedCf && blockedCf.data) ? blockedCf.data : {};
+                const exitQualData = (exitQual && exitQual.data) ? exitQual.data : {};
+                const sigProfData = (sigProf && sigProf.data) ? sigProf.data : {};
+                const gateProfData = (gateProf && gateProf.data) ? gateProf.data : {};
+                const intelRecData = (intelRec && intelRec.data) ? intelRec.data : {};
+                const paperIntelData = paperIntel && !paperIntel.error ? paperIntel : {};
 
                 const parity = (health && health.parity_health) ? health.parity_health : {};
                 const repl = (health && health.replacement_health) ? health.replacement_health : {};
@@ -1037,6 +1132,7 @@ DASHBOARD_HTML = """
                 let html = `
                     <div class="positions-table" style="margin-bottom: 20px;">
                         <h2 style="margin-bottom: 15px;">📦 Telemetry (latest bundle: ${latestDate})</h2>
+                        ${noBundleMessage ? `<div style="padding: 12px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; margin-bottom: 12px; color: #92400e;">${noBundleMessage}</div>` : ''}
                         <div style="color:#666;">These panels read from telemetry/${latestDate}/computed/*.json (read-only).</div>
                     </div>
 
@@ -1092,6 +1188,125 @@ DASHBOARD_HTML = """
                     html += `<div style="color:#666;margin-top:10px;">No per-symbol rows available.</div>`;
                 }
                 html += `</div>`;
+
+                // Blocked Opportunity panel (read-only)
+                const perReason = (blockedCfData && blockedCfData.per_blocked_reason) ? blockedCfData.per_blocked_reason : {};
+                const topSymbolsCf = (blockedCfData && Array.isArray(blockedCfData.top_symbols_by_counterfactual_pnl_30m)) ? blockedCfData.top_symbols_by_counterfactual_pnl_30m : [];
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Blocked Opportunity</h2>
+                    <div style="color:#666;">Blocked trade_intent counterfactuals (read-only; does not change behavior).</div>`;
+                if (!Object.keys(perReason).length) {
+                    html += `<div class="loading">No blocked counterfactuals summary available. Run blocked_counterfactuals_build_today.py.</div>`;
+                } else {
+                    html += `<table><thead><tr><th>Blocked reason</th><th>Count</th><th>Avg CF PnL (30m)</th><th>% would win (30m)</th></tr></thead><tbody>`;
+                    for (const [reason, v] of Object.entries(perReason)) {
+                        const avg = (v && v.avg_counterfactual_pnl_30m != null) ? v.avg_counterfactual_pnl_30m : null;
+                        const pct = (v && v.pct_would_win_30m != null) ? v.pct_would_win_30m : null;
+                        html += `<tr><td class="symbol">${reason}</td><td>${(v && v.count) != null ? v.count : ''}</td><td class="${cls(avg)}">${avg != null ? fmtUsd(avg) : 'N/A'}</td><td>${pct != null ? pct + '%' : 'N/A'}</td></tr>`;
+                    }
+                    html += `</tbody></table>`;
+                    if (topSymbolsCf.length) {
+                        html += `<h3 style="margin-top: 12px;">Top symbols by counterfactual PnL (30m)</h3><table><thead><tr><th>Symbol</th><th>Count</th><th>CF PnL sum (30m)</th></tr></thead><tbody>`;
+                        for (const r of topSymbolsCf.slice(0, 15)) {
+                            const pnl = Number(r.pnl_sum_30m || 0);
+                            html += `<tr><td class="symbol">${r.symbol || ''}</td><td>${Number(r.count || 0)}</td><td class="${cls(pnl)}">${fmtUsd(pnl)}</td></tr>`;
+                        }
+                        html += `</tbody></table>`;
+                    }
+                }
+                html += `</div>`;
+
+                // Exit Quality panel
+                const perExitReason = (exitQualData && exitQualData.per_exit_reason) ? exitQualData.per_exit_reason : {};
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Exit Quality</h2>
+                    <div style="color:#666;">Exit reason performance and left-on-table (read-only).</div>`;
+                if (!Object.keys(perExitReason).length) {
+                    html += `<div class="loading">No exit quality summary available. Run exit_attribution_build_today.py.</div>`;
+                } else {
+                    html += `<table><thead><tr><th>Exit reason</th><th>Count</th><th>Avg PnL</th><th>Left on table (avg)</th><th>Avg time in trade (min)</th></tr></thead><tbody>`;
+                    for (const [reason, v] of Object.entries(perExitReason)) {
+                        const avgPnl = (v && v.avg_pnl != null) ? v.avg_pnl : null;
+                        const left = (v && v.left_on_table_avg != null) ? v.left_on_table_avg : null;
+                        const timeMin = (v && v.avg_time_in_trade_minutes != null) ? v.avg_time_in_trade_minutes : null;
+                        html += `<tr><td class="symbol">${reason}</td><td>${(v && v.count) != null ? v.count : ''}</td><td class="${cls(avgPnl)}">${avgPnl != null ? fmtUsd(avgPnl) : 'N/A'}</td><td>${left != null ? fmtUsd(left) : 'N/A'}</td><td>${timeMin != null ? timeMin : 'N/A'}</td></tr>`;
+                    }
+                    html += `</tbody></table>`;
+                }
+                html += `</div>`;
+
+                // Signal Profitability (per family; read-only)
+                const sigProfSignals = (sigProfData && Array.isArray(sigProfData.signals)) ? sigProfData.signals : [];
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Signal Profitability</h2>
+                    <div style="color:#666;">Per signal_family contribution (read-only; does not change weights).</div>`;
+                if (!sigProfSignals.length) {
+                    html += `<div class="loading">No signal profitability. Run build_intelligence_profitability_today.py.</div>`;
+                } else {
+                    html += `<table><thead><tr><th>Signal family</th><th>Count</th><th>Avg PnL/trade</th><th>Contribution %</th><th>Alignment</th><th>Action</th></tr></thead><tbody>`;
+                    for (const r of sigProfSignals.slice(0, 30)) {
+                        const pnl = Number(r.avg_pnl_per_trade || 0);
+                        const align = Number(r.profitability_alignment_score || 0);
+                        const alignCls = align > 0 ? 'positive' : (align < 0 ? 'negative' : '');
+                        html += `<tr><td class="symbol">${r.signal_family || ''}</td><td>${Number(r.count || 0)}</td><td class="${cls(pnl)}">${fmtUsd(pnl)}</td><td>${Number(r.contribution_to_total_pnl_pct || 0).toFixed(1)}%</td><td class="${alignCls}">${align > 0 ? '+' : ''}${align}</td><td>${r.suggested_action || 'monitor_only'}</td></tr>`;
+                    }
+                    html += `</tbody></table>`;
+                }
+                html += `</div>`;
+
+                // Gate Profitability (read-only) + profitability alignment
+                const disp = (gateProfData && gateProfData.displacement) ? gateProfData.displacement : {};
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Gate Profitability</h2>
+                    <div style="color:#666;">PnL of passed trades and counterfactual of blocked (read-only). Profitability alignment indicators.</div>`;
+                if (!Object.keys(disp).length && !(gateProfData && gateProfData.directional_gate)) {
+                    html += `<div class="loading">No gate profitability. Run build_intelligence_profitability_today.py.</div>`;
+                } else {
+                    const dispAlign = Number(disp.profitability_alignment_score || 0);
+                    const dispCls = dispAlign > 0 ? 'positive' : (dispAlign < 0 ? 'negative' : '');
+                    html += `<div class="stat-card"><div><strong>Displacement:</strong> allowed=${disp.allowed_count || 0}, blocked=${disp.blocked_count || 0}, counterfactual PnL (blocked 30m)=${fmtUsd(disp.counterfactual_pnl_blocked_30m)}</div>`;
+                    html += `<div><strong>Alignment:</strong> <span class="${dispCls}">${dispAlign > 0 ? '+' : ''}${dispAlign}</span> &nbsp; <strong>Suggested:</strong> ${disp.suggested_action || 'monitor_only'}</div>`;
+                    const dg = (gateProfData && gateProfData.directional_gate) ? gateProfData.directional_gate : {};
+                    html += `<div><strong>Directional gate:</strong> events=${dg.events || 0}, blocked≈${dg.blocked_approx || 0}</div></div>`;
+                }
+                html += `</div>`;
+
+                // Intelligence recommendations (display only; no auto-tuning) + profitability alignment
+                const recs = (intelRecData && Array.isArray(intelRecData.recommendations)) ? intelRecData.recommendations : [];
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Intelligence Recommendations</h2>
+                    <div style="color:#666;">Suggested actions (display only; no weights or gates changed). Alignment: +1 support, -1 hurt, 0 neutral.</div>`;
+                if (!recs.length) {
+                    html += `<div class="loading">No recommendations. Run build_intelligence_profitability_today.py.</div>`;
+                } else {
+                    html += `<table><thead><tr><th>Type</th><th>Entity</th><th>Status</th><th>Confidence</th><th>Alignment</th><th>Suggested action</th></tr></thead><tbody>`;
+                    for (const r of recs.slice(0, 30)) {
+                        const align = Number(r.profitability_alignment_score || 0);
+                        const alignCls = align > 0 ? 'positive' : (align < 0 ? 'negative' : '');
+                        html += `<tr><td>${r.entity_type || ''}</td><td class="symbol">${r.entity || ''}</td><td>${r.status || ''}</td><td>${r.confidence || ''}</td><td class="${alignCls}">${align > 0 ? '+' : ''}${align}</td><td>${r.suggested_action || ''}</td></tr>`;
+                    }
+                    html += `</tbody></table>`;
+                }
+                html += `</div>`;
+
+                // Paper Intelligence State (SRE / Intelligence)
+                const dispOn = !!paperIntelData.displacement_relaxation_active;
+                const scoreOn = !!paperIntelData.min_exec_score_active;
+                const exitOn = !!paperIntelData.exit_tuning_active;
+                const regimeOn = !!paperIntelData.regime_filter_active;
+                const eff = paperIntelData.effective_params || {};
+                const mode = paperIntelData.trading_mode || 'unknown';
+                html += `<div class="positions-table" style="margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 15px;">Paper Intelligence State</h2>
+                    <div style="color:#666;">Paper-mode overrides (CONFIG-ONLY, reversible). Active only when TRADING_MODE=paper.</div>
+                    <div class="stat-card" style="margin-top: 10px;">
+                        <div><strong>Mode:</strong> ${mode}</div>
+                        <div><strong>Displacement relaxation:</strong> ${dispOn ? 'ON' : 'OFF'} ${dispOn && eff.displacement_score_advantage != null ? ' (score_advantage=' + eff.displacement_score_advantage + ', max_pnl_pct=' + eff.displacement_max_pnl_pct + ')' : ''}</div>
+                        <div><strong>Min exec score:</strong> ${scoreOn ? 'ON' : 'OFF'} ${scoreOn && eff.min_exec_score != null ? ' (' + eff.min_exec_score + ')' : ''}</div>
+                        <div><strong>Exit tuning:</strong> ${exitOn ? 'ON' : 'OFF'} ${exitOn && (eff.time_exit_minutes != null || eff.trailing_stop_pct != null) ? ' (time_exit=' + (eff.time_exit_minutes || '') + ' min, trailing=' + (eff.trailing_stop_pct != null ? eff.trailing_stop_pct : '') + ')' : ''}</div>
+                        <div><strong>Regime filter:</strong> ${regimeOn ? 'ON' : 'OFF'} ${regimeOn && eff.size_multiplier_neutral != null ? ' (size_mult_neutral=' + eff.size_multiplier_neutral + ')' : ''}</div>
+                    </div>
+                </div>`;
 
                 // Signal performance
                 const sigs = (spData && Array.isArray(spData.signals)) ? spData.signals : [];
@@ -2622,6 +2837,22 @@ def api_version():
             503,
             {"Content-Type": "application/json"},
         )
+
+
+@app.route("/api/versions", methods=["GET"])
+def api_versions():
+    """Multi-universe versioning: live, paper, shadow (version + commit per mode)."""
+    try:
+        from config.version_loader import get_all_versions
+        data = get_all_versions()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({
+            "live": {"version": "", "commit": None},
+            "paper": {"version": "", "commit": None},
+            "shadow": {"version": "", "commit": None},
+            "error": str(e),
+        })
 
 
 @app.route("/api/positions")
@@ -4475,20 +4706,16 @@ def api_regime_and_posture():
 # Telemetry bundle + computed artifacts (read-only dashboard API)
 # ============================================================
 def _latest_telemetry_dir():
+    """Resolve latest telemetry date folder using absolute path (cwd-independent)."""
     try:
-        from pathlib import Path
-
-        root = Path("telemetry")
+        root = TELEMETRY_ROOT
         if not root.exists():
             return None
         dirs = [p for p in root.iterdir() if p.is_dir() and len(p.name) == 10 and p.name[4] == "-" and p.name[7] == "-"]
         if not dirs:
             return None
-        # Lexicographic sort works for YYYY-MM-DD.
-        latest = sorted(dirs, key=lambda p: p.name)[-1]
-        if (latest / "computed").exists():
-            return latest
-        return None
+        # Lexicographic sort works for YYYY-MM-DD; return latest even if computed/ not yet present.
+        return sorted(dirs, key=lambda p: p.name)[-1]
     except Exception:
         return None
 
@@ -4497,6 +4724,11 @@ _TELEMETRY_COMPUTED_MAP = {
     "live_vs_shadow_pnl": "live_vs_shadow_pnl.json",
     "signal_performance": "signal_performance.json",
     "signal_weight_recommendations": "signal_weight_recommendations.json",
+    "blocked_counterfactuals_summary": "blocked_counterfactuals_summary.json",
+    "exit_quality_summary": "exit_quality_summary.json",
+    "signal_profitability": "signal_profitability.json",
+    "gate_profitability": "gate_profitability.json",
+    "intelligence_recommendations": "intelligence_recommendations.json",
     # Existing computed artifacts (for index/panels)
     "shadow_vs_live_parity": "shadow_vs_live_parity.json",
     "entry_parity_details": "entry_parity_details.json",
@@ -4509,6 +4741,7 @@ _TELEMETRY_COMPUTED_MAP = {
     "feature_value_curves": "feature_value_curves.json",
     "regime_sector_feature_matrix": "regime_sector_feature_matrix.json",
     "feature_equalizer_builder": "feature_equalizer_builder.json",
+    "bar_health_summary": "bar_health_summary.json",
 }
 
 
@@ -4534,6 +4767,7 @@ def _build_latest_computed_index(tdir):
         import time
 
         comp_dir = tdir / "computed"
+        comp_dir.mkdir(parents=True, exist_ok=True)
         out = []
         for key, fn in sorted(_TELEMETRY_COMPUTED_MAP.items(), key=lambda kv: kv[0]):
             fp = comp_dir / fn
@@ -4561,7 +4795,13 @@ def api_telemetry_latest_index():
     try:
         tdir = _latest_telemetry_dir()
         if tdir is None:
-            return jsonify({"error": "no telemetry bundles found under telemetry/", "latest_date": None, "computed": []}), 404
+            return jsonify({
+                "latest_date": None,
+                "computed": [],
+                "message": "No telemetry bundle found. Run full telemetry extract or bar health check for a date.",
+                "telemetry_root": str(TELEMETRY_ROOT),
+                "as_of_ts": datetime.now(timezone.utc).isoformat(),
+            }), 200
 
         out = _build_latest_computed_index(tdir)
         return jsonify({"latest_date": tdir.name, "computed": out, "as_of_ts": datetime.now(timezone.utc).isoformat()})
@@ -4578,9 +4818,14 @@ def api_telemetry_latest_computed():
 
         tdir = _latest_telemetry_dir()
         if tdir is None:
-            return jsonify({"error": "no telemetry bundles found under telemetry/"}), 404
+            return jsonify({
+                "error": "no telemetry bundles found",
+                "message": "Run bar health or full telemetry extract to create telemetry/YYYY-MM-DD/computed/",
+                "telemetry_root": str(TELEMETRY_ROOT),
+            }), 404
 
         comp_dir = tdir / "computed"
+        comp_dir.mkdir(parents=True, exist_ok=True)
         fn = _TELEMETRY_COMPUTED_MAP.get(name) or name
         # Allow passing a filename directly (must end with .json).
         if not str(fn).endswith(".json"):
@@ -4595,18 +4840,52 @@ def api_telemetry_latest_computed():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/paper-mode-intel-state", methods=["GET"])
+def api_paper_mode_intel_state():
+    """Paper-mode intelligence overrides state (telemetry/paper_mode_intel_state.json)."""
+    try:
+        fp = TELEMETRY_ROOT / "paper_mode_intel_state.json"
+        if not fp.exists():
+            try:
+                from config.paper_mode_config import write_paper_mode_intel_state
+                write_paper_mode_intel_state()
+            except Exception:
+                pass
+            if fp.exists():
+                data = json.loads(fp.read_text(encoding="utf-8", errors="replace"))
+                return jsonify(data)
+            return jsonify({
+                "displacement_relaxation_active": False,
+                "min_exec_score_active": False,
+                "exit_tuning_active": False,
+                "regime_filter_active": False,
+                "effective_params": {},
+                "trading_mode": "unknown",
+                "overrides_version": "",
+            })
+        data = json.loads(fp.read_text(encoding="utf-8", errors="replace"))
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/telemetry/latest/health", methods=["GET"])
 def api_telemetry_latest_health():
     """
     Telemetry Health summary for dashboard panels (best-effort).
     """
     try:
-        from pathlib import Path
         import time
 
         tdir = _latest_telemetry_dir()
         if tdir is None:
-            return jsonify({"error": "no telemetry bundles found under telemetry/", "as_of_ts": datetime.now(timezone.utc).isoformat()}), 404
+            return jsonify({
+                "latest_date": None,
+                "computed_index": {"computed": []},
+                "message": "No telemetry bundle yet.",
+                "telemetry_root": str(TELEMETRY_ROOT),
+                "as_of_ts": datetime.now(timezone.utc).isoformat(),
+            }), 200
         idx = {"latest_date": tdir.name, "computed": _build_latest_computed_index(tdir), "as_of_ts": datetime.now(timezone.utc).isoformat()}
 
         parity = {}
@@ -4651,8 +4930,8 @@ def api_telemetry_latest_health():
         except Exception:
             replacement_health = {}
 
-        # Master trade log status (best-effort)
-        mtl = Path("logs/master_trade_log.jsonl")
+        # Master trade log status (best-effort; use repo root so cwd-independent)
+        mtl = _DASHBOARD_ROOT / "logs" / "master_trade_log.jsonl"
         mtl_status = {"exists": mtl.exists()}
         try:
             if mtl.exists():
