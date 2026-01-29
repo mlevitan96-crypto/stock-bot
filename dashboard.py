@@ -389,7 +389,8 @@ DASHBOARD_HTML = """
         </div>
     </div>
     <script>
-    (function(){/* Minimal tab switch so tabs always work even if main script fails */
+    (function(){/* Minimal: tabs + version + positions so data loads even if main script fails */
+    var creds={credentials:'same-origin'};
     window.switchTab=function(tabName,event){
     var t=document.querySelectorAll('.tab');for(var i=0;i<t.length;i++)t[i].classList.remove('active');
     if(event&&event.target)event.target.classList.add('active');
@@ -403,7 +404,11 @@ DASHBOARD_HTML = """
     else if(typeof loadTelemetryContent==='function'&&tabName==='telemetry')loadTelemetryContent();
     else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
     };
+    function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
+    function loadVersion(){fetch('/api/version',creds).then(function(r){if(!r.ok){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v??? ('+r.status+')';b.title='HTTP '+r.status;}}return r.ok?r.json():null;}).then(function(d){var b=document.getElementById('version-badge');if(!b||!d)return;var s=(d.git_commit_short||(d.git_commit||'').substring(0,7))||'???';b.textContent='Dashboard v'+s;b.title='Commit '+s;}).catch(function(){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v???';b.title='Version fetch failed';}});}
+    function loadPositions(){fetch('/api/positions',creds).then(function(r){if(!r.ok){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Server '+r.status+'. Refresh and log in again.</p>';return null;}return r.json();}).then(function(d){if(!d){return;}var el=document.getElementById('positions-content');if(!el)return;if(d.error){el.innerHTML='<p class="no-positions">'+d.error+'</p>';return;}var pos=Array.isArray(d.positions)?d.positions:[];var tp=document.getElementById('total-positions');if(tp)tp.textContent=pos.length;var tv=document.getElementById('total-value');if(tv)tv.textContent='$'+fmt(d.total_value);var up=document.getElementById('unrealized-pnl');if(up){up.textContent='$'+fmt(d.unrealized_pnl);up.className='stat-value '+(Number(d.unrealized_pnl)>=0?'positive':'negative');}var dp=document.getElementById('day-pnl');if(dp){dp.textContent='$'+fmt(d.day_pnl);dp.className='stat-value '+(Number(d.day_pnl)>=0?'positive':'negative');}if(pos.length===0){el.innerHTML='<p class="no-positions">No open positions</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th></tr></thead><tbody>';for(var i=0;i<pos.length;i++){var p=pos[i];var side=p.side||'long';var qty=p.qty!=null?p.qty:0;var entry=p.avg_entry_price!=null?fmt(p.avg_entry_price):'-';var cur=p.current_price!=null?fmt(p.current_price):'-';var val=p.market_value!=null?fmt(p.market_value):'-';var pl=p.unrealized_pnl!=null?fmt(p.unrealized_pnl):'-';var plp=(p.unrealized_pnl_pct!=null?fmt(p.unrealized_pnl_pct):'-')+'%';var cls=Number(p.unrealized_pnl)>=0?'positive':'negative';h+='<tr><td>'+p.symbol+'</td><td>'+side+'</td><td>'+qty+'</td><td>'+entry+'</td><td>'+cur+'</td><td>'+val+'</td><td class="'+cls+'">'+pl+'</td><td class="'+cls+'">'+plp+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;}).catch(function(e){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Positions failed: '+(e&&e.message?e.message:'network error')+'. Refresh and log in.</p>';});}
     try{document.body.setAttribute('data-js','1');}catch(e){}
+    setTimeout(function(){loadVersion();loadPositions();},0);
     })();
     </script>
     <script>
