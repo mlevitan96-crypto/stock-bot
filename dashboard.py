@@ -2117,14 +2117,22 @@ DASHBOARD_HTML = """
             const positionsContent = document.getElementById('positions-content');
             const scrollTop = positionsContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
             
+            // Timeout so slow/blocked positions load doesn't freeze the UI or block tab switching
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            
             // Fetch positions - always get fresh data (no browser cache)
             fetch('/api/positions', {
+                signal: controller.signal,
                 cache: 'no-store',  // Ensure browser doesn't cache the response
                 headers: {
                     'Cache-Control': 'no-cache'
                 }
             })
-                .then(response => response.json())
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    return response.json();
+                })
                 .then(data => {
                     document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
                     
@@ -2280,7 +2288,15 @@ DASHBOARD_HTML = """
                     }
                 })
                 .catch(error => {
+                    clearTimeout(timeoutId);
                     console.error('Error fetching positions:', error);
+                    const content = document.getElementById('positions-content');
+                    if (content) {
+                        const msg = error.name === 'AbortError' 
+                            ? 'Positions load timed out. You can switch tabs.' 
+                            : ('Positions load failed: ' + (error.message || 'network error'));
+                        content.innerHTML = '<p class="no-positions">' + msg + '</p>';
+                    }
                 });
             
             // Fetch health status for Last Order and Doctor
@@ -2855,148 +2871,138 @@ def api_versions():
         })
 
 
+def _api_positions_impl():
+    """Inner implementation so we can run it with a timeout (prevents dashboard stuck)."""
+    if _alpaca_api is None:
+        return {
+            "positions": [],
+            "total_value": 0,
+            "unrealized_pnl": 0,
+            "day_pnl": 0,
+            "error": "Alpaca API not connected",
+            "missed_alpha_usd": 0,
+        }
+    positions = _alpaca_api.list_positions()
+    account = _alpaca_api.get_account()
+
+    # CRITICAL FIX: Load entry scores from position metadata
+    metadata = {}
+    try:
+        from config.registry import StateFiles, read_json
+        metadata_path = StateFiles.POSITION_METADATA
+        if metadata_path.exists():
+            metadata = read_json(metadata_path, default={})
+    except Exception as e:
+        print(f"[Dashboard] Warning: Failed to load position metadata: {e}", flush=True)
+
+    # Load UW cache for current score calculation (same way as main.py)
+    uw_cache = {}
+    current_regime = "mixed"
+    try:
+        from config.registry import CacheFiles, read_json
+        import json as json_module
+        cache_file = CacheFiles.UW_FLOW_CACHE
+        if cache_file.exists():
+            uw_cache = read_json(cache_file, default={})
+        try:
+            from config.registry import StateFiles
+            for regime_file in [getattr(StateFiles, "REGIME_DETECTOR_STATE", None), StateFiles.REGIME_DETECTOR]:
+                if not regime_file:
+                    continue
+                if regime_file.exists():
+                    regime_data = json_module.loads(regime_file.read_text())
+                    if isinstance(regime_data, dict):
+                        current_regime = regime_data.get("current_regime") or regime_data.get("regime") or "mixed"
+                        break
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"[Dashboard] Warning: Failed to load UW cache for current scores: {e}", flush=True)
+
+    pos_list = []
+    for p in positions:
+        symbol = p.symbol
+        entry_score = metadata.get(symbol, {}).get("entry_score", 0.0) if metadata else 0.0
+        current_score = 0.0
+        try:
+            if uw_cache and symbol in uw_cache:
+                enriched = uw_cache.get(symbol, {})
+                if enriched:
+                    import uw_composite_v2 as uw_v2
+                    try:
+                        import uw_enrichment_v2 as uw_enrich
+                        enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, current_regime) or enriched
+                    except Exception:
+                        enriched_live = enriched
+                    composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, current_regime)
+                    if composite:
+                        current_score = composite.get("score", 0.0)
+        except Exception as e:
+            print(f"[Dashboard] Warning: Failed to compute current score for {symbol}: {e}", flush=True)
+        pos_list.append({
+            "symbol": symbol,
+            "side": "long" if float(p.qty) > 0 else "short",
+            "qty": abs(float(p.qty)),
+            "avg_entry_price": float(p.avg_entry_price),
+            "current_price": float(p.current_price),
+            "market_value": abs(float(p.market_value)),
+            "unrealized_pnl": float(p.unrealized_pl),
+            "unrealized_pnl_pct": float(p.unrealized_plpc) * 100,
+            "entry_score": float(entry_score),
+            "current_score": float(current_score),
+        })
+
+    missed_alpha_usd = 0.0
+    try:
+        from shadow_tracker import get_shadow_tracker
+        from signal_history_storage import get_signal_history
+        signal_history = get_signal_history(limit=500)
+        capacity_blocked_signals = [
+            s for s in signal_history
+            if "capacity_limit" in s.get("decision", "").lower()
+            and s.get("final_score", 0) >= 3.0
+            and s.get("shadow_created", False)
+        ]
+        shadow_tracker = get_shadow_tracker()
+        base_position_size = float(os.getenv("POSITION_SIZE_USD", "500"))
+        for signal in capacity_blocked_signals:
+            symbol = signal.get("symbol", "")
+            virtual_pnl_pct = signal.get("virtual_pnl", 0.0)
+            shadow_pos = shadow_tracker.get_position(symbol)
+            if shadow_pos:
+                virtual_pnl_pct = shadow_pos.max_profit_pct
+            if virtual_pnl_pct is not None and virtual_pnl_pct != 0:
+                missed_alpha_usd += (virtual_pnl_pct / 100.0) * base_position_size
+    except Exception as e:
+        print(f"[Dashboard] Warning: Failed to calculate missed alpha: {e}", flush=True)
+        missed_alpha_usd = 0.0
+        
+    return {
+        "positions": pos_list,
+        "total_value": float(account.portfolio_value),
+        "unrealized_pnl": sum(p["unrealized_pnl"] for p in pos_list),
+        "day_pnl": float(account.equity) - float(account.last_equity),
+        "missed_alpha_usd": round(missed_alpha_usd, 2),
+    }
+
+
 @app.route("/api/positions")
 def api_positions():
+    """Positions endpoint with 8s timeout so dashboard never blocks other tabs."""
+    import concurrent.futures
     try:
-        if _alpaca_api is None:
-            return jsonify({
-                "positions": [],
-                "total_value": 0,
-                "unrealized_pnl": 0,
-                "day_pnl": 0,
-                "error": "Alpaca API not connected"
-            })
-        
-        positions = _alpaca_api.list_positions()
-        account = _alpaca_api.get_account()
-        
-        # CRITICAL FIX: Load entry scores from position metadata
-        metadata = {}
-        try:
-            from config.registry import StateFiles, read_json
-            metadata_path = StateFiles.POSITION_METADATA
-            if metadata_path.exists():
-                metadata = read_json(metadata_path, default={})
-        except Exception as e:
-            print(f"[Dashboard] Warning: Failed to load position metadata: {e}", flush=True)
-        
-        # Load UW cache for current score calculation (same way as main.py)
-        # CRITICAL: Always re-read cache file on each request to ensure fresh current_score
-        uw_cache = {}
-        current_regime = "mixed"
-        try:
-            from config.registry import CacheFiles, read_json
-            import json as json_module
-            cache_file = CacheFiles.UW_FLOW_CACHE
-            # Force fresh read - re-read file on every API call (no caching)
-            if cache_file.exists():
-                # Read directly to ensure fresh data (read_json already does this, but being explicit)
-                uw_cache = read_json(cache_file, default={})
-            
-            # Get current regime (also re-read fresh on each request)
-            try:
-                from config.registry import StateFiles
-                # WHY: Droplet uses regime_detector_state.json; dashboard previously read regime_detector.json and defaulted to MIXED.
-                # HOW TO VERIFY: Dashboard regime matches state/regime_detector_state.json (e.g., PANIC confidence=1.0).
-                for regime_file in [getattr(StateFiles, "REGIME_DETECTOR_STATE", None), StateFiles.REGIME_DETECTOR]:
-                    if not regime_file:
-                        continue
-                    if regime_file.exists():
-                        regime_data = json_module.loads(regime_file.read_text())
-                        if isinstance(regime_data, dict):
-                            current_regime = regime_data.get("current_regime") or regime_data.get("regime") or "mixed"
-                            break
-            except:
-                pass
-        except Exception as e:
-            print(f"[Dashboard] Warning: Failed to load UW cache for current scores: {e}", flush=True)
-        
-        pos_list = []
-        for p in positions:
-            symbol = p.symbol
-            # Get entry_score from metadata (default to 0.0 if missing - dashboard will highlight)
-            entry_score = metadata.get(symbol, {}).get("entry_score", 0.0) if metadata else 0.0
-            
-            # Calculate current composite score (same logic as exit evaluation)
-            # CRITICAL: Recalculate on every API call to ensure fresh current_score
-            current_score = 0.0
-            try:
-                if uw_cache and symbol in uw_cache:
-                    enriched = uw_cache.get(symbol, {})
-                    if enriched:
-                        import uw_composite_v2 as uw_v2
-                        # Always recalculate composite score from enriched cache data (prevents score collapse on None/missing fields).
-                        try:
-                            import uw_enrichment_v2 as uw_enrich
-                            enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, current_regime) or enriched
-                        except Exception:
-                            enriched_live = enriched
-                        composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, current_regime)
-                        if composite:
-                            current_score = composite.get("score", 0.0)
-            except Exception as e:
-                # Fail silently - don't break dashboard if score calculation fails
-                print(f"[Dashboard] Warning: Failed to compute current score for {symbol}: {e}", flush=True)
-            
-            pos_list.append({
-                "symbol": symbol,
-                "side": "long" if float(p.qty) > 0 else "short",
-                "qty": abs(float(p.qty)),
-                "avg_entry_price": float(p.avg_entry_price),
-                "current_price": float(p.current_price),
-                "market_value": abs(float(p.market_value)),
-                "unrealized_pnl": float(p.unrealized_pl),
-                "unrealized_pnl_pct": float(p.unrealized_plpc) * 100,
-                "entry_score": float(entry_score),  # CRITICAL: Include entry_score from metadata
-                "current_score": float(current_score)  # Current composite score
-            })
-        
-        # EOW FORENSIC OPTIMIZATION: Calculate Missed Alpha (USD)
-        # Running total of profit from virtual trades blocked by capacity_limit
-        missed_alpha_usd = 0.0
-        try:
-            from shadow_tracker import get_shadow_tracker
-            from signal_history_storage import get_signal_history
-            # Do not rely on a `Config` class in config.registry (not guaranteed to exist).
-            # For display-only conversion, use env with a sane default.
-            
-            # Get all signals blocked by capacity_limit
-            signal_history = get_signal_history(limit=500)  # Get more history
-            capacity_blocked_signals = [
-                s for s in signal_history
-                if "capacity_limit" in s.get("decision", "").lower()
-                and s.get("final_score", 0) >= 3.0
-                and s.get("shadow_created", False)
-            ]
-            
-            # Get shadow tracker
-            shadow_tracker = get_shadow_tracker()
-            
-            # Calculate total missed alpha in USD
-            base_position_size = float(os.getenv("POSITION_SIZE_USD", "500"))  # Default $500 per position
-            for signal in capacity_blocked_signals:
-                symbol = signal.get("symbol", "")
-                virtual_pnl_pct = signal.get("virtual_pnl", 0.0)
-                
-                # Get live virtual P&L if shadow position exists
-                shadow_pos = shadow_tracker.get_position(symbol)
-                if shadow_pos:
-                    # Use max_profit_pct (best case scenario)
-                    virtual_pnl_pct = shadow_pos.max_profit_pct
-                
-                # Convert to USD: (virtual_pnl_pct / 100) * base_position_size
-                if virtual_pnl_pct is not None and virtual_pnl_pct != 0:
-                    missed_alpha_usd += (virtual_pnl_pct / 100.0) * base_position_size
-        except Exception as e:
-            print(f"[Dashboard] Warning: Failed to calculate missed alpha: {e}", flush=True)
-            missed_alpha_usd = 0.0
-        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            future = ex.submit(_api_positions_impl)
+            result = future.result(timeout=8)
+        return jsonify(result)
+    except concurrent.futures.TimeoutError:
         return jsonify({
-            "positions": pos_list,
-            "total_value": float(account.portfolio_value),
-            "unrealized_pnl": sum(p["unrealized_pnl"] for p in pos_list),
-            "day_pnl": float(account.equity) - float(account.last_equity),
-            "missed_alpha_usd": round(missed_alpha_usd, 2)  # EOW Forensic Optimization
+            "positions": [],
+            "total_value": 0,
+            "unrealized_pnl": 0,
+            "day_pnl": 0,
+            "missed_alpha_usd": 0,
+            "error": "Request timed out (8s). You can switch tabs.",
         })
     except Exception as e:
         return jsonify({
@@ -3004,7 +3010,8 @@ def api_positions():
             "total_value": 0,
             "unrealized_pnl": 0,
             "day_pnl": 0,
-            "error": str(e)
+            "missed_alpha_usd": 0,
+            "error": str(e),
         })
 
 
