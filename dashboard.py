@@ -2118,79 +2118,89 @@ DASHBOARD_HTML = """
             const scrollTop = positionsContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
             
             // Timeout so slow/blocked positions load doesn't freeze the UI or block tab switching
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            let controller = null;
+            let timeoutId = null;
+            if (typeof AbortController !== 'undefined') {
+                controller = new AbortController();
+                timeoutId = setTimeout(function() { controller.abort(); }, 15000);
+            }
+            const opts = {
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: { 'Cache-Control': 'no-cache' }
+            };
+            if (controller && controller.signal) opts.signal = controller.signal;
             
-            // Fetch positions - always get fresh data (no browser cache)
-            fetch('/api/positions', {
-                signal: controller.signal,
-                cache: 'no-store',  // Ensure browser doesn't cache the response
-                headers: {
-                    'Cache-Control': 'no-cache'
-                }
-            })
-                .then(response => {
-                    clearTimeout(timeoutId);
-                    return response.json();
+            fetch('/api/positions', opts)
+                .then(function(response) {
+                    if (timeoutId) clearTimeout(timeoutId);
+                    if (!response.ok) {
+                        var msg = response.status === 401
+                            ? 'Not logged in (401). Refresh the page and log in again.'
+                            : 'Server error (' + response.status + '). Try another tab or refresh.';
+                        var el = document.getElementById('positions-content');
+                        if (el) el.innerHTML = '<p class="no-positions">' + msg + '</p>';
+                        return Promise.reject(new Error(msg));
+                    }
+                    return response.text().then(function(text) {
+                        try { return JSON.parse(text); } catch (e) { throw new Error('Invalid JSON'); }
+                    });
                 })
-                .then(data => {
-                    document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+                .then(function(data) {
+                    if (!data || typeof data !== 'object') {
+                        var el = document.getElementById('positions-content');
+                        if (el) el.innerHTML = '<p class="no-positions">Invalid response. Try another tab or refresh.</p>';
+                        return;
+                    }
+                    var lastUpdate = document.getElementById('last-update');
+                    if (lastUpdate) lastUpdate.textContent = new Date().toLocaleTimeString();
                     
                     if (data.error) {
-                        document.getElementById('positions-content').innerHTML = 
-                            '<p class="no-positions">Error: ' + data.error + '</p>';
+                        var posContent = document.getElementById('positions-content');
+                        if (posContent) posContent.innerHTML = '<p class="no-positions">Error: ' + (data.error || 'Unknown') + '</p>';
                         return;
                     }
                     
-                    // Update stats (these don't cause flicker)
-                    document.getElementById('total-positions').textContent = data.positions.length;
-                    document.getElementById('total-value').textContent = formatCurrency(data.total_value || 0);
+                    var positions = Array.isArray(data.positions) ? data.positions : [];
+                    var totalVal = document.getElementById('total-positions');
+                    if (totalVal) totalVal.textContent = positions.length;
+                    var totalValueEl = document.getElementById('total-value');
+                    if (totalValueEl) totalValueEl.textContent = formatCurrency(data.total_value || 0);
                     
-                    const pnl = data.unrealized_pnl || 0;
-                    const pnlEl = document.getElementById('unrealized-pnl');
-                    pnlEl.textContent = formatCurrency(pnl);
-                    pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'positive' : 'negative');
+                    var pnl = data.unrealized_pnl || 0;
+                    var pnlEl = document.getElementById('unrealized-pnl');
+                    if (pnlEl) { pnlEl.textContent = formatCurrency(pnl); pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'positive' : 'negative'); }
                     
-                    const dayPnl = data.day_pnl || 0;
-                    const dayPnlEl = document.getElementById('day-pnl');
-                    dayPnlEl.textContent = formatCurrency(dayPnl);
-                    dayPnlEl.className = 'stat-value ' + (dayPnl >= 0 ? 'positive' : 'negative');
+                    var dayPnl = data.day_pnl || 0;
+                    var dayPnlEl = document.getElementById('day-pnl');
+                    if (dayPnlEl) { dayPnlEl.textContent = formatCurrency(dayPnl); dayPnlEl.className = 'stat-value ' + (dayPnl >= 0 ? 'positive' : 'negative'); }
                     
-                    // EOW FORENSIC OPTIMIZATION: Update Missed Alpha (USD)
-                    const missedAlpha = data.missed_alpha_usd || 0;
-                    const missedAlphaEl = document.getElementById('missed-alpha');
+                    var missedAlpha = data.missed_alpha_usd || 0;
+                    var missedAlphaEl = document.getElementById('missed-alpha');
                     if (missedAlphaEl) {
                         missedAlphaEl.textContent = formatCurrency(missedAlpha);
                         missedAlphaEl.className = 'stat-value ' + (missedAlpha > 0 ? 'negative' : (missedAlpha < 0 ? 'positive' : ''));
-                        // Show as negative (red) if positive profit was missed, positive (green) if losses were avoided
-                        if (missedAlpha > 0) {
-                            missedAlphaEl.style.color = '#ef4444';  // Red - profit missed
-                        } else if (missedAlpha < 0) {
-                            missedAlphaEl.style.color = '#10b981';  // Green - losses avoided
-                        }
+                        missedAlphaEl.style.color = missedAlpha > 0 ? '#ef4444' : (missedAlpha < 0 ? '#10b981' : '');
                     }
                     
-                    if (data.positions.length === 0) {
-                        document.getElementById('positions-content').innerHTML = 
-                            '<p class="no-positions">No open positions</p>';
+                    if (positions.length === 0) {
+                        var posContent0 = document.getElementById('positions-content');
+                        if (posContent0) posContent0.innerHTML = '<p class="no-positions">No open positions</p>';
                         return;
                     }
                     
-                    // Update table with minimal DOM manipulation
-                    const container = document.getElementById('positions-content');
-                    const existingTable = container.querySelector('table');
-                    
-                    // Check if table structure changed (number of positions)
-                    const existingRows = existingTable ? existingTable.querySelectorAll('tbody tr').length : 0;
-                    const needsFullRebuild = !existingTable || existingRows !== data.positions.length;
+                    var container = document.getElementById('positions-content');
+                    if (!container) return;
+                    var existingTable = container.querySelector('table');
+                    var existingRows = existingTable ? existingTable.querySelectorAll('tbody tr').length : 0;
+                    var needsFullRebuild = !existingTable || existingRows !== positions.length;
                     
                     if (needsFullRebuild) {
-                        // Full rebuild only when structure changes
-                        let html = '<table><thead><tr>';
+                        var html = '<table><thead><tr>';
                         html += '<th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
                         html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry Score</th><th>Current Score</th></tr></thead><tbody>';
                         
-                        data.positions.forEach(pos => {
+                        positions.forEach(function(pos) {
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
                             const entryScore = pos.entry_score !== undefined && pos.entry_score !== null ? pos.entry_score.toFixed(2) : '0.00';
                             const currentScore = pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : '0.00';
@@ -2227,9 +2237,8 @@ DASHBOARD_HTML = """
                         html += '</tbody></table>';
                         container.innerHTML = html;
                     } else {
-                        // Update existing rows in place (no flicker)
-                        const tbody = existingTable.querySelector('tbody');
-                        data.positions.forEach((pos, index) => {
+                        var tbody = existingTable ? existingTable.querySelector('tbody') : null;
+                        if (tbody) positions.forEach(function(pos, index) {
                             const row = tbody.children[index];
                             if (!row) return;
                             
@@ -2279,30 +2288,28 @@ DASHBOARD_HTML = """
                         });
                     }
                     
-                    // Restore scroll position
-                    if (scrollTop > 0) {
-                        requestAnimationFrame(() => {
+                    if (scrollTop > 0 && positionsContent) {
+                        requestAnimationFrame(function() {
                             positionsContent.scrollTop = scrollTop;
                             window.scrollTo(0, scrollTop);
                         });
                     }
                 })
-                .catch(error => {
-                    clearTimeout(timeoutId);
+                .catch(function(error) {
+                    if (timeoutId) clearTimeout(timeoutId);
                     console.error('Error fetching positions:', error);
-                    const content = document.getElementById('positions-content');
+                    var content = document.getElementById('positions-content');
                     if (content) {
-                        const msg = error.name === 'AbortError' 
-                            ? 'Positions load timed out. You can switch tabs.' 
+                        var msg = error.name === 'AbortError'
+                            ? 'Positions load timed out. You can switch tabs.'
                             : ('Positions load failed: ' + (error.message || 'network error'));
                         content.innerHTML = '<p class="no-positions">' + msg + '</p>';
                     }
                 });
             
-            // Fetch health status for Last Order and Doctor
-            // Try main bot API first, fallback to health_status endpoint
+            // Fetch health status for Last Order and Doctor (credentials so auth is sent)
             Promise.all([
-                fetch('/api/health_status').catch(() => null),
+                fetch('/api/health_status', { credentials: 'same-origin' }).catch(() => null),
                 fetch('http://localhost:8081/api/cockpit').catch(() => null),
                 fetch('http://localhost:8081/health').catch(() => null)
             ]).then(([healthStatusRes, cockpitRes, healthRes]) => {
@@ -2387,7 +2394,7 @@ DASHBOARD_HTML = """
         
         // Fetch version badge once on page load (no polling)
         function loadVersionBadge() {
-            fetch('/api/version')
+            fetch('/api/version', { credentials: 'same-origin' })
                 .then(response => response.ok ? response.json() : null)
                 .then(data => {
                     const badge = document.getElementById('version-badge');
