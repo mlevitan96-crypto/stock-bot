@@ -397,14 +397,15 @@ DASHBOARD_HTML = """
             if (event && event.target) {
                 event.target.classList.add('active');
             } else {
-                // Fallback: find button by tab name
                 document.querySelectorAll('.tab').forEach(tab => {
                     const tabText = tab.textContent.toLowerCase();
-                    if (tabName === 'positions' && tabText.includes('positions')) {
-                        tab.classList.add('active');
-                    } else if (tabName === 'sre' && tabText.includes('sre')) {
-                        tab.classList.add('active');
-                    } else if (tabName === 'executive' && tabText.includes('executive')) {
+                    if ((tabName === 'positions' && tabText.includes('positions')) ||
+                        (tabName === 'sre' && tabText.includes('sre')) ||
+                        (tabName === 'executive' && tabText.includes('executive')) ||
+                        (tabName === 'xai' && tabText.includes('language')) ||
+                        (tabName === 'failure_points' && tabText.includes('readiness')) ||
+                        (tabName === 'telemetry' && tabText.includes('telemetry')) ||
+                        (tabName === 'signal_review' && tabText.includes('signal'))) {
                         tab.classList.add('active');
                     }
                 });
@@ -440,26 +441,32 @@ DASHBOARD_HTML = """
         
         function loadSREContent() {
             const sreContent = document.getElementById('sre-content');
-            // Save scroll position before update
+            if (!sreContent) return;
             const scrollTop = sreContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
             
             if (sreContent.innerHTML.includes('Loading') || !sreContent.dataset.loaded) {
-                fetch('/api/sre/health')
-                    .then(response => response.json())
-                    .then(data => {
+                fetch('/api/sre/health', { credentials: 'same-origin' })
+                    .then(function(response) {
+                        if (!response.ok) {
+                            sreContent.innerHTML = '<div class="loading" style="color:#ef4444;">Server ' + response.status + '. Refresh and log in again.</div>';
+                            return Promise.reject(new Error('HTTP ' + response.status));
+                        }
+                        return response.json();
+                    })
+                    .then(function(data) {
                         return Promise.all([
                             Promise.resolve(data),
-                            fetch('/api/telemetry/latest/computed?name=bar_health_summary').then(r => r.ok ? r.json() : {}).catch(() => ({}))
+                            fetch('/api/telemetry/latest/computed?name=bar_health_summary', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
                         ]);
                     })
                     .then(([data, barHealthResp]) => {
                         const barHealth = (barHealthResp && barHealthResp.data) ? barHealthResp.data : null;
                         sreContent.dataset.loaded = 'true';
                         renderSREContent(data, sreContent, barHealth);
-                        fetch('/api/version').then(r => r.ok ? r.json() : null).then(versionData => {
+                        fetch('/api/version', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(versionData => {
                             renderVersionPanel(versionData, sreContent);
                         }).catch(() => renderVersionPanel(null, sreContent));
-                        fetch('/api/versions').then(r => r.ok ? r.json() : {}).then(versionsData => {
+                        fetch('/api/versions', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).then(versionsData => {
                             renderVersionParityPanel(versionsData, sreContent);
                         }).catch(() => renderVersionParityPanel({}, sreContent));
                         // Restore scroll position after render
@@ -1022,8 +1029,8 @@ DASHBOARD_HTML = """
         }, 60000);  // Refresh every 60 seconds
         
         function updateLastSignalTimestamp() {
-            fetch('/api/signal_history')
-                .then(response => response.json())
+            fetch('/api/signal_history', { credentials: 'same-origin' })
+                .then(function(response) { if (!response.ok) return Promise.reject(new Error('HTTP ' + response.status)); return response.json(); })
                 .then(data => {
                     const lastSignalEl = document.getElementById('last-signal');
                     if (data.last_signal_timestamp) {
@@ -1058,19 +1065,20 @@ DASHBOARD_HTML = """
             const container = document.getElementById('telemetry-content');
             if (!container) return;
 
+            var creds = { credentials: 'same-origin' };
             try {
                 const [idx, lvs, sp, swr, health, blockedCf, exitQual, sigProf, gateProf, intelRec, paperIntel] = await Promise.all([
-                    fetch('/api/telemetry/latest/index').then(r => r.json()),
-                    fetch('/api/telemetry/latest/computed?name=live_vs_shadow_pnl').then(r => r.json()),
-                    fetch('/api/telemetry/latest/computed?name=signal_performance').then(r => r.json()),
-                    fetch('/api/telemetry/latest/computed?name=signal_weight_recommendations').then(r => r.json()),
-                    fetch('/api/telemetry/latest/health').then(r => r.json()),
-                    fetch('/api/telemetry/latest/computed?name=blocked_counterfactuals_summary').then(r => r.ok ? r.json() : {}).catch(() => ({})),
-                    fetch('/api/telemetry/latest/computed?name=exit_quality_summary').then(r => r.ok ? r.json() : {}).catch(() => ({})),
-                    fetch('/api/telemetry/latest/computed?name=signal_profitability').then(r => r.ok ? r.json() : {}).catch(() => ({})),
-                    fetch('/api/telemetry/latest/computed?name=gate_profitability').then(r => r.ok ? r.json() : {}).catch(() => ({})),
-                    fetch('/api/telemetry/latest/computed?name=intelligence_recommendations').then(r => r.ok ? r.json() : {}).catch(() => ({})),
-                    fetch('/api/paper-mode-intel-state').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/telemetry/latest/index', creds).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+                    fetch('/api/telemetry/latest/computed?name=live_vs_shadow_pnl', creds).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+                    fetch('/api/telemetry/latest/computed?name=signal_performance', creds).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+                    fetch('/api/telemetry/latest/computed?name=signal_weight_recommendations', creds).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+                    fetch('/api/telemetry/latest/health', creds).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+                    fetch('/api/telemetry/latest/computed?name=blocked_counterfactuals_summary', creds).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/telemetry/latest/computed?name=exit_quality_summary', creds).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/telemetry/latest/computed?name=signal_profitability', creds).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/telemetry/latest/computed?name=gate_profitability', creds).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/telemetry/latest/computed?name=intelligence_recommendations', creds).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch('/api/paper-mode-intel-state', creds).then(r => r.ok ? r.json() : {}).catch(() => ({})),
                 ]);
 
                 if (idx && idx.error) {
@@ -1394,14 +1402,16 @@ DASHBOARD_HTML = """
 
                 container.innerHTML = html;
             } catch (e) {
-                container.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading telemetry: ${e.message || e}</div>`;
+                var msg = (e && e.message) ? e.message : String(e);
+                if (msg.indexOf('401') !== -1) msg = 'Login required (401). Refresh the page and log in again.';
+                container.innerHTML = '<div class="loading" style="color:#ef4444;">' + msg + '</div>';
             }
         }
         
         function loadSignalReview() {
             const signalContent = document.getElementById('signal-review-content');
             
-            fetch('/api/signal_history')
+            fetch('/api/signal_history', { credentials: 'same-origin' })
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1536,7 +1546,7 @@ DASHBOARD_HTML = """
                 fpContent.innerHTML = '<div class="loading">Loading Trading Readiness...</div>';
             }
             
-            fetch('/api/failure_points')
+            fetch('/api/failure_points', { credentials: 'same-origin' })
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1671,7 +1681,7 @@ DASHBOARD_HTML = """
                 xaiContent.innerHTML = '<div class="loading">Loading Natural Language Auditor...</div>';
             }
             
-            fetch('/api/xai/auditor')
+            fetch('/api/xai/auditor', { credentials: 'same-origin' })
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1842,7 +1852,7 @@ DASHBOARD_HTML = """
         }
         
         function exportXAI() {
-            fetch('/api/xai/export')
+            fetch('/api/xai/export', { credentials: 'same-origin' })
                 .then(response => response.blob())
                 .then(blob => {
                     const url = window.URL.createObjectURL(blob);
@@ -1867,7 +1877,7 @@ DASHBOARD_HTML = """
             if (!executiveContent.dataset.loaded) {
                 executiveContent.innerHTML = '<div class="loading">Loading executive summary...</div>';
             }
-            fetch('/api/executive_summary')
+            fetch('/api/executive_summary', { credentials: 'same-origin' })
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -2632,8 +2642,8 @@ SRE_DASHBOARD_HTML = """
         }
         
         function updateSREDashboard() {
-            fetch('/api/sre/health')
-                .then(response => response.json())
+            fetch('/api/sre/health', { credentials: 'same-origin' })
+                .then(response => { if (!response.ok) return Promise.reject(new Error('HTTP ' + response.status)); return response.json(); })
                 .then(data => {
                     // Debug: Log UW endpoints to console
                     console.log('SRE Health Data:', data);
@@ -3302,7 +3312,7 @@ def system_events_page():
       if (severity) params.set('severity', severity);
       if (symbol) params.set('symbol', symbol);
       params.set('limit', '500');
-      const resp = await fetch('/api/system-events?' + params.toString());
+      const resp = await fetch('/api/system-events?' + params.toString(), { credentials: 'same-origin' });
       const data = await resp.json();
       const rows = (data && data.events) ? data.events : [];
       const tbody = document.getElementById('tbody');
