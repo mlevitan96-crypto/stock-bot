@@ -1,0 +1,9 @@
+live:
+  version: live_v2
+  commit: ecc4216d420917d50f96b194c3650f33d6b65a72
+paper:
+  version: paper_v2
+  commit: ecc4216d420917d50f96b194c3650f33d6b65a72
+shadow:
+  version: shadow_v2
+  commit: ecc4216d420917d50f96b194c3650f33d6b65a72
