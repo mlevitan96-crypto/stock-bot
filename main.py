@@ -298,6 +298,13 @@ from monitoring_guards import (
 # =========================
 load_dotenv()
 
+# Paper-mode intelligence overrides (CONFIG-ONLY, paper-only). Apply before Config.
+try:
+    from config.paper_mode_config import apply_paper_overrides
+    apply_paper_overrides()
+except Exception:
+    pass
+
 # =========================
 # GLOBAL STATE - Monitoring
 # =========================

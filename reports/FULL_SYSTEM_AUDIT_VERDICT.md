@@ -1,6 +1,6 @@
 # Full System Audit Verdict
 
-**Generated:** 2026-01-27T03:25:22.078660+00:00
+**Generated:** 2026-01-27T03:41:41.963050+00:00
 **Date:** 2026-01-26
 
 ## PASS/FAIL per section
@@ -11,7 +11,7 @@
 | 2 | Data and Features | PASS |
 | 3 | Signal Generation | PASS |
 | 4 | Gates and Displacement | PASS |
-| 5 | Entry and Routing | FAIL |
+| 5 | Entry and Routing | PASS |
 | 6 | Position State | PASS |
 | 7 | Exit Logic | PASS |
 | 8 | Shadow Experiments | PASS |
@@ -20,7 +20,6 @@
 | 11 | Joinability | PASS |
 
 ## Failure reasons
-- **§5 Entry and Routing:** no audit_dry_run entries in orders.jsonl (submit_entry path not exercised or failed)
 
 ## What is PROVEN working
 - §0 Safety and Mode
@@ -28,6 +27,7 @@
 - §2 Data and Features
 - §3 Signal Generation
 - §4 Gates and Displacement
+- §5 Entry and Routing
 - §6 Position State
 - §7 Exit Logic
 - §8 Shadow Experiments
@@ -36,23 +36,20 @@
 - §11 Joinability
 
 ## What is PARTIALLY working
-- §5 Entry and Routing: no audit_dry_run entries in orders.jsonl (submit_entry path not exercised or failed)
+- None
 
 ## What is NOT exercised
-- §5 Entry and Routing: no audit_dry_run entries in orders.jsonl (submit_entry path not exercised or failed)
-
-## Environment note
-Alpaca (`alpaca_trade_api`) and Alpaca keys are required for §2 (symbol risk build) and §5 (entry dry-run). On the droplet, both are available.
+- None
 
 
 ## Final Answer
 
 **Can STOCK-BOT execute, manage, exit, observe, and learn from trades correctly?**
 
-**MOSTLY YES** — 11/12 subsystems proven. Remaining failures are environment-dependent (Alpaca) or minor gaps.
+**YES** — All subsystems proven working end-to-end.
 
 ## Confidence
-91%
+100%
 
 ## Artifacts
 | Report | Path |

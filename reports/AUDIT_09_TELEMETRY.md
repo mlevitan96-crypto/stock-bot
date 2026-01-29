@@ -1,6 +1,6 @@
 # Audit §9: Telemetry
 
-**Generated:** 2026-01-27T03:25:20.239403+00:00
+**Generated:** 2026-01-27T03:41:40.112887+00:00
 **Date:** 2026-01-26
 
 ## Result
@@ -13,6 +13,6 @@
 - **system_events.jsonl_exists:** True
 - **system_events.jsonl_count:** 0
 - **shadow.jsonl_exists:** True
-- **shadow.jsonl_count:** 88
+- **shadow.jsonl_count:** 112
 - **orders.jsonl_exists:** True
 - **orders.jsonl_count:** 6535

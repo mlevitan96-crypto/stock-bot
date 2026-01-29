@@ -1,6 +1,6 @@
 # Audit §7: Exit Logic
 
-**Generated:** 2026-01-27T03:25:17.185322+00:00
+**Generated:** 2026-01-27T03:41:37.307127+00:00
 **Date:** 2026-01-26
 
 ## Result
@@ -12,5 +12,5 @@
 Emitted exit_intent for 3 synthetic exits
 - **force_exits_stderr:** 
 - **force_exits_rc:** 0
-- **exit_intent_count:** 15
-- **exit_paths_exercised:** {'stop': 4, 'tp': 4, 'trail': 0, 'time': 4, 'decay': 0, 'counter': 0, 'displacement': 0, 'eod': 0}
+- **exit_intent_count:** 24
+- **exit_paths_exercised:** {'stop': 7, 'tp': 7, 'trail': 0, 'time': 7, 'decay': 0, 'counter': 0, 'displacement': 0, 'eod': 0}

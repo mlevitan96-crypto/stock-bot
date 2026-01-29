@@ -408,12 +408,34 @@ DASHBOARD_HTML = """
     function loadVersion(){fetch('/api/version',creds).then(function(r){if(!r.ok){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v??? ('+r.status+')';b.title='HTTP '+r.status;}}return r.ok?r.json():null;}).then(function(d){var b=document.getElementById('version-badge');if(!b||!d)return;var s=(d.git_commit_short||(d.git_commit||'').substring(0,7))||'???';b.textContent='Dashboard v'+s;b.title='Commit '+s;}).catch(function(){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v???';b.title='Version fetch failed';}});}
     function loadPositions(){fetch('/api/positions',creds).then(function(r){if(!r.ok){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Server '+r.status+'. Refresh and log in again.</p>';return null;}return r.json();}).then(function(d){if(!d){return;}var el=document.getElementById('positions-content');if(!el)return;if(d.error){el.innerHTML='<p class="no-positions">'+d.error+'</p>';return;}var pos=Array.isArray(d.positions)?d.positions:[];var tp=document.getElementById('total-positions');if(tp)tp.textContent=pos.length;var tv=document.getElementById('total-value');if(tv)tv.textContent='$'+fmt(d.total_value);var up=document.getElementById('unrealized-pnl');if(up){up.textContent='$'+fmt(d.unrealized_pnl);up.className='stat-value '+(Number(d.unrealized_pnl)>=0?'positive':'negative');}var dp=document.getElementById('day-pnl');if(dp){dp.textContent='$'+fmt(d.day_pnl);dp.className='stat-value '+(Number(d.day_pnl)>=0?'positive':'negative');}if(pos.length===0){el.innerHTML='<p class="no-positions">No open positions</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th></tr></thead><tbody>';for(var i=0;i<pos.length;i++){var p=pos[i];var side=p.side||'long';var qty=p.qty!=null?p.qty:0;var entry=p.avg_entry_price!=null?fmt(p.avg_entry_price):'-';var cur=p.current_price!=null?fmt(p.current_price):'-';var val=p.market_value!=null?fmt(p.market_value):'-';var pl=p.unrealized_pnl!=null?fmt(p.unrealized_pnl):'-';var plp=(p.unrealized_pnl_pct!=null?fmt(p.unrealized_pnl_pct):'-')+'%';var cls=Number(p.unrealized_pnl)>=0?'positive':'negative';h+='<tr><td>'+p.symbol+'</td><td>'+side+'</td><td>'+qty+'</td><td>'+entry+'</td><td>'+cur+'</td><td>'+val+'</td><td class="'+cls+'">'+pl+'</td><td class="'+cls+'">'+plp+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;}).catch(function(e){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Positions failed: '+(e&&e.message?e.message:'network error')+'. Refresh and log in.</p>';});}
     function err(el,msg){if(el)el.innerHTML='<div class="loading" style="color:#ef4444;">'+msg+'</div>';}
-    window.loadSREContent=function(){var el=document.getElementById('sre-content');if(!el)return;el.innerHTML='<div class="loading">Loading SRE...</div>';fetch('/api/sre/health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var h='<div class="stat-card"><h3>SRE Health</h3><p><strong>Overall:</strong> '+(d.overall_health||'—')+'</p><p><strong>Bot:</strong> '+(d.bot_process&&d.bot_process.running?'Running':'—')+'</p></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'SRE failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadExecutiveSummary=function(){var el=document.getElementById('executive-content');if(!el)return;el.innerHTML='<div class="loading">Loading Executive...</div>';fetch('/api/executive_summary',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var t=d.total_trades!=null?d.total_trades:0;var h='<div class="stat-card"><h3>Executive Summary</h3><p><strong>Total trades:</strong> '+t+'</p></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Executive failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadXAIAuditor=function(){var el=document.getElementById('xai-content');if(!el)return;el.innerHTML='<div class="loading">Loading XAI...</div>';fetch('/api/xai/auditor',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var tc=d.trade_count!=null?d.trade_count:0;var wc=d.weight_count!=null?d.weight_count:0;var h='<div class="stat-card"><h3>Natural Language Auditor</h3><p>Trades: '+tc+' | Weights: '+wc+'</p></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'XAI failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadFailurePoints=function(){var el=document.getElementById('failure_points-content');if(!el)return;el.innerHTML='<div class="loading">Loading Trading Readiness...</div>';fetch('/api/failure_points',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var rdy=d.readiness||'—';var h='<div class="stat-card"><h3>Trading Readiness</h3><p><strong>Status:</strong> '+rdy+'</p></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Readiness failed: '+(e&&e.message?e.message:'network'));});};
+    function cur(v){if(v==null||v===undefined)return '';var n=Number(v);return isFinite(n)?'$'+n.toFixed(2):String(v);}
+    window.loadSREContent=function(){var el=document.getElementById('sre-content');if(!el)return;el.innerHTML='<div class="loading">Loading SRE...</div>';fetch('/api/sre/health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var m=d.sre_metrics||{};var f=d.signal_funnel||{};var h='<div class="stat-card" style="margin-bottom:16px;"><h3>SRE Health</h3><p><strong>Overall:</strong> '+(d.overall_health||'—')+'</p><p><strong>Bot:</strong> '+(d.bot_process&&d.bot_process.running?'Running':'—')+'</p><p><strong>Market:</strong> '+(d.market_status||'—')+' '+(d.market_open?'(open)':'')+'</p></div>';
+    h+='<div class="stat-card" style="margin-bottom:16px;"><h3>Metrics</h3><p>Logic heartbeat: '+(m.logic_heartbeat?new Date(m.logic_heartbeat*1000).toLocaleString():'—')+'</p><p>Mock signal success: '+(m.mock_signal_success_pct!=null?m.mock_signal_success_pct.toFixed(1):'—')+'%</p><p>Parser health: '+(m.parser_health_index!=null?m.parser_health_index.toFixed(1):'—')+'%</p><p>Auto-fix count: '+(m.auto_fix_count!=null?m.auto_fix_count:'—')+'</p></div>';
+    if(f.alerts!==undefined){h+='<div class="stat-card" style="margin-bottom:16px;"><h3>Signal Funnel (30m)</h3><p>Alerts: '+(f.alerts||0)+' → Parsed: '+(f.parsed||0)+' ('+(f.parsed_rate_pct!=null?f.parsed_rate_pct.toFixed(0):'—')+'%)</p><p>Scored &gt; threshold: '+(f.scored_above_threshold!=null?f.scored_above_threshold:'—')+' ('+(f.scored_rate_pct!=null?f.scored_rate_pct.toFixed(0):'—')+'%)</p></div>';}
+    if(d.warnings&&d.warnings.length){h+='<div class="stat-card" style="margin-bottom:16px;"><h3>Warnings</h3><p>'+d.warnings.join(', ')+'</p></div>';}
+    if(d.critical_issues&&d.critical_issues.length){h+='<div class="stat-card" style="margin-bottom:16px; border-color:#ef4444;"><h3>Critical</h3><p>'+d.critical_issues.join(', ')+'</p></div>';}
+    var fixes=d.recent_rca_fixes||[];if(fixes.length){h+='<div class="stat-card"><h3>Recent RCA Fixes</h3>';for(var i=0;i<Math.min(fixes.length,5);i++){var x=fixes[i];h+='<p>'+(x.check_name||x.reason_code||'')+' — '+(x.reason_code||'')+'</p>';}h+='</div>';}
+    el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'SRE failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadExecutiveSummary=function(){var el=document.getElementById('executive-content');if(!el)return;el.innerHTML='<div class="loading">Loading Executive...</div>';fetch('/api/executive_summary',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var t=d.total_trades!=null?d.total_trades:0;var pm=d.pnl_metrics||{};var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Executive Summary</h3><p><strong>Total trades:</strong> '+t+'</p>';
+    h+='<p><strong>2d P&L:</strong> '+cur(pm.pnl_2d)+' ('+(pm.trades_2d!=null?pm.trades_2d:'—')+' trades, '+(pm.win_rate_2d!=null?pm.win_rate_2d:'—')+'% win)</p>';
+    h+='<p><strong>5d P&L:</strong> '+cur(pm.pnl_5d)+' ('+(pm.trades_5d!=null?pm.trades_5d:'—')+' trades, '+(pm.win_rate_5d!=null?pm.win_rate_5d:'—')+'% win)</p></div>';
+    var tr=d.trades||[];if(tr.length){h+='<div class="stat-card" style="margin-bottom:16px;"><h3>Recent Trades</h3><table style="width:100%"><thead><tr><th>Time</th><th>Symbol</th><th>P&L</th><th>Close</th></tr></thead><tbody>';for(var i=0;i<Math.min(tr.length,15);i++){var x=tr[i];var ts=x.timestamp?new Date(x.timestamp).toLocaleString():'—';h+='<tr><td>'+ts+'</td><td>'+(x.symbol||'—')+'</td><td>'+cur(x.pnl_usd)+'</td><td>'+(x.close_reason||'—')+'</td></tr>';}h+='</tbody></table></div>';}
+    if(d.written_summary){h+='<div class="stat-card"><h3>Summary</h3><pre style="white-space:pre-wrap;font-size:0.9em;">'+String(d.written_summary).substring(0,2000)+(d.written_summary.length>2000?'…':'')+'</pre></div>';}
+    el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Executive failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadXAIAuditor=function(){var el=document.getElementById('xai-content');if(!el)return;el.innerHTML='<div class="loading">Loading XAI...</div>';fetch('/api/xai/auditor',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var tc=d.trade_count!=null?d.trade_count:0;var wc=d.weight_count!=null?d.weight_count:0;var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Natural Language Auditor</h3><p><strong>Trades:</strong> '+tc+'</p><p><strong>Weights:</strong> '+wc+'</p></div>';
+    var tr=d.trades||[];if(tr.length){h+='<div class="stat-card" style="margin-bottom:16px;"><h3>Trade explanations</h3><table style="width:100%"><thead><tr><th>Symbol</th><th>Type</th><th>Why / Summary</th></tr></thead><tbody>';for(var i=0;i<Math.min(tr.length,20);i++){var x=tr[i];var sum=String(x.why||x.summary||x.reason||'').substring(0,80);h+='<tr><td>'+(x.symbol||'—')+'</td><td>'+(x.type||x.event_type||'—')+'</td><td>'+sum+'</td></tr>';}h+='</tbody></table></div>';}
+    var wt=d.weights||[];if(wt.length){h+='<div class="stat-card"><h3>Weight entries</h3><table style="width:100%"><thead><tr><th>Component</th><th>Change</th></tr></thead><tbody>';for(var j=0;j<Math.min(wt.length,15);j++){var w=wt[j];h+='<tr><td>'+(w.component||w.name||'—')+'</td><td>'+(w.change!=null?w.change:(w.multiplier!=null?w.multiplier:'—'))+'</td></tr>';}h+='</tbody></table></div>';}
+    if(d.errors&&d.errors.length){h+='<div class="stat-card" style="border-color:#ef4444;"><h3>Errors</h3><p>'+d.errors.join('; ')+'</p></div>';}
+    el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'XAI failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadFailurePoints=function(){var el=document.getElementById('failure_points-content');if(!el)return;el.innerHTML='<div class="loading">Loading Trading Readiness...</div>';fetch('/api/failure_points',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var rdy=d.readiness||'—';var crit=d.critical_count!=null?d.critical_count:0;var warn=d.warning_count!=null?d.warning_count:0;var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Trading Readiness</h3><p><strong>Status:</strong> '+rdy+'</p><p><strong>Critical:</strong> '+crit+'</p><p><strong>Warnings:</strong> '+warn+'</p></div>';
+    var fpObj=d.failure_points||d.checks||{};var fpKeys=Object.keys(fpObj);if(fpKeys.length){h+='<div class="stat-card"><h3>Checks</h3><table style="width:100%"><thead><tr><th>Check</th><th>Status</th></tr></thead><tbody>';for(var i=0;i<fpKeys.length;i++){var k=fpKeys[i];var x=fpObj[k];var nm=typeof x==='object'&&x?(x.name||x.check_name||x.id||k):k;var st=typeof x==='object'&&x?(x.status||(x.passing===true?'OK':(x.passing===false?'FAIL':'—'))):'—';h+='<tr><td>'+nm+'</td><td>'+st+'</td></tr>';}h+='</tbody></table></div>';}
+    if(d.error){h+='<div class="stat-card" style="border-color:#ef4444;"><p>'+d.error+'</p></div>';}
+    el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Readiness failed: '+(e&&e.message?e.message:'network'));});};
     window.loadSignalReview=function(){var el=document.getElementById('signal-review-content');if(!el)return;el.innerHTML='<div class="loading">Loading Signal Review...</div>';fetch('/api/signal_history',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sig=Array.isArray(d.signals)?d.signals:[];if(sig.length===0){el.innerHTML='<p class="no-positions">No signal history</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Direction</th><th>Score</th><th>Decision</th></tr></thead><tbody>';for(var i=0;i<Math.min(sig.length,50);i++){var s=sig[i];h+='<tr><td>'+(s.symbol||'—')+'</td><td>'+(s.direction||'—')+'</td><td>'+(s.final_score!=null?fmt(s.final_score):'—')+'</td><td>'+(s.decision||'—')+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Signal review failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadTelemetryContent=function(){var el=document.getElementById('telemetry-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry...</div>';fetch('/api/telemetry/latest/index',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var dt=d.latest_date||'—';var h='<div class="stat-card"><h3>Telemetry</h3><p><strong>Latest bundle:</strong> '+dt+'</p></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Telemetry failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadTelemetryContent=function(){var el=document.getElementById('telemetry-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry...</div>';fetch('/api/telemetry/latest/index',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var dt=d.latest_date||'—';var list=d.computed||[];var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Telemetry</h3><p><strong>Latest bundle:</strong> '+dt+'</p>';
+    if(d.message){h+='<p>'+d.message+'</p>';}
+    if(list.length){h+='<p><strong>Computed artifacts:</strong></p><ul>';for(var i=0;i<list.length;i++){var c=list[i];var name=typeof c==='string'?c:(c.name||c.id||'');if(name)h+='<li>'+name+'</li>';}h+='</ul>';}
+    h+='</div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Telemetry failed: '+(e&&e.message?e.message:'network'));});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
     setTimeout(function(){loadVersion();loadPositions();},0);
     })();
@@ -1932,8 +1954,8 @@ DASHBOARD_HTML = """
         }
         
         function renderExecutiveSummary(data, container) {
-            const pnl2d = data.pnl_metrics?.pnl_2d || 0;
-            const pnl5d = data.pnl_metrics?.pnl_5d || 0;
+            const pnl2d = (data.pnl_metrics && data.pnl_metrics.pnl_2d) || 0;
+            const pnl5d = (data.pnl_metrics && data.pnl_metrics.pnl_5d) || 0;
             const pnl2dClass = pnl2d >= 0 ? 'positive' : 'negative';
             const pnl5dClass = pnl5d >= 0 ? 'positive' : 'negative';
             
@@ -1949,14 +1971,14 @@ DASHBOARD_HTML = """
                             <div class="stat-label">2-Day P&L</div>
                             <div class="stat-value ${pnl2dClass}">${formatCurrency(pnl2d)}</div>
                             <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
-                                ${data.pnl_metrics?.trades_2d || 0} trades, ${data.pnl_metrics?.win_rate_2d || 0}% win rate
+                                ${(data.pnl_metrics && data.pnl_metrics.trades_2d) || 0} trades, ${(data.pnl_metrics && data.pnl_metrics.win_rate_2d) || 0}% win rate
                             </div>
                         </div>
                         <div>
                             <div class="stat-label">5-Day P&L</div>
                             <div class="stat-value ${pnl5dClass}">${formatCurrency(pnl5d)}</div>
                             <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
-                                ${data.pnl_metrics?.trades_5d || 0} trades, ${data.pnl_metrics?.win_rate_5d || 0}% win rate
+                                ${(data.pnl_metrics && data.pnl_metrics.trades_5d) || 0} trades, ${(data.pnl_metrics && data.pnl_metrics.win_rate_5d) || 0}% win rate
                             </div>
                         </div>
                     </div>
@@ -2016,7 +2038,7 @@ DASHBOARD_HTML = """
                             <h3 style="color: #10b981; margin-bottom: 10px;">Top Performing Signals</h3>
             `;
             
-            const topSignals = data.signal_analysis?.top_signals || {};
+            const topSignals = (data.signal_analysis && data.signal_analysis.top_signals) || {};
             if (Object.keys(topSignals).length === 0) {
                 html += '<p style="color: #666;">No signal data available</p>';
             } else {
@@ -2041,7 +2063,7 @@ DASHBOARD_HTML = """
                             <h3 style="color: #ef4444; margin-bottom: 10px;">Underperforming Signals</h3>
             `;
             
-            const bottomSignals = data.signal_analysis?.bottom_signals || {};
+            const bottomSignals = (data.signal_analysis && data.signal_analysis.bottom_signals) || {};
             if (Object.keys(bottomSignals).length === 0) {
                 html += '<p style="color: #666;">No signal data available</p>';
             } else {
@@ -2072,7 +2094,7 @@ DASHBOARD_HTML = """
                             <h3 style="color: #667eea; margin-bottom: 10px;">Weight Adjustments</h3>
             `;
             
-            const weightAdjustments = data.learning_insights?.weight_adjustments || {};
+            const weightAdjustments = (data.learning_insights && data.learning_insights.weight_adjustments) || {};
             if (Object.keys(weightAdjustments).length === 0) {
                 html += '<p style="color: #666;">No weight adjustments yet</p>';
             } else {
@@ -2100,7 +2122,7 @@ DASHBOARD_HTML = """
                             <h3 style="color: #667eea; margin-bottom: 10px;">Counterfactual Insights</h3>
             `;
             
-            const counterfactual = data.learning_insights?.counterfactual_insights || {};
+            const counterfactual = (data.learning_insights && data.learning_insights.counterfactual_insights) || {};
             if (counterfactual.missed_opportunities !== undefined) {
                 html += `
                     <div class="stat-card" style="margin-bottom: 10px; padding: 15px;">

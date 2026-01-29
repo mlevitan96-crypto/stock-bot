@@ -256,7 +256,15 @@ def check_freeze_state() -> bool:
     # CRITICAL: Check performance first (emergency stop for losing trades)
     if not check_performance_freeze():
         return False  # Performance freeze active
-    
+
+    # Health subsystem: decision-integrity FAIL sets health_safe_mode.flag; no auto-resume.
+    try:
+        from config.registry import StateFiles
+        if StateFiles.HEALTH_SAFE_MODE.exists():
+            return False  # Health safe mode active (e.g. missing intelligence_trace)
+    except Exception:
+        pass
+
     # Check only governor_freezes.json (pre_market_freeze.flag mechanism removed)
     freeze_path = Path("state/governor_freezes.json")
     

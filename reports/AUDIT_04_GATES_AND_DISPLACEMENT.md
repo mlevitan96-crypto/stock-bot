@@ -1,6 +1,6 @@
 # Audit §4: Gates and Displacement
 
-**Generated:** 2026-01-27T03:24:58.468334+00:00
+**Generated:** 2026-01-27T03:41:30.792539+00:00
 **Date:** 2026-01-26
 
 ## Result

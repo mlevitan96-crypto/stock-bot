@@ -76,6 +76,9 @@ class CacheFiles:
     UW_API_QUOTA = Directories.DATA / "uw_api_quota.jsonl"
     COMPOSITE_CACHE = Directories.DATA / "composite_cache.json"
     OPERATOR_DASHBOARD = Directories.DATA / "operator_dashboard.json"
+    HEALTH_STATUS = Directories.DATA / "health_status.json"
+    SELF_HEAL_EVENTS = Directories.DATA / "self_heal_events.jsonl"
+    SELF_HEAL_ESCALATIONS = Directories.DATA / "self_heal_escalations.json"
     ALERTS = Directories.DATA / "alerts.jsonl"
     LIVE_ORDERS = Directories.DATA / "live_orders.jsonl"
     
@@ -144,6 +147,9 @@ class StateFiles:
     MARKET_CONTEXT_V2 = Directories.STATE / "market_context_v2.json"
     REGIME_POSTURE_STATE = Directories.STATE / "regime_posture_state.json"
     SYMBOL_RISK_FEATURES = Directories.STATE / "symbol_risk_features.json"
+
+    # Health subsystem: safe mode flag (decision integrity FAIL => no auto-resume; human must clear).
+    HEALTH_SAFE_MODE = Directories.STATE / "health_safe_mode.flag"
 
 
 class LogFiles:

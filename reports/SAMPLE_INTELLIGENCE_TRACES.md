@@ -1,6 +1,6 @@
 # Sample Intelligence Traces
 
-**Generated:** 2026-01-27T22:40:54.241057+00:00
+**Generated:** 2026-01-27T22:56:57.947606+00:00
 
 ## 2 Entered
 
@@ -8,10 +8,10 @@
 
 ```json
 {
-  "intent_id": "855b4707-a8b9-44bd-9e12-53a23aff0e8a",
+  "intent_id": "67557976-8f27-4d4d-a2ba-8425fe14bb8d",
   "symbol": "SYM1",
   "side_intended": "buy",
-  "ts": "2026-01-27T22:40:54.238640+00:00",
+  "ts": "2026-01-27T22:56:57.941894+00:00",
   "cycle_id": 1,
   "signal_layers": {
     "alpha_signals": [
@@ -94,10 +94,10 @@
 
 ```json
 {
-  "intent_id": "fb14012d-b864-4a4c-b8e7-6194dd676535",
+  "intent_id": "fe0595d0-c646-4e37-b4f0-6b4410771a94",
   "symbol": "SYM2",
   "side_intended": "buy",
-  "ts": "2026-01-27T22:40:54.239555+00:00",
+  "ts": "2026-01-27T22:56:57.943736+00:00",
   "cycle_id": 2,
   "signal_layers": {
     "alpha_signals": [
@@ -180,10 +180,10 @@
 
 ```json
 {
-  "intent_id": "00cf6202-56e8-48ad-97a7-42b8893c7601",
+  "intent_id": "1721ce06-3639-43a6-8a99-8cca77ada3c8",
   "symbol": "SYM3",
   "side_intended": "buy",
-  "ts": "2026-01-27T22:40:54.239989+00:00",
+  "ts": "2026-01-27T22:56:57.945458+00:00",
   "cycle_id": 3,
   "signal_layers": {
     "alpha_signals": [
@@ -254,10 +254,10 @@
 
 ```json
 {
-  "intent_id": "306a9f19-4224-4a31-ad8c-2b34dd0b0e7e",
+  "intent_id": "aa50dd10-222e-4115-982d-24cbec5ac2eb",
   "symbol": "SYM4",
   "side_intended": "buy",
-  "ts": "2026-01-27T22:40:54.240453+00:00",
+  "ts": "2026-01-27T22:56:57.945931+00:00",
   "cycle_id": 4,
   "signal_layers": {
     "alpha_signals": [

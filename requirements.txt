@@ -1,5 +1,6 @@
 requests==2.31.0
 flask==3.0.0
+PyYAML>=6.0
 alpaca-trade-api==3.2.0
 # alpaca-trade-api pins urllib3<2; keep this compatible with requests==2.31.0
 urllib3==1.26.20
