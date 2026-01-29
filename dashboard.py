@@ -293,6 +293,7 @@ DASHBOARD_HTML = """
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
             <p class="update-info">Auto-refresh: 60 seconds | Last update: <span id="last-update">-</span> | Last Signal: <span id="last-signal">-</span></p>
+            <p id="dashboard-diagnostic" style="font-size:0.75em;color:#6b7280;margin-top:4px;display:none;">If version and data stay loading: open DevTools (F12) → Console and Network; refresh page and log in again.</p>
             <div id="version-badge" class="version-badge unknown" onclick="switchTab('sre', event); setTimeout(function(){document.getElementById('dashboard-version-panel')?.scrollIntoView({behavior:'smooth'});}, 300);" title="Loading version...">
                 Dashboard v...
             </div>
@@ -2402,12 +2403,31 @@ DASHBOARD_HTML = """
             });
         }
         
-        // Fetch version badge once on page load (no polling)
+        // Fetch version badge once on page load (no polling); timeout so we never hang
         function loadVersionBadge() {
-            fetch('/api/version', { credentials: 'same-origin' })
-                .then(response => response.ok ? response.json() : null)
-                .then(data => {
-                    const badge = document.getElementById('version-badge');
+            var badge = document.getElementById('version-badge');
+            if (!badge) return;
+            var ac = null;
+            var tid = null;
+            if (typeof AbortController !== 'undefined') {
+                ac = new AbortController();
+                tid = setTimeout(function() { ac.abort(); }, 10000);
+            }
+            var opts = { credentials: 'same-origin' };
+            if (ac && ac.signal) opts.signal = ac.signal;
+            fetch('/api/version', opts)
+                .then(function(response) {
+                    if (tid) clearTimeout(tid);
+                    if (!response.ok) {
+                        badge.textContent = 'Dashboard v??? (' + response.status + ')';
+                        badge.className = 'version-badge mismatch';
+                        badge.title = 'HTTP ' + response.status + ' – refresh and log in again';
+                        response.text().catch(function() {});
+                        return Promise.reject(new Error('HTTP ' + response.status));
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
                     if (!badge) return;
                     if (!data) {
                         badge.textContent = 'Dashboard v???';
@@ -2415,9 +2435,8 @@ DASHBOARD_HTML = """
                         badge.title = 'Version unavailable';
                         return;
                     }
-                    const shortSha = data.git_commit_short || (data.git_commit || '').substring(0, 7) || '???';
+                    var shortSha = (data.git_commit_short || (data.git_commit || '').substring(0, 7) || '???');
                     badge.textContent = 'Dashboard v' + shortSha;
-                    // Determine badge color based on matches_expected
                     if (data.matches_expected === true) {
                         badge.className = 'version-badge ok';
                     } else if (data.matches_expected === false) {
@@ -2425,32 +2444,44 @@ DASHBOARD_HTML = """
                     } else {
                         badge.className = 'version-badge unknown';
                     }
-                    // Build tooltip
-                    const lines = [
+                    var lines = [
                         'Full SHA: ' + (data.git_commit || 'unknown'),
                         'Process start: ' + (data.process_start_time_utc || 'unknown'),
                         'Build time: ' + (data.build_time_utc || 'unknown'),
                     ];
-                    if (data.matches_expected === true) {
-                        lines.push('Status: OK (matches expected)');
-                    } else if (data.matches_expected === false) {
-                        lines.push('Status: MISMATCH (process drift)');
-                    }
+                    if (data.matches_expected === true) lines.push('Status: OK (matches expected)');
+                    else if (data.matches_expected === false) lines.push('Status: MISMATCH (process drift)');
                     badge.title = lines.join('\\n');
                 })
-                .catch(() => {
-                    const badge = document.getElementById('version-badge');
-                    if (badge) {
-                        badge.textContent = 'Dashboard v???';
-                        badge.className = 'version-badge mismatch';
-                        badge.title = 'Version fetch failed';
+                .catch(function(err) {
+                    if (tid) clearTimeout(tid);
+                    var b = document.getElementById('version-badge');
+                    if (b) {
+                        b.textContent = 'Dashboard v???';
+                        b.className = 'version-badge mismatch';
+                        b.title = (err && err.name === 'AbortError') ? 'Version fetch timed out (10s)' : ('Version fetch failed: ' + (err && err.message ? err.message : 'network error'));
                     }
                 });
         }
-        loadVersionBadge();
-        
-        updateDashboard();
-        updateLastSignalTimestamp();  // Initial load
+        // Boot marker so we know script ran; show diagnostic if things hang
+        try {
+            document.body.setAttribute('data-dashboard-js', 'ok');
+            setTimeout(function() {
+                var vb = document.getElementById('version-badge');
+                if (vb && vb.textContent === 'Dashboard v...') {
+                    document.getElementById('dashboard-diagnostic').style.display = 'block';
+                }
+            }, 12000);
+        } catch (e) {}
+        try { loadVersionBadge(); } catch (e) {
+            var b = document.getElementById('version-badge');
+            if (b) { b.textContent = 'Dashboard v???'; b.title = 'JS error: ' + (e.message || e); }
+        }
+        try { updateDashboard(); } catch (e) {
+            var pc = document.getElementById('positions-content');
+            if (pc) pc.innerHTML = '<p class="no-positions">Startup error: ' + (e.message || e) + '. Check console (F12).</p>';
+        }
+        try { updateLastSignalTimestamp(); } catch (e) {}
         // Refresh less frequently to reduce flicker and improve UX
         setInterval(updateDashboard, 60000);  // 60 seconds instead of 10
         setInterval(updateLastSignalTimestamp, 30000);  // Update last signal every 30 seconds
@@ -2778,6 +2809,12 @@ SRE_DASHBOARD_HTML = """
 </body>
 </html>
 """
+
+@app.route("/api/ping", methods=["GET"])
+def api_ping():
+    """Lightweight connectivity check; returns immediately (no heavy deps)."""
+    return jsonify({"ok": True, "ts": datetime.now(timezone.utc).isoformat()})
+
 
 @app.route("/")
 def index():
