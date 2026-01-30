@@ -1,7 +1,7 @@
 # Stock Signal Contribution & Intelligence Gap Audit
 
 **Date:** 2026-01-30
-**Generated:** 2026-01-30T22:40:32.875230+00:00
+**Generated:** 2026-01-30T22:51:02.875886+00:00
 
 ## Intent & governance citations
 
@@ -15,8 +15,8 @@
 
 ## Data sources (droplet)
 
-- **exit_attribution.jsonl** (date-filtered): 35 records
-- **master_trade_log.jsonl**: 10 records
+- **exit_attribution.jsonl** (date-filtered): 215 records
+- **master_trade_log.jsonl**: 2382 records
 - **score_telemetry.json**: present
 - **signal_weights.json**: present
 - **daily_universe_v2.json**: present
@@ -81,7 +81,11 @@
 
 | Regime | Exit count |
 |--------|------------|
-| NEUTRAL | 35 |
+| NEUTRAL | 130 |
+| MIXED | 80 |
+| UNKNOWN | 5 |
+
+**Low-coverage regimes:** ['UNKNOWN']
 
 ---
 
@@ -92,13 +96,27 @@
 | DATA_GAP | Intel not collected | 22 components <20% coverage |
 | SIGNAL_GAP | Feature exists but unused | See over-represented low-contrib |
 | TAXONOMY_GAP | Signal too coarse | Manual review |
-| REGIME_GAP | No regime-specific intel | 0 regimes |
+| REGIME_GAP | No regime-specific intel | 1 regimes |
 
 ---
 
 ## Exit reason summary (bucketed)
 
-- **profit**: 35
+- **signal_decay(0.59)**: 43
+- **signal_decay(0.60)**: 29
+- **signal_decay(0.58)**: 26
+- **signal_decay(0.59)+flow_reversal**: 10
+- **signal_decay(0.60)+flow_reversal**: 10
+- **signal_decay(0.56)**: 5
+- **signal_decay(0.42)**: 5
+- **signal_decay(0.57)**: 4
+- **signal_decay(0.36)**: 3
+- **signal_decay(0.50)**: 3
+- **signal_decay(0.34)**: 3
+- **signal_decay(0.41)+flow_reversal**: 3
+- **signal_decay(0.54)**: 3
+- **signal_decay(0.58)+flow_reversal**: 3
+- **signal_decay(0.55)**: 3
 
 ---
 
@@ -114,7 +132,7 @@
 
 ### 3. Intelligence to ADD (new data sources justified by gaps)
 
-- None.
+- **REGIME_GAP**: Regimes ['UNKNOWN'] have low sample counts | Confidence: low | **STATUS: SHADOW — NOT APPLIED**
 
 ### 4. Signals to PROTECT (high contribution, low coverage risk)
 
