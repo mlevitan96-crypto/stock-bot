@@ -976,7 +976,8 @@ Droplet config (`droplet_config.json`):
 **Alternative:** Can use SSH config alias "alpaca" with `"use_ssh_config": true` and `"host": "alpaca"`.
 
 **CRITICAL:** 
-- All deployments MUST target `104.236.102.57` (stock-bot)
+- All deployments MUST target `104.236.102.57` (stock-bot) — use `droplet_config.json` or DropletClient.
+- **NEVER use `147.182.255.165`** — that IP is for a different droplet/bot. This repo uses `104.236.102.57` only.
 - SSH alias "alpaca" resolves to this IP
 - **REQUIRED:** `paramiko` library must be installed: `python -m pip install paramiko`
 - SSH key must be authorized on droplet (user fixed key mismatch on 2026-01-12)
