@@ -45,6 +45,11 @@
 
 Scoring MUST read only from these artifacts. Never call UW from scoring paths.
 
+## Harness / Verification
+
+- **Snapshot harness** (`scripts/run_snapshot_harness.py`) consumes artifacts only; no live UW calls.
+- **Audit** (`scripts/audit_no_live_uw_calls_in_scoring.py`) verifies scoring modules do not import uw_client.
+
 ## References
 
 - `config/uw_endpoint_policies.py` — endpoint policies

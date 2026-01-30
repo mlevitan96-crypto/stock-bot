@@ -911,6 +911,10 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 - **Writer:** `telemetry/signal_snapshot_writer.py` — write_snapshot_safe(); never raises.
 - **Hooks:** main.py at entry decision (pre-submit), entry fill (log_attribution), exit decision (pre-close), exit fill (log_exit_attribution). SHADOW mode: counterfactual components; non-mutating.
 - **Report:** `reports/SIGNAL_MAP_<DATE>.md` — daily per-symbol snapshot summary; generator `scripts/generate_daily_signal_map_report.py`; droplet runner `scripts/run_daily_signal_map_on_droplet.py`.
+- **Snapshot harness verification (pre-market required):**
+  - **Runner:** `scripts/run_snapshot_harness_on_droplet.py` (DropletClient); shell `scripts/run_snapshot_harness_on_droplet.sh`.
+  - **Success criteria:** logs/signal_snapshots_harness_<DATE>.jsonl exists with >0 lines; reports/SNAPSHOT_HARNESS_VERIFICATION_<DATE>.md passes schema checks; reports/SIGNAL_MAP_<DATE>.md non-empty and labeled HARNESS.
+  - **NO ORDERS PLACED:** Harness produces snapshots from master_trade_log; never places orders.
 
 ### UW canonical rules
 - **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.

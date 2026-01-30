@@ -20,13 +20,16 @@ def main() -> int:
     ap.add_argument("--date", default=None)
     ap.add_argument("--symbols", default="AAPL", help="Comma-separated (default: AAPL + top traded)")
     ap.add_argument("--base-dir", default=None)
+    ap.add_argument("--snapshots-path", default=None, help="Override path (e.g. logs/signal_snapshots_harness_YYYY-MM-DD.jsonl)")
     args = ap.parse_args()
 
     base = Path(args.base_dir) if args.base_dir else REPO
     target_date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     symbols_arg = [s.strip() for s in (args.symbols or "AAPL").split(",") if s.strip()]
 
-    log_path = base / SNAPSHOTS_LOG
+    snapshots_path = args.snapshots_path or str(SNAPSHOTS_LOG)
+    log_path = base / snapshots_path
+    source_label = "HARNESS" if "harness" in snapshots_path else "REALTIME"
     if not log_path.exists():
         reports_dir = base / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
@@ -67,6 +70,7 @@ def main() -> int:
         f"# Signal Map — {target_date}",
         "",
         f"**Generated:** {datetime.now(timezone.utc).isoformat()}",
+        f"**Source:** {source_label}",
         "",
         "## Summary",
         "",
