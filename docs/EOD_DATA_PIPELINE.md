@@ -85,6 +85,34 @@ The generated memo must include:
 
 ---
 
+## 5.1 EOD bundle manifest + integrity gate
+
+- **Script:** `scripts/eod_bundle_manifest.py`
+- **Input:** `--date YYYY-MM-DD`, `--base-dir` (repo root; default parent of `scripts/`).
+- **Canonical 8 files:** Same as §1 (attribution, exit_attribution, master_trade_log, blocked_trades, daily_start_equity, peak_equity, signal_weights, daily_universe_v2).
+- **Per file:** exists, non-empty, byte_size, line_count (jsonl), sha256.
+- **Output:** `reports/eod_manifests/EOD_MANIFEST_<DATE>.json`, `reports/eod_manifests/EOD_MANIFEST_<DATE>.md`.
+- **Contract:** If any required file is missing or empty, script exits non-zero (hard gate). Memory Bank §3.2 (reports use droplet production data).
+
+---
+
+## 5.2 Signal / weight / exit inventory
+
+- **Script:** `scripts/generate_signal_weight_exit_inventory.py`
+- **Input:** `--date YYYY-MM-DD`, `--base-dir` (repo root).
+- **Output:** `reports/STOCK_SIGNAL_WEIGHT_EXIT_INVENTORY_<DATE>.md`.
+- **Content:** Static inventory (COMPOSITE_WEIGHTS_V2, where weights applied, adaptive state/signal_weights.json); exit usage (composite_score, weights, UW intel, regime); runtime evidence (signal_weights, score_telemetry, system_events). Observability only; no account/order IDs.
+
+---
+
+## 5.3 Droplet EOD integrity runner
+
+- **Script:** `scripts/run_stock_eod_integrity_on_droplet.sh`
+- **Run on droplet:** `REPO_DIR` default `/root/trading-bot-current` (override with env).
+- **Steps:** `git pull` → manifest (`eod_bundle_manifest.py`) → on pass: EOD quant officer (`board/eod/run_stock_quant_officer_eod.py`) → inventory (`generate_signal_weight_exit_inventory.py`) → `git add` manifest, inventory, EOD out, scripts → commit → push (unless `AUTO_COMMIT_PUSH=0`).
+
+---
+
 ## 6. Manual run on droplet
 
 ```bash

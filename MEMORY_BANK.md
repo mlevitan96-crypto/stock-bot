@@ -903,6 +903,8 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 
 **Extended canonical (vNext):** `state/symbol_risk_snapshot.json` — optional daily per-symbol risk snapshot; produced by `scripts/generate_symbol_risk_snapshot.py`; EOD runner loads defensively and includes "Symbol risk intelligence" subsection in memo when present; copies to `board/eod/out/symbol_risk_snapshot_<DATE>.json` and `.md`. See docs/EOD_DATA_PIPELINE.md.
 
+**EOD data hardening (observability):** `scripts/eod_bundle_manifest.py` — validates canonical 8-file bundle (exists, non-empty, sha256); outputs `reports/eod_manifests/EOD_MANIFEST_<DATE>.json|.md`; exits non-zero if any required file missing/empty. `scripts/generate_signal_weight_exit_inventory.py` — signal/weight/exit inventory (COMPOSITE_WEIGHTS_V2, adaptive state/signal_weights.json, exit usage); output `reports/STOCK_SIGNAL_WEIGHT_EXIT_INVENTORY_<DATE>.md`. Droplet runner: `scripts/run_stock_eod_integrity_on_droplet.sh` (REPO_DIR default `/root/trading-bot-current`); manifest → EOD quant officer → inventory → commit + push. §3.2 (reports use droplet production data).
+
 ---
 
 ## 5.2 PROHIBITED PRACTICES
