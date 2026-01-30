@@ -105,7 +105,16 @@ The generated memo must include:
 
 ---
 
-## 5.3 Signal contribution & intelligence gap audit
+## 5.3 Entry intelligence parity audit
+
+- **Script:** `scripts/entry_intelligence_parity_audit.py`
+- **Output:** `reports/STOCK_ENTRY_INTELLIGENCE_PARITY_AND_GAPS_<DATE>.md`
+- **Droplet runner:** `scripts/run_entry_intelligence_parity_audit_on_droplet.py` (DropletClient)
+- **Content:** Explains why composite components default; missing/miswired entry intel; plan to populate safely.
+
+---
+
+## 5.4 Signal contribution & intelligence gap audit
 
 - **Script:** `scripts/signal_contribution_and_gaps_audit.py`
 - **Input:** `--date YYYY-MM-DD`, `--base-dir` (repo root).
@@ -115,7 +124,7 @@ The generated memo must include:
 
 ---
 
-## 5.4 Droplet EOD integrity runner (manifest + inventory)
+## 5.5 Droplet EOD integrity runner (manifest + inventory)
 
 - **Script:** `scripts/run_stock_eod_integrity_on_droplet.sh`
 - **Run on droplet:** `REPO_DIR` default `/root/trading-bot-current` (override with env).
