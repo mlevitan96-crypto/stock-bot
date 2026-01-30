@@ -885,6 +885,26 @@ Cursor MUST:
 
 ---
 
+## 5.5 EOD Data Pipeline (Canonical)
+
+Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
+- `logs/attribution.jsonl`, `logs/exit_attribution.jsonl`, `logs/master_trade_log.jsonl`
+- `state/blocked_trades.jsonl`, `state/daily_start_equity.json`, `state/peak_equity.json`, `state/signal_weights.json`, `state/daily_universe_v2.json`
+
+**Runner:** `board/eod/run_stock_quant_officer_eod.py` — uses `REPO_ROOT` + canonical paths with `(REPO_ROOT / rel).resolve()`; defensive checks (missing → log.error, data[name]=None; empty → log.warning, [] or None); prompt prepended with "Ignore any prior context. Use ONLY the EOD bundle summary below."; Linux: no truncation; Windows: MAX_PROMPT_LEN truncation; date-scoped session `CLAWDBOT_SESSION_ID="stock_quant_eod_$(date -u +%Y-%m-%d)"`.
+
+**Contract:** `board/quant_officer_contract.md` (fallback: `board/stock_quant_officer_contract.md`).
+
+**Outputs:** `board/eod/out/quant_officer_eod_<DATE>.json`, `board/eod/out/quant_officer_eod_<DATE>.md`. On parse failure: `board/eod/out/<DATE>_raw_response.txt`, exit 1.
+
+**Cron:** EOD at 21:30 UTC weekdays; installed via `board/eod/install_eod_cron_on_droplet.py`. Sync: `scripts/droplet_sync_to_github.sh` (21:32 UTC weekdays). Local fetch (repeatable): `scripts/pull_eod_to_local.ps1` (Windows) or `scripts/pull_eod_to_local.sh` (Git Bash/Linux) — run weekdays after 21:35 UTC to get latest EOD without conflicts. Direct: `scripts/local_sync_from_droplet.sh`, `scripts/fetch_eod_to_local.py` → `board/eod/out/` and `EOD--OUT/`.
+
+**Docs:** `docs/EOD_DATA_PIPELINE.md`, `docs/CRON_STRATEGIC_REVIEW.md`; summary: `reports/EOD_TARGETED_REPAIR_SUMMARY.md`.
+
+**Extended canonical (vNext):** `state/symbol_risk_snapshot.json` — optional daily per-symbol risk snapshot; produced by `scripts/generate_symbol_risk_snapshot.py`; EOD runner loads defensively and includes "Symbol risk intelligence" subsection in memo when present; copies to `board/eod/out/symbol_risk_snapshot_<DATE>.json` and `.md`. See docs/EOD_DATA_PIPELINE.md.
+
+---
+
 ## 5.2 PROHIBITED PRACTICES
 Cursor MUST NOT:
 - read local logs  
