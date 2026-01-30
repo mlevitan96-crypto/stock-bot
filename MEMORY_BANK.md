@@ -905,6 +905,18 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 
 **EOD data hardening (observability):** `scripts/eod_bundle_manifest.py` — validates canonical 8-file bundle (exists, non-empty, sha256); outputs `reports/eod_manifests/EOD_MANIFEST_<DATE>.json|.md`; exits non-zero if any required file missing/empty. `scripts/generate_signal_weight_exit_inventory.py` — signal/weight/exit inventory (COMPOSITE_WEIGHTS_V2, adaptive state/signal_weights.json, exit usage); output `reports/STOCK_SIGNAL_WEIGHT_EXIT_INVENTORY_<DATE>.md`. Droplet runner: `scripts/run_stock_eod_integrity_on_droplet.sh` (REPO_DIR default `/root/trading-bot-current`); manifest → EOD quant officer → inventory → commit + push. §3.2 (reports use droplet production data).
 
+### Signal Snapshot Mapping Layer (observability-only)
+- **Log:** `logs/signal_snapshots.jsonl` — append-only, one JSON record per lifecycle moment.
+- **Schema:** timestamp_utc, symbol, lifecycle_event (ENTRY_DECISION | ENTRY_FILL | EXIT_DECISION | EXIT_FILL), mode (LIVE | PAPER | SHADOW), trade_id, regime_label, composite_score_v2, freshness_factor, components (present/defaulted/contrib), uw_artifacts_used, notes.
+- **Writer:** `telemetry/signal_snapshot_writer.py` — write_snapshot_safe(); never raises.
+- **Hooks:** main.py at entry decision (pre-submit), entry fill (log_attribution), exit decision (pre-close), exit fill (log_exit_attribution). SHADOW mode: counterfactual components; non-mutating.
+- **Report:** `reports/SIGNAL_MAP_<DATE>.md` — daily per-symbol snapshot summary; generator `scripts/generate_daily_signal_map_report.py`; droplet runner `scripts/run_daily_signal_map_on_droplet.py`.
+
+### UW canonical rules
+- **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.
+- **No hallucinated endpoints:** all must exist in `unusual_whales_api/api_spec.yaml`; static audit `scripts/audit_uw_endpoints.py` fails CI if unknown endpoints referenced.
+- **Single-instance ingestion:** uw_flow_daemon only; file lock + systemd; scoring reads only from cached artifacts (uw_flow_cache, premarket_intel, postmarket_intel, uw_expanded_intel).
+
 ---
 
 ## 5.2 PROHIBITED PRACTICES
@@ -981,6 +993,12 @@ Droplet config (`droplet_config.json`):
 - SSH alias "alpaca" resolves to this IP
 - **REQUIRED:** `paramiko` library must be installed: `python -m pip install paramiko`
 - SSH key must be authorized on droplet (user fixed key mismatch on 2026-01-12)
+
+### STOCK-BOT ISOLATION
+- **Repository identity:** stock-bot (equities only). Do NOT reference trading-bot paths, IPs, or repos.
+- **Droplet binding:** `droplet_config.json` is the single source for host/key; DropletClient MUST use it.
+- **Forbidden IP:** `147.182.255.165` — never use for stock-bot. That IP is for a different bot.
+- **Canonical droplet:** `104.236.102.57` or SSH alias `alpaca`; project dir `/root/stock-bot` or `/root/trading-bot-current` per deployment.
 
 ---
 

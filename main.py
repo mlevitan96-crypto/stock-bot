@@ -986,6 +986,57 @@ def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = No
     os.makedirs(os.path.dirname(blocked_path), exist_ok=True)
     with open(blocked_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
+    # Signal context capture (read-only): full signal state at block for profitability learning.
+    try:
+        from telemetry.signal_context_logger import (
+            log_signal_context, default_threshold,
+            confidence_bucket_from_score,
+        )
+        mode = "paper" if getattr(Config, "PAPER_TRADING", True) else "live"
+        comps = components or signals or {}
+        sig_dict = {"uw_components": comps if isinstance(comps, dict) else {}, "final_score": score}
+        if isinstance(signals, dict):
+            sig_dict.update({k: v for k, v in signals.items() if k not in ("uw_components",)})
+        composite_meta = kw.get("composite_meta")
+        first_signal_ts_utc = kw.get("first_signal_ts_utc")
+        signal_contributions = None
+        v2_adj = (composite_meta or {}).get("v2_adjustments") or {}
+        uw_adj = (composite_meta or {}).get("v2_uw_adjustments") or {}
+        base_score = (composite_meta or {}).get("base_score")
+        if composite_meta is not None:
+            signal_contributions = {
+                "technical": base_score,
+                "vol": (v2_adj.get("vol_bonus") or 0) + (v2_adj.get("low_vol_penalty") or 0) + (v2_adj.get("beta_bonus") or 0),
+                "uw": (v2_adj.get("uw_bonus") or 0) + (uw_adj.get("total") or 0),
+                "regime": (v2_adj.get("regime_align_bonus") or 0) + (v2_adj.get("regime_misalign_penalty") or 0),
+                "sector": uw_adj.get("sector_alignment"),
+            }
+        entry_delay_seconds = None
+        if first_signal_ts_utc:
+            try:
+                entry_ts = datetime.now(timezone.utc)
+                first_ts = datetime.fromisoformat(str(first_signal_ts_utc).replace("Z", "+00:00"))
+                if first_ts.tzinfo is None:
+                    first_ts = first_ts.replace(tzinfo=timezone.utc)
+                entry_delay_seconds = (entry_ts - first_ts).total_seconds()
+            except Exception:
+                pass
+        log_signal_context(
+            symbol=symbol,
+            mode=mode,
+            decision="blocked",
+            decision_reason=reason,
+            pnl_usd=None,
+            signals=sig_dict,
+            final_score=score,
+            threshold=default_threshold(),
+            signal_contributions=signal_contributions,
+            confidence_bucket=confidence_bucket_from_score(score),
+            first_signal_ts_utc=first_signal_ts_utc,
+            entry_delay_seconds=entry_delay_seconds,
+        )
+    except Exception:
+        pass
 
 def log_postmortem(event: dict):
     """Write diagnostic bundle after incident"""
@@ -1597,6 +1648,26 @@ def _check_directional_gate_high_vol(
 
 
 def log_attribution(trade_id: str, symbol: str, pnl_usd: float, context: dict):
+    # Signal snapshot (observability-only): ENTRY_DECISION (pending) or ENTRY_FILL (filled)
+    try:
+        if str(trade_id or "").startswith("open_") and isinstance(context, dict):
+            from pathlib import Path
+            from telemetry.signal_snapshot_writer import write_snapshot_safe
+            base = Path(__file__).resolve().parent if "__file__" in dir() else Path.cwd()
+            comps = context.get("components") or {}
+            composite_meta = {"components": comps, "component_contributions": comps, "component_sources": {}}
+            event = "ENTRY_FILL" if not context.get("pending_fill") else "ENTRY_DECISION"
+            notes = ["entry_filled"] if not context.get("pending_fill") else ["entry_submitted_pending_fill"]
+            write_snapshot_safe(
+                base, symbol, event, "PAPER",
+                composite_score_v2=context.get("entry_score"),
+                composite_meta=composite_meta,
+                regime_label=context.get("market_regime") or context.get("regime"),
+                trade_id=trade_id,
+                notes=notes,
+            )
+    except Exception:
+        pass
     jsonl_write("attribution", {
         "type": "attribution",
         "trade_id": trade_id,
@@ -1776,6 +1847,26 @@ def log_exit_attribution(
         pnl_usd = 0.0
         pnl_pct = 0.0
 
+    # Signal snapshot (observability-only): EXIT_FILL when exit filled
+    try:
+        if exit_price > 0 and (exit_qty or entry_qty):
+            from pathlib import Path
+            from telemetry.signal_snapshot_writer import write_snapshot_safe
+            base = Path(__file__).resolve().parent if "__file__" in dir() else Path.cwd()
+            v2e = (metadata or {}).get("v2_exit") or {}
+            now_v2 = v2e.get("now_v2") or {}
+            comps = now_v2.get("v2_exit_components") or {}
+            composite_meta = {"components": comps, "component_contributions": comps, "component_sources": {}}
+            write_snapshot_safe(
+                base, symbol, "EXIT_FILL", "PAPER",
+                composite_score_v2=now_v2.get("v2_exit_score"),
+                composite_meta=composite_meta,
+                regime_label=info.get("regime") or (metadata or {}).get("regime"),
+                trade_id=f"exit_{symbol}_{info.get('ts', '')}",
+                notes=[f"exit:{close_reason}"],
+            )
+    except Exception:
+        pass
     # Attribution integrity: normalize position side and correct P&L if needed.
     # WHY: Production saw sign flips when 'side' is 'long'/'short' rather than 'buy'/'sell'.
     # HOW TO VERIFY: grep logs/attribution.jsonl for 'attribution_pnl_corrected' (should be rare, only anomalies).
@@ -2027,6 +2118,37 @@ def log_exit_attribution(
             exit_timestamp=now_aware.isoformat(),
         )
         append_exit_attribution(rec)
+        # Signal context capture (read-only): full signal state at exit for profitability learning.
+        try:
+            from telemetry.signal_context_logger import log_signal_context, default_threshold, confidence_bucket_from_score
+            mode = "paper" if getattr(Config, "PAPER_TRADING", True) else "live"
+            sig_dict = {
+                "uw_components": dict(v2_exit_components or {}),
+                "regime_label": exit_regime,
+                "regime_confidence": None,
+                "entry_regime": entry_regime,
+                "exit_regime": exit_regime,
+                "v2_exit_score": float(v2_exit_score),
+                "score_deterioration": float(score_det),
+            }
+            meta = metadata if isinstance(metadata, dict) else {}
+            counterfactual = None
+            if meta.get("shadow_pnl_usd") is not None or meta.get("paper_pnl_usd") is not None:
+                counterfactual = {"shadow_pnl_usd": meta.get("shadow_pnl_usd"), "paper_pnl_usd": meta.get("paper_pnl_usd")}
+            log_signal_context(
+                symbol=str(symbol).upper(),
+                mode=mode,
+                decision="exit",
+                decision_reason=str(close_reason or ""),
+                pnl_usd=float(pnl_usd) if pnl_usd is not None else None,
+                signals=sig_dict,
+                final_score=float(v2_exit_score),
+                threshold=default_threshold(),
+                confidence_bucket=confidence_bucket_from_score(float(v2_exit_score)),
+                counterfactual=counterfactual,
+            )
+        except Exception:
+            pass
     except Exception:
         pass
     
@@ -6504,6 +6626,26 @@ class AlpacaExecutor:
                     decision_exit_price = entry_price
                 
                 print(f"DEBUG EXITS: Closing {symbol} (decision_px={decision_exit_price:.2f}, entry={entry_price:.2f}, hold={holding_period_min:.1f}min)", flush=True)
+                # EXIT_DECISION snapshot (observability-only): capture state before placing exit order
+                try:
+                    from pathlib import Path
+                    from telemetry.signal_snapshot_writer import write_snapshot_safe
+                    base = Path(__file__).resolve().parent if "__file__" in dir() else Path.cwd()
+                    meta = all_metadata.get(symbol, {}) if isinstance(all_metadata, dict) else {}
+                    v2e = meta.get("v2_exit") or {}
+                    now_v2 = v2e.get("now_v2") or {}
+                    comps = now_v2.get("v2_exit_components") or {}
+                    composite_meta = {"components": comps, "component_contributions": comps, "component_sources": {}}
+                    write_snapshot_safe(
+                        base, symbol, "EXIT_DECISION", "PAPER",
+                        composite_score_v2=now_v2.get("v2_exit_score") or info.get("entry_score"),
+                        composite_meta=composite_meta,
+                        regime_label=info.get("regime") or meta.get("regime"),
+                        trade_id=f"exit_decision_{symbol}",
+                        notes=["exit_decision_before_submit"],
+                    )
+                except Exception:
+                    pass
                 # BULLETPROOF: Safe position close with error handling and verification
                 position_closed = False
                 close_attempts = 0
@@ -6954,6 +7096,9 @@ class StrategyEngine:
                     pass
         
         print(f"DEBUG decide_and_execute: Processing {len(clusters_sorted)} clusters (sorted by strength), stage={system_stage}", flush=True)
+
+        # Entry timing: first time any signal seen per symbol today (for entry_delay_seconds).
+        _first_signal_ts_cache = {}
         
         if len(clusters_sorted) == 0:
             print("⚠️  WARNING: decide_and_execute called with 0 clusters - no trades possible", flush=True)
@@ -6972,6 +7117,11 @@ class StrategyEngine:
         for c in clusters_sorted:
             log_signal(c)
             symbol = c["ticker"]
+            try:
+                from telemetry.signal_context_logger import get_or_set_first_signal_ts_utc
+                _first_signal_ts_cache.setdefault(symbol, get_or_set_first_signal_ts_utc(symbol))
+            except Exception:
+                pass
             _disp_ctx = None  # set when we successfully displace; used for trade_intent
             direction = c.get("direction", "unknown")
             # CRITICAL FIX: Initialize score but recalculate if source is unknown or composite_score is 0.0
@@ -7083,7 +7233,8 @@ class StrategyEngine:
                                  direction=c.get("direction"),
                                  decision_price=ref_price_check if 'ref_price_check' in locals() else 0.0,
                                  components=comps if 'comps' in locals() else {},
-                                 net_delta_pct=net_delta_pct)
+                                 net_delta_pct=net_delta_pct,
+                                 composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                 # SIGNAL HISTORY: Log blocked signal
                 log_signal_to_history(
                     symbol=symbol,
@@ -7563,7 +7714,8 @@ class StrategyEngine:
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
                                   components=comps,
-                                  expectancy=expectancy, stage=system_stage)
+                                  expectancy=expectancy, stage=system_stage,
+                                  composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                 
                 # SIGNAL HISTORY: Log blocked signal
                 log_signal_to_history(
@@ -7591,7 +7743,8 @@ class StrategyEngine:
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
                                   components=comps,
-                                  cycle_count=new_positions_this_cycle)
+                                  cycle_count=new_positions_this_cycle,
+                                  composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                 
                 # Shadow tracking removed (v2-only engine).
                 
@@ -7681,6 +7834,7 @@ class StrategyEngine:
                                   decision_price=ref_price_check,
                                   components=comps,
                                   min_required=min_score,
+                                  composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                   stage=system_stage)
                 
                 # SIGNAL HISTORY: Log blocked signal
@@ -7780,6 +7934,8 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           displaced_symbol=dc_symbol,
+                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           policy_reason=policy_reason)
                         log_signal_to_history(
                             symbol=symbol, direction=direction, raw_score=raw_score, whale_boost=whale_boost,
@@ -7830,7 +7986,8 @@ class StrategyEngine:
                                           direction=c.get("direction"),
                                           decision_price=ref_price_check,
                                           components=comps,
-                                          displaced_symbol=displaced_sym)
+                                          displaced_symbol=displaced_sym,
+                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                         # SIGNAL HISTORY: Log blocked signal
                         log_signal_to_history(
                             symbol=symbol,
@@ -7869,6 +8026,8 @@ class StrategyEngine:
                                       decision_price=ref_price_check,
                                       components=comps,
                                       alpaca_positions=actual_positions,
+                                      composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                                      composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                       executor_opens=len(self.executor.opens),
                                       max_positions=Config.MAX_CONCURRENT_POSITIONS)
                     # Shadow tracking removed (v2-only engine).
@@ -7897,7 +8056,8 @@ class StrategyEngine:
                 log_blocked_trade(symbol, "symbol_on_cooldown", score,
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
-                                  components=comps)
+                                  components=comps,
+                                  composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                 # SIGNAL HISTORY: Log blocked signal
                 log_signal_to_history(
                     symbol=symbol,
@@ -7947,7 +8107,8 @@ class StrategyEngine:
                             log_blocked_trade(symbol, "symbol_exposure_limit", score,
                                              direction=c.get("direction"),
                                              decision_price=ref_price_check,
-                                             components=comps, reason=symbol_reason)
+                                             components=comps, reason=symbol_reason,
+                                             composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                             # SIGNAL HISTORY: Log blocked signal
                             log_signal_to_history(
                                 symbol=symbol,
@@ -7970,7 +8131,8 @@ class StrategyEngine:
                         log_blocked_trade(symbol, "sector_exposure_limit", score,
                                          direction=c.get("direction"),
                                          decision_price=ref_price_check,
-                                         components=comps, reason=sector_reason)
+                                         components=comps, reason=sector_reason,
+                                         composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                         # SIGNAL HISTORY: Log blocked signal
                         log_signal_to_history(
                             symbol=symbol,
@@ -8032,6 +8194,8 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           price_change_pct=momentum_check.get("price_change_pct", 0.0),
+                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           reason=block_reason)
                         
                         # SIGNAL HISTORY: Log blocked signal
@@ -8176,7 +8340,8 @@ class StrategyEngine:
                     log_blocked_trade(symbol, "order_validation_failed", score,
                                      direction=c.get("direction"),
                                      decision_price=ref_price_check,
-                                     components=comps, validation_error=order_error)
+                                     components=comps, validation_error=order_error,
+                                     composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                     # SIGNAL HISTORY: Log blocked signal
                     log_signal_to_history(
                         symbol=symbol,
@@ -8319,7 +8484,8 @@ class StrategyEngine:
                     log_blocked_trade(symbol, "long_only_blocked_short_entry", score,
                                       direction=c.get("direction"),
                                       decision_price=ref_price_check,
-                                      components=comps)
+                                      components=comps,
+                                      composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                     # SIGNAL HISTORY: Log blocked signal
                     log_signal_to_history(
                         symbol=symbol,
@@ -8389,7 +8555,8 @@ class StrategyEngine:
                                           direction=c.get("direction"),
                                           decision_price=ref_price_check,
                                           components=comps,
-                                          reason=dg_reason)
+                                          reason=dg_reason,
+                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                         log_signal_to_history(
                             symbol=symbol, direction=direction, raw_score=raw_score, whale_boost=whale_boost,
                             final_score=final_score, atr_multiplier=atr_multiplier or 0.0,
@@ -8423,6 +8590,22 @@ class StrategyEngine:
 
                 # client_order_id_base already generated above (and includes correlation_id).
                 
+                # Signal snapshot (observability-only): ENTRY_DECISION before placing order
+                try:
+                    from pathlib import Path
+                    from telemetry.signal_snapshot_writer import write_snapshot_safe
+                    base = Path(__file__).resolve().parent if "__file__" in dir() else Path.cwd()
+                    composite_meta = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else {}
+                    comps_inner = (composite_meta or {}).get("components") or locals().get("comps") or {}
+                    write_snapshot_safe(
+                        base, symbol, "ENTRY_DECISION", "PAPER",
+                        composite_score_v2=score,
+                        composite_meta=composite_meta or {"components": comps_inner, "component_contributions": comps_inner},
+                        regime_label=market_regime,
+                        notes=["pre_submit"],
+                    )
+                except Exception:
+                    pass
                 # CRITICAL: Add exception handling and logging around submit_entry
                 try:
                     print(f"DEBUG {symbol}: About to call submit_entry with qty={qty}, side={side}, regime={market_regime}", flush=True)
@@ -8576,7 +8759,8 @@ class StrategyEngine:
                                           direction=c.get("direction"),
                                           decision_price=ref_price_check,
                                           components=comps,
-                                          reason="entry_score must be > 0.0")
+                                          reason="entry_score must be > 0.0",
+                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                         continue  # Skip this position - don't enter with invalid score
                     
                     # V4.0: Pass regime_modifier, ignition_status, and correlation_id for full Specialist Tier state recovery
@@ -8701,6 +8885,7 @@ class StrategyEngine:
                 context["components"] = comps if 'comps' in locals() else context.get("components", {})
                 context["regime"] = market_regime
                 context["position_side"] = "long" if side == "buy" else "short"
+                context["first_signal_ts_utc"] = _first_signal_ts_cache.get(symbol)
                 # Metadata integrity: enforce full fields only once the order is actually filled.
                 if context.get("pending_fill"):
                     required_fields = ["entry_ts", "entry_score", "regime", "entry_status"]
@@ -8750,6 +8935,68 @@ class StrategyEngine:
                               "note": "submitted_pending_fill"})
                 # NOTE: Do not log a synthetic/quote-based entry_price for pending fills.
                 log_attribution(trade_id=f"open_{symbol}_{now_iso()}", symbol=symbol, pnl_usd=0.0, context=context)
+                # Signal context capture (read-only): full signal state at enter for profitability learning.
+                try:
+                    from telemetry.signal_context_logger import (
+                        log_signal_context, default_threshold,
+                        confidence_bucket_from_score, size_bucket_from_position,
+                    )
+                    from config.registry import Thresholds
+                    mode = "paper" if getattr(Config, "PAPER_TRADING", True) else "live"
+                    comps = context.get("components") if isinstance(context.get("components"), dict) else {}
+                    sig_dict = {"uw_components": comps, "regime_label": context.get("market_regime"), "final_score": context.get("entry_score") or score}
+                    composite_meta = c.get("composite_meta")
+                    v2_adj = (composite_meta or {}).get("v2_adjustments") or {}
+                    uw_adj = (composite_meta or {}).get("v2_uw_adjustments") or {}
+                    base_score = (composite_meta or {}).get("base_score")
+                    signal_contributions = None
+                    if composite_meta:
+                        signal_contributions = {
+                            "technical": base_score,
+                            "vol": (v2_adj.get("vol_bonus") or 0) + (v2_adj.get("low_vol_penalty") or 0) + (v2_adj.get("beta_bonus") or 0),
+                            "uw": (v2_adj.get("uw_bonus") or 0) + (uw_adj.get("total") or 0),
+                            "regime": (v2_adj.get("regime_align_bonus") or 0) + (v2_adj.get("regime_misalign_penalty") or 0),
+                            "sector": uw_adj.get("sector_alignment"),
+                        }
+                    first_ts = context.get("first_signal_ts_utc")
+                    entry_delay_seconds = None
+                    if first_ts and context.get("entry_ts"):
+                        try:
+                            entry_dt = datetime.fromisoformat(str(context["entry_ts"]).replace("Z", "+00:00"))
+                            first_dt = datetime.fromisoformat(str(first_ts).replace("Z", "+00:00"))
+                            if entry_dt.tzinfo is None:
+                                entry_dt = entry_dt.replace(tzinfo=timezone.utc)
+                            if first_dt.tzinfo is None:
+                                first_dt = first_dt.replace(tzinfo=timezone.utc)
+                            entry_delay_seconds = (entry_dt - first_dt).total_seconds()
+                        except Exception:
+                            pass
+                    position_size = context.get("position_size_usd")
+                    if position_size is None and context.get("qty") and ref_price:
+                        try:
+                            position_size = float(context["qty"]) * float(ref_price)
+                        except Exception:
+                            pass
+                    base_usd = getattr(Thresholds, "POSITION_SIZE_USD", None) or getattr(Config, "SIZE_BASE_USD", 500.0)
+                    size_bucket = size_bucket_from_position(position_size, float(base_usd) if base_usd else None)
+                    log_signal_context(
+                        symbol=symbol,
+                        mode=mode,
+                        decision="enter",
+                        decision_reason="entry_filled",
+                        pnl_usd=0.0,
+                        signals=sig_dict,
+                        final_score=context.get("entry_score") or score,
+                        threshold=default_threshold(),
+                        signal_contributions=signal_contributions,
+                        confidence_bucket=confidence_bucket_from_score(context.get("entry_score") or score),
+                        first_signal_ts_utc=first_ts,
+                        entry_delay_seconds=entry_delay_seconds,
+                        position_size=position_size,
+                        size_bucket=size_bucket,
+                    )
+                except Exception:
+                    pass
             except Exception as e:
                 print(f"DEBUG {symbol}: EXCEPTION in order submission: {str(e)}", flush=True)
                 print(f"DEBUG {symbol}: Traceback: {traceback.format_exc()}", flush=True)

@@ -11,11 +11,26 @@ __pycache__/
 venv/
 .venv/
 
+# Cursor
+.cursor/
+
+# Logs
+*.log
+
 # State files
 state/
 logs/
 feature_store/
 *.jsonl
+
+# UW cache corruption artifacts
+data/uw_flow_cache.json.corrupted*.json
+
+# Exports (runtime artifacts)
+exports/
+
+# Telemetry computed/generated (keep structure, ignore date dirs)
+telemetry/20*/
 
 # Droplet sync artifacts (pulled locally for review)
 droplet_sync/
