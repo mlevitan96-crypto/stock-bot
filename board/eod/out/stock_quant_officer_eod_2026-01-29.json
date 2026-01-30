@@ -1,0 +1,93 @@
+{
+  "verdict": "CAUTION",
+  "summary": "No end-of-day bundle files were provided for 2026-01-29. As a result, no quantitative analysis of trading performance, market regime, or sector context could be performed. This report reflects a critical data gap.",
+  "pnl_metrics": {
+    "total_pnl_usd": null,
+    "total_pnl_pct": null,
+    "trades": null,
+    "wins": null,
+    "losses": null,
+    "win_rate": null,
+    "max_drawdown_pct": null
+  },
+  "regime_context": {
+    "regime_label": "Unknown",
+    "regime_confidence": null,
+    "notes": "No attribution or exit attribution data available to determine market regime."
+  },
+  "sector_context": {
+    "sectors_traded": [],
+    "sector_pnl": {},
+    "notes": "No trade data available to determine sector performance."
+  },
+  "recommendations": [
+    {
+      "id": "collect_eod_bundle",
+      "priority": "high",
+      "title": "Ensure EOD Bundle Files Are Present",
+      "body": "The 8 canonical EOD bundle files are essential for quantitative review. Please ensure these files are generated and accessible at the expected location for future analysis."
+    },
+    {
+      "id": "verify_file_paths",
+      "priority": "medium",
+      "title": "Verify File Paths and Generation Process",
+      "body": "Investigate why the EOD bundle files for 2026-01-29 were not found. Confirm the correct paths and that the `stock-bot` and related processes are generating these files as expected."
+    }
+  ],
+  "citations": [
+    {
+      "source": "attribution",
+      "ref": "missing_file",
+      "quote": "attribution.jsonl missing"
+    },
+    {
+      "source": "exit_attribution",
+      "ref": "missing_file",
+      "quote": "exit_attribution.jsonl missing"
+    },
+    {
+      "source": "master_trade_log",
+      "ref": "missing_file",
+      "quote": "master_trade_log.jsonl missing"
+    },
+    {
+      "source": "blocked_trades",
+      "ref": "missing_file",
+      "quote": "blocked_trades.jsonl missing"
+    },
+    {
+      "source": "daily_start_equity",
+      "ref": "missing_file",
+      "quote": "daily_start_equity.json missing"
+    },
+    {
+      "source": "peak_equity",
+      "ref": "missing_file",
+      "quote": "peak_equity.json missing"
+    },
+    {
+      "source": "signal_weights",
+      "ref": "missing_file",
+      "quote": "signal_weights.json missing"
+    },
+    {
+      "source": "daily_universe_v2",
+      "ref": "missing_file",
+      "quote": "daily_universe_v2.json missing"
+    }
+  ],
+  "falsification_criteria": [
+    {
+      "id": "eod_bundle_present",
+      "description": "The 8 canonical EOD bundle files for 2026-01-29 are found in the expected directory.",
+      "observed": false,
+      "data_source": "file_system_check"
+    },
+    {
+      "id": "eod_bundle_non_empty",
+      "description": "The located EOD bundle files contain valid, non-empty JSONL/JSON content.",
+      "observed": null,
+      "data_source": "file_content_check"
+    }
+  ]
+}
