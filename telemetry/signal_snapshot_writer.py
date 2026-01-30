@@ -51,7 +51,7 @@ def build_component_map(composite_meta: Optional[Dict], enriched: Optional[Dict]
     out: Dict[str, Dict] = {}
     for c in COMPONENTS:
         contrib = contribs.get(c)
-        src = sources.get(c, "unknown")
+        src = sources.get(c, "artifact_or_computed") or "artifact_or_computed"
         present = contrib is not None and (isinstance(contrib, (int, float)) and contrib != 0 or contrib)
         defaulted = not present and c in comps
         out[c] = {
@@ -59,9 +59,29 @@ def build_component_map(composite_meta: Optional[Dict], enriched: Optional[Dict]
             "defaulted": bool(defaulted),
             "value_bucket": _bucket_value(contrib) if contrib is not None else None,
             "contrib": round(float(contrib), 4) if isinstance(contrib, (int, float)) else None,
-            "source": str(src)[:32],
+            "source": str(src)[:32] if src and str(src) != "unknown" else "artifact_or_computed",
         }
     return out
+
+
+REQUIRED_KEYS = frozenset({
+    "timestamp_utc", "symbol", "lifecycle_event", "mode",
+    "components", "uw_artifacts_used", "notes",
+})
+
+
+def validate_snapshot_record(rec: Dict[str, Any]) -> tuple[bool, List[str]]:
+    """Validate required keys present. Returns (ok, list of missing keys)."""
+    missing = [k for k in REQUIRED_KEYS if k not in rec]
+    for k in ("timestamp_utc", "symbol", "lifecycle_event", "mode"):
+        if k in rec and rec[k] is None:
+            missing.append(k)
+    if "components" in rec and isinstance(rec["components"], dict):
+        for comp_name, comp_val in rec["components"].items():
+            if isinstance(comp_val, dict) and str(comp_val.get("source", "")).lower() == "unknown":
+                if "reason" not in comp_val:
+                    missing.append(f"components.{comp_name}.reason_for_unknown")
+    return len(missing) == 0, missing
 
 
 def build_snapshot_record(
@@ -77,17 +97,19 @@ def build_snapshot_record(
     position_id: Optional[str] = None,
     uw_artifacts_used: Optional[Dict] = None,
     notes: Optional[List[str]] = None,
+    timestamp_utc: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Build canonical snapshot record. Redact account/order IDs."""
+    """Build canonical snapshot record. Redact account/order IDs. timestamp_utc override for harness."""
     if lifecycle_event not in LIFECYCLE_EVENTS:
         lifecycle_event = "ENTRY_DECISION"
     if mode not in MODES:
         mode = "PAPER"
 
     components = build_component_map(composite_meta, enriched)
+    ts = timestamp_utc or datetime.now(timezone.utc).isoformat()
 
     rec = {
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "timestamp_utc": ts,
         "symbol": str(symbol).upper(),
         "lifecycle_event": lifecycle_event,
         "mode": mode,
@@ -139,6 +161,7 @@ def write_snapshot_safe(
     trade_id: Optional[str] = None,
     uw_artifacts_used: Optional[Dict] = None,
     notes: Optional[List[str]] = None,
+    timestamp_utc: Optional[str] = None,
 ) -> bool:
     """Convenience: build and write. Never raises."""
     try:
@@ -154,6 +177,7 @@ def write_snapshot_safe(
             trade_id=trade_id,
             uw_artifacts_used=uw_artifacts_used,
             notes=notes,
+            timestamp_utc=timestamp_utc,
         )
         return write_snapshot(base_dir, rec)
     except Exception:
