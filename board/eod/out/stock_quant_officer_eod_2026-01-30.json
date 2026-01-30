@@ -1,19 +1,19 @@
 {
   "verdict": "CAUTION",
-  "summary": "The session closed with a negative P&L and a low win rate. A large number of trades resulted in losses, primarily driven by 'unknown' and 'signal_decay' exit reasons, alongside numerous 'displacement_blocked' trades. The market regime was consistently identified as NEUTRAL across the traded universe.",
+  "summary": "The system ended the day with a net loss of $107.58, equivalent to a -0.21% P&L. The win rate for resolved trades was 39.96%. Key issues include a significant number of 'unknown' exit reasons in attribution and a high count of blocked trades, primarily due to displacement and maximum positions being reached.",
   "pnl_metrics": {
-    "total_pnl_usd": -137.83,
-    "total_pnl_pct": -0.27,
-    "trades": 2631,
-    "wins": 420,
-    "losses": 757,
-    "win_rate": 0.16,
-    "max_drawdown_pct": 4.65
+    "total_pnl_usd": -107.58,
+    "total_pnl_pct": -0.214,
+    "trades": 1031,
+    "wins": 412,
+    "losses": 619,
+    "win_rate": 0.3996,
+    "max_drawdown_pct": 4.419
   },
   "regime_context": {
     "regime_label": "NEUTRAL",
     "regime_confidence": null,
-    "notes": "The daily universe consistently shows a 'NEUTRAL' regime across all sampled symbols."
+    "notes": "The market regime for traded symbols was predominantly 'NEUTRAL', as inferred from the daily universe."
   },
   "sector_context": {
     "sectors_traded": [
@@ -22,72 +22,78 @@
       "BIOTECH"
     ],
     "sector_pnl": null,
-    "notes": "Sectors traded were derived from the daily universe sample. Sector-specific P&L is not directly summarized in the bundle."
+    "notes": "Specific sector P&L is not directly available in the bundle summary. Traded sectors include Technology, Biotech, and other unclassified symbols."
   },
   "recommendations": [
     {
       "id": "rec-1",
       "priority": "high",
-      "title": "Investigate 'unknown' and 'signal_decay' exit reasons",
-      "rationale": "A significant portion of exits are categorized as 'unknown' (1367) or 'signal_decay' (multiple variations summing to a large number), contributing to overall losses. A clearer definition of exit conditions or an analysis of signal persistence is warranted."
+      "title": "Investigate High Incidence of 'Unknown' Exit Reasons",
+      "body": "A substantial number of trades (1175 in attribution, 1367 in the previous day's data) are categorized with an 'unknown' exit reason. This data gap is critical and hinders comprehensive analysis of trade outcomes and driver attribution. All exits should be accurately logged with specific reasons to allow for proper performance evaluation and system improvements."
     },
     {
       "id": "rec-2",
       "priority": "medium",
-      "title": "Review blocked trades and position management",
-      "rationale": "Over 5000 trades were blocked, with 'displacement_blocked' (2983) and 'max_positions_reached' (1560) being the primary reasons. This suggests potential missed opportunities or a need to optimize position sizing and diversification rules."
+      "title": "Review Prevalence of 'Signal Decay' and 'Displacement' Exits/Blocks",
+      "body": "Both 'signal_decay' and 'displaced_by_...' are frequently observed as exit reasons, while 'displacement_blocked' and 'max_positions_reached' account for a large portion of blocked trades. This suggests potential inefficiencies in signal management, a high rate of signal replacement, or possibly missed opportunities due to overly restrictive position limits. Further analysis into the profitability of these exits and the opportunity cost of blocked trades is recommended."
     },
     {
       "id": "rec-3",
-      "priority": "medium",
-      "title": "Evaluate trading performance in 'NEUTRAL' regime",
-      "rationale": "Given the consistent 'NEUTRAL' market regime, the negative P&L and low win rate indicate that the current strategy may not be optimally tuned for this market condition. Further analysis of entry/exit logic under 'NEUTRAL' is recommended."
+      "priority": "low",
+      "title": "Monitor Negative P&L Trends",
+      "body": "While daily fluctuations are normal, two consecutive days of negative P&L with a sub-40% win rate warrant close monitoring. Review overall system performance over a slightly longer period to identify if this is a temporary dip or a developing trend."
     }
   ],
   "citations": [
     {
       "source": "attribution",
       "ref": "logs/attribution.jsonl",
-      "quote": "total_pnl_usd, trades, wins, losses, and win_rate metrics, as well as general exit reasons, are derived from this file."
+      "quote": "total_pnl_usd, trades, wins, losses, and win_rate were derived from this source. The primary exit reasons were also heavily referenced from this file."
     },
     {
       "source": "exit_attribution",
       "ref": "logs/exit_attribution.jsonl",
-      "quote": "Exit reasons and total P&L for exits used to support the summary and recommendations."
+      "quote": "Confirmed total P&L and reinforced exit reason analysis, particularly for 'signal_decay' and 'displaced_by_...' entries."
     },
     {
       "source": "daily_start_equity",
       "ref": "state/daily_start_equity.json",
-      "quote": "The daily starting equity of 50259.26 USD was used for total_pnl_pct calculation."
+      "quote": "daily_start_equity was used to calculate total_pnl_pct."
     },
     {
       "source": "peak_equity",
       "ref": "state/peak_equity.json",
-      "quote": "peak_equity value of 52566.86 was used in the max_drawdown_pct calculation."
+      "quote": "peak_equity was used in conjunction with current equity (daily_start_equity) to calculate max_drawdown_pct."
     },
     {
       "source": "blocked_trades",
       "ref": "state/blocked_trades.jsonl",
-      "quote": "Blocked trade counts and reasons (displacement_blocked, max_positions_reached) informed recommendation 2."
+      "quote": "The count and reasons for blocked trades were extracted from this file."
     },
     {
       "source": "daily_universe_v2",
       "ref": "state/daily_universe_v2.json",
-      "quote": "Regime_label ('NEUTRAL') and sectors_traded ('TECH', 'UNKNOWN', 'BIOTECH') are derived from the daily universe data."
+      "quote": "Regime context ('NEUTRAL') and sectors traded ('TECH', 'UNKNOWN', 'BIOTECH') were inferred from the context of symbols in this file."
     }
   ],
   "falsification_criteria": [
     {
       "id": "fc-1",
-      "description": "If next EOD attribution shows a total_pnl_usd > 0 AND win_rate > 0.4 in a 'NEUTRAL' regime, the CAUTION verdict was overly conservative.",
+      "description": "If the attribution for the next EOD date (2026-01-31) shows a total_pnl_usd that is positive AND a win_rate greater than 0.45, the 'CAUTION' verdict for 2026-01-30 was overly pessimistic.",
       "observed": null,
-      "data_source": "attribution, daily_universe_v2"
+      "data_source": "attribution"
     },
     {
       "id": "fc-2",
-      "description": "If, upon review, 'unknown' exit reasons in exit_attribution are found to be legitimate, unavoidable closes (e.g., market close), then recommendation 1 should be re-evaluated.",
+      "description": "If a detailed analysis of 'unknown' exit reasons for 2026-01-30 reveals a majority were profitable and correctly categorized, it would suggest an issue with logging, not necessarily poor trade management.",
       "observed": null,
-      "data_source": "exit_attribution"
+      "data_source": "attribution"
+    },
+    {
+      "id": "fc-3",
+      "description": "If a review of blocked trades for 2026-01-30 indicates that the majority of 'displacement_blocked' trades would have resulted in losses, it would support the current blocking mechanism.",
+      "observed": null,
+      "data_source": "blocked_trades"
     }
   ]
 }
