@@ -1,0 +1,2 @@
+# Force LF for shell scripts (droplet runs Linux; CRLF breaks cron)
+*.sh text eol=lf
