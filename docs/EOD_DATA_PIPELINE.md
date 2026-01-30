@@ -105,7 +105,17 @@ The generated memo must include:
 
 ---
 
-## 5.3 Droplet EOD integrity runner
+## 5.3 Signal contribution & intelligence gap audit
+
+- **Script:** `scripts/signal_contribution_and_gaps_audit.py`
+- **Input:** `--date YYYY-MM-DD`, `--base-dir` (repo root).
+- **Output:** `reports/STOCK_SIGNAL_CONTRIBUTION_AND_GAPS_<DATE>.md`.
+- **Droplet runner:** `scripts/run_signal_contribution_audit_on_droplet.sh` (REPO_DIR default `/root/stock-bot`).
+- **Content:** Signal coverage matrix, contribution & redundancy, regime blind spots, intelligence gap taxonomy, evidence-based roadmap (NO-APPLY). Memory Bank §4, §7.2, §7.5–§7.7, §7.9.
+
+---
+
+## 5.4 Droplet EOD integrity runner (manifest + inventory)
 
 - **Script:** `scripts/run_stock_eod_integrity_on_droplet.sh`
 - **Run on droplet:** `REPO_DIR` default `/root/trading-bot-current` (override with env).
