@@ -65,7 +65,7 @@ def build_component_map(composite_meta: Optional[Dict], enriched: Optional[Dict]
 
 
 REQUIRED_KEYS = frozenset({
-    "timestamp_utc", "symbol", "lifecycle_event", "mode",
+    "join_key", "join_key_fields", "timestamp_utc", "symbol", "lifecycle_event", "mode",
     "components", "uw_artifacts_used", "notes",
 })
 
@@ -108,7 +108,21 @@ def build_snapshot_record(
     components = build_component_map(composite_meta, enriched)
     ts = timestamp_utc or datetime.now(timezone.utc).isoformat()
 
+    try:
+        from telemetry.snapshot_join_keys import build_join_key
+        join_key, join_key_fields = build_join_key(
+            symbol=symbol,
+            timestamp_utc=ts,
+            trade_id=trade_id,
+            lifecycle_event=lifecycle_event,
+        )
+    except Exception:
+        join_key = f"{str(symbol).upper()}|{ts[:19]}"
+        join_key_fields = {"symbol": symbol, "timestamp_utc": ts, "join_source": "fallback"}
+
     rec = {
+        "join_key": join_key,
+        "join_key_fields": join_key_fields,
         "timestamp_utc": ts,
         "symbol": str(symbol).upper(),
         "lifecycle_event": lifecycle_event,

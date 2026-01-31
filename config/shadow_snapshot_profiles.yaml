@@ -1,0 +1,33 @@
+# Shadow snapshot profiles — NO-APPLY. For counterfactual analysis only.
+# Affects ONLY shadow computation; never trading behavior.
+# component_multipliers: scale contrib by this factor (1.0 = baseline)
+
+profiles:
+  baseline:
+    description: "Current weights (no change)"
+    component_multipliers: {}  # empty = use 1.0 for all
+
+  emphasize_dark_pool:
+    description: "2x dark_pool weight (hypothetical)"
+    component_multipliers:
+      dark_pool: 2.0
+
+  emphasize_congress:
+    description: "2x congress weight (hypothetical)"
+    component_multipliers:
+      congress: 2.0
+
+  emphasize_regime:
+    description: "1.5x regime_modifier (hypothetical)"
+    component_multipliers:
+      regime: 1.5
+
+  disable_toxicity:
+    description: "Zero out toxicity_penalty (marginal test)"
+    component_multipliers:
+      toxicity_penalty: 0.0
+
+  emphasize_flow:
+    description: "1.5x options flow (hypothetical)"
+    component_multipliers:
+      flow: 1.5

@@ -17,6 +17,7 @@ SCORING_MODULES = [
     "uw_composite_v2.py",
     "uw_enrichment_v2.py",
     "telemetry/signal_snapshot_writer.py",
+    "telemetry/snapshot_builder.py",
 ]
 FORBIDDEN_PATTERNS = [
     r"from\s+src\.uw\.uw_client\s+import",
