@@ -174,6 +174,9 @@ def main() -> int:
         # EXIT_DECISION if exit context exists
         if rec.get("exit_ts"):
             exit_score = rec.get("exit_v2_score") or rec.get("v2_score") or score
+            entry_ts_iso = rec.get("entry_ts") or ts
+            stable_tid = f"live:{sym}:{entry_ts_iso}" if entry_ts_iso else trade_id
+            pos_side = (rec.get("side") or "long").lower()[:4]
             exit_rec = build_snapshot_record(
                 symbol=sym,
                 lifecycle_event="EXIT_DECISION",
@@ -182,7 +185,9 @@ def main() -> int:
                 freshness_factor=1.0,
                 composite_meta=composite_meta,
                 regime_label=regime_label,
-                trade_id=trade_id,
+                trade_id=stable_tid,
+                entry_timestamp_utc=entry_ts_iso,
+                side=pos_side,
                 uw_artifacts_used=uw_artifacts_used,
                 notes=["harness", "NO_ORDERS_PLACED", f"exit:{rec.get('exit_reason', '')}"],
                 timestamp_utc=rec.get("exit_ts"),

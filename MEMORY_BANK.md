@@ -1,4 +1,4 @@
-# MEMORY_BANK.md
+c# MEMORY_BANK.md
 # Master Operating Manual for Cursor + Trading Bot
 # Version: 2026-01-12 (SSH Deployment Verified)
 
@@ -922,6 +922,18 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 - **Shadow snapshot profiles (NO-APPLY):** `config/shadow_snapshot_profiles.yaml` — baseline, emphasize_dark_pool, emphasize_congress, emphasize_regime, disable_toxicity, etc. `telemetry/snapshot_builder.py` recomputes composite with profile multipliers; writes to `logs/signal_snapshots_shadow_<DATE>.jsonl`.
 - **Shadow snapshots do NOT change decisions.** They are counterfactual analysis only.
 - **Runner:** `scripts/run_snapshot_outcome_attribution_on_droplet.py` — harness → shadow snapshots → attribution report → commit + push.
+
+### Exit Join Canonicalization
+- **Join key precedence (deterministic exit joins):** `telemetry/snapshot_join_keys.py` — a) position_id (preferred); b) trade_id (live:SYMBOL:entry_ts); c) surrogate: symbol + side + entry_ts_bucket + intent_id.
+- **Exit join fields:** EXIT_DECISION and EXIT_FILL snapshots emit `exit_join_key`, `exit_join_key_fields`, `entry_timestamp_utc` for auditability.
+- **Reconciliation:** `telemetry/exit_join_reconciler.py` — resolves delayed exits, partial fills, regime-driven exits by time-window tolerance (default 5 min).
+- **Report:** `reports/EXIT_JOIN_HEALTH_<DATE>.md` — snapshot→exit match rate, unmatched reasons, sources.
+
+### Blocked-Trade Intelligence Attribution
+- **Linkage:** `telemetry/blocked_snapshot_linker.py` — links state/blocked_trades.jsonl to nearest ENTRY_DECISION snapshot by symbol + time window (10 min).
+- **Output:** `logs/blocked_trade_snapshots.jsonl` — append-only; each record: blocked_reason, snapshot components present/defaulted/missing, regime_label, notes.
+- **Report:** `reports/BLOCKED_TRADE_INTEL_<DATE>.md` — blocked counts by reason, intelligence at block time, shadow profile deltas (hypothetical; NO-APPLY).
+- **Runner:** `scripts/run_exit_join_and_blocked_attribution_on_droplet.py` — intel producers → UW audit → harness (if needed) → exit join health → blocked intel report → commit + push.
 
 ### UW canonical rules
 - **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.

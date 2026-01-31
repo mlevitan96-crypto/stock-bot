@@ -109,18 +109,24 @@ def main() -> int:
     from telemetry.snapshot_join_keys import (
         extract_join_key_from_snapshot,
         extract_join_key_from_master_trade,
+        extract_exit_join_key_from_snapshot,
+        extract_exit_join_key_from_master_trade,
     )
 
     # Join quality
     mtl_by_key = {}
+    mtl_by_exit_key = {}
     for m in master_log:
         jk, _ = extract_join_key_from_master_trade(m)
         mtl_by_key[jk] = m
-    mtl_by_sym_ts = {}
+        if m.get("exit_ts"):
+            ejk, _ = extract_exit_join_key_from_master_trade(m)
+            mtl_by_exit_key[ejk] = m
+    mtl_by_sym_entry = {}
     for m in master_log:
         sym = str(m.get("symbol", "")).upper()
-        ts = m.get("entry_ts") or m.get("timestamp", "")
-        mtl_by_sym_ts[(sym, str(ts)[:19])] = m
+        entry_ts = m.get("entry_ts") or m.get("timestamp", "")
+        mtl_by_sym_entry[(sym, str(entry_ts)[:19])] = m
 
     matched_entries = 0
     matched_exits = 0
@@ -143,13 +149,19 @@ def main() -> int:
                 unmatched_reasons["ts_drift_or_no_mtl"] += 1
 
     for s in exit_snapshots:
-        sym = str(s.get("symbol", "")).upper()
-        ts = s.get("timestamp_utc", "")[:19]
-        if (sym, ts) in mtl_by_sym_ts:
+        ejk, _ = extract_exit_join_key_from_snapshot(s)
+        if ejk in mtl_by_exit_key:
+            matched_exits += 1
+        elif ejk in mtl_by_key:
             matched_exits += 1
         else:
-            unmatched_snapshots += 1
-            unmatched_reasons["exit_no_matching_mtl"] += 1
+            sym = str(s.get("symbol", "")).upper()
+            entry_ts = s.get("entry_timestamp_utc") or (s.get("exit_join_key_fields") or {}).get("entry_timestamp_utc")
+            if entry_ts and (sym, str(entry_ts)[:19]) in mtl_by_sym_entry:
+                matched_exits += 1
+            else:
+                unmatched_snapshots += 1
+                unmatched_reasons["exit_no_matching_mtl"] += 1
 
     # Outcome buckets (from master_trade_log + exit_attr)
     outcome_counts = defaultdict(int)

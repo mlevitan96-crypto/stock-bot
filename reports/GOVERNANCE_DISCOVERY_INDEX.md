@@ -10,6 +10,15 @@ Canonical Scheduled Processes:
 Non-Canonical / Ad-Hoc Tools:
 - reports/_daily_review_tools/run_droplet_end_of_day_review.py (Memory Bank §5.4)
 
+Observability Runners (DropletClient):
+- scripts/run_exit_join_and_blocked_attribution_on_droplet.py — exit join health + blocked trade intel
+- scripts/run_snapshot_outcome_attribution_on_droplet.py — snapshot→outcome attribution + shadow
+- scripts/run_snapshot_harness_on_droplet.py — snapshot harness verification
+
+Reports:
+- reports/EXIT_JOIN_HEALTH_<DATE>.md — snapshot→exit match rate
+- reports/BLOCKED_TRADE_INTEL_<DATE>.md — blocked counts, intelligence at block time
+
 AI Governance:
 - Multi-model review required for promotion decisions
 - Counterfactual analysis assigned to Gemini 2.5 Pro

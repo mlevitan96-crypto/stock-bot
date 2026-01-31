@@ -98,8 +98,11 @@ def build_snapshot_record(
     uw_artifacts_used: Optional[Dict] = None,
     notes: Optional[List[str]] = None,
     timestamp_utc: Optional[str] = None,
+    entry_timestamp_utc: Optional[str] = None,
+    side: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Build canonical snapshot record. Redact account/order IDs. timestamp_utc override for harness."""
+    """Build canonical snapshot record. Redact account/order IDs. timestamp_utc override for harness.
+    For EXIT_DECISION/EXIT_FILL, pass entry_timestamp_utc and trade_id=live:SYMBOL:entry_ts for deterministic joins."""
     if lifecycle_event not in LIFECYCLE_EVENTS:
         lifecycle_event = "ENTRY_DECISION"
     if mode not in MODES:
@@ -136,6 +139,28 @@ def build_snapshot_record(
         "uw_artifacts_used": uw_artifacts_used or {},
         "notes": notes or [],
     }
+
+    # Exit join keys for EXIT_DECISION and EXIT_FILL (deterministic join to master_trade_log / exit_attribution)
+    if lifecycle_event in ("EXIT_DECISION", "EXIT_FILL"):
+        try:
+            from telemetry.snapshot_join_keys import build_exit_join_key
+            entry_ts = entry_timestamp_utc or join_key_fields.get("entry_timestamp_utc")
+            ejk, ejk_fields = build_exit_join_key(
+                symbol=symbol,
+                entry_timestamp_utc=entry_ts,
+                exit_timestamp_utc=ts,
+                position_id=position_id,
+                trade_id=trade_id,
+                side=side,
+            )
+            rec["exit_join_key"] = ejk
+            rec["exit_join_key_fields"] = ejk_fields
+            if entry_ts:
+                rec["entry_timestamp_utc"] = entry_ts
+        except Exception:
+            rec["exit_join_key"] = rec.get("join_key", "")
+            rec["exit_join_key_fields"] = dict(join_key_fields or {}, join_source="fallback")
+
     return rec
 
 
@@ -173,9 +198,12 @@ def write_snapshot_safe(
     enriched: Optional[Dict] = None,
     regime_label: Optional[str] = None,
     trade_id: Optional[str] = None,
+    position_id: Optional[str] = None,
     uw_artifacts_used: Optional[Dict] = None,
     notes: Optional[List[str]] = None,
     timestamp_utc: Optional[str] = None,
+    entry_timestamp_utc: Optional[str] = None,
+    side: Optional[str] = None,
 ) -> bool:
     """Convenience: build and write. Never raises."""
     try:
@@ -189,9 +217,12 @@ def write_snapshot_safe(
             enriched=enriched,
             regime_label=regime_label,
             trade_id=trade_id,
+            position_id=position_id,
             uw_artifacts_used=uw_artifacts_used,
             notes=notes,
             timestamp_utc=timestamp_utc,
+            entry_timestamp_utc=entry_timestamp_utc,
+            side=side,
         )
         return write_snapshot(base_dir, rec)
     except Exception:

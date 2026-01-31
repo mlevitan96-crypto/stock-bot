@@ -76,9 +76,12 @@ def build_signal_snapshot(
     enriched: Optional[Dict] = None,
     regime_label: Optional[str] = None,
     trade_id: Optional[str] = None,
+    position_id: Optional[str] = None,
     uw_artifacts_used: Optional[Dict] = None,
     notes: Optional[List[str]] = None,
     timestamp_utc: Optional[str] = None,
+    entry_timestamp_utc: Optional[str] = None,
+    side: Optional[str] = None,
     shadow_profile: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
@@ -97,9 +100,12 @@ def build_signal_snapshot(
         enriched=enriched,
         regime_label=regime_label,
         trade_id=trade_id,
+        position_id=position_id,
         uw_artifacts_used=uw_artifacts_used,
         notes=notes or [],
         timestamp_utc=timestamp_utc,
+        entry_timestamp_utc=entry_timestamp_utc,
+        side=side,
     )
 
     if shadow_profile:
@@ -154,6 +160,8 @@ def write_shadow_snapshots(
         score = rec.get("v2_score") or rec.get("entry_v2_score") or rec.get("exit_v2_score") or 2.0
         regime = (rec.get("regime_snapshot") or {}).get("regime") if isinstance(rec.get("regime_snapshot"), dict) else None
 
+        entry_ts_str = rec.get("entry_ts") or ts
+        stable_tid = f"live:{str(symbol).upper()}:{entry_ts_str}" if entry_ts_str else tid
         for profile in ["baseline"] + profs:
             shad = build_signal_snapshot(
                 symbol=symbol,
@@ -163,7 +171,9 @@ def write_shadow_snapshots(
                 freshness_factor=1.0,
                 composite_meta=meta,
                 regime_label=regime,
-                trade_id=tid,
+                trade_id=stable_tid or tid,
+                entry_timestamp_utc=entry_ts_str,
+                side=(rec.get("side") or "long")[:4].lower(),
                 uw_artifacts_used=rec.get("uw_artifacts_used") or {},
                 notes=["shadow_batch", "NO_ORDERS_PLACED"],
                 timestamp_utc=ts,

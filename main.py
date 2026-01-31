@@ -1857,12 +1857,20 @@ def log_exit_attribution(
             now_v2 = v2e.get("now_v2") or {}
             comps = now_v2.get("v2_exit_components") or {}
             composite_meta = {"components": comps, "component_contributions": comps, "component_sources": {}}
+            entry_ts_dt = info.get("ts", now_aware)
+            entry_ts_iso = entry_ts_dt.isoformat() if hasattr(entry_ts_dt, "isoformat") else str(entry_ts_dt)
+            if entry_ts_iso and "Z" not in entry_ts_iso and "+" not in entry_ts_iso:
+                entry_ts_iso = entry_ts_iso + "+00:00"
+            stable_trade_id = f"live:{str(symbol).upper()}:{entry_ts_iso}" if entry_ts_iso else None
+            pos_side = _normalize_position_side(str(info.get("side") or "buy"))
             write_snapshot_safe(
                 base, symbol, "EXIT_FILL", "PAPER",
                 composite_score_v2=now_v2.get("v2_exit_score"),
                 composite_meta=composite_meta,
                 regime_label=info.get("regime") or (metadata or {}).get("regime"),
-                trade_id=f"exit_{symbol}_{info.get('ts', '')}",
+                trade_id=stable_trade_id,
+                entry_timestamp_utc=entry_ts_iso,
+                side=pos_side,
                 notes=[f"exit:{close_reason}"],
             )
     except Exception:
@@ -6636,12 +6644,20 @@ class AlpacaExecutor:
                     now_v2 = v2e.get("now_v2") or {}
                     comps = now_v2.get("v2_exit_components") or {}
                     composite_meta = {"components": comps, "component_contributions": comps, "component_sources": {}}
+                    entry_ts_dt = info.get("ts", datetime.utcnow())
+                    entry_ts_iso = entry_ts_dt.isoformat() if hasattr(entry_ts_dt, "isoformat") else str(entry_ts_dt)
+                    if entry_ts_iso and "Z" not in entry_ts_iso and "+" not in entry_ts_iso:
+                        entry_ts_iso = entry_ts_iso + "+00:00"
+                    stable_trade_id = f"live:{str(symbol).upper()}:{entry_ts_iso}" if entry_ts_iso else None
+                    pos_side = str(info.get("position_side") or ("long" if str(info.get("side", "buy")).lower() in ("buy", "long") else "short"))
                     write_snapshot_safe(
                         base, symbol, "EXIT_DECISION", "PAPER",
                         composite_score_v2=now_v2.get("v2_exit_score") or info.get("entry_score"),
                         composite_meta=composite_meta,
                         regime_label=info.get("regime") or meta.get("regime"),
-                        trade_id=f"exit_decision_{symbol}",
+                        trade_id=stable_trade_id,
+                        entry_timestamp_utc=entry_ts_iso,
+                        side=pos_side,
                         notes=["exit_decision_before_submit"],
                     )
                 except Exception:
