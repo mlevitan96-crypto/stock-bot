@@ -6,17 +6,44 @@
 
 | Reason | Count |
 |--------|-------|
+| displacement_blocked | 1201 |
+| max_positions_reached | 571 |
+| expectancy_blocked:score_floor_breach | 201 |
+| max_new_positions_per_cycle | 41 |
+| order_validation_failed | 7 |
 
-- **Total blocked:** 0
+- **Total blocked:** 2021
 
 ## 2. Intelligence at Block Time
 
-- Blocked trades linked to ENTRY_DECISION snapshot: 0 / 0
+- Blocked trades linked to ENTRY_DECISION snapshot: 86 / 2021
 
 ### Component presence (linked blocks)
 
 | Component | Present | Defaulted |
 |-----------|---------|-----------|
+| calendar | 0 | 86 |
+| congress | 14 | 72 |
+| dark_pool | 86 | 0 |
+| etf_flow | 86 | 0 |
+| event | 86 | 0 |
+| flow | 86 | 0 |
+| freshness_factor | 86 | 0 |
+| ftd_pressure | 86 | 0 |
+| greeks_gamma | 86 | 0 |
+| insider | 86 | 0 |
+| institutional | 0 | 86 |
+| iv_rank | 86 | 0 |
+| iv_skew | 86 | 0 |
+| market_tide | 72 | 14 |
+| motif_bonus | 0 | 86 |
+| oi_change | 86 | 0 |
+| regime | 86 | 0 |
+| shorts_squeeze | 0 | 86 |
+| smile | 86 | 0 |
+| squeeze_score | 86 | 0 |
+| toxicity_penalty | 86 | 0 |
+| whale | 0 | 86 |
 
 ## 3. Notes
 
