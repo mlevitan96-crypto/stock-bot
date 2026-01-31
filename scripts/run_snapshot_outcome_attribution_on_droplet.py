@@ -31,9 +31,11 @@ def main() -> int:
     print(f"[RUN] {cmd}")
     out, err, rc = client._execute(cmd, timeout=300)
     if out:
-        print(out)
+        safe = out.encode("ascii", errors="replace").decode("ascii")
+        print(safe)
     if err:
-        print(err, file=sys.stderr)
+        safe_err = err.encode("ascii", errors="replace").decode("ascii")
+        print(safe_err, file=sys.stderr)
 
     from datetime import datetime, timezone
     date_str = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")

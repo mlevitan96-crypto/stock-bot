@@ -916,6 +916,13 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
   - **Success criteria:** logs/signal_snapshots_harness_<DATE>.jsonl exists with >0 lines; reports/SNAPSHOT_HARNESS_VERIFICATION_<DATE>.md passes schema checks; reports/SIGNAL_MAP_<DATE>.md non-empty and labeled HARNESS.
   - **NO ORDERS PLACED:** Harness produces snapshots from master_trade_log; never places orders.
 
+### Snapshot→Outcome Attribution
+- **Join keys contract:** `telemetry/snapshot_join_keys.py` — canonical join_key and join_key_fields for snapshots↔master_trade_log↔exit_attribution↔blocked_trades. Prefer trade_id; surrogate: symbol|rounded_ts_bucket|side|lifecycle_event.
+- **Report:** `reports/SNAPSHOT_OUTCOME_ATTRIBUTION_<DATE>.md` — join quality, outcome buckets (WIN/LOSS/FLAT/blocked), signal separability, marginal value (informative/neutral/misleading), shadow comparisons.
+- **Shadow snapshot profiles (NO-APPLY):** `config/shadow_snapshot_profiles.yaml` — baseline, emphasize_dark_pool, emphasize_congress, emphasize_regime, disable_toxicity, etc. `telemetry/snapshot_builder.py` recomputes composite with profile multipliers; writes to `logs/signal_snapshots_shadow_<DATE>.jsonl`.
+- **Shadow snapshots do NOT change decisions.** They are counterfactual analysis only.
+- **Runner:** `scripts/run_snapshot_outcome_attribution_on_droplet.py` — harness → shadow snapshots → attribution report → commit + push.
+
 ### UW canonical rules
 - **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.
 - **No hallucinated endpoints:** all must exist in `unusual_whales_api/api_spec.yaml`; static audit `scripts/audit_uw_endpoints.py` fails CI if unknown endpoints referenced.

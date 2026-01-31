@@ -94,7 +94,10 @@ def main() -> int:
     def in_date(ts: str) -> bool:
         return str(ts or "")[:10] == target_date if ts else False
 
-    snapshots = [s for s in snapshots if in_date(s.get("timestamp_utc", ""))]
+    snapshots_date = [s for s in snapshots if in_date(s.get("timestamp_utc", ""))]
+    if not snapshots_date and snapshots:
+        snapshots_date = snapshots
+    snapshots = snapshots_date
     master_log = [m for m in master_log if in_date(m.get("entry_ts") or m.get("timestamp", ""))]
     exit_attr = [e for e in exit_attr if in_date(e.get("timestamp") or e.get("entry_timestamp", ""))]
 
