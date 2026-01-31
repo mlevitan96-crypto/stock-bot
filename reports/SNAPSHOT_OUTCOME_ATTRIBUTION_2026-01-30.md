@@ -1,6 +1,6 @@
 # Snapshot→Outcome Attribution — 2026-01-30
 
-**Generated:** 2026-01-31T00:33:45.435072+00:00
+**Generated:** 2026-01-31T00:43:25.613986+00:00
 **STATUS: NO-APPLY — Observability only.**
 
 ## 1. Join quality
