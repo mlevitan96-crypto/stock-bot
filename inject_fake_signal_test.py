@@ -126,7 +126,7 @@ class SignalInjectionTest:
         
         # Gate 1: Freeze state
         freeze_file = Path("state/governor_freezes.json")
-        pre_market = Path("state/pre_market_freeze.flag")
+        pre_market = StateFiles.PRE_MARKET_FREEZE
         frozen = (freeze_file.exists() and json.loads(freeze_file.read_text())) or pre_market.exists()
         gate_results["freeze"] = not frozen
         self.test_results.append(("Gate 1: Freeze", "PASS" if not frozen else "FAIL", 

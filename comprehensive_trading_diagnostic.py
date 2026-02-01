@@ -308,7 +308,7 @@ def diagnose_signal_processing() -> Dict[str, Any]:
         print_check("Recent Gate Events", recent, recent_msg)
     
     # Check attribution logging
-    attribution_path = Path("data/uw_attribution.jsonl")
+    attribution_path = CacheFiles.UW_ATTRIBUTION
     exists, msg, entries = check_jsonl_file(attribution_path, "UW Attribution Log", min_entries=0)
     print_check("UW Attribution Logging", exists, msg)
     

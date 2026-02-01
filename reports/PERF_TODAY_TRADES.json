@@ -1,0 +1,1139 @@
+{
+  "date": "2026-01-28",
+  "trades": [
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T14:35:15.201958+00:00",
+      "pnl_usd": -8.64,
+      "ts": "2026-01-28T14:35:15.202089+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "HD",
+      "trade_id": "close_HD_2026-01-28T14:39:26.176007+00:00",
+      "pnl_usd": -0.62,
+      "ts": "2026-01-28T14:39:26.176053+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "LOW",
+      "trade_id": "close_LOW_2026-01-28T14:39:28.758303+00:00",
+      "pnl_usd": -0.53,
+      "ts": "2026-01-28T14:39:28.758482+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLE",
+      "trade_id": "close_XLE_2026-01-28T14:39:31.088871+00:00",
+      "pnl_usd": -0.72,
+      "ts": "2026-01-28T14:39:31.088972+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "IWM",
+      "trade_id": "close_IWM_2026-01-28T14:39:33.622789+00:00",
+      "pnl_usd": 0.06,
+      "ts": "2026-01-28T14:39:33.624328+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMD",
+      "trade_id": "close_AMD_2026-01-28T14:40:21.325169+00:00",
+      "pnl_usd": 2.73,
+      "ts": "2026-01-28T14:40:21.325208+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "GOOGL",
+      "trade_id": "close_GOOGL_2026-01-28T14:40:24.224413+00:00",
+      "pnl_usd": -0.27,
+      "ts": "2026-01-28T14:40:24.224458+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "INTC",
+      "trade_id": "close_INTC_2026-01-28T14:40:26.774649+00:00",
+      "pnl_usd": 9.85,
+      "ts": "2026-01-28T14:40:26.774701+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TGT",
+      "trade_id": "close_TGT_2026-01-28T14:40:29.531013+00:00",
+      "pnl_usd": -2.24,
+      "ts": "2026-01-28T14:40:29.531064+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "WMT",
+      "trade_id": "close_WMT_2026-01-28T14:40:32.686857+00:00",
+      "pnl_usd": -0.11,
+      "ts": "2026-01-28T14:40:32.686907+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "WFC",
+      "trade_id": "close_WFC_2026-01-28T14:40:38.230537+00:00",
+      "pnl_usd": -0.7,
+      "ts": "2026-01-28T14:40:38.230644+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "BAC",
+      "trade_id": "close_BAC_2026-01-28T14:40:57.613391+00:00",
+      "pnl_usd": 0.16,
+      "ts": "2026-01-28T14:40:57.613447+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MSFT",
+      "trade_id": "close_MSFT_2026-01-28T14:41:42.764322+00:00",
+      "pnl_usd": 0.62,
+      "ts": "2026-01-28T14:41:42.764384+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AAPL",
+      "trade_id": "close_AAPL_2026-01-28T14:41:45.315831+00:00",
+      "pnl_usd": 0.09,
+      "ts": "2026-01-28T14:41:45.315876+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "WFC",
+      "trade_id": "close_WFC_2026-01-28T14:42:14.090422+00:00",
+      "pnl_usd": -0.02,
+      "ts": "2026-01-28T14:42:14.090508+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "SOFI",
+      "trade_id": "close_SOFI_2026-01-28T14:44:06.489231+00:00",
+      "pnl_usd": -0.52,
+      "ts": "2026-01-28T14:44:06.491395+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "LCID",
+      "trade_id": "close_LCID_2026-01-28T14:44:09.499075+00:00",
+      "pnl_usd": 0.96,
+      "ts": "2026-01-28T14:44:09.499123+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T14:45:21.180733+00:00",
+      "pnl_usd": 1.76,
+      "ts": "2026-01-28T14:45:21.180773+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NIO",
+      "trade_id": "close_NIO_2026-01-28T14:45:24.216655+00:00",
+      "pnl_usd": -5.0,
+      "ts": "2026-01-28T14:45:24.216738+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PLTR",
+      "trade_id": "close_PLTR_2026-01-28T14:46:38.942652+00:00",
+      "pnl_usd": -0.74,
+      "ts": "2026-01-28T14:46:38.952145+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "UNH",
+      "trade_id": "scale_UNH_2026-01-28T14:48:49.209359+00:00",
+      "pnl_usd": 5.78,
+      "ts": "2026-01-28T14:48:49.209476+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "WMT",
+      "trade_id": "close_WMT_2026-01-28T14:51:16.365431+00:00",
+      "pnl_usd": -0.18,
+      "ts": "2026-01-28T14:51:16.365477+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "HOOD",
+      "trade_id": "scale_HOOD_2026-01-28T14:52:40.035230+00:00",
+      "pnl_usd": 2.43,
+      "ts": "2026-01-28T14:52:40.035456+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "INTC",
+      "trade_id": "close_INTC_2026-01-28T15:06:48.732560+00:00",
+      "pnl_usd": -1.2,
+      "ts": "2026-01-28T15:06:48.732620+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMD",
+      "trade_id": "close_AMD_2026-01-28T15:07:23.385039+00:00",
+      "pnl_usd": -5.11,
+      "ts": "2026-01-28T15:07:23.385077+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "GOOGL",
+      "trade_id": "close_GOOGL_2026-01-28T15:07:25.947218+00:00",
+      "pnl_usd": 1.44,
+      "ts": "2026-01-28T15:07:25.947307+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "C",
+      "trade_id": "close_C_2026-01-28T15:10:16.492184+00:00",
+      "pnl_usd": -1.04,
+      "ts": "2026-01-28T15:10:16.492225+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "CAT",
+      "trade_id": "scale_CAT_2026-01-28T15:11:14.420955+00:00",
+      "pnl_usd": 13.24,
+      "ts": "2026-01-28T15:11:14.421098+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T15:12:35.946222+00:00",
+      "pnl_usd": -1.5,
+      "ts": "2026-01-28T15:12:35.947700+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "SOFI",
+      "trade_id": "close_SOFI_2026-01-28T15:12:38.786507+00:00",
+      "pnl_usd": -0.16,
+      "ts": "2026-01-28T15:12:38.786666+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PFE",
+      "trade_id": "close_PFE_2026-01-28T15:12:41.583297+00:00",
+      "pnl_usd": 0.0,
+      "ts": "2026-01-28T15:12:41.583352+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PLTR",
+      "trade_id": "close_PLTR_2026-01-28T15:13:51.109232+00:00",
+      "pnl_usd": -0.52,
+      "ts": "2026-01-28T15:13:51.110404+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T15:30:26.219076+00:00",
+      "pnl_usd": -3.38,
+      "ts": "2026-01-28T15:30:26.219153+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "HOOD",
+      "trade_id": "close_HOOD_2026-01-28T15:40:59.144609+00:00",
+      "pnl_usd": 1.02,
+      "ts": "2026-01-28T15:40:59.144667+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TGT",
+      "trade_id": "close_TGT_2026-01-28T15:41:38.152459+00:00",
+      "pnl_usd": 1.2,
+      "ts": "2026-01-28T15:41:38.154439+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMZN",
+      "trade_id": "close_AMZN_2026-01-28T15:46:41.158157+00:00",
+      "pnl_usd": -7.73,
+      "ts": "2026-01-28T15:46:41.158223+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "close_TSLA_2026-01-28T15:46:43.697210+00:00",
+      "pnl_usd": -1.43,
+      "ts": "2026-01-28T15:46:43.697900+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NFLX",
+      "trade_id": "close_NFLX_2026-01-28T15:46:46.199111+00:00",
+      "pnl_usd": 0.1,
+      "ts": "2026-01-28T15:46:46.199147+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NVDA",
+      "trade_id": "close_NVDA_2026-01-28T15:46:48.707842+00:00",
+      "pnl_usd": 0.41,
+      "ts": "2026-01-28T15:46:48.707893+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AAPL",
+      "trade_id": "close_AAPL_2026-01-28T15:46:51.240077+00:00",
+      "pnl_usd": -0.77,
+      "ts": "2026-01-28T15:46:51.240119+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "C",
+      "trade_id": "close_C_2026-01-28T15:47:59.983003+00:00",
+      "pnl_usd": -0.11,
+      "ts": "2026-01-28T15:47:59.983057+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "WFC",
+      "trade_id": "close_WFC_2026-01-28T15:48:02.575833+00:00",
+      "pnl_usd": -0.23,
+      "ts": "2026-01-28T15:48:02.575893+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "DIA",
+      "trade_id": "close_DIA_2026-01-28T15:49:19.534461+00:00",
+      "pnl_usd": -0.2,
+      "ts": "2026-01-28T15:49:19.534511+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "RIVN",
+      "trade_id": "close_RIVN_2026-01-28T15:51:23.515044+00:00",
+      "pnl_usd": -0.52,
+      "ts": "2026-01-28T15:51:23.515129+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "HOOD",
+      "trade_id": "close_HOOD_2026-01-28T15:51:26.021436+00:00",
+      "pnl_usd": -0.22,
+      "ts": "2026-01-28T15:51:26.021507+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "SOFI",
+      "trade_id": "close_SOFI_2026-01-28T15:51:28.302051+00:00",
+      "pnl_usd": -0.35,
+      "ts": "2026-01-28T15:51:28.302085+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PFE",
+      "trade_id": "close_PFE_2026-01-28T15:56:44.071333+00:00",
+      "pnl_usd": -0.39,
+      "ts": "2026-01-28T15:56:44.071449+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PLTR",
+      "trade_id": "close_PLTR_2026-01-28T15:56:46.574387+00:00",
+      "pnl_usd": 0.11,
+      "ts": "2026-01-28T15:56:46.574452+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMD",
+      "trade_id": "close_AMD_2026-01-28T15:56:47.744402+00:00",
+      "pnl_usd": -0.5,
+      "ts": "2026-01-28T15:56:47.744506+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XOM",
+      "trade_id": "close_XOM_2026-01-28T15:56:48.851094+00:00",
+      "pnl_usd": 0.0,
+      "ts": "2026-01-28T15:56:48.851151+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "COIN",
+      "trade_id": "close_COIN_2026-01-28T15:56:50.052835+00:00",
+      "pnl_usd": -0.58,
+      "ts": "2026-01-28T15:56:50.052904+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T15:56:51.133925+00:00",
+      "pnl_usd": -1.92,
+      "ts": "2026-01-28T15:56:51.133973+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "INTC",
+      "trade_id": "close_INTC_2026-01-28T15:56:52.572935+00:00",
+      "pnl_usd": -0.18,
+      "ts": "2026-01-28T15:56:52.572979+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "LCID",
+      "trade_id": "close_LCID_2026-01-28T15:56:53.861482+00:00",
+      "pnl_usd": -0.18,
+      "ts": "2026-01-28T15:56:53.861555+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "close_TSLA_2026-01-28T15:57:16.592186+00:00",
+      "pnl_usd": 0.2,
+      "ts": "2026-01-28T15:57:16.592216+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLK",
+      "trade_id": "close_XLK_2026-01-28T15:57:30.876549+00:00",
+      "pnl_usd": 0.3,
+      "ts": "2026-01-28T15:57:30.876653+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLI",
+      "trade_id": "close_XLI_2026-01-28T15:58:24.282212+00:00",
+      "pnl_usd": 0.12,
+      "ts": "2026-01-28T15:58:24.282381+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PFE",
+      "trade_id": "close_PFE_2026-01-28T16:11:00.028559+00:00",
+      "pnl_usd": -0.1,
+      "ts": "2026-01-28T16:11:00.028645+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "UNH",
+      "trade_id": "close_UNH_2026-01-28T16:11:03.924637+00:00",
+      "pnl_usd": 0.06,
+      "ts": "2026-01-28T16:11:03.927844+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "LOW",
+      "trade_id": "close_LOW_2026-01-28T16:11:22.217367+00:00",
+      "pnl_usd": -0.52,
+      "ts": "2026-01-28T16:11:22.217465+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AAPL",
+      "trade_id": "close_AAPL_2026-01-28T16:12:08.426855+00:00",
+      "pnl_usd": 0.29,
+      "ts": "2026-01-28T16:12:08.426897+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NFLX",
+      "trade_id": "close_NFLX_2026-01-28T16:12:10.946043+00:00",
+      "pnl_usd": 0.16,
+      "ts": "2026-01-28T16:12:10.946093+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "GOOGL",
+      "trade_id": "close_GOOGL_2026-01-28T16:12:13.264697+00:00",
+      "pnl_usd": -0.11,
+      "ts": "2026-01-28T16:12:13.264777+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T16:14:36.499437+00:00",
+      "pnl_usd": -0.24,
+      "ts": "2026-01-28T16:14:36.499509+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMZN",
+      "trade_id": "close_AMZN_2026-01-28T16:21:54.213028+00:00",
+      "pnl_usd": -0.31,
+      "ts": "2026-01-28T16:21:54.213062+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "LCID",
+      "trade_id": "close_LCID_2026-01-28T16:27:38.670130+00:00",
+      "pnl_usd": -5.61,
+      "ts": "2026-01-28T16:27:38.670188+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "META",
+      "trade_id": "close_META_2026-01-28T16:36:21.133375+00:00",
+      "pnl_usd": -6.77,
+      "ts": "2026-01-28T16:36:21.133411+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "SPY",
+      "trade_id": "close_SPY_2026-01-28T16:41:54.908914+00:00",
+      "pnl_usd": -2.06,
+      "ts": "2026-01-28T16:41:54.908955+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "close_TSLA_2026-01-28T16:46:34.740621+00:00",
+      "pnl_usd": -0.08,
+      "ts": "2026-01-28T16:46:34.740708+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "IWM",
+      "trade_id": "close_IWM_2026-01-28T16:59:48.405525+00:00",
+      "pnl_usd": 0.17,
+      "ts": "2026-01-28T16:59:48.405600+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NIO",
+      "trade_id": "close_NIO_2026-01-28T16:59:51.034889+00:00",
+      "pnl_usd": 1.06,
+      "ts": "2026-01-28T16:59:51.034957+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMD",
+      "trade_id": "close_AMD_2026-01-28T16:59:53.703228+00:00",
+      "pnl_usd": 0.5,
+      "ts": "2026-01-28T16:59:53.705439+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MSFT",
+      "trade_id": "close_MSFT_2026-01-28T16:59:56.290546+00:00",
+      "pnl_usd": 0.64,
+      "ts": "2026-01-28T16:59:56.290596+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "close_TSLA_2026-01-28T16:59:59.026348+00:00",
+      "pnl_usd": 0.07,
+      "ts": "2026-01-28T16:59:59.026407+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NVDA",
+      "trade_id": "close_NVDA_2026-01-28T17:00:01.539579+00:00",
+      "pnl_usd": -0.54,
+      "ts": "2026-01-28T17:00:01.539652+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NFLX",
+      "trade_id": "close_NFLX_2026-01-28T17:02:03.847174+00:00",
+      "pnl_usd": -0.18,
+      "ts": "2026-01-28T17:02:03.848036+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "HD",
+      "trade_id": "close_HD_2026-01-28T17:04:22.589943+00:00",
+      "pnl_usd": 0.16,
+      "ts": "2026-01-28T17:04:22.589989+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "GM",
+      "trade_id": "close_GM_2026-01-28T17:08:47.089917+00:00",
+      "pnl_usd": 0.08,
+      "ts": "2026-01-28T17:08:47.089952+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "close_TSLA_2026-01-28T17:09:15.953083+00:00",
+      "pnl_usd": 0.23,
+      "ts": "2026-01-28T17:09:15.953131+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AAPL",
+      "trade_id": "close_AAPL_2026-01-28T17:10:14.716899+00:00",
+      "pnl_usd": -0.03,
+      "ts": "2026-01-28T17:10:14.716974+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "QQQ",
+      "trade_id": "close_QQQ_2026-01-28T17:14:25.094092+00:00",
+      "pnl_usd": -3.3,
+      "ts": "2026-01-28T17:14:25.094131+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "close_TSLA_2026-01-28T17:23:31.518123+00:00",
+      "pnl_usd": -0.18,
+      "ts": "2026-01-28T17:23:31.518164+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLI",
+      "trade_id": "close_XLI_2026-01-28T17:27:34.588988+00:00",
+      "pnl_usd": 0.24,
+      "ts": "2026-01-28T17:27:34.589029+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLP",
+      "trade_id": "close_XLP_2026-01-28T17:27:56.728386+00:00",
+      "pnl_usd": -0.11,
+      "ts": "2026-01-28T17:27:56.728469+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMD",
+      "trade_id": "close_AMD_2026-01-28T17:27:59.280902+00:00",
+      "pnl_usd": -0.7,
+      "ts": "2026-01-28T17:27:59.280967+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "RIVN",
+      "trade_id": "close_RIVN_2026-01-28T17:29:10.833609+00:00",
+      "pnl_usd": -0.77,
+      "ts": "2026-01-28T17:29:10.833666+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "JPM",
+      "trade_id": "close_JPM_2026-01-28T17:29:13.362195+00:00",
+      "pnl_usd": 0.08,
+      "ts": "2026-01-28T17:29:13.362331+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLV",
+      "trade_id": "close_XLV_2026-01-28T17:29:15.907462+00:00",
+      "pnl_usd": -0.35,
+      "ts": "2026-01-28T17:29:15.907556+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "HOOD",
+      "trade_id": "close_HOOD_2026-01-28T17:31:29.280042+00:00",
+      "pnl_usd": 0.27,
+      "ts": "2026-01-28T17:31:29.280106+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "INTC",
+      "trade_id": "close_INTC_2026-01-28T17:58:02.678679+00:00",
+      "pnl_usd": -1.22,
+      "ts": "2026-01-28T17:58:02.678729+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PLTR",
+      "trade_id": "close_PLTR_2026-01-28T17:58:18.169077+00:00",
+      "pnl_usd": 3.17,
+      "ts": "2026-01-28T17:58:18.169115+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "COIN",
+      "trade_id": "close_COIN_2026-01-28T17:58:41.116819+00:00",
+      "pnl_usd": 0.84,
+      "ts": "2026-01-28T17:58:41.116866+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "SOFI",
+      "trade_id": "close_SOFI_2026-01-28T17:58:43.837547+00:00",
+      "pnl_usd": 0.48,
+      "ts": "2026-01-28T17:58:43.837606+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NIO",
+      "trade_id": "close_NIO_2026-01-28T18:03:27.883860+00:00",
+      "pnl_usd": 0.0,
+      "ts": "2026-01-28T18:03:27.883924+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "WFC",
+      "trade_id": "close_WFC_2026-01-28T18:04:23.899281+00:00",
+      "pnl_usd": -0.64,
+      "ts": "2026-01-28T18:04:23.899385+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MS",
+      "trade_id": "close_MS_2026-01-28T18:07:08.317739+00:00",
+      "pnl_usd": 0.17,
+      "ts": "2026-01-28T18:07:08.317787+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "BAC",
+      "trade_id": "close_BAC_2026-01-28T18:07:10.953205+00:00",
+      "pnl_usd": -0.6,
+      "ts": "2026-01-28T18:07:10.954380+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PFE",
+      "trade_id": "close_PFE_2026-01-28T18:28:08.944417+00:00",
+      "pnl_usd": -0.91,
+      "ts": "2026-01-28T18:28:09.163398+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XOM",
+      "trade_id": "close_XOM_2026-01-28T18:28:12.781870+00:00",
+      "pnl_usd": -0.96,
+      "ts": "2026-01-28T18:28:12.781977+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "LCID",
+      "trade_id": "close_LCID_2026-01-28T18:34:09.319585+00:00",
+      "pnl_usd": 0.84,
+      "ts": "2026-01-28T18:34:09.319637+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T18:49:25.079316+00:00",
+      "pnl_usd": -0.09,
+      "ts": "2026-01-28T18:49:25.079359+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "UNH",
+      "trade_id": "close_UNH_2026-01-28T18:50:06.619189+00:00",
+      "pnl_usd": 0.24,
+      "ts": "2026-01-28T18:50:06.620276+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "C",
+      "trade_id": "close_C_2026-01-28T18:53:30.129967+00:00",
+      "pnl_usd": 1.0,
+      "ts": "2026-01-28T18:53:30.130027+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "GM",
+      "trade_id": "close_GM_2026-01-28T18:54:05.767102+00:00",
+      "pnl_usd": 0.02,
+      "ts": "2026-01-28T18:54:05.767165+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "INTC",
+      "trade_id": "close_INTC_2026-01-28T18:54:08.314635+00:00",
+      "pnl_usd": 0.9,
+      "ts": "2026-01-28T18:54:08.314672+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "LOW",
+      "trade_id": "close_LOW_2026-01-28T18:54:11.029139+00:00",
+      "pnl_usd": -1.07,
+      "ts": "2026-01-28T18:54:11.029201+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NFLX",
+      "trade_id": "close_NFLX_2026-01-28T18:54:46.415950+00:00",
+      "pnl_usd": 1.06,
+      "ts": "2026-01-28T18:54:46.415999+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "LCID",
+      "trade_id": "close_LCID_2026-01-28T18:57:08.067942+00:00",
+      "pnl_usd": 0.53,
+      "ts": "2026-01-28T18:57:08.068008+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "IWM",
+      "trade_id": "close_IWM_2026-01-28T18:57:42.292853+00:00",
+      "pnl_usd": 0.01,
+      "ts": "2026-01-28T18:57:42.292898+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "HOOD",
+      "trade_id": "close_HOOD_2026-01-28T18:58:19.750817+00:00",
+      "pnl_usd": -0.42,
+      "ts": "2026-01-28T18:58:19.750864+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "GOOGL",
+      "trade_id": "close_GOOGL_2026-01-28T19:01:28.843811+00:00",
+      "pnl_usd": 0.93,
+      "ts": "2026-01-28T19:01:28.843864+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AAPL",
+      "trade_id": "close_AAPL_2026-01-28T19:03:57.560181+00:00",
+      "pnl_usd": 0.3,
+      "ts": "2026-01-28T19:03:57.560233+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "DIA",
+      "trade_id": "close_DIA_2026-01-28T19:07:20.932934+00:00",
+      "pnl_usd": 0.55,
+      "ts": "2026-01-28T19:07:20.932999+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NIO",
+      "trade_id": "close_NIO_2026-01-28T19:22:47.124706+00:00",
+      "pnl_usd": 0.45,
+      "ts": "2026-01-28T19:22:47.124751+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NVDA",
+      "trade_id": "close_NVDA_2026-01-28T19:28:27.054669+00:00",
+      "pnl_usd": 0.7,
+      "ts": "2026-01-28T19:28:27.054742+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T19:29:45.653128+00:00",
+      "pnl_usd": 0.32,
+      "ts": "2026-01-28T19:29:45.653174+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "COIN",
+      "trade_id": "close_COIN_2026-01-28T19:30:05.381906+00:00",
+      "pnl_usd": -0.19,
+      "ts": "2026-01-28T19:30:05.381976+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "close_TSLA_2026-01-28T19:31:33.571647+00:00",
+      "pnl_usd": 0.86,
+      "ts": "2026-01-28T19:31:33.571741+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMD",
+      "trade_id": "close_AMD_2026-01-28T19:31:35.965178+00:00",
+      "pnl_usd": -0.14,
+      "ts": "2026-01-28T19:31:35.965227+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "RIVN",
+      "trade_id": "close_RIVN_2026-01-28T19:31:38.686332+00:00",
+      "pnl_usd": -2.88,
+      "ts": "2026-01-28T19:31:38.686396+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "SOFI",
+      "trade_id": "close_SOFI_2026-01-28T19:31:44.440175+00:00",
+      "pnl_usd": -0.09,
+      "ts": "2026-01-28T19:31:44.440222+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XOM",
+      "trade_id": "close_XOM_2026-01-28T19:31:47.169670+00:00",
+      "pnl_usd": -0.5,
+      "ts": "2026-01-28T19:31:47.169761+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PLTR",
+      "trade_id": "close_PLTR_2026-01-28T19:31:49.463000+00:00",
+      "pnl_usd": 0.67,
+      "ts": "2026-01-28T19:31:49.463042+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "INTC",
+      "trade_id": "close_INTC_2026-01-28T19:31:52.215802+00:00",
+      "pnl_usd": -1.61,
+      "ts": "2026-01-28T19:31:52.215853+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "HD",
+      "trade_id": "close_HD_2026-01-28T19:31:54.638091+00:00",
+      "pnl_usd": -2.6,
+      "ts": "2026-01-28T19:31:54.638141+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "HOOD",
+      "trade_id": "close_HOOD_2026-01-28T19:31:57.213309+00:00",
+      "pnl_usd": 0.09,
+      "ts": "2026-01-28T19:31:57.213516+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MS",
+      "trade_id": "close_MS_2026-01-28T19:31:59.728029+00:00",
+      "pnl_usd": 0.74,
+      "ts": "2026-01-28T19:31:59.728073+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "COP",
+      "trade_id": "close_COP_2026-01-28T19:32:02.043188+00:00",
+      "pnl_usd": 0.78,
+      "ts": "2026-01-28T19:32:02.043264+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLV",
+      "trade_id": "close_XLV_2026-01-28T19:32:04.644051+00:00",
+      "pnl_usd": 0.49,
+      "ts": "2026-01-28T19:32:04.644103+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NFLX",
+      "trade_id": "close_NFLX_2026-01-28T19:32:08.907486+00:00",
+      "pnl_usd": -0.03,
+      "ts": "2026-01-28T19:32:08.907594+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "C",
+      "trade_id": "close_C_2026-01-28T19:32:11.963734+00:00",
+      "pnl_usd": -1.42,
+      "ts": "2026-01-28T19:32:11.963789+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T19:32:14.570778+00:00",
+      "pnl_usd": -1.1,
+      "ts": "2026-01-28T19:32:14.570827+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "COIN",
+      "trade_id": "close_COIN_2026-01-28T19:37:24.622994+00:00",
+      "pnl_usd": -1.33,
+      "ts": "2026-01-28T19:37:24.623046+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "PLTR",
+      "trade_id": "close_PLTR_2026-01-28T19:37:36.898130+00:00",
+      "pnl_usd": -1.05,
+      "ts": "2026-01-28T19:37:36.898176+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "SOFI",
+      "trade_id": "close_SOFI_2026-01-28T19:37:39.419129+00:00",
+      "pnl_usd": -0.06,
+      "ts": "2026-01-28T19:37:39.419185+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "INTC",
+      "trade_id": "close_INTC_2026-01-28T19:46:43.783129+00:00",
+      "pnl_usd": -3.4,
+      "ts": "2026-01-28T19:46:43.783163+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLK",
+      "trade_id": "close_XLK_2026-01-28T19:46:46.320188+00:00",
+      "pnl_usd": -0.19,
+      "ts": "2026-01-28T19:46:46.320986+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NVDA",
+      "trade_id": "close_NVDA_2026-01-28T19:48:53.238029+00:00",
+      "pnl_usd": -1.1,
+      "ts": "2026-01-28T19:48:53.238323+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "GOOGL",
+      "trade_id": "close_GOOGL_2026-01-28T19:48:56.011445+00:00",
+      "pnl_usd": -1.17,
+      "ts": "2026-01-28T19:48:56.011969+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLP",
+      "trade_id": "close_XLP_2026-01-28T19:48:58.726286+00:00",
+      "pnl_usd": 0.04,
+      "ts": "2026-01-28T19:48:58.726406+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMZN",
+      "trade_id": "close_AMZN_2026-01-28T19:49:51.976093+00:00",
+      "pnl_usd": -0.09,
+      "ts": "2026-01-28T19:49:51.976156+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "close_TSLA_2026-01-28T20:01:11.568651+00:00",
+      "pnl_usd": -3.21,
+      "ts": "2026-01-28T20:01:11.568762+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NIO",
+      "trade_id": "close_NIO_2026-01-28T20:19:13.903402+00:00",
+      "pnl_usd": -1.45,
+      "ts": "2026-01-28T20:19:13.903455+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "JNJ",
+      "trade_id": "close_JNJ_2026-01-28T20:20:20.740062+00:00",
+      "pnl_usd": 0.92,
+      "ts": "2026-01-28T20:20:20.740123+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "CVX",
+      "trade_id": "close_CVX_2026-01-28T20:20:23.033001+00:00",
+      "pnl_usd": 0.49,
+      "ts": "2026-01-28T20:20:23.033061+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XOM",
+      "trade_id": "close_XOM_2026-01-28T20:20:25.755175+00:00",
+      "pnl_usd": -0.93,
+      "ts": "2026-01-28T20:20:25.755225+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MRNA",
+      "trade_id": "close_MRNA_2026-01-28T20:21:34.321231+00:00",
+      "pnl_usd": -0.18,
+      "ts": "2026-01-28T20:21:34.322471+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "close_TSLA_2026-01-28T20:21:36.649211+00:00",
+      "pnl_usd": -0.17,
+      "ts": "2026-01-28T20:21:36.650578+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "LOW",
+      "trade_id": "close_LOW_2026-01-28T20:21:38.988760+00:00",
+      "pnl_usd": 0.09,
+      "ts": "2026-01-28T20:21:38.988813+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XOM",
+      "trade_id": "close_XOM_2026-01-28T20:22:00.935803+00:00",
+      "pnl_usd": -0.07,
+      "ts": "2026-01-28T20:22:00.935870+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "BA",
+      "trade_id": "close_BA_2026-01-28T20:22:03.900447+00:00",
+      "pnl_usd": -0.12,
+      "ts": "2026-01-28T20:22:03.900529+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "NFLX",
+      "trade_id": "close_NFLX_2026-01-28T20:22:47.093751+00:00",
+      "pnl_usd": -0.06,
+      "ts": "2026-01-28T20:22:47.093828+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "GM",
+      "trade_id": "close_GM_2026-01-28T20:23:20.260222+00:00",
+      "pnl_usd": -0.13,
+      "ts": "2026-01-28T20:23:20.260324+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "GOOGL",
+      "trade_id": "close_GOOGL_2026-01-28T20:43:15.010887+00:00",
+      "pnl_usd": 0.2,
+      "ts": "2026-01-28T20:43:15.010932+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "COIN",
+      "trade_id": "close_COIN_2026-01-28T20:45:00.513649+00:00",
+      "pnl_usd": -0.05,
+      "ts": "2026-01-28T20:45:00.513696+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "MS",
+      "trade_id": "close_MS_2026-01-28T20:46:04.941896+00:00",
+      "pnl_usd": -0.94,
+      "ts": "2026-01-28T20:46:04.941950+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "C",
+      "trade_id": "close_C_2026-01-28T20:46:07.557629+00:00",
+      "pnl_usd": -0.3,
+      "ts": "2026-01-28T20:46:07.557724+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "BAC",
+      "trade_id": "close_BAC_2026-01-28T20:46:10.420863+00:00",
+      "pnl_usd": 0.52,
+      "ts": "2026-01-28T20:46:10.420921+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "AMZN",
+      "trade_id": "close_AMZN_2026-01-28T20:46:12.813457+00:00",
+      "pnl_usd": -0.15,
+      "ts": "2026-01-28T20:46:12.813523+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "JPM",
+      "trade_id": "close_JPM_2026-01-28T20:46:15.348790+00:00",
+      "pnl_usd": 0.64,
+      "ts": "2026-01-28T20:46:15.348853+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "XLE",
+      "trade_id": "close_XLE_2026-01-28T20:46:17.981937+00:00",
+      "pnl_usd": 0.1,
+      "ts": "2026-01-28T20:46:17.981971+00:00",
+      "close_reason": null
+    },
+    {
+      "symbol": "TSLA",
+      "trade_id": "scale_TSLA_2026-01-28T21:07:54.078820+00:00",
+      "pnl_usd": 13.72,
+      "ts": "2026-01-28T21:07:54.078942+00:00",
+      "close_reason": null
+    }
+  ]
+}

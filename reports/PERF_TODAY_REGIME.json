@@ -1,0 +1,19 @@
+{
+  "date": "2026-01-28",
+  "source": "telemetry",
+  "day_summary": {
+    "dominant_market_regime": "NEUTRAL",
+    "dominant_posture": "neutral",
+    "dominant_regime_label": "NEUTRAL",
+    "trend_bucket": "unknown",
+    "volatility_bucket": "mid"
+  },
+  "trend_bucket": "unknown",
+  "volatility_bucket": "mid",
+  "dominant_regime": "NEUTRAL",
+  "state_regime": {
+    "current_regime": "NEUTRAL",
+    "confidence": 0.5,
+    "last_update": "2026-01-28T20:30:54.044152+00:00"
+  }
+}

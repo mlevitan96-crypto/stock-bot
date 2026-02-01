@@ -3696,7 +3696,7 @@ def _calculate_signal_funnel():
         # Count UW alerts from multiple possible sources
         from config.registry import CacheFiles
         uw_logs = [
-            CacheFiles.UW_ATTRIBUTION if hasattr(CacheFiles, 'UW_ATTRIBUTION') else Path("data/uw_attribution.jsonl"),
+            CacheFiles.UW_ATTRIBUTION if hasattr(CacheFiles, 'UW_ATTRIBUTION') else CacheFiles.UW_ATTRIBUTION,
             Path("logs/uw_flow.jsonl"),
             CacheFiles.UW_FLOW_CACHE_LOG if hasattr(CacheFiles, 'UW_FLOW_CACHE_LOG') else Path("data/uw_flow_cache.log.jsonl")
         ]
@@ -3857,7 +3857,7 @@ def _calculate_stagnation_watchdog():
         # Count alerts from multiple UW log sources
         from config.registry import CacheFiles
         uw_logs = [
-            CacheFiles.UW_ATTRIBUTION if hasattr(CacheFiles, 'UW_ATTRIBUTION') else Path("data/uw_attribution.jsonl"),
+            CacheFiles.UW_ATTRIBUTION if hasattr(CacheFiles, 'UW_ATTRIBUTION') else CacheFiles.UW_ATTRIBUTION,
             Path("logs/uw_flow.jsonl"),
             CacheFiles.UW_FLOW_CACHE_LOG if hasattr(CacheFiles, 'UW_FLOW_CACHE_LOG') else Path("data/uw_flow_cache.log.jsonl")
         ]

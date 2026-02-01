@@ -46,7 +46,7 @@ except ImportError:
     EXITS_LOG = Path("logs/exits.jsonl")
     ORDERS_LOG = Path("logs/orders.jsonl")
     BLOCKED_TRADES_LOG = Path("state/blocked_trades.jsonl")
-    UW_ATTRIBUTION_LOG = Path("data/uw_attribution.jsonl")
+    UW_ATTRIBUTION_LOG = CacheFiles.UW_ATTRIBUTION
 
 REPORTS_DIR = Path("reports")
 REPORTS_DIR.mkdir(exist_ok=True)

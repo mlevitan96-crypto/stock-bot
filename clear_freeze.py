@@ -5,13 +5,13 @@ import json
 from pathlib import Path
 
 # Clear freeze flag
-freeze_path = Path("state/pre_market_freeze.flag")
+freeze_path = StateFiles.PRE_MARKET_FREEZE
 if freeze_path.exists():
     freeze_path.unlink()
     print("Cleared pre_market_freeze.flag")
 
 # Reset fail counter
-fail_counter_path = Path("state/fail_counter.json")
+fail_counter_path = StateFiles.FAIL_COUNTER
 if fail_counter_path.exists():
     data = json.loads(fail_counter_path.read_text())
 else:

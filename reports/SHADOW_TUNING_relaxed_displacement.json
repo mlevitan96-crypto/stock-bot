@@ -1,0 +1,25 @@
+{
+  "profile": "relaxed_displacement",
+  "date": "2026-01-28",
+  "description": "Assume N% of displacement-blocked intents would have been allowed (counterfactual PnL)",
+  "baseline": {
+    "net_pnl_usd": -23.64,
+    "total_trades": 162,
+    "win_rate_pct": 41.36,
+    "max_drawdown_usd": -49.95,
+    "trade_intent_total": 1552,
+    "trade_intent_blocked": 1499,
+    "trade_intent_entered": 53,
+    "displacement_blocked": 0
+  },
+  "hypothetical": {
+    "net_pnl_usd": -23.64,
+    "total_trades": 162,
+    "win_rate_pct": 41.36,
+    "max_drawdown_usd": -49.95,
+    "block_rate_pct": 96.58505154639175
+  },
+  "notes": [
+    "Relaxed displacement: +30% of 1499 blocks \u2192 +0.00 USD counterfactual"
+  ]
+}

@@ -1,0 +1,294 @@
+{
+  "date": "2026-01-28",
+  "trade_intent_count": 1552,
+  "exit_intent_count": 48,
+  "entered": 53,
+  "blocked": 1499,
+  "blocked_reasons": {
+    "displacement_blocked": 1499
+  },
+  "by_signal_family": {
+    "alpha_signals": {
+      "count": 1552,
+      "entered": 53,
+      "blocked": 1499,
+      "pnl_sum": -3.3739999999999983
+    },
+    "flow_signals": {
+      "count": 1552,
+      "entered": 53,
+      "blocked": 1499,
+      "pnl_sum": -3.3739999999999983
+    },
+    "regime_signals": {
+      "count": 1552,
+      "entered": 53,
+      "blocked": 1499,
+      "pnl_sum": -3.3739999999999983
+    },
+    "volatility_signals": {
+      "count": 1552,
+      "entered": 53,
+      "blocked": 1499,
+      "pnl_sum": -3.3739999999999983
+    },
+    "dark_pool_signals": {
+      "count": 1552,
+      "entered": 53,
+      "blocked": 1499,
+      "pnl_sum": -3.3739999999999983
+    }
+  },
+  "blocked_sample": [
+    {
+      "symbol": "UNH",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:10:52.936129+00:00"
+    },
+    {
+      "symbol": "LOW",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:10:56.229680+00:00"
+    },
+    {
+      "symbol": "AMZN",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:10:58.525592+00:00"
+    },
+    {
+      "symbol": "GS",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:02.045056+00:00"
+    },
+    {
+      "symbol": "SPY",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:04.840878+00:00"
+    },
+    {
+      "symbol": "WMT",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:08.083033+00:00"
+    },
+    {
+      "symbol": "MSFT",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:11.037863+00:00"
+    },
+    {
+      "symbol": "PFE",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:14.302405+00:00"
+    },
+    {
+      "symbol": "SLB",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:16.995939+00:00"
+    },
+    {
+      "symbol": "AAPL",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:20.455794+00:00"
+    },
+    {
+      "symbol": "F",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:23.387900+00:00"
+    },
+    {
+      "symbol": "BA",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:26.941728+00:00"
+    },
+    {
+      "symbol": "GM",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:30.237369+00:00"
+    },
+    {
+      "symbol": "BLK",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:34.020646+00:00"
+    },
+    {
+      "symbol": "COST",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:38.670232+00:00"
+    },
+    {
+      "symbol": "CVX",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:41.587174+00:00"
+    },
+    {
+      "symbol": "JNJ",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:45.266946+00:00"
+    },
+    {
+      "symbol": "MA",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:47.961970+00:00"
+    },
+    {
+      "symbol": "V",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:51.695740+00:00"
+    },
+    {
+      "symbol": "WFC",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:54.107182+00:00"
+    },
+    {
+      "symbol": "BAC",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:11:57.638219+00:00"
+    },
+    {
+      "symbol": "NFLX",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:19.700627+00:00"
+    },
+    {
+      "symbol": "LCID",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:23.281066+00:00"
+    },
+    {
+      "symbol": "GOOGL",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:26.620889+00:00"
+    },
+    {
+      "symbol": "GS",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:29.277152+00:00"
+    },
+    {
+      "symbol": "BLK",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:33.085470+00:00"
+    },
+    {
+      "symbol": "XLK",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:36.017742+00:00"
+    },
+    {
+      "symbol": "MA",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:39.934984+00:00"
+    },
+    {
+      "symbol": "V",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:43.782212+00:00"
+    },
+    {
+      "symbol": "WFC",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:46.328163+00:00"
+    },
+    {
+      "symbol": "TGT",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:48.986490+00:00"
+    },
+    {
+      "symbol": "QQQ",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:53.473632+00:00"
+    },
+    {
+      "symbol": "JPM",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:56.201117+00:00"
+    },
+    {
+      "symbol": "BAC",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:12:58.904354+00:00"
+    },
+    {
+      "symbol": "UNH",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:01.870922+00:00"
+    },
+    {
+      "symbol": "XLP",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:04.135186+00:00"
+    },
+    {
+      "symbol": "XLI",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:07.538601+00:00"
+    },
+    {
+      "symbol": "XLV",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:09.882117+00:00"
+    },
+    {
+      "symbol": "LOW",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:12.764665+00:00"
+    },
+    {
+      "symbol": "XLF",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:15.583481+00:00"
+    },
+    {
+      "symbol": "DIA",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:19.305606+00:00"
+    },
+    {
+      "symbol": "AMZN",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:21.393866+00:00"
+    },
+    {
+      "symbol": "SPY",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:25.223860+00:00"
+    },
+    {
+      "symbol": "WMT",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:27.815782+00:00"
+    },
+    {
+      "symbol": "MSFT",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:31.153115+00:00"
+    },
+    {
+      "symbol": "PFE",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:35.039749+00:00"
+    },
+    {
+      "symbol": "SLB",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:37.648320+00:00"
+    },
+    {
+      "symbol": "AAPL",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:42.040397+00:00"
+    },
+    {
+      "symbol": "F",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:44.363973+00:00"
+    },
+    {
+      "symbol": "GM",
+      "blocked_reason": "displacement_blocked",
+      "ts": "2026-01-28T19:13:48.751563+00:00"
+    }
+  ]
+}

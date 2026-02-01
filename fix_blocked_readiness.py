@@ -56,7 +56,7 @@ def fix_issue(fp_id, error_msg):
     elif "FP-3.1" in fp_id or "freeze" in error_msg.lower():
         print("  -> Checking for freeze files...")
         freeze_file = Path("state/governor_freezes.json")
-        pre_market = Path("state/pre_market_freeze.flag")
+        pre_market = StateFiles.PRE_MARKET_FREEZE
         
         removed = False
         if freeze_file.exists():

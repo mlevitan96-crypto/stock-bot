@@ -5,7 +5,7 @@ from pathlib import Path
 import json
 
 # Clear freeze flag
-freeze_file = Path("state/pre_market_freeze.flag")
+freeze_file = StateFiles.PRE_MARKET_FREEZE
 if freeze_file.exists():
     content = freeze_file.read_text()
     print(f"Freeze flag content: {content[:200]}")

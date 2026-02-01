@@ -1,0 +1,32 @@
+# Shadow Tuning Profiles (NOT LIVE — paper/simulation only)
+# Used by scripts/run_shadow_tuning_profile.py to estimate hypothetical PnL/block rate/exit quality.
+# No live trading logic, scoring, gates, or execution are changed by these profiles.
+
+version: "2026-01-26_v1"
+
+baseline:
+  description: "Current live behavior (no change)"
+  displacement_relax_pct: 0
+  min_exec_score_delta: 0
+  exit_tighten_pct: 0
+
+relaxed_displacement:
+  description: "Assume N% of displacement-blocked intents would have been allowed (counterfactual PnL)"
+  displacement_relax_pct: 30
+  min_exec_score_delta: 0
+  exit_tighten_pct: 0
+  # NOT LIVE YET: Would require config change to DISPLACEMENT_MAX_PNL_PCT or DISPLACEMENT_SCORE_ADVANTAGE
+
+higher_min_exec_score:
+  description: "Assume MIN_EXEC_SCORE + delta would have blocked lowest-score intents (fewer trades, higher bar)"
+  displacement_relax_pct: 0
+  min_exec_score_delta: 0.5
+  exit_tighten_pct: 0
+  # NOT LIVE YET: Would require config/env MIN_EXEC_SCORE increase
+
+exit_tighten:
+  description: "Assume exits 20% earlier (reduce left-on-table; heuristic from exit_quality_summary)"
+  displacement_relax_pct: 0
+  min_exec_score_delta: 0
+  exit_tighten_pct: 20
+  # NOT LIVE YET: Would require TRAILING_STOP_PCT or TIME_EXIT_MINUTES change

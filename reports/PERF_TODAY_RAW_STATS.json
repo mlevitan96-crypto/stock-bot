@@ -1,0 +1,146 @@
+{
+  "date": "2026-01-28",
+  "stats": {
+    "date": "2026-01-28",
+    "total_trades": 162,
+    "net_pnl_usd": -23.64,
+    "net_pnl_pct": -2364.0,
+    "win_rate_pct": 41.36,
+    "avg_win_usd": 1.19,
+    "avg_loss_usd": -1.12,
+    "max_drawdown_usd": -49.95,
+    "exposure_by_symbol": {
+      "UNH": 4.0,
+      "GOOGL": 9.0,
+      "MRNA": 124.0,
+      "META": 3.0,
+      "TGT": 12.0,
+      "HD": 5.0,
+      "AMZN": 7.0,
+      "LOW": 7.0,
+      "TSLA": 11.0,
+      "NFLX": 28.0,
+      "INTC": 57.0,
+      "AMD": 12.0,
+      "NVDA": 11.0,
+      "XLE": 23.0,
+      "IWM": 4.0,
+      "XLK": 3.0,
+      "SOFI": 64.0,
+      "WMT": 5.0,
+      "BAC": 32.0,
+      "MA": 1.0,
+      "WFC": 9.0,
+      "SPY": 2.0,
+      "XLI": 2.0,
+      "MSFT": 3.0,
+      "AAPL": 6.0,
+      "HOOD": 15.0,
+      "LCID": 308.0,
+      "NIO": 400.0,
+      "PLTR": 13.0,
+      "CAT": 3.0,
+      "DIA": 2.0,
+      "C": 11.0,
+      "PFE": 41.0,
+      "QQQ": 2.0,
+      "RIVN": 66.0,
+      "XOM": 9.0,
+      "V": 1.0,
+      "JPM": 3.0,
+      "XLP": 11.0,
+      "XLV": 6.0,
+      "BA": 4.0,
+      "XLF": 10.0,
+      "COIN": 5.0,
+      "GM": 13.0,
+      "MS": 3.0,
+      "COP": 1.0,
+      "F": 4.0,
+      "JNJ": 2.0,
+      "CVX": 1.0
+    },
+    "real_orders_count": 1030
+  },
+  "signals_summary": {
+    "trade_intent_count": 1552,
+    "exit_intent_count": 48,
+    "entered": 53,
+    "blocked": 1499,
+    "blocked_reasons": {
+      "displacement_blocked": 1499
+    },
+    "by_signal_family": {
+      "alpha_signals": {
+        "count": 1552,
+        "entered": 53,
+        "blocked": 1499,
+        "pnl_sum": -3.3739999999999983
+      },
+      "flow_signals": {
+        "count": 1552,
+        "entered": 53,
+        "blocked": 1499,
+        "pnl_sum": -3.3739999999999983
+      },
+      "regime_signals": {
+        "count": 1552,
+        "entered": 53,
+        "blocked": 1499,
+        "pnl_sum": -3.3739999999999983
+      },
+      "volatility_signals": {
+        "count": 1552,
+        "entered": 53,
+        "blocked": 1499,
+        "pnl_sum": -3.3739999999999983
+      },
+      "dark_pool_signals": {
+        "count": 1552,
+        "entered": 53,
+        "blocked": 1499,
+        "pnl_sum": -3.3739999999999983
+      }
+    }
+  },
+  "gates_summary": {
+    "displacement_evaluated": 0,
+    "displacement_allowed": 0,
+    "displacement_blocked": 0,
+    "directional_gate_events": 0,
+    "directional_gate_blocked_approx": 0
+  },
+  "meta": {
+    "date": "2026-01-28",
+    "self_heal_count": 0,
+    "self_heal_events": [],
+    "telemetry_bundles": [
+      {
+        "name": "telemetry_manifest.json",
+        "path": "/root/stock-bot/telemetry/2026-01-28/telemetry_manifest.json"
+      }
+    ],
+    "telemetry_computed_keys": [
+      "entry_parity_details.json",
+      "exit_intel_completeness.json",
+      "blocked_counterfactuals_summary.json",
+      "signal_weight_recommendations.json",
+      "pnl_windows.json",
+      "shadow_vs_live_parity.json",
+      "score_distribution_curves.json",
+      "exit_quality_summary.json",
+      "long_short_analysis.json",
+      "regime_timeline.json",
+      "live_vs_shadow_pnl.json",
+      "feature_value_curves.json",
+      "gate_profitability.json",
+      "intelligence_recommendations.json",
+      "signal_performance.json",
+      "feature_family_summary.json",
+      "feature_equalizer_builder.json",
+      "regime_sector_feature_matrix.json",
+      "signal_profitability.json",
+      "replacement_telemetry_expanded.json"
+    ]
+  }
+}

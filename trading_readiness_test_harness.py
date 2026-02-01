@@ -99,7 +99,7 @@ def test_fp_2_1_weights_initialized():
 def test_fp_3_1_freeze_state():
     """FP-3.1: Freeze State Check"""
     freeze_file = Path("state/governor_freezes.json")
-    pre_market = Path("state/pre_market_freeze.flag")
+    pre_market = StateFiles.PRE_MARKET_FREEZE
     
     frozen = False
     if freeze_file.exists():
