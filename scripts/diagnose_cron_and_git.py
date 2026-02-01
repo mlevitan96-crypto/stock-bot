@@ -422,6 +422,9 @@ def write_diagnostic_report(root: Path, report_path: Path, data: dict) -> None:
 
 def run_remote() -> int:
     """Execute full diagnostic on droplet via DropletClient."""
+    repo_root = Path(__file__).resolve().parents[1]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
     try:
         from droplet_client import DropletClient
     except ImportError:
