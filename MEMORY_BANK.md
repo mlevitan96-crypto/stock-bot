@@ -105,7 +105,13 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - `comprehensive_learning_scheduler.py`  
 - `v2_nightly_orchestration_with_auto_promotion.py`  
 
-## 2.2.1 STRUCTURAL UPGRADE MODULES (ADDITIVE - 2026-01-20)
+## 2.2.1 MULTI-STRATEGY ARCHITECTURE (ADDITIVE - 2026-01)
+- **equity** — Existing UW-driven equity strategy (unchanged logic). `strategies/equity_strategy.py`.
+- **wheel** — Options wheel (CSP → CC). `strategies/wheel_strategy.py`.
+- Single droplet, single Alpaca paper, single UW, single EOD review. All orders/telemetry tagged with `strategy_id`.
+- Config: `config/strategies.yaml`, `config/universe_wheel.yaml`. See `docs/stock-bot_overview.md`, `docs/stock-bot_wheel_strategy.md`, `docs/stock-bot_governance.md`.
+
+## 2.2.2 STRUCTURAL UPGRADE MODULES (ADDITIVE - 2026-01-20)
 - `structural_intelligence/market_context_v2.py` — market context snapshot (premarket/overnight + vol term proxy)
 - `structural_intelligence/symbol_risk_features.py` — realized vol + beta feature store (per-symbol)
 - `structural_intelligence/regime_posture_v2.py` — regime label + posture (log-only context layer)
@@ -903,7 +909,9 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 
 **Extended canonical (vNext):** `state/symbol_risk_snapshot.json` — optional daily per-symbol risk snapshot; produced by `scripts/generate_symbol_risk_snapshot.py`; EOD runner loads defensively and includes "Symbol risk intelligence" subsection in memo when present; copies to `board/eod/out/symbol_risk_snapshot_<DATE>.json` and `.md`. See docs/EOD_DATA_PIPELINE.md.
 
-**EOD data hardening (observability):** `scripts/eod_bundle_manifest.py` — validates canonical 8-file bundle (exists, non-empty, sha256); outputs `reports/eod_manifests/EOD_MANIFEST_<DATE>.json|.md`; exits non-zero if any required file missing/empty. `scripts/generate_signal_weight_exit_inventory.py` — signal/weight/exit inventory (COMPOSITE_WEIGHTS_V2, adaptive state/signal_weights.json, exit usage); output `reports/STOCK_SIGNAL_WEIGHT_EXIT_INVENTORY_<DATE>.md`. Droplet runner: `scripts/run_stock_eod_integrity_on_droplet.sh` (REPO_DIR default `/root/trading-bot-current`); manifest → EOD quant officer → inventory → commit + push. §3.2 (reports use droplet production data).
+**EOD data hardening (observability):** `scripts/eod_bundle_manifest.py` — validates canonical 8-file bundle (exists, non-empty, sha256); outputs `reports/eod_manifests/EOD_MANIFEST_<DATE>.json|.md`; exits non-zero if any required file missing/empty. `scripts/generate_signal_weight_exit_inventory.py` — signal/weight/exit inventory (COMPOSITE_WEIGHTS_V2, adaptive state/signal_weights.json, exit usage); output `reports/STOCK_SIGNAL_WEIGHT_EXIT_INVENTORY_<DATE>.md`. Droplet runner: `scripts/run_stock_eod_integrity_on_droplet.sh` (path-agnostic: REPO_DIR defaults to script's parent directory); manifest → EOD quant officer → inventory → commit + push. §3.2 (reports use droplet production data).
+
+**Cron + Git diagnostic:** `scripts/diagnose_cron_and_git.py` — full Cron + Git + execution diagnostic and repair (path-agnostic). Auto-detects stock-bot root (/root/stock-bot-current, /root/stock-bot); diagnoses cron, verifies scripts, EOD dry-run, git push; repairs cron if needed; updates Memory Bank; outputs `reports/STOCKBOT_CRON_AND_GIT_DIAGNOSTIC_<DATE>.md`. Usage: `python3 scripts/diagnose_cron_and_git.py` on droplet; `--local` for Windows; `--remote` to run via DropletClient; `--dry-run` for report only.
 
 ### Signal Snapshot Mapping Layer (observability-only)
 - **Log:** `logs/signal_snapshots.jsonl` — append-only, one JSON record per lifecycle moment.
@@ -934,6 +942,18 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 - **Output:** `logs/blocked_trade_snapshots.jsonl` — append-only; each record: blocked_reason, snapshot components present/defaulted/missing, regime_label, notes.
 - **Report:** `reports/BLOCKED_TRADE_INTEL_<DATE>.md` — blocked counts by reason, intelligence at block time, shadow profile deltas (hypothetical; NO-APPLY).
 - **Runner:** `scripts/run_exit_join_and_blocked_attribution_on_droplet.py` — intel producers → UW audit → harness (if needed) → exit join health → blocked intel report → commit + push.
+
+### Molt.bot — Learning & Engineering Governor
+- **Role:** Molt is the orchestration and governance layer. Cursor implements all workflows. Molt produces artifacts and proposals ONLY; never applies changes.
+- **NO-APPLY guarantee:** Molt MUST NEVER change weights, gates, or decisions. Artifact-only consumption. No live UW calls. No orders.
+- **Workflows:**
+  - **Learning Orchestrator** (`moltbot/orchestrator.py`): Verifies Memory Bank version, learning pipeline artifacts, NO-APPLY compliance. Output: `reports/LEARNING_STATUS_<DATE>.md`
+  - **Engineering Sentinel** (`moltbot/sentinel.py`): Reads cron logs, EXIT_JOIN_HEALTH, BLOCKED_TRADE_INTEL, SNAPSHOT_OUTCOME_ATTRIBUTION. Output: `reports/ENGINEERING_HEALTH_<DATE>.md`. No code changes.
+  - **Multi-Agent Learning Board** (`moltbot/board.py`): signal_advocate, risk_auditor, counterfactual_analyst, governance_chair. Output: `reports/PROMOTION_PROPOSAL_<DATE>.md` or `reports/REJECTION_WITH_REASON_<DATE>.md`
+  - **Promotion Discipline** (`moltbot/promotion_discipline.py`): Multi-day stability, regime consistency, blocked-trade impact, shadow persistence. No automatic promotion. Output: `reports/PROMOTION_DISCIPLINE_<DATE>.md`
+  - **Memory Bank Evolution** (`moltbot/memory_evolution.py`): Detects patterns, proposes Memory Bank updates. Output: `reports/MEMORY_BANK_CHANGE_PROPOSAL_<DATE>.md`. Never writes MEMORY_BANK directly.
+- **Automation:** `scripts/run_molt_workflow.py` — runs full Molt pipeline. `scripts/run_molt_on_droplet.sh` — droplet runner. Cron: 21:35 UTC weekdays (post-market) via `scripts/install_molt_cron_on_droplet.py`
+- **Promotion:** Human approval required. Molt proposes; Cursor/human approves and applies.
 
 ### UW canonical rules
 - **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.

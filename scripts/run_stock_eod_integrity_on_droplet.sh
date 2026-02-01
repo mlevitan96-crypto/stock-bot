@@ -6,7 +6,7 @@
 # 3) Commit manifest + EOD reports; push unless AUTO_COMMIT_PUSH=0
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-/root/trading-bot-current}"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$REPO_DIR" || exit 1
 
 DATE="${1:-$(date -u +%Y-%m-%d)}"
