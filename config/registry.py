@@ -151,6 +151,12 @@ class StateFiles:
     # Health subsystem: safe mode flag (decision integrity FAIL => no auto-resume; human must clear).
     HEALTH_SAFE_MODE = Directories.STATE / "health_safe_mode.flag"
 
+    # Signal context: first time any signal fired per symbol/day (for entry_delay_seconds).
+    FIRST_SIGNAL_TS = Directories.STATE / "first_signal_ts.json"
+
+    # Wheel strategy: assigned shares and open CSP/CC tracking.
+    WHEEL_STATE = Directories.STATE / "wheel_state.json"
+
 
 class LogFiles:
     """All log files - single source of truth."""
@@ -182,6 +188,14 @@ class LogFiles:
     SHADOW = Directories.LOGS / "shadow.jsonl"
     # Phase-2: canonical run log (trade_intent, exit_intent, cycle summaries).
     RUN = Directories.LOGS / "run.jsonl"
+
+    # Signal context capture: full signal state at every trade decision (enter/blocked/exit) for profitability learning.
+    # HOW TO VERIFY: logs/signal_context.jsonl grows on each decision; no trading logic changed.
+    SIGNAL_CONTEXT = Directories.LOGS / "signal_context.jsonl"
+
+    # EOD canonical bundle (MEMORY_BANK 5.5): single source for trade/exit data; dashboard MUST use these paths.
+    MASTER_TRADE_LOG = Directories.LOGS / "master_trade_log.jsonl"
+    EXIT_ATTRIBUTION = Directories.LOGS / "exit_attribution.jsonl"
 
 
 class ConfigFiles:

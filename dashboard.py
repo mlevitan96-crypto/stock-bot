@@ -306,6 +306,8 @@ DASHBOARD_HTML = """
             <button class="tab" onclick="switchTab('executive', event)">📈 Executive Summary</button>
             <button class="tab" onclick="switchTab('xai', event)">🧠 Natural Language Auditor</button>
             <button class="tab" onclick="switchTab('failure_points', event)">⚠️ Trading Readiness</button>
+            <button class="tab" onclick="switchTab('wheel_universe', event)">🔄 Wheel Universe Health</button>
+            <button class="tab" onclick="switchTab('strategy_comparison', event)">⚖️ Strategy Comparison</button>
             <button class="tab" onclick="switchTab('telemetry', event)">📦 Telemetry</button>
         </div>
         
@@ -367,6 +369,12 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
+        <div id="wheel_universe-tab" class="tab-content">
+            <div id="wheel_universe-content"></div>
+        </div>
+        <div id="strategy_comparison-tab" class="tab-content">
+            <div id="strategy_comparison-content"></div>
+        </div>
         <div id="failure_points-tab" class="tab-content">
             <div id="failure_points-content">
                 <div class="loading">Loading Trading Readiness...</div>
@@ -400,6 +408,8 @@ DASHBOARD_HTML = """
     else if(typeof loadExecutiveSummary==='function'&&tabName==='executive')loadExecutiveSummary();
     else if(typeof loadXAIAuditor==='function'&&tabName==='xai')loadXAIAuditor();
     else if(typeof loadFailurePoints==='function'&&tabName==='failure_points')loadFailurePoints();
+    else if(typeof loadWheelUniverseHealth==='function'&&tabName==='wheel_universe')loadWheelUniverseHealth();
+    else if(typeof loadStrategyComparison==='function'&&tabName==='strategy_comparison')loadStrategyComparison();
     else if(typeof loadSignalReview==='function'&&tabName==='signal_review')loadSignalReview();
     else if(typeof loadTelemetryContent==='function'&&tabName==='telemetry')loadTelemetryContent();
     else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
@@ -431,6 +441,8 @@ DASHBOARD_HTML = """
     var fpObj=d.failure_points||d.checks||{};var fpKeys=Object.keys(fpObj);if(fpKeys.length){h+='<div class="stat-card"><h3>Checks</h3><table style="width:100%"><thead><tr><th>Check</th><th>Status</th></tr></thead><tbody>';for(var i=0;i<fpKeys.length;i++){var k=fpKeys[i];var x=fpObj[k];var nm=typeof x==='object'&&x?(x.name||x.check_name||x.id||k):k;var st=typeof x==='object'&&x?(x.status||(x.passing===true?'OK':(x.passing===false?'FAIL':'—'))):'—';h+='<tr><td>'+nm+'</td><td>'+st+'</td></tr>';}h+='</tbody></table></div>';}
     if(d.error){h+='<div class="stat-card" style="border-color:#ef4444;"><p>'+d.error+'</p></div>';}
     el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Readiness failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadWheelUniverseHealth=function(){var el=document.getElementById('wheel_universe-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Universe Health...</div>';fetch('/api/wheel/universe_health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var h='';if(d.message){h+='<div class="stat-card"><p>'+d.message+'</p><p>Run: <code>python scripts/generate_wheel_universe_health.py</code></p></div>';}else{h+='<div class="stat-card"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Current universe:</strong> '+(Array.isArray(d.current_universe)?d.current_universe.join(', '):'—')+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(d.selected_candidates)?d.selected_candidates.join(', '):'—')+'</p></div>';h+='<div class="stat-card"><h3>Sector distribution</h3><pre>'+JSON.stringify(d.sector_distribution||{},null,2)+'</pre></div>';if(d.assignment_count!=null)h+='<div class="stat-card"><p><strong>Assignments:</strong> '+d.assignment_count+' | <strong>Called away:</strong> '+d.call_away_count+'</p></div>';if(d.ai_recommendations&&d.ai_recommendations.length){h+='<div class="stat-card"><h3>AI recommendations</h3><ul>';for(var i=0;i<d.ai_recommendations.length;i++)h+='<li>'+JSON.stringify(d.ai_recommendations[i])+'</li>';h+='</ul></div>';}}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel Universe Health failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadStrategyComparison=function(){var el=document.getElementById('strategy_comparison-content');if(!el)return;el.innerHTML='<div class="loading">Loading Strategy Comparison...</div>';fetch('/api/strategy/comparison',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sc=d.strategy_comparison||{};var rec=d.recommendation||'WAIT';var score=d.promotion_readiness_score;var badge='<span style="padding:4px 12px;border-radius:6px;font-weight:bold;background:'+(rec==='PROMOTE'?'#10b981':rec==='DO NOT PROMOTE'?'#ef4444':'#f59e0b')+';color:#fff">'+rec+'</span>';var h='<div class="stat-card"><h3>Strategy Comparison</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Promotion Readiness Score:</strong> '+(score!=null?score:'—')+' / 100</p><p><strong>Recommendation:</strong> '+badge+'</p></div>';h+='<div class="stat-card"><h3>Equity vs Wheel</h3><p>Equity Realized: $'+(sc.equity_realized_pnl!=null?fmt(sc.equity_realized_pnl):'—')+' | Wheel Realized: $'+(sc.wheel_realized_pnl!=null?fmt(sc.wheel_realized_pnl):'—')+'</p><p>Equity Unrealized: $'+(sc.equity_unrealized_pnl!=null?fmt(sc.equity_unrealized_pnl):'—')+' | Wheel Unrealized: $'+(sc.wheel_unrealized_pnl!=null?fmt(sc.wheel_unrealized_pnl):'—')+'</p><p>Equity Drawdown: '+(sc.equity_drawdown!=null?sc.equity_drawdown:'—')+' | Wheel Drawdown: '+(sc.wheel_drawdown!=null?sc.wheel_drawdown:'—')+'</p><p>Equity Sharpe: '+(sc.equity_sharpe_proxy!=null?sc.equity_sharpe_proxy:'—')+' | Wheel Sharpe: '+(sc.wheel_sharpe_proxy!=null?sc.wheel_sharpe_proxy:'—')+'</p><p>Wheel Yield: '+(sc.wheel_yield_per_period!=null?sc.wheel_yield_per_period:'—')+' | Capital Eff Equity: '+(sc.capital_efficiency_equity!=null?sc.capital_efficiency_equity:'—')+' | Wheel: '+(sc.capital_efficiency_wheel!=null?sc.capital_efficiency_wheel:'—')+'</p></div>';if(d.weekly_report&&d.weekly_report.reasoning){var wr=d.weekly_report.reasoning;h+='<div class="stat-card"><h3>Weekly Reasoning</h3><pre>'+JSON.stringify(wr,null,2)+'</pre></div>';}if(d.historical_comparison&&d.historical_comparison.length){h+='<div class="stat-card"><h3>Historical (last 30 days)</h3><table><thead><tr><th>Date</th><th>Equity</th><th>Wheel</th><th>Score</th></tr></thead><tbody>';for(var i=0;i<Math.min(d.historical_comparison.length,15);i++){var x=d.historical_comparison[i];h+='<tr><td>'+(x.date||'—')+'</td><td>$'+(x.equity_realized!=null?fmt(x.equity_realized):'—')+'</td><td>$'+(x.wheel_realized!=null?fmt(x.wheel_realized):'—')+'</td><td>'+(x.promotion_score!=null?x.promotion_score:'—')+'</td></tr>';}h+='</tbody></table></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Strategy Comparison failed: '+(e&&e.message?e.message:'network'));});};
     window.loadSignalReview=function(){var el=document.getElementById('signal-review-content');if(!el)return;el.innerHTML='<div class="loading">Loading Signal Review...</div>';fetch('/api/signal_history',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sig=Array.isArray(d.signals)?d.signals:[];if(sig.length===0){el.innerHTML='<p class="no-positions">No signal history</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Direction</th><th>Score</th><th>Decision</th></tr></thead><tbody>';for(var i=0;i<Math.min(sig.length,50);i++){var s=sig[i];h+='<tr><td>'+(s.symbol||'—')+'</td><td>'+(s.direction||'—')+'</td><td>'+(s.final_score!=null?fmt(s.final_score):'—')+'</td><td>'+(s.decision||'—')+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Signal review failed: '+(e&&e.message?e.message:'network'));});};
     window.loadTelemetryContent=function(){var el=document.getElementById('telemetry-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry...</div>';fetch('/api/telemetry/latest/index',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var dt=d.latest_date||'—';var list=d.computed||[];var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Telemetry</h3><p><strong>Latest bundle:</strong> '+dt+'</p>';
     if(d.message){h+='<p>'+d.message+'</p>';}
@@ -456,6 +468,8 @@ DASHBOARD_HTML = """
                         (tabName === 'executive' && tabText.includes('executive')) ||
                         (tabName === 'xai' && tabText.includes('language')) ||
                         (tabName === 'failure_points' && tabText.includes('readiness')) ||
+                        (tabName === 'wheel_universe' && tabText.includes('wheel')) ||
+                        (tabName === 'strategy_comparison' && tabText.includes('strategy')) ||
                         (tabName === 'telemetry' && tabText.includes('telemetry')) ||
                         (tabName === 'signal_review' && tabText.includes('signal'))) {
                         tab.classList.add('active');
@@ -481,6 +495,10 @@ DASHBOARD_HTML = """
                 loadXAIAuditor();
             } else if (tabName === 'failure_points') {
                 loadFailurePoints();
+            } else if (tabName === 'wheel_universe' && typeof loadWheelUniverseHealth === 'function') {
+                loadWheelUniverseHealth();
+            } else if (tabName === 'strategy_comparison' && typeof loadStrategyComparison === 'function') {
+                loadStrategyComparison();
             } else if (tabName === 'signal_review') {
                 loadSignalReview();
             } else if (tabName === 'telemetry') {
@@ -1921,25 +1939,21 @@ DASHBOARD_HTML = """
                 });
         }
         
-        function loadExecutiveSummary() {
+        function loadExecutiveSummary(timeframe) {
+            timeframe = timeframe || document.getElementById('executive-timeframe')?.value || '24h';
             const executiveContent = document.getElementById('executive-content');
-            // Save scroll position before update
             const scrollTop = executiveContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
-            // Only show loading if not already loaded
             if (!executiveContent.dataset.loaded) {
                 executiveContent.innerHTML = '<div class="loading">Loading executive summary...</div>';
             }
-            fetch('/api/executive_summary', { credentials: 'same-origin' })
+            fetch('/api/executive_summary?timeframe=' + encodeURIComponent(timeframe), { credentials: 'same-origin' })
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
+                    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     return response.json();
                 })
                 .then(data => {
                     executiveContent.dataset.loaded = 'true';
-                    renderExecutiveSummary(data, executiveContent);
-                    // Restore scroll position after render
+                    renderExecutiveSummary(data, executiveContent, timeframe);
                     if (scrollTop > 0) {
                         requestAnimationFrame(() => {
                             executiveContent.scrollTop = scrollTop;
@@ -1953,32 +1967,34 @@ DASHBOARD_HTML = """
                 });
         }
         
-        function renderExecutiveSummary(data, container) {
-            const pnl2d = (data.pnl_metrics && data.pnl_metrics.pnl_2d) || 0;
-            const pnl5d = (data.pnl_metrics && data.pnl_metrics.pnl_5d) || 0;
-            const pnl2dClass = pnl2d >= 0 ? 'positive' : 'negative';
-            const pnl5dClass = pnl5d >= 0 ? 'positive' : 'negative';
-            
+        function renderExecutiveSummary(data, container, currentTimeframe) {
+            const pm = data.pnl_metrics || {};
+            const tf = pm.timeframe || currentTimeframe || '24h';
+            const pnl = pm.pnl != null ? pm.pnl : (pm.pnl_2d != null ? pm.pnl_2d : (pm.pnl_5d != null ? pm.pnl_5d : 0));
+            const tradesCount = pm.trades != null ? pm.trades : (pm.trades_2d != null ? pm.trades_2d : (pm.trades_5d != null ? pm.trades_5d : 0));
+            const winRate = pm.win_rate != null ? pm.win_rate : (pm.win_rate_2d != null ? pm.win_rate_2d : (pm.win_rate_5d != null ? pm.win_rate_5d : 0));
+            const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+            const timeframeOptions = ['24h', '48h', '7d', '2d', '5d'];
             let html = `
                 <div class="stat-card" style="margin-bottom: 20px; border: 3px solid #667eea;">
                     <h2 style="color: #667eea; margin-bottom: 15px;">📊 Performance Metrics</h2>
+                    <div style="margin-bottom: 12px;">
+                        <label style="margin-right: 8px;">Timeframe:</label>
+                        <select id="executive-timeframe" onchange="loadExecutiveSummary(this.value)" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc;">
+                            ${timeframeOptions.map(t => `<option value="${t}" ${t === tf ? 'selected' : ''}>${t}</option>`).join('')}
+                        </select>
+                        <span style="margin-left: 8px; color: #666; font-size: 0.9em;">Data from canonical logs (MEMORY_BANK 5.5)</span>
+                    </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                         <div>
-                            <div class="stat-label">Total Trades</div>
+                            <div class="stat-label">Total Trades (all time)</div>
                             <div class="stat-value">${data.total_trades || 0}</div>
                         </div>
                         <div>
-                            <div class="stat-label">2-Day P&L</div>
-                            <div class="stat-value ${pnl2dClass}">${formatCurrency(pnl2d)}</div>
+                            <div class="stat-label">P&L (${tf})</div>
+                            <div class="stat-value ${pnlClass}">${formatCurrency(pnl)}</div>
                             <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
-                                ${(data.pnl_metrics && data.pnl_metrics.trades_2d) || 0} trades, ${(data.pnl_metrics && data.pnl_metrics.win_rate_2d) || 0}% win rate
-                            </div>
-                        </div>
-                        <div>
-                            <div class="stat-label">5-Day P&L</div>
-                            <div class="stat-value ${pnl5dClass}">${formatCurrency(pnl5d)}</div>
-                            <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
-                                ${(data.pnl_metrics && data.pnl_metrics.trades_5d) || 0} trades, ${(data.pnl_metrics && data.pnl_metrics.win_rate_5d) || 0}% win rate
+                                ${tradesCount} trades, ${winRate}% win rate
                             </div>
                         </div>
                     </div>
@@ -4462,10 +4478,13 @@ def api_xai_export():
 
 @app.route("/api/executive_summary", methods=["GET"])
 def api_executive_summary():
-    """Get executive summary with trades, P&L, and learning analysis"""
+    """Get executive summary with trades, P&L, and learning analysis. Query: timeframe=24h|48h|7d|2d|5d (Performance window)."""
     try:
-        from executive_summary_generator import generate_executive_summary
-        summary = generate_executive_summary()
+        from executive_summary_generator import generate_executive_summary, SUPPORTED_TIMEFRAMES, DEFAULT_TIMEFRAME
+        timeframe = request.args.get("timeframe", DEFAULT_TIMEFRAME)
+        if timeframe not in SUPPORTED_TIMEFRAMES:
+            timeframe = DEFAULT_TIMEFRAME
+        summary = generate_executive_summary(timeframe=timeframe)
         return jsonify(summary), 200
     except ImportError as e:
         return jsonify({"error": f"Module import error: {str(e)}", "trades": [], "total_trades": 0, "pnl_metrics": {}, "signal_analysis": {}, "learning_insights": {}, "written_summary": "Executive summary generator not available."}), 200
@@ -4477,7 +4496,7 @@ def api_executive_summary():
             "error": f"Failed to generate executive summary: {str(e)}",
             "trades": [],
             "total_trades": 0,
-            "pnl_metrics": {"pnl_2d": 0, "pnl_5d": 0, "trades_2d": 0, "trades_5d": 0, "win_rate_2d": 0, "win_rate_5d": 0},
+            "pnl_metrics": {"timeframe": "24h", "pnl": 0, "trades": 0, "win_rate": 0},
             "signal_analysis": {"top_signals": {}, "bottom_signals": {}},
             "learning_insights": {},
             "written_summary": f"Error generating summary: {str(e)}"
@@ -4771,6 +4790,94 @@ def api_signal_history():
         }), 500
 
 
+@app.route("/api/wheel/universe_health", methods=["GET"])
+def api_wheel_universe_health():
+    """Wheel Universe Health: universe, candidates, sector distribution, metrics, outcomes."""
+    try:
+        from config.registry import Directories, read_json
+        path = _DASHBOARD_ROOT / Directories.STATE / "wheel_universe_health.json"
+        if not Path(path).exists():
+            return jsonify({
+                "date": None,
+                "message": "Run scripts/generate_wheel_universe_health.py to generate report",
+                "current_universe": [],
+                "selected_candidates": [],
+                "sector_distribution": {},
+                "liquidity_metrics": {},
+                "iv_metrics": {},
+                "spread_metrics": {},
+                "assignment_outcomes_by_ticker": {},
+                "yield_by_ticker": {},
+                "ai_recommendations": None,
+            }), 200
+        data = read_json(Path(path), default={})
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/strategy/comparison", methods=["GET"])
+def api_strategy_comparison():
+    """Strategy comparison: equity vs wheel metrics, promotion readiness, recommendation, last 30 days."""
+    try:
+        from pathlib import Path
+        from datetime import datetime, timedelta
+        reports_dir = _DASHBOARD_ROOT / "reports"
+        today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
+
+        def _load_json(p):
+            if not p.exists():
+                return None
+            try:
+                return json.loads(p.read_text(encoding="utf-8", errors="replace"))
+            except Exception:
+                return None
+
+        comb_path = reports_dir / f"{today}_stock-bot_combined.json"
+        comparison = {}
+        recommendation = "WAIT"
+        promotion_score = None
+        if comb_path.exists():
+            comb = _load_json(comb_path)
+            if comb and isinstance(comb.get("strategy_comparison"), dict):
+                comparison = comb["strategy_comparison"]
+                recommendation = comparison.get("recommendation", "WAIT")
+                promotion_score = comparison.get("promotion_readiness_score")
+
+        historical = []
+        try:
+            end_d = datetime.strptime(today[:10], "%Y-%m-%d").date()
+            for i in range(29, -1, -1):
+                dk = (end_d - timedelta(days=i)).strftime("%Y-%m-%d")
+                cp = reports_dir / f"{dk}_stock-bot_combined.json"
+                if cp.exists():
+                    c = _load_json(cp)
+                    if c:
+                        sc = c.get("strategy_comparison") or {}
+                        historical.append({
+                            "date": dk,
+                            "equity_realized": c.get("equity_strategy_pnl") or sc.get("equity_realized_pnl"),
+                            "wheel_realized": c.get("wheel_strategy_pnl") or sc.get("wheel_realized_pnl"),
+                            "promotion_score": sc.get("promotion_readiness_score"),
+                        })
+        except Exception:
+            pass
+
+        weekly_path = reports_dir / f"{today}_weekly_promotion_report.json"
+        weekly = _load_json(weekly_path) if weekly_path.exists() else None
+
+        return jsonify({
+            "date": today,
+            "strategy_comparison": comparison,
+            "recommendation": recommendation,
+            "promotion_readiness_score": promotion_score,
+            "historical_comparison": historical[-30:],
+            "weekly_report": weekly,
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/regime-and-posture", methods=["GET"])
 def api_regime_and_posture():
     """
@@ -5041,8 +5148,12 @@ def api_telemetry_latest_health():
         except Exception:
             replacement_health = {}
 
-        # Master trade log status (best-effort; use repo root so cwd-independent)
-        mtl = _DASHBOARD_ROOT / "logs" / "master_trade_log.jsonl"
+        # Master trade log status (canonical path per MEMORY_BANK 5.5 / config.registry LogFiles)
+        try:
+            from config.registry import LogFiles
+            mtl = (_DASHBOARD_ROOT / LogFiles.MASTER_TRADE_LOG).resolve()
+        except Exception:
+            mtl = _DASHBOARD_ROOT / "logs" / "master_trade_log.jsonl"
         mtl_status = {"exists": mtl.exists()}
         try:
             if mtl.exists():

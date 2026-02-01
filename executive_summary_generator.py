@@ -3,6 +3,7 @@
 Executive Summary Generator
 ===========================
 Generates comprehensive executive summary with trades, P&L, and learning analysis.
+Uses canonical paths from config.registry (MEMORY_BANK 5.5); dashboard fits data, not the reverse.
 """
 
 import json
@@ -12,43 +13,36 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
 
-DATA_DIR = Path("data")
-STATE_DIR = Path("state")
-LOGS_DIR = Path("logs")
+# Repo root for resolving canonical paths (dashboard/generator run from repo root)
+_REPO_ROOT = Path(__file__).resolve().parent
 
-# Attribution file is written to logs/ by main.py jsonl_write function
-# Check both possible locations
-ATTRIBUTION_FILE = LOGS_DIR / "attribution.jsonl"
-# Fallback: also check if it's in a different location
-if not ATTRIBUTION_FILE.exists():
-    # Try alternative location
-    alt_path = Path("logs/attribution.jsonl")
-    if alt_path.exists():
-        ATTRIBUTION_FILE = alt_path
+# Use config.registry for canonical log/state paths (single source of truth)
+try:
+    from config.registry import LogFiles, Directories
+    ATTRIBUTION_FILE = (_REPO_ROOT / LogFiles.ATTRIBUTION).resolve()
+    MASTER_TRADE_LOG_FILE = (_REPO_ROOT / LogFiles.MASTER_TRADE_LOG).resolve()
+    DATA_DIR = (_REPO_ROOT / Directories.DATA).resolve()
+    STATE_DIR = (_REPO_ROOT / Directories.STATE).resolve()
+except Exception:
+    ATTRIBUTION_FILE = (_REPO_ROOT / "logs" / "attribution.jsonl").resolve()
+    MASTER_TRADE_LOG_FILE = (_REPO_ROOT / "logs" / "master_trade_log.jsonl").resolve()
+    DATA_DIR = (_REPO_ROOT / "data").resolve()
+    STATE_DIR = (_REPO_ROOT / "state").resolve()
+
 COMPREHENSIVE_LEARNING_FILE = DATA_DIR / "comprehensive_learning.jsonl"
 COUNTERFACTUAL_RESULTS = DATA_DIR / "counterfactual_results.jsonl"
 WEIGHTS_STATE_FILE = STATE_DIR / "signal_weights.json"
 
+# Supported timeframes for Performance metrics (dashboard toggle)
+SUPPORTED_TIMEFRAMES = {"24h", "48h", "7d", "2d", "5d"}
+DEFAULT_TIMEFRAME = "24h"
+
 
 def get_all_trades(lookback_days: int = 30) -> List[Dict[str, Any]]:
-    """Get all trades from attribution log."""
+    """Get all trades from canonical attribution log (config.registry LogFiles.ATTRIBUTION)."""
     trades = []
-    
-    # Try multiple possible locations
-    attribution_files = [
-        ATTRIBUTION_FILE,
-        Path("logs/attribution.jsonl"),
-        Path("data/attribution.jsonl"),
-        LOGS_DIR / "attribution.jsonl"
-    ]
-    
-    attribution_file = None
-    for path in attribution_files:
-        if path.exists():
-            attribution_file = path
-            break
-    
-    if not attribution_file:
+    attribution_file = ATTRIBUTION_FILE
+    if not attribution_file.exists():
         return trades
     
     cutoff_time = datetime.now(timezone.utc) - timedelta(days=lookback_days)
@@ -108,56 +102,65 @@ def get_all_trades(lookback_days: int = 30) -> List[Dict[str, Any]]:
     return trades
 
 
-def calculate_pnl_metrics(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Calculate P&L metrics for different time periods."""
-    # Filter out open trades (only count closed trades)
+def _timeframe_to_timedelta(timeframe: str) -> timedelta:
+    """Convert timeframe string (24h, 48h, 7d, 2d, 5d) to timedelta."""
+    if timeframe == "24h":
+        return timedelta(hours=24)
+    if timeframe == "48h":
+        return timedelta(hours=48)
+    if timeframe == "7d":
+        return timedelta(days=7)
+    if timeframe == "2d":
+        return timedelta(days=2)
+    if timeframe == "5d":
+        return timedelta(days=5)
+    return timedelta(hours=24)
+
+
+def calculate_pnl_metrics(trades: List[Dict[str, Any]], timeframe: str = DEFAULT_TIMEFRAME) -> Dict[str, Any]:
+    """Calculate P&L metrics for the selected timeframe (24h, 48h, 7d, 2d, 5d)."""
     closed_trades = [
-        t for t in trades 
+        t for t in trades
         if not (t.get("trade_id", "").startswith("open_"))
         and (float(t.get("pnl_usd", 0.0)) != 0.0 or t.get("context", {}).get("close_reason"))
     ]
-    
+    if timeframe not in SUPPORTED_TIMEFRAMES:
+        timeframe = DEFAULT_TIMEFRAME
+    delta = _timeframe_to_timedelta(timeframe)
     now = datetime.now(timezone.utc)
-    two_days_ago = now - timedelta(days=2)
-    five_days_ago = now - timedelta(days=5)
-    
-    pnl_2d = 0.0
-    pnl_5d = 0.0
-    trades_2d = 0
-    trades_5d = 0
-    wins_2d = 0
-    wins_5d = 0
-    
-    for trade in trades:
+    cutoff = now - delta
+    pnl = 0.0
+    count = 0
+    wins = 0
+    for trade in closed_trades:
         ts_str = trade.get("ts", "")
         if not ts_str:
             continue
-        
         try:
             trade_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-            pnl = float(trade.get("pnl_usd", 0.0))
-            
-            if trade_time >= two_days_ago:
-                pnl_2d += pnl
-                trades_2d += 1
-                if pnl > 0:
-                    wins_2d += 1
-            
-            if trade_time >= five_days_ago:
-                pnl_5d += pnl
-                trades_5d += 1
-                if pnl > 0:
-                    wins_5d += 1
+            if trade_time.tzinfo is None:
+                trade_time = trade_time.replace(tzinfo=timezone.utc)
+            if trade_time < cutoff:
+                continue
+            pnl += float(trade.get("pnl_usd", 0.0))
+            count += 1
+            if float(trade.get("pnl_usd", 0.0)) > 0:
+                wins += 1
         except Exception:
             continue
-    
+    win_rate = round(wins / count * 100, 1) if count > 0 else 0.0
     return {
-        "pnl_2d": round(pnl_2d, 2),
-        "pnl_5d": round(pnl_5d, 2),
-        "trades_2d": trades_2d,
-        "trades_5d": trades_5d,
-        "win_rate_2d": round(wins_2d / trades_2d * 100, 1) if trades_2d > 0 else 0.0,
-        "win_rate_5d": round(wins_5d / trades_5d * 100, 1) if trades_5d > 0 else 0.0
+        "timeframe": timeframe,
+        "pnl": round(pnl, 2),
+        "trades": count,
+        "win_rate": win_rate,
+        # Backward compat for UI that expects pnl_2d / pnl_5d / trades_2d / etc.
+        "pnl_2d": round(pnl, 2) if timeframe == "2d" else None,
+        "pnl_5d": round(pnl, 2) if timeframe == "5d" else None,
+        "trades_2d": count if timeframe == "2d" else None,
+        "trades_5d": count if timeframe == "5d" else None,
+        "win_rate_2d": win_rate if timeframe == "2d" else None,
+        "win_rate_5d": win_rate if timeframe == "5d" else None,
     }
 
 
@@ -411,12 +414,15 @@ def generate_written_summary(trades: List[Dict[str, Any]], pnl_metrics: Dict[str
     wins = sum(1 for t in closed_trades if float(t.get("pnl_usd", 0.0)) > 0)
     win_rate = round(wins / total_trades * 100, 1) if total_trades > 0 else 0.0
     
+    tf = pnl_metrics.get("timeframe", "24h")
+    pnl_val = pnl_metrics.get("pnl", 0.0)
+    trades_val = pnl_metrics.get("trades", 0)
+    wr_val = pnl_metrics.get("win_rate", 0.0)
     summary_parts.append(f"## Performance Summary")
     summary_parts.append(f"Total trades executed: {total_trades}")
     summary_parts.append(f"Total P&L: ${total_pnl:,.2f}")
     summary_parts.append(f"Win rate: {win_rate}%")
-    summary_parts.append(f"2-day P&L: ${pnl_metrics['pnl_2d']:,.2f} ({pnl_metrics['trades_2d']} trades, {pnl_metrics['win_rate_2d']}% win rate)")
-    summary_parts.append(f"5-day P&L: ${pnl_metrics['pnl_5d']:,.2f} ({pnl_metrics['trades_5d']} trades, {pnl_metrics['win_rate_5d']}% win rate)")
+    summary_parts.append(f"P&L ({tf}): ${pnl_val:,.2f} ({trades_val} trades, {wr_val}% win rate)")
     summary_parts.append("")
     
     # Signal performance
@@ -468,13 +474,12 @@ def generate_written_summary(trades: List[Dict[str, Any]], pnl_metrics: Dict[str
     return "\n".join(summary_parts)
 
 
-def generate_executive_summary() -> Dict[str, Any]:
-    """Generate complete executive summary."""
-    # Get all trades
+def generate_executive_summary(timeframe: str = DEFAULT_TIMEFRAME) -> Dict[str, Any]:
+    """Generate complete executive summary. timeframe: 24h, 48h, 7d, 2d, or 5d (Performance window)."""
+    if timeframe not in SUPPORTED_TIMEFRAMES:
+        timeframe = DEFAULT_TIMEFRAME
     trades = get_all_trades(lookback_days=30)
-    
-    # Calculate P&L metrics
-    pnl_metrics = calculate_pnl_metrics(trades)
+    pnl_metrics = calculate_pnl_metrics(trades, timeframe=timeframe)
     
     # Analyze signal performance
     signal_analysis = analyze_signal_performance(trades)
