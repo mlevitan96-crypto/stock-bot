@@ -177,3 +177,14 @@ Fix SSH/key for root; check known_hosts, remote URL
 ## 7. Next Steps
 - Verify cron fires at scheduled times
 - Monitor logs/ directory
+
+---
+
+## 8. POST-VERIFICATION (2026-02-01)
+
+**Cron verified and updated on droplet:**
+- EOD: `30 21 * * 1-5` (21:30 UTC Mon–Fri) ✓
+- Sync: `32 21 * * 1-5` (21:32 UTC Mon–Fri) ✓ — now path-agnostic with `cd /root/stock-bot &&`
+- EOD dry-run: exit 0 ✓
+- Diagnostic pushed to GitHub ✓
+- `deploy_sync_cron_on_droplet.py` run: sync cron updated with path-agnostic line
