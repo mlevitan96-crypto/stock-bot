@@ -1579,3 +1579,15 @@ Replace opaque `blocked_reason` strings with:
 2. Build the trace incrementally: `build_initial_trace` at decision start, `append_gate_result` at each gate, `set_final_decision` before emit.
 3. Validate with `validate_trace()` before emit; if invalid, log and do not treat the decision as explained.
 4. Dry-run validation: `python3 scripts/validate_intelligence_trace_dryrun.py` MUST pass (trace exists, ≥2 layers, gates populated, final_decision coherent, size &lt; 500KB).
+---
+## CRON + GIT DIAGNOSTIC (2026-02-01 18:43 UTC)
+- **Detected path:** /root/stock-bot
+- **Cron:** crontab has EOD entry with correct path
+- **Git push:** push failed: To https://github.com/mlevitan96-crypto/stock-bot.git
+   d148ff7..697ae1e  main -> main
+To https://github.com/mlevitan96-crypto/stock-bot.git
+ ! [remote rejected] main -> main (cannot lock ref 'refs/h
+- **Report generation:** EOD dry-run OK
+- **Repairs applied:** ['Fix SSH/key for root; check known_hosts, remote URL']
+---
+
