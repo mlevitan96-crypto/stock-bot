@@ -22,6 +22,7 @@ state/
 logs/
 feature_store/
 *.jsonl
+!reports/stockbot/**/*.jsonl
 
 # UW cache corruption artifacts
 data/uw_flow_cache.json.corrupted*.json
