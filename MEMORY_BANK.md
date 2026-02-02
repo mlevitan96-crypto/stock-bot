@@ -1580,19 +1580,7 @@ Replace opaque `blocked_reason` strings with:
 1. Every call to `_emit_trade_intent` / `_emit_trade_intent_blocked` MUST pass a populated `intelligence_trace` when telemetry is enabled.
 2. Build the trace incrementally: `build_initial_trace` at decision start, `append_gate_result` at each gate, `set_final_decision` before emit.
 3. Validate with `validate_trace()` before emit; if invalid, log and do not treat the decision as explained.
-4. Dry-run validation: `python3 scripts/validate_intelligence_trace_dryrun.py` MUST pass (trace exists, ≥2 layers, gates populated, final_decision coherent, size &lt; 500KB).
----
-## CRON + GIT DIAGNOSTIC (2026-02-01 18:43 UTC)
-- **Detected path:** /root/stock-bot
-- **Cron:** crontab has EOD entry with correct path
-- **Git push:** push failed: To https://github.com/mlevitan96-crypto/stock-bot.git
-   d148ff7..697ae1e  main -> main
-To https://github.com/mlevitan96-crypto/stock-bot.git
- ! [remote rejected] main -> main (cannot lock ref 'refs/h
-- **Report generation:** EOD dry-run OK
-- **Repairs applied:** ['Fix SSH/key for root; check known_hosts, remote URL']
----
-## WHEEL STRATEGY DASHBOARD INTEGRATION (2026-02-02)
+4. Dry-run validation: `python3 scripts/validate_intelligence_trace_dryrun.py` MUST pass (trace exists, ≥2 layers, gates populated, final_decision coherent, size &lt; 500KB).## WHEEL STRATEGY DASHBOARD INTEGRATION (2026-02-02)
 - **strategy_id and wheel-specific fields** surfaced in stock-bot dashboard and API; no trade engine changes.
 - **Dashboard:** Closed Trades tab shows strategy_id (Equity/Wheel), filter (All / Equity only / Wheel only), and wheel columns when strategy_id = wheel: wheel_phase, option_type, strike, expiry, dte, premium, assigned, called_away.
 - **API:** `GET /api/stockbot/closed_trades` returns `closed_trades` (list) and `count`; each record has `strategy_id`, `wheel_phase`, `option_type`, `strike`, `expiry`, `dte`, `delta_at_entry`, `premium`, `assigned`, `called_away` (nullable for equity). `GET /api/stockbot/wheel_analytics` returns wheel-only metrics: premium_collected, assignment_rate_pct, call_away_rate_pct, expectancy_per_trade_usd, realized_pnl_sum.
@@ -1601,4 +1589,15 @@ To https://github.com/mlevitan96-crypto/stock-bot.git
 - **Diagnostics:** `scripts/audit_stock_bot_readiness.py` check `stockbot_closed_trades_wheel_fields` verifies strategy_id and wheel phase/option metadata; `scripts/verify_dashboard_contracts.py` includes `/api/stockbot/closed_trades` and `/api/stockbot/wheel_analytics`. Full-integration dashboard check validates both endpoints.
 - **Canonical field names:** Per wheel_strategy and MEMORY_BANK §2.2.1: strategy_id, phase (exposed as wheel_phase in API/UI), option_type, strike, expiry, dte, delta_at_entry, premium, assigned, called_away.
 - **Deployment (live):** Pushed to GitHub; deployed to droplet via `deploy_dashboard_via_ssh.py` (git pull + dashboard restart only; no trade engine restart). Droplet at 104.236.102.57; dashboard at http://104.236.102.57:5000/. Post-deploy verification: `/api/stockbot/closed_trades` and `/api/stockbot/wheel_analytics` return 200 (verified 2026-02-02). To re-verify: `python scripts/verify_wheel_endpoints_on_droplet.py`.
+---
+## CRON + GIT DIAGNOSTIC (2026-02-02 23:34 UTC)
+- **Detected path:** /root/stock-bot
+- **Cron:** crontab has EOD entry with correct path
+- **Git push:** push failed: To https://github.com/mlevitan96-crypto/stock-bot.git
+   8fd1a88..807c733  main -> main
+To https://github.com/mlevitan96-crypto/stock-bot.git
+ ! [remote rejected] main -> main (cannot lock ref 'refs/h
+- **Report generation:** EOD dry-run OK
+- **Repairs applied:** ['Fix SSH/key for root; check known_hosts, remote URL']
+---
 
