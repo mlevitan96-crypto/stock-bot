@@ -308,6 +308,8 @@ DASHBOARD_HTML = """
             <button class="tab" onclick="switchTab('failure_points', event)">⚠️ Trading Readiness</button>
             <button class="tab" onclick="switchTab('wheel_universe', event)">🔄 Wheel Universe Health</button>
             <button class="tab" onclick="switchTab('strategy_comparison', event)">⚖️ Strategy Comparison</button>
+            <button class="tab" onclick="switchTab('closed_trades', event)">📋 Closed Trades</button>
+            <button class="tab" onclick="switchTab('wheel_strategy', event)">🛞 Wheel Strategy</button>
             <button class="tab" onclick="switchTab('telemetry', event)">📦 Telemetry</button>
         </div>
         
@@ -375,6 +377,16 @@ DASHBOARD_HTML = """
         <div id="strategy_comparison-tab" class="tab-content">
             <div id="strategy_comparison-content"></div>
         </div>
+        <div id="closed_trades-tab" class="tab-content">
+            <div id="closed_trades-content">
+                <div class="loading">Loading closed trades...</div>
+            </div>
+        </div>
+        <div id="wheel_strategy-tab" class="tab-content">
+            <div id="wheel_strategy-content">
+                <div class="loading">Loading Wheel Strategy analytics...</div>
+            </div>
+        </div>
         <div id="failure_points-tab" class="tab-content">
             <div id="failure_points-content">
                 <div class="loading">Loading Trading Readiness...</div>
@@ -410,6 +422,8 @@ DASHBOARD_HTML = """
     else if(typeof loadFailurePoints==='function'&&tabName==='failure_points')loadFailurePoints();
     else if(typeof loadWheelUniverseHealth==='function'&&tabName==='wheel_universe')loadWheelUniverseHealth();
     else if(typeof loadStrategyComparison==='function'&&tabName==='strategy_comparison')loadStrategyComparison();
+    else if(typeof loadClosedTrades==='function'&&tabName==='closed_trades')loadClosedTrades();
+    else if(typeof loadWheelAnalytics==='function'&&tabName==='wheel_strategy')loadWheelAnalytics();
     else if(typeof loadSignalReview==='function'&&tabName==='signal_review')loadSignalReview();
     else if(typeof loadTelemetryContent==='function'&&tabName==='telemetry')loadTelemetryContent();
     else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
@@ -448,6 +462,11 @@ DASHBOARD_HTML = """
     if(d.message){h+='<p>'+d.message+'</p>';}
     if(list.length){h+='<p><strong>Computed artifacts:</strong></p><ul>';for(var i=0;i<list.length;i++){var c=list[i];var name=typeof c==='string'?c:(c.name||c.id||'');if(name)h+='<li>'+name+'</li>';}h+='</ul>';}
     h+='</div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Telemetry failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadClosedTrades=function(){var el=document.getElementById('closed_trades-content');if(!el)return;el.innerHTML='<div class="loading">Loading closed trades...</div>';fetch('/api/stockbot/closed_trades',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var filter=document.getElementById('closed_trades_filter');var raw=Array.isArray(d.closed_trades)?d.closed_trades:[];var strategyFilter=(filter&&filter.value)||'all';var list=raw;if(strategyFilter==='equity')list=raw.filter(function(t){return (t.strategy_id||'equity')==='equity';});if(strategyFilter==='wheel')list=raw.filter(function(t){return (t.strategy_id||'')==='wheel';});var h='<div class="stat-card" style="margin-bottom:12px;"><label>Filter: </label><select id="closed_trades_filter" onchange="if(typeof loadClosedTrades===\'function\')loadClosedTrades();"><option value="all"'+(strategyFilter==='all'?' selected':'')+'>All trades</option><option value="equity"'+(strategyFilter==='equity'?' selected':'')+'>Equity only</option><option value="wheel"'+(strategyFilter==='wheel'?' selected':'')+'>Wheel only</option></select></div>';
+    h+='<div class="stat-card"><h3>Closed Trades ('+list.length+')</h3><table style="width:100%;font-size:12px;"><thead><tr><th>Strategy</th><th>Symbol</th><th>Time</th><th>P&L</th><th>Close</th><th>Phase</th><th>Type</th><th>Strike</th><th>Expiry</th><th>DTE</th><th>Premium</th><th>Assigned</th><th>Called</th></tr></thead><tbody>';
+    for(var i=0;i<list.length;i++){var t=list[i];var sid=t.strategy_id||'equity';var stratLabel=sid==='wheel'?'Wheel':'Equity';var ts=t.timestamp?new Date(t.timestamp).toLocaleString():'—';var pnl=t.pnl_usd!=null?'$'+Number(t.pnl_usd).toFixed(2):'—';var close=t.close_reason||'—';var ph=t.wheel_phase||'—';var ot=t.option_type||'—';var st=t.strike!=null?t.strike:'—';var ex=t.expiry||'—';var dte=t.dte!=null?t.dte:'—';var pr=t.premium!=null?'$'+Number(t.premium).toFixed(2):'—';var asn=t.assigned===true?'Y':(t.assigned===false?'N':'—');var ca=t.called_away===true?'Y':(t.called_away===false?'N':'—');h+='<tr><td>'+stratLabel+'</td><td>'+(t.symbol||'—')+'</td><td>'+ts+'</td><td>'+pnl+'</td><td>'+close+'</td><td>'+ph+'</td><td>'+ot+'</td><td>'+st+'</td><td>'+ex+'</td><td>'+dte+'</td><td>'+pr+'</td><td>'+asn+'</td><td>'+ca+'</td></tr>';}
+    h+='</tbody></table></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Closed trades failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadWheelAnalytics=function(){var el=document.getElementById('wheel_strategy-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Strategy...</div>';fetch('/api/stockbot/wheel_analytics',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var h='<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> '+(d.total_trades!=null?d.total_trades:0)+'</p><p><strong>Premium collected:</strong> $'+(d.premium_collected!=null?Number(d.premium_collected).toFixed(2):'0.00')+'</p><p><strong>Assignment count:</strong> '+(d.assignment_count!=null?d.assignment_count:0)+' | <strong>Call-away count:</strong> '+(d.call_away_count!=null?d.call_away_count:0)+'</p><p><strong>Assignment rate:</strong> '+(d.assignment_rate_pct!=null?d.assignment_rate_pct.toFixed(1):'—')+'% | <strong>Call-away rate:</strong> '+(d.call_away_rate_pct!=null?d.call_away_rate_pct.toFixed(1):'—')+'%</p><p><strong>Expectancy per trade (USD):</strong> '+(d.expectancy_per_trade_usd!=null?'$'+Number(d.expectancy_per_trade_usd).toFixed(2):'—')+'</p><p><strong>Realized P&L sum:</strong> '+(d.realized_pnl_sum!=null?'$'+Number(d.realized_pnl_sum).toFixed(2):'—')+'</p></div>';if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel analytics failed: '+(e&&e.message?e.message:'network'));});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
     setTimeout(function(){loadVersion();loadPositions();},0);
     })();
@@ -470,6 +489,8 @@ DASHBOARD_HTML = """
                         (tabName === 'failure_points' && tabText.includes('readiness')) ||
                         (tabName === 'wheel_universe' && tabText.includes('wheel')) ||
                         (tabName === 'strategy_comparison' && tabText.includes('strategy')) ||
+                        (tabName === 'closed_trades' && tabText.includes('closed')) ||
+                        (tabName === 'wheel_strategy' && tabText.includes('wheel strategy')) ||
                         (tabName === 'telemetry' && tabText.includes('telemetry')) ||
                         (tabName === 'signal_review' && tabText.includes('signal'))) {
                         tab.classList.add('active');
@@ -499,6 +520,10 @@ DASHBOARD_HTML = """
                 loadWheelUniverseHealth();
             } else if (tabName === 'strategy_comparison' && typeof loadStrategyComparison === 'function') {
                 loadStrategyComparison();
+            } else if (tabName === 'closed_trades' && typeof loadClosedTrades === 'function') {
+                loadClosedTrades();
+            } else if (tabName === 'wheel_strategy' && typeof loadWheelAnalytics === 'function') {
+                loadWheelAnalytics();
             } else if (tabName === 'signal_review') {
                 loadSignalReview();
             } else if (tabName === 'telemetry') {
@@ -3274,6 +3299,161 @@ def api_pnl_reconcile():
         return jsonify(payload), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_telemetry_lines=500):
+    """
+    Load closed stock trades from attribution.jsonl and wheel events from telemetry.jsonl.
+    Returns list of records with strategy_id and wheel fields (nullable for equity).
+    Canonical field names per MEMORY_BANK / wheel_strategy: strategy_id, phase, option_type,
+    strike, expiry, dte, delta_at_entry, premium, assigned, called_away.
+    """
+    from pathlib import Path
+    from datetime import datetime, timezone, timedelta
+    try:
+        from config.registry import LogFiles
+        attr_path = Path(_DASHBOARD_ROOT) / LogFiles.ATTRIBUTION
+        telem_path = Path(_DASHBOARD_ROOT) / LogFiles.TELEMETRY
+    except ImportError:
+        attr_path = Path(_DASHBOARD_ROOT) / "logs" / "attribution.jsonl"
+        telem_path = Path(_DASHBOARD_ROOT) / "logs" / "telemetry.jsonl"
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max_days)).isoformat()[:10]
+    out = []
+    # 1) Attribution: closed trades (strategy_id injected by engine; wheel fields from context if present)
+    if attr_path.exists():
+        line_count = 0
+        with attr_path.open("r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line_count += 1
+                if line_count > max_attribution_lines:
+                    break
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if rec.get("type") != "attribution":
+                    continue
+                trade_id = rec.get("trade_id", "")
+                if trade_id and str(trade_id).startswith("open_"):
+                    continue
+                symbol = str(rec.get("symbol", "")).upper()
+                if not symbol or "TEST" in symbol:
+                    continue
+                context = rec.get("context") or {}
+                if not isinstance(context, dict):
+                    context = {}
+                pnl_usd = float(rec.get("pnl_usd", 0) or 0)
+                close_reason = context.get("close_reason") or rec.get("close_reason") or ""
+                if pnl_usd == 0 and not (close_reason and close_reason not in ("unknown", "N/A", "")):
+                    continue
+                ts_str = rec.get("ts") or rec.get("timestamp") or ""
+                if not ts_str or str(ts_str)[:10] < cutoff:
+                    continue
+                strategy_id = rec.get("strategy_id") or "equity"
+                row = {
+                    "strategy_id": strategy_id,
+                    "symbol": symbol,
+                    "timestamp": ts_str,
+                    "pnl_usd": round(pnl_usd, 2),
+                    "close_reason": close_reason,
+                    "wheel_phase": context.get("phase"),
+                    "option_type": context.get("option_type"),
+                    "strike": context.get("strike"),
+                    "expiry": context.get("expiry"),
+                    "dte": context.get("dte"),
+                    "delta_at_entry": context.get("delta_at_entry"),
+                    "premium": context.get("premium"),
+                    "assigned": context.get("assigned"),
+                    "called_away": context.get("called_away"),
+                }
+                out.append(row)
+    # 2) Telemetry: wheel events (strategy_id=wheel) as trade-like rows with full wheel fields
+    if telem_path.exists():
+        lines = telem_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        lines = lines[-max_telemetry_lines:] if len(lines) > max_telemetry_lines else lines
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if rec.get("strategy_id") != "wheel":
+                continue
+            ts_str = rec.get("timestamp") or rec.get("ts") or ""
+            if ts_str and str(ts_str)[:10] < cutoff:
+                continue
+            symbol = str(rec.get("symbol", "")).upper()
+            if not symbol:
+                continue
+            row = {
+                "strategy_id": "wheel",
+                "symbol": symbol,
+                "timestamp": ts_str,
+                "pnl_usd": None,
+                "close_reason": None,
+                "wheel_phase": rec.get("phase"),
+                "option_type": rec.get("option_type"),
+                "strike": rec.get("strike"),
+                "expiry": rec.get("expiry"),
+                "dte": rec.get("dte"),
+                "delta_at_entry": rec.get("delta_at_entry"),
+                "premium": rec.get("premium"),
+                "assigned": rec.get("assigned"),
+                "called_away": rec.get("called_away"),
+            }
+            out.append(row)
+    out.sort(key=lambda x: (x.get("timestamp") or ""), reverse=True)
+    return out[:500]
+
+
+@app.route("/api/stockbot/closed_trades", methods=["GET"])
+def api_stockbot_closed_trades():
+    """
+    Stock-bot closed trades: strategy_id, wheel fields (wheel_phase, option_type, strike, expiry, dte,
+    delta_at_entry, premium, assigned, called_away). Additive; nullable for legacy/equity rows.
+    """
+    try:
+        trades = _load_stock_closed_trades()
+        return jsonify({"closed_trades": trades, "count": len(trades)}), 200
+    except Exception as e:
+        return jsonify({"closed_trades": [], "count": 0, "error": str(e)}), 200
+
+
+@app.route("/api/stockbot/wheel_analytics", methods=["GET"])
+def api_stockbot_wheel_analytics():
+    """
+    Wheel-only analytics: premium collected, assignment rate, call-away rate, expectancy, duration, MAE/MFE if available.
+    Read-only; uses same loader filtered to strategy_id == wheel.
+    """
+    try:
+        trades = _load_stock_closed_trades()
+        wheel = [t for t in trades if t.get("strategy_id") == "wheel"]
+        total = len(wheel)
+        premium_sum = sum(float(t.get("premium") or 0) for t in wheel)
+        assigned_count = sum(1 for t in wheel if t.get("assigned") is True)
+        called_away_count = sum(1 for t in wheel if t.get("called_away") is True)
+        assignment_rate = (assigned_count / total * 100) if total else 0
+        call_away_rate = (called_away_count / total * 100) if total else 0
+        pnl_sum = sum(float(t.get("pnl_usd") or 0) for t in wheel if t.get("pnl_usd") is not None)
+        expectancy = (pnl_sum / total) if total else None
+        return jsonify({
+            "strategy_id": "wheel",
+            "total_trades": total,
+            "premium_collected": round(premium_sum, 2),
+            "assignment_count": assigned_count,
+            "call_away_count": called_away_count,
+            "assignment_rate_pct": round(assignment_rate, 2),
+            "call_away_rate_pct": round(call_away_rate, 2),
+            "expectancy_per_trade_usd": round(expectancy, 2) if expectancy is not None else None,
+            "realized_pnl_sum": round(pnl_sum, 2),
+        }), 200
+    except Exception as e:
+        return jsonify({"strategy_id": "wheel", "total_trades": 0, "error": str(e)}), 200
+
 
 @app.route("/api/closed_positions")
 def api_closed_positions():
