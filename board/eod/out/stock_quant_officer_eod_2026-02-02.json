@@ -1,0 +1,91 @@
+{
+  "verdict": "CAUTION",
+  "summary": "The system experienced a small net loss of $98.53 today, translating to a -0.196% P&L. The win rate was 42.66% across 961 closed trades, with 'signal_decay' being a prevalent exit reason. The market operated under a BEAR regime, and a significant number of potential trades were blocked due to displacement and expectancy breaches.",
+  "pnl_metrics": {
+    "total_pnl_usd": -98.53,
+    "total_pnl_pct": -0.19645,
+    "trades": 2061,
+    "wins": 410,
+    "losses": 551,
+    "win_rate": 0.4266389177939646,
+    "max_drawdown_pct": 4.77943
+  },
+  "regime_context": {
+    "regime_label": "BEAR",
+    "regime_confidence": null,
+    "notes": "Market regime inferred from daily_universe_v2.json."
+  },
+  "sector_context": {
+    "sectors_traded": [
+      "ENERGY",
+      "TECH",
+      "UNKNOWN",
+      "BIOTECH"
+    ],
+    "sector_pnl": null,
+    "notes": "Sector P&L breakdown not aggregated in summary; sectors identified from daily_universe_v2.json."
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "change": "Investigate low win rate",
+      "rationale": "The overall win rate of 42.66% is below 50%, indicating a need to review trade selection or exit strategies to improve profitability."
+    },
+    {
+      "priority": "medium",
+      "change": "Analyze 'signal_decay' exit reasons",
+      "rationale": "Signal decay is a dominant exit reason, suggesting potential issues with signal longevity or adaptive thresholds. Further analysis into specific signal decay thresholds and their P&L impact is recommended."
+    },
+    {
+      "priority": "medium",
+      "change": "Review 'displacement_blocked' trades",
+      "rationale": "A large number of trades were blocked due to displacement. Understanding the underlying causes of these displacements could uncover missed opportunities or highlight system robustness issues."
+    }
+  ],
+  "citations": [
+    {
+      "source": "attribution",
+      "ref": "logs/attribution.jsonl",
+      "quote": "Trades, Wins, Losses, Total P&L USD used for pnl_metrics and win_rate calculation. Exit reasons provided context."
+    },
+    {
+      "source": "exit_attribution",
+      "ref": "logs/exit_attribution.jsonl",
+      "quote": "Total P&L used for verification, exit reasons for context on trade closures."
+    },
+    {
+      "source": "daily_start_equity",
+      "ref": "state/daily_start_equity.json",
+      "quote": "Daily start equity used for total_pnl_pct calculation."
+    },
+    {
+      "source": "peak_equity",
+      "ref": "state/peak_equity.json",
+      "quote": "Peak equity used for max_drawdown_pct calculation."
+    },
+    {
+      "source": "daily_universe_v2",
+      "ref": "state/daily_universe_v2.json",
+      "quote": "Regime label and sectors traded extracted for context."
+    },
+    {
+      "source": "blocked_trades",
+      "ref": "state/blocked_trades.jsonl",
+      "quote": "Blocked trade reasons like 'displacement_blocked' and 'expectancy_blocked' used for recommendations and summary."
+    }
+  ],
+  "falsification_criteria": [
+    {
+      "id": "fc-1",
+      "description": "If next EOD attribution shows a positive total_pnl_usd, the 'CAUTION' verdict for P&L was overly conservative.",
+      "observed": null,
+      "data_source": "attribution"
+    },
+    {
+      "id": "fc-2",
+      "description": "If next EOD attribution shows a win_rate greater than 0.5, the concern about low win rate was overstated.",
+      "observed": null,
+      "data_source": "attribution"
+    }
+  ]
+}
