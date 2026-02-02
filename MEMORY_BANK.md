@@ -1598,4 +1598,5 @@ To https://github.com/mlevitan96-crypto/stock-bot.git
 - **Wheel Strategy tab:** Dedicated analytics panel (premium, assignment, call-away, expectancy); read-only.
 - **Diagnostics:** `scripts/audit_stock_bot_readiness.py` check `stockbot_closed_trades_wheel_fields` verifies strategy_id and wheel phase/option metadata; `scripts/verify_dashboard_contracts.py` includes `/api/stockbot/closed_trades` and `/api/stockbot/wheel_analytics`. Full-integration dashboard check validates both endpoints.
 - **Canonical field names:** Per wheel_strategy and MEMORY_BANK §2.2.1: strategy_id, phase (exposed as wheel_phase in API/UI), option_type, strike, expiry, dte, delta_at_entry, premium, assigned, called_away.
+- **Deployment (live):** Pushed to GitHub; deployed to droplet via `deploy_dashboard_via_ssh.py` (git pull + dashboard restart only; no trade engine restart). Droplet at 104.236.102.57; dashboard at http://104.236.102.57:5000/. Post-deploy verification: `/api/stockbot/closed_trades` and `/api/stockbot/wheel_analytics` return 200 (verified 2026-02-02). To re-verify: `python scripts/verify_wheel_endpoints_on_droplet.py`.
 
