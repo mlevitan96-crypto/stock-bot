@@ -1099,6 +1099,88 @@ def check_safety_boundaries() -> str:
 
 
 # =============================================================================
+# UNIFIED DAILY INTELLIGENCE PACK
+# =============================================================================
+
+def check_unified_daily_intelligence_pack(date: str) -> str:
+    """
+    Verify reports/stockbot/YYYY-MM-DD/ exists with all 9 files:
+    STOCK_EOD_SUMMARY.md/.json, STOCK_EQUITY_ATTRIBUTION.jsonl, STOCK_WHEEL_ATTRIBUTION.jsonl,
+    STOCK_BLOCKED_TRADES.jsonl, STOCK_PROFITABILITY_DIAGNOSTICS.md/.json, STOCK_REGIME_AND_UNIVERSE.json,
+    MEMORY_BANK_SNAPSHOT.md.
+    Validate wheel attribution has wheel fields; equity has profitability fields; profitability has expectancy+mae/mfe.
+    """
+    pack_dir = ROOT / "reports" / "stockbot" / date
+    if not pack_dir.is_dir():
+        raise ValueError(f"Daily folder missing: {pack_dir}. Run: python scripts/run_stockbot_daily_reports.py --date {date}")
+
+    required = [
+        "STOCK_EOD_SUMMARY.md",
+        "STOCK_EOD_SUMMARY.json",
+        "STOCK_EQUITY_ATTRIBUTION.jsonl",
+        "STOCK_WHEEL_ATTRIBUTION.jsonl",
+        "STOCK_BLOCKED_TRADES.jsonl",
+        "STOCK_PROFITABILITY_DIAGNOSTICS.md",
+        "STOCK_PROFITABILITY_DIAGNOSTICS.json",
+        "STOCK_REGIME_AND_UNIVERSE.json",
+        "MEMORY_BANK_SNAPSHOT.md",
+    ]
+    missing = [f for f in required if not (pack_dir / f).exists()]
+    if missing:
+        raise ValueError(f"Missing files: {missing}. Run: python scripts/run_stockbot_daily_reports.py --date {date}")
+
+    # Wheel attribution: at least one record with strategy_id or wheel fields
+    wheel_path = pack_dir / "STOCK_WHEEL_ATTRIBUTION.jsonl"
+    wheel_records = []
+    if wheel_path.exists():
+        for ln in wheel_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            ln = ln.strip()
+            if not ln:
+                continue
+            try:
+                wheel_records.append(json.loads(ln))
+            except json.JSONDecodeError:
+                continue
+    wheel_fields = ["strategy_id", "phase", "option_type", "strike", "expiry", "dte"]
+    if wheel_records:
+        first = wheel_records[0]
+        has_any = any(k in first for k in wheel_fields)
+        if not has_any:
+            raise ValueError("STOCK_WHEEL_ATTRIBUTION.jsonl missing wheel fields (strategy_id, phase, option_type, etc.)")
+
+    # Profitability diagnostics: expectancy + mae/mfe
+    prof_path = pack_dir / "STOCK_PROFITABILITY_DIAGNOSTICS.json"
+    prof = {}
+    if prof_path.exists():
+        try:
+            prof = json.loads(prof_path.read_text(encoding="utf-8", errors="replace"))
+        except json.JSONDecodeError:
+            pass
+    if not isinstance(prof, dict):
+        raise ValueError("STOCK_PROFITABILITY_DIAGNOSTICS.json invalid")
+    if "expectancy_per_symbol" not in prof and "expectancy_per_strategy" not in prof:
+        raise ValueError("STOCK_PROFITABILITY_DIAGNOSTICS.json missing expectancy fields")
+
+    # Regime valid
+    regime_path = pack_dir / "STOCK_REGIME_AND_UNIVERSE.json"
+    regime = {}
+    if regime_path.exists():
+        try:
+            regime = json.loads(regime_path.read_text(encoding="utf-8", errors="replace"))
+        except json.JSONDecodeError:
+            pass
+    if not isinstance(regime, dict):
+        raise ValueError("STOCK_REGIME_AND_UNIVERSE.json invalid")
+
+    # Memory Bank snapshot appended
+    mb_path = pack_dir / "MEMORY_BANK_SNAPSHOT.md"
+    if mb_path.stat().st_size == 0:
+        raise ValueError("MEMORY_BANK_SNAPSHOT.md empty")
+
+    return f"pack OK: {len(required)} files, wheel_records={len(wheel_records)}"
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -1192,6 +1274,14 @@ def main() -> int:
         "stockbot_closed_trades_wheel_fields",
         critical=False,
         fn=check_stockbot_closed_trades_wheel_fields,
+        verbose=verbose,
+    ))
+
+    # CHECK 10: Unified daily intelligence pack (reports/stockbot/YYYY-MM-DD/)
+    results.append(run_check(
+        "unified_daily_intelligence_pack",
+        critical=False,
+        fn=lambda: check_unified_daily_intelligence_pack(date),
         verbose=verbose,
     ))
 

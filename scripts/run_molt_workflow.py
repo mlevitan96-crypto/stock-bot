@@ -32,6 +32,13 @@ def main() -> int:
     date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     print(f"Molt workflow: date={date}")
+    # Ensure unified daily intelligence pack exists
+    try:
+        from scripts.run_molt_intelligence_expansion import ensure_daily_pack
+        ensure_daily_pack(base, date)
+        print("  daily intelligence pack ensured")
+    except Exception as e:
+        print(f"  daily pack (optional): {e}")
     run_learning_orchestrator(date, base_dir=base)
     print("  learning_orchestrator done")
     run_engineering_sentinel(date, base_dir=base)

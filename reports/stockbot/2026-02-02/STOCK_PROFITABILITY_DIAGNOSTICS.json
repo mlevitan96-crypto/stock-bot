@@ -1,0 +1,14 @@
+{
+  "date": "2026-02-02",
+  "expectancy_per_symbol": {},
+  "expectancy_per_strategy": {
+    "equity": 0,
+    "wheel": 0
+  },
+  "mae_mfe_distributions": {},
+  "exit_efficiency_pct": null,
+  "stop_efficiency_pct": null,
+  "volatility_buckets": {},
+  "shadow_vs_live_expectancy_delta": null,
+  "top_10_actionable_insights": []
+}

@@ -20,6 +20,10 @@ git pull --rebase --autostash origin main || true
 # Phase 1: Manifest + integrity gate (hard contract)
 python3 scripts/eod_bundle_manifest.py --date "$DATE" --base-dir "$REPO_DIR" || exit 1
 
+# Phase 1b: Daily strategy reports + unified intelligence pack (reports/stockbot/YYYY-MM-DD/)
+python3 scripts/generate_daily_strategy_reports.py --date "$DATE" || true
+python3 scripts/run_stockbot_daily_reports.py --date "$DATE" --base-dir "$REPO_DIR" || true
+
 # Phase 2: Stock EOD quant officer (produces quant_officer_eod_<DATE>.json|.md and/or stock_quant_officer_eod_*)
 if [ -f "board/eod/run_stock_quant_officer_eod.py" ]; then
   python3 board/eod/run_stock_quant_officer_eod.py || true
@@ -33,6 +37,7 @@ python3 scripts/generate_signal_weight_exit_inventory.py --date "$DATE" --base-d
 # Phase 3: Commit manifest + inventory + EOD outputs + scripts
 git add reports/eod_manifests/EOD_MANIFEST_"${DATE}".json reports/eod_manifests/EOD_MANIFEST_"${DATE}".md || true
 git add reports/STOCK_SIGNAL_WEIGHT_EXIT_INVENTORY_"${DATE}".md || true
+git add reports/stockbot/"${DATE}"/* 2>/dev/null || true
 git add scripts/eod_bundle_manifest.py scripts/generate_signal_weight_exit_inventory.py scripts/run_stock_eod_integrity_on_droplet.sh || true
 git add board/eod/out/*.md board/eod/out/*.json 2>/dev/null || true
 git status --short

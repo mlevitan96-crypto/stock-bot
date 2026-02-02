@@ -1,0 +1,29 @@
+{
+  "date": "2026-02-02",
+  "regime": "UNKNOWN",
+  "sectors": [
+    "FINANCIALS",
+    "ENERGY",
+    "UNKNOWN",
+    "TECH"
+  ],
+  "symbol_count": 14,
+  "symbols": [
+    "AAPL",
+    "AMD",
+    "AMZN",
+    "COIN",
+    "META",
+    "MSFT",
+    "NVDA",
+    "PLTR",
+    "QQQ",
+    "SPY",
+    "TSLA",
+    "XLE",
+    "XLF",
+    "XLK"
+  ],
+  "dispersion": null,
+  "volatility_bucket": null
+}
