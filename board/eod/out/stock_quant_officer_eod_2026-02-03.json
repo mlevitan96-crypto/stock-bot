@@ -1,0 +1,91 @@
+{
+  "verdict": "CAUTION",
+  "summary": "The system closed the day with a slight negative P&L and a win rate below 50%. The primary exit reasons are signal decay and unknown reasons, with a significant number of blocked trades indicating potential issues with position entry or management. The market regime appears to be bearish.",
+  "pnl_metrics": {
+    "total_pnl_usd": -98.16,
+    "total_pnl_pct": -0.196,
+    "trades": 2501,
+    "wins": 504,
+    "losses": 663,
+    "win_rate": 0.432,
+    "max_drawdown_pct": 4.764
+  },
+  "regime_context": {
+    "regime_label": "BEAR",
+    "regime_confidence": null,
+    "notes": "Inferred from daily universe context, indicating a bearish market regime."
+  },
+  "sector_context": {
+    "sectors_traded": [
+      "ENERGY",
+      "TECH",
+      "BIOTECH",
+      "UNKNOWN"
+    ],
+    "sector_pnl": null,
+    "notes": "Sectors traded inferred from daily universe, but specific sector P&L not provided in summary."
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "change": "Investigate 'unknown' exit reasons",
+      "rationale": "A large number of trades (1300 in attribution, and potentially more in exit attribution) are categorized with 'unknown' exit reasons, hindering accurate performance analysis and requiring deeper investigation into underlying exit logic."
+    },
+    {
+      "priority": "medium",
+      "change": "Review signal decay exits",
+      "rationale": "Signal decay is a predominant exit reason across many variations (e.g., 'signal_decay(0.59)': 211, 'signal_decay(0.60)': 181). Analyze if these exits are premature or if the signals themselves are deteriorating too quickly in the current market regime."
+    },
+    {
+      "priority": "medium",
+      "change": "Analyze blocked trades for actionable insights",
+      "rationale": "A high count of blocked trades (2756), especially 'displacement_blocked' (1910) and 'max_positions_reached' (524), suggests missed opportunities or aggressive risk management settings that may need adjustment to optimize trade execution in the current BEAR regime."
+    }
+  ],
+  "citations": [
+    {
+      "source": "attribution",
+      "ref": "logs/attribution.jsonl",
+      "quote": "Trades, wins, losses, total P&L USD, and win rate from this source."
+    },
+    {
+      "source": "exit_attribution",
+      "ref": "logs/exit_attribution.jsonl",
+      "quote": "Exit reasons and total P&L from this source."
+    },
+    {
+      "source": "daily_start_equity",
+      "ref": "state/daily_start_equity.json",
+      "quote": "Daily start equity used for calculating total P&L percentage."
+    },
+    {
+      "source": "peak_equity",
+      "ref": "state/peak_equity.json",
+      "quote": "Peak equity used for calculating max drawdown percentage."
+    },
+    {
+      "source": "daily_universe_v2",
+      "ref": "state/daily_universe_v2.json",
+      "quote": "Regime context and sectors traded inferred from this source."
+    },
+    {
+      "source": "blocked_trades",
+      "ref": "state/blocked_trades.jsonl",
+      "quote": "Blocked trades count and reasons for recommendations."
+    }
+  ],
+  "falsification_criteria": [
+    {
+      "id": "fc-1",
+      "description": "If next EOD attribution shows a win_rate greater than 0.5 and positive total_pnl_usd, the 'CAUTION' verdict for this session was overly conservative.",
+      "observed": null,
+      "data_source": "attribution"
+    },
+    {
+      "id": "fc-2",
+      "description": "If a subsequent analysis of 'unknown' exit reasons reveals they are benign and without systemic issues, the recommendation to investigate them would be falsified.",
+      "observed": null,
+      "data_source": "attribution, exit_attribution"
+    }
+  ]
+}
