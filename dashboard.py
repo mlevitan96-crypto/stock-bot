@@ -3853,6 +3853,18 @@ def api_sre_self_heal_events():
         return jsonify({"error": str(e), "events": []}), 500
 
 
+def _tail_lines(path, max_lines=2000):
+    """Read last max_lines from file to avoid loading huge logs (perf)."""
+    if not path.exists():
+        return []
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        return lines[-max_lines:] if len(lines) > max_lines else lines
+    except Exception:
+        return []
+
+
 def _calculate_signal_funnel():
     """Calculate Signal Funnel metrics: [UW Alerts] -> [Parsed] -> [Scored > 3.0] -> [Orders]"""
     from pathlib import Path
@@ -3860,20 +3872,14 @@ def _calculate_signal_funnel():
     from datetime import datetime, timezone, timedelta
     
     try:
-        # Use config.registry for file paths (consistent with rest of codebase)
-        from config.registry import LogFiles
+        from config.registry import LogFiles, CacheFiles
         
-        # Count UW alerts (from UW logs)
         alerts_count = 0
         parsed_count = 0
         scored_above_3 = 0
         orders_sent = 0
-        
-        # Get data from last 30 minutes (as per dashboard display requirement)
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
         
-        # Count UW alerts from multiple possible sources (resolve against _DASHBOARD_ROOT)
-        from config.registry import CacheFiles
         uw_logs = [
             (_DASHBOARD_ROOT / CacheFiles.UW_ATTRIBUTION).resolve(),
             (_DASHBOARD_ROOT / "logs" / "uw_flow.jsonl").resolve(),
@@ -3884,8 +3890,7 @@ def _calculate_signal_funnel():
             if not uw_log.exists():
                 continue
             try:
-                with uw_log.open('r', encoding='utf-8') as f:
-                    for line in f:
+                for line in _tail_lines(uw_log, 2000):
                         try:
                             rec = json.loads(line.strip())
                             ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
@@ -3917,8 +3922,7 @@ def _calculate_signal_funnel():
             if not gate_log.exists():
                 continue
             try:
-                with gate_log.open('r', encoding='utf-8') as f:
-                    for line in f:
+                for line in _tail_lines(gate_log, 2000):
                         try:
                             rec = json.loads(line.strip())
                             ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
@@ -3956,8 +3960,7 @@ def _calculate_signal_funnel():
             if not orders_log.exists():
                 continue
             try:
-                with orders_log.open('r', encoding='utf-8') as f:
-                    for line in f:
+                for line in _tail_lines(orders_log, 2000):
                         try:
                             rec = json.loads(line.strip())
                             action = rec.get("action", "") or rec.get("event", "") or rec.get("type", "")
