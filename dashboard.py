@@ -285,6 +285,10 @@ DASHBOARD_HTML = """
         .tab-content.active {
             display: block;
         }
+        /* Ensure tabs are clickable (above any overlay) */
+        .tabs { position: relative; z-index: 2; }
+        .tab { pointer-events: auto; }
+        .version-badge { pointer-events: auto; }
     </style>
 </head>
 <body>
@@ -300,17 +304,17 @@ DASHBOARD_HTML = """
         </div>
         
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('positions', event)">📊 Positions</button>
-            <button class="tab" onclick="switchTab('signal_review', event)">🔍 Signal Review</button>
-            <button class="tab" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
-            <button class="tab" onclick="switchTab('executive', event)">📈 Executive Summary</button>
-            <button class="tab" onclick="switchTab('xai', event)">🧠 Natural Language Auditor</button>
-            <button class="tab" onclick="switchTab('failure_points', event)">⚠️ Trading Readiness</button>
-            <button class="tab" onclick="switchTab('wheel_universe', event)">🔄 Wheel Universe Health</button>
-            <button class="tab" onclick="switchTab('strategy_comparison', event)">⚖️ Strategy Comparison</button>
-            <button class="tab" onclick="switchTab('closed_trades', event)">📋 Closed Trades</button>
-            <button class="tab" onclick="switchTab('wheel_strategy', event)">🛞 Wheel Strategy</button>
-            <button class="tab" onclick="switchTab('telemetry', event)">📦 Telemetry</button>
+            <button class="tab active" data-tab="positions" onclick="switchTab('positions', event)">📊 Positions</button>
+            <button class="tab" data-tab="signal_review" onclick="switchTab('signal_review', event)">🔍 Signal Review</button>
+            <button class="tab" data-tab="sre" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
+            <button class="tab" data-tab="executive" onclick="switchTab('executive', event)">📈 Executive Summary</button>
+            <button class="tab" data-tab="xai" onclick="switchTab('xai', event)">🧠 Natural Language Auditor</button>
+            <button class="tab" data-tab="failure_points" onclick="switchTab('failure_points', event)">⚠️ Trading Readiness</button>
+            <button class="tab" data-tab="wheel_universe" onclick="switchTab('wheel_universe', event)">🔄 Wheel Universe Health</button>
+            <button class="tab" data-tab="strategy_comparison" onclick="switchTab('strategy_comparison', event)">⚖️ Strategy Comparison</button>
+            <button class="tab" data-tab="closed_trades" onclick="switchTab('closed_trades', event)">📋 Closed Trades</button>
+            <button class="tab" data-tab="wheel_strategy" onclick="switchTab('wheel_strategy', event)">🛞 Wheel Strategy</button>
+            <button class="tab" data-tab="telemetry" onclick="switchTab('telemetry', event)">📦 Telemetry</button>
         </div>
         
         <div id="positions-tab" class="tab-content active">
@@ -413,7 +417,7 @@ DASHBOARD_HTML = """
     var creds={credentials:'same-origin'};
     window.switchTab=function(tabName,event){
     var t=document.querySelectorAll('.tab');for(var i=0;i<t.length;i++)t[i].classList.remove('active');
-    if(event&&event.target)event.target.classList.add('active');
+    var btn=event&&(event.currentTarget||event.target);if(btn&&btn.classList)btn.classList.add('active');
     var c=document.querySelectorAll('.tab-content');for(var i=0;i<c.length;i++)c[i].classList.remove('active');
     var el=document.getElementById(tabName+'-tab');if(el)el.classList.add('active');
     if(typeof loadSREContent==='function'&&tabName==='sre')loadSREContent();
@@ -473,28 +477,18 @@ DASHBOARD_HTML = """
     </script>
     <script>
         function switchTab(tabName, event) {
-            // Update tab buttons
+            // Update tab buttons - use currentTarget so clicking emoji/text still works
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
             });
-            if (event && event.target) {
-                event.target.classList.add('active');
+            var btn = event && (event.currentTarget || event.target);
+            if (btn && btn.classList) {
+                btn.classList.add('active');
             } else {
-                document.querySelectorAll('.tab').forEach(tab => {
-                    const tabText = tab.textContent.toLowerCase();
-                    if ((tabName === 'positions' && tabText.includes('positions')) ||
-                        (tabName === 'sre' && tabText.includes('sre')) ||
-                        (tabName === 'executive' && tabText.includes('executive')) ||
-                        (tabName === 'xai' && tabText.includes('language')) ||
-                        (tabName === 'failure_points' && tabText.includes('readiness')) ||
-                        (tabName === 'wheel_universe' && tabText.includes('wheel')) ||
-                        (tabName === 'strategy_comparison' && tabText.includes('strategy')) ||
-                        (tabName === 'closed_trades' && tabText.includes('closed')) ||
-                        (tabName === 'wheel_strategy' && tabText.includes('wheel strategy')) ||
-                        (tabName === 'telemetry' && tabText.includes('telemetry')) ||
-                        (tabName === 'signal_review' && tabText.includes('signal'))) {
-                        tab.classList.add('active');
-                    }
+                var match = document.querySelector('.tab[data-tab="' + tabName + '"]');
+                if (match) match.classList.add('active');
+                else document.querySelectorAll('.tab').forEach(function(tab) {
+                    if (tab.getAttribute('data-tab') === tabName) tab.classList.add('active');
                 });
             }
             
@@ -1375,15 +1369,15 @@ DASHBOARD_HTML = """
                 html += `</div>`;
 
                 // Intelligence recommendations (display only; no auto-tuning) + profitability alignment
-                const recs = (intelRecData && Array.isArray(intelRecData.recommendations)) ? intelRecData.recommendations : [];
+                const intelRecs = (intelRecData && Array.isArray(intelRecData.recommendations)) ? intelRecData.recommendations : [];
                 html += `<div class="positions-table" style="margin-bottom: 20px;">
                     <h2 style="margin-bottom: 15px;">Intelligence Recommendations</h2>
                     <div style="color:#666;">Suggested actions (display only; no weights or gates changed). Alignment: +1 support, -1 hurt, 0 neutral.</div>`;
-                if (!recs.length) {
+                if (!intelRecs.length) {
                     html += `<div class="loading">No recommendations. Run build_intelligence_profitability_today.py.</div>`;
                 } else {
                     html += `<table><thead><tr><th>Type</th><th>Entity</th><th>Status</th><th>Confidence</th><th>Alignment</th><th>Suggested action</th></tr></thead><tbody>`;
-                    for (const r of recs.slice(0, 30)) {
+                    for (const r of intelRecs.slice(0, 30)) {
                         const align = Number(r.profitability_alignment_score || 0);
                         const alignCls = align > 0 ? 'positive' : (align < 0 ? 'negative' : '');
                         html += `<tr><td>${r.entity_type || ''}</td><td class="symbol">${r.entity || ''}</td><td>${r.status || ''}</td><td>${r.confidence || ''}</td><td class="${alignCls}">${align > 0 ? '+' : ''}${align}</td><td>${r.suggested_action || ''}</td></tr>`;
@@ -1437,16 +1431,16 @@ DASHBOARD_HTML = """
                 html += `</div>`;
 
                 // Recommendations
-                const recs = (swrData && Array.isArray(swrData.recommendations)) ? swrData.recommendations : [];
+                const swrRecs = (swrData && Array.isArray(swrData.recommendations)) ? swrData.recommendations : [];
                 html += `<div class="positions-table" style="margin-bottom: 20px;">
                     <h2 style="margin-bottom: 15px;">Signal Weight Recommendations (advisory)</h2>`;
-                if (!recs.length) {
+                if (!swrRecs.length) {
                     html += `<div class="loading">No recommendations available.</div>`;
                 } else {
                     html += `<table><thead><tr>
                         <th>Signal</th><th>Δ Weight</th><th>Confidence</th><th>Rationale</th>
                     </tr></thead><tbody>`;
-                    for (const r of recs.slice(0, 200)) {
+                    for (const r of swrRecs.slice(0, 200)) {
                         const dw = Number(r.suggested_delta_weight || 0);
                         html += `<tr>
                             <td class="symbol">${r.signal || ''}</td>
@@ -3854,13 +3848,18 @@ def api_sre_self_heal_events():
 
 
 def _tail_lines(path, max_lines=2000):
-    """Read last max_lines from file to avoid loading huge logs (perf)."""
+    """Read last max_lines from file without loading entire file (perf)."""
     if not path.exists():
         return []
     try:
         with path.open("r", encoding="utf-8", errors="replace") as f:
-            lines = f.readlines()
-        return lines[-max_lines:] if len(lines) > max_lines else lines
+            # Read last ~150KB (enough for ~2000 lines); avoid loading 100MB+ files
+            size = path.stat().st_size
+            chunk = min(150000, size)
+            if size > chunk:
+                f.seek(max(0, size - chunk))
+                f.readline()  # skip partial line
+            return f.read().splitlines()[-max_lines:]
     except Exception:
         return []
 
