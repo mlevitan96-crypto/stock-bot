@@ -1737,7 +1737,11 @@ DASHBOARD_HTML = """
                 })
                 .then(function(d) {
                     if (!d) return;
-                    let h = '<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> ' + (d.total_trades != null ? d.total_trades : 0) + '</p><p><strong>Premium collected:</strong> $' + (d.premium_collected != null ? Number(d.premium_collected).toFixed(2) : '0.00') + '</p><p><strong>Assignment count:</strong> ' + (d.assignment_count != null ? d.assignment_count : '—') + ' | <strong>Call-away count:</strong> ' + (d.call_away_count != null ? d.call_away_count : '—') + '</p><p><strong>Assignment rate:</strong> ' + (d.assignment_rate_pct != null ? d.assignment_rate_pct.toFixed(1) : '—') + '% | <strong>Call-away rate:</strong> ' + (d.call_away_rate_pct != null ? d.call_away_rate_pct.toFixed(1) : '—') + '%</p><p><strong>Expectancy per trade (USD):</strong> ' + (d.expectancy_per_trade_usd != null ? '$' + Number(d.expectancy_per_trade_usd).toFixed(2) : '—') + '</p><p><strong>Realized P&L sum:</strong> ' + (d.realized_pnl_sum != null ? '$' + Number(d.realized_pnl_sum).toFixed(2) : '—') + '</p></div>';
+                    const totalTrades = d.total_trades != null ? d.total_trades : 0;
+                    const premium = d.premium_collected != null ? Number(d.premium_collected).toFixed(2) : '0.00';
+                    const allZero = totalTrades === 0 && parseFloat(premium) === 0 && (d.assignment_count || 0) === 0 && (d.call_away_count || 0) === 0;
+                    let h = '<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> ' + totalTrades + '</p><p><strong>Premium collected:</strong> $' + premium + '</p><p><strong>Assignment count:</strong> ' + (d.assignment_count != null ? d.assignment_count : '0') + ' | <strong>Call-away count:</strong> ' + (d.call_away_count != null ? d.call_away_count : '0') + '</p><p><strong>Assignment rate:</strong> ' + (d.assignment_rate_pct != null ? d.assignment_rate_pct.toFixed(1) : '0.0') + '% | <strong>Call-away rate:</strong> ' + (d.call_away_rate_pct != null ? d.call_away_rate_pct.toFixed(1) : '0.0') + '%</p><p><strong>Expectancy per trade (USD):</strong> ' + (d.expectancy_per_trade_usd != null ? '$' + Number(d.expectancy_per_trade_usd).toFixed(2) : '—') + '</p><p><strong>Realized P&L sum:</strong> $' + (d.realized_pnl_sum != null ? Number(d.realized_pnl_sum).toFixed(2) : '0.00') + '</p></div>';
+                    if (allZero) h += '<div class="stat-card" style="border-left:4px solid #64748b;"><p style="color:#64748b;font-size:0.9em;"><strong>Data sources:</strong> logs/attribution.jsonl, logs/telemetry.jsonl (strategy_id=wheel), reports/*_stock-bot_wheel.json, state/wheel_state.json. Run <code>python3 scripts/generate_daily_strategy_reports.py</code> to refresh reports. Wheel data appears when the wheel strategy executes trades.</p></div>';
                     if (d.error) h += '<div class="stat-card" style="border-color:#f59e0b;"><p>' + (d.error || '') + '</p></div>';
                     el.innerHTML = h;
                     el.dataset.loaded = '1';
@@ -3505,11 +3509,40 @@ def api_stockbot_closed_trades():
         return jsonify({"closed_trades": [], "count": 0, "error": str(e)}), 200
 
 
+def _aggregate_wheel_reports(reports_dir: Path, max_days: int = 90) -> dict:
+    """Aggregate wheel metrics from reports/YYYY-MM-DD_stock-bot_wheel.json (fallback when attribution/telemetry empty)."""
+    out = {"premium_collected": 0.0, "assignment_count": 0, "call_away_count": 0, "realized_pnl": 0.0, "trade_count_estimate": 0}
+    try:
+        from datetime import timedelta
+        end_d = datetime.now(timezone.utc).date()
+        for i in range(max_days):
+            dk = (end_d - timedelta(days=i)).strftime("%Y-%m-%d")
+            p = reports_dir / f"{dk}_stock-bot_wheel.json"
+            if not p.exists():
+                continue
+            try:
+                data = json.loads(p.read_text(encoding="utf-8", errors="replace"))
+            except Exception:
+                continue
+            if data.get("strategy_id") != "wheel":
+                continue
+            out["premium_collected"] += float(data.get("premium_collected") or 0)
+            out["assignment_count"] += int(data.get("assignment_count") or 0)
+            out["call_away_count"] += int(data.get("call_away_count") or 0)
+            out["realized_pnl"] += float(data.get("realized_pnl") or 0)
+            if data.get("positions_by_symbol"):
+                out["trade_count_estimate"] += len(data.get("positions_by_symbol", {}))
+    except Exception:
+        pass
+    return out
+
+
 @app.route("/api/stockbot/wheel_analytics", methods=["GET"])
 def api_stockbot_wheel_analytics():
     """
     Wheel-only analytics: premium collected, assignment rate, call-away rate, expectancy, duration, MAE/MFE if available.
-    Read-only; uses same loader filtered to strategy_id == wheel.
+    Data sources (in order): logs/attribution.jsonl + logs/telemetry.jsonl (strategy_id=wheel);
+    fallback: reports/*_stock-bot_wheel.json; supplement: state/wheel_state.json for assignments.
     """
     try:
         trades = _load_stock_closed_trades()
@@ -3518,9 +3551,39 @@ def api_stockbot_wheel_analytics():
         premium_sum = sum(float(t.get("premium") or 0) for t in wheel)
         assigned_count = sum(1 for t in wheel if t.get("assigned") is True)
         called_away_count = sum(1 for t in wheel if t.get("called_away") is True)
+        pnl_sum = sum(float(t.get("pnl_usd") or 0) for t in wheel if t.get("pnl_usd") is not None)
+
+        # Fallback: aggregate from reports + wheel_state when no wheel trades in attribution/telemetry
+        if total == 0:
+            reports_dir = Path(_DASHBOARD_ROOT) / "reports"
+            if reports_dir.exists():
+                agg = _aggregate_wheel_reports(reports_dir, max_days=90)
+                premium_sum = agg["premium_collected"]
+                assigned_count = agg["assignment_count"]
+                called_away_count = agg["call_away_count"]
+                pnl_sum = agg["realized_pnl"]
+                total = max(1, agg["trade_count_estimate"]) if (premium_sum or assigned_count or called_away_count or pnl_sum) else 0
+
+            # Supplement from state/wheel_state.json (assignments/call-aways)
+            try:
+                wheel_state_path = Path(_DASHBOARD_ROOT) / "state" / "wheel_state.json"
+                if wheel_state_path.exists():
+                    ws = json.loads(wheel_state_path.read_text(encoding="utf-8", errors="replace"))
+                    csp_history = ws.get("csp_history") or []
+                    cc_history = ws.get("cc_history") or []
+                    for h in csp_history if isinstance(csp_history, list) else []:
+                        if isinstance(h, dict) and h.get("assigned") is True:
+                            assigned_count += 1
+                    for h in cc_history if isinstance(cc_history, list) else []:
+                        if isinstance(h, dict) and h.get("called_away") is True:
+                            called_away_count += 1
+                    if assigned_count or called_away_count:
+                        total = max(total, assigned_count + called_away_count)
+            except Exception:
+                pass
+
         assignment_rate = (assigned_count / total * 100) if total else 0
         call_away_rate = (called_away_count / total * 100) if total else 0
-        pnl_sum = sum(float(t.get("pnl_usd") or 0) for t in wheel if t.get("pnl_usd") is not None)
         expectancy = (pnl_sum / total) if total else None
         return jsonify({
             "strategy_id": "wheel",
