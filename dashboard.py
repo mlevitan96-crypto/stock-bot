@@ -510,13 +510,13 @@ DASHBOARD_HTML = """
                 loadXAIAuditor();
             } else if (tabName === 'failure_points') {
                 loadFailurePoints();
-            } else if (tabName === 'wheel_universe' && typeof loadWheelUniverseHealth === 'function') {
+            } else if (tabName === 'wheel_universe') {
                 loadWheelUniverseHealth();
-            } else if (tabName === 'strategy_comparison' && typeof loadStrategyComparison === 'function') {
+            } else if (tabName === 'strategy_comparison') {
                 loadStrategyComparison();
             } else if (tabName === 'closed_trades' && typeof loadClosedTrades === 'function') {
                 loadClosedTrades();
-            } else if (tabName === 'wheel_strategy' && typeof loadWheelAnalytics === 'function') {
+            } else if (tabName === 'wheel_strategy') {
                 loadWheelAnalytics();
             } else if (tabName === 'signal_review') {
                 loadSignalReview();
@@ -1655,6 +1655,95 @@ DASHBOARD_HTML = """
                 .catch(error => {
                     console.error('Failure Points error:', error);
                     fpContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading Trading Readiness: ${error.message}</div>`;
+                });
+        }
+        
+        function loadWheelUniverseHealth() {
+            const el = document.getElementById('wheel_universe-content');
+            if (!el) return;
+            el.innerHTML = '<div class="loading">Loading Wheel Universe Health...</div>';
+            fetch('/api/wheel/universe_health', { credentials: 'same-origin' })
+                .then(function(r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(function(d) {
+                    if (!d) return;
+                    let h = '';
+                    if (d.message) {
+                        h += '<div class="stat-card"><p>' + (d.message || '') + '</p><p>Run: <code>python scripts/generate_wheel_universe_health.py</code></p></div>';
+                    } else {
+                        h += '<div class="stat-card"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> ' + (d.date || '—') + '</p><p><strong>Current universe:</strong> ' + (Array.isArray(d.current_universe) ? d.current_universe.join(', ') : '—') + '</p><p><strong>Selected candidates:</strong> ' + (Array.isArray(d.selected_candidates) ? d.selected_candidates.join(', ') : '—') + '</p></div>';
+                        h += '<div class="stat-card"><h3>Sector distribution</h3><pre>' + JSON.stringify(d.sector_distribution || {}, null, 2) + '</pre></div>';
+                        if (d.assignment_count != null) h += '<div class="stat-card"><p><strong>Assignments:</strong> ' + d.assignment_count + ' | <strong>Called away:</strong> ' + (d.call_away_count != null ? d.call_away_count : '—') + '</p></div>';
+                        if (d.ai_recommendations && d.ai_recommendations.length) {
+                            h += '<div class="stat-card"><h3>AI recommendations</h3><ul>';
+                            for (let i = 0; i < d.ai_recommendations.length; i++) h += '<li>' + JSON.stringify(d.ai_recommendations[i]) + '</li>';
+                            h += '</ul></div>';
+                        }
+                    }
+                    el.innerHTML = h;
+                    el.dataset.loaded = '1';
+                })
+                .catch(function(e) {
+                    el.innerHTML = '<div class="loading" style="color:#ef4444;">Wheel Universe Health failed: ' + (e && e.message ? e.message : 'network') + '</div>';
+                });
+        }
+        
+        function loadStrategyComparison() {
+            const el = document.getElementById('strategy_comparison-content');
+            if (!el) return;
+            el.innerHTML = '<div class="loading">Loading Strategy Comparison...</div>';
+            fetch('/api/strategy/comparison', { credentials: 'same-origin' })
+                .then(function(r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(function(d) {
+                    if (!d) return;
+                    const sc = d.strategy_comparison || {};
+                    const rec = d.recommendation || 'WAIT';
+                    const score = d.promotion_readiness_score;
+                    const badgeClr = rec === 'PROMOTE' ? '#10b981' : (rec === 'DO NOT PROMOTE' ? '#ef4444' : '#f59e0b');
+                    const badge = '<span style="padding:4px 12px;border-radius:6px;font-weight:bold;background:' + badgeClr + ';color:#fff">' + rec + '</span>';
+                    let h = '<div class="stat-card"><h3>Strategy Comparison</h3><p><strong>Date:</strong> ' + (d.date || '—') + '</p><p><strong>Promotion Readiness Score:</strong> ' + (score != null ? score : '—') + ' / 100</p><p><strong>Recommendation:</strong> ' + badge + '</p></div>';
+                    const fmt = function(v) { const n = Number(v); return (v == null || v === undefined) ? '0.00' : (isFinite(n) ? n.toFixed(2) : '0.00'); };
+                    h += '<div class="stat-card"><h3>Equity vs Wheel</h3><p>Equity Realized: $' + (sc.equity_realized_pnl != null ? fmt(sc.equity_realized_pnl) : '—') + ' | Wheel Realized: $' + (sc.wheel_realized_pnl != null ? fmt(sc.wheel_realized_pnl) : '—') + '</p><p>Equity Unrealized: $' + (sc.equity_unrealized_pnl != null ? fmt(sc.equity_unrealized_pnl) : '—') + ' | Wheel Unrealized: $' + (sc.wheel_unrealized_pnl != null ? fmt(sc.wheel_unrealized_pnl) : '—') + '</p><p>Equity Drawdown: ' + (sc.equity_drawdown != null ? sc.equity_drawdown : '—') + ' | Wheel Drawdown: ' + (sc.wheel_drawdown != null ? sc.wheel_drawdown : '—') + '</p><p>Equity Sharpe: ' + (sc.equity_sharpe_proxy != null ? sc.equity_sharpe_proxy : '—') + ' | Wheel Sharpe: ' + (sc.wheel_sharpe_proxy != null ? sc.wheel_sharpe_proxy : '—') + '</p><p>Wheel Yield: ' + (sc.wheel_yield_per_period != null ? sc.wheel_yield_per_period : '—') + ' | Capital Eff Equity: ' + (sc.capital_efficiency_equity != null ? sc.capital_efficiency_equity : '—') + ' | Wheel: ' + (sc.capital_efficiency_wheel != null ? sc.capital_efficiency_wheel : '—') + '</p></div>';
+                    if (d.weekly_report && d.weekly_report.reasoning) h += '<div class="stat-card"><h3>Weekly Reasoning</h3><pre>' + JSON.stringify(d.weekly_report.reasoning, null, 2) + '</pre></div>';
+                    if (d.historical_comparison && d.historical_comparison.length) {
+                        h += '<div class="stat-card"><h3>Historical (last 30 days)</h3><table><thead><tr><th>Date</th><th>Equity</th><th>Wheel</th><th>Score</th></tr></thead><tbody>';
+                        for (let i = 0; i < Math.min(d.historical_comparison.length, 15); i++) {
+                            const x = d.historical_comparison[i];
+                            h += '<tr><td>' + (x.date || '—') + '</td><td>$' + (x.equity_realized != null ? fmt(x.equity_realized) : '—') + '</td><td>$' + (x.wheel_realized != null ? fmt(x.wheel_realized) : '—') + '</td><td>' + (x.promotion_score != null ? x.promotion_score : '—') + '</td></tr>';
+                        }
+                        h += '</tbody></table></div>';
+                    }
+                    el.innerHTML = h;
+                    el.dataset.loaded = '1';
+                })
+                .catch(function(e) {
+                    el.innerHTML = '<div class="loading" style="color:#ef4444;">Strategy Comparison failed: ' + (e && e.message ? e.message : 'network') + '</div>';
+                });
+        }
+        
+        function loadWheelAnalytics() {
+            const el = document.getElementById('wheel_strategy-content');
+            if (!el) return;
+            el.innerHTML = '<div class="loading">Loading Wheel Strategy...</div>';
+            fetch('/api/stockbot/wheel_analytics', { credentials: 'same-origin' })
+                .then(function(r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(function(d) {
+                    if (!d) return;
+                    let h = '<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> ' + (d.total_trades != null ? d.total_trades : 0) + '</p><p><strong>Premium collected:</strong> $' + (d.premium_collected != null ? Number(d.premium_collected).toFixed(2) : '0.00') + '</p><p><strong>Assignment count:</strong> ' + (d.assignment_count != null ? d.assignment_count : '—') + ' | <strong>Call-away count:</strong> ' + (d.call_away_count != null ? d.call_away_count : '—') + '</p><p><strong>Assignment rate:</strong> ' + (d.assignment_rate_pct != null ? d.assignment_rate_pct.toFixed(1) : '—') + '% | <strong>Call-away rate:</strong> ' + (d.call_away_rate_pct != null ? d.call_away_rate_pct.toFixed(1) : '—') + '%</p><p><strong>Expectancy per trade (USD):</strong> ' + (d.expectancy_per_trade_usd != null ? '$' + Number(d.expectancy_per_trade_usd).toFixed(2) : '—') + '</p><p><strong>Realized P&L sum:</strong> ' + (d.realized_pnl_sum != null ? '$' + Number(d.realized_pnl_sum).toFixed(2) : '—') + '</p></div>';
+                    if (d.error) h += '<div class="stat-card" style="border-color:#f59e0b;"><p>' + (d.error || '') + '</p></div>';
+                    el.innerHTML = h;
+                    el.dataset.loaded = '1';
+                })
+                .catch(function(e) {
+                    el.innerHTML = '<div class="loading" style="color:#ef4444;">Wheel analytics failed: ' + (e && e.message ? e.message : 'network') + '</div>';
                 });
         }
         
