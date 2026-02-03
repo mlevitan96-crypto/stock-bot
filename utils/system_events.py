@@ -218,14 +218,21 @@ def read_last_system_events(
 ) -> list[dict]:
     """
     Best-effort tail reader for the dashboard (no dependencies).
+    Reads from end of file to avoid loading huge files (perf fix).
     """
     try:
         _ensure_system_events_file()
         if not SYSTEM_EVENTS_PATH.exists():
             return []
 
-        # Read last N lines (simple; file sizes are typically manageable for 500).
-        lines = SYSTEM_EVENTS_PATH.read_text(encoding="utf-8", errors="ignore").splitlines()
+        # Read last ~200KB max to avoid loading huge files (typical line ~200 bytes → ~1000 lines)
+        file_size = SYSTEM_EVENTS_PATH.stat().st_size
+        read_size = min(200000, file_size)
+        with SYSTEM_EVENTS_PATH.open("r", encoding="utf-8", errors="ignore") as f:
+            if file_size > read_size:
+                f.seek(max(0, file_size - read_size))
+                f.readline()  # Skip partial line
+            lines = f.read().splitlines()
         rows = []
         for line in reversed(lines):
             if not line.strip():

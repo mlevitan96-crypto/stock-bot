@@ -3189,8 +3189,7 @@ def api_pnl_reconcile():
             # Avoid importing `risk_management` here: it may import `main` in some runtimes,
             # which can start worker threads inside the dashboard process.
             # This endpoint only needs the persisted baseline written to state/daily_start_equity.json.
-            from pathlib import Path
-            p = Path("state") / "daily_start_equity.json"
+            p = (_DASHBOARD_ROOT / "state" / "daily_start_equity.json").resolve()
             if p.exists():
                 try:
                     data = json.loads(p.read_text(encoding="utf-8"))
@@ -3463,7 +3462,7 @@ def api_closed_positions():
         from io import StringIO
         
         closed = []
-        state_file = Path("state/closed_positions.json")
+        state_file = (_DASHBOARD_ROOT / "state" / "closed_positions.json").resolve()
         if state_file.exists():
             data = json.loads(state_file.read_text())
             closed = data if isinstance(data, list) else data.get("positions", [])
@@ -3485,7 +3484,7 @@ def api_system_health():
         import json
         from datetime import datetime, timezone
         
-        health_file = Path("state/health.json")
+        health_file = (_DASHBOARD_ROOT / "state" / "health.json").resolve()
         if not health_file.exists():
             return jsonify({
                 "overall_status": "UNKNOWN",
@@ -3628,7 +3627,7 @@ def _get_supervisor_health():
         from pathlib import Path
         import json
         
-        health_file = Path("state/health.json")
+        health_file = (_DASHBOARD_ROOT / "state" / "health.json").resolve()
         if health_file.exists():
             with open(health_file, 'r') as f:
                 return json.load(f)
@@ -3873,57 +3872,96 @@ def _calculate_signal_funnel():
         # Get data from last 30 minutes (as per dashboard display requirement)
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
         
-        # Count UW alerts from multiple possible sources
+        # Count UW alerts from multiple possible sources (resolve against _DASHBOARD_ROOT)
         from config.registry import CacheFiles
         uw_logs = [
-            CacheFiles.UW_ATTRIBUTION if hasattr(CacheFiles, 'UW_ATTRIBUTION') else CacheFiles.UW_ATTRIBUTION,
-            Path("logs/uw_flow.jsonl"),
-            CacheFiles.UW_FLOW_CACHE_LOG if hasattr(CacheFiles, 'UW_FLOW_CACHE_LOG') else Path("data/uw_flow_cache.log.jsonl")
+            (_DASHBOARD_ROOT / CacheFiles.UW_ATTRIBUTION).resolve(),
+            (_DASHBOARD_ROOT / "logs" / "uw_flow.jsonl").resolve(),
+            (_DASHBOARD_ROOT / "data" / "uw_flow_cache.log.jsonl").resolve(),
         ]
         
         for uw_log in uw_logs:
-            if isinstance(uw_log, str):
-                uw_log = Path(uw_log)
-            if uw_log.exists():
-                try:
-                    with uw_log.open('r', encoding='utf-8') as f:
-                        for line in f:
-                            try:
-                                rec = json.loads(line.strip())
-                                ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
-                                if ts_str:
-                                    try:
-                                        if isinstance(ts_str, (int, float)):
-                                            ts_dt = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
-                                        else:
-                                            ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
-                                            if ts_dt.tzinfo is None:
-                                                ts_dt = ts_dt.replace(tzinfo=timezone.utc)
-                                        if ts_dt >= cutoff:
-                                            alerts_count += 1
-                                    except:
-                                        pass
-                            except:
-                                continue
-                except:
-                    pass
+            if not uw_log.exists():
+                continue
+            try:
+                with uw_log.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line.strip())
+                            ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
+                            if ts_str:
+                                try:
+                                    if isinstance(ts_str, (int, float)):
+                                        ts_dt = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
+                                    else:
+                                        ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                        if ts_dt.tzinfo is None:
+                                            ts_dt = ts_dt.replace(tzinfo=timezone.utc)
+                                    if ts_dt >= cutoff:
+                                        alerts_count += 1
+                                except Exception:
+                                    pass
+                        except Exception:
+                            continue
+            except Exception:
+                pass
         
         # Count parsed signals (from gate logs or attribution)
         gate_logs = [
-            Path("logs/gate.jsonl"),
-            LogFiles.ATTRIBUTION,
-            LogFiles.COMPOSITE_ATTRIBUTION if hasattr(LogFiles, 'COMPOSITE_ATTRIBUTION') else Path("logs/composite_attribution.jsonl")
+            (_DASHBOARD_ROOT / "logs" / "gate.jsonl").resolve(),
+            (_DASHBOARD_ROOT / LogFiles.ATTRIBUTION).resolve(),
+            (_DASHBOARD_ROOT / "logs" / "composite_attribution.jsonl").resolve(),
         ]
         
         for gate_log in gate_logs:
-            if isinstance(gate_log, str):
-                gate_log = Path(gate_log)
-            if gate_log.exists():
-                try:
-                    with gate_log.open('r', encoding='utf-8') as f:
-                        for line in f:
-                            try:
-                                rec = json.loads(line.strip())
+            if not gate_log.exists():
+                continue
+            try:
+                with gate_log.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line.strip())
+                            ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
+                            if ts_str:
+                                try:
+                                    if isinstance(ts_str, (int, float)):
+                                        ts_dt = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
+                                    else:
+                                        ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
+                                        if ts_dt.tzinfo is None:
+                                            ts_dt = ts_dt.replace(tzinfo=timezone.utc)
+                                    if ts_dt >= cutoff:
+                                        parsed_count += 1
+                                        score = rec.get("signal_score") or rec.get("score") or rec.get("entry_score") or 0.0
+                                        try:
+                                            if float(score) >= 3.0:
+                                                scored_above_3 += 1
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+        
+        # Count orders sent (from attribution or orders logs)
+        orders_logs = [
+            (_DASHBOARD_ROOT / LogFiles.ATTRIBUTION).resolve(),
+            (_DASHBOARD_ROOT / LogFiles.ORDERS).resolve(),
+            (_DASHBOARD_ROOT / "data" / "live_orders.jsonl").resolve(),
+        ]
+        
+        for orders_log in orders_logs:
+            if not orders_log.exists():
+                continue
+            try:
+                with orders_log.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line.strip())
+                            action = rec.get("action", "") or rec.get("event", "") or rec.get("type", "")
+                            if "submit" in str(action).lower() or "entry" in str(action).lower() or rec.get("type") == "order":
                                 ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
                                 if ts_str:
                                     try:
@@ -3934,59 +3972,15 @@ def _calculate_signal_funnel():
                                             if ts_dt.tzinfo is None:
                                                 ts_dt = ts_dt.replace(tzinfo=timezone.utc)
                                         if ts_dt >= cutoff:
-                                            parsed_count += 1
-                                            # Check if scored > 3.0
-                                            score = rec.get("signal_score") or rec.get("score") or rec.get("entry_score") or 0.0
-                                            try:
-                                                if float(score) >= 3.0:
-                                                    scored_above_3 += 1
-                                            except:
-                                                pass
-                                    except:
+                                            orders_sent += 1
+                                    except Exception:
                                         pass
-                            except:
-                                continue
-                except:
-                    pass
-        
-        # Count orders sent (from attribution or orders logs)
-        orders_logs = [
-            LogFiles.ATTRIBUTION,
-            LogFiles.ORDERS,
-            Path("data/live_orders.jsonl")
-        ]
-        
-        for orders_log in orders_logs:
-            if isinstance(orders_log, str):
-                orders_log = Path(orders_log)
-            if orders_log.exists():
-                try:
-                    with orders_log.open('r', encoding='utf-8') as f:
-                        for line in f:
-                            try:
-                                rec = json.loads(line.strip())
-                                # Check for order submission events
-                                action = rec.get("action", "") or rec.get("event", "") or rec.get("type", "")
-                                if "submit" in str(action).lower() or "entry" in str(action).lower() or rec.get("type") == "order":
-                                    ts_str = rec.get("ts") or rec.get("timestamp") or rec.get("_ts")
-                                    if ts_str:
-                                        try:
-                                            if isinstance(ts_str, (int, float)):
-                                                ts_dt = datetime.fromtimestamp(float(ts_str), tz=timezone.utc)
-                                            else:
-                                                ts_dt = datetime.fromisoformat(str(ts_str).replace('Z', '+00:00'))
-                                                if ts_dt.tzinfo is None:
-                                                    ts_dt = ts_dt.replace(tzinfo=timezone.utc)
-                                            if ts_dt >= cutoff:
-                                                orders_sent += 1
-                                        except:
-                                            pass
-                            except:
-                                continue
-                except:
-                    pass
-                if orders_sent > 0:
-                    break  # Found orders, no need to check other files
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+            if orders_sent > 0:
+                break
         
         # Calculate conversion rates
         parsed_rate = (parsed_count / alerts_count * 100) if alerts_count > 0 else 0
@@ -4201,40 +4195,31 @@ def api_xai_auditor():
             import json
             from datetime import datetime, timezone, timedelta
             
-            # CRITICAL: Use standardized path from config/registry.py
+            # CRITICAL: Use standardized path from config/registry.py (resolve against _DASHBOARD_ROOT)
             try:
                 from config.registry import LogFiles
-                attribution_file = LogFiles.ATTRIBUTION
+                attribution_file = (_DASHBOARD_ROOT / LogFiles.ATTRIBUTION).resolve()
                 if not attribution_file.exists():
-                    # Fallback to alternative locations if standardized path doesn't exist
-                    attribution_files = [
-                        Path("logs/attribution.jsonl"),
-                        Path("data/attribution.jsonl"),
-                    ]
-                    for path in attribution_files:
-                        if path.exists():
-                            attribution_file = path
-                            print(f"[Dashboard] WARNING: Using fallback path: {path}", flush=True, file=sys.stderr)
+                    for rel in ["logs/attribution.jsonl", "data/attribution.jsonl"]:
+                        p = (_DASHBOARD_ROOT / rel).resolve()
+                        if p.exists():
+                            attribution_file = p
                             break
                     else:
                         attribution_file = None
             except ImportError:
-                # Fallback to local paths if registry not available
-                attribution_files = [
-                    Path("logs/attribution.jsonl"),
-                    Path("data/attribution.jsonl"),
-                ]
                 attribution_file = None
-                for path in attribution_files:
-                    if path.exists():
-                        attribution_file = path
+                for rel in ["logs/attribution.jsonl", "data/attribution.jsonl"]:
+                    p = (_DASHBOARD_ROOT / rel).resolve()
+                    if p.exists():
+                        attribution_file = p
                         break
             
             if attribution_file:
                 cutoff_time = datetime.now(timezone.utc) - timedelta(days=90)  # Last 90 days
-                # CRITICAL FIX: Add line limit to prevent reading entire large files
+                # CRITICAL FIX: Add line limit to prevent reading entire large files (perf)
                 line_count = 0
-                max_lines = 10000  # Limit to last 10k lines to prevent memory issues
+                max_lines = 3000  # Limit to prevent slowness; XAI auditor shows recent trades
                 with attribution_file.open('r', encoding='utf-8') as f:
                     # For large files, read from end if possible
                     try:
@@ -4723,12 +4708,12 @@ def api_health_status():
             except Exception as e:
                 print(f"[Dashboard] Warning: Failed to query Alpaca API for last order: {e}", flush=True)
         
-        # Fallback to log files if Alpaca API unavailable or failed
+        # Fallback to log files if Alpaca API unavailable or failed (paths resolve against _DASHBOARD_ROOT)
         if last_order_ts is None:
             orders_files = [
-                Path("data/live_orders.jsonl"),
-                Path("logs/orders.jsonl"),
-                Path("logs/trading.jsonl")
+                (_DASHBOARD_ROOT / "data" / "live_orders.jsonl").resolve(),
+                (_DASHBOARD_ROOT / "logs" / "orders.jsonl").resolve(),
+                (_DASHBOARD_ROOT / "logs" / "trading.jsonl").resolve(),
             ]
             
             for orders_file in orders_files:
@@ -4789,14 +4774,14 @@ def api_health_status():
             if last_order_ts:
                 last_order_age_sec = time.time() - last_order_ts
         
-        # Get Doctor/heartbeat from file
+        # Get Doctor/heartbeat from file (paths resolve against _DASHBOARD_ROOT)
         # CRITICAL: Check bot_heartbeat.json FIRST (main.py writes here)
         heartbeat_age_sec = None
         heartbeat_files = [
-            Path("state/bot_heartbeat.json"),  # Main bot heartbeat - check FIRST
-            Path("state/doctor_state.json"),
-            Path("state/system_heartbeat.json"),
-            Path("state/heartbeat.json")
+            (_DASHBOARD_ROOT / "state" / "bot_heartbeat.json").resolve(),
+            (_DASHBOARD_ROOT / "state" / "doctor_state.json").resolve(),
+            (_DASHBOARD_ROOT / "state" / "system_heartbeat.json").resolve(),
+            (_DASHBOARD_ROOT / "state" / "heartbeat.json").resolve(),
         ]
         
         for hb_file in heartbeat_files:

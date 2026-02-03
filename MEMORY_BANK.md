@@ -1600,4 +1600,5 @@ To https://github.com/mlevitan96-crypto/stock-bot.git
 - **Report generation:** EOD dry-run OK
 - **Repairs applied:** ['Fix SSH/key for root; check known_hosts, remote URL']
 ---
+- **Dashboard endpoint map:** `reports/DASHBOARD_ENDPOINT_MAP.md` — canonical mapping of all API routes to data locations. All paths resolved against `_DASHBOARD_ROOT` (cwd-independent). Perf: XAI auditor max 3k lines; system_events tail-only read (~200KB); no engine data modified.
 
