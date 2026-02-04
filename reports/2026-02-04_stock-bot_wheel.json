@@ -1,0 +1,16 @@
+{
+  "strategy_id": "wheel",
+  "date": "2026-02-04",
+  "realized_pnl": 0,
+  "unrealized_pnl": 0.0,
+  "premium_collected": 0,
+  "capital_at_risk": 0.0,
+  "assignment_count": 0,
+  "call_away_count": 0,
+  "yield_per_period": null,
+  "max_drawdown": null,
+  "positions_by_symbol": {},
+  "exposure_by_sector": null,
+  "iv_proxy": null,
+  "earnings_proximity_flag": null
+}

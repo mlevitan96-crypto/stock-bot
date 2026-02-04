@@ -1,0 +1,90 @@
+{
+  "strategy_id": "equity",
+  "date": "2026-02-04",
+  "realized_pnl": 0,
+  "unrealized_pnl": -4535.52,
+  "max_drawdown": null,
+  "positions_by_symbol": {
+    "COIN": {
+      "qty": 2,
+      "market_value": 0.0,
+      "cost_basis": 352.266666
+    },
+    "META": {
+      "qty": 0,
+      "market_value": 0.0,
+      "cost_basis": 500.095885193544
+    },
+    "MA": {
+      "qty": 1,
+      "market_value": 0.0,
+      "cost_basis": 999.911449779264
+    },
+    "XLF": {
+      "qty": 2,
+      "market_value": 0.0,
+      "cost_basis": 107.06
+    },
+    "HOOD": {
+      "qty": 3,
+      "market_value": 0.0,
+      "cost_basis": 258.6
+    },
+    "PLTR": {
+      "qty": 1,
+      "market_value": 0.0,
+      "cost_basis": 157.39
+    },
+    "SOFI": {
+      "qty": 1,
+      "market_value": 0.0,
+      "cost_basis": 21.5
+    },
+    "RIVN": {
+      "qty": 5,
+      "market_value": 0.0,
+      "cost_basis": 71.39999999999999
+    },
+    "NIO": {
+      "qty": 10,
+      "market_value": 0.0,
+      "cost_basis": 45.099999999999994
+    },
+    "MRNA": {
+      "qty": 7,
+      "market_value": 0.0,
+      "cost_basis": 292.03999999999996
+    },
+    "TGT": {
+      "qty": 1,
+      "market_value": 0.0,
+      "cost_basis": 111.2
+    },
+    "F": {
+      "qty": 17,
+      "market_value": 0.0,
+      "cost_basis": 233.24
+    },
+    "LCID": {
+      "qty": 36,
+      "market_value": 0.0,
+      "cost_basis": 379.08
+    },
+    "PFE": {
+      "qty": 6,
+      "market_value": 0.0,
+      "cost_basis": 154.74
+    },
+    "HD": {
+      "qty": 1,
+      "market_value": 0.0,
+      "cost_basis": 381.26
+    },
+    "C": {
+      "qty": 4,
+      "market_value": 0.0,
+      "cost_basis": 470.64
+    }
+  },
+  "exposure_by_sector": null
+}
