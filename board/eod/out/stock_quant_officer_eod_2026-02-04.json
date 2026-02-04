@@ -1,0 +1,88 @@
+{
+  "verdict": "CAUTION",
+  "summary": "The trading session concluded with a slight net loss of $98.16, marking a -0.20% decrease from the daily start equity. The win rate was 43.19%, indicating more losing trades than winning ones. A significant number of exits were categorized as 'unknown' or due to 'signal_decay', suggesting potential areas for exit strategy refinement. The observed market regime was consistently BEAR.",
+  "pnl_metrics": {
+    "total_pnl_usd": -98.16,
+    "total_pnl_pct": -0.19569,
+    "trades": 2501,
+    "wins": 504,
+    "losses": 663,
+    "win_rate": 0.431876606683796,
+    "max_drawdown_pct": 4.763829031448897
+  },
+  "regime_context": {
+    "regime_label": "BEAR",
+    "regime_confidence": null,
+    "notes": "Market regime inferred as BEAR from daily universe v2 context for all sampled symbols."
+  },
+  "sector_context": {
+    "sectors_traded": [
+      "ENERGY",
+      "TECH",
+      "UNKNOWN",
+      "BIOTECH"
+    ],
+    "sector_pnl": null,
+    "notes": "Sector P&L breakdown not available in the EOD bundle summary. Sectors traded are derived from the daily universe sample."
+  },
+  "recommendations": [
+    {
+      "id": "rec-1",
+      "priority": "high",
+      "change": "Investigate 'unknown' exit reasons",
+      "rationale": "1300 exits in attribution.jsonl were logged with an 'unknown' reason, comprising a large portion of total exits. Understanding these will be key to improving exit logic and attribution."
+    },
+    {
+      "id": "rec-2",
+      "priority": "medium",
+      "change": "Review displacement_blocked trades",
+      "rationale": "A high number of trades (1910) were flagged as 'displacement_blocked' in blocked_trades.jsonl. This suggests the displacement logic might be overly restrictive or need recalibration, potentially leading to missed opportunities."
+    }
+  ],
+  "citations": [
+    {
+      "source": "attribution",
+      "ref": "logs/attribution.jsonl",
+      "quote": "P&L metrics (total_pnl_usd, trades, wins, losses) and win rate calculation."
+    },
+    {
+      "source": "exit_attribution",
+      "ref": "logs/exit_attribution.jsonl",
+      "quote": "Total P&L and detailed exit reasons."
+    },
+    {
+      "source": "daily_start_equity",
+      "ref": "state/daily_start_equity.json",
+      "quote": "Daily start equity used for total_pnl_pct calculation."
+    },
+    {
+      "source": "peak_equity",
+      "ref": "state/peak_equity.json",
+      "quote": "Peak equity used for max_drawdown_pct calculation."
+    },
+    {
+      "source": "daily_universe_v2",
+      "ref": "state/daily_universe_v2.json",
+      "quote": "Regime context and sectors traded."
+    },
+    {
+      "source": "blocked_trades",
+      "ref": "state/blocked_trades.jsonl",
+      "quote": "Blocked trades count and reasons for recommendations."
+    }
+  ],
+  "falsification_criteria": [
+    {
+      "id": "fc-1",
+      "description": "If the next EOD attribution shows a total_pnl_usd greater than $100, the CAUTION verdict was overly conservative.",
+      "observed": null,
+      "data_source": "attribution"
+    },
+    {
+      "id": "fc-2",
+      "description": "If the next EOD attribution shows a win_rate above 0.5, current system adjustments are positively impacting performance.",
+      "observed": null,
+      "data_source": "attribution"
+    }
+  ]
+}
