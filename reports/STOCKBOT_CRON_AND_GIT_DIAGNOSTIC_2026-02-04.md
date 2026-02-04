@@ -1,7 +1,7 @@
 # Stock-bot Cron + Git + Execution Diagnostic Report
 
 **Date:** 2026-02-04
-**Generated:** 2026-02-04T22:45:23.745410+00:00
+**Generated:** 2026-02-04T23:20:46.200693+00:00
 
 ## 1. Detected Path
 - `/root/stock-bot`
@@ -41,33 +41,12 @@ INFO Wrote /root/stock-bot/board/eod/out/stock_quant_officer_eod_2026-02-04.md
 On branch main
 Your branch is up to date with 'origin/main'.
 
-Changes not staged for commit:
-  (use "git add <file>..." to update what will be committed)
-  (use "git restore <file>..." to discard changes in working directory)
-	modified:   board/eod/out/stock_quant_officer_eod_2026-02-04.json
-	modified:   board/eod/out/stock_quant_officer_eod_2026-02-04.md
-	modified:   data/dashboard_panel_inventory.json
-	modified:   data/uw_flow_cache.json
-	modified:   reports/DASHBOARD_ENDPOINT_AUDIT.md
-	modified:   reports/DASHBOARD_PANEL_INVENTORY.md
-	modified:   reports/DASHBOARD_TELEMETRY_DIAGNOSIS.md
-	modified:   reports/dashboard_audits/index.md
-
-Untracked files:
-  (use "git add <file>..." to include in what will be committed)
-	reports/dashboard_audits/2026-02-03/
-	reports/dashboard_audits/2026-02-04/
-	reports/report_2026-02-03.html
-	reports/report_2026-02-03.json
-	reports/report_2026-02-04.html
-	reports/report_2026-02-04.json
-
-no changes added to commit (use "git add" and/or "git commit -a")
+nothing to commit, working tree clean
 
 ```
 
 ## 6. Fixes Applied
-Fix SSH/key for root; check known_hosts, remote URL
+None
 
 ## 7. Next Steps
 - Verify cron fires at scheduled times
