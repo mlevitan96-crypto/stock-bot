@@ -1,7 +1,7 @@
 # Stock-bot Cron + Git + Execution Diagnostic Report
 
 **Date:** 2026-02-04
-**Generated:** 2026-02-04T23:21:30.331861+00:00
+**Generated:** 2026-02-04T23:23:11.913931+00:00
 
 ## 1. Detected Path
 - `/root/stock-bot`
@@ -41,12 +41,18 @@ INFO Wrote /root/stock-bot/board/eod/out/stock_quant_officer_eod_2026-02-04.md
 On branch main
 Your branch is up to date with 'origin/main'.
 
-nothing to commit, working tree clean
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	reports/2026-02-04_stock-bot_combined.json
+	reports/2026-02-04_stock-bot_equity.json
+	reports/2026-02-04_stock-bot_wheel.json
+
+nothing added to commit but untracked files present (use "git add" to track)
 
 ```
 
 ## 6. Fixes Applied
-None
+Fix SSH/key for root; check known_hosts, remote URL
 
 ## 7. Next Steps
 - Verify cron fires at scheduled times
