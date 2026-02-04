@@ -1590,7 +1590,7 @@ Replace opaque `blocked_reason` strings with:
 - **Canonical field names:** Per wheel_strategy and MEMORY_BANK §2.2.1: strategy_id, phase (exposed as wheel_phase in API/UI), option_type, strike, expiry, dte, delta_at_entry, premium, assigned, called_away.
 - **Deployment (live):** Pushed to GitHub; deployed to droplet via `deploy_dashboard_via_ssh.py` (git pull + dashboard restart only; no trade engine restart). Droplet at 104.236.102.57; dashboard at http://104.236.102.57:5000/. Post-deploy verification: `/api/stockbot/closed_trades` and `/api/stockbot/wheel_analytics` return 200 (verified 2026-02-02). To re-verify: `python scripts/verify_wheel_endpoints_on_droplet.py`.- **Dashboard endpoint map:** `reports/DASHBOARD_ENDPOINT_MAP.md` — canonical mapping of all API routes to data locations. All paths resolved against `_DASHBOARD_ROOT` (cwd-independent). Perf: XAI auditor max 3k lines; system_events tail-only read (~200KB); no engine data modified.
 ---
-## CRON + GIT DIAGNOSTIC (2026-02-04 23:20 UTC)
+## CRON + GIT DIAGNOSTIC (2026-02-04 23:21 UTC)
 - **Detected path:** /root/stock-bot
 - **Cron:** crontab has EOD entry with correct path
 - **Git push:** push OK
