@@ -1,6 +1,6 @@
 # Dashboard Telemetry Diagnosis
 
-**Generated:** 2026-02-01T02:00:13.615007+00:00
+**Generated:** 2026-02-04T02:00:10.537401+00:00
 
 ---
 
@@ -8,10 +8,10 @@
 
 - **/api/telemetry/latest/index**: PASS — OK — 
 - **/api/telemetry/latest/computed**: WARN — SOURCE_MISSING — HTTP Error 404: NOT FOUND
-  Excerpt: {"error":"computed artifact missing: live_vs_shadow_pnl.json","latest_date":"2026-01-31"}
+  Excerpt: {"error":"computed artifact missing: live_vs_shadow_pnl.json","latest_date":"2026-02-03"}
 ...
 - **/api/telemetry/latest/health**: PASS — OK — 
-- Evidence: Latest 2026-01-31, computed artifacts: 11.
+- Evidence: Latest 2026-02-03, computed artifacts: 11.
 
 ## Root cause classification
 
