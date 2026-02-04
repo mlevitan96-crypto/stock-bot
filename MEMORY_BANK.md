@@ -1,4 +1,4 @@
-c# MEMORY_BANK.md
+# MEMORY_BANK.md
 # Master Operating Manual for Cursor + Trading Bot
 # Version: 2026-01-12 (SSH Deployment Verified)
 
@@ -903,7 +903,7 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 
 **Outputs:** `board/eod/out/quant_officer_eod_<DATE>.json`, `board/eod/out/quant_officer_eod_<DATE>.md`. On parse failure: `board/eod/out/<DATE>_raw_response.txt`, exit 1.
 
-**Cron:** EOD at 21:30 UTC weekdays; installed via `board/eod/install_eod_cron_on_droplet.py`. Sync: `scripts/droplet_sync_to_github.sh` (21:32 UTC weekdays). Local fetch (repeatable): `scripts/pull_eod_to_local.ps1` (Windows) or `scripts/pull_eod_to_local.sh` (Git Bash/Linux) — run weekdays after 21:35 UTC to get latest EOD without conflicts. Direct: `scripts/local_sync_from_droplet.sh`, `scripts/fetch_eod_to_local.py` → `board/eod/out/` and `EOD--OUT/`.
+**Cron:** EOD at 21:30 UTC weekdays; installed via `board/eod/install_eod_cron_on_droplet.py`. Audit+sync: `scripts/run_droplet_audit_and_sync.sh` (21:32 UTC weekdays) — runs `run_stockbot_daily_reports.py` for the date, then audit, then commits EOD + droplet_audit + stockbot pack and pushes. Local fetch (repeatable): `scripts/pull_eod_to_local.ps1` (Windows) or `scripts/pull_eod_to_local.sh` (Git Bash/Linux) — run weekdays after 21:35 UTC to get latest EOD without conflicts. Direct: `scripts/local_sync_from_droplet.sh`, `scripts/fetch_eod_to_local.py` → `board/eod/out/` and `EOD--OUT/`.
 
 **Docs:** `docs/EOD_DATA_PIPELINE.md`, `docs/CRON_STRATEGIC_REVIEW.md`; summary: `reports/EOD_TARGETED_REPAIR_SUMMARY.md`.
 
@@ -1590,14 +1590,12 @@ Replace opaque `blocked_reason` strings with:
 - **Canonical field names:** Per wheel_strategy and MEMORY_BANK §2.2.1: strategy_id, phase (exposed as wheel_phase in API/UI), option_type, strike, expiry, dte, delta_at_entry, premium, assigned, called_away.
 - **Deployment (live):** Pushed to GitHub; deployed to droplet via `deploy_dashboard_via_ssh.py` (git pull + dashboard restart only; no trade engine restart). Droplet at 104.236.102.57; dashboard at http://104.236.102.57:5000/. Post-deploy verification: `/api/stockbot/closed_trades` and `/api/stockbot/wheel_analytics` return 200 (verified 2026-02-02). To re-verify: `python scripts/verify_wheel_endpoints_on_droplet.py`.- **Dashboard endpoint map:** `reports/DASHBOARD_ENDPOINT_MAP.md` — canonical mapping of all API routes to data locations. All paths resolved against `_DASHBOARD_ROOT` (cwd-independent). Perf: XAI auditor max 3k lines; system_events tail-only read (~200KB); no engine data modified.
 ---
-## CRON + GIT DIAGNOSTIC (2026-02-04 23:23 UTC)
+## CRON + GIT DIAGNOSTIC (2026-02-04)
 - **Detected path:** /root/stock-bot
-- **Cron:** crontab has EOD entry with correct path
-- **Git push:** push failed: To https://github.com/mlevitan96-crypto/stock-bot.git
-   691ce25..5f634fe  main -> main
-To https://github.com/mlevitan96-crypto/stock-bot.git
- ! [remote rejected] main -> main (cannot lock ref 'refs/h
+- **Cron:** crontab has EOD entry with correct path (21:30 UTC); audit+sync 21:32 UTC via run_droplet_audit_and_sync.sh
+- **Git push:** push OK (if transient ref-lock on remote, retry or push from local)
 - **Report generation:** EOD dry-run OK
-- **Repairs applied:** ['Fix SSH/key for root; check known_hosts, remote URL']
+- **Operational readiness audit (droplet):** All CRITICAL checks passed (2026-02-04). MEDIUM unified_daily_intelligence_pack: **addressed** — run_droplet_audit_and_sync.sh now runs run_stockbot_daily_reports.py for $DATE before the audit and adds reports/stockbot/$DATE to the sync commit.
+- **Repairs applied:** (parity: config/strategies, universe_wheel, universe_wheel_expanded, strategies/, main.py duplicate composite_meta removed; audit+sync generates daily pack before audit)
 ---
 
