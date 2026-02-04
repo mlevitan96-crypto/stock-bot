@@ -286,10 +286,15 @@ def build_cron_lines(root: Path, venv_python: Optional[Path], use_venv: bool) ->
         f"{py} board/eod/run_stock_quant_officer_eod.py >> {eod_log} 2>&1"
     )
 
-    # Optional: sync after EOD 21:32 UTC
+    # Audit + sync after EOD 21:32 UTC (runs audit, writes to reports/droplet_audit/YYYY-MM-DD/, then pushes to GitHub)
+    audit_sync_sh = root / "scripts" / "run_droplet_audit_and_sync.sh"
     sync_sh = root / "scripts" / "droplet_sync_to_github.sh"
     lines = [eod]
-    if sync_sh.exists():
+    if audit_sync_sh.exists():
+        sync_log = root / "logs" / "cron_sync.log"
+        sync = f"32 21 * * 1-5 cd {root_s} && bash scripts/run_droplet_audit_and_sync.sh >> {sync_log} 2>&1"
+        lines.append(sync)
+    elif sync_sh.exists():
         sync_log = root / "logs" / "cron_sync.log"
         sync = f"32 21 * * 1-5 cd {root_s} && bash scripts/droplet_sync_to_github.sh >> {sync_log} 2>&1"
         lines.append(sync)
@@ -308,7 +313,7 @@ def install_crontab(lines: list[str], existing: str) -> tuple[bool, str]:
         if not ln or ln.startswith("#"):
             kept.append(ln)
             continue
-        if "run_stock_quant_officer_eod" in ln or "droplet_sync_to_github" in ln:
+        if "run_stock_quant_officer_eod" in ln or "droplet_sync_to_github" in ln or "run_droplet_audit_and_sync" in ln:
             continue
         kept.append(ln)
 
