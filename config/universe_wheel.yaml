@@ -1,0 +1,9 @@
+# Wheel strategy universe: liquid ETFs.
+# Keep simple for v1.
+
+universe:
+  tickers:
+    - SPY
+    - QQQ
+    - DIA
+    - IWM

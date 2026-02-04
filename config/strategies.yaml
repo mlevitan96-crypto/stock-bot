@@ -1,0 +1,44 @@
+# Multi-strategy configuration.
+# Both strategies share: repo, droplet, UW, cron, logging.
+# All orders/logs/telemetry are tagged with strategy_id.
+
+strategies:
+  equity:
+    enabled: true
+    # Existing equity config (no behavior change)
+
+  wheel:
+    enabled: true
+    universe_source: config/universe_wheel_expanded.yaml
+    universe_max_candidates: 10
+    universe_min_liquidity_volume: 3000000
+    universe_min_open_interest: 5000
+    universe_max_spread_pct: 0.005
+    universe_min_iv_proxy: 0.15
+    universe_excluded_sectors:
+      - Technology
+      - Communication Services
+    max_capital_fraction: 0.5              # max 50% of account equity for wheel
+    max_positions: 5
+    per_position_capital_fraction: 0.05    # 5% of account per CSP position
+    csp:
+      target_dte_min: 5
+      target_dte_max: 10
+      delta_min: -0.3
+      delta_max: -0.2
+    cc:
+      target_dte_min: 7
+      target_dte_max: 21
+      delta_min: 0.2
+      delta_max: 0.3
+    risk:
+      max_positions_per_symbol: 2
+      avoid_earnings_window_days: 3
+      min_iv_rank: 20
+
+promotion:
+  min_score_to_promote: 75
+  min_weeks_of_data: 4
+  require_positive_realized_pnl: true
+  require_drawdown_below: 0.10
+  require_yield_consistency: true
