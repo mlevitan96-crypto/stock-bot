@@ -689,6 +689,14 @@ def jsonl_write(name, record):
         path = str(ATTRIBUTION_LOG_PATH)
     else:
         path = os.path.join(LOG_DIR, f"{name}.jsonl")
+    # Multi-strategy: inject strategy_id from context when available
+    try:
+        from strategies.context import get_strategy_id
+        sid = get_strategy_id()
+        if sid and "strategy_id" not in record:
+            record = {**record, "strategy_id": sid}
+    except ImportError:
+        pass
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps({"ts": now_iso(), **record}) + "\n")
 
@@ -1348,6 +1356,7 @@ def log_signal(cluster: dict):
     jsonl_write("signals", {"type": "signal", "cluster": cluster})
 
 def log_order(event: dict):
+    # strategy_id injected by jsonl_write from context
     jsonl_write("orders", {"type": "order", **event})
 
 
@@ -5604,7 +5613,13 @@ class AlpacaExecutor:
                 except Exception:
                     alpha_signature = None
             
+            try:
+                from strategies.context import get_strategy_id
+                strat_id = get_strategy_id()
+            except ImportError:
+                strat_id = "equity"
             metadata[symbol] = {
+                "strategy_id": strat_id,
                 "entry_ts": entry_ts.isoformat(),
                 "entry_price": entry_price,
                 "qty": qty,
@@ -7951,7 +7966,6 @@ class StrategyEngine:
                                           components=comps,
                                           displaced_symbol=dc_symbol,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
-                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           policy_reason=policy_reason)
                         log_signal_to_history(
                             symbol=symbol, direction=direction, raw_score=raw_score, whale_boost=whale_boost,
@@ -8042,7 +8056,6 @@ class StrategyEngine:
                                       decision_price=ref_price_check,
                                       components=comps,
                                       alpaca_positions=actual_positions,
-                                      composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                       composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                       executor_opens=len(self.executor.opens),
                                       max_positions=Config.MAX_CONCURRENT_POSITIONS)
@@ -8210,7 +8223,6 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           price_change_pct=momentum_check.get("price_change_pct", 0.0),
-                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           reason=block_reason)
                         
@@ -9244,6 +9256,64 @@ def audit_seg(name, phase, extra=None):
     gov_log.parent.mkdir(exist_ok=True)
     with gov_log.open("a") as f:
         f.write(json.dumps(event) + "\n")
+
+# =========================
+# MULTI-STRATEGY ORCHESTRATION
+# =========================
+def run_all_strategies():
+    """
+    Run all enabled strategies (equity, wheel).
+    Loads config/strategies.yaml and invokes each enabled strategy.
+    Returns combined metrics for run.jsonl.
+    """
+    strategies_cfg = {}
+    try:
+        path = Path("config") / "strategies.yaml"
+        if path.exists():
+            import yaml
+            with path.open() as f:
+                strategies_cfg = yaml.safe_load(f) or {}
+    except Exception as e:
+        log_event("strategies", "config_load_failed", error=str(e))
+    strat = strategies_cfg.get("strategies", {})
+    equity_cfg = strat.get("equity", {})
+    wheel_cfg = strat.get("wheel", {})
+    equity_enabled = equity_cfg.get("enabled", True)
+    wheel_enabled = wheel_cfg.get("enabled", False)
+    total_orders = 0
+    combined_metrics = {"clusters": 0, "orders": 0, "equity_orders": 0, "wheel_orders": 0}
+    try:
+        from strategies.context import strategy_context
+    except ImportError:
+        strategy_context = None
+    if equity_enabled:
+        try:
+            if strategy_context:
+                with strategy_context("equity"):
+                    metrics = run_once()
+            else:
+                metrics = run_once()
+            if isinstance(metrics, dict):
+                total_orders += metrics.get("orders", 0)
+                combined_metrics["equity_orders"] = metrics.get("orders", 0)
+                combined_metrics["clusters"] = metrics.get("clusters", 0)
+                combined_metrics.update(metrics)
+        except Exception as e:
+            log_event("strategies", "equity_run_failed", error=str(e))
+    if wheel_enabled and strategy_context:
+        try:
+            with strategy_context("wheel"):
+                from strategies.wheel_strategy import run as run_wheel
+                api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL)
+                wheel_result = run_wheel(api, wheel_cfg)
+            wo = wheel_result.get("orders_placed", 0)
+            total_orders += wo
+            combined_metrics["wheel_orders"] = wo
+        except Exception as e:
+            log_event("strategies", "wheel_run_failed", error=str(e))
+    combined_metrics["orders"] = total_orders
+    return combined_metrics
+
 
 # =========================
 # CORE ITERATION (pull all UW layers, score, execute)
@@ -11138,7 +11208,7 @@ class Watchdog:
                         except:
                             pass
                         
-                        metrics = run_once()
+                        metrics = run_all_strategies()
                         if not isinstance(metrics, dict):
                             metrics = {"clusters": 0, "orders": 0, "engine_status": "degraded", "errors_this_cycle": ["run_once_returned_non_dict"]}
                         # Ensure a consistent health signal for downstream monitoring.

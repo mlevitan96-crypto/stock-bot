@@ -1,0 +1,39 @@
+# Wheel strategy universe: diversified, non-technology-heavy.
+# Sector-balanced with liquid ETFs and mega-cap non-tech stocks.
+# See docs/stock-bot_wheel_strategy.md for selection rules.
+
+universe:
+  # Flat list (used by universe selector)
+  tickers:
+    # Index ETFs (core)
+    - SPY
+    - QQQ
+    - DIA
+    - IWM
+    # Sector ETFs (non-tech focus)
+    - XLF   # Financials
+    - XLE   # Energy
+    - XLI   # Industrials
+    - XLP   # Consumer Staples
+    - XLV   # Healthcare
+    - XLB   # Materials
+    - XLU   # Utilities
+    - XLY   # Consumer Discretionary
+    # Dividend / Value ETFs
+    - SCHD
+    - VTV
+    - DVY
+    - VYM
+    # Mega-cap NON-TECH stocks (high liquidity)
+    - JPM
+    - XOM
+    - CVX
+    - UNH
+    - PG
+    - KO
+    - PEP
+    - HD
+    - MCD
+    - WMT
+    - ABBV
+    - PFE
