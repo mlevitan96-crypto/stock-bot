@@ -1,0 +1,20 @@
+{
+  "strategies": {
+    "EQUITY": {
+      "position_cap": 25,
+      "capital_fraction": 0.55,
+      "displacement_allowed": true,
+      "can_displace": ["EQUITY"],
+      "exit_policy": "equity_exit_v2",
+      "promotion_metric": "regime_conditional_expectancy"
+    },
+    "WHEEL": {
+      "position_cap": 12,
+      "capital_fraction": 0.45,
+      "displacement_allowed": false,
+      "can_displace": [],
+      "exit_policy": "wheel_exit_v1",
+      "promotion_metric": "weekly_premium_expectancy"
+    }
+  }
+}

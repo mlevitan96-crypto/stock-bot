@@ -1597,5 +1597,16 @@ Replace opaque `blocked_reason` strings with:
 - **Report generation:** EOD dry-run OK
 - **Operational readiness audit (droplet):** All CRITICAL checks passed (2026-02-04). MEDIUM unified_daily_intelligence_pack: **addressed** — run_droplet_audit_and_sync.sh now runs run_stockbot_daily_reports.py for $DATE before the audit and adds reports/stockbot/$DATE to the sync commit.
 - **Repairs applied:** (parity: config/strategies, universe_wheel, universe_wheel_expanded, strategies/, main.py duplicate composite_meta removed; audit+sync generates daily pack before audit)
+
+---
+## Strategy Sovereignty (2026-02-05)
+- Wheel and Equity are independent institutions.
+- No cross-strategy displacement.
+- Separate capital, exits, promotion metrics.
+- Dashboard and AI board are strategy-aware.
+- **Config:** `config/strategy_governance.json` — position caps, capital fractions, displacement rules, exit policies, promotion metrics per strategy.
+- **Exit policies:** `src/exit/wheel_exit_v1.py` (wheel: time + premium decay); equity uses equity_exit_v2.
+- **Analytics:** `scripts/aggregate_strategy_pnl.py` → `artifacts/strategy_pnl.json` (EQUITY/WHEEL segmented PnL).
+- **AI Board:** `config/ai_board_roles.json` — adversarial review roles (Equity Skeptic, Wheel Advocate, Risk Officer, Promotion Judge); require_disagreement and require_synthesis.
 ---
 

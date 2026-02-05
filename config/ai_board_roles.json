@@ -1,0 +1,10 @@
+{
+  "roles": [
+    {"name": "Equity Skeptic", "focus": "drawdown, churn, regime mismatch"},
+    {"name": "Wheel Advocate", "focus": "premium decay, assignment risk"},
+    {"name": "Risk Officer", "focus": "capital efficiency, tail risk"},
+    {"name": "Promotion Judge", "focus": "promotion vs demotion decisions"}
+  ],
+  "require_disagreement": true,
+  "require_synthesis": true
+}
