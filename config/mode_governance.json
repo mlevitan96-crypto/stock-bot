@@ -1,0 +1,63 @@
+{
+  "modes": {
+    "LIVE": {
+      "risk": {
+        "max_positions_multiplier": 1.00,
+        "new_entries_enabled": true,
+        "allow_experimental_exits": false
+      },
+      "execution": {
+        "min_hold_seconds": 120,
+        "cooldown_seconds_after_exit": 20,
+        "max_daily_exits_multiplier": 1.10
+      },
+      "exits": {
+        "signal_decay_exit_enabled": true,
+        "signal_decay_sensitivity": 0.90,
+        "displacement_exit_enabled": true,
+        "displacement_sensitivity": 0.90
+      }
+    },
+    "PAPER": {
+      "risk": {
+        "max_positions_multiplier": 1.20,
+        "new_entries_enabled": true,
+        "allow_experimental_exits": true
+      },
+      "execution": {
+        "min_hold_seconds": 60,
+        "cooldown_seconds_after_exit": 10,
+        "max_daily_exits_multiplier": 1.40
+      },
+      "exits": {
+        "signal_decay_exit_enabled": true,
+        "signal_decay_sensitivity": 0.70,
+        "displacement_exit_enabled": true,
+        "displacement_sensitivity": 0.70
+      }
+    },
+    "SHADOW": {
+      "risk": {
+        "max_positions_multiplier": 1.60,
+        "new_entries_enabled": true,
+        "allow_experimental_exits": true
+      },
+      "execution": {
+        "min_hold_seconds": 15,
+        "cooldown_seconds_after_exit": 0,
+        "max_daily_exits_multiplier": 2.50
+      },
+      "exits": {
+        "signal_decay_exit_enabled": true,
+        "signal_decay_sensitivity": 0.45,
+        "displacement_exit_enabled": true,
+        "displacement_sensitivity": 0.45
+      }
+    }
+  },
+  "contract": {
+    "intent": "Create deliberate divergence across modes: LIVE slight, PAPER meaningful, SHADOW aggressive.",
+    "non_interference": "Mode settings must not bleed across modes; resolved at decision-time per trade.",
+    "promotion": "Only promote from PAPER/SHADOW into LIVE after evidence; LIVE is allowed small nudges but no experiments."
+  }
+}

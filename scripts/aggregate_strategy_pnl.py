@@ -27,7 +27,7 @@ def main():
                     s = r.get("strategy", "EQUITY")
                     if s not in out:
                         out[s] = {"pnl": 0.0, "trades": 0}
-                    out[s]["pnl"] = out[s].get("pnl", 0) + r.get("pnl", 0)
+                    out[s]["pnl"] = out[s].get("pnl", 0) + (r.get("pnl") or 0)
                     out[s]["trades"] = out[s].get("trades", 0) + 1
         except OSError:
             pass

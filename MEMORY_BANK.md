@@ -1608,5 +1608,14 @@ Replace opaque `blocked_reason` strings with:
 - **Exit policies:** `src/exit/wheel_exit_v1.py` (wheel: time + premium decay); equity uses equity_exit_v2.
 - **Analytics:** `scripts/aggregate_strategy_pnl.py` → `artifacts/strategy_pnl.json` (EQUITY/WHEEL segmented PnL).
 - **AI Board:** `config/ai_board_roles.json` — adversarial review roles (Equity Skeptic, Wheel Advocate, Risk Officer, Promotion Judge); require_disagreement and require_synthesis.
+
+---
+## Mode divergence contract (2026-02-05)
+- LIVE, PAPER, SHADOW must not be symmetric.
+- LIVE changes are small and controlled; PAPER changes are meaningful; SHADOW changes are aggressive.
+- Mode governance lives in `config/mode_governance.json` and must be resolved per-trade to avoid bleed.
+- Analytics must include mode+strategy rollups (`artifacts/mode_strategy_pnl.json`) for promotion decisions.
+- **Script:** `scripts/aggregate_mode_strategy_pnl.py` — produces mode:strategy buckets (LIVE:EQUITY, PAPER:WHEEL, etc.).
+- **Contract:** non_interference (mode settings resolved at decision-time per trade); promotion only from PAPER/SHADOW into LIVE after evidence.
 ---
 
