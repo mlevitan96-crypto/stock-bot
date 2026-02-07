@@ -1,0 +1,99 @@
+{
+  "artifacts": [
+    {
+      "data": {
+        "citations": [
+          {
+            "quote": "total_pnl_usd, trades, wins, losses, win_rate are derived from attribution.jsonl. Sample trades also cited.",
+            "ref": "logs/attribution.jsonl",
+            "source": "attribution"
+          },
+          {
+            "quote": "Total P&L (-280.39) from exits and exit reasons are derived from exit_attribution.jsonl. Sample exits also cited.",
+            "ref": "logs/exit_attribution.jsonl",
+            "source": "exit_attribution"
+          },
+          {
+            "quote": "Daily start equity used for total_pnl_pct calculation.",
+            "ref": "state/daily_start_equity.json",
+            "source": "daily_start_equity"
+          },
+          {
+            "quote": "Peak equity used for max_drawdown_pct calculation.",
+            "ref": "state/peak_equity.json",
+            "source": "peak_equity"
+          },
+          {
+            "quote": "Count and reasons for blocked trades are from blocked_trades.jsonl.",
+            "ref": "state/blocked_trades.jsonl",
+            "source": "blocked_trades"
+          },
+          {
+            "quote": "Regime context ('BEAR') and sectors traded are derived from daily_universe_v2.json.",
+            "ref": "state/daily_universe_v2.json",
+            "source": "daily_universe_v2"
+          }
+        ],
+        "falsification_criteria": [
+          {
+            "data_source": "attribution, exit_attribution",
+            "description": "If next EOD reports show the discrepancy between Attribution total P&L and Exit Attribution total P&L worsening or remaining significant, the system's exit logic is underperforming.",
+            "id": "fc-1",
+            "observed": null
+          },
+          {
+            "data_source": "blocked_trades",
+            "description": "If next EOD shows 'max_positions_reached' blocked trades remaining a top blocking reason, the position sizing or overall trade count limits need adjustment.",
+            "id": "fc-2",
+            "observed": null
+          }
+        ],
+        "pnl_metrics": {
+          "losses": 696,
+          "max_drawdown_pct": 4.5869,
+          "total_pnl_pct": 0.079257,
+          "total_pnl_usd": 39.72,
+          "trades": 2760,
+          "win_rate": 0.460046,
+          "wins": 593
+        },
+        "recommendations": [
+          {
+            "change": "Investigate P&L discrepancy between attribution and exit_attribution.",
+            "priority": "high",
+            "rationale": "Attribution shows a positive P&L of $39.72, while exit_attribution shows a negative P&L of -$280.39 for exits. This large difference suggests a potential issue in how P&L is recognized or how exits are contributing to overall system performance, especially if many profitable positions are held through the EOD and attributed differently."
+          },
+          {
+            "change": "Analyze high volume of blocked trades.",
+            "priority": "medium",
+            "rationale": "2017 trades were blocked, with 'displacement_blocked' (1427) and 'max_positions_reached' (442) being the primary reasons. This indicates potential missed opportunities or a need to refine position management and trade filtering."
+          },
+          {
+            "change": "Review exit reason effectiveness for 'signal_decay' and 'unknown' reasons.",
+            "priority": "low",
+            "rationale": "A large number of exits are due to 'signal_decay' and 'unknown' reasons in both attribution and exit_attribution. Understanding the performance characteristics of these exits could help improve exit logic."
+          }
+        ],
+        "regime_context": {
+          "notes": "Operating in a BEAR market regime as indicated by the daily universe. A small positive P&L was achieved in this context.",
+          "regime_confidence": null,
+          "regime_label": "BEAR"
+        },
+        "sector_context": {
+          "notes": "Traded across Energy, Tech, Biotech, and other identified 'UNKNOWN' sectors. Sector-specific P&L breakdown was not provided in the bundle summary.",
+          "sector_pnl": null,
+          "sectors_traded": [
+            "ENERGY",
+            "TECH",
+            "UNKNOWN",
+            "BIOTECH"
+          ]
+        },
+        "summary": "The system achieved a small positive P&L based on attribution, but exit attribution shows a significant negative P&L, indicating potential issues with exit strategy effectiveness. The win rate is below 50%. A high number of trades were blocked, primarily due to displacement or max positions reached. The system operated in a BEAR regime, and while a positive P&L in such a regime is notable, the P&L discrepancy warrants caution.",
+        "verdict": "CAUTION"
+      },
+      "source": "stock_quant_officer_eod_2026-02-06.json"
+    }
+  ],
+  "date": "2026-02-06"
+}
