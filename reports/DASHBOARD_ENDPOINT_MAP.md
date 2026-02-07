@@ -1,6 +1,6 @@
 # Dashboard Endpoint → Data Location Map
 
-**Generated:** 2026-02-02 | **Canonical per config.registry + MEMORY_BANK**
+**Generated:** 2026-02-05 | **Canonical per config.registry + MEMORY_BANK**
 
 All paths resolved against `_DASHBOARD_ROOT` (dashboard.py directory). No engine data modified.
 
@@ -14,8 +14,8 @@ All paths resolved against `_DASHBOARD_ROOT` (dashboard.py directory). No engine
 | `/api/version` | Git, process | Build/version info |
 | `/api/positions` | Alpaca API, `state/position_metadata.json`, `data/uw_flow_cache.json`, `data/live_orders.jsonl` | 8s timeout |
 | `/api/pnl/reconcile` | Alpaca API, `state/daily_start_equity.json`, `logs/attribution.jsonl` | Date query |
-| `/api/stockbot/closed_trades` | `logs/attribution.jsonl`, `logs/telemetry.jsonl` | Max 10k attr lines, 500 telemetry |
-| `/api/stockbot/wheel_analytics` | Same as closed_trades | Filtered to strategy_id=wheel |
+| `/api/stockbot/closed_trades` | `logs/attribution.jsonl`, `logs/exit_attribution.jsonl`, `logs/telemetry.jsonl` | Deduped; exit_attribution = v2 equity exits |
+| `/api/stockbot/wheel_analytics` | Same as closed_trades + `reports/*_stock-bot_wheel.json`, `state/wheel_state.json` | Fallback when no wheel in logs |
 | `/api/closed_positions` | `state/closed_positions.json` | Last 50 |
 | `/api/system/health` | `state/health.json` | Supervisor health |
 | `/api/system-events` | `logs/system_events.jsonl` | Via utils.system_events |
@@ -31,9 +31,9 @@ All paths resolved against `_DASHBOARD_ROOT` (dashboard.py directory). No engine
 | `/api/scores/telemetry` | `telemetry.score_telemetry` | Summary |
 | `/api/failure_points` | SRE/failure_point_monitor | |
 | `/api/signal_history` | signal_history_storage | |
-| `/api/wheel/universe_health` | `state/wheel_universe_health.json` | |
-| `/api/strategy/comparison` | `reports/{date}_stock-bot_combined.json`, `reports/*_weekly_promotion_report.json` | |
-| `/api/regime-and-posture` | `state/market_context_v2.json`, `state/regime_posture_state.json` | |
+| `/api/wheel/universe_health` | `state/wheel_universe_health.json` (primary); fallback: `config/universe_wheel.yaml`, `state/daily_universe_v2.json` | Derives when primary missing |
+| `/api/strategy/comparison` | `reports/{date}_stock-bot_combined.json`, `reports/*_weekly_promotion_report.json` | From generate_daily_strategy_reports |
+| `/api/regime-and-posture` | `state/market_context_v2.json`, `state/regime_posture_state.json` | Paths resolved via _DASHBOARD_ROOT |
 | `/api/telemetry/latest/index` | `telemetry/YYYY-MM-DD/computed/` | Latest date dir |
 | `/api/telemetry/latest/computed` | `telemetry/YYYY-MM-DD/computed/{name}.json` | Query param: name |
 | `/api/paper-mode-intel-state` | `telemetry/paper_mode_intel_state.json` | |

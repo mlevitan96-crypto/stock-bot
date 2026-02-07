@@ -1589,6 +1589,14 @@ Replace opaque `blocked_reason` strings with:
 - **Diagnostics:** `scripts/audit_stock_bot_readiness.py` check `stockbot_closed_trades_wheel_fields` verifies strategy_id and wheel phase/option metadata; `scripts/verify_dashboard_contracts.py` includes `/api/stockbot/closed_trades` and `/api/stockbot/wheel_analytics`. Full-integration dashboard check validates both endpoints.
 - **Canonical field names:** Per wheel_strategy and MEMORY_BANK §2.2.1: strategy_id, phase (exposed as wheel_phase in API/UI), option_type, strike, expiry, dte, delta_at_entry, premium, assigned, called_away.
 - **Deployment (live):** Pushed to GitHub; deployed to droplet via `deploy_dashboard_via_ssh.py` (git pull + dashboard restart only; no trade engine restart). Droplet at 104.236.102.57; dashboard at http://104.236.102.57:5000/. Post-deploy verification: `/api/stockbot/closed_trades` and `/api/stockbot/wheel_analytics` return 200 (verified 2026-02-02). To re-verify: `python scripts/verify_wheel_endpoints_on_droplet.py`.- **Dashboard endpoint map:** `reports/DASHBOARD_ENDPOINT_MAP.md` — canonical mapping of all API routes to data locations. All paths resolved against `_DASHBOARD_ROOT` (cwd-independent). Perf: XAI auditor max 3k lines; system_events tail-only read (~200KB); no engine data modified.
+
+### Dashboard Data Mapping Audit (2026-02-05)
+- **Closed trades:** `_load_stock_closed_trades` now reads `logs/attribution.jsonl`, `logs/exit_attribution.jsonl` (v2 equity exits), `logs/telemetry.jsonl`. Deduped by (symbol, timestamp). Paths resolved via `(_DASHBOARD_ROOT / LogFiles.*).resolve()`.
+- **Wheel analytics:** Primary from closed_trades (strategy_id=wheel); fallback `reports/*_stock-bot_wheel.json`, `state/wheel_state.json` when logs empty.
+- **Wheel universe health:** Primary `state/wheel_universe_health.json`; when missing, derives from `config/universe_wheel.yaml` and `state/daily_universe_v2.json` (no external script required).
+- **Strategy comparison:** `reports/{date}_stock-bot_combined.json` from `scripts/generate_daily_strategy_reports.py`.
+- **Regime/posture:** `state/market_context_v2.json`, `state/regime_posture_state.json`; paths resolved via _DASHBOARD_ROOT.
+- **Rule:** Dashboard connects to logs/state/config only; NEVER modifies trading engine. See `reports/DASHBOARD_ENDPOINT_MAP.md`.
 ---
 ## CRON + GIT DIAGNOSTIC (2026-02-04)
 - **Detected path:** /root/stock-bot

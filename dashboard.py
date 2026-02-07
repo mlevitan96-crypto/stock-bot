@@ -3388,22 +3388,28 @@ def api_pnl_reconcile():
 
 def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_telemetry_lines=500):
     """
-    Load closed stock trades from attribution.jsonl and wheel events from telemetry.jsonl.
+    Load closed stock trades from attribution.jsonl, exit_attribution.jsonl (v2 equity exits),
+    and wheel events from telemetry.jsonl.
     Returns list of records with strategy_id and wheel fields (nullable for equity).
     Canonical field names per MEMORY_BANK / wheel_strategy: strategy_id, phase, option_type,
     strike, expiry, dte, delta_at_entry, premium, assigned, called_away.
+    Data sources (per MEMORY_BANK 5.5, 7.12): logs/attribution.jsonl, logs/exit_attribution.jsonl,
+    logs/telemetry.jsonl. Paths resolved via _DASHBOARD_ROOT for cwd-independence.
     """
     from pathlib import Path
     from datetime import datetime, timezone, timedelta
     try:
         from config.registry import LogFiles
-        attr_path = Path(_DASHBOARD_ROOT) / LogFiles.ATTRIBUTION
-        telem_path = Path(_DASHBOARD_ROOT) / LogFiles.TELEMETRY
+        attr_path = (_DASHBOARD_ROOT / LogFiles.ATTRIBUTION).resolve()
+        exit_attr_path = (_DASHBOARD_ROOT / LogFiles.EXIT_ATTRIBUTION).resolve()
+        telem_path = (_DASHBOARD_ROOT / LogFiles.TELEMETRY).resolve()
     except ImportError:
-        attr_path = Path(_DASHBOARD_ROOT) / "logs" / "attribution.jsonl"
-        telem_path = Path(_DASHBOARD_ROOT) / "logs" / "telemetry.jsonl"
+        attr_path = (_DASHBOARD_ROOT / "logs" / "attribution.jsonl").resolve()
+        exit_attr_path = (_DASHBOARD_ROOT / "logs" / "exit_attribution.jsonl").resolve()
+        telem_path = (_DASHBOARD_ROOT / "logs" / "telemetry.jsonl").resolve()
     cutoff = (datetime.now(timezone.utc) - timedelta(days=max_days)).isoformat()[:10]
     out = []
+    seen_keys = set()  # (symbol, ts_precision) for deduplication
     # 1) Attribution: closed trades (strategy_id injected by engine; wheel fields from context if present)
     if attr_path.exists():
         line_count = 0
@@ -3454,8 +3460,54 @@ def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_tele
                     "assigned": context.get("assigned"),
                     "called_away": context.get("called_away"),
                 }
+                key = (symbol, str(ts_str)[:16])
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    out.append(row)
+    # 2) Exit attribution (v2 equity exits): supplementary source per MEMORY_BANK 7.12
+    if exit_attr_path.exists():
+        try:
+            lines = exit_attr_path.read_text(encoding="utf-8", errors="replace").splitlines()[-3000:]
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                symbol = str(rec.get("symbol", "")).upper()
+                if not symbol or "TEST" in symbol:
+                    continue
+                ts_str = rec.get("timestamp") or rec.get("exit_timestamp") or ""
+                if not ts_str or str(ts_str)[:10] < cutoff:
+                    continue
+                pnl = rec.get("pnl")
+                pnl_usd = float(pnl) if pnl is not None else None
+                key = (symbol, str(ts_str)[:16])
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                row = {
+                    "strategy_id": "equity",
+                    "symbol": symbol,
+                    "timestamp": ts_str,
+                    "pnl_usd": round(pnl_usd, 2) if pnl_usd is not None else None,
+                    "close_reason": rec.get("exit_reason") or "",
+                    "wheel_phase": None,
+                    "option_type": None,
+                    "strike": None,
+                    "expiry": None,
+                    "dte": None,
+                    "delta_at_entry": None,
+                    "premium": None,
+                    "assigned": None,
+                    "called_away": None,
+                }
                 out.append(row)
-    # 2) Telemetry: wheel events (strategy_id=wheel) as trade-like rows with full wheel fields
+        except Exception:
+            pass
+    # 3) Telemetry: wheel events (strategy_id=wheel) as trade-like rows with full wheel fields
     if telem_path.exists():
         lines = telem_path.read_text(encoding="utf-8", errors="replace").splitlines()
         lines = lines[-max_telemetry_lines:] if len(lines) > max_telemetry_lines else lines
@@ -5111,37 +5163,83 @@ def api_signal_history():
 
 @app.route("/api/wheel/universe_health", methods=["GET"])
 def api_wheel_universe_health():
-    """Wheel Universe Health: universe, candidates, sector distribution, metrics, outcomes."""
+    """
+    Wheel Universe Health: universe, candidates, sector distribution, metrics, outcomes.
+    Primary: state/wheel_universe_health.json. Fallback: derive from config/universe_wheel.yaml
+    and state/daily_universe_v2.json when primary file does not exist.
+    """
     try:
-        from config.registry import Directories, read_json
-        path = _DASHBOARD_ROOT / Directories.STATE / "wheel_universe_health.json"
-        if not Path(path).exists():
-            return jsonify({
-                "date": None,
-                "message": "Run scripts/generate_wheel_universe_health.py to generate report",
-                "current_universe": [],
-                "selected_candidates": [],
-                "sector_distribution": {},
-                "liquidity_metrics": {},
-                "iv_metrics": {},
-                "spread_metrics": {},
-                "assignment_outcomes_by_ticker": {},
-                "yield_by_ticker": {},
-                "ai_recommendations": None,
-            }), 200
-        data = read_json(Path(path), default={})
-        return jsonify(data), 200
+        from config.registry import Directories, StateFiles, read_json
+        path = (_DASHBOARD_ROOT / Directories.STATE / "wheel_universe_health.json").resolve()
+        if path.exists():
+            data = read_json(path, default={})
+            return jsonify(data), 200
+        # Fallback: derive from existing config/state (no external script required)
+        today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
+        current_universe = []
+        selected_candidates = []
+        sector_distribution = {}
+        # From config/universe_wheel.yaml
+        wheel_config = (_DASHBOARD_ROOT / "config" / "universe_wheel.yaml").resolve()
+        if wheel_config.exists():
+            try:
+                import yaml
+                cfg = yaml.safe_load(wheel_config.read_text(encoding="utf-8", errors="replace")) or {}
+                tickers = cfg.get("universe", {}).get("tickers", [])
+                current_universe = list(tickers) if isinstance(tickers, list) else []
+                selected_candidates = current_universe[:10]
+            except Exception:
+                # Fallback: parse simple YAML list (e.g. "  - SPY")
+                try:
+                    import re
+                    text = wheel_config.read_text(encoding="utf-8", errors="replace")
+                    current_universe = re.findall(r"^\s*-\s+([A-Z0-9]+)\s*$", text, re.MULTILINE)
+                    selected_candidates = current_universe[:10]
+                except Exception:
+                    pass
+        # From state/daily_universe_v2.json (may have symbols + sector info)
+        du_path = (_DASHBOARD_ROOT / Directories.STATE / "daily_universe_v2.json").resolve()
+        if du_path.exists():
+            try:
+                du = read_json(du_path, default={})
+                symbols = du.get("symbols", [])
+                if symbols and not current_universe:
+                    current_universe = [s.get("symbol") for s in symbols[:20] if isinstance(s, dict) and s.get("symbol")]
+                sectors = {}
+                for s in symbols if isinstance(symbols, list) else []:
+                    if isinstance(s, dict):
+                        sec = (s.get("context") or {}).get("sector", "UNKNOWN")
+                        sectors[sec] = sectors.get(sec, 0) + 1
+                sector_distribution = sectors
+            except Exception:
+                pass
+        return jsonify({
+            "date": today,
+            "message": "Derived from config/universe_wheel.yaml and state/daily_universe_v2.json (state/wheel_universe_health.json not present)",
+            "current_universe": current_universe or [],
+            "selected_candidates": selected_candidates or current_universe[:10],
+            "sector_distribution": sector_distribution,
+            "liquidity_metrics": {},
+            "iv_metrics": {},
+            "spread_metrics": {},
+            "assignment_outcomes_by_ticker": {},
+            "yield_by_ticker": {},
+            "ai_recommendations": None,
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/strategy/comparison", methods=["GET"])
 def api_strategy_comparison():
-    """Strategy comparison: equity vs wheel metrics, promotion readiness, recommendation, last 30 days."""
+    """
+    Strategy comparison: equity vs wheel metrics, promotion readiness, recommendation, last 30 days.
+    Data source: reports/{date}_stock-bot_combined.json (from scripts/generate_daily_strategy_reports.py).
+    """
     try:
         from pathlib import Path
         from datetime import datetime, timedelta
-        reports_dir = _DASHBOARD_ROOT / "reports"
+        reports_dir = (_DASHBOARD_ROOT / "reports").resolve()
         today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
 
         def _load_json(p):
@@ -5210,13 +5308,17 @@ def api_regime_and_posture():
         mc = {}
         rp = {}
         try:
-            if hasattr(StateFiles, "MARKET_CONTEXT_V2") and StateFiles.MARKET_CONTEXT_V2.exists():
-                mc = read_json(StateFiles.MARKET_CONTEXT_V2, default={})
+            if hasattr(StateFiles, "MARKET_CONTEXT_V2"):
+                p = (_DASHBOARD_ROOT / StateFiles.MARKET_CONTEXT_V2).resolve()
+                if p.exists():
+                    mc = read_json(p, default={})
         except Exception:
             mc = {}
         try:
-            if hasattr(StateFiles, "REGIME_POSTURE_STATE") and StateFiles.REGIME_POSTURE_STATE.exists():
-                rp = read_json(StateFiles.REGIME_POSTURE_STATE, default={})
+            if hasattr(StateFiles, "REGIME_POSTURE_STATE"):
+                p = (_DASHBOARD_ROOT / StateFiles.REGIME_POSTURE_STATE).resolve()
+                if p.exists():
+                    rp = read_json(p, default={})
         except Exception:
             rp = {}
 
