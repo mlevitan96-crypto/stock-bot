@@ -1637,5 +1637,11 @@ Replace opaque `blocked_reason` strings with:
 - Added src/governance/apply_exit_timing_policy.py as a non-breaking enforcement shim.
 - Runtime must call apply_exit_timing_to_exit_config(...) during exit evaluation to enforce scenario params.
 - If not called, behavior remains unchanged (safe by default).
+
+## Alpaca market data capture + counterfactual exit replay (2026-02-07)
+- Added src/exit/exit_attribution_enrich.py and patched src/exit/exit_attribution.py to enrich exit rows with mode, strategy, regime_label, and entry/exit fields when available.
+- Added scripts/fetch_alpaca_bars.py to pull historical bars from Alpaca Market Data API for recent traded symbols.
+- Added scripts/replay_exit_timing_counterfactuals.py to run exit-only counterfactual replays for hold-floor scenarios (no forward-looking entry optimization).
+- Governance requirement: exit_attribution rows must include mode+strategy (and ideally entry_ts/entry_price/qty) to enable mode:strategy bucketing and unbiased exit timing research.
 ---
 

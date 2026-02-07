@@ -19,6 +19,8 @@ from typing import Any, Dict, Optional
 
 from utils.signal_normalization import normalize_signals
 
+from src.exit.exit_attribution_enrich import enrich_exit_row
+
 
 # Allow regression runs to isolate log outputs (prevents polluting droplet logs).
 OUT = Path(os.environ.get("EXIT_ATTRIBUTION_LOG_PATH", "logs/exit_attribution.jsonl"))
@@ -35,6 +37,11 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
         if isinstance(rec, dict) and "signals" in rec:
             rec = dict(rec)
             rec["signals"] = normalize_signals(rec.get("signals"))
+        # MODE/STRATEGY/REGIME ENRICHMENT (governance-grade bucketing)
+        try:
+            rec = enrich_exit_row(rec, position=None, order=None, context=None)
+        except Exception:
+            pass
         with OUT.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
     except Exception:
