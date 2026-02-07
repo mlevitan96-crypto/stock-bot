@@ -1,0 +1,52 @@
+
+================================================================================
+STOCK-BOT OPERATIONAL READINESS AUDIT
+Date: 2026-02-06
+Run at: 2026-02-07T23:51:53.830323+00:00
+================================================================================
+
+  Running check: config_and_strategy_enablement...
+  Running check: strategy_execution_dry_run...
+[CONFIG] Loaded theme_risk.json: ENABLE_THEME_RISK=True, MAX_THEME_NOTIONAL_USD=$150,000
+  Running check: telemetry_fields...
+  Running check: daily_reports_generation...
+  Running check: daily_reports_content...
+  Running check: eod_review_integration...
+  Running check: wheel_safety_and_capital_limits...
+  Running check: cron_configuration...
+  Running check: stockbot_closed_trades_wheel_fields...
+  Running check: unified_daily_intelligence_pack...
+
+================================================================================
+OPERATIONAL READINESS AUDIT SUMMARY
+================================================================================
+
+[PASS] [CRIT] config_and_strategy_enablement - strategies.yaml and universe_wheel.yaml valid; 28 wheel tickers
+[PASS] [CRIT] strategy_execution_dry_run - all strategy modules importable; run_all_strategies() exists; context works
+[PASS] [CRIT] telemetry_fields - equity entries: 0, wheel entries: 200
+[PASS] [CRIT] daily_reports_generation - all three reports generated for 2026-02-06
+[PASS] [CRIT] daily_reports_content - all required keys present in equity, wheel, and combined reports
+[PASS] [CRIT] eod_review_integration - EOD review ran successfully; strategy reports integration verified
+[PASS] [MED ] wheel_safety_and_capital_limits - wheel config valid (max_capital_fraction=0.5, max_positions=5)
+[PASS] [MED ] cron_configuration - cron entry found: 30 21 * * 1-5 cd /root/stock-bot && CLAWDBOT_SESSION_ID="stock_quant_e...
+[FAIL] [MED ] stockbot_closed_trades_wheel_fields - ValueError: wheel trades present but missing phase/option metadata: ['telemetry 
+[PASS] [MED ] unified_daily_intelligence_pack - pack OK: 9 files, wheel_records=200
+
+--------------------------------------------------------------------------------
+FAILURE DETAILS
+--------------------------------------------------------------------------------
+
+[stockbot_closed_trades_wheel_fields]
+ValueError: wheel trades present but missing phase/option metadata: ['telemetry wheel row missing phase/option_type']
+Traceback (most recent call last):
+  File "/root/stock-bot/scripts/audit_stock_bot_readiness.py", line 83, in run_check
+    details = fn()
+              ^^^^
+  File "/root/stock-bot/scripts/audit_stock_bot_readiness.py", line 916, in check_stockbot_closed_trades_wheel_fields
+    raise ValueError(f"wheel trades present but missing phase/option metadata: {unique}")
+ValueError: wheel trades present but missing phase/option metadata: ['telemetry wheel row missing phase/option_type']
+
+
+[WARN] AUDIT PASSED WITH WARNINGS: All critical checks passed, but some medium-priority checks failed.
+       Review the warnings above.
+

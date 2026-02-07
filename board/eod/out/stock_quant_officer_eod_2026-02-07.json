@@ -1,0 +1,25 @@
+{
+  "verdict": "CAUTION",
+  "summary": "Dry-run; no model response.",
+  "pnl_metrics": {},
+  "regime_context": {
+    "regime_label": "",
+    "regime_confidence": null,
+    "notes": "dry-run"
+  },
+  "sector_context": {
+    "sectors_traded": [],
+    "sector_pnl": null,
+    "notes": "dry-run"
+  },
+  "recommendations": [],
+  "citations": [],
+  "falsification_criteria": [
+    {
+      "id": "fc-dry",
+      "description": "Dry-run; replace with real run.",
+      "observed": null,
+      "data_source": "dry-run"
+    }
+  ]
+}

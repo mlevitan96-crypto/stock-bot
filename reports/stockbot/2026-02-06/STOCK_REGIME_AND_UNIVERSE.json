@@ -1,0 +1,36 @@
+{
+  "date": "2026-02-06",
+  "regime": "UNKNOWN",
+  "sectors": [
+    "ENERGY",
+    "TECH",
+    "FINANCIALS",
+    "BIOTECH",
+    "UNKNOWN"
+  ],
+  "symbol_count": 20,
+  "symbols": [
+    "XLE",
+    "AMD",
+    "COIN",
+    "HOOD",
+    "INTC",
+    "LCID",
+    "MRNA",
+    "NFLX",
+    "RIVN",
+    "SOFI",
+    "XLK",
+    "PLTR",
+    "NIO",
+    "TSLA",
+    "BA",
+    "NVDA",
+    "GOOGL",
+    "GS",
+    "TGT",
+    "HD"
+  ],
+  "dispersion": null,
+  "volatility_bucket": null
+}
