@@ -1,0 +1,63 @@
+{
+  "version": "2026-02-07",
+  "intent": "Explore exit timing (hours->days) with graduated mode push. LIVE mild, PAPER stronger, SHADOW strongest.",
+  "scenarios": {
+    "baseline_current": {
+      "description": "No additional hold floor; preserve existing behavior (control).",
+      "params": {}
+    },
+
+    "live_50pct_push": {
+      "description": "Mild anti-churn: slightly longer holds + slightly reduced decay/displacement sensitivity.",
+      "params": {
+        "LIVE": {
+          "min_hold_seconds_floor": 600,
+          "signal_decay_sensitivity_mult": 0.90,
+          "displacement_sensitivity_mult": 0.90
+        }
+      }
+    },
+
+    "paper_150pct_push": {
+      "description": "Meaningful patience: multi-hour holds; materially reduced decay/displacement sensitivity.",
+      "params": {
+        "PAPER": {
+          "min_hold_seconds_floor": 7200,
+          "signal_decay_sensitivity_mult": 0.70,
+          "displacement_sensitivity_mult": 0.70
+        }
+      }
+    },
+
+    "shadow_250pct_push": {
+      "description": "Aggressive exploration: long holds (24h default) and very low decay/displacement sensitivity.",
+      "params": {
+        "SHADOW": {
+          "min_hold_seconds_floor": 86400,
+          "signal_decay_sensitivity_mult": 0.45,
+          "displacement_sensitivity_mult": 0.45
+        }
+      }
+    },
+
+    "shadow_3day_hold": {
+      "description": "Explicit 72h hold exploration for longer-horizon mean reversion / drift capture.",
+      "params": {
+        "SHADOW": {
+          "min_hold_seconds_floor": 259200,
+          "signal_decay_sensitivity_mult": 0.35,
+          "displacement_sensitivity_mult": 0.35
+        }
+      }
+    },
+
+    "bear_regime_patience": {
+      "description": "Regime-aware: in BEAR, require longer holds (helps avoid chopping mean reversion).",
+      "params": {
+        "LIVE":   { "regime_overrides": { "BEAR": { "min_hold_seconds_floor": 1200 } } },
+        "PAPER":  { "regime_overrides": { "BEAR": { "min_hold_seconds_floor": 14400 } } },
+        "SHADOW": { "regime_overrides": { "BEAR": { "min_hold_seconds_floor": 86400 } } }
+      }
+    }
+  }
+}

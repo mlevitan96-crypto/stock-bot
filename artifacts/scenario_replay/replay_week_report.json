@@ -1,0 +1,76 @@
+{
+  "diagnostics_baseline_from_exit_attribution": {
+    "UNKNOWN:UNKNOWN": {
+      "exits": 35,
+      "losses": 0,
+      "pnl": 63000.0,
+      "wins": 14
+    }
+  },
+  "generated_at": "2026-02-07T15:15:54.161443Z",
+  "notes": [
+    "No canonical replay engine is auto-invoked to avoid accidental forward-looking bias. This run generates diagnostics + wiring expectations. If you add a canonical replay runner, it can consume config/exit_timing_scenarios.json and output full counterfactual results."
+  ],
+  "replay_candidates": [
+    "scripts\\diagnose_cron_and_git.py",
+    "scripts\\perf_review_summarize_today.py",
+    "scripts\\replay_week_multi_scenario.py"
+  ],
+  "replay_engine": null,
+  "scenarios": {
+    "baseline_current": {
+      "description": "No additional hold floor; preserve existing behavior (control).",
+      "next": [
+        "Add/identify canonical replay engine to simulate alternative exits.",
+        "Ensure historical price/position timeline artifacts exist for counterfactual exits.",
+        "Then rerun to populate counterfactual P&L deltas per scenario."
+      ],
+      "status": "DIAGNOSTICS_ONLY"
+    },
+    "bear_regime_patience": {
+      "description": "Regime-aware: in BEAR, require longer holds (helps avoid chopping mean reversion).",
+      "next": [
+        "Add/identify canonical replay engine to simulate alternative exits.",
+        "Ensure historical price/position timeline artifacts exist for counterfactual exits.",
+        "Then rerun to populate counterfactual P&L deltas per scenario."
+      ],
+      "status": "DIAGNOSTICS_ONLY"
+    },
+    "live_50pct_push": {
+      "description": "Mild anti-churn: slightly longer holds + slightly reduced decay/displacement sensitivity.",
+      "next": [
+        "Add/identify canonical replay engine to simulate alternative exits.",
+        "Ensure historical price/position timeline artifacts exist for counterfactual exits.",
+        "Then rerun to populate counterfactual P&L deltas per scenario."
+      ],
+      "status": "DIAGNOSTICS_ONLY"
+    },
+    "paper_150pct_push": {
+      "description": "Meaningful patience: multi-hour holds; materially reduced decay/displacement sensitivity.",
+      "next": [
+        "Add/identify canonical replay engine to simulate alternative exits.",
+        "Ensure historical price/position timeline artifacts exist for counterfactual exits.",
+        "Then rerun to populate counterfactual P&L deltas per scenario."
+      ],
+      "status": "DIAGNOSTICS_ONLY"
+    },
+    "shadow_250pct_push": {
+      "description": "Aggressive exploration: long holds (24h default) and very low decay/displacement sensitivity.",
+      "next": [
+        "Add/identify canonical replay engine to simulate alternative exits.",
+        "Ensure historical price/position timeline artifacts exist for counterfactual exits.",
+        "Then rerun to populate counterfactual P&L deltas per scenario."
+      ],
+      "status": "DIAGNOSTICS_ONLY"
+    },
+    "shadow_3day_hold": {
+      "description": "Explicit 72h hold exploration for longer-horizon mean reversion / drift capture.",
+      "next": [
+        "Add/identify canonical replay engine to simulate alternative exits.",
+        "Ensure historical price/position timeline artifacts exist for counterfactual exits.",
+        "Then rerun to populate counterfactual P&L deltas per scenario."
+      ],
+      "status": "DIAGNOSTICS_ONLY"
+    }
+  }
+}

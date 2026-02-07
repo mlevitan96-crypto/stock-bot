@@ -1625,5 +1625,17 @@ Replace opaque `blocked_reason` strings with:
 - Analytics must include mode+strategy rollups (`artifacts/mode_strategy_pnl.json`) for promotion decisions.
 - **Script:** `scripts/aggregate_mode_strategy_pnl.py` — produces mode:strategy buckets (LIVE:EQUITY, PAPER:WHEEL, etc.).
 - **Contract:** non_interference (mode settings resolved at decision-time per trade); promotion only from PAPER/SHADOW into LIVE after evidence.
+
+---
+## Exit timing + scenario replay initiative (2026-02-07)
+- Added config/exit_timing_scenarios.json to explore multi-hour to multi-day hold floors and reduced decay/displacement sensitivity.
+- Implemented src/governance/governance_loader.py to load/resolve (strategy_governance, mode_governance, exit_timing_scenarios) into a per-decision policy blob.
+- Added scripts/replay_week_multi_scenario.py to generate a scenario replay report from droplet-captured artifacts; defaults to diagnostics-only unless a canonical counterfactual replay engine is present.
+- Added config/ai_board_exit_research_addendum.json requiring hold-time expectancy analysis, exit-reason expectancy, and explicit data demands for unbiased counterfactual replays.
+
+## Exit timing enforcement shim (2026-02-07)
+- Added src/governance/apply_exit_timing_policy.py as a non-breaking enforcement shim.
+- Runtime must call apply_exit_timing_to_exit_config(...) during exit evaluation to enforce scenario params.
+- If not called, behavior remains unchanged (safe by default).
 ---
 

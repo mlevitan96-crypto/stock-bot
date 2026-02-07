@@ -1,0 +1,9 @@
+{
+  "required_daily_outputs": [
+    "Hold-time vs expectancy curve by mode:strategy (30m, 2h, 6h, 24h, 72h bins).",
+    "Exit-reason expectancy table (signal_decay, displacement, expiry_close, premium_target_hit, unknown).",
+    "Promotion recommendation: one concrete parameter promotion proposal OR a written refusal with falsification criteria.",
+    "Data demands: list any missing artifacts required to run counterfactual exit replays without leakage."
+  ],
+  "stance": "Adversarial. If outputs are not possible, the board must name the missing artifact(s) precisely."
+}
