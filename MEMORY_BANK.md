@@ -1643,5 +1643,11 @@ Replace opaque `blocked_reason` strings with:
 - Added scripts/fetch_alpaca_bars.py to pull historical bars from Alpaca Market Data API for recent traded symbols.
 - Added scripts/replay_exit_timing_counterfactuals.py to run exit-only counterfactual replays for hold-floor scenarios (no forward-looking entry optimization).
 - Governance requirement: exit_attribution rows must include mode+strategy (and ideally entry_ts/entry_price/qty) to enable mode:strategy bucketing and unbiased exit timing research.
+
+## Pre-Monday instrumentation and Cursor governance (2026-02-07)
+- Added replay-readiness sanity check to ensure exits are replayable.
+- Locked AI Board mandate to exit timing and hold-duration analysis.
+- Wrote explicit promotion and rollback criteria before results.
+- Introduced .cursorrules to encode governance invariants and prevent drift.
 ---
 

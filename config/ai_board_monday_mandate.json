@@ -1,0 +1,15 @@
+{
+  "session_focus": "Exit timing and hold-duration effectiveness",
+  "do_not": [
+    "Propose new entry signals",
+    "Tune position sizing",
+    "Optimize for win rate"
+  ],
+  "must_produce": [
+    "Exit P&L by mode:strategy",
+    "Hold-time vs P&L curves",
+    "Exit-reason expectancy table",
+    "One concrete promotion or rollback recommendation"
+  ],
+  "stance": "Adversarial and evidence-driven. If data is missing, name it explicitly."
+}

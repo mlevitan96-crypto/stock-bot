@@ -1,0 +1,27 @@
+# Cursor Rules for Stock-Bot Governance
+
+## Core Principles
+- Instrumentation before optimization.
+- No forward-looking bias in any replay or backtest.
+- Live changes require promotion from Paper or Shadow.
+- Shadow is allowed to be ugly; Live is not.
+
+## Strategy & Mode Governance
+- Treat LIVE, PAPER, SHADOW as separate institutions.
+- Never blend metrics across modes.
+- Wheel and Equity are sovereign strategies.
+
+## Exit Research
+- Exit attribution must include mode, strategy, entry_ts, entry_price, qty, symbol.
+- Hold-time and churn analysis take precedence over win rate.
+- Longer holds must be evaluated empirically before promotion.
+
+## Safety Rails
+- Never assume missing data; fail loudly instead.
+- Do not hallucinate prices or timestamps.
+- Prefer additive, reversible changes.
+
+## Workflow
+- Update MEMORY_BANK.md for any governance change.
+- Commit and push before deploying to droplet.
+- Produce artifacts for every analytical run.

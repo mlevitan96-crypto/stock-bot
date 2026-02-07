@@ -1,0 +1,14 @@
+{
+  "SHADOW_to_PAPER": {
+    "requirement": "Positive expectancy at >=24h hold with lower churn than baseline",
+    "min_sample_exits": 50
+  },
+  "PAPER_to_LIVE": {
+    "requirement": "Outperforms LIVE on P&L per exit with equal or lower drawdown",
+    "min_sample_exits": 100
+  },
+  "rollback": {
+    "trigger": "LIVE drawdown exceeds baseline by >25%",
+    "action": "Revert to baseline_current scenario"
+  }
+}
