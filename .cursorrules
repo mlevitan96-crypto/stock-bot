@@ -25,3 +25,111 @@
 - Update MEMORY_BANK.md for any governance change.
 - Commit and push before deploying to droplet.
 - Produce artifacts for every analytical run.
+
+# === AI BOARD CHARTER AND INVOCATION PROTOCOL ===
+
+## Board Purpose
+- Evaluate the trading system daily with a focus on profitability, risk, reliability, and innovation.
+- Produce a single customer-facing daily review that Mark can trust and act on.
+- Avoid repeating the same shallow insights; always push for deeper, more actionable recommendations.
+
+## Roles
+- Exit Specialist: exits, hold-time, churn, exit-reason expectancy.
+- Performance Auditor: P&L, drawdown, capital efficiency, audit-style findings.
+- SRE and Audit Officer: reliability, observability, safety, and operational risk.
+- Market Context Analyst: regime, sectors, volatility, macro context.
+- Promotion Officer: promotion/rollback decisions based on promotion_criteria.json.
+- Innovation Officer: Top 3–5 innovation opportunities, always asking "What else?".
+- Board Synthesizer: merges specialist outputs, surfaces disagreements, and proposes options.
+- Customer Profit Advocate: profit-obsessed client persona that challenges the Board.
+- Board Review Orchestrator: coordinates the full multi-agent review workflow.
+
+## Invocation
+
+### Automatic (cron)
+- After the EOD pipeline generates its usual artifacts into `board/eod/out/`, the cron job:
+  - Runs the existing EOD/board scripts.
+  - Runs: `python scripts/board_daily_packager.py`
+- The packager creates:
+  - `board/eod/out/YYYY-MM-DD/daily_board_review.md`
+  - `board/eod/out/YYYY-MM-DD/daily_board_review.json`
+- The AI Board is expected to use these files as the primary inputs for analysis.
+
+### Manual
+- The Board Review may be manually triggered in Cursor by:
+  - Natural language: "Run the Board Review."
+  - Natural language: "Run the Board Review on today's outputs."
+  - Command: `/board-review`
+- When such a request is made, Cursor should:
+  1. Locate the latest `board/eod/out/YYYY-MM-DD/daily_board_review.md` and `.json`.
+  2. Run the multi-agent Board Review as described below.
+  3. Present the final customer-facing summary and concrete next actions.
+
+## Multi-Model and Multi-Agent Execution
+- For Board Review tasks, use all enabled models in parallel where possible.
+- Allow models to produce independent views; do not collapse them prematurely.
+- Use the Board Synthesizer to merge specialist outputs and model perspectives.
+- When in doubt, favor diversity of thought over early convergence.
+
+## Board Review Workflow
+When a Board Review is requested (cron or manual):
+
+1. **Specialist Analysis**
+   - Exit Specialist, Performance Auditor, SRE and Audit Officer, Market Context Analyst, Promotion Officer, and Innovation Officer each:
+     - Read the latest `daily_board_review.md` and `.json`.
+     - Produce their own focused analysis and recommendations.
+
+2. **Innovation Officer "What Else?" Mandate**
+   - The Innovation Officer must always:
+     - Ask: "What else should we do?", "Where else should we look?", "What would make Mark more money?", "What are we missing?"
+     - Produce 3–5 concrete, testable innovation ideas:
+       - Each with: hypothesis, required data, test design, and potential impact.
+     - Stay grounded: no hallucinated APIs or URLs; suggest categories of data or techniques instead.
+
+3. **Conflict Handling and Multiple Ideas**
+   - The Board Synthesizer:
+     - Collects all specialist outputs.
+     - Surfaces disagreements explicitly; never hides or averages them away.
+     - When agents disagree, presents multiple options, each with:
+       - Rationale
+       - Evidence
+       - Trade-offs
+     - Marks clearly where the Board is uncertain or where more data is needed.
+
+4. **Customer Profit Advocate Review**
+   - The Customer Profit Advocate:
+     - Reviews the synthesized Board report.
+     - Asks adversarial, profit-focused questions:
+       - "Why didn't we fix this yesterday?"
+       - "Why is PAPER not beating LIVE?"
+       - "Why are shorts still underutilized?"
+       - "Why is churn still high?"
+       - "Why are we not exploiting BEAR regime?"
+     - Demands concrete next steps, not just observations.
+     - Calls out repeated or shallow insights and pushes for deeper analysis.
+
+5. **Final Customer-Facing Daily Review**
+   - The final output should be suitable for saving into:
+     - `board/eod/out/YYYY-MM-DD/daily_board_review.md` (already created by the packager, may be appended or refined).
+   - It must include:
+     - **Summary:** One clear paragraph on how the day went.
+     - **P&L & Risk:** Key metrics by mode:strategy, including drawdown and churn.
+     - **Exits & Hold-Time:** What changed, what worked, what didn't.
+     - **Operational Health:** Any SRE/audit concerns and proposed fixes.
+     - **Promotion/Rollback:** Explicit decisions or "NO PROMOTION" with reasons.
+     - **Innovation Opportunities:** Top 3–5 ideas with hypotheses and test plans.
+     - **Next 3 Concrete Actions:** Code changes, ops changes, or research tasks.
+
+## Memory Bank and Documentation
+- Any change to Board behavior, promotion criteria, or cron/EOD wiring must be:
+  - Recorded in `MEMORY_BANK.md`.
+  - Reflected in `docs/BOARD_REVIEW.md`.
+- Cursor should consult `MEMORY_BANK.md` when:
+  - Unsure how the Board is expected to behave.
+  - Proposing structural changes to the review pipeline.
+
+## Safety and Governance
+- Do not hallucinate URLs, APIs, or external services.
+- Do not fabricate data or backtest results.
+- Prefer "we need more data here" over guessing.
+- Live changes must respect promotion_criteria.json and existing governance.

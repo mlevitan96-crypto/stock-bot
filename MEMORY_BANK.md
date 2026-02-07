@@ -1649,5 +1649,18 @@ Replace opaque `blocked_reason` strings with:
 - Locked AI Board mandate to exit timing and hold-duration analysis.
 - Wrote explicit promotion and rollback criteria before results.
 - Introduced .cursorrules to encode governance invariants and prevent drift.
+
+## Board output packaging and AI Board workflow upgrade (2026-02-07)
+- Added `scripts/board_daily_packager.py` to create dated folders under `board/eod/out/YYYY-MM-DD/` with:
+  - `daily_board_review.md` (combined markdown artifacts).
+  - `daily_board_review.json` (combined JSON artifacts).
+- Updated `.cursorrules` with:
+  - AI Board Charter and Invocation Protocol.
+  - Automatic (cron) and manual Board Review triggers.
+  - Multi-model, multi-agent execution guidance.
+  - Conflict handling and multi-idea requirements.
+  - Innovation Officer "What else?" mandate.
+  - Customer Profit Advocate escalation.
+- Added `docs/BOARD_REVIEW.md` documenting the daily Board Review workflow and how to test it.
 ---
 
