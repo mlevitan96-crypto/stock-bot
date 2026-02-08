@@ -1,0 +1,21 @@
+{
+  "date": "2026-02-07",
+  "total_pnl_usd": 0,
+  "equity_pnl_usd": 0,
+  "wheel_pnl_usd": 0,
+  "win_rate_pct": 0,
+  "regime": "UNKNOWN",
+  "sectors": [
+    "ENERGY",
+    "UNKNOWN",
+    "FINANCIALS",
+    "TECH",
+    "BIOTECH"
+  ],
+  "equity_expectancy": null,
+  "wheel_expectancy": null,
+  "top_exit_reasons": {},
+  "blocked_by_reason": {},
+  "high_level_recommendations": [],
+  "falsification_criteria": []
+}

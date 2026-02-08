@@ -1,0 +1,33 @@
+{
+  "artifacts": [
+    {
+      "data": {
+        "citations": [],
+        "falsification_criteria": [
+          {
+            "data_source": "dry-run",
+            "description": "Dry-run; replace with real run.",
+            "id": "fc-dry",
+            "observed": null
+          }
+        ],
+        "pnl_metrics": {},
+        "recommendations": [],
+        "regime_context": {
+          "notes": "dry-run",
+          "regime_confidence": null,
+          "regime_label": ""
+        },
+        "sector_context": {
+          "notes": "dry-run",
+          "sector_pnl": null,
+          "sectors_traded": []
+        },
+        "summary": "Dry-run; no model response.",
+        "verdict": "CAUTION"
+      },
+      "source": "stock_quant_officer_eod_2026-02-07.json"
+    }
+  ],
+  "date": "2026-02-07"
+}
