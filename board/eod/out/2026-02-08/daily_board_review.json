@@ -1,0 +1,227 @@
+{
+  "artifacts": [
+    {
+      "data": {
+        "citations": [],
+        "falsification_criteria": [
+          {
+            "data_source": "dry-run",
+            "description": "Dry-run; replace with real run.",
+            "id": "fc-dry",
+            "observed": null
+          }
+        ],
+        "pnl_metrics": {},
+        "recommendations": [],
+        "regime_context": {
+          "notes": "dry-run",
+          "regime_confidence": null,
+          "regime_label": ""
+        },
+        "sector_context": {
+          "notes": "dry-run",
+          "sector_pnl": null,
+          "sectors_traded": []
+        },
+        "summary": "Dry-run; no model response.",
+        "verdict": "CAUTION"
+      },
+      "source": "stock_quant_officer_eod_2026-02-08.json"
+    },
+    {
+      "data": {
+        "date": "2026-02-08",
+        "multi_day_analysis": {
+          "3_day": {
+            "attribution_vs_exit": {
+              "attribution_pnl": 38.89,
+              "delta": 4.09,
+              "exit_attribution_pnl": 34.8,
+              "trend": "aligned"
+            },
+            "avg_hold_time_seconds": 741.27,
+            "blocked_trades": {
+              "capacity_count": 0,
+              "capacity_trend": "falling",
+              "displacement_count": 1410,
+              "displacement_trend": "falling",
+              "max_positions_count": 442
+            },
+            "capacity_utilization_trend": "falling",
+            "churn_trend": "stable",
+            "displacement_sensitivity_trend": "falling",
+            "exit_reason_distribution": {
+              "signal_decay(0.02)": 23,
+              "signal_decay(0.02)+flow_reversal": 41,
+              "signal_decay(0.03)+flow_reversal": 16,
+              "signal_decay(0.04)": 13,
+              "signal_decay(0.04)+flow_reversal": 16,
+              "signal_decay(0.05)+flow_reversal": 17,
+              "signal_decay(0.07)+flow_reversal": 14,
+              "signal_decay(0.09)+flow_reversal": 12,
+              "signal_decay(0.10)+flow_reversal": 20,
+              "unknown": 644
+            },
+            "expectancy_trend": "falling",
+            "hold_time_trend": "falling",
+            "mae_mfe_trend": "unknown",
+            "regime": {
+              "dominant_regime": "UNKNOWN",
+              "regime_distribution": {
+                "UNKNOWN": 2
+              },
+              "regime_stability_score": 1.0,
+              "regime_transition_probability": 0.0
+            },
+            "rolling_expectancy_usd": 0.06,
+            "sector_rotation_trend": {
+              "BIOTECH": 2,
+              "ENERGY": 2,
+              "FINANCIALS": 2,
+              "TECH": 2,
+              "UNKNOWN": 2
+            },
+            "total_blocked": 2000,
+            "total_exits": 306,
+            "total_trades": 644,
+            "volatility_trend": "stable",
+            "window_days": [
+              "2026-02-06",
+              "2026-02-07",
+              "2026-02-08"
+            ],
+            "window_size": 3
+          },
+          "5_day": {
+            "attribution_vs_exit": {
+              "attribution_pnl": 68.79,
+              "delta": 41.33,
+              "exit_attribution_pnl": 27.46,
+              "trend": "aligned"
+            },
+            "avg_hold_time_seconds": 1066.85,
+            "blocked_trades": {
+              "capacity_count": 0,
+              "capacity_trend": "rising",
+              "displacement_count": 1410,
+              "displacement_trend": "rising",
+              "max_positions_count": 442
+            },
+            "capacity_utilization_trend": "rising",
+            "churn_trend": "rising",
+            "displacement_sensitivity_trend": "rising",
+            "exit_reason_distribution": {
+              "signal_decay(0.02)": 23,
+              "signal_decay(0.02)+flow_reversal": 41,
+              "signal_decay(0.03)+flow_reversal": 16,
+              "signal_decay(0.04)+flow_reversal": 16,
+              "signal_decay(0.05)+flow_reversal": 17,
+              "signal_decay(0.07)+flow_reversal": 14,
+              "signal_decay(0.10)+flow_reversal": 20,
+              "signal_decay(0.59)": 29,
+              "signal_decay(0.60)": 25,
+              "unknown": 1063
+            },
+            "expectancy_trend": "stable",
+            "hold_time_trend": "falling",
+            "mae_mfe_trend": "unknown",
+            "regime": {
+              "dominant_regime": "UNKNOWN",
+              "regime_distribution": {
+                "UNKNOWN": 3
+              },
+              "regime_stability_score": 1.0,
+              "regime_transition_probability": 0.0
+            },
+            "rolling_expectancy_usd": 0.06,
+            "sector_rotation_trend": {
+              "BIOTECH": 3,
+              "ENERGY": 3,
+              "FINANCIALS": 3,
+              "TECH": 3,
+              "UNKNOWN": 3
+            },
+            "total_blocked": 2000,
+            "total_exits": 499,
+            "total_trades": 1063,
+            "volatility_trend": "stable",
+            "window_days": [
+              "2026-02-04",
+              "2026-02-05",
+              "2026-02-06",
+              "2026-02-07",
+              "2026-02-08"
+            ],
+            "window_size": 5
+          },
+          "7_day": {
+            "attribution_vs_exit": {
+              "attribution_pnl": 56.46,
+              "delta": 78.32,
+              "exit_attribution_pnl": -21.86,
+              "trend": "attribution_higher"
+            },
+            "avg_hold_time_seconds": 1355.01,
+            "blocked_trades": {
+              "capacity_count": 0,
+              "capacity_trend": "rising",
+              "displacement_count": 1410,
+              "displacement_trend": "rising",
+              "max_positions_count": 442
+            },
+            "capacity_utilization_trend": "rising",
+            "churn_trend": "rising",
+            "displacement_sensitivity_trend": "rising",
+            "exit_reason_distribution": {
+              "signal_decay(0.02)": 23,
+              "signal_decay(0.02)+flow_reversal": 41,
+              "signal_decay(0.04)+flow_reversal": 18,
+              "signal_decay(0.05)+flow_reversal": 18,
+              "signal_decay(0.10)+flow_reversal": 22,
+              "signal_decay(0.58)": 37,
+              "signal_decay(0.59)": 83,
+              "signal_decay(0.59)+flow_reversal": 19,
+              "signal_decay(0.60)": 64,
+              "unknown": 2144
+            },
+            "expectancy_trend": "stable",
+            "hold_time_trend": "falling",
+            "mae_mfe_trend": "unknown",
+            "regime": {
+              "dominant_regime": "UNKNOWN",
+              "regime_distribution": {
+                "UNKNOWN": 4
+              },
+              "regime_stability_score": 1.0,
+              "regime_transition_probability": 0.0
+            },
+            "rolling_expectancy_usd": 0.03,
+            "sector_rotation_trend": {
+              "BIOTECH": 3,
+              "ENERGY": 4,
+              "FINANCIALS": 4,
+              "TECH": 4,
+              "UNKNOWN": 4
+            },
+            "total_blocked": 2000,
+            "total_exits": 1010,
+            "total_trades": 2144,
+            "volatility_trend": "stable",
+            "window_days": [
+              "2026-02-02",
+              "2026-02-03",
+              "2026-02-04",
+              "2026-02-05",
+              "2026-02-06",
+              "2026-02-07",
+              "2026-02-08"
+            ],
+            "window_size": 7
+          }
+        }
+      },
+      "source": "multi_day_analysis.json"
+    }
+  ],
+  "date": "2026-02-08"
+}
