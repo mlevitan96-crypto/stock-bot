@@ -25,6 +25,10 @@ def main() -> None:
             elif p.suffix.lower() == ".json":
                 json_files.append(p)
 
+    # Include multi-day analysis if present
+    multi_day_md = day_dir / "multi_day_analysis.md"
+    multi_day_json = day_dir / "multi_day_analysis.json"
+    
     combined_md_path = day_dir / "daily_board_review.md"
     with combined_md_path.open("w", encoding="utf-8") as out_md:
         out_md.write(f"# Daily Board Review - {target_date}\n\n")
@@ -34,6 +38,11 @@ def main() -> None:
             for md in sorted(md_files):
                 out_md.write(f"\n\n---\n\n## Source: {md.name}\n\n")
                 out_md.write(md.read_text(encoding="utf-8"))
+        
+        # Append multi-day analysis if present
+        if multi_day_md.exists():
+            out_md.write(f"\n\n---\n\n## Multi-Day Analysis\n\n")
+            out_md.write(multi_day_md.read_text(encoding="utf-8"))
 
     combined_json_path = day_dir / "daily_board_review.json"
     combined = []
@@ -46,6 +55,14 @@ def main() -> None:
             combined.append({"source": js.name, "data": data})
         except Exception as e:
             combined.append({"source": js.name, "error": str(e)})
+    
+    # Include multi-day analysis JSON if present
+    if multi_day_json.exists():
+        try:
+            multi_day_data = json.loads(multi_day_json.read_text(encoding="utf-8"))
+            combined.append({"source": "multi_day_analysis.json", "data": multi_day_data})
+        except Exception as e:
+            combined.append({"source": "multi_day_analysis.json", "error": str(e)})
 
     with combined_json_path.open("w", encoding="utf-8") as out_js:
         json.dump({"date": target_date, "artifacts": combined}, out_js, indent=2, sort_keys=True)

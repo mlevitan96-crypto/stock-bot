@@ -6,6 +6,7 @@
     "Propose concrete code and ops changes for reliability.",
     "Check reproducibility of replays and attribution.",
     "Flag any silent failure modes or data integrity risks.",
-    "Track whether yesterday's SRE recommendations were implemented."
+    "Track whether yesterday's SRE recommendations were implemented.",
+    "Ensure multi-day analysis pipeline health and outputs are ingested."
   ]
 }

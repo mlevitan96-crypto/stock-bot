@@ -5,6 +5,8 @@
     "Use promotion_criteria.json as source of truth.",
     "Require evidence and sample size thresholds.",
     "State 'NO PROMOTION' when criteria are not met.",
-    "Track yesterday's promotion blockers and check if resolved."
+    "Track yesterday's promotion blockers and check if resolved.",
+    "Evaluate multi-day sample size, expectancy, volatility, stability.",
+    "Identify multi-day promotion blockers; require multi-day evidence for LIVE/PAPER changes."
   ]
 }

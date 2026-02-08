@@ -11,12 +11,21 @@ It now produces a single markdown file and a single JSON file per day, stored un
 1. Trading system runs and generates EOD + board artifacts into `board/eod/out/`.
 2. Cron (or manual run) executes:
    - Existing EOD + board review script(s).
+   - `python scripts/run_multi_day_analysis.py` (V3: multi-day analysis)
    - `python scripts/board_daily_packager.py`
 3. The packager:
    - Creates `board/eod/out/YYYY-MM-DD/`.
    - Combines all top-level `.md` files into `daily_board_review.md`.
    - Combines all top-level `.json` files into `daily_board_review.json`.
+   - Includes `multi_day_analysis.json` and `.md` if present (V3).
 4. Git is updated and pushed; the droplet pulls latest as usual.
+
+## Multi-Day Analysis (V3)
+After the daily EOD pipeline, the multi-day analysis module runs automatically:
+- Computes rolling 3-day, 5-day, 7-day windows
+- Outputs: `board/eod/out/YYYY-MM-DD/multi_day_analysis.json` and `.md`
+- Metrics: regime persistence/transition, volatility trend, sector rotation, attribution vs exit, churn, hold-time, exit-reason distribution, blocked trades, displacement sensitivity, capacity utilization, expectancy, MAE/MFE
+- All agents incorporate multi-day trends in their analysis
 
 ## Multi-Agent AI Board
 The AI Board is defined via `.cursor/agents/` and operates as:
@@ -27,6 +36,7 @@ The AI Board is defined via `.cursor/agents/` and operates as:
 - Market Context Analyst
 - Promotion Officer
 - Innovation Officer
+- Regime Review Officer (V3)
 - Board Synthesizer
 - Customer Profit Advocate
 - Board Review Orchestrator

@@ -156,3 +156,39 @@ When a Board Review is requested (cron or manual):
 ## Innovation Depth Requirement
 - Innovation Officer must propose 3–5 deep, testable ideas daily.
 - Ideas must include hypothesis, required data, test design, and potential impact.
+
+# === BOARD UPGRADE V3 — APPENDED RULES ===
+
+## Multi-Day Analysis Requirement
+- Multi-day analysis is required for all Board Reviews.
+- Multi-day analysis module (`scripts/run_multi_day_analysis.py`) runs automatically after daily EOD pipeline.
+- Multi-day outputs (3-day, 5-day, 7-day windows) must be stored in `board/eod/out/YYYY-MM-DD/multi_day_analysis.json` and `.md`.
+- All agents must read and incorporate multi-day analysis outputs.
+
+## Regime Review Officer Requirement
+- Regime Review Officer must participate in every Board Review.
+- Regime Review Officer analyzes 3/5/7-day regime behavior, detects transitions, and identifies misalignment.
+- Regime Review Officer produces 2–3 regime-aware options with evidence and trade-offs.
+
+## Multi-Day Board Review Sections
+- Board Synthesizer must integrate multi-day evidence.
+- Daily Board Review must include:
+  - Multi-Day Regime Summary (3/5/7-day dominant regime, stability score, transition probability)
+  - Multi-Day P&L & Risk (rolling attribution, exit attribution, drawdown, expectancy)
+  - Multi-Day Exit & Churn (exit-reason drift, churn trend, hold-time trend)
+  - Multi-Day Blocked Trades (displacement trend, max-positions trend, capacity trend)
+  - Multi-Day Innovation Opportunities (3–5 multi-day ideas with hypothesis, data, test design, impact)
+  - Multi-Day Promotion Review (multi-day sample size, expectancy, volatility, stability, blockers)
+
+## Multi-Day Commitments Tracking
+- Board must track and report on:
+  - 1-day commitments (yesterday)
+  - 3-day commitments
+  - 5-day commitments
+- Board must report: Completed, Not completed, Blocked, Needs escalation.
+- Customer Profit Advocate must challenge any incomplete commitments.
+
+## Multi-Day Evidence Requirement
+- Multi-day scenario replay must be used when exit timing is discussed.
+- Multi-day evidence is required for any recommendation that affects LIVE or PAPER behavior.
+- Promotion Officer must evaluate multi-day promotion readiness before any promotion decision.

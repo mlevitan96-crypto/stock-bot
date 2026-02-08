@@ -27,6 +27,7 @@ echo "{\"date\":\"$DATE\",\"exit_code\":$AUDIT_EXIT,\"status\":\"$STATUS\"}" > "
 git fetch origin
 git pull --rebase --autostash origin main || true
 git add board/eod/out/*.md board/eod/out/*.json 2>/dev/null || true
+git add "board/eod/out/${DATE}/" 2>/dev/null || true
 git add "reports/stockbot/${DATE}/" 2>/dev/null || true
 git add reports/droplet_audit/ || true
 git status --short

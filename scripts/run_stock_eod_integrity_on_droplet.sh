@@ -31,15 +31,29 @@ else
   echo "No board/eod/run_stock_quant_officer_eod.py; skipping EOD memo generation."
 fi
 
+# Phase 2a: Multi-day analysis (V3) — runs after EOD pipeline
+if [ -f "scripts/run_multi_day_analysis.py" ]; then
+  python3 scripts/run_multi_day_analysis.py --date "$DATE" --base-dir "$REPO_DIR" || true
+  echo "Multi-day analysis completed for ${DATE}."
+else
+  echo "No scripts/run_multi_day_analysis.py; skipping multi-day analysis."
+fi
+
 # Phase 2b: Signal/weight/exit inventory (reports/STOCK_SIGNAL_WEIGHT_EXIT_INVENTORY_<DATE>.md)
 python3 scripts/generate_signal_weight_exit_inventory.py --date "$DATE" --base-dir "$REPO_DIR" || true
+
+# Phase 2c: Board daily packager (V3) — packages all outputs including multi-day analysis
+if [ -f "scripts/board_daily_packager.py" ]; then
+  python3 scripts/board_daily_packager.py --date "$DATE" || true
+  echo "Board daily packager completed for ${DATE}."
+fi
 
 # Phase 3: Commit manifest + inventory + EOD outputs + scripts
 git add reports/eod_manifests/EOD_MANIFEST_"${DATE}".json reports/eod_manifests/EOD_MANIFEST_"${DATE}".md || true
 git add reports/STOCK_SIGNAL_WEIGHT_EXIT_INVENTORY_"${DATE}".md || true
 git add reports/stockbot/"${DATE}"/* 2>/dev/null || true
-git add scripts/eod_bundle_manifest.py scripts/generate_signal_weight_exit_inventory.py scripts/run_stock_eod_integrity_on_droplet.sh || true
-git add board/eod/out/*.md board/eod/out/*.json 2>/dev/null || true
+git add scripts/eod_bundle_manifest.py scripts/generate_signal_weight_exit_inventory.py scripts/run_multi_day_analysis.py scripts/board_daily_packager.py scripts/run_stock_eod_integrity_on_droplet.sh || true
+git add board/eod/out/*.md board/eod/out/*.json board/eod/out/"${DATE}"/*.md board/eod/out/"${DATE}"/*.json 2>/dev/null || true
 git status --short
 
 git commit -m "Stock-bot: harden EOD data + inventory signals/weights/exits ${DATE}" || true

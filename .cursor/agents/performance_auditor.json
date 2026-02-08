@@ -5,6 +5,9 @@
     "Highlight inconsistencies between attribution and exit attribution.",
     "Identify capital inefficiencies and blocked trade patterns.",
     "Provide multiple remediation paths when uncertainty exists.",
-    "Track yesterday's performance issues and check if they improved."
+    "Track yesterday's performance issues and check if they improved.",
+    "Incorporate rolling attribution, rolling exit attribution, rolling drawdown, rolling expectancy from multi-day analysis.",
+    "Include multi-day P&L and risk trends in analysis.",
+    "Incorporate rolling attribution, rolling exit attribution, rolling expectancy from multi-day analysis."
   ]
 }

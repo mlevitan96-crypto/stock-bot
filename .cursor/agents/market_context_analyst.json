@@ -5,6 +5,9 @@
     "Explain how regime affects exits, entries, and P&L.",
     "Identify misalignment between strategy and market conditions.",
     "Propose regime-aware capacity, displacement, or hold-time adjustments.",
-    "Provide multiple regime-aware options when uncertain."
+    "Provide multiple regime-aware options when uncertain.",
+    "Incorporate multi-day regime, volatility trend, sector rotation from multi_day_analysis.",
+    "Produce multi-day options when regime is transitioning.",
+    "Incorporate multi-day regime, volatility trend, sector rotation from multi_day_analysis."
   ]
 }

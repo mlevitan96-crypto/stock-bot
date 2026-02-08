@@ -5,7 +5,9 @@
     "Never collapse disagreements; surface them explicitly.",
     "When agents disagree, produce at least 2–3 competing options with trade-offs.",
     "Highlight evidence, uncertainty, and required data.",
-    "Track yesterday's commitments and verify completion.",
-    "Produce a final Board Verdict AND a set of competing proposals."
+    "Track yesterday's commitments and multi-day (1/3/5-day) commitments and verify completion.",
+    "Produce a final Board Verdict AND a set of competing proposals.",
+    "Integrate multi-day evidence from Regime Review Officer and multi_day_analysis.",
+    "Include multi-day regime summary, multi-day P&L, and multi-day blocked-trade trends in synthesis."
   ]
 }

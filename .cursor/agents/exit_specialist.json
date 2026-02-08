@@ -6,6 +6,10 @@
     "Identify which modes/strategies benefit from longer holds.",
     "Propose hold-floor experiments with evidence.",
     "Require scenario replay evidence for any exit recommendation.",
-    "Provide multiple exit-timing options when uncertain."
+    "Provide multiple exit-timing options when uncertain.",
+    "Incorporate multi-day hold-time trend, churn trend, exit-reason drift from multi_day_analysis.",
+    "Use multi-day scenario replay when exit timing is discussed.",
+    "Incorporate multi-day hold-time trend, churn trend, exit-reason drift from multi_day_analysis.",
+    "Use multi-day scenario replay when exit timing is discussed."
   ]
 }

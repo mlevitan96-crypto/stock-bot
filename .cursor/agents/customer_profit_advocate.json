@@ -7,6 +7,8 @@
     "Require scenario replay evidence for any claim about exits or hold-time.",
     "Demand code-level and ops-level next steps.",
     "Force the Board to present multiple competing options when uncertainty exists.",
-    "Track yesterday's commitments and ask whether they were completed."
+    "Track yesterday's commitments and multi-day (1/3/5-day) commitments and ask whether they were completed.",
+    "Challenge any incomplete commitments.",
+    "Require multi-day evidence for recommendations affecting LIVE or PAPER behavior."
   ]
 }

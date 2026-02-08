@@ -1669,5 +1669,16 @@ Replace opaque `blocked_reason` strings with:
 - Added multi-model execution requirement.
 - Added deeper Innovation Officer and SRE Officer mandates.
 - Updated .cursorrules with V2 governance rules.
+
+## Board Upgrade V3 — Multi-Day Intelligence (2026-02-08)
+- **Multi-Day Analysis Module:** `scripts/run_multi_day_analysis.py` — runs automatically after daily EOD pipeline; computes rolling 3-day, 5-day, 7-day windows; outputs `board/eod/out/YYYY-MM-DD/multi_day_analysis.json` and `.md`. Metrics: regime persistence/transition, volatility trend, sector rotation, attribution vs exit, churn, hold-time, exit-reason distribution, blocked trades (displacement/max positions/capacity), displacement sensitivity, capacity utilization, expectancy, MAE/MFE.
+- **Regime Review Officer:** New agent (`.cursor/agents/regime_review_officer.json`) — analyzes 3/5/7-day regime behavior, detects transitions, identifies misalignment, produces 2–3 regime-aware options. Must participate in every Board Review.
+- **Updated Agents:** All agents now read multi-day analysis, incorporate multi-day trends, produce multi-day options, track multi-day commitments (1/3/5-day).
+- **Multi-Day Board Review Sections:** Daily Board Review includes multi-day regime summary, multi-day P&L & risk, multi-day exit & churn, multi-day blocked trades, multi-day innovation opportunities, multi-day promotion review.
+- **Multi-Day Commitments:** Extended from yesterday's commitments to 1-day, 3-day, 5-day commitments. Board reports: Completed, Not completed, Blocked, Needs escalation. Customer Profit Advocate challenges incomplete commitments.
+- **Board Packager:** `scripts/board_daily_packager.py` now includes `multi_day_analysis.json` and `.md` in combined outputs.
+- **Cron Integration:** After EOD pipeline: run multi-day analysis → run V3 Board Review → package → commit → push → deploy.
+- **Governance:** `.cursorrules` updated with V3 mandates: multi-day analysis required, Regime Review Officer participation, multi-day evidence required for LIVE/PAPER changes, multi-day scenario replay for exit timing.
+- **Documentation:** `docs/BOARD_REVIEW.md` updated, `docs/BOARD_UPGRADE_V2.md` references V3, `docs/BOARD_UPGRADE_V3.md` created.
 ---
 
