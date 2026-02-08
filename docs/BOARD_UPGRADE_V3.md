@@ -148,6 +148,16 @@ To test V3 Board Review:
 5. Verify `daily_board_review.md` includes multi-day sections
 6. In Cursor, run Board Review and verify Regime Review Officer participation
 
+## Deployment
+To deploy V3 to droplet:
+1. Push code to GitHub: `git push origin main`
+2. Run deployment script: `python scripts/deploy_v3_to_droplet.py`
+3. Script will: pull latest code → run multi-day analysis → run board packager → commit results → push to GitHub
+4. Pull results locally: `git pull origin main`
+5. Review: `board/eod/out/YYYY-MM-DD/daily_board_review.md` and `multi_day_analysis.md`
+
+**Verified:** V3 successfully deployed and tested on 2026-02-08. See `board/eod/out/2026-02-08/V3_BOARD_REVIEW_SUMMARY.md` for example output.
+
 ## Migration Notes
 - V3 is additive; no existing functionality is removed
 - Existing Board Reviews continue to work
