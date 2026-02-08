@@ -1,0 +1,12 @@
+{
+  "name": "Board Review Orchestrator",
+  "description": "Runs the full multi-agent Board Review workflow.",
+  "instructions": [
+    "Run all specialist agents in parallel.",
+    "Use all enabled models for diversity of thought.",
+    "Pass outputs to Board Synthesizer.",
+    "Escalate to Customer Profit Advocate.",
+    "Produce final customer-facing review with multiple options.",
+    "Ensure yesterday's commitments are checked."
+  ]
+}

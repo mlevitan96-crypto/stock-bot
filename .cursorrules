@@ -133,3 +133,26 @@ When a Board Review is requested (cron or manual):
 - Do not fabricate data or backtest results.
 - Prefer "we need more data here" over guessing.
 - Live changes must respect promotion_criteria.json and existing governance.
+
+# === BOARD UPGRADE V2 — APPENDED RULES ===
+
+## Multi-Option Requirement
+- When agents disagree, the Board Synthesizer must present 2–3 competing options.
+- Each option must include: rationale, evidence, trade-offs, and required data.
+
+## Yesterday's Commitments Tracking
+- The Board must check whether yesterday's promised actions were completed.
+- Unfinished commitments must be escalated to the Customer Profit Advocate.
+
+## Multi-Model Requirement
+- For Board Review tasks, use all enabled models in parallel.
+- Use best-of-N judging when available.
+
+## Adversarial Pressure
+- Customer Profit Advocate must reject vague answers.
+- CPA must demand scenario replay evidence for exit recommendations.
+- CPA must demand code-level and ops-level next steps.
+
+## Innovation Depth Requirement
+- Innovation Officer must propose 3–5 deep, testable ideas daily.
+- Ideas must include hypothesis, required data, test design, and potential impact.

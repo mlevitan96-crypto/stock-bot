@@ -1662,5 +1662,12 @@ Replace opaque `blocked_reason` strings with:
   - Innovation Officer "What else?" mandate.
   - Customer Profit Advocate escalation.
 - Added `docs/BOARD_REVIEW.md` documenting the daily Board Review workflow and how to test it.
+
+## Board Upgrade V2 (2026-02-07)
+- Strengthened all agents with adversarial, multi-option, and evidence-based mandates.
+- Added yesterday's commitments tracking.
+- Added multi-model execution requirement.
+- Added deeper Innovation Officer and SRE Officer mandates.
+- Updated .cursorrules with V2 governance rules.
 ---
 
