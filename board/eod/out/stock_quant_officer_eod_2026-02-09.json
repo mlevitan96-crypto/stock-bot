@@ -1,0 +1,86 @@
+{
+  "verdict": "CAUTION",
+  "summary": "The session concluded with a negative P&L of -$42.41 USD (-0.08%), operating within a clear BEAR market regime. The win rate was low at 43%, indicating challenges in trade execution, particularly with a significant portion of exits attributed to 'unknown' reasons. Drawdown from peak equity reached 4.60%.",
+  "pnl_metrics": {
+    "total_pnl_usd": -42.41,
+    "total_pnl_pct": -0.08,
+    "trades": 2542,
+    "wins": 509,
+    "losses": 676,
+    "win_rate": 0.43,
+    "max_drawdown_pct": 4.6
+  },
+  "regime_context": {
+    "regime_label": "BEAR",
+    "regime_confidence": null,
+    "notes": "Inferred from daily universe symbols, all indicating 'BEAR' regime."
+  },
+  "sector_context": {
+    "sectors_traded": [
+      "ENERGY",
+      "TECH",
+      "UNKNOWN",
+      "BIOTECH"
+    ],
+    "sector_pnl": null,
+    "notes": "Sector-specific P&L not directly available in the EOD bundle summary. Sectors traded were derived from the daily universe."
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "change": "Investigate 'unknown' exit reasons",
+      "rationale": "A substantial number of exits (1311 in attribution) are categorized as 'unknown', indicating a potential gap in exit logic or logging. Understanding these exits is crucial for performance improvement."
+    },
+    {
+      "priority": "medium",
+      "change": "Review blocked trade reasons",
+      "rationale": "A high count of blocked trades due to 'max_new_positions_per_cycle' (246) and 'displacement_blocked' (1403) suggests potential capacity or displacement logic constraints that might be limiting opportunity capture. This should be reviewed in the context of system risk limits and desired activity levels."
+    }
+  ],
+  "citations": [
+    {
+      "source": "attribution",
+      "ref": "logs/attribution.jsonl",
+      "quote": "total_pnl_usd, trades, wins, losses, win_rate, and sample trade data."
+    },
+    {
+      "source": "exit_attribution",
+      "ref": "logs/exit_attribution.jsonl",
+      "quote": "total exits and categorized exit reasons."
+    },
+    {
+      "source": "daily_start_equity",
+      "ref": "state/daily_start_equity.json",
+      "quote": "equity baseline for calculating daily P&L percentage."
+    },
+    {
+      "source": "peak_equity",
+      "ref": "state/peak_equity.json",
+      "quote": "peak equity value for drawdown calculation."
+    },
+    {
+      "source": "daily_universe_v2",
+      "ref": "state/daily_universe_v2.json",
+      "quote": "regime context and list of traded sectors."
+    },
+    {
+      "source": "blocked_trades",
+      "ref": "state/blocked_trades.jsonl",
+      "quote": "count and reasons for blocked trades."
+    }
+  ],
+  "falsification_criteria": [
+    {
+      "id": "fc-1",
+      "description": "If the next EOD attribution report shows a win_rate >= 0.50, the 'CAUTION' verdict for today was overly conservative.",
+      "observed": null,
+      "data_source": "attribution"
+    },
+    {
+      "id": "fc-2",
+      "description": "If analysis of subsequent attribution logs shows a persistent high percentage (>30%) of 'unknown' exit reasons after implementing improved logging/exit logic, the recommendation regarding 'unknown' exits was insufficient or misdirected.",
+      "observed": null,
+      "data_source": "attribution"
+    }
+  ]
+}
