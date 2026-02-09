@@ -55,6 +55,15 @@ The Board:
     - Natural language: "Run the Board Review on today's outputs."
     - Command: `/board-review`
 
+## Interpretation Notes (Post-Remediation)
+
+- **Regime:** Regime is a modifier only (sizing, filters); it never gates trading. Multi-day regime labels come from daily_universe_v2 `_meta.regime_label` (fallback NEUTRAL). See `docs/REGIME_DETECTION.md`.
+- **Exit timing and hold-time:** Exit timing policy (min_hold_seconds, sensitivity mults) is applied via the governance shim; hold-floor skips are logged as `hold_floor_skipped`. Interpret hold-time and churn trends in multi-day analysis in that context. Use `scripts/exit_timing_diagnostic.py` for by-reason and by mode:strategy diagnostics.
+- **Displacement and capacity:** See `docs/CAPACITY_AND_DISPLACEMENT.md`. Regime can influence policy but never fully block. Use `scripts/displacement_capacity_diagnostic.py` for blocked counts by reason and mode:strategy.
+- **Attribution vs exit:** Use `scripts/attribution_exit_reconciliation.py` to compare attribution PnL vs exit_attribution PnL and explain gaps.
+
+The Board should explicitly consider: regime health (non-UNKNOWN, modifier-only), exit timing health (hold-time/churn), displacement/capacity health (blocked counts), and attribution vs exit alignment.
+
 ## Testing
 To test on today's outputs:
 1. Ensure EOD + board artifacts exist in `board/eod/out/`.

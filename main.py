@@ -520,8 +520,8 @@ class Config:
         "squeeze_score": 0.0    # DISABLED: Linked to shorts_squeeze
     }
 
-    # Regime gating
-    ENABLE_REGIME_GATING = get_env("ENABLE_REGIME_GATING", "true").lower() == "true"
+    # Regime gating: MUST NOT be a hard gate (regime is modifier only). Disabled by default.
+    ENABLE_REGIME_GATING = get_env("ENABLE_REGIME_GATING", "false").lower() == "true"
     REGIME_MIN_CONF = float(get_env("REGIME_MIN_CONF", "0.0"))
 
     # Shadow trading/lab removed (v2-only engine).
@@ -5913,6 +5913,35 @@ class AlpacaExecutor:
             return
         current_regime_global = self._get_global_regime() or "mixed"
 
+        # Exit timing policy (governance shim): min_hold_seconds and sensitivity mults; never gates force-closes.
+        exit_timing_cfg = {}
+        try:
+            from src.governance.apply_exit_timing_policy import apply_exit_timing_to_exit_config
+            _mode = getattr(Config, "TRADING_MODE", "PAPER") or "PAPER"
+            _strategy = "EQUITY"
+            try:
+                from strategies.context import get_strategy_id
+                _sid = get_strategy_id()
+                if _sid:
+                    _strategy = str(_sid).upper()
+            except Exception:
+                pass
+            _scenario = os.getenv("EXIT_TIMING_SCENARIO", "baseline_current")
+            exit_timing_cfg = apply_exit_timing_to_exit_config(
+                exit_cfg={},
+                mode=_mode,
+                strategy=_strategy,
+                regime=current_regime_global or "NEUTRAL",
+                scenario=_scenario,
+            )
+        except Exception as _e:
+            log_event("exit", "exit_timing_policy_load_failed", error=str(_e))
+
+        def _passes_hold_floor(cfg, hold_sec):
+            if not cfg or cfg.get("min_hold_seconds") is None:
+                return True
+            return hold_sec >= cfg["min_hold_seconds"]
+
         now = datetime.utcnow()
         
         # CRITICAL FIX: Check ALL positions from Alpaca API, not just self.opens
@@ -5988,6 +6017,7 @@ class AlpacaExecutor:
                 age_min = (now - entry_ts).total_seconds() / 60.0
                 age_days = age_min / (24 * 60)
                 age_hours = age_days * 24
+                hold_seconds = age_min * 60.0
                 exit_signals["age_hours"] = age_hours
                 
                 # CRITICAL FIX: Get current price from Alpaca position if available
@@ -6215,7 +6245,10 @@ class AlpacaExecutor:
                         v2_exit_reason=str(v2_exit_reason),
                         now_v2_score=float(current_composite_score or 0.0),
                     )
-                    to_close.append(symbol)
+                    if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                        to_close.append(symbol)
+                    else:
+                        log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
                     continue
             except Exception:
                 # Exit intelligence is best-effort; never block other exit logic.
@@ -6265,7 +6298,10 @@ class AlpacaExecutor:
                              regime=current_regime,
                              pnl_pct=round(pnl_pct, 2),
                              reason=exit_reasons[symbol])
-                    to_close.append(symbol)
+                    if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                        to_close.append(symbol)
+                    else:
+                        log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
                     continue
             # --- END Regime Safety Override ---
             
@@ -6296,7 +6332,10 @@ class AlpacaExecutor:
                         score_before=float(entry_score or 0.0),
                         score_after=float(current_composite_score or 0.0),
                     )
-                to_close.append(symbol)
+                if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                    to_close.append(symbol)
+                else:
+                    log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
                 continue
             
             # V3.3: Time-based exit for stale low-movement positions
@@ -6309,7 +6348,10 @@ class AlpacaExecutor:
                              age_days=round(age_days, 1),
                              pnl_pct=round(pnl_pct, 2),
                              reason=exit_reasons[symbol])
-                    to_close.append(symbol)
+                    if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                        to_close.append(symbol)
+                    else:
+                        log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
                     continue
             
             # Institutional Remediation Phase 7: Zombie kill switch (capital velocity)
@@ -6330,7 +6372,10 @@ class AlpacaExecutor:
                         required_pnl_pct=0.20,
                         reason=exit_reasons[symbol],
                     )
-                    to_close.append(symbol)
+                    if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                        to_close.append(symbol)
+                    else:
+                        log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
                     continue
 
                 pnl_abs_pct = abs(pnl_pct / 100.0)  # Convert to decimal
@@ -6360,7 +6405,10 @@ class AlpacaExecutor:
                                  pnl_pct=round(pnl_pct, 2),
                                  momentum_threshold=Config.STALE_TRADE_MOMENTUM_THRESH_PCT * 100,
                                  reason=exit_reasons[symbol])
-                        to_close.append(symbol)
+                        if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                            to_close.append(symbol)
+                        else:
+                            log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
                         continue
 
                 if pnl_abs_pct <= Config.STALE_TRADE_MOMENTUM_THRESH_PCT:
@@ -6374,7 +6422,10 @@ class AlpacaExecutor:
                              pnl_pct=round(pnl_pct, 2),
                              momentum_threshold=Config.STALE_TRADE_MOMENTUM_THRESH_PCT * 100,
                              reason=exit_reasons[symbol])
-                    to_close.append(symbol)
+                    if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                        to_close.append(symbol)
+                    else:
+                        log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
                     continue
 
             # PROFIT-TAKING ACCELERATION: Tighten trailing stop to 0.5% after 30 minutes of profitability
@@ -6570,7 +6621,10 @@ class AlpacaExecutor:
                 # CRITICAL: Always set exit_reason when adding to close list
                 if symbol not in exit_reasons:
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)
-                to_close.append(symbol)
+                if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                    to_close.append(symbol)
+                else:
+                    log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
                 exit_reason_str = "stop_loss" if stop_loss_hit else ("signal_decay" if signal_decay_exit else ("profit_075" if profit_target_hit else "trail_stop"))
                 print(
                     f"DEBUG EXITS: {symbol} marked for close - {exit_reason_str}, "
@@ -7235,6 +7289,7 @@ class StrategyEngine:
             momentum_required_pct = 0.0
             composite_result = None  # Will store full composite result if available
             
+            # Regime must not be used as hard gate; this block is disabled by default (ENABLE_REGIME_GATING=false).
             if Config.ENABLE_REGIME_GATING and not regime_gate_ticker(prof, market_regime):
                 log_event("gate", "regime_blocked", symbol=symbol, regime=market_regime, gate_type="regime_gate", signal_type=c.get("signal_type", "UNKNOWN"))
                 # SIGNAL HISTORY: Log blocked signal

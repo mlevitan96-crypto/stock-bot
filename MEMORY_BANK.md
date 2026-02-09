@@ -1680,5 +1680,13 @@ Replace opaque `blocked_reason` strings with:
 - **Cron Integration:** After EOD pipeline: run multi-day analysis → run V3 Board Review → package → commit → push → deploy.
 - **Governance:** `.cursorrules` updated with V3 mandates: multi-day analysis required, Regime Review Officer participation, multi-day evidence required for LIVE/PAPER changes, multi-day scenario replay for exit timing.
 - **Documentation:** `docs/BOARD_REVIEW.md` updated, `docs/BOARD_UPGRADE_V2.md` references V3, `docs/BOARD_UPGRADE_V3.md` created.
+
+## Remediation Pass: Regime, Exit Timing, Displacement, Attribution (2026-02-08)
+- **Regime detection fix:** Stockbot daily pack was reading regime from top level of `daily_universe_v2.json`; regime is under `_meta`. Fixed in `scripts/run_stockbot_daily_reports.py` to read `(v2.get("_meta") or {}).get("regime_label")` with fallback `"NEUTRAL"` so multi-day analysis no longer shows UNKNOWN for all days.
+- **Regime never a gate:** `ENABLE_REGIME_GATING` default changed from `true` to `false` in `main.py`. Regime is a modifier only (sizing, filters, preferences); it must never fully block trading. See `docs/REGIME_DETECTION.md`.
+- **Exit timing shim wired:** `apply_exit_timing_to_exit_config` is now called at the start of `evaluate_exits()`; policy is applied from `config/exit_timing_scenarios.json` (mode/strategy/regime/scenario). Min-hold floor is enforced before adding a position to the close list; skips logged as `hold_floor_skipped`. Scenario set via `EXIT_TIMING_SCENARIO` (default `baseline_current`).
+- **Diagnostics added:** `scripts/regime_detection_diagnostic.py`, `scripts/exit_timing_diagnostic.py`, `scripts/displacement_capacity_diagnostic.py`, `scripts/attribution_exit_reconciliation.py` for regime, exit timing by reason/mode:strategy, displacement/capacity blocked counts, and attribution vs exit PnL reconciliation.
+- **Displacement/capacity:** Documented in `docs/CAPACITY_AND_DISPLACEMENT.md`. Regime can influence policy but never set capacity to zero or fully block. Displacement decisions already logged to `logs/system_events.jsonl` (subsystem=displacement).
+- **Board reasoning:** Board agents should treat regime as modifier-only; ask explicitly about regime health, exit timing health, displacement/capacity health, and attribution vs exit alignment. See `docs/BOARD_REVIEW.md` interpretation notes.
 ---
 

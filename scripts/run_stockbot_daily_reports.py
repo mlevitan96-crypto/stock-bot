@@ -97,7 +97,8 @@ def _load_blocked_trades(base: Path, day: str) -> List[dict]:
 def _load_regime_universe(base: Path, day: str) -> dict:
     v2 = _load_json(base / "state" / "daily_universe_v2.json", {})
     symbols = v2.get("symbols") if isinstance(v2.get("symbols"), list) else []
-    regime = v2.get("regime_label") or v2.get("regime") or "UNKNOWN"
+    meta = v2.get("_meta") or {}
+    regime = meta.get("regime_label") or v2.get("regime_label") or v2.get("regime") or "NEUTRAL"
     sectors = list(set(s.get("context", {}).get("sector", "UNKNOWN") for s in symbols if isinstance(s, dict) and isinstance(s.get("context"), dict)))
     return {
         "date": day,

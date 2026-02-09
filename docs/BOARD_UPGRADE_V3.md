@@ -134,10 +134,12 @@ V3 mandates appended to `.cursorrules`:
 - Multi-day evidence is required for any recommendation that affects LIVE or PAPER behavior
 
 ## Documentation Updates
-- `docs/BOARD_REVIEW.md` — Updated with multi-day analysis workflow
+- `docs/BOARD_REVIEW.md` — Updated with multi-day analysis workflow and interpretation notes (regime, exit timing, displacement, attribution)
 - `docs/BOARD_UPGRADE_V2.md` — References V3 changes
 - `docs/BOARD_UPGRADE_V3.md` — This document (full V3 architecture)
-- `MEMORY_BANK.md` — Updated with multi-day entry
+- `docs/REGIME_DETECTION.md` — Regime pipeline and modifier-only contract (regime never gates)
+- `docs/CAPACITY_AND_DISPLACEMENT.md` — Displacement/capacity policy and monitoring (regime-aware, non-gating)
+- `MEMORY_BANK.md` — Updated with multi-day entry and remediation summary
 
 ## Testing
 To test V3 Board Review:
