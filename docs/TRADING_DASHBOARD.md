@@ -73,8 +73,43 @@ See `reports/DASHBOARD_ENDPOINT_MAP.md` for the full endpoint → data location 
 
 ---
 
-## 6. Validation
+## 6. Wheel data (live)
+
+- **Wheel trades** are logged when the wheel strategy places orders: `strategies/wheel_strategy.py` writes to `logs/telemetry.jsonl` with `strategy_id=wheel`, and optionally records **premium** after polling for order fill.
+- **Ground truth:** `state/wheel_state.json`, `logs/telemetry.jsonl` (strategy_id=wheel), `logs/attribution.jsonl` (wheel if written by engine), `reports/*_stock-bot_wheel.json` (from `scripts/generate_daily_strategy_reports.py`).
+- **Dashboard** shows wheel data from these sources; no UI hacks. When no wheel trades exist, Wheel Strategy tab shows zeros and a short note on data sources.
+- **Scoring** in the Positions table is real: Entry Signal Strength = `entry_score` from position metadata; Current Signal Strength = live composite from `uw_composite_v2` when UW cache is fresh. No static placeholders.
+
+## 7. Validation
 
 - Run `python scripts/generate_daily_strategy_reports.py` to ensure wheel and strategy comparison data exist.
 - Dashboard checks: `scripts/verify_dashboard_contracts.py`, `scripts/verify_wheel_endpoints_on_droplet.py`.
 - After deployment: confirm Health and P&L on Top Strip and in Executive Summary; Wheel metrics when wheel has traded; Signal Strength columns show non-zero when positions exist and cache is fresh.
+- Wheel lifecycle events: `logs/system_events.jsonl` (subsystem=wheel) for wheel_run_started, wheel_csp_skipped, wheel_order_submitted, wheel_order_filled.
+
+---
+
+## 8. Wheel troubleshooting (A/B/C/D)
+
+When wheel analytics stay at zero or no FILLED trades appear, determine the single root cause using the outcome framework below. **Where to look first:**
+
+| Check | Location | What to look for |
+|-------|----------|------------------|
+| **1. System events** | `logs/system_events.jsonl` | Filter `subsystem=wheel`. Counts: wheel_run_started, wheel_csp_skipped (by reason), wheel_order_submitted, wheel_order_filled, wheel_order_failed. |
+| **2. Telemetry** | `logs/telemetry.jsonl` | Filter `strategy_id=wheel`. Count rows; confirm premium present when orders filled. |
+| **3. Attribution** | `logs/attribution.jsonl` | Filter `strategy_id=wheel`. Count rows; sample for wheel phase/premium. |
+| **4. State** | `state/wheel_state.json` | File mtime and content (open_csps, etc.) changing across cycles/days. |
+| **5. Dashboard API** | `GET /api/stockbot/wheel_analytics` | total_trades, premium_collected; must match telemetry/attribution when pipeline is correct. |
+
+**Diagnostic script (run on droplet):**  
+`python3 scripts/wheel_root_cause_report.py --days 5`  
+Outputs counts, samples, and a single outcome (A/B/C/D) with evidence and fix hints. Report written to `reports/WHEEL_ROOT_CAUSE_REPORT_YYYY-MM-DD.md`.
+
+**How to interpret outcomes:**
+
+- **A) Wheel NOT RUNNING** — `wheel_run_started` count is 0. Cause: strategy not scheduled, feature flag disabled, dispatcher not calling wheel, or runtime exception before wheel runs. Fix: ensure `config/strategies.yaml` has `wheel.enabled: true`; confirm main loop calls wheel when enabled (even if strategy_context import fails); check logs for wheel_run_failed or import errors.
+- **B) Wheel RUNNING but ALWAYS SKIPPING** — `wheel_run_started` > 0, `wheel_order_submitted` == 0. Cause: eligibility filters (earnings_window, iv_rank, no_spot, no_contracts_in_range, capital_limit, per_position_limit, insufficient_buying_power, existing_order, max_positions_reached). Use report’s ranked skip-reason table; fix universe, DTE/contract availability, or limits as needed (do not relax risk limits broadly).
+- **C) SUBMITTING but NOT FILLING** — `wheel_order_submitted` > 0, `wheel_order_filled` == 0. Cause: broker/paper options, liquidity, or limit price. Inspect last submitted orders (order_id, status, limit/price); improve fill probability via order type/price within existing policy; add “not filled because …” instrumentation.
+- **D) Pipeline/counting bug** — Telemetry/attribution have strategy_id=wheel rows but dashboard shows zero. Cause: dashboard filter, wrong strategy_id, or missing fields. Trace `dashboard._load_stock_closed_trades()` and `/api/stockbot/wheel_analytics`; ensure wheel trades are not filtered out and required fields (strategy_id, premium) exist. Contract test: `python3 scripts/test_wheel_analytics_contract.py` (given fixture with strategy_id=wheel, analytics must report total_trades ≥ 1 and premium_collected ≥ 0).
+
+**Regime:** Regime is modifier-only; it must not gate or short-circuit wheel. If any gating is found, remove or disable it by default and document.

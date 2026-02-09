@@ -9355,11 +9355,16 @@ def run_all_strategies():
                 combined_metrics.update(metrics)
         except Exception as e:
             log_event("strategies", "equity_run_failed", error=str(e))
-    if wheel_enabled and strategy_context:
+    # Wheel strategy: regime is modifier-only; must never gate or block wheel entries.
+    # Run wheel whenever enabled (with or without strategy_context so dispatch is not blocked by context import).
+    if wheel_enabled:
         try:
-            with strategy_context("wheel"):
-                from strategies.wheel_strategy import run as run_wheel
-                api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL)
+            from strategies.wheel_strategy import run as run_wheel
+            api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL)
+            if strategy_context:
+                with strategy_context("wheel"):
+                    wheel_result = run_wheel(api, wheel_cfg)
+            else:
                 wheel_result = run_wheel(api, wheel_cfg)
             wo = wheel_result.get("orders_placed", 0)
             total_orders += wo

@@ -9,6 +9,7 @@ Regime detection provides market context (bull, bear, chop, crash and equivalent
 - **Modifier only:** Regime can adjust sizing, filters, or preferences. It must **not** set trade volume to zero, disable entire strategies, or block all entries.
 - **When regime is UNKNOWN:** Use a safe default (e.g. neutral sizing, conservative filters). Do **not** block trades.
 - **Configuration:** `ENABLE_REGIME_GATING` defaults to `false`. When `true`, the engine may block entries based on regime; operators should leave it `false` to satisfy the "regime never gates" contract.
+- **Wheel strategy:** Wheel execution is **not** gated by regime. Regime is not passed to the wheel; wheel runs independently. Regime must never fully gate trading (equity or wheel).
 
 ## Pipeline
 

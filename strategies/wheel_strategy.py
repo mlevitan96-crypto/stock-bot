@@ -4,6 +4,7 @@ Wheel strategy: Cash-secured puts (CSP) -> Covered calls (CC).
 - CSP phase: Sell puts on wheel universe tickers.
 - CC phase: Sell covered calls on assigned shares from wheel CSPs.
 - All orders tagged with strategy_id="wheel", phase="CSP" or "CC".
+- Regime is modifier-only; must never gate or block wheel entries.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -21,6 +23,37 @@ log = logging.getLogger(__name__)
 
 WHEEL_STATE_PATH = getattr(StateFiles, "WHEEL_STATE", None) or Path("state") / "wheel_state.json"
 STRATEGY_ID = "wheel"
+
+# Resolve repo root for logs (cwd-independent)
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_SYSTEM_EVENTS_PATH = _REPO_ROOT / "logs" / "system_events.jsonl"
+
+
+def _wheel_system_event(event_type: str, symbol: Optional[str] = None, phase: Optional[str] = None, reason: Optional[str] = None, order_id: Optional[str] = None, premium: Optional[float] = None, **extra) -> None:
+    """Append wheel lifecycle event to system_events.jsonl for visibility. Best-effort; never raises."""
+    try:
+        _SYSTEM_EVENTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        rec = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "subsystem": "wheel",
+            "event_type": event_type,
+            "strategy_id": STRATEGY_ID,
+        }
+        if symbol:
+            rec["symbol"] = symbol
+        if phase:
+            rec["phase"] = phase
+        if reason is not None:
+            rec["reason"] = reason
+        if order_id is not None:
+            rec["order_id"] = order_id
+        if premium is not None:
+            rec["premium"] = round(premium, 2)
+        rec.update(extra)
+        with _SYSTEM_EVENTS_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except Exception as e:
+        log.debug("Wheel system event write failed: %s", e)
 
 # Default liquidity filters
 MIN_OPEN_INTEREST = 10
@@ -297,15 +330,19 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
     per_symbol_count = {}
     for t in tickers:
         if placed >= max_pos or total_wheel_positions >= max_pos:
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="max_positions_reached")
             break
         if _check_earnings(t, avoid_earnings):
             log.info("Wheel CSP: skip %s (earnings window)", t)
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="earnings_window")
             continue
         if not _check_iv_rank(t, min_iv):
             log.info("Wheel CSP: skip %s (IV rank < %s)", t, min_iv)
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="iv_rank")
             continue
         sym_count = per_symbol_count.get(t, 0) + len(open_csps.get(t, []) or [])
         if sym_count >= max_per_symbol:
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="max_per_symbol")
             continue
         try:
             quote = api.get_quote(t)
@@ -321,8 +358,12 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
         except Exception:
             spot = 0
         if spot <= 0:
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="no_spot")
             continue
         contracts = _get_option_contracts(api, t, "put", exp_gte, exp_lte)
+        if not contracts and dte_max - dte_min < 18:
+            exp_lte_wide = (today + timedelta(days=21)).strftime("%Y-%m-%d")
+            contracts = _get_option_contracts(api, t, "put", exp_gte, exp_lte_wide)
         candidates = []
         for c in contracts:
             strike = float(c.get("strike_price", 0))
@@ -348,6 +389,7 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
                 "symbol": c.get("symbol") or c.get("id", ""),
             })
         if not candidates:
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="no_contracts_in_range")
             continue
         candidates.sort(key=lambda x: (abs(x["delta_est"] - (delta_min + delta_max) / 2), abs(x["dte"] - (dte_min + dte_max) / 2)))
         chosen = candidates[0]
@@ -357,15 +399,19 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
         notional = chosen["strike"] * 100
         if wheel_capital_used + notional > max_wheel_cap:
             log.info("Wheel CSP: capital limit reached (used=%.0f, max=%.0f)", wheel_capital_used, max_wheel_cap)
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="capital_limit")
             break
         if notional > account_equity * per_pos_frac:
             log.info("Wheel CSP: per-position limit for %s (notional=%.0f)", t, notional)
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="per_position_limit")
             continue
         if buying_power < notional:
             log.info("Wheel CSP: insufficient buying power for %s", t)
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="insufficient_buying_power")
             continue
         existing = [o for o in (open_orders or []) if getattr(o, "symbol", "") == occ_symbol]
         if existing:
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="existing_order")
             continue
         try:
             client_order_id = f"wheel-CSP-{t}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
@@ -380,8 +426,25 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
             )
         except Exception as e:
             log.warning("Wheel CSP order failed for %s: %s", t, e)
+            _wheel_system_event("wheel_order_failed", symbol=t, phase="CSP", reason=str(e)[:200])
             continue
         order_id = getattr(order, "id", None) or (order.get("id") if isinstance(order, dict) else None)
+        _wheel_system_event("wheel_order_submitted", symbol=t, phase="CSP", order_id=str(order_id) if order_id else None)
+        premium_filled: Optional[float] = None
+        if order_id and hasattr(api, "get_order"):
+            for _ in range(5):
+                time.sleep(2)
+                try:
+                    o = api.get_order(order_id)
+                    status = getattr(o, "status", None) or (o.get("status") if isinstance(o, dict) else None)
+                    if str(status or "").lower() == "filled":
+                        filled_avg = float(getattr(o, "filled_avg_price", 0) or 0)
+                        if filled_avg > 0:
+                            premium_filled = filled_avg * 100.0
+                            _wheel_system_event("wheel_order_filled", symbol=t, phase="CSP", order_id=str(order_id), premium=premium_filled)
+                        break
+                except Exception:
+                    pass
         _log_wheel_telemetry(
             symbol=t,
             side="sell",
@@ -391,7 +454,7 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
             expiry=chosen["contract"].get("expiration_date"),
             dte=chosen["dte"],
             delta_at_entry=chosen["delta_est"],
-            premium=None,
+            premium=premium_filled,
             order_id=str(order_id) if order_id else None,
             qty=1,
         )
@@ -527,6 +590,7 @@ def _run_cc_phase(api, config: dict, account_equity: float, positions: list) -> 
 def run(api, config: dict) -> dict:
     """
     Run wheel strategy: CSP phase then CC phase.
+    Regime is modifier-only; must never gate or block wheel entries.
 
     Args:
         api: Alpaca REST API (tradeapi.REST or compatible).
@@ -536,12 +600,28 @@ def run(api, config: dict) -> dict:
         Dict with orders_placed, csp_placed, cc_placed, errors.
     """
     result = {"orders_placed": 0, "csp_placed": 0, "cc_placed": 0, "errors": []}
+    tickers = _load_universe(config)
+    if config.get("universe_max_candidates"):
+        tickers, _, _ = _select_wheel_tickers(api, config)
+    _wheel_system_event("wheel_run_started", reason="ok", ticker_count=len(tickers))
+    # Regime is modifier-only; never a gate. Log for audit.
+    _regime_label = "unknown"
+    try:
+        for _path in [getattr(StateFiles, "REGIME_POSTURE_STATE", None), getattr(StateFiles, "REGIME_DETECTOR", None)]:
+            if _path and _path.exists():
+                _data = read_json(_path) or {}
+                _regime_label = _data.get("regime_label") or _data.get("current_regime") or _data.get("regime") or "unknown"
+                break
+    except Exception:
+        pass
+    _wheel_system_event("wheel_regime_audit", regime_label=_regime_label, modifier_only=True)
     try:
         account = api.get_account()
         account_equity = float(getattr(account, "equity", 0) or 0)
         buying_power = float(getattr(account, "buying_power", 0) or 0)
     except Exception as e:
         result["errors"].append(f"account_fetch: {e}")
+        _wheel_system_event("wheel_run_failed", reason="account_fetch", error=str(e)[:200])
         return result
     try:
         positions = api.list_positions() or []
