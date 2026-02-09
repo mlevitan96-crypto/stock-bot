@@ -196,6 +196,30 @@ def _log_wheel_universe_telemetry(
     append_jsonl(LogFiles.TELEMETRY, rec)
 
 
+def _emit_wheel_candidate_ranked(
+    tickers: List[str],
+    selected_meta: List[dict],
+    first_placed_symbol: Optional[str],
+    csp_placed: int,
+) -> None:
+    """Emit wheel_candidate_ranked system event: top 5 candidates, UW metrics, final chosen or reason none."""
+    try:
+        top_5 = selected_meta[:5] if selected_meta else [{"symbol": s, "uw_composite_score": None} for s in (tickers or [])[:5]]
+        payload: Dict[str, Any] = {
+            "top_5_symbols": [r.get("symbol") for r in top_5],
+            "top_5_uw_scores": [r.get("uw_composite_score") for r in top_5],
+            "top_5_liquidity": [r.get("liquidity_score") for r in top_5 if "liquidity_score" in r],
+        }
+        if first_placed_symbol:
+            payload["chosen"] = first_placed_symbol
+        else:
+            payload["chosen"] = None
+            payload["reason_none"] = "no_order_placed" if csp_placed == 0 else "none_this_cycle"
+        _wheel_system_event("wheel_candidate_ranked", **payload)
+    except Exception as e:
+        log.debug("wheel_candidate_ranked emit failed: %s", e)
+
+
 def _alpaca_options_request(
     api,
     method: str,
@@ -290,8 +314,8 @@ def _check_iv_rank(underlying: str, min_iv_rank: float) -> bool:
     return True
 
 
-def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float, positions: list, open_orders: list) -> int:
-    """Sell cash-secured puts. Returns count of orders placed."""
+def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float, positions: list, open_orders: list) -> Tuple[int, Optional[str], List[dict]]:
+    """Sell cash-secured puts. Returns (count placed, first placed symbol or None, selected_meta for telemetry)."""
     csp_cfg = config.get("csp", {})
     risk_cfg = config.get("risk", {})
     max_cap_frac = config.get("max_capital_fraction", 0.5)
@@ -311,12 +335,13 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
     if selected_meta or all_candidates:
         log.info("Wheel universe selected: %s (from %d candidates)", tickers, len(all_candidates))
         _log_wheel_universe_telemetry(
-            wheel_universe_candidates=[{"symbol": r["symbol"], "wheel_suitability_score": r["wheel_suitability_score"], "sector": r["sector"], "passed": r["passed"]} for r in all_candidates],
+            wheel_universe_candidates=[{"symbol": r["symbol"], "wheel_suitability_score": r.get("wheel_suitability_score"), "sector": r.get("sector"), "passed": r.get("passed"), "uw_composite_score": r.get("uw_composite_score")} for r in all_candidates],
             wheel_universe_selected=[r["symbol"] for r in selected_meta],
-            wheel_universe_scores={r["symbol"]: {"liquidity_score": r["liquidity_score"], "iv_score": r["iv_score"], "spread_score": r["spread_score"], "wheel_suitability_score": r["wheel_suitability_score"]} for r in selected_meta},
+            wheel_universe_scores={r["symbol"]: {"liquidity_score": r.get("liquidity_score"), "iv_score": r.get("iv_score"), "spread_score": r.get("spread_score"), "wheel_suitability_score": r.get("wheel_suitability_score"), "uw_composite_score": r.get("uw_composite_score")} for r in selected_meta},
         )
     open_csps = state.get("open_csps", {})
     placed = 0
+    first_placed_symbol: Optional[str] = None
     today = datetime.now(timezone.utc).date()
     exp_gte = (today + timedelta(days=dte_min)).strftime("%Y-%m-%d")
     exp_lte = (today + timedelta(days=dte_max)).strftime("%Y-%m-%d")
@@ -469,7 +494,8 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
         placed += 1
         total_wheel_positions += 1
         wheel_capital_used += notional
-    return placed
+        first_placed_symbol = first_placed_symbol or t
+    return placed, first_placed_symbol, selected_meta
 
 
 def _run_cc_phase(api, config: dict, account_equity: float, positions: list) -> int:
@@ -631,9 +657,10 @@ def run(api, config: dict) -> dict:
         open_orders = api.list_orders(status="open") if hasattr(api, "list_orders") else []
     except Exception:
         open_orders = []
-    csp_placed = _run_csp_phase(api, config, account_equity, buying_power, positions, open_orders)
+    csp_placed, first_placed_symbol, selected_meta = _run_csp_phase(api, config, account_equity, buying_power, positions, open_orders)
     result["csp_placed"] = csp_placed
     result["orders_placed"] += csp_placed
+    _emit_wheel_candidate_ranked(tickers, selected_meta, first_placed_symbol, csp_placed)
     cc_placed = _run_cc_phase(api, config, account_equity, positions)
     result["cc_placed"] = cc_placed
     result["orders_placed"] += cc_placed

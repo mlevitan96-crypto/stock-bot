@@ -133,7 +133,7 @@ def main() -> int:
     out(f"- wheel_csp_skipped (by reason): {dict(skip_counts) if skip_counts else 'none'}")
 
     # Representative log lines (3 per non-zero category)
-    for event_type in ("wheel_run_started", "wheel_regime_audit", "wheel_csp_skipped", "wheel_order_submitted", "wheel_order_filled", "wheel_order_failed"):
+    for event_type in ("wheel_run_started", "wheel_regime_audit", "wheel_candidate_ranked", "wheel_csp_skipped", "wheel_order_submitted", "wheel_order_filled", "wheel_order_failed"):
         subset = [e for e in wheel_events if e.get("event_type") == event_type][-5:]
         for e in subset[:3]:
             evidence.append(f"[{event_type}] {json.dumps(e)}")

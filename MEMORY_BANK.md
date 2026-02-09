@@ -1632,6 +1632,14 @@ Replace opaque `blocked_reason` strings with:
 - **Regime:** Modifier-only; never gates trading.
 
 ---
+## Wheel Strategy Audit — PATH B (2026-02-09)
+- **Decision:** PATH B. Wheel was **not** using UW intelligence: selector used only Alpaca volume/OI/spread and stub IV; no UW cache or composite score.
+- **Evidence:** `strategies/wheel_universe_selector.py` had no reads of `uw_flow_cache` or `uw_composite_v2`; ranking was by `wheel_suitability_score` (liquidity*0.4 + iv*0.3 + spread*0.3). Hard filters (spot, contracts) ran per-ticker in order of that list.
+- **Fix applied:** (1) **UW-first ranking:** In `wheel_universe_selector`, added `_rank_by_uw_intelligence()` — reads `CacheFiles.UW_FLOW_CACHE`, gets regime from state, calls `uw_composite_v2.compute_composite_score_v2(symbol, enriched, regime)` per symbol; sorts by UW score descending; top N become the candidate list. (2) **Order of operations:** Sector/earnings/count filter → UW rank → take top `universe_max_candidates` → hard filters (spot, contracts) only in `_run_csp_phase` per-ticker. (3) **Explainability:** Every cycle emits `wheel_candidate_ranked` (subsystem=wheel) with top_5_symbols, top_5_uw_scores, chosen or reason_none.
+- **Wheel intelligence contract:** Primary driver = UW composite score from `data/uw_flow_cache.json` + `uw_composite_v2.compute_composite_score_v2`. Secondary = liquidity/OI/spread (for telemetry). Spot and contract availability are hard filters applied only to the UW-ranked list. Regime is modifier-only (used in composite call).
+- **Verification:** On droplet, `grep wheel_candidate_ranked logs/system_events.jsonl` and `wheel_root_cause_report.py --days 1`; expect wheel_run_started, wheel_candidate_ranked, and wheel_csp_skipped with reasons. See `docs/TRADING_DASHBOARD.md` §6.1.
+
+---
 ## CRON + GIT DIAGNOSTIC (2026-02-04)
 - **Detected path:** /root/stock-bot
 - **Cron:** crontab has EOD entry with correct path (21:30 UTC); audit+sync 21:32 UTC via run_droplet_audit_and_sync.sh

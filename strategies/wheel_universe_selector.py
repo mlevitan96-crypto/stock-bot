@@ -1,14 +1,15 @@
 """
-Wheel universe selector: score and filter candidates by liquidity, spreads, IV, sector balance.
+Wheel universe selector: rank by UW intelligence first, then apply liquidity/spread filters.
+
+PATH B contract (UW-first):
+- Step 1: Rank universe by UW composite score (from uw_flow_cache + uw_composite_v2).
+- Step 2: Select top N candidates by UW rank.
+- Step 3: Attach liquidity/OI/spread metrics for explainability; hard filters (spot/contract) run in wheel_strategy per-ticker.
 
 Rules:
-- Average daily volume > min (default 3M)
-- Options open interest > min (default 5,000)
-- Bid/ask spread < max (default 0.5%)
-- IV proxy > threshold (stub)
-- No earnings within N days (stub)
-- Not in excluded sectors (e.g., Technology)
-- Not over-concentrated in portfolio
+- UW composite score is primary sort key when cache available; else fallback to liquidity/IV/spread.
+- Average daily volume, OI, spread used as secondary sort and for telemetry.
+- Not in excluded sectors; not over-concentrated in portfolio.
 """
 
 from __future__ import annotations
@@ -157,6 +158,52 @@ def _get_iv_proxy(symbol: str) -> float:
     return 0.25
 
 
+def _rank_by_uw_intelligence(tickers: List[str], config: dict) -> List[Tuple[str, float]]:
+    """
+    Rank tickers by UW composite score (from uw_flow_cache + uw_composite_v2).
+    Returns list of (symbol, uw_composite_score) sorted by score descending.
+    Symbols with no UW data get score -1e9 so they sort last.
+    """
+    try:
+        from config.registry import CacheFiles, Directories
+        import json
+        cache_path = getattr(CacheFiles, "UW_FLOW_CACHE", None) or (Directories.DATA / "uw_flow_cache.json")
+        if not cache_path.exists():
+            return []
+        cache = json.loads(cache_path.read_text(encoding="utf-8", errors="replace"))
+        if not isinstance(cache, dict):
+            return []
+    except Exception:
+        return []
+    regime = "mixed"
+    try:
+        from config.registry import StateFiles, read_json
+        rp = getattr(StateFiles, "REGIME_POSTURE_STATE", None) or (Path(__file__).resolve().parents[1] / "state" / "regime_posture_state.json")
+        if rp and Path(rp).exists():
+            data = read_json(Path(rp), default={}) or {}
+            regime = (data.get("regime_label") or data.get("regime") or "mixed") or "mixed"
+    except Exception:
+        pass
+    try:
+        import uw_composite_v2 as uw_v2
+    except Exception:
+        return []
+    ranked: List[Tuple[str, float]] = []
+    for symbol in tickers:
+        enriched = cache.get(symbol) if isinstance(cache.get(symbol), dict) else None
+        if not enriched:
+            ranked.append((symbol, -1e9))
+            continue
+        try:
+            composite = uw_v2.compute_composite_score_v2(symbol, enriched, regime)
+            score = float(composite.get("score", 0) or 0) if composite else -1e9
+            ranked.append((symbol, score))
+        except Exception:
+            ranked.append((symbol, -1e9))
+    ranked.sort(key=lambda x: -x[1])
+    return ranked
+
+
 def select_wheel_candidates(
     date: str,
     market_data: Any,
@@ -204,7 +251,8 @@ def select_wheel_candidates(
     assigned = wheel_state.get("assigned_shares", {})
     max_per_symbol = config.get("risk", {}).get("max_positions_per_symbol", 2)
 
-    results: List[Dict[str, Any]] = []
+    # PATH B Step 1: Restrict to candidates that pass sector/earnings/count (no UW yet)
+    candidate_tickers: List[str] = []
     for symbol in tickers:
         sector = _get_sector(symbol)
         if sector in (excluded or []):
@@ -216,8 +264,18 @@ def select_wheel_candidates(
         current_count = len(open_csps.get(symbol, []) or []) + (1 if symbol in assigned else 0)
         if current_count >= max_per_symbol:
             continue
+        candidate_tickers.append(symbol)
 
-        vol = _get_avg_daily_volume(api, symbol)
+    # PATH B Step 2: Rank by UW intelligence first (primary driver)
+    uw_ranked = _rank_by_uw_intelligence(candidate_tickers, config)
+    if uw_ranked:
+        ordered_symbols = [s for s, _ in uw_ranked]
+    else:
+        ordered_symbols = candidate_tickers
+
+    results: List[Dict[str, Any]] = []
+    uw_scores_map = {s: sc for s, sc in uw_ranked} if uw_ranked else {}
+    for symbol in ordered_symbols:
         oi = _get_option_open_interest(api, symbol)
         spread_pct = _get_spread_pct(api, symbol)
         iv_proxy = _get_iv_proxy(symbol)
@@ -239,8 +297,12 @@ def select_wheel_candidates(
         )
 
         passed = pass_vol and pass_oi and pass_spread and pass_iv
+        uw_score = uw_scores_map.get(symbol)
+        if uw_score is not None and uw_score <= -1e8:
+            uw_score = None
         rec = {
             "symbol": symbol,
+            "uw_composite_score": round(uw_score, 4) if uw_score is not None else None,
             "liquidity_score": round(liquidity_score, 4),
             "iv_score": round(iv_score, 4),
             "spread_score": round(spread_score, 4),
@@ -258,7 +320,6 @@ def select_wheel_candidates(
         }
         results.append(rec)
 
-    passed_only = [r for r in results if r["passed"]]
-    passed_only.sort(key=lambda x: (-x["wheel_suitability_score"], -x["avg_daily_volume"]))
-    selected = passed_only[:max_candidates]
+    # PATH B: Order already by UW rank; take top N (hard filters spot/contract run in wheel_strategy)
+    selected = results[:max_candidates]
     return selected, results

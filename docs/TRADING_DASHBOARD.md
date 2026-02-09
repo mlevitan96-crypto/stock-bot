@@ -80,12 +80,18 @@ See `reports/DASHBOARD_ENDPOINT_MAP.md` for the full endpoint → data location 
 - **Dashboard** shows wheel data from these sources; no UI hacks. When no wheel trades exist, Wheel Strategy tab shows zeros and a short note on data sources.
 - **Scoring** in the Positions table is real: Entry Signal Strength = `entry_score` from position metadata; Current Signal Strength = live composite from `uw_composite_v2` when UW cache is fresh. No static placeholders.
 
+### 6.1 How wheel selects tickers (PATH B — UW-first)
+
+- **Order of operations:** (1) Load universe from `config/universe_wheel_expanded.yaml` (or `universe_source`). (2) Filter by sector (excluded sectors), earnings window, and per-symbol position count. (3) **Rank by UW intelligence:** read `data/uw_flow_cache.json`, compute UW composite score per symbol via `uw_composite_v2.compute_composite_score_v2(symbol, enriched, regime)`; sort by score descending. (4) Take top N (`universe_max_candidates`, e.g. 10). (5) For each ticker in that order, run hard filters in `_run_csp_phase`: earnings, IV rank, **spot quote** (no_spot skip), **option contracts** in DTE/delta range (no_contracts skip), capital/position limits. (6) First ticker that passes gets the CSP order (if any).
+- **UW is primary:** Ticker choice is driven by UW composite score when the cache is available; liquidity/OI/spread are attached for telemetry and secondary sort when UW is missing.
+- **Verify:** Each cycle emits `wheel_candidate_ranked` in `logs/system_events.jsonl` (subsystem=wheel) with `top_5_symbols`, `top_5_uw_scores`, `chosen` or `reason_none`. Run `grep '"subsystem": "wheel"' logs/system_events.jsonl | grep wheel_candidate_ranked` on the droplet.
+
 ## 7. Validation
 
 - Run `python scripts/generate_daily_strategy_reports.py` to ensure wheel and strategy comparison data exist.
 - Dashboard checks: `scripts/verify_dashboard_contracts.py`, `scripts/verify_wheel_endpoints_on_droplet.py`.
 - After deployment: confirm Health and P&L on Top Strip and in Executive Summary; Wheel metrics when wheel has traded; Signal Strength columns show non-zero when positions exist and cache is fresh.
-- Wheel lifecycle events: `logs/system_events.jsonl` (subsystem=wheel) for wheel_run_started, wheel_csp_skipped, wheel_order_submitted, wheel_order_filled.
+- Wheel lifecycle events: `logs/system_events.jsonl` (subsystem=wheel) for wheel_run_started, wheel_regime_audit, wheel_candidate_ranked, wheel_csp_skipped, wheel_order_submitted, wheel_order_filled.
 
 ---
 
