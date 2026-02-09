@@ -259,21 +259,22 @@ def build_composite_close_reason(exit_signals: dict) -> str:
         pnl_pct = exit_signals.get("stale_trade_pnl_pct", exit_signals.get("pnl_pct", 0) or 0)
         reasons.append(f"stale_alpha_cutoff({age_min:.0f}min,{pnl_pct:.2f}%)")
     
-    # If no specific reasons, use primary reason or default
+    # If no specific reasons, use primary reason or concrete fallback (no "unknown")
     if not reasons:
         primary = exit_signals.get("primary_reason")
-        if primary and primary != "none" and primary != "unknown":
+        if primary and str(primary).strip() and str(primary).lower() not in ("none", "unknown", ""):
             reasons.append(primary)
+        elif exit_signals.get("stop_loss") or exit_signals.get("stop_loss_pct") is not None:
+            reasons.append("stop")
+        elif exit_signals.get("signal_decay") is not None or exit_signals.get("signal_decay_exit"):
+            reasons.append("signal_decay")
+        elif exit_signals.get("regime_protection"):
+            reasons.append("regime_shift")
         else:
-            # Default fallback - should never happen if exit_signals is populated correctly
-            reasons.append("unknown_exit")
-    
-    result = "+".join(reasons) if reasons else "unknown_exit"
-    
-    # Safety check: ensure we never return empty string
+            reasons.append("risk")  # Concrete fallback: treat as risk exit
+    result = "+".join(reasons) if reasons else "risk"
     if not result or result.strip() == "":
-        result = "unknown_exit"
-    
+        result = "risk"
     return result
 
 from v2_nightly_orchestration_with_auto_promotion import should_run_direct_v2
@@ -1900,12 +1901,10 @@ def log_exit_attribution(
         )
         pnl_usd, pnl_pct = computed_pnl_usd, computed_pnl_pct
     
-    # Ensure close_reason is never empty or None
-    if not close_reason or close_reason == "unknown" or close_reason.strip() == "":
-        # Fallback: create a basic close reason
-        close_reason = "unknown_exit"
-        log_event("exit", "close_reason_missing", symbol=symbol, 
-                 note="close_reason was empty, using fallback")
+    # Ensure close_reason is never empty, None, or "unknown"
+    if not close_reason or close_reason == "unknown" or close_reason.strip() == "" or close_reason == "unknown_exit":
+        close_reason = "risk"
+        log_event("exit", "close_reason_normalized", symbol=symbol, note="close_reason was empty/unknown, set to risk")
     
     # V4.0: Enhanced context for causal analysis - capture EVERYTHING that might explain win/loss
     entry_dt = entry_ts if isinstance(entry_ts, datetime) else datetime.fromisoformat(str(entry_ts).replace("Z", "+00:00")) if isinstance(entry_ts, str) else datetime.now(timezone.utc)
@@ -5124,7 +5123,15 @@ class AlpacaExecutor:
         
         candidates = []
         now = datetime.utcnow()
-        
+        # BEAR + high-confidence: relax displacement so we can take strong signals (modifier only; hard caps unchanged)
+        _regime = (getattr(self, "_get_global_regime", None) or (lambda: None))() or ""
+        _regime_upper = (_regime or "").upper()
+        if _regime_upper == "BEAR" and new_signal_score >= 7.0:
+            _score_advantage = min(Config.DISPLACEMENT_SCORE_ADVANTAGE, 1.0)  # Relax to 1.0 for high-confidence in BEAR
+            _max_pnl_pct = max(Config.DISPLACEMENT_MAX_PNL_PCT, 0.015)  # Allow slightly wider PnL band
+        else:
+            _score_advantage = Config.DISPLACEMENT_SCORE_ADVANTAGE
+            _max_pnl_pct = Config.DISPLACEMENT_MAX_PNL_PCT
         for pos in positions:
             symbol = getattr(pos, "symbol", "")
             if not symbol or symbol == new_symbol:  # Don't displace for same symbol
@@ -5149,8 +5156,8 @@ class AlpacaExecutor:
             # Calculate P&L %
             pnl_pct = (current_price - entry_price) / entry_price
             
-            # Check if near breakeven (within threshold)
-            if abs(pnl_pct) > Config.DISPLACEMENT_MAX_PNL_PCT:
+            # Check if near breakeven (within threshold; BEAR+high-confidence uses _max_pnl_pct)
+            if abs(pnl_pct) > _max_pnl_pct:
                 continue  # Not near breakeven
             
             # Get position age
@@ -5176,9 +5183,9 @@ class AlpacaExecutor:
             # Get original entry score (if available)
             original_score = pos_meta.get("entry_score", 0)
             
-            # Check score advantage
+            # Check score advantage (BEAR+high-confidence uses _score_advantage)
             score_advantage = new_signal_score - original_score
-            if score_advantage < Config.DISPLACEMENT_SCORE_ADVANTAGE:
+            if score_advantage < _score_advantage:
                 continue  # New signal not strong enough
             
             candidates.append({
@@ -5257,7 +5264,7 @@ class AlpacaExecutor:
                     elif abs(pnl_pct) > Config.DISPLACEMENT_MAX_PNL_PCT:
                         reasons["pnl_too_high"] += 1
                         fail_reason = "pnl_too_high"
-                    elif score_advantage < Config.DISPLACEMENT_SCORE_ADVANTAGE:
+                    elif score_advantage < _score_advantage:
                         reasons["score_advantage_insufficient"] += 1
                         fail_reason = "score_advantage_insufficient"
                     
@@ -5277,8 +5284,8 @@ class AlpacaExecutor:
                          total_positions=total_positions,
                          reasons=reasons,
                          min_age_hours=Config.DISPLACEMENT_MIN_AGE_HOURS,
-                         max_pnl_pct=Config.DISPLACEMENT_MAX_PNL_PCT,
-                         required_score_advantage=Config.DISPLACEMENT_SCORE_ADVANTAGE,
+                         max_pnl_pct=_max_pnl_pct,
+                         required_score_advantage=_score_advantage,
                          position_details=position_details[:10])  # Log first 10 positions
                 
                 # Also print to console for immediate visibility
@@ -6463,12 +6470,15 @@ class AlpacaExecutor:
                 trail_stop = self.high_water[symbol] * (1 - trailing_stop_pct)
 
             # V3.0 CONVICTION-BASED EXITS: Removed TIME_EXIT logic
-            # Exit on: 1) -1.0% Stop-Loss, 2) Signal Decay >40%, 3) Profit hits 0.75%
-            
-            # 1. Stop-Loss Check: -1.0% hard stop
-            # CRITICAL FIX: stop_loss_pct must be in decimal form (-0.01 = -1.0%)
-            # Previous bug: stop_loss_pct = -1.0 meant -100%, so -2.96% never triggered
-            stop_loss_pct = -0.01  # -1.0% stop-loss (as decimal: -1.0 / 100.0)
+            # Exit on: 1) Stop-Loss, 2) Signal Decay >40%, 3) Profit target
+            # Regime-aware (modifier only): BEAR = cut losers faster (-0.8%), let winners run longer (1.0% target)
+            regime_exit = (current_regime_global or "").upper()
+            if regime_exit == "BEAR":
+                stop_loss_pct = -0.008   # -0.8% in BEAR: cut losers faster
+                profit_target_decimal = 0.01   # 1.0% in BEAR: let winners run longer
+            else:
+                stop_loss_pct = -0.01    # -1.0% default
+                profit_target_decimal = 0.0075  # 0.75% default
             pnl_pct_decimal = pnl_pct / 100.0  # Convert percentage to decimal
             stop_loss_hit = pnl_pct_decimal <= stop_loss_pct
             
@@ -6511,8 +6521,8 @@ class AlpacaExecutor:
                 except Exception as e:
                     log_event("exit", "signal_decay_check_error", symbol=symbol, error=str(e))
             
-            # 3. Profit Target: Exit at 0.75% profit (full position)
-            profit_target_hit = pnl_pct_decimal >= 0.0075  # 0.75%
+            # 3. Profit Target: regime-aware (see profit_target_decimal above)
+            profit_target_hit = pnl_pct_decimal >= profit_target_decimal
             
             # Trailing stop check (for profit protection)
             # BULLETPROOF: Validate trail_stop calculation before comparing
@@ -6655,6 +6665,12 @@ class AlpacaExecutor:
         
         for symbol in to_close:
             try:
+                # Profitability push: telemetry for exit_reason distribution (no "unknown")
+                _reason = exit_reasons.get(symbol, "risk")
+                try:
+                    log_system_event("exit", "exit_reason_recorded", "INFO", symbol=symbol, exit_reason=_reason, regime=current_regime_global or "")
+                except Exception:
+                    pass
                 # CRITICAL FIX: Get info from positions_to_evaluate if not in self.opens
                 if symbol in positions_to_evaluate:
                     posd = positions_to_evaluate.get(symbol, {}) if isinstance(positions_to_evaluate, dict) else {}
@@ -8101,6 +8117,11 @@ class StrategyEngine:
                         actual_positions = len(self.executor.opens)
                     print(f"DEBUG {symbol}: BLOCKED by max_positions_reached (Alpaca positions: {actual_positions}, executor.opens: {len(self.executor.opens)}, max: {Config.MAX_CONCURRENT_POSITIONS}), no displacement candidates", flush=True)
                     _inc_gate("max_positions_reached")
+                    try:
+                        log_system_event("displacement", "displacement_blocked_no_candidate", "INFO",
+                                         symbol=symbol, new_signal_score=round(score, 2), regime=market_regime or "")
+                    except Exception:
+                        pass
                     log_event("gate", "max_positions_reached", symbol=symbol, 
                              alpaca_positions=actual_positions,
                              executor_opens=len(self.executor.opens),

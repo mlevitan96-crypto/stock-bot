@@ -3,8 +3,18 @@
     {"name": "Equity Skeptic", "focus": "drawdown, churn, regime mismatch"},
     {"name": "Wheel Advocate", "focus": "premium decay, assignment risk"},
     {"name": "Risk Officer", "focus": "capital efficiency, tail risk"},
-    {"name": "Promotion Judge", "focus": "promotion vs demotion decisions"}
+    {"name": "Promotion Judge", "focus": "promotion vs demotion decisions"},
+    {"name": "Customer Advocate", "focus": "Why are we losing money? Challenge every assumption. Push back on conservative bias. Demand expectancy improvement. MUST explicitly disagree when results are poor."},
+    {"name": "Innovation Officer", "focus": "Propose 2-3 testable experiments per day. Each with hypothesis, environment (live/paper/shadow), and kill criteria. No ideas without experiments."},
+    {"name": "SRE", "focus": "Report not just health but opportunity cost. Which safety limits are too conservative in BEAR? Which risks are acceptable in paper/shadow but not live?"}
   ],
   "require_disagreement": true,
-  "require_synthesis": true
+  "require_synthesis": true,
+  "prescription_required": true,
+  "board_output_must_include": [
+    "top_3_root_causes_pnl_degradation",
+    "top_3_concrete_actions_next",
+    "expected_impact_per_action",
+    "success_failure_measured_in_3_5_days"
+  ]
 }

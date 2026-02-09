@@ -45,6 +45,10 @@ You **must** emit a structured object with the following fields. Types and seman
 | `regime_context` | `object` | `{ "regime_label": string, "regime_confidence": number | null, "notes": string }`. From attribution/exit attribution and any regime state in bundle. |
 | `sector_context` | `object` | `{ "sectors_traded": string[], "sector_pnl": { [sector]: number } | null, "notes": string }`. Sector breakdown when available. |
 | `recommendations` | `array` | List of `{ "id": string, "priority": "high" | "medium" | "low", "title": string, "body": string }`. Actionable items. |
+| `top_3_root_causes_pnl_degradation` | `array` | **MANDATORY.** Top 3 root causes of P&L degradation (no vague "investigate"; be specific). |
+| `top_3_concrete_actions_next` | `array` | **MANDATORY.** Top 3 concrete actions to take next. Prescribe; do not summarize. |
+| `expected_impact_per_action` | `object` | **MANDATORY.** For each action, expected impact (e.g. "reduce drawdown by X", "improve win rate by Y"). |
+| `success_failure_measured_in_3_5_days` | `string` or `array` | **MANDATORY.** How success/failure of the prescribed actions will be measured in 3–5 days. |
 | `citations` | `array` | List of `{ "source": "attribution" | "exit_attribution" | "blocked_trades" | "master_trade_log" | "signal_weights" | "daily_universe_v2" | "peak_equity" | "daily_start_equity", "ref": string, "quote": string }`. Every material claim **must** cite attribution and/or exit attribution where applicable. |
 | `falsification_criteria` | `array` | List of `{ "id": string, "description": string, "observed": boolean | null, "data_source": string }`. Conditions that would refute or qualify the verdict; at least one required. |
 
@@ -83,7 +87,15 @@ You **must** adhere to the following. Violations invalidate the output.
 - **Always** base P&L, win rate, and trade-level conclusions on **attribution** and **exit_attribution**. Cite them in `citations`.
 - Do not use only `master_trade_log` or `blocked_trades` for P&L; use attribution/exit_attribution as primary. Use the others for narrative (e.g. blocks, exit reasons).
 
-### 4.6 Falsification criteria
+### 4.6 Prescription (mandatory)
+
+- Every Board review **must** include: **top 3 root causes** of P&L degradation, **top 3 concrete actions** to take next, **expected impact** of each action, and **how success/failure will be measured in 3–5 days**. No vague language; no "investigate" without a concrete next step. **Prescribe; do not merely summarize.**
+
+### 4.7 Customer Advocate
+
+- When results are poor, a **Customer Advocate** perspective must explicitly disagree and ask "Why are we losing money?" Challenge assumptions and demand expectancy improvement.
+
+### 4.8 Falsification criteria
 
 - **Always** include at least one **falsification criterion** in `falsification_criteria`.
 - Each criterion must be specific, observable, and tied to a data source (e.g. “If next-day attribution shows win_rate &lt; 0.4, CAUTION was understated”).
