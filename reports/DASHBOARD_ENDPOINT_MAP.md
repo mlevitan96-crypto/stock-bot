@@ -2,6 +2,8 @@
 
 **Generated:** 2026-02-05 | **Canonical per config.registry + MEMORY_BANK**
 
+Layout and tab purposes: see **`docs/TRADING_DASHBOARD.md`** (post–rationalization 2026-02-09).
+
 All paths resolved against `_DASHBOARD_ROOT` (dashboard.py directory). No engine data modified.
 
 ---

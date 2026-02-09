@@ -1597,6 +1597,18 @@ Replace opaque `blocked_reason` strings with:
 - **Strategy comparison:** `reports/{date}_stock-bot_combined.json` from `scripts/generate_daily_strategy_reports.py`.
 - **Regime/posture:** `state/market_context_v2.json`, `state/regime_posture_state.json`; paths resolved via _DASHBOARD_ROOT.
 - **Rule:** Dashboard connects to logs/state/config only; NEVER modifies trading engine. See `reports/DASHBOARD_ENDPOINT_MAP.md`.
+
+### Dashboard Rationalization Pass (2026-02-09)
+- **Canonical layout:** See `docs/TRADING_DASHBOARD.md` for tab layout, data sources, and where to find Health, P&L, Wheel, and scoring.
+- **Core cockpit (top-level):** Positions, Closed Trades, Executive Summary, SRE Monitoring. Health and P&L remain always visible via Top Strip and Executive Summary.
+- **Strategy:** Wheel Strategy (includes Wheel Universe Health as sub-panel), Strategy Comparison.
+- **Advanced (under “More” dropdown):** Signal Review, Natural Language Auditor, Trading Readiness, Telemetry.
+- **Merged/removed from main bar:** Wheel Universe Health merged into Wheel Strategy tab (no data source removed).
+- **Scoring labels:** UI shows “Entry Signal Strength” and “Current Signal Strength” (backend still `entry_score` / `current_score` from position metadata and live composite). Real values from engine; no legacy placeholders.
+- **Top Strip:** Health (SRE), P&L today, P&L 7d, Last signal, Last update. Populated by `loadTopStrip()` (SRE health + executive summary 24h/7d).
+- **Executive Summary:** Now includes Health & Wheel at a glance (from `/api/sre/health`, `/api/stockbot/wheel_analytics`).
+- **Where to look:** Health → Executive Summary + SRE tab + Top Strip. P&L → Executive Summary + Positions + Closed Trades + Top Strip. Wheel → Wheel Strategy tab + Executive Summary + Closed Trades (filter). Scoring → Positions table columns (Entry/Current Signal Strength).
+
 ---
 ## CRON + GIT DIAGNOSTIC (2026-02-04)
 - **Detected path:** /root/stock-bot

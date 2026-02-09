@@ -289,6 +289,23 @@ DASHBOARD_HTML = """
         .tabs { position: relative; z-index: 2; }
         .tab { pointer-events: auto; }
         .version-badge { pointer-events: auto; }
+        /* Top strip: health + P&L always visible */
+        .top-strip {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 10px 16px;
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;
+            font-size: 0.9em;
+        }
+        .top-strip span { margin-right: 8px; }
+        .top-strip .strip-health { font-weight: 600; }
+        .top-strip .strip-health.healthy { color: #10b981; }
+        .top-strip .strip-health.degraded { color: #f59e0b; }
+        .top-strip .strip-health.critical { color: #ef4444; }
+        /* More dropdown */
+        .more-dropdown { position: relative; display: inline-block; }
+        .more-dropdown-content { display: none; position: absolute; right: 0; top: 100%; min-width: 200px; z-index: 100; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: 2px; }
+        .more-dropdown-content.show { display: block; }
+        .more-dropdown-content button { display: block; width: 100%; padding: 10px 16px; text-align: left; border: none; background: none; cursor: pointer; font-size: 0.95em; }
+        .more-dropdown-content button:hover { background: #f3f4f6; }
     </style>
 </head>
 <body>
@@ -296,7 +313,14 @@ DASHBOARD_HTML = """
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
-            <p class="update-info">Auto-refresh: 60 seconds | Last update: <span id="last-update">-</span> | Last Signal: <span id="last-signal">-</span></p>
+            <div id="top-strip" class="top-strip">
+                <span><strong>Health:</strong> <span id="strip-health" class="strip-health">—</span></span>
+                <span><strong>P&L today:</strong> <span id="strip-pnl-today">—</span></span>
+                <span><strong>P&L 7d:</strong> <span id="strip-pnl-7d">—</span></span>
+                <span><strong>Last signal:</strong> <span id="last-signal">—</span></span>
+                <span><strong>Last update:</strong> <span id="last-update">—</span></span>
+            </div>
+            <p class="update-info">Auto-refresh: 60 seconds</p>
             <p id="dashboard-diagnostic" style="font-size:0.75em;color:#6b7280;margin-top:4px;display:none;">If version and data stay loading: open DevTools (F12) → Console and Network; refresh page and log in again.</p>
             <div id="version-badge" class="version-badge unknown" onclick="switchTab('sre', event); setTimeout(function(){var p=document.getElementById('dashboard-version-panel');if(p)p.scrollIntoView({behavior:'smooth'});}, 300);" title="Loading version...">
                 Dashboard v...
@@ -305,16 +329,20 @@ DASHBOARD_HTML = """
         
         <div class="tabs">
             <button class="tab active" data-tab="positions" onclick="switchTab('positions', event)">📊 Positions</button>
-            <button class="tab" data-tab="signal_review" onclick="switchTab('signal_review', event)">🔍 Signal Review</button>
-            <button class="tab" data-tab="sre" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
-            <button class="tab" data-tab="executive" onclick="switchTab('executive', event)">📈 Executive Summary</button>
-            <button class="tab" data-tab="xai" onclick="switchTab('xai', event)">🧠 Natural Language Auditor</button>
-            <button class="tab" data-tab="failure_points" onclick="switchTab('failure_points', event)">⚠️ Trading Readiness</button>
-            <button class="tab" data-tab="wheel_universe" onclick="switchTab('wheel_universe', event)">🔄 Wheel Universe Health</button>
-            <button class="tab" data-tab="strategy_comparison" onclick="switchTab('strategy_comparison', event)">⚖️ Strategy Comparison</button>
             <button class="tab" data-tab="closed_trades" onclick="switchTab('closed_trades', event)">📋 Closed Trades</button>
+            <button class="tab" data-tab="executive" onclick="switchTab('executive', event)">📈 Executive Summary</button>
+            <button class="tab" data-tab="sre" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
             <button class="tab" data-tab="wheel_strategy" onclick="switchTab('wheel_strategy', event)">🛞 Wheel Strategy</button>
-            <button class="tab" data-tab="telemetry" onclick="switchTab('telemetry', event)">📦 Telemetry</button>
+            <button class="tab" data-tab="strategy_comparison" onclick="switchTab('strategy_comparison', event)">⚖️ Strategy Comparison</button>
+            <div class="more-dropdown">
+                <button class="tab" data-tab="more" onclick="toggleMoreDropdown(event)" style="margin-bottom: -2px;">More ▾</button>
+                <div id="more-dropdown-content" class="more-dropdown-content" onclick="event.stopPropagation()">
+                    <button type="button" onclick="switchTab('signal_review', event); closeMoreDropdown();">🔍 Signal Review</button>
+                    <button type="button" onclick="switchTab('xai', event); closeMoreDropdown();">🧠 Natural Language Auditor</button>
+                    <button type="button" onclick="switchTab('failure_points', event); closeMoreDropdown();">⚠️ Trading Readiness</button>
+                    <button type="button" onclick="switchTab('telemetry', event); closeMoreDropdown();">📦 Telemetry</button>
+                </div>
+            </div>
         </div>
         
         <div id="positions-tab" class="tab-content active">
@@ -375,9 +403,7 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
-        <div id="wheel_universe-tab" class="tab-content">
-            <div id="wheel_universe-content"></div>
-        </div>
+        <div id="wheel_universe-tab" class="tab-content" style="display:none;"></div>
         <div id="strategy_comparison-tab" class="tab-content">
             <div id="strategy_comparison-content"></div>
         </div>
@@ -470,38 +496,46 @@ DASHBOARD_HTML = """
     h+='<div class="stat-card"><h3>Closed Trades ('+list.length+')</h3><table style="width:100%;font-size:12px;"><thead><tr><th>Strategy</th><th>Symbol</th><th>Time</th><th>P&L</th><th>Close</th><th>Phase</th><th>Type</th><th>Strike</th><th>Expiry</th><th>DTE</th><th>Premium</th><th>Assigned</th><th>Called</th></tr></thead><tbody>';
     for(var i=0;i<list.length;i++){var t=list[i];var sid=t.strategy_id||'equity';var stratLabel=sid==='wheel'?'Wheel':'Equity';var ts=t.timestamp?new Date(t.timestamp).toLocaleString():'—';var pnl=t.pnl_usd!=null?'$'+Number(t.pnl_usd).toFixed(2):'—';var close=t.close_reason||'—';var ph=t.wheel_phase||'—';var ot=t.option_type||'—';var st=t.strike!=null?t.strike:'—';var ex=t.expiry||'—';var dte=t.dte!=null?t.dte:'—';var pr=t.premium!=null?'$'+Number(t.premium).toFixed(2):'—';var asn=t.assigned===true?'Y':(t.assigned===false?'N':'—');var ca=t.called_away===true?'Y':(t.called_away===false?'N':'—');h+='<tr><td>'+stratLabel+'</td><td>'+(t.symbol||'—')+'</td><td>'+ts+'</td><td>'+pnl+'</td><td>'+close+'</td><td>'+ph+'</td><td>'+ot+'</td><td>'+st+'</td><td>'+ex+'</td><td>'+dte+'</td><td>'+pr+'</td><td>'+asn+'</td><td>'+ca+'</td></tr>';}
     h+='</tbody></table></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Closed trades failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadWheelAnalytics=function(){var el=document.getElementById('wheel_strategy-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Strategy...</div>';fetch('/api/stockbot/wheel_analytics',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var h='<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> '+(d.total_trades!=null?d.total_trades:0)+'</p><p><strong>Premium collected:</strong> $'+(d.premium_collected!=null?Number(d.premium_collected).toFixed(2):'0.00')+'</p><p><strong>Assignment count:</strong> '+(d.assignment_count!=null?d.assignment_count:0)+' | <strong>Call-away count:</strong> '+(d.call_away_count!=null?d.call_away_count:0)+'</p><p><strong>Assignment rate:</strong> '+(d.assignment_rate_pct!=null?d.assignment_rate_pct.toFixed(1):'—')+'% | <strong>Call-away rate:</strong> '+(d.call_away_rate_pct!=null?d.call_away_rate_pct.toFixed(1):'—')+'%</p><p><strong>Expectancy per trade (USD):</strong> '+(d.expectancy_per_trade_usd!=null?'$'+Number(d.expectancy_per_trade_usd).toFixed(2):'—')+'</p><p><strong>Realized P&L sum:</strong> '+(d.realized_pnl_sum!=null?'$'+Number(d.realized_pnl_sum).toFixed(2):'—')+'</p></div>';if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel analytics failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadWheelAnalytics=function(){var el=document.getElementById('wheel_strategy-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Strategy...</div>';Promise.all([fetch('/api/stockbot/wheel_analytics',creds).then(function(r){return r.ok?r.json():null;}),fetch('/api/wheel/universe_health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var d=arr[0];var univ=arr[1];if(!d)d={};var h='<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> '+(d.total_trades!=null?d.total_trades:0)+'</p><p><strong>Premium collected:</strong> $'+(d.premium_collected!=null?Number(d.premium_collected).toFixed(2):'0.00')+'</p><p><strong>Assignment count:</strong> '+(d.assignment_count!=null?d.assignment_count:0)+' | <strong>Call-away count:</strong> '+(d.call_away_count!=null?d.call_away_count:0)+'</p><p><strong>Assignment rate:</strong> '+(d.assignment_rate_pct!=null?d.assignment_rate_pct.toFixed(1):'—')+'% | <strong>Call-away rate:</strong> '+(d.call_away_rate_pct!=null?d.call_away_rate_pct.toFixed(1):'—')+'%</p><p><strong>Expectancy per trade (USD):</strong> '+(d.expectancy_per_trade_usd!=null?'$'+Number(d.expectancy_per_trade_usd).toFixed(2):'—')+'</p><p><strong>Realized P&L sum:</strong> '+(d.realized_pnl_sum!=null?'$'+Number(d.realized_pnl_sum).toFixed(2):'—')+'</p></div>';if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}if(univ){h+='<div class="stat-card" style="margin-top:16px;"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(univ.date||'—')+'</p><p><strong>Universe:</strong> '+(Array.isArray(univ.current_universe)?univ.current_universe.join(', '):(univ.message||'—'))+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(univ.selected_candidates)?univ.selected_candidates.join(', '):'—')+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel analytics failed: '+(e&&e.message?e.message:'network'));});};
+    function loadTopStrip(){Promise.all([fetch('/api/sre/health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=24h',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=7d',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var health=arr[0];var d24=arr[1];var d7=arr[2];var hel=document.getElementById('strip-health');if(hel){var h=health&&health.overall_health?health.overall_health:'—';hel.textContent=h;hel.className='strip-health '+(h==='healthy'?'healthy':h==='degraded'?'degraded':'critical');}var todayEl=document.getElementById('strip-pnl-today');if(todayEl){var pm24=d24&&d24.pnl_metrics?d24.pnl_metrics:{};var p24=pm24.pnl!=null?pm24.pnl:(pm24.pnl_2d!=null?pm24.pnl_2d:0);todayEl.textContent='$'+fmt(p24);todayEl.className=Number(p24)>=0?'positive':'negative';}var d7El=document.getElementById('strip-pnl-7d');if(d7El){var pm7=d7&&d7.pnl_metrics?d7.pnl_metrics:{};var p7=pm7.pnl!=null?pm7.pnl:0;d7El.textContent='$'+fmt(p7);d7El.className=Number(p7)>=0?'positive':'negative';}var lu=document.getElementById('last-update');if(lu)lu.textContent=new Date().toLocaleTimeString();});}
     try{document.body.setAttribute('data-js','1');}catch(e){}
-    setTimeout(function(){loadVersion();loadPositions();},0);
+    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();},0);
     })();
     </script>
     <script>
+        function toggleMoreDropdown(event) { event.stopPropagation(); var el = document.getElementById('more-dropdown-content'); if (el) el.classList.toggle('show'); }
+        function closeMoreDropdown() { var el = document.getElementById('more-dropdown-content'); if (el) el.classList.remove('show'); }
+        document.addEventListener('click', function() { closeMoreDropdown(); });
+        
         function switchTab(tabName, event) {
-            // Update tab buttons - use currentTarget so clicking emoji/text still works
+            if (tabName === 'more') return;
+            closeMoreDropdown();
+            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry'];
+            var isAdvanced = advancedTabs.indexOf(tabName) >= 0;
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
             });
             var btn = event && (event.currentTarget || event.target);
-            if (btn && btn.classList) {
+            if (btn && btn.classList && btn.getAttribute('data-tab')) {
                 btn.classList.add('active');
+            } else if (isAdvanced) {
+                var moreBtn = document.querySelector('.tab[data-tab="more"]');
+                if (moreBtn) moreBtn.classList.add('active');
             } else {
                 var match = document.querySelector('.tab[data-tab="' + tabName + '"]');
                 if (match) match.classList.add('active');
-                else document.querySelectorAll('.tab').forEach(function(tab) {
-                    if (tab.getAttribute('data-tab') === tabName) tab.classList.add('active');
-                });
             }
             
-            // Update tab content
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
+                content.style.display = 'none';
             });
             const targetTab = document.getElementById(tabName + '-tab');
             if (targetTab) {
                 targetTab.classList.add('active');
+                targetTab.style.display = 'block';
             }
             
-            // Load content based on tab
             if (tabName === 'sre') {
                 loadSREContent();
             } else if (tabName === 'executive') {
@@ -510,8 +544,6 @@ DASHBOARD_HTML = """
                 loadXAIAuditor();
             } else if (tabName === 'failure_points') {
                 loadFailurePoints();
-            } else if (tabName === 'wheel_universe') {
-                loadWheelUniverseHealth();
             } else if (tabName === 'strategy_comparison') {
                 loadStrategyComparison();
             } else if (tabName === 'closed_trades' && typeof loadClosedTrades === 'function') {
@@ -523,9 +555,9 @@ DASHBOARD_HTML = """
             } else if (tabName === 'telemetry') {
                 loadTelemetryContent();
             } else if (tabName === 'positions') {
-                // Refresh positions when switching back - force fresh data
                 updateDashboard();
             }
+            loadTopStrip();
         }
         
         function loadSREContent() {
@@ -2058,28 +2090,28 @@ DASHBOARD_HTML = """
             if (!executiveContent.dataset.loaded) {
                 executiveContent.innerHTML = '<div class="loading">Loading executive summary...</div>';
             }
-            fetch('/api/executive_summary?timeframe=' + encodeURIComponent(timeframe), { credentials: 'same-origin' })
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    return response.json();
-                })
-                .then(data => {
-                    executiveContent.dataset.loaded = 'true';
-                    renderExecutiveSummary(data, executiveContent, timeframe);
-                    if (scrollTop > 0) {
-                        requestAnimationFrame(() => {
-                            executiveContent.scrollTop = scrollTop;
-                            window.scrollTo(0, scrollTop);
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Executive summary error:', error);
-                    executiveContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading executive summary: ${error.message}<br/>Check browser console for details.</div>`;
-                });
+            Promise.all([
+                fetch('/api/executive_summary?timeframe=' + encodeURIComponent(timeframe), { credentials: 'same-origin' }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+                fetch('/api/stockbot/wheel_analytics', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                fetch('/api/sre/health', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+            ]).then(([data, wheelData, healthData]) => {
+                executiveContent.dataset.loaded = 'true';
+                renderExecutiveSummary(data, executiveContent, timeframe, wheelData, healthData);
+                if (scrollTop > 0) {
+                    requestAnimationFrame(() => {
+                        executiveContent.scrollTop = scrollTop;
+                        window.scrollTo(0, scrollTop);
+                    });
+                }
+            }).catch(error => {
+                console.error('Executive summary error:', error);
+                executiveContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading executive summary: ${error.message}<br/>Check browser console for details.</div>`;
+            });
         }
         
-        function renderExecutiveSummary(data, container, currentTimeframe) {
+        function renderExecutiveSummary(data, container, currentTimeframe, wheelData, healthData) {
+            wheelData = wheelData || {};
+            healthData = healthData || {};
             const pm = data.pnl_metrics || {};
             const tf = pm.timeframe || currentTimeframe || '24h';
             const pnl = pm.pnl != null ? pm.pnl : (pm.pnl_2d != null ? pm.pnl_2d : (pm.pnl_5d != null ? pm.pnl_5d : 0));
@@ -2087,7 +2119,14 @@ DASHBOARD_HTML = """
             const winRate = pm.win_rate != null ? pm.win_rate : (pm.win_rate_2d != null ? pm.win_rate_2d : (pm.win_rate_5d != null ? pm.win_rate_5d : 0));
             const pnlClass = pnl >= 0 ? 'positive' : 'negative';
             const timeframeOptions = ['24h', '48h', '7d', '2d', '5d'];
+            const healthStatus = healthData.overall_health || '—';
+            const healthClass = healthStatus === 'healthy' ? 'healthy' : (healthStatus === 'degraded' ? 'degraded' : 'critical');
             let html = `
+                <div class="stat-card" style="margin-bottom: 16px; border: 2px solid #e5e7eb;">
+                    <h3 style="margin-bottom: 8px;">Health &amp; Wheel at a glance</h3>
+                    <p><strong>Health:</strong> <span class="${healthClass}" style="font-weight: 600;">${healthStatus}</span>
+                    ${wheelData.total_trades != null ? ' | <strong>Wheel trades:</strong> ' + wheelData.total_trades + ' | <strong>Premium:</strong> $' + (Number(wheelData.premium_collected || 0).toFixed(2)) + ' | <strong>Wheel P&L:</strong> $' + (Number(wheelData.realized_pnl_sum || 0).toFixed(2)) : ''}</p>
+                </div>
                 <div class="stat-card" style="margin-bottom: 20px; border: 3px solid #667eea;">
                     <h2 style="color: #667eea; margin-bottom: 15px;">📊 Performance Metrics</h2>
                     <div style="margin-bottom: 12px;">
@@ -2123,7 +2162,7 @@ DASHBOARD_HTML = """
                                     <th>P&L (USD)</th>
                                     <th>P&L (%)</th>
                                     <th>Hold Time</th>
-                                    <th>Entry Score</th>
+                                    <th>Entry Signal Strength</th>
                                     <th>Close Reason</th>
                                 </tr>
                             </thead>
@@ -2388,7 +2427,7 @@ DASHBOARD_HTML = """
                     if (needsFullRebuild) {
                         var html = '<table><thead><tr>';
                         html += '<th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
-                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry Score</th><th>Current Score</th></tr></thead><tbody>';
+                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry Signal Strength</th><th>Current Signal Strength</th></tr></thead><tbody>';
                         
                         positions.forEach(function(pos) {
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
