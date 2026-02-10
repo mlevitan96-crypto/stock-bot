@@ -2427,18 +2427,19 @@ DASHBOARD_HTML = """
                     if (needsFullRebuild) {
                         var html = '<table><thead><tr>';
                         html += '<th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
-                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry Signal Strength</th><th>Current Signal Strength</th></tr></thead><tbody>';
+                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry</th><th>Current</th><th>Prev</th><th>Delta</th><th>Trend</th></tr></thead><tbody>';
                         
                         positions.forEach(function(pos) {
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
                             const entryScore = pos.entry_score !== undefined && pos.entry_score !== null ? pos.entry_score.toFixed(2) : '0.00';
-                            const currentScore = pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : '0.00';
+                            const currentScoreEvaluated = pos.current_signal_evaluated === true;
+                            const currentScore = currentScoreEvaluated && pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : (currentScoreEvaluated ? '0.00' : 'N/A');
                             const scoreClass = pos.entry_score > 0 ? '' : 'warning';
                             
-                            // Calculate signal decay for visual indicator
+                            // Calculate signal decay for visual indicator (only when signal was evaluated)
                             let currentScoreClass = '';
                             let currentScoreStyle = '';
-                            if (pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
+                            if (currentScoreEvaluated && pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
                                 const decayRatio = pos.current_score / pos.entry_score;
                                 if (decayRatio < 0.6) {
                                     currentScoreClass = 'warning';
@@ -2460,10 +2461,21 @@ DASHBOARD_HTML = """
                             html += '<td class="' + pnlClass + '">' + formatPercent(pos.unrealized_pnl_pct) + '</td>';
                             html += '<td class="' + scoreClass + '" style="' + (pos.entry_score === 0 ? 'color: #ef4444; font-weight: bold;' : '') + '">' + entryScore + '</td>';
                             html += '<td class="' + currentScoreClass + '" style="' + currentScoreStyle + '">' + currentScore + '</td>';
+                            const prevScore = currentScoreEvaluated && pos.prev_score !== undefined && pos.prev_score !== null ? pos.prev_score.toFixed(2) : 'N/A';
+                            const deltaVal = currentScoreEvaluated && pos.signal_delta !== undefined && pos.signal_delta !== null ? (pos.signal_delta >= 0 ? '+' : '') + pos.signal_delta.toFixed(2) : 'N/A';
+                            const trendVal = currentScoreEvaluated && pos.signal_trend ? pos.signal_trend : 'N/A';
+                            html += '<td>' + prevScore + '</td><td>' + deltaVal + '</td><td>' + trendVal + '</td>';
                             html += '</tr>';
                         });
                         
                         html += '</tbody></table>';
+                        var corr = data.signal_correlation || {};
+                        var pairs = Array.isArray(corr.pairs) ? corr.pairs : [];
+                        if (pairs.length > 0) {
+                            html += '<div class="signal-correlation-section" style="margin-top:1em;font-size:0.9em;"><strong>Signal correlation (analytics only)</strong><br/>';
+                            html += 'Top pairs: ' + pairs.slice(0, 5).map(function(p) { return p.a + '-' + p.b + ' ' + (p.corr != null ? p.corr.toFixed(2) : ''); }).join(', ');
+                            html += '</div>';
+                        }
                         container.innerHTML = html;
                     } else {
                         var tbody = existingTable ? existingTable.querySelector('tbody') : null;
@@ -2475,7 +2487,7 @@ DASHBOARD_HTML = """
                             const cells = row.querySelectorAll('td');
                             
                             // Only update cells that changed (skip symbol, side as they don't change)
-                            if (cells.length >= 10) {
+                            if (cells.length >= 13) {
                                 cells[2].textContent = pos.qty;
                                 cells[3].textContent = formatCurrency(pos.avg_entry_price);
                                 cells[4].textContent = formatCurrency(pos.current_price);
@@ -2493,11 +2505,10 @@ DASHBOARD_HTML = """
                                     cells[8].style.color = '';
                                     cells[8].style.fontWeight = '';
                                 }
-                                // Update current score
-                                const currentScore = pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : '0.00';
+                                const currentScoreEvaluated = pos.current_signal_evaluated === true;
+                                const currentScore = currentScoreEvaluated && pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : (currentScoreEvaluated ? '0.00' : 'N/A');
                                 cells[9].textContent = currentScore;
-                                // Color code based on signal decay
-                                if (pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
+                                if (currentScoreEvaluated && pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
                                     const decayRatio = pos.current_score / pos.entry_score;
                                     if (decayRatio < 0.6) {
                                         cells[9].style.color = '#ef4444';
@@ -2513,6 +2524,12 @@ DASHBOARD_HTML = """
                                     cells[9].style.color = '';
                                     cells[9].style.fontWeight = '';
                                 }
+                                const prevScore = currentScoreEvaluated && pos.prev_score !== undefined && pos.prev_score !== null ? pos.prev_score.toFixed(2) : 'N/A';
+                                const deltaVal = currentScoreEvaluated && pos.signal_delta !== undefined && pos.signal_delta !== null ? (pos.signal_delta >= 0 ? '+' : '') + pos.signal_delta.toFixed(2) : 'N/A';
+                                const trendVal = currentScoreEvaluated && pos.signal_trend ? pos.signal_trend : 'N/A';
+                                cells[10].textContent = prevScore;
+                                cells[11].textContent = deltaVal;
+                                cells[12].textContent = trendVal;
                             }
                         });
                     }
@@ -3190,26 +3207,64 @@ def _api_positions_impl():
     except Exception as e:
         print(f"[Dashboard] Warning: Failed to load UW cache for current scores: {e}", flush=True)
 
+    # Signal propagation: prefer persisted signal_strength_cache (from open_position_refresh) so we distinguish evaluated 0.0 vs not evaluated.
+    signal_strength_cache = {}
+    try:
+        from config.registry import StateFiles
+        cache_path = getattr(StateFiles, "SIGNAL_STRENGTH_CACHE", None)
+        if cache_path and cache_path.exists():
+            signal_strength_cache = json.loads(cache_path.read_text(encoding="utf-8", errors="replace")) or {}
+        if not isinstance(signal_strength_cache, dict):
+            signal_strength_cache = {}
+    except Exception as e:
+        print(f"[Dashboard] Warning: Failed to load signal_strength_cache: {e}", flush=True)
+
     pos_list = []
     for p in positions:
         symbol = p.symbol
         entry_score = metadata.get(symbol, {}).get("entry_score", 0.0) if metadata else 0.0
-        current_score = 0.0
-        try:
-            if uw_cache and symbol in uw_cache:
-                enriched = uw_cache.get(symbol, {})
-                if enriched:
-                    import uw_composite_v2 as uw_v2
+        current_score = None
+        current_signal_evaluated = False
+        cached = signal_strength_cache.get(symbol) if isinstance(signal_strength_cache.get(symbol), dict) else None
+        prev_score = None
+        signal_delta = None
+        signal_trend = None
+        if cached is not None and "signal_strength" in cached:
+            try:
+                current_score = float(cached["signal_strength"])
+                current_signal_evaluated = True
+                if "prev_signal_strength" in cached and cached["prev_signal_strength"] is not None:
                     try:
-                        import uw_enrichment_v2 as uw_enrich
-                        enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, current_regime) or enriched
-                    except Exception:
-                        enriched_live = enriched
-                    composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, current_regime)
-                    if composite:
-                        current_score = composite.get("score", 0.0)
-        except Exception as e:
-            print(f"[Dashboard] Warning: Failed to compute current score for {symbol}: {e}", flush=True)
+                        prev_score = float(cached["prev_signal_strength"])
+                    except (TypeError, ValueError):
+                        pass
+                if "signal_delta" in cached and cached["signal_delta"] is not None:
+                    try:
+                        signal_delta = float(cached["signal_delta"])
+                    except (TypeError, ValueError):
+                        pass
+                signal_trend = cached.get("signal_trend") if isinstance(cached.get("signal_trend"), str) else None
+            except (TypeError, ValueError):
+                pass
+        if not current_signal_evaluated:
+            try:
+                if uw_cache and symbol in uw_cache:
+                    enriched = uw_cache.get(symbol, {})
+                    if enriched:
+                        import uw_composite_v2 as uw_v2
+                        try:
+                            import uw_enrichment_v2 as uw_enrich
+                            enriched_live = uw_enrich.enrich_signal(symbol, uw_cache, current_regime) or enriched
+                        except Exception:
+                            enriched_live = enriched
+                        composite = uw_v2.compute_composite_score_v3(symbol, enriched_live, current_regime)
+                        if composite:
+                            current_score = float(composite.get("score", 0.0))
+                            current_signal_evaluated = True
+            except Exception as e:
+                print(f"[Dashboard] Warning: Failed to compute current score for {symbol}: {e}", flush=True)
+            if not current_signal_evaluated:
+                print(f"[Dashboard] Warning: No signal evaluation for open position {symbol}; show as N/A (run engine so open_position_refresh runs).", flush=True)
         pos_list.append({
             "symbol": symbol,
             "side": "long" if float(p.qty) > 0 else "short",
@@ -3220,7 +3275,11 @@ def _api_positions_impl():
             "unrealized_pnl": float(p.unrealized_pl),
             "unrealized_pnl_pct": float(p.unrealized_plpc) * 100,
             "entry_score": float(entry_score),
-            "current_score": float(current_score),
+            "current_score": float(current_score) if current_score is not None else None,
+            "current_signal_evaluated": current_signal_evaluated,
+            "prev_score": float(prev_score) if prev_score is not None else None,
+            "signal_delta": float(signal_delta) if signal_delta is not None else None,
+            "signal_trend": signal_trend,
         })
 
     missed_alpha_usd = 0.0
@@ -3247,9 +3306,21 @@ def _api_positions_impl():
     except Exception as e:
         print(f"[Dashboard] Warning: Failed to calculate missed alpha: {e}", flush=True)
         missed_alpha_usd = 0.0
-        
+
+    signal_correlation = {}
+    try:
+        from config.registry import StateFiles
+        corr_path = getattr(StateFiles, "SIGNAL_CORRELATION_CACHE", None)
+        if corr_path and corr_path.exists():
+            signal_correlation = json.loads(corr_path.read_text(encoding="utf-8", errors="replace")) or {}
+        if not isinstance(signal_correlation, dict):
+            signal_correlation = {}
+    except Exception as e:
+        print(f"[Dashboard] Warning: Failed to load signal_correlation_cache: {e}", flush=True)
+
     return {
         "positions": pos_list,
+        "signal_correlation": signal_correlation,
         "total_value": float(account.portfolio_value),
         "unrealized_pnl": sum(p["unrealized_pnl"] for p in pos_list),
         "day_pnl": float(account.equity) - float(account.last_equity),

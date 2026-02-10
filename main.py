@@ -5920,6 +5920,108 @@ class AlpacaExecutor:
             return
         current_regime_global = self._get_global_regime() or "mixed"
 
+        # Open-position signal propagation: evaluate and emit signal strength for every open position every cycle.
+        # Trend/delta are instrumentation only (no impact on entry/exit).
+        SIGNAL_TREND_EPS = 0.05
+        SIGNAL_TREND_SCHEMA_VERSION = 1
+        signal_context = {"uw_cache": uw_cache, "regime": current_regime_global}
+        signal_cache_updates = {}
+        try:
+            from signal_open_position import evaluate_signal_for_symbol
+            import json as _json
+            cache_path = StateFiles.SIGNAL_STRENGTH_CACHE
+            existing = {}
+            if cache_path.exists():
+                try:
+                    existing = _json.loads(cache_path.read_text(encoding="utf-8", errors="replace")) or {}
+                except Exception:
+                    existing = {}
+            if not isinstance(existing, dict):
+                existing = {}
+
+            for sym, pos in positions_index.items():
+                try:
+                    qty = float(getattr(pos, "qty", 0))
+                    position_side = "LONG" if qty > 0 else "SHORT"
+                except (TypeError, ValueError):
+                    position_side = "LONG"
+                strength, evaluated, skip_reason = evaluate_signal_for_symbol(sym, signal_context)
+                if evaluated:
+                    now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
+                    log_system_event(
+                        "signals",
+                        "signal_strength_evaluated",
+                        "INFO",
+                        symbol=sym,
+                        position_side=position_side,
+                        signal_strength=round(strength, 4),
+                        evaluation_context="open_position_refresh",
+                        timestamp=now_iso,
+                    )
+                    prev_entry = existing.get(sym) if isinstance(existing.get(sym), dict) else None
+                    prev_strength = None
+                    prev_evaluated_at = None
+                    if prev_entry and "signal_strength" in prev_entry:
+                        try:
+                            prev_strength = float(prev_entry["signal_strength"])
+                            prev_evaluated_at = prev_entry.get("evaluated_at")
+                        except (TypeError, ValueError):
+                            pass
+                    signal_delta = None
+                    signal_delta_abs = None
+                    signal_trend = "unknown"
+                    if prev_strength is not None:
+                        signal_delta = round(strength - prev_strength, 4)
+                        signal_delta_abs = round(abs(signal_delta), 4)
+                        if signal_delta_abs is not None and signal_delta_abs < SIGNAL_TREND_EPS:
+                            signal_trend = "flat"
+                        elif signal_delta is not None:
+                            signal_trend = "strengthening" if signal_delta > 0 else "weakening"
+                    signal_cache_updates[sym] = {
+                        "signal_strength": strength,
+                        "position_side": position_side,
+                        "evaluated_at": now_iso,
+                        "prev_signal_strength": prev_strength,
+                        "prev_evaluated_at": prev_evaluated_at,
+                        "signal_delta": signal_delta,
+                        "signal_delta_abs": signal_delta_abs,
+                        "signal_trend": signal_trend,
+                        "signal_trend_window": "last_eval",
+                    }
+                    log_system_event(
+                        "signals",
+                        "signal_trend_evaluated",
+                        "INFO",
+                        symbol=sym,
+                        position_side=position_side,
+                        signal_strength=round(strength, 4),
+                        prev_signal_strength=prev_strength,
+                        signal_delta=signal_delta,
+                        signal_trend=signal_trend,
+                        evaluation_context="open_position_refresh",
+                        timestamp=now_iso,
+                        event_schema_version=SIGNAL_TREND_SCHEMA_VERSION,
+                    )
+                else:
+                    log_system_event(
+                        "signals",
+                        "signal_strength_skipped",
+                        "WARN",
+                        symbol=sym,
+                        reason=skip_reason or "unknown",
+                    )
+            if signal_cache_updates:
+                try:
+                    cache_path.parent.mkdir(parents=True, exist_ok=True)
+                    existing.update(signal_cache_updates)
+                    cache_path.write_text(_json.dumps(existing, indent=2, default=str), encoding="utf-8")
+                except Exception as cache_err:
+                    log_event("exit", "signal_strength_cache_write_failed", error=str(cache_err))
+        except ImportError as imp_err:
+            log_event("exit", "signal_open_position_import_failed", error=str(imp_err))
+        except Exception as sig_err:
+            log_event("exit", "signal_refresh_open_positions_error", error=str(sig_err))
+
         # Exit timing policy (governance shim): min_hold_seconds and sensitivity mults; never gates force-closes.
         exit_timing_cfg = {}
         try:

@@ -3,7 +3,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-BASE = Path("board/eod/out")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+BASE = REPO_ROOT / "board" / "eod" / "out"
+REPORTS_DIR = REPO_ROOT / "reports"
 
 
 def main() -> None:
@@ -39,6 +41,11 @@ def main() -> None:
                 out_md.write(f"\n\n---\n\n## Source: {md.name}\n\n")
                 out_md.write(md.read_text(encoding="utf-8"))
         
+        # Append wheel daily review if present
+        wheel_review = REPORTS_DIR / f"wheel_daily_review_{target_date}.md"
+        if wheel_review.exists():
+            out_md.write(f"\n\n---\n\n## Wheel strategy daily review\n\n")
+            out_md.write(wheel_review.read_text(encoding="utf-8", errors="replace"))
         # Append multi-day analysis if present
         if multi_day_md.exists():
             out_md.write(f"\n\n---\n\n## Multi-Day Analysis\n\n")

@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -23,14 +24,45 @@ log = logging.getLogger(__name__)
 
 WHEEL_STATE_PATH = getattr(StateFiles, "WHEEL_STATE", None) or Path("state") / "wheel_state.json"
 STRATEGY_ID = "wheel"
+WHEEL_EVENT_SCHEMA_VERSION = 1
 
 # Resolve repo root for logs (cwd-independent)
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _SYSTEM_EVENTS_PATH = _REPO_ROOT / "logs" / "system_events.jsonl"
 
+# Idempotency: max recent_orders to keep in state (prune older)
+RECENT_ORDERS_MAX = 200
+
+
+def build_wheel_client_order_id(cycle_id: Optional[str], underlying_symbol: str, side: str, expiry: Optional[str], strike: float, qty: int) -> str:
+    """Stable, short client_order_id for idempotency. Format: WHEEL|<cycle8>|<SYM>|<SIDE>|<YYYYMMDD>|<STRIKE>|<QTY>."""
+    cycle8 = (cycle_id or "")[:8].replace("-", "") or "00000000"
+    sym = (underlying_symbol or "XXX")[:6].upper()
+    side_short = "CSP" if side.upper() in ("CSP", "PUT", "SELL") else "CC"
+    if expiry:
+        try:
+            ymd = expiry[:10].replace("-", "") if len(expiry) >= 10 else "00000000"
+        except Exception:
+            ymd = "00000000"
+    else:
+        ymd = datetime.now(timezone.utc).strftime("%Y%m%d")
+    strike_str = str(int(strike)) if strike == int(strike) else f"{strike:.1f}"
+    return f"WHEEL|{cycle8}|{sym}|{side_short}|{ymd}|{strike_str}|{qty}"
+
+
+def idempotency_skip(state: dict, client_order_id: str) -> bool:
+    """True if we should skip submission (already submitted or filled). Used by tests and inlined check."""
+    recent = state.get("recent_orders") or {}
+    if not isinstance(recent, dict):
+        return False
+    entry = recent.get(client_order_id)
+    if not isinstance(entry, dict):
+        return False
+    return (entry.get("status") or "") in ("submitted", "filled")
+
 
 def _wheel_system_event(event_type: str, symbol: Optional[str] = None, phase: Optional[str] = None, reason: Optional[str] = None, order_id: Optional[str] = None, premium: Optional[float] = None, **extra) -> None:
-    """Append wheel lifecycle event to system_events.jsonl for visibility. Best-effort; never raises."""
+    """Append wheel lifecycle event to system_events.jsonl for visibility. Best-effort; never raises. All events include event_schema_version."""
     try:
         _SYSTEM_EVENTS_PATH.parent.mkdir(parents=True, exist_ok=True)
         rec = {
@@ -38,6 +70,7 @@ def _wheel_system_event(event_type: str, symbol: Optional[str] = None, phase: Op
             "subsystem": "wheel",
             "event_type": event_type,
             "strategy_id": STRATEGY_ID,
+            "event_schema_version": WHEEL_EVENT_SCHEMA_VERSION,
         }
         if symbol:
             rec["symbol"] = symbol
@@ -116,18 +149,54 @@ def _select_wheel_tickers(api, config: dict) -> Tuple[List[str], List[dict], Lis
 
 def _load_wheel_state() -> dict:
     """Load wheel position/assignment tracking."""
+    default = {
+        "assigned_shares": {},
+        "csp_history": [],
+        "cc_history": [],
+        "open_csps": {},
+        "open_ccs": {},
+        "last_cycle_id_processed": None,
+        "recent_orders": {},
+    }
     if not WHEEL_STATE_PATH.exists():
-        return {"assigned_shares": {}, "csp_history": [], "cc_history": [], "open_csps": {}, "open_ccs": {}}
+        return default.copy()
     try:
-        return read_json(WHEEL_STATE_PATH, default={})
+        data = read_json(WHEEL_STATE_PATH, default=default)
+        for k in default:
+            if k not in data:
+                data[k] = default[k]
+        return data
     except Exception:
-        return {"assigned_shares": {}, "csp_history": [], "cc_history": [], "open_csps": {}, "open_ccs": {}}
+        return default.copy()
 
 
-def _save_wheel_state(state: dict) -> None:
-    """Save wheel state."""
+def _prune_recent_orders(state: dict) -> None:
+    """Keep only last RECENT_ORDERS_MAX entries by created_at to avoid unbounded growth."""
+    recent = state.get("recent_orders") or {}
+    if not isinstance(recent, dict) or len(recent) <= RECENT_ORDERS_MAX:
+        return
+    by_created = [(cid, (v.get("created_at") or "")) for cid, v in recent.items() if isinstance(v, dict)]
+    by_created.sort(key=lambda x: x[1], reverse=True)
+    keep = {cid for cid, _ in by_created[:RECENT_ORDERS_MAX]}
+    state["recent_orders"] = {k: v for k, v in recent.items() if k in keep}
+
+
+def _save_wheel_state(state: dict, *, cycle_id: Optional[str] = None, change_type: Optional[str] = None, symbol: Optional[str] = None, previous_summary: Optional[dict] = None, new_summary: Optional[dict] = None) -> None:
+    """Save wheel state and optionally emit wheel_position_state_changed."""
     WHEEL_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if cycle_id is not None:
+        state["last_cycle_id_processed"] = cycle_id
+    _prune_recent_orders(state)
     atomic_write_json(WHEEL_STATE_PATH, state)
+    if change_type and (previous_summary is not None or new_summary is not None):
+        _wheel_system_event(
+            "wheel_position_state_changed",
+            cycle_id=cycle_id,
+            symbol=symbol,
+            change_type=change_type,
+            previous_state_summary=previous_summary or {},
+            new_state_summary=new_summary or {},
+        )
 
 
 def _log_wheel_telemetry(
@@ -203,6 +272,7 @@ def _emit_wheel_candidate_ranked(
     csp_placed: int,
     *,
     reason_none_override: Optional[str] = None,
+    cycle_id: Optional[str] = None,
 ) -> None:
     """Emit wheel_candidate_ranked system event: top 5 candidates, UW metrics, final chosen or reason none."""
     try:
@@ -212,6 +282,8 @@ def _emit_wheel_candidate_ranked(
             "top_5_uw_scores": [r.get("uw_composite_score") for r in top_5],
             "top_5_liquidity": [r.get("liquidity_score") for r in top_5 if "liquidity_score" in r],
         }
+        if cycle_id:
+            payload["cycle_id"] = cycle_id
         if first_placed_symbol:
             payload["chosen"] = first_placed_symbol
         else:
@@ -481,7 +553,37 @@ def _resolve_spot(api: Any, symbol: str) -> Tuple[float, str]:
     return (0.0, "none")
 
 
-def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float, positions: list, open_orders: list) -> Tuple[int, Optional[str], List[dict]]:
+def _config_snapshot_for_audit(config: dict) -> dict:
+    """Key config values for decision_context (no secrets)."""
+    csp = config.get("csp", {})
+    risk = config.get("risk", {})
+    cap = _load_strategies_config().get("capital_allocation", {})
+    wheel_cap = (cap.get("strategies") or {}).get("wheel", {})
+    return {
+        "allocation_pct": wheel_cap.get("allocation_pct", 25),
+        "per_position_fraction_of_wheel_budget": config.get("per_position_fraction_of_wheel_budget", 0.5),
+        "max_concurrent_positions": config.get("max_concurrent_positions") or config.get("max_positions", 5),
+        "delta_min": csp.get("delta_min", -0.3),
+        "delta_max": csp.get("delta_max", -0.2),
+        "dte_min": csp.get("target_dte_min", 5),
+        "dte_max": csp.get("target_dte_max", 10),
+        "avoid_earnings_window_days": risk.get("avoid_earnings_window_days", 3),
+    }
+
+
+def _run_csp_phase(
+    api,
+    config: dict,
+    account_equity: float,
+    buying_power: float,
+    positions: list,
+    open_orders: list,
+    *,
+    cycle_id: Optional[str] = None,
+    tickers_override: Optional[List[str]] = None,
+    selected_meta_override: Optional[List[dict]] = None,
+    all_candidates_override: Optional[List[dict]] = None,
+) -> Tuple[int, Optional[str], List[dict]]:
     """Sell cash-secured puts. Returns (count placed, first placed symbol or None, selected_meta for telemetry)."""
     from capital.strategy_allocator import can_allocate
 
@@ -496,7 +598,12 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
     dte_max = csp_cfg.get("target_dte_max", 10)
     delta_min = csp_cfg.get("delta_min", -0.3)
     delta_max = csp_cfg.get("delta_max", -0.2)
-    tickers, selected_meta, all_candidates = _select_wheel_tickers(api, config)
+    if tickers_override is not None and selected_meta_override is not None:
+        tickers = tickers_override
+        selected_meta = selected_meta_override
+        all_candidates = all_candidates_override or []
+    else:
+        tickers, selected_meta, all_candidates = _select_wheel_tickers(api, config)
     state = _load_wheel_state()
 
     # Telemetry and logging: universe selection
@@ -515,25 +622,40 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
     exp_lte = (today + timedelta(days=dte_max)).strftime("%Y-%m-%d")
     total_wheel_positions = sum(len(v) if isinstance(v, list) else 1 for v in open_csps.values())
     per_symbol_count = {}
-    for t in tickers:
+    for rank, t in enumerate(tickers):
+        uw_score = None
+        if rank < len(selected_meta) and isinstance(selected_meta[rank], dict):
+            uw_score = selected_meta[rank].get("uw_composite_score")
+        def _emit_candidate_evaluated(next_step: str, skip_reason: Optional[str] = None, **kw: Any) -> None:
+            payload: Dict[str, Any] = {"cycle_id": cycle_id, "symbol": t, "rank": rank, "uw_score": uw_score, "next_step": next_step}
+            if skip_reason:
+                payload["skip_reason"] = skip_reason
+            payload.update(kw)
+            _wheel_system_event("wheel_candidate_evaluated", **payload)
+
         if placed >= max_pos or total_wheel_positions >= max_pos:
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="max_positions_reached")
+            _emit_candidate_evaluated("skip", "max_positions_reached")
             break
         if _check_earnings(t, avoid_earnings):
             log.info("Wheel CSP: skip %s (earnings window)", t)
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="earnings_window")
+            _emit_candidate_evaluated("skip", "earnings_window")
             continue
         if not _check_iv_rank(t, min_iv):
             log.info("Wheel CSP: skip %s (IV rank < %s)", t, min_iv)
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="iv_rank")
+            _emit_candidate_evaluated("skip", "iv_rank")
             continue
         sym_count = per_symbol_count.get(t, 0) + len(open_csps.get(t, []) or [])
         if sym_count >= max_per_symbol:
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="max_per_symbol")
+            _emit_candidate_evaluated("skip", "max_per_symbol")
             continue
         spot, spot_source = _resolve_spot(api, t)
         if spot <= 0:
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="no_spot")
+            _emit_candidate_evaluated("skip", "no_spot", spot_price=0, spot_source="none")
             continue
         contracts = _get_option_contracts(api, t, "put", exp_gte, exp_lte)
         if not contracts and dte_max - dte_min < 18:
@@ -565,6 +687,7 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
             })
         if not candidates:
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="no_contracts_in_range")
+            _emit_candidate_evaluated("skip", "no_contracts_in_range", spot_price=round(spot, 2), spot_source=spot_source, required_notional=0)
             continue
         candidates.sort(key=lambda x: (abs(x["delta_est"] - (delta_min + delta_max) / 2), abs(x["dte"] - (dte_min + dte_max) / 2)))
         chosen = candidates[0]
@@ -585,6 +708,7 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
         if not allowed:
             log.info("Wheel CSP: capital blocked (available=%.0f, required=%.0f)", alloc_details["strategy_available"], notional)
             _wheel_system_event("wheel_capital_blocked", symbol=t, wheel_budget=alloc_details["strategy_budget"], wheel_used=alloc_details["strategy_used"], wheel_available=alloc_details["strategy_available"], required_notional=notional, reason=alloc_details["decision_reason"])
+            _emit_candidate_evaluated("skip", "allocation_exceeded", spot_price=round(spot, 2), spot_source=spot_source, required_notional=round(notional, 2), capital_check_decision="block", reason=alloc_details["decision_reason"], wheel_budget=alloc_details["strategy_budget"], wheel_used=alloc_details["strategy_used"], wheel_available=alloc_details["strategy_available"])
             continue
         wheel_budget = alloc_details["strategy_budget"]
         per_position_limit = wheel_budget * per_position_frac_of_wheel
@@ -601,20 +725,50 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
             log.info("Wheel CSP: per-position limit for %s (notional=%.0f > limit=%.0f)", t, notional, per_position_limit)
             _wheel_system_event("wheel_position_limit_blocked", symbol=t, wheel_budget=round(wheel_budget, 2), per_position_limit=round(per_position_limit, 2), required_notional=round(notional, 2), reason="per_position_limit_exceeded")
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="per_position_limit")
+            _emit_candidate_evaluated("skip", "per_position_limit_exceeded", spot_price=round(spot, 2), spot_source=spot_source, required_notional=round(notional, 2), capital_check_decision="allow", position_limit_decision="block", per_position_limit=round(per_position_limit, 2))
             continue
+        _emit_candidate_evaluated("fetch_chain", spot_price=round(spot, 2), spot_source=spot_source, required_notional=round(notional, 2), capital_check_decision="allow", position_limit_decision="allow", wheel_budget=round(wheel_budget, 2), wheel_available=alloc_details["strategy_available"], per_position_limit=round(per_position_limit, 2))
         existing = [o for o in (open_orders or []) if getattr(o, "symbol", "") == occ_symbol]
         if existing:
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="existing_order")
+            _emit_candidate_evaluated("skip", "existing_order", spot_price=round(spot, 2), spot_source=spot_source, required_notional=round(notional, 2))
             continue
+        limit_price = 0.05
+        expiry_str = chosen["contract"].get("expiration_date")
+        client_order_id = build_wheel_client_order_id(cycle_id, t, "CSP", expiry_str, chosen["strike"], 1)
+        if idempotency_skip(state, client_order_id):
+            existing = (state.get("recent_orders") or {}).get(client_order_id) or {}
+            _wheel_system_event(
+                "wheel_order_idempotency_hit",
+                cycle_id=cycle_id,
+                client_order_id=client_order_id,
+                existing_status=existing.get("status"),
+                existing_order_id=existing.get("alpaca_order_id"),
+            )
+            continue
+        _wheel_system_event(
+            "wheel_contract_selected",
+            cycle_id=cycle_id,
+            symbol=t,
+            option_symbol=occ_symbol,
+            side="CSP",
+            strike=chosen["strike"],
+            expiry=expiry_str,
+            dte=chosen["dte"],
+            delta=chosen["delta_est"],
+            mid_or_limit_price=limit_price,
+            credit_expected=limit_price * 100.0,
+            selection_reason="best_delta_dte",
+            filter_summary="delta_dte_sort",
+        )
         try:
-            client_order_id = f"wheel-CSP-{t}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
             order = api.submit_order(
                 symbol=occ_symbol,
                 qty=1,
                 side="sell",
                 type="limit",
                 time_in_force="day",
-                limit_price=0.05,
+                limit_price=limit_price,
                 client_order_id=client_order_id,
             )
         except Exception as e:
@@ -622,7 +776,32 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
             _wheel_system_event("wheel_order_failed", symbol=t, phase="CSP", reason=str(e)[:200])
             continue
         order_id = getattr(order, "id", None) or (order.get("id") if isinstance(order, dict) else None)
-        _wheel_system_event("wheel_order_submitted", symbol=t, phase="CSP", order_id=str(order_id) if order_id else None)
+        state.setdefault("recent_orders", {})[client_order_id] = {
+            "cycle_id": cycle_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "symbol": t,
+            "side": "CSP",
+            "option_symbol": occ_symbol,
+            "status": "submitted",
+            "alpaca_order_id": order_id,
+        }
+        expected_credit = limit_price * 100.0
+        _wheel_system_event(
+            "wheel_order_submitted",
+            cycle_id=cycle_id,
+            symbol=t,
+            phase="CSP",
+            order_id=str(order_id) if order_id else None,
+            client_order_id=client_order_id,
+            option_symbol=occ_symbol,
+            side="CSP",
+            strike=chosen["strike"],
+            expiry=expiry_str,
+            limit_price=limit_price,
+            qty=1,
+            expected_credit=expected_credit,
+            spot_at_submit=round(spot, 2),
+        )
         premium_filled: Optional[float] = None
         if order_id and hasattr(api, "get_order"):
             for _ in range(5):
@@ -634,7 +813,20 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
                         filled_avg = float(getattr(o, "filled_avg_price", 0) or 0)
                         if filled_avg > 0:
                             premium_filled = filled_avg * 100.0
-                            _wheel_system_event("wheel_order_filled", symbol=t, phase="CSP", order_id=str(order_id), premium=premium_filled)
+                            if client_order_id and state.get("recent_orders") and client_order_id in state["recent_orders"]:
+                                state["recent_orders"][client_order_id]["status"] = "filled"
+                            _wheel_system_event(
+                                "wheel_order_filled",
+                                cycle_id=cycle_id,
+                                symbol=t,
+                                phase="CSP",
+                                order_id=str(order_id),
+                                client_order_id=client_order_id,
+                                premium=premium_filled,
+                                fill_price=filled_avg,
+                                filled_qty=1,
+                                credit_realized_est=premium_filled,
+                            )
                         break
                 except Exception:
                     pass
@@ -651,14 +843,27 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
             order_id=str(order_id) if order_id else None,
             qty=1,
         )
-        open_csps.setdefault(t, []).append({
+        opened_at_iso = datetime.now(timezone.utc).isoformat()
+        new_entry = {
             "symbol": occ_symbol,
+            "option_symbol": occ_symbol,
+            "underlying_symbol": t,
             "strike": chosen["strike"],
             "expiry": chosen["contract"].get("expiration_date"),
+            "qty": 1,
+            "opened_at": opened_at_iso,
+            "open_credit": premium_filled,
+            "spot_at_open": round(spot, 2),
+            "cycle_id_opened": cycle_id,
+            "status": "open",
+            "linked_cc": None,
             "order_id": order_id,
-        })
+        }
+        prev_summary = {"open_csps_count": sum(len(v) if isinstance(v, list) else 1 for v in open_csps.values())}
+        open_csps.setdefault(t, []).append(new_entry)
         state["open_csps"] = open_csps
-        _save_wheel_state(state)
+        new_summary = {"open_csps_count": sum(len(v) if isinstance(v, list) else 1 for v in open_csps.values()), "added": t}
+        _save_wheel_state(state, cycle_id=cycle_id, change_type="open_csp_added", symbol=t, previous_summary=prev_summary, new_summary=new_summary)
         placed += 1
         total_wheel_positions += 1
         first_placed_symbol = first_placed_symbol or t
@@ -773,20 +978,22 @@ def run(api, config: dict) -> dict:
     """
     Run wheel strategy: CSP phase then CC phase.
     Regime is modifier-only; must never gate or block wheel entries.
-
-    Args:
-        api: Alpaca REST API (tradeapi.REST or compatible).
-        config: Wheel config from strategies.yaml.
-
-    Returns:
-        Dict with orders_placed, csp_placed, cc_placed, errors.
     """
     result = {"orders_placed": 0, "csp_placed": 0, "cc_placed": 0, "errors": []}
-    tickers = _load_universe(config)
-    if config.get("universe_max_candidates"):
-        tickers, _, _ = _select_wheel_tickers(api, config)
-    _wheel_system_event("wheel_run_started", reason="ok", ticker_count=len(tickers))
-    # Regime is modifier-only; never a gate. Log for audit.
+    cycle_id = str(uuid.uuid4())
+    tickers, selected_meta, all_candidates = _select_wheel_tickers(api, config)
+    if not config.get("universe_max_candidates"):
+        tickers = _load_universe(config)
+        selected_meta = [{"symbol": s, "uw_composite_score": None} for s in tickers]
+        all_candidates = selected_meta.copy()
+    _wheel_system_event("wheel_run_started", reason="ok", ticker_count=len(tickers), cycle_id=cycle_id)
+    config_snapshot = _config_snapshot_for_audit(config)
+    _wheel_system_event(
+        "wheel_config_snapshot",
+        allocation_pct=config_snapshot.get("allocation_pct", 25),
+        per_position_fraction_of_wheel_budget=config_snapshot.get("per_position_fraction_of_wheel_budget", 0.5),
+        max_concurrent_positions=config_snapshot.get("max_concurrent_positions", 5),
+    )
     _regime_label = "unknown"
     try:
         for _path in [getattr(StateFiles, "REGIME_POSTURE_STATE", None), getattr(StateFiles, "REGIME_DETECTOR", None)]:
@@ -813,10 +1020,47 @@ def run(api, config: dict) -> dict:
         open_orders = api.list_orders(status="open") if hasattr(api, "list_orders") else []
     except Exception:
         open_orders = []
-    csp_placed, first_placed_symbol, selected_meta = _run_csp_phase(api, config, account_equity, buying_power, positions, open_orders)
+    state = _load_wheel_state()
+    try:
+        from capital.strategy_allocator import can_allocate as _can_allocate
+        _, alloc_details = _can_allocate("wheel", 0, account_equity, state)
+    except Exception:
+        alloc_details = {"strategy_budget": round(account_equity * 0.25, 2), "strategy_used": 0, "strategy_available": round(account_equity * 0.25, 2)}
+    wheel_budget = alloc_details.get("strategy_budget", 0)
+    wheel_used = alloc_details.get("strategy_used", 0)
+    wheel_available = alloc_details.get("strategy_available", 0)
+    per_position_frac = config.get("per_position_fraction_of_wheel_budget", 0.5)
+    per_position_limit = wheel_budget * per_position_frac
+    excluded = config.get("universe_excluded_sectors") or []
+    top_10 = (selected_meta or [])[:10]
+    _wheel_system_event(
+        "wheel_decision_context",
+        cycle_id=cycle_id,
+        posture=_regime_label,
+        regime=_regime_label,
+        excluded_sectors=excluded,
+        universe_size=len(all_candidates or []),
+        candidates_considered=len(tickers),
+        top_10_symbols=[r.get("symbol") for r in top_10],
+        top_10_uw_scores=[r.get("uw_composite_score") for r in top_10],
+        config_snapshot=config_snapshot,
+        wheel_budget=round(wheel_budget, 2),
+        wheel_used=round(wheel_used, 2),
+        wheel_available=round(wheel_available, 2),
+        per_position_limit=round(per_position_limit, 2),
+    )
+    csp_placed, first_placed_symbol, selected_meta = _run_csp_phase(
+        api, config, account_equity, buying_power, positions, open_orders,
+        cycle_id=cycle_id,
+        tickers_override=tickers,
+        selected_meta_override=selected_meta,
+        all_candidates_override=all_candidates,
+    )
     result["csp_placed"] = csp_placed
     result["orders_placed"] += csp_placed
-    _emit_wheel_candidate_ranked(tickers, selected_meta, first_placed_symbol, csp_placed)
+    if csp_placed == 0 and len(tickers) > 0:
+        _wheel_system_event("wheel_alert_stuck", cycle_id=cycle_id, reason="no_submission_this_cycle", candidates_considered=len(tickers))
+    _emit_wheel_candidate_ranked(tickers, selected_meta, first_placed_symbol, csp_placed, cycle_id=cycle_id)
     cc_placed = _run_cc_phase(api, config, account_equity, positions)
     result["cc_placed"] = cc_placed
     result["orders_placed"] += cc_placed

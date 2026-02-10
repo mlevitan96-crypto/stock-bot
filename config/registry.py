@@ -157,6 +157,11 @@ class StateFiles:
     # Wheel strategy: assigned shares and open CSP/CC tracking.
     WHEEL_STATE = Directories.STATE / "wheel_state.json"
 
+    # Open-position signal propagation: last evaluated signal strength per symbol (dashboard + audit).
+    SIGNAL_STRENGTH_CACHE = Directories.STATE / "signal_strength_cache.json"
+    # Signal correlation analytics (read-only): top pairs and per-symbol concentration.
+    SIGNAL_CORRELATION_CACHE = Directories.STATE / "signal_correlation_cache.json"
+
 
 class LogFiles:
     """All log files - single source of truth."""

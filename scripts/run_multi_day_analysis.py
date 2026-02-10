@@ -270,21 +270,50 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Multi-Day Analysis (Board V3)")
     ap.add_argument("--date", default="", help="YYYY-MM-DD (default today UTC)")
     ap.add_argument("--base-dir", default="", help="Repo root (default: script parent)")
+    ap.add_argument("--backfill-days", type=int, default=0, help="One-time backfill: run for last N days (1..N)")
     args = ap.parse_args()
-    target_date = args.date.strip() or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     base = Path(args.base_dir) if args.base_dir else ROOT
 
+    if args.backfill_days and args.backfill_days > 0:
+        # One-time backfill: populate windows for each of the last N days
+        today = datetime.now(timezone.utc).date()
+        for i in range(args.backfill_days):
+            d = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+            _run_one_date(base, d)
+        print(f"Backfill complete: {args.backfill_days} days written to board/eod/out/<date>/")
+        return 0
+
+    target_date = args.date.strip() or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return _run_one_date(base, target_date)
+
+
+def _run_one_date(base: Path, target_date: str) -> int:
     try:
         t = datetime.strptime(target_date, "%Y-%m-%d")
     except ValueError:
         print(f"Invalid date: {target_date}", file=sys.stderr)
         return 1
 
+    # 1/3/5/7 day windows (first-class for Board)
     windows = {}
-    for w in [3, 5, 7]:
+    for w in [1, 3, 5, 7]:
         start = t - timedelta(days=w - 1)
         days = [(start + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(w)]
         windows[f"{w}_day"] = _compute_window(base, days, w)
+
+    # Rolling-window aggregates (win_rate, pnl, exit_reason_counts, blocked_trade_counts, signal_decay_exit_rate)
+    try:
+        from board.eod.rolling_windows import build_rolling_windows
+        rolling = build_rolling_windows(base, target_date, window_sizes=[1, 3, 5, 7])
+    except Exception as e:
+        print(f"Warning: rolling_windows failed: {e}", file=sys.stderr)
+        rolling = {
+            "win_rate_by_window": {},
+            "pnl_by_window": {},
+            "exit_reason_counts_by_window": {},
+            "blocked_trade_counts_by_window": {},
+            "signal_decay_exit_rate_by_window": {},
+        }
 
     out_dir = base / "board" / "eod" / "out" / target_date
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -292,6 +321,11 @@ def main() -> int:
     payload = {
         "date": target_date,
         "multi_day_analysis": windows,
+        "win_rate_by_window": rolling.get("win_rate_by_window", {}),
+        "pnl_by_window": rolling.get("pnl_by_window", {}),
+        "exit_reason_counts_by_window": rolling.get("exit_reason_counts_by_window", {}),
+        "blocked_trade_counts_by_window": rolling.get("blocked_trade_counts_by_window", {}),
+        "signal_decay_exit_rate_by_window": rolling.get("signal_decay_exit_rate_by_window", {}),
     }
 
     json_path = out_dir / "multi_day_analysis.json"
@@ -302,7 +336,7 @@ def main() -> int:
         "",
         "## Summary",
         "",
-        f"Rolling windows: 3-day, 5-day, 7-day (ending {target_date}).",
+        f"Rolling windows: 1-day, 3-day, 5-day, 7-day (ending {target_date}).",
         "",
     ]
     for wkey, wdata in windows.items():

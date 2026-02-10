@@ -7,9 +7,10 @@ Board Upgrade V3 extends the AI Board with multi-day intelligence, multi-day reg
 
 ### 1. Multi-Day Analysis Module
 - **Script:** `scripts/run_multi_day_analysis.py`
-- **Execution:** Runs automatically after daily EOD pipeline
-- **Windows:** Computes rolling 3-day, 5-day, 7-day windows
-- **Outputs:** `board/eod/out/YYYY-MM-DD/multi_day_analysis.json` and `.md`
+- **Execution:** Runs automatically after daily EOD pipeline (or one-time `--backfill-days 7` to populate from existing logs/state).
+- **Windows:** Computes rolling **1-day, 3-day, 5-day, 7-day** windows (first-class for Board).
+- **First-class aggregates (exposed to Board):** `win_rate_by_window`, `pnl_by_window`, `exit_reason_counts_by_window`, `blocked_trade_counts_by_window`, `signal_decay_exit_rate_by_window`.
+- **Outputs:** `board/eod/out/YYYY-MM-DD/multi_day_analysis.json` and `.md` (when run as script). Board runner persists rolling windows to `state/eod_rolling_windows_<date>.json` and uses them in the prompt.
 
 **Metrics Computed:**
 - Regime persistence and regime transition probability
@@ -54,7 +55,23 @@ All existing agents now:
 - **SRE Audit Officer:** Ensures multi-day analysis pipeline health
 - **Customer Profit Advocate:** Tracks multi-day commitments, requires multi-day evidence
 
-### 4. Multi-Day Sections in Daily Board Review
+### 4. Multi-Role Adversarial EOD and 9-File Bundle
+- **Daily output folder:** `board/eod/out/<YYYY-MM-DD>/` with **≤9 canonical files**:
+  1. `eod_board.json` — structured answers + executive_answers, customer_advocate_challenges, unresolved_disputes, missed_money
+  2. `eod_board.md` — human-readable narrative
+  3. `eod_review.md` — consolidated truth (multi-day from rolling windows)
+  4. `derived_deltas.json` — missed money + rolling window trends
+  5. `raw_exit_attribution.jsonl.gz`
+  6. `raw_blocked_trades.jsonl.gz`
+  7. `raw_signal_events.jsonl.gz`
+  8. `raw_attribution.jsonl.gz`
+  9. `weekly_review.md` — week-to-date from daily outputs (no raw reprocessing)
+- **Executive roles (mandatory):** CEO, CTO/SRE, Head of Trading, Risk/CRO — each must answer role-specific questions and **cite raw or derived data** (e.g. pnl_by_window, exit_reason_counts_by_window).
+- **Customer Advocate (mandatory adversarial):** Must challenge each executive with: What data supports this? What did this cost the customer? Why hasn't this been fixed yet? What happens if we do nothing?
+- **Missed money:** Board MUST quantify or mark unknown: `blocked_trade_opportunity_cost`, `early_exit_opportunity_cost`, `correlation_concentration_cost` (unknown must include reason and missing_inputs/instrumentation_needed).
+- **Validation:** Board run FAILS if rolling windows are not referenced, executives do not cite data, Customer Advocate does not challenge, no concrete change is proposed, or missed_money is incomplete.
+
+### 5. Multi-Day Sections in Daily Board Review
 The daily Board Review template now includes:
 
 **4.1 Multi-Day Regime Summary**
@@ -93,7 +110,7 @@ Promotion Officer evaluates:
 - Multi-day stability
 - Multi-day promotion blockers
 
-### 5. Multi-Day Commitments Tracking
+### 6. Multi-Day Commitments Tracking
 Extended from yesterday's commitments to include:
 - **1-day commitments** (yesterday)
 - **3-day commitments**
@@ -107,7 +124,7 @@ Board reports:
 
 Customer Profit Advocate challenges any incomplete commitments.
 
-### 6. Board Review Packager Updates
+### 7. Board Review Packager Updates
 - `scripts/board_daily_packager.py` now includes `multi_day_analysis.json` and `.md` in the combined outputs
 - Multi-day analysis is automatically appended to `daily_board_review.md` and included in `daily_board_review.json`
 
