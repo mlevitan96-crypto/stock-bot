@@ -103,6 +103,11 @@ See `reports/DASHBOARD_ENDPOINT_MAP.md` for the full endpoint → data location 
 - **Verification report:** `python3 scripts/wheel_spot_resolution_verification.py --days 7` writes `reports/wheel_spot_resolution_verification_<date>.md` with resolved vs unavailable counts, spot_source distribution, first option-chain reach, wheel_order_submitted/filled, and next blocker with evidence.
 - **Debugging:** If all cycles are wheel_spot_unavailable, run_wheel_check_on_droplet.py exits 1. Inspect quote_fields_present in events to see which Alpaca fields were present; ensure normalize_alpaca_quote and bar fallback are correct for your Alpaca API shape.
 
+### Strategy capital allocation
+- **Fixed partitioning:** Wheel 25%, equity 75% of total account equity (config: `config/strategies.yaml` → `capital_allocation`). No strategy may consume the other’s capital; enforced at order time via `capital/strategy_allocator.can_allocate()`.
+- **Wheel independence:** Wheel budget = total_equity × 0.25; wheel_used = sum(open CSP notionals from `state/wheel_state.json`). Before each CSP, the wheel calls the allocator; if allocation would be exceeded, it emits **wheel_capital_blocked** and continues to the next candidate. Equity trades cannot starve the wheel.
+- **Audit:** In `logs/system_events.jsonl` (subsystem=wheel): **wheel_capital_check** (wheel_budget, wheel_used, wheel_available, required_notional, decision, reason); **wheel_capital_blocked** when blocked (includes full budget math). Run `python3 scripts/run_wheel_check_on_droplet.py` and inspect “LAST 5 wheel_capital_check / wheel_capital_blocked” to verify budget ≈ 25% of equity and allow/block decisions.
+
 ---
 
 ## 8. Wheel troubleshooting (A/B/C/D)
@@ -111,7 +116,7 @@ When wheel analytics stay at zero or no FILLED trades appear, determine the sing
 
 | Check | Location | What to look for |
 |-------|----------|------------------|
-| **1. System events** | `logs/system_events.jsonl` | Filter `subsystem=wheel`. Counts: wheel_run_started, wheel_spot_resolved, wheel_spot_unavailable, wheel_csp_skipped (by reason), wheel_order_submitted, wheel_order_filled, wheel_order_failed. |
+| **1. System events** | `logs/system_events.jsonl` | Filter `subsystem=wheel`. Counts: wheel_run_started, wheel_spot_resolved, wheel_spot_unavailable, wheel_capital_check, wheel_capital_blocked, wheel_csp_skipped (by reason), wheel_order_submitted, wheel_order_filled, wheel_order_failed. |
 | **2. Telemetry** | `logs/telemetry.jsonl` | Filter `strategy_id=wheel`. Count rows; confirm premium present when orders filled. |
 | **3. Attribution** | `logs/attribution.jsonl` | Filter `strategy_id=wheel`. Count rows; sample for wheel phase/premium. |
 | **4. State** | `state/wheel_state.json` | File mtime and content (open_csps, etc.) changing across cycles/days. |

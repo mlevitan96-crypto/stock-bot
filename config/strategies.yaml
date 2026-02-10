@@ -2,6 +2,17 @@
 # Both strategies share: repo, droplet, UW, cron, logging.
 # All orders/logs/telemetry are tagged with strategy_id.
 
+# Fixed strategy capital partitioning (authoritative). No strategy may consume the other's capital.
+capital_allocation:
+  mode: fixed
+  strategies:
+    wheel:
+      allocation_pct: 25
+      min_free_cash_pct: 0
+    equity:
+      allocation_pct: 75
+      min_free_cash_pct: 0
+
 strategies:
   equity:
     enabled: true

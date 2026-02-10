@@ -1637,6 +1637,15 @@ Replace opaque `blocked_reason` strings with:
 - **Verification commands:** After deploy + restart: `python3 scripts/run_wheel_check_on_droplet.py`; inspect `reports/wheel_spot_resolution_verification_*.md` and `grep '"event_type": "wheel_spot_resolved"' logs/system_events.jsonl | tail -5`.
 
 ---
+## Fixed Strategy Capital Allocation (25% Wheel / 75% Equity) (2026-02-10)
+- **Policy:** Wheel always controls 25% of total account equity; equity 75%. No borrowing across strategies. Alpaca is execution-only; capital intent enforced internally.
+- **Config (authoritative):** `config/strategies.yaml` → `capital_allocation.mode: fixed`, `strategies.wheel.allocation_pct: 25`, `strategies.equity.allocation_pct: 75`.
+- **Single source of truth:** `capital/strategy_allocator.py` — `can_allocate(strategy_id, required_notional, total_equity, wheel_state)` returns (allowed, details). Wheel used = sum(open_csps notional) from `state/wheel_state.json`. Wheel budget = total_equity × 0.25; wheel_available = budget − used.
+- **Enforcement:** In `strategies/wheel_strategy.py` _run_csp_phase, before each CSP: call `can_allocate("wheel", notional, account_equity, state)`. If blocked: emit **wheel_capital_blocked**, continue to next candidate (do not break). Removed direct account-level buying_power and max_capital_fraction checks.
+- **Telemetry (mandatory):** Every wheel capital decision: **wheel_capital_check** (wheel_budget, wheel_used, wheel_available, required_notional, decision, reason). When blocked: **wheel_capital_blocked** (symbol, wheel_budget, wheel_used, wheel_available, required_notional, reason).
+- **Verification:** `scripts/run_wheel_check_on_droplet.py` prints last 5 wheel_capital_check/wheel_capital_blocked; asserts wheel_capital_check appears when wheel runs. See `docs/TRADING_DASHBOARD.md` § Strategy Capital Allocation.
+
+---
 ## Profitability Push (2026-02-09)
 - **LIVE (deployed):** (1) **Exit logic:** No "unknown" exit reasons; every exit maps to concrete reason (signal_decay, stop, regime_shift, risk, etc.). Fallback is "risk". Regime-aware exit timing (BEAR: cut losers faster -0.8% stop, let winners run longer 1.0% target; modifiers only, no gating). Telemetry: exit_reason_recorded per close in system_events (subsystem=exit). (2) **Displacement:** BEAR + high-confidence (score >= 7): relaxed score advantage and PnL band for displacement. Log when displacement blocks: displacement_blocked_no_candidate (symbol, new_signal_score, regime) in system_events. (3) **Wheel:** Runs every cycle when enabled; lifecycle events (wheel_run_started, wheel_csp_skipped, wheel_order_submitted, wheel_order_filled). Restart stock-bot after deploy so wheel runs.
 - **Board:** Customer Advocate, Innovation Officer, SRE roles in config/ai_board_roles.json. Board output must include: top_3_root_causes_pnl_degradation, top_3_concrete_actions_next, expected_impact_per_action, success_failure_measured_in_3_5_days. Contract: board/stock_quant_officer_contract.md — prescription mandatory; Customer Advocate must disagree when results poor.

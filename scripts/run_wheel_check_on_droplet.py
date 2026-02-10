@@ -34,6 +34,8 @@ def main() -> int:
         "(grep '\"event_type\": \"wheel_run_started\"' logs/system_events.jsonl 2>/dev/null | tail -1 || echo 'None') && "
         "echo '' && echo '=== LAST 5 wheel_spot_resolved / wheel_spot_unavailable ===' && "
         "(grep -E '\"event_type\": \"wheel_spot_resolved\"|\"event_type\": \"wheel_spot_unavailable\"' logs/system_events.jsonl 2>/dev/null | tail -5 || echo 'None') && "
+        "echo '' && echo '=== LAST 5 wheel_capital_check / wheel_capital_blocked ===' && "
+        "(grep -E '\"event_type\": \"wheel_capital_check\"|\"event_type\": \"wheel_capital_blocked\"' logs/system_events.jsonl 2>/dev/null | tail -5 || echo 'None') && "
         "echo '' && echo '=== LAST 5 wheel_csp_skipped ===' && "
         "(grep '\"event_type\": \"wheel_csp_skipped\"' logs/system_events.jsonl 2>/dev/null | tail -5 || echo 'None') && "
         "echo '' && echo '=== WORKER DEBUG LOG (last 25 lines) ===' && "
@@ -77,6 +79,14 @@ def main() -> int:
     if "No spot resolved" in out_str and "FAIL" in out_str:
         print("\n*** FAIL: Spot resolution verification report indicates no spot resolved. ***", file=sys.stderr)
         return 1
+
+    # Capital partitioning: wheel_capital_check must appear when wheel runs (fixed 25% allocation in effect)
+    if '"event_type": "wheel_run_started"' in out_str and '"event_type": "wheel_capital_check"' not in out_str:
+        print("\n*** WARN: wheel_run_started present but no wheel_capital_check events. Ensure capital allocator is deployed. ***", file=sys.stderr)
+    if '"event_type": "wheel_capital_check"' in out_str:
+        print("\n[OK] wheel_capital_check events present (fixed 25% wheel allocation in effect).", file=sys.stderr)
+    if '"event_type": "wheel_capital_blocked"' in out_str:
+        print("\n[INFO] wheel_capital_blocked occurred; see LAST 5 wheel_capital_check/wheel_capital_blocked above for budget math.", file=sys.stderr)
 
     return rc
 

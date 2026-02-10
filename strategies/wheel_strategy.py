@@ -483,9 +483,10 @@ def _resolve_spot(api: Any, symbol: str) -> Tuple[float, str]:
 
 def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float, positions: list, open_orders: list) -> Tuple[int, Optional[str], List[dict]]:
     """Sell cash-secured puts. Returns (count placed, first placed symbol or None, selected_meta for telemetry)."""
+    from capital.strategy_allocator import can_allocate
+
     csp_cfg = config.get("csp", {})
     risk_cfg = config.get("risk", {})
-    max_cap_frac = config.get("max_capital_fraction", 0.5)
     max_pos = config.get("max_positions", 5)
     per_pos_frac = config.get("per_position_capital_fraction", 0.05)
     max_per_symbol = risk_cfg.get("max_positions_per_symbol", 2)
@@ -512,12 +513,6 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
     today = datetime.now(timezone.utc).date()
     exp_gte = (today + timedelta(days=dte_min)).strftime("%Y-%m-%d")
     exp_lte = (today + timedelta(days=dte_max)).strftime("%Y-%m-%d")
-    wheel_capital_used = sum(
-        float(p.get("strike", 0) * 100 * int(p.get("qty", 0)))
-        for p in (open_csps.get(s) or [] for s in open_csps)
-        for p in (p if isinstance(p, list) else [p])
-    )
-    max_wheel_cap = account_equity * max_cap_frac
     total_wheel_positions = sum(len(v) if isinstance(v, list) else 1 for v in open_csps.values())
     per_symbol_count = {}
     for t in tickers:
@@ -577,17 +572,23 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
         if not occ_symbol:
             continue
         notional = chosen["strike"] * 100
-        if wheel_capital_used + notional > max_wheel_cap:
-            log.info("Wheel CSP: capital limit reached (used=%.0f, max=%.0f)", wheel_capital_used, max_wheel_cap)
-            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="capital_limit")
-            break
+        allowed, alloc_details = can_allocate("wheel", notional, account_equity, state)
+        _wheel_system_event(
+            "wheel_capital_check",
+            wheel_budget=alloc_details["strategy_budget"],
+            wheel_used=alloc_details["strategy_used"],
+            wheel_available=alloc_details["strategy_available"],
+            required_notional=alloc_details["required_notional"],
+            decision="allow" if allowed else "block",
+            reason=alloc_details["decision_reason"],
+        )
+        if not allowed:
+            log.info("Wheel CSP: capital blocked (available=%.0f, required=%.0f)", alloc_details["strategy_available"], notional)
+            _wheel_system_event("wheel_capital_blocked", symbol=t, wheel_budget=alloc_details["strategy_budget"], wheel_used=alloc_details["strategy_used"], wheel_available=alloc_details["strategy_available"], required_notional=notional, reason=alloc_details["decision_reason"])
+            continue
         if notional > account_equity * per_pos_frac:
             log.info("Wheel CSP: per-position limit for %s (notional=%.0f)", t, notional)
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="per_position_limit")
-            continue
-        if buying_power < notional:
-            log.info("Wheel CSP: insufficient buying power for %s", t)
-            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="insufficient_buying_power")
             continue
         existing = [o for o in (open_orders or []) if getattr(o, "symbol", "") == occ_symbol]
         if existing:
@@ -648,8 +649,8 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
         _save_wheel_state(state)
         placed += 1
         total_wheel_positions += 1
-        wheel_capital_used += notional
         first_placed_symbol = first_placed_symbol or t
+        # state["open_csps"] already updated above; next can_allocate will see new used
     return placed, first_placed_symbol, selected_meta
 
 
