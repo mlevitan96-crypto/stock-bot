@@ -85,6 +85,7 @@ See `reports/DASHBOARD_ENDPOINT_MAP.md` for the full endpoint → data location 
 - **Order of operations:** (1) Load universe from `config/universe_wheel_expanded.yaml` (or `universe_source`). (2) Filter by sector (excluded sectors), earnings window, and per-symbol position count. (3) **Rank by UW intelligence:** read `data/uw_flow_cache.json`, compute UW composite score per symbol via `uw_composite_v2.compute_composite_score_v2(symbol, enriched, regime)`; sort by score descending. (4) Take top N (`universe_max_candidates`, e.g. 10). (5) For each ticker in that order, run hard filters in `_run_csp_phase`: earnings, IV rank, **spot quote** (no_spot skip), **option contracts** in DTE/delta range (no_contracts skip), capital/position limits. (6) First ticker that passes gets the CSP order (if any).
 - **UW is primary:** Ticker choice is driven by UW composite score when the cache is available; liquidity/OI/spread are attached for telemetry and secondary sort when UW is missing.
 - **Verify:** Each cycle emits `wheel_candidate_ranked` in `logs/system_events.jsonl` (subsystem=wheel) with `top_5_symbols`, `top_5_uw_scores`, `chosen` or `reason_none`. Run `grep '"subsystem": "wheel"' logs/system_events.jsonl | grep wheel_candidate_ranked` on the droplet.
+- **Validate wheel intelligence without market hours:** Run the dry-run script from repo root: `python3 scripts/wheel_dry_run_rank.py`. It loads the wheel universe and UW cache, ranks by UW intelligence (same as live PATH B), and emits `wheel_candidate_ranked` to `logs/system_events.jsonl` with `reason_none="dry_run_rank_only"` and no broker/quote/options calls. Confirm with: `grep '"event_type": "wheel_candidate_ranked"' logs/system_events.jsonl | tail -1`. See MEMORY_BANK § Wheel Dry-Run Validation.
 
 ## 7. Validation
 
@@ -92,6 +93,15 @@ See `reports/DASHBOARD_ENDPOINT_MAP.md` for the full endpoint → data location 
 - Dashboard checks: `scripts/verify_dashboard_contracts.py`, `scripts/verify_wheel_endpoints_on_droplet.py`.
 - After deployment: confirm Health and P&L on Top Strip and in Executive Summary; Wheel metrics when wheel has traded; Signal Strength columns show non-zero when positions exist and cache is fresh.
 - Wheel lifecycle events: `logs/system_events.jsonl` (subsystem=wheel) for wheel_run_started, wheel_regime_audit, wheel_candidate_ranked, wheel_csp_skipped, wheel_order_submitted, wheel_order_filled.
+
+### Wheel spot resolution
+- **Contract:** All spot comes from `normalize_alpaca_quote(api.get_quote())` + optional 1Min bar close, then `resolve_spot_from_market_data()`. Order: ask → bid → last_trade → bar_close. No inline quote field access elsewhere.
+- **Events (exactly one per symbol attempt):**  
+  - **wheel_spot_resolved** — symbol, spot_price, spot_source ("ask"|"bid"|"last_trade"|"bar_close"), quote_fields_present, bar_used.  
+  - **wheel_spot_unavailable** — symbol, quote_fields_present, bar_attempted.  
+  no_spot skip is only emitted when wheel_spot_unavailable was emitted for that symbol.
+- **Verification report:** `python3 scripts/wheel_spot_resolution_verification.py --days 7` writes `reports/wheel_spot_resolution_verification_<date>.md` with resolved vs unavailable counts, spot_source distribution, first option-chain reach, wheel_order_submitted/filled, and next blocker with evidence.
+- **Debugging:** If all cycles are wheel_spot_unavailable, run_wheel_check_on_droplet.py exits 1. Inspect quote_fields_present in events to see which Alpaca fields were present; ensure normalize_alpaca_quote and bar fallback are correct for your Alpaca API shape.
 
 ---
 
@@ -101,7 +111,7 @@ When wheel analytics stay at zero or no FILLED trades appear, determine the sing
 
 | Check | Location | What to look for |
 |-------|----------|------------------|
-| **1. System events** | `logs/system_events.jsonl` | Filter `subsystem=wheel`. Counts: wheel_run_started, wheel_csp_skipped (by reason), wheel_order_submitted, wheel_order_filled, wheel_order_failed. |
+| **1. System events** | `logs/system_events.jsonl` | Filter `subsystem=wheel`. Counts: wheel_run_started, wheel_spot_resolved, wheel_spot_unavailable, wheel_csp_skipped (by reason), wheel_order_submitted, wheel_order_filled, wheel_order_failed. |
 | **2. Telemetry** | `logs/telemetry.jsonl` | Filter `strategy_id=wheel`. Count rows; confirm premium present when orders filled. |
 | **3. Attribution** | `logs/attribution.jsonl` | Filter `strategy_id=wheel`. Count rows; sample for wheel phase/premium. |
 | **4. State** | `state/wheel_state.json` | File mtime and content (open_csps, etc.) changing across cycles/days. |

@@ -201,6 +201,8 @@ def _emit_wheel_candidate_ranked(
     selected_meta: List[dict],
     first_placed_symbol: Optional[str],
     csp_placed: int,
+    *,
+    reason_none_override: Optional[str] = None,
 ) -> None:
     """Emit wheel_candidate_ranked system event: top 5 candidates, UW metrics, final chosen or reason none."""
     try:
@@ -214,7 +216,7 @@ def _emit_wheel_candidate_ranked(
             payload["chosen"] = first_placed_symbol
         else:
             payload["chosen"] = None
-            payload["reason_none"] = "no_order_placed" if csp_placed == 0 else "none_this_cycle"
+            payload["reason_none"] = reason_none_override if reason_none_override else ("no_order_placed" if csp_placed == 0 else "none_this_cycle")
         _wheel_system_event("wheel_candidate_ranked", **payload)
     except Exception as e:
         log.debug("wheel_candidate_ranked emit failed: %s", e)
@@ -314,6 +316,171 @@ def _check_iv_rank(underlying: str, min_iv_rank: float) -> bool:
     return True
 
 
+# -----------------------------------------------------------------------------
+# Alpaca quote contract and spot resolution (single source of truth)
+# -----------------------------------------------------------------------------
+
+
+def normalize_alpaca_quote(raw_quote: Any) -> Optional[Dict[str, Any]]:
+    """
+    Normalize raw api.get_quote() return into a canonical dict.
+    Never raises. Returns None only if raw_quote is None.
+    """
+    if raw_quote is None:
+        return None
+    out: Dict[str, Any] = {
+        "ask": None,
+        "bid": None,
+        "last_trade": None,
+        "source_fields_present": [],
+    }
+    fields_found: List[str] = []
+
+    def _try_float(val: Any) -> Optional[float]:
+        try:
+            if val is None:
+                return None
+            v = float(val)
+            return v if v > 0 else None
+        except (TypeError, ValueError):
+            return None
+
+    # Ask: multiple possible attribute names (object or dict)
+    for key in ("ap", "ask_price", "askprice", "AskPrice", "ask"):
+        try:
+            if hasattr(raw_quote, key):
+                v = _try_float(getattr(raw_quote, key))
+                if v is not None and out["ask"] is None:
+                    out["ask"] = v
+                    fields_found.append(key)
+            elif isinstance(raw_quote, dict) and key in raw_quote:
+                v = _try_float(raw_quote[key])
+                if v is not None and out["ask"] is None:
+                    out["ask"] = v
+                    fields_found.append(key)
+        except Exception:
+            pass
+
+    # Bid
+    for key in ("bp", "bid_price", "bidprice", "BidPrice", "bid"):
+        try:
+            if hasattr(raw_quote, key):
+                v = _try_float(getattr(raw_quote, key))
+                if v is not None and out["bid"] is None:
+                    out["bid"] = v
+                    if key not in fields_found:
+                        fields_found.append(key)
+            elif isinstance(raw_quote, dict) and key in raw_quote:
+                v = _try_float(raw_quote[key])
+                if v is not None and out["bid"] is None:
+                    out["bid"] = v
+                    if key not in fields_found:
+                        fields_found.append(key)
+        except Exception:
+            pass
+
+    # Last trade (nested object or dict with price / p)
+    try:
+        lt = getattr(raw_quote, "last_trade", None) or (raw_quote.get("last_trade") if isinstance(raw_quote, dict) else None)
+        if lt is not None:
+            for pk in ("price", "p", "Price"):
+                p = getattr(lt, pk, None) if not isinstance(lt, dict) else lt.get(pk)
+                v = _try_float(p)
+                if v is not None:
+                    out["last_trade"] = v
+                    if "last_trade" not in fields_found:
+                        fields_found.append("last_trade")
+                    break
+    except Exception:
+        pass
+
+    out["source_fields_present"] = fields_found
+    return out
+
+
+def resolve_spot_from_market_data(
+    normalized_quote: Optional[Dict[str, Any]],
+    bar_close: Optional[float],
+) -> Tuple[Optional[float], Optional[str]]:
+    """
+    Single place where spot is resolved. Strict order: ask > bid > last_trade > bar_close.
+    Returns (spot_price, spot_source). spot_source is one of "ask"|"bid"|"last_trade"|"bar_close".
+    Returns (None, None) if no valid price.
+    """
+    if normalized_quote:
+        ask = normalized_quote.get("ask")
+        if ask is not None and ask > 0:
+            return (ask, "ask")
+        bid = normalized_quote.get("bid")
+        if bid is not None and bid > 0:
+            return (bid, "bid")
+        last_trade = normalized_quote.get("last_trade")
+        if last_trade is not None and last_trade > 0:
+            return (last_trade, "last_trade")
+    if bar_close is not None and bar_close > 0:
+        return (bar_close, "bar_close")
+    return (None, None)
+
+
+def _get_latest_bar_close(api: Any, symbol: str) -> Optional[float]:
+    """Fetch most recent 1Min bar close. Never raises; returns None on failure."""
+    try:
+        bars = api.get_bars(symbol, "1Min", limit=1)
+        if bars is None:
+            return None
+        if hasattr(bars, "df") and bars.df is not None and not bars.df.empty:
+            df = bars.df
+            close = df["c"].iloc[-1] if "c" in df.columns else df["close"].iloc[-1]
+            return float(close) if close is not None else None
+        if isinstance(bars, list) and bars:
+            b = bars[-1]
+            c = getattr(b, "c", None) or getattr(b, "close", None)
+            if c is None and isinstance(b, dict):
+                c = b.get("c") or b.get("close")
+            return float(c) if c is not None else None
+    except Exception as e:
+        log.debug("get_bars(%s) for spot failed: %s", symbol, e)
+    return None
+
+
+def _resolve_spot(api: Any, symbol: str) -> Tuple[float, str]:
+    """
+    Resolve spot for symbol using normalized quote contract + bar fallback.
+    Emits wheel_spot_resolved or wheel_spot_unavailable. Returns (spot, source) for caller;
+    if unavailable, returns (0.0, "none") so no_spot skip is correct.
+    """
+    raw_quote = None
+    try:
+        raw_quote = api.get_quote(symbol)
+    except Exception as e:
+        log.debug("get_quote(%s) failed: %s", symbol, e)
+    normalized = normalize_alpaca_quote(raw_quote)
+    bar_close = _get_latest_bar_close(api, symbol)
+    spot, source = resolve_spot_from_market_data(normalized, bar_close)
+
+    quote_fields_present = (normalized.get("source_fields_present") or []) if normalized else []
+    bar_used = source == "bar_close"
+    bar_attempted = bar_close is not None
+
+    if spot is not None and spot > 0 and source:
+        _wheel_system_event(
+            "wheel_spot_resolved",
+            symbol=symbol,
+            spot_price=round(spot, 2),
+            spot_source=source,
+            quote_fields_present=quote_fields_present,
+            bar_used=bar_used,
+        )
+        return (spot, source)
+    _wheel_system_event(
+        "wheel_spot_unavailable",
+        symbol=symbol,
+        quote_fields_present=quote_fields_present,
+        bar_attempted=bar_attempted,
+    )
+    return (0.0, "none")
+
+
 def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float, positions: list, open_orders: list) -> Tuple[int, Optional[str], List[dict]]:
     """Sell cash-secured puts. Returns (count placed, first placed symbol or None, selected_meta for telemetry)."""
     csp_cfg = config.get("csp", {})
@@ -369,19 +536,7 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
         if sym_count >= max_per_symbol:
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="max_per_symbol")
             continue
-        try:
-            quote = api.get_quote(t)
-            spot = 0.0
-            if hasattr(quote, "ap") and quote.ap:
-                spot = float(quote.ap)
-            elif hasattr(quote, "ask_price") and quote.ask_price:
-                spot = float(quote.ask_price)
-            elif isinstance(quote, dict):
-                spot = float(quote.get("ap") or quote.get("ask_price") or 0)
-            if spot <= 0 and hasattr(quote, "bp"):
-                spot = float(quote.bp or 0)
-        except Exception:
-            spot = 0
+        spot, spot_source = _resolve_spot(api, t)
         if spot <= 0:
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="no_spot")
             continue
@@ -527,19 +682,7 @@ def _run_cc_phase(api, config: dict, account_equity: float, positions: list) -> 
         if lots:
             cb_sum = sum(float(l.get("cost_basis", l.get("strike", 0))) for l in lots)
             cost_basis = cb_sum / len(lots)
-        try:
-            quote = api.get_quote(symbol)
-            spot = 0.0
-            if hasattr(quote, "ap") and quote.ap:
-                spot = float(quote.ap)
-            elif hasattr(quote, "ask_price") and quote.ask_price:
-                spot = float(quote.ask_price)
-            elif isinstance(quote, dict):
-                spot = float(quote.get("ap") or quote.get("ask_price") or 0)
-            if spot <= 0 and hasattr(quote, "bp"):
-                spot = float(quote.bp or 0)
-        except Exception:
-            spot = 0
+        spot, spot_source = _resolve_spot(api, symbol)
         if spot <= 0:
             continue
         call_contracts = _get_option_contracts(api, symbol, "call", exp_gte, exp_lte)

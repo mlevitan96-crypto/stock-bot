@@ -1623,6 +1623,19 @@ Replace opaque `blocked_reason` strings with:
 - **Verification (next cycle):** (1) On droplet, run `wheel_root_cause_report.py --days 5` and open the generated report. (2) If A: confirm strategies.yaml wheel.enabled and that no exception prevents wheel invocation. (3) If B: use report’s skip-reason table; address top reasons (universe/DTE/limits) without relaxing risk limits broadly. (4) If C: inspect last submitted orders; improve order type/price within policy; add “not filled because …” logs. (5) If D: ensure _load_stock_closed_trades and wheel_analytics filter include strategy_id=wheel; run contract test. (6) Truth checks: wheel_run_started each cycle; skip reasons logged if skipping; order_submitted/order_filled with order_id/premium when applicable; telemetry and dashboard analytics consistent.
 - **Docs:** `docs/TRADING_DASHBOARD.md` §8 — Wheel troubleshooting (where to look: system_events, telemetry, state, endpoint; how to interpret A/B/C/D; diagnostic script; regime = modifier-only).
 
+### Droplet wheel check (2026-02-10)
+- **Ran via SSH:** `python scripts/run_wheel_check_on_droplet.py` (uses DropletClient; full output in `reports/droplet_wheel_check_YYYY-MM-DD.txt`).
+- **Result:** **Outcome B — Wheel RUNNING but ALWAYS SKIPPING.** wheel_run_started = 30 (last 7 days), wheel_order_submitted = 0, wheel_order_filled = 0. **Blocking reason: no_spot (840 skips).** Every candidate is skipped because `api.get_quote(symbol)` returns no valid bid/ask (spot <= 0 or exception) in `strategies/wheel_strategy.py` _run_csp_phase().
+- **Root cause:** Alpaca quote API (paper) shape mismatch — quote object may use different attribute names or return None/partial; narrow spot extraction (ap/ask_price only) failed for all symbols.
+
+### Wheel spot resolution — Alpaca contract and verification (2026-02-10)
+- **Alpaca quote contract (definitive):** `normalize_alpaca_quote(raw_quote)` in `strategies/wheel_strategy.py` — accepts raw `api.get_quote()` return; never raises; returns None only if raw_quote is None. Normalized dict: `ask`, `bid`, `last_trade` (float | None), `source_fields_present` (list of field names found). Handles object and dict; extracts ap/ask_price/askprice, bp/bid_price/bidprice, last_trade.price|p.
+- **Single spot resolution:** `resolve_spot_from_market_data(normalized_quote, bar_close)` — only place spot is resolved. Order: ask > bid > last_trade > bar_close; returns (spot_price, spot_source) or (None, None). CSP and CC both use `_resolve_spot(api, symbol)` which gets quote → normalize → get bar close → resolve_spot_from_market_data → emit telemetry.
+- **Telemetry (mandatory):** Every attempt emits either **wheel_spot_resolved** (symbol, spot_price, spot_source, quote_fields_present, bar_used) or **wheel_spot_unavailable** (symbol, quote_fields_present, bar_attempted). no_spot skip occurs only when wheel_spot_unavailable was emitted.
+- **Verification report:** `python3 scripts/wheel_spot_resolution_verification.py --days 7` → `reports/wheel_spot_resolution_verification_<date>.md` (counts resolved vs unavailable, spot_source distribution, first option-chain reach, wheel_order_submitted/filled, next blocker with evidence).
+- **Droplet check assertion:** `scripts/run_wheel_check_on_droplet.py` runs the verification script and **fails with exit 1** if wheel_spot_resolved == 0 and wheel_spot_unavailable > 0 (no spot resolved during market hours).
+- **Verification commands:** After deploy + restart: `python3 scripts/run_wheel_check_on_droplet.py`; inspect `reports/wheel_spot_resolution_verification_*.md` and `grep '"event_type": "wheel_spot_resolved"' logs/system_events.jsonl | tail -5`.
+
 ---
 ## Profitability Push (2026-02-09)
 - **LIVE (deployed):** (1) **Exit logic:** No "unknown" exit reasons; every exit maps to concrete reason (signal_decay, stop, regime_shift, risk, etc.). Fallback is "risk". Regime-aware exit timing (BEAR: cut losers faster -0.8% stop, let winners run longer 1.0% target; modifiers only, no gating). Telemetry: exit_reason_recorded per close in system_events (subsystem=exit). (2) **Displacement:** BEAR + high-confidence (score >= 7): relaxed score advantage and PnL band for displacement. Log when displacement blocks: displacement_blocked_no_candidate (symbol, new_signal_score, regime) in system_events. (3) **Wheel:** Runs every cycle when enabled; lifecycle events (wheel_run_started, wheel_csp_skipped, wheel_order_submitted, wheel_order_filled). Restart stock-bot after deploy so wheel runs.
@@ -1638,6 +1651,18 @@ Replace opaque `blocked_reason` strings with:
 - **Fix applied:** (1) **UW-first ranking:** In `wheel_universe_selector`, added `_rank_by_uw_intelligence()` — reads `CacheFiles.UW_FLOW_CACHE`, gets regime from state, calls `uw_composite_v2.compute_composite_score_v2(symbol, enriched, regime)` per symbol; sorts by UW score descending; top N become the candidate list. (2) **Order of operations:** Sector/earnings/count filter → UW rank → take top `universe_max_candidates` → hard filters (spot, contracts) only in `_run_csp_phase` per-ticker. (3) **Explainability:** Every cycle emits `wheel_candidate_ranked` (subsystem=wheel) with top_5_symbols, top_5_uw_scores, chosen or reason_none.
 - **Wheel intelligence contract:** Primary driver = UW composite score from `data/uw_flow_cache.json` + `uw_composite_v2.compute_composite_score_v2`. Secondary = liquidity/OI/spread (for telemetry). Spot and contract availability are hard filters applied only to the UW-ranked list. Regime is modifier-only (used in composite call).
 - **Verification:** On droplet, `grep wheel_candidate_ranked logs/system_events.jsonl` and `wheel_root_cause_report.py --days 1`; expect wheel_run_started, wheel_candidate_ranked, and wheel_csp_skipped with reasons. See `docs/TRADING_DASHBOARD.md` §6.1.
+
+---
+## Wheel Dry-Run Validation (Market-Closed) (2026-02-09)
+- **Purpose:** Prove UW-first ranking and `wheel_candidate_ranked` emission without live quotes, options chains, or market hours. No broker calls; deterministic test.
+- **Command (run from repo root, e.g. on droplet):**  
+  `python3 scripts/wheel_dry_run_rank.py`
+- **Expected stdout:** Ranked candidates (symbol, uw_score) then final line: `wheel_candidate_ranked emitted successfully`.
+- **Verify event:**  
+  `grep '"event_type": "wheel_candidate_ranked"' logs/system_events.jsonl | tail -1`  
+  Expect: non-empty `top_5_symbols`, UW scores present, `chosen` = null, `reason_none` = `"dry_run_rank_only"`.
+- **Interpretation:** If dry-run emits correctly → ranking path is wired; zero count during market-closed hours is expected; live wheel will emit during market hours. If dry-run does NOT emit → systemic wiring issue; fix before market open.
+- **Docs:** See `docs/TRADING_DASHBOARD.md` §6.1 (validate wheel intelligence without market hours).
 
 ---
 ## CRON + GIT DIAGNOSTIC (2026-02-04)
