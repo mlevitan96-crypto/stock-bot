@@ -5,6 +5,8 @@ Output is printed to stdout (and can be saved). Uses DropletClient from repo roo
 """
 from __future__ import annotations
 
+import json
+import re
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
@@ -36,6 +38,8 @@ def main() -> int:
         "(grep -E '\"event_type\": \"wheel_spot_resolved\"|\"event_type\": \"wheel_spot_unavailable\"' logs/system_events.jsonl 2>/dev/null | tail -5 || echo 'None') && "
         "echo '' && echo '=== LAST 5 wheel_capital_check / wheel_capital_blocked ===' && "
         "(grep -E '\"event_type\": \"wheel_capital_check\"|\"event_type\": \"wheel_capital_blocked\"' logs/system_events.jsonl 2>/dev/null | tail -5 || echo 'None') && "
+        "echo '' && echo '=== LAST 5 wheel_position_limit_check / wheel_position_limit_blocked ===' && "
+        "(grep -E '\"event_type\": \"wheel_position_limit_check\"|\"event_type\": \"wheel_position_limit_blocked\"' logs/system_events.jsonl 2>/dev/null | tail -5 || echo 'None') && "
         "echo '' && echo '=== LAST 5 wheel_csp_skipped ===' && "
         "(grep '\"event_type\": \"wheel_csp_skipped\"' logs/system_events.jsonl 2>/dev/null | tail -5 || echo 'None') && "
         "echo '' && echo '=== WORKER DEBUG LOG (last 25 lines) ===' && "
@@ -67,7 +71,6 @@ def main() -> int:
 
     # Hard assertion: spot resolution must succeed during market hours (verification report)
     out_str = out or ""
-    import re
     resolved_match = re.search(r"\*\*wheel_spot_resolved\*\*:\s*(\d+)", out_str)
     unavail_match = re.search(r"\*\*wheel_spot_unavailable\*\*:\s*(\d+)", out_str)
     resolved_count = int(resolved_match.group(1)) if resolved_match else -1
@@ -87,6 +90,57 @@ def main() -> int:
         print("\n[OK] wheel_capital_check events present (fixed 25% wheel allocation in effect).", file=sys.stderr)
     if '"event_type": "wheel_capital_blocked"' in out_str:
         print("\n[INFO] wheel_capital_blocked occurred; see LAST 5 wheel_capital_check/wheel_capital_blocked above for budget math.", file=sys.stderr)
+
+    # Per-position limits (wheel budget fraction): wheel_position_limit_check must appear
+    if '"event_type": "wheel_run_started"' in out_str and '"event_type": "wheel_position_limit_check"' not in out_str:
+        print("\n*** WARN: wheel_run_started present but no wheel_position_limit_check events. Deploy wheel per-position logic. ***", file=sys.stderr)
+    if '"event_type": "wheel_position_limit_check"' in out_str:
+        print("\n[OK] wheel_position_limit_check events present (per-position limit = fraction of wheel budget).", file=sys.stderr)
+    if '"event_type": "wheel_position_limit_blocked"' in out_str:
+        print("\n[INFO] wheel_position_limit_blocked occurred; see LAST 5 wheel_position_limit_check/blocked above.", file=sys.stderr)
+
+    # Summary: wheel budget, per_position_limit, first symbol allowed, order submission status
+    wheel_budget = None
+    per_position_limit = None
+    for line in (out_str or "").splitlines():
+        if '"event_type": "wheel_position_limit_check"' in line and '"wheel_budget"' in line:
+            # Parse first occurrence for summary
+            try:
+                # Find JSON object in line (event may be embedded in log line)
+                start = line.find("{")
+                if start >= 0:
+                    obj = json.loads(line[start:].split("\n")[0].strip())
+                    wheel_budget = obj.get("wheel_budget")
+                    per_position_limit = obj.get("per_position_limit")
+                    if wheel_budget is not None and per_position_limit is not None:
+                        break
+            except Exception:
+                pass
+    order_submitted_count = out_str.count('"event_type": "wheel_order_submitted"')
+    first_symbol_allowed = None
+    for line in (out_str or "").splitlines():
+        if '"event_type": "wheel_order_submitted"' in line and '"symbol"' in line:
+            try:
+                start = line.find("{")
+                if start >= 0:
+                    obj = json.loads(line[start:].split("\n")[0].strip())
+                    first_symbol_allowed = obj.get("symbol")
+                    break
+            except Exception:
+                pass
+    print("\n--- WHEEL PER-POSITION SUMMARY ---", file=sys.stderr)
+    print(f"  wheel_budget: {wheel_budget}", file=sys.stderr)
+    print(f"  per_position_limit: {per_position_limit}", file=sys.stderr)
+    if per_position_limit is not None and wheel_budget is not None and wheel_budget and abs(per_position_limit - 0.5 * wheel_budget) < 0.02 * wheel_budget:
+        print("  [OK] per_position_limit ≈ 50% of wheel_budget.", file=sys.stderr)
+    elif per_position_limit is not None and wheel_budget is not None:
+        print("  [INFO] per_position_limit vs 50% of wheel_budget: check config per_position_fraction_of_wheel_budget.", file=sys.stderr)
+    print(f"  first symbol allowed (order submitted): {first_symbol_allowed or 'none'}", file=sys.stderr)
+    print(f"  wheel_order_submitted count: {order_submitted_count}", file=sys.stderr)
+    if order_submitted_count > 0:
+        print("  [OK] At least one CSP order submitted (paper).", file=sys.stderr)
+    else:
+        print("  [INFO] No wheel_order_submitted yet; ensure candidates pass capital + per-position checks.", file=sys.stderr)
 
     return rc
 

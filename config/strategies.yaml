@@ -29,9 +29,10 @@ strategies:
     universe_excluded_sectors:
       - Technology
       - Communication Services
-    max_capital_fraction: 0.5              # max 50% of account equity for wheel
-    max_positions: 5
-    per_position_capital_fraction: 0.05    # 5% of account per CSP position
+    # Per-position limits are a fraction of wheel budget (25% of account). Paper: enable trading for learning.
+    per_position_fraction_of_wheel_budget: 0.5   # allow up to 50% of wheel budget per CSP
+    max_concurrent_positions: 1                  # start with 1 CSP at a time for clarity
+    max_positions: 5                             # cap open CSPs (max_concurrent_positions takes precedence when set)
     csp:
       target_dte_min: 5
       target_dte_max: 10

@@ -106,7 +106,8 @@ See `reports/DASHBOARD_ENDPOINT_MAP.md` for the full endpoint → data location 
 ### Strategy capital allocation
 - **Fixed partitioning:** Wheel 25%, equity 75% of total account equity (config: `config/strategies.yaml` → `capital_allocation`). No strategy may consume the other’s capital; enforced at order time via `capital/strategy_allocator.can_allocate()`.
 - **Wheel independence:** Wheel budget = total_equity × 0.25; wheel_used = sum(open CSP notionals from `state/wheel_state.json`). Before each CSP, the wheel calls the allocator; if allocation would be exceeded, it emits **wheel_capital_blocked** and continues to the next candidate. Equity trades cannot starve the wheel.
-- **Audit:** In `logs/system_events.jsonl` (subsystem=wheel): **wheel_capital_check** (wheel_budget, wheel_used, wheel_available, required_notional, decision, reason); **wheel_capital_blocked** when blocked (includes full budget math). Run `python3 scripts/run_wheel_check_on_droplet.py` and inspect “LAST 5 wheel_capital_check / wheel_capital_blocked” to verify budget ≈ 25% of equity and allow/block decisions.
+- **Per-position limit (wheel budget fraction):** Per-position limits are a fraction of the **wheel budget**, not total equity. `per_position_limit = wheel_budget × per_position_fraction_of_wheel_budget` (config: `strategies.wheel.per_position_fraction_of_wheel_budget`, e.g. 0.5). A CSP is allowed only if `required_notional (= strike × 100) ≤ per_position_limit`. When blocked, the wheel emits **wheel_position_limit_blocked** and continues to the next candidate.
+- **Audit:** In `logs/system_events.jsonl` (subsystem=wheel): **wheel_capital_check** (wheel_budget, wheel_used, wheel_available, required_notional, decision, reason); **wheel_capital_blocked** when blocked (includes full budget math). **wheel_position_limit_check** (wheel_budget, per_position_limit, required_notional, decision, reason); **wheel_position_limit_blocked** when blocked. Run `python3 scripts/run_wheel_check_on_droplet.py` and inspect “LAST 5 wheel_capital_check / wheel_capital_blocked” to verify budget and per-position decisions (inspect both wheel_capital_* and wheel_position_limit_* sections).
 
 ---
 
@@ -116,7 +117,7 @@ When wheel analytics stay at zero or no FILLED trades appear, determine the sing
 
 | Check | Location | What to look for |
 |-------|----------|------------------|
-| **1. System events** | `logs/system_events.jsonl` | Filter `subsystem=wheel`. Counts: wheel_run_started, wheel_spot_resolved, wheel_spot_unavailable, wheel_capital_check, wheel_capital_blocked, wheel_csp_skipped (by reason), wheel_order_submitted, wheel_order_filled, wheel_order_failed. |
+| **1. System events** | `logs/system_events.jsonl` | Filter `subsystem=wheel`. Counts: wheel_run_started, wheel_spot_resolved, wheel_spot_unavailable, wheel_capital_check, wheel_capital_blocked, wheel_position_limit_check, wheel_position_limit_blocked, wheel_csp_skipped (by reason), wheel_order_submitted, wheel_order_filled, wheel_order_failed. |
 | **2. Telemetry** | `logs/telemetry.jsonl` | Filter `strategy_id=wheel`. Count rows; confirm premium present when orders filled. |
 | **3. Attribution** | `logs/attribution.jsonl` | Filter `strategy_id=wheel`. Count rows; sample for wheel phase/premium. |
 | **4. State** | `state/wheel_state.json` | File mtime and content (open_csps, etc.) changing across cycles/days. |

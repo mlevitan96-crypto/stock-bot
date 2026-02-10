@@ -487,8 +487,8 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
 
     csp_cfg = config.get("csp", {})
     risk_cfg = config.get("risk", {})
-    max_pos = config.get("max_positions", 5)
-    per_pos_frac = config.get("per_position_capital_fraction", 0.05)
+    max_pos = config.get("max_concurrent_positions") or config.get("max_positions", 5)
+    per_position_frac_of_wheel = config.get("per_position_fraction_of_wheel_budget", 0.5)
     max_per_symbol = risk_cfg.get("max_positions_per_symbol", 2)
     avoid_earnings = risk_cfg.get("avoid_earnings_window_days", 3)
     min_iv = risk_cfg.get("min_iv_rank", 20)
@@ -586,8 +586,20 @@ def _run_csp_phase(api, config: dict, account_equity: float, buying_power: float
             log.info("Wheel CSP: capital blocked (available=%.0f, required=%.0f)", alloc_details["strategy_available"], notional)
             _wheel_system_event("wheel_capital_blocked", symbol=t, wheel_budget=alloc_details["strategy_budget"], wheel_used=alloc_details["strategy_used"], wheel_available=alloc_details["strategy_available"], required_notional=notional, reason=alloc_details["decision_reason"])
             continue
-        if notional > account_equity * per_pos_frac:
-            log.info("Wheel CSP: per-position limit for %s (notional=%.0f)", t, notional)
+        wheel_budget = alloc_details["strategy_budget"]
+        per_position_limit = wheel_budget * per_position_frac_of_wheel
+        position_limit_ok = notional <= per_position_limit
+        _wheel_system_event(
+            "wheel_position_limit_check",
+            wheel_budget=round(wheel_budget, 2),
+            per_position_limit=round(per_position_limit, 2),
+            required_notional=round(notional, 2),
+            decision="allow" if position_limit_ok else "block",
+            reason="ok" if position_limit_ok else "per_position_limit_exceeded",
+        )
+        if not position_limit_ok:
+            log.info("Wheel CSP: per-position limit for %s (notional=%.0f > limit=%.0f)", t, notional, per_position_limit)
+            _wheel_system_event("wheel_position_limit_blocked", symbol=t, wheel_budget=round(wheel_budget, 2), per_position_limit=round(per_position_limit, 2), required_notional=round(notional, 2), reason="per_position_limit_exceeded")
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="per_position_limit")
             continue
         existing = [o for o in (open_orders or []) if getattr(o, "symbol", "") == occ_symbol]
