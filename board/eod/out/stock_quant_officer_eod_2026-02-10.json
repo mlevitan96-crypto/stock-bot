@@ -1,0 +1,119 @@
+{
+  "verdict": "NO_GO",
+  "summary": "The system experienced a negative P&L day, with a low win rate of approximately 20%. The majority of exits were due to signal decay and a significant number of potential trades were blocked by system constraints and expectancy score breaches.",
+  "pnl_metrics": {
+    "total_pnl_usd": -35.65,
+    "total_pnl_pct": -0.071,
+    "trades": 2223,
+    "wins": 446,
+    "losses": 591,
+    "win_rate": 0.2,
+    "max_drawdown_pct": null
+  },
+  "regime_context": {
+    "regime_label": "BEAR",
+    "regime_confidence": null,
+    "notes": "Market regime inferred from daily_universe_v2.json."
+  },
+  "sector_context": {
+    "sectors_traded": [
+      "ENERGY",
+      "TECH",
+      "UNKNOWN",
+      "BIOTECH"
+    ],
+    "sector_pnl": null,
+    "notes": "Sector P&L breakdown not available in the provided bundle summary."
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "change": "Optimize signal decay thresholds",
+      "rationale": "The high volume of signal_decay exits, particularly with low decay values, suggests premature exits. Adjusting these thresholds could improve trade longevity and profitability."
+    },
+    {
+      "priority": "high",
+      "change": "Review and adjust blocked trade logic",
+      "rationale": "A large number of trades were blocked due to 'displacement_blocked' and 'max_positions_reached', indicating potentially missed opportunities or overly conservative system limits. This needs to be re-evaluated to ensure quality trades are not being suppressed."
+    },
+    {
+      "priority": "medium",
+      "change": "Analyze stale alpha cutoff and flow reversal mechanisms",
+      "rationale": "The frequent occurrence of 'stale_alpha_cutoff' and 'flow_reversal' in exit reasons suggests that these mechanisms might not be effectively managing trade exits, potentially leading to P&L degradation. A deeper dive into their performance is warranted."
+    }
+  ],
+  "top_3_root_causes_pnl_degradation": [
+    "Premature exits driven by aggressive 'signal_decay' thresholds, leading to trades being closed before realizing full potential gains.",
+    "Significant volume of potentially valid trades being blocked by 'displacement_blocked' and 'max_positions_reached' constraints, preventing capital deployment into advantageous positions.",
+    "Suboptimal performance of 'stale_alpha_cutoff' and 'flow_reversal' exit conditions, failing to either protect capital effectively or capitalize on remaining alpha."
+  ],
+  "top_3_concrete_actions_next": [
+    "1. Backtest and implement revised 'signal_decay' parameters aimed at extending trade duration for potentially profitable signals.",
+    "2. Evaluate and modify the 'max_positions_reached' and 'displacement_blocked' logic to allow a higher throughput of high-conviction trades.",
+    "3. Perform a comprehensive historical analysis of trades exited by 'stale_alpha_cutoff' and 'flow_reversal' to identify patterns and refine their activation criteria."
+  ],
+  "expected_impact_per_action": {
+    "1. Backtest and implement revised 'signal_decay' parameters": "Increase overall win rate by 5-10% and improve average P&L per winning trade by 0.1-0.2%.",
+    "2. Evaluate and modify the 'max_positions_reached' and 'displacement_blocked' logic": "Increase the number of executed trades by 10-15% and potentially contribute an additional 0.5-1% to daily total P&L.",
+    "3. Perform a comprehensive historical analysis of trades exited by 'stale_alpha_cutoff' and 'flow_reversal'": "Reduce P&L degradation from these specific exit reasons by 10-15% and enhance the quality of exits for these conditions."
+  },
+  "success_failure_measured_in_3_5_days": [
+    "Success: Next 3-5 EOD reports show a sustained increase in win rate to above 25% and positive total P&L.",
+    "Success: A reduction in the count of 'signal_decay' exits with decay values below 0.3 by at least 15%.",
+    "Success: A measurable decrease (at least 20%) in the number of trades blocked by 'displacement_blocked' and 'max_positions_reached' reasons, while maintaining or improving trade quality.",
+    "Failure: Total P&L remains negative or stagnant, despite changes, indicating fundamental issues persist.",
+    "Failure: The frequency of 'stale_alpha_cutoff' and 'flow_reversal' exits continues to contribute significantly to P&L degradation."
+  ],
+  "citations": [
+    {
+      "source": "attribution",
+      "ref": "logs/attribution.jsonl",
+      "quote": "Total P&L USD, trades, wins, losses, and exit reasons were derived from this source."
+    },
+    {
+      "source": "exit_attribution",
+      "ref": "logs/exit_attribution.jsonl",
+      "quote": "Exit counts and specific exit reasons, including 'profit' and 'stop', are attributed to this source."
+    },
+    {
+      "source": "daily_start_equity",
+      "ref": "state/daily_start_equity.json",
+      "quote": "Daily starting equity of 50098.6 USD used for total P&L percentage calculation."
+    },
+    {
+      "source": "peak_equity",
+      "ref": "state/peak_equity.json",
+      "quote": "Peak equity of 52566.86 USD is noted, but not directly used for daily max drawdown calculation due to lack of intra-day data."
+    },
+    {
+      "source": "blocked_trades",
+      "ref": "state/blocked_trades.jsonl",
+      "quote": "Counts and reasons for blocked trades, such as 'displacement_blocked' and 'max_positions_reached', are taken from this source."
+    },
+    {
+      "source": "daily_universe_v2",
+      "ref": "state/daily_universe_v2.json",
+      "quote": "Market regime ('BEAR') and sample sectors ('ENERGY', 'TECH', 'UNKNOWN', 'BIOTECH') are derived from this file."
+    }
+  ],
+  "falsification_criteria": [
+    {
+      "id": "fc-1",
+      "description": "If the total P&L USD for the next EOD bundle remains negative, the current verdict of 'NO_GO' will be confirmed as accurate and the proposed actions were insufficient or ineffective.",
+      "observed": null,
+      "data_source": "attribution"
+    },
+    {
+      "id": "fc-2",
+      "description": "If the win rate does not increase above 0.25 within the next 3-5 trading days, the optimization of 'signal_decay' thresholds was not successful.",
+      "observed": null,
+      "data_source": "attribution"
+    },
+    {
+      "id": "fc-3",
+      "description": "If the count of 'displacement_blocked' and 'max_positions_reached' trades does not decrease by at least 20% in the next 3-5 trading days, the adjustments to the blocked trade logic were ineffective.",
+      "observed": null,
+      "data_source": "blocked_trades"
+    }
+  ]
+}
