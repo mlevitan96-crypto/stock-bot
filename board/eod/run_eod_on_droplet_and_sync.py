@@ -23,12 +23,11 @@ def main() -> int:
     # Same repo detection as run_cron_for_date_on_droplet / deploy_sync_cron
     cmd = (
         "REPO=$( [ -d /root/stock-bot-current/scripts ] && echo /root/stock-bot-current || echo /root/stock-bot ); "
-        "cd $REPO && git fetch origin && git pull --rebase origin main && "
+        "cd $REPO && git fetch origin && git pull --rebase --autostash origin main && "
         f"export DATE={today} && "
-        "export CLAWDBOT_SESSION_ID=\"stock_quant_eod_$DATE\" && "
         "python3 scripts/generate_wheel_daily_review.py --date $DATE 2>/dev/null || true && "
         "python3 scripts/run_multi_day_analysis.py --date $DATE 2>/dev/null || true && "
-        "python3 board/eod/run_stock_quant_officer_eod.py && "
+        "CLAWDBOT_SESSION_ID=stock_quant_eod_$DATE python3 board/eod/run_stock_quant_officer_eod.py && "
         "EOD_RC=$?; "
         "git add board/eod/out/$DATE/ 2>/dev/null || true && "
         "git add board/eod/out/*.json board/eod/out/*.md 2>/dev/null || true && "
