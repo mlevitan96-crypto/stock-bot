@@ -1,0 +1,181 @@
+{
+  "date": "2026-02-10",
+  "rolling_windows": {
+    "win_rate_by_window": {
+      "1_day": 0.1907,
+      "3_day": 0.1657,
+      "5_day": 0.1896,
+      "7_day": 0.1995
+    },
+    "pnl_by_window": {
+      "1_day": -42.89,
+      "3_day": -112.29,
+      "5_day": -73.4,
+      "7_day": -43.5
+    },
+    "exit_reason_counts_by_window": {
+      "1_day": {
+        "unknown": 451,
+        "signal_decay(0.59)": 32,
+        "signal_decay(0.60)": 30,
+        "signal_decay(0.58)": 12,
+        "signal_decay(0.57)": 7,
+        "signal_decay(0.59)+flow_reversal": 7,
+        "signal_decay(0.56)": 6,
+        "signal_decay(0.21)": 5,
+        "signal_decay(0.54)": 4,
+        "signal_decay(0.50)": 4,
+        "signal_decay(0.60)+flow_reversal": 4,
+        "signal_decay(0.28)": 4,
+        "signal_decay(0.48)+flow_reversal": 4,
+        "signal_decay(0.39)": 3,
+        "signal_decay(0.30)": 3,
+        "signal_decay(0.54)+flow_reversal": 3,
+        "signal_decay(0.17)": 3,
+        "signal_decay(0.55)": 3,
+        "signal_decay(0.15)": 3,
+        "signal_decay(0.47)": 3
+      },
+      "3_day": {
+        "unknown": 1002,
+        "signal_decay(0.02)+flow_reversal": 47,
+        "signal_decay(0.59)": 32,
+        "signal_decay(0.60)": 30,
+        "signal_decay(0.04)+flow_reversal": 20,
+        "signal_decay(0.02)": 19,
+        "signal_decay(0.07)+flow_reversal": 13,
+        "signal_decay(0.07)": 12,
+        "signal_decay(0.58)": 12,
+        "signal_decay(0.10)+flow_reversal": 10,
+        "signal_decay(0.08)+flow_reversal": 9,
+        "signal_decay(0.05)": 8,
+        "signal_decay(0.11)+flow_reversal": 8,
+        "signal_decay(0.04)": 7,
+        "signal_decay(0.05)+flow_reversal": 7,
+        "signal_decay(0.12)+flow_reversal": 7,
+        "signal_decay(0.03)": 7,
+        "signal_decay(0.11)": 7,
+        "stale_alpha_cutoff(120min,-0.01%)": 7,
+        "signal_decay(0.57)": 7
+      },
+      "5_day": {
+        "unknown": 1646,
+        "signal_decay(0.02)+flow_reversal": 88,
+        "signal_decay(0.02)": 42,
+        "signal_decay(0.04)+flow_reversal": 36,
+        "signal_decay(0.59)": 32,
+        "signal_decay(0.10)+flow_reversal": 30,
+        "signal_decay(0.60)": 30,
+        "signal_decay(0.07)+flow_reversal": 27,
+        "signal_decay(0.05)+flow_reversal": 24,
+        "signal_decay(0.03)+flow_reversal": 21,
+        "signal_decay(0.04)": 20,
+        "signal_decay(0.09)+flow_reversal": 18,
+        "signal_decay(0.05)": 16,
+        "signal_decay(0.07)": 16,
+        "signal_decay(0.10)": 16,
+        "signal_decay(0.03)": 14,
+        "signal_decay(0.01)+flow_reversal": 12,
+        "signal_decay(0.08)+flow_reversal": 12,
+        "signal_decay(0.58)": 12,
+        "signal_decay(0.09)": 11
+      },
+      "7_day": {
+        "unknown": 2065,
+        "signal_decay(0.02)+flow_reversal": 88,
+        "signal_decay(0.59)": 61,
+        "signal_decay(0.60)": 55,
+        "signal_decay(0.02)": 42,
+        "signal_decay(0.04)+flow_reversal": 36,
+        "signal_decay(0.10)+flow_reversal": 30,
+        "signal_decay(0.07)+flow_reversal": 27,
+        "signal_decay(0.05)+flow_reversal": 24,
+        "signal_decay(0.58)": 21,
+        "signal_decay(0.03)+flow_reversal": 21,
+        "signal_decay(0.04)": 20,
+        "signal_decay(0.09)+flow_reversal": 18,
+        "signal_decay(0.05)": 16,
+        "signal_decay(0.07)": 16,
+        "signal_decay(0.10)": 16,
+        "signal_decay(0.03)": 14,
+        "signal_decay(0.30)": 13,
+        "signal_decay(0.59)+flow_reversal": 13,
+        "signal_decay(0.01)+flow_reversal": 12
+      }
+    },
+    "blocked_trade_counts_by_window": {
+      "1_day": {
+        "displacement_blocked": 1135,
+        "max_positions_reached": 634,
+        "expectancy_blocked:score_floor_breach": 194,
+        "max_new_positions_per_cycle": 35,
+        "order_validation_failed": 2
+      },
+      "3_day": {
+        "displacement_blocked": 1135,
+        "max_positions_reached": 634,
+        "expectancy_blocked:score_floor_breach": 194,
+        "max_new_positions_per_cycle": 35,
+        "order_validation_failed": 2
+      },
+      "5_day": {
+        "displacement_blocked": 1135,
+        "max_positions_reached": 634,
+        "expectancy_blocked:score_floor_breach": 194,
+        "max_new_positions_per_cycle": 35,
+        "order_validation_failed": 2
+      },
+      "7_day": {
+        "displacement_blocked": 1135,
+        "max_positions_reached": 634,
+        "expectancy_blocked:score_floor_breach": 194,
+        "max_new_positions_per_cycle": 35,
+        "order_validation_failed": 2
+      }
+    },
+    "signal_decay_exit_rate_by_window": {
+      "1_day": 0.9476,
+      "3_day": 0.9434,
+      "5_day": 0.9604,
+      "7_day": 0.9477
+    }
+  },
+  "missed_money": {
+    "blocked_trade_opportunity_cost": {
+      "unknown": true,
+      "reason": "Opportunity cost cannot be precisely quantified without knowing the expected P&L of each blocked trade and the frequency with which these trades would have been profitable. Historical win rates of similar trades would be needed.",
+      "missing_inputs": [
+        "expected P&L per blocked trade",
+        "historical win rate of blocked trade types"
+      ],
+      "instrumentation_needed": [
+        "logging of expected P&L for blocked trades",
+        "post-hoc analysis framework for blocked trade performance"
+      ]
+    },
+    "early_exit_opportunity_cost": {
+      "unknown": true,
+      "reason": "This requires a counterfactual analysis of how much more P&L would have been realized if trades exited by signal decay were held longer. This is not available in the current EOD bundle.",
+      "missing_inputs": [
+        "counterfactual P&L for extended hold periods",
+        "average P&L of trades with relaxed decay"
+      ],
+      "instrumentation_needed": [
+        "simulated P&L for alternative exit strategies",
+        "A/B testing framework for exit parameters"
+      ]
+    },
+    "correlation_concentration_cost": {
+      "unknown": true,
+      "reason": "The correlation cache is missing, making it impossible to identify and quantify any losses specifically attributable to correlated exposures.",
+      "missing_inputs": [
+        "correlation matrix",
+        "P&L attribution by correlated groups"
+      ],
+      "instrumentation_needed": [
+        "correlation cache generation and storage",
+        "P&L attribution by correlation clusters"
+      ]
+    }
+  }
+}

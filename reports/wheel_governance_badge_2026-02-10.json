@@ -1,0 +1,10 @@
+{
+  "overall_status": "PASS",
+  "event_chain_coverage_pct": 100.0,
+  "cycles_with_full_chain": 0,
+  "cycles_total": 0,
+  "idempotency_hits": 0,
+  "board_action_closure": "PASS",
+  "dominant_blocker": "none",
+  "generated_at": "2026-02-10T22:44:22.521584+00:00"
+}

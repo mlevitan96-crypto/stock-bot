@@ -1,0 +1,9 @@
+{
+  "date": "2026-02-10",
+  "thresholds": {
+    "signal_weakening": -0.5,
+    "correlation_concentration": 0.8
+  },
+  "weakening_signals": [],
+  "correlation_concentration": []
+}

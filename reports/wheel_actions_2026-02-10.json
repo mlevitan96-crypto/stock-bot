@@ -1,0 +1,32 @@
+{
+  "date": "2026-02-10",
+  "actions": [
+    {
+      "action_id": "56e36d804c0beb21",
+      "title": "Address missing signal_strength_cache for open positions",
+      "owner": "CTO/SRE",
+      "reference_section": "3.4a",
+      "rationale": "The 'Signal trend' section (3.4a) reports missing signal_strength_cache data. This is crucial for evaluating the health of open positions. Ensure the engine runs to generate this data.",
+      "status": "proposed",
+      "notes": ""
+    },
+    {
+      "action_id": "247598556f6f7307",
+      "title": "Generate correlation cache for risk assessment",
+      "owner": "Risk/CRO",
+      "reference_section": "3.4b",
+      "rationale": "The 'Correlation concentration' section (3.4b) warns about a missing or empty correlation cache. This is vital for understanding concentration risk. Run the specified script to generate this cache.",
+      "status": "proposed",
+      "notes": ""
+    },
+    {
+      "action_id": "68bb4cbe4feef78d",
+      "title": "Review skip distribution for potential missed opportunities",
+      "owner": "Head of Trading",
+      "reference_section": "3.5",
+      "rationale": "The 'Board actions' section (3.5) recommends reviewing skip distribution. Understanding why trades are skipped is key to unlocking potential edge. This review should inform adjustments to filtering or entry criteria.",
+      "status": "proposed",
+      "notes": ""
+    }
+  ]
+}

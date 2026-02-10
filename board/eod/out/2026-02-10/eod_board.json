@@ -1,0 +1,323 @@
+{
+  "verdict": "NO_GO",
+  "summary": "The system experienced another negative P&L day, contributing to a consistently negative trend over the past week. The win rate remains low across all rolling windows, indicating systemic issues. A significant number of potential trades are blocked by internal constraints, and the majority of exits are attributed to signal decay, with a substantial portion also classified as 'unknown' reasons, hindering effective analysis.",
+  "pnl_metrics": {
+    "total_pnl_usd": -35.65,
+    "total_pnl_pct": -0.07115,
+    "trades": 2223,
+    "wins": 446,
+    "losses": 591,
+    "win_rate": 0.2006,
+    "max_drawdown_pct": null
+  },
+  "regime_context": {
+    "regime_label": "BEAR",
+    "regime_confidence": null,
+    "notes": "Market regime inferred from daily_universe_v2.json, indicating a bearish environment."
+  },
+  "sector_context": {
+    "sectors_traded": [
+      "ENERGY",
+      "TECH",
+      "UNKNOWN",
+      "BIOTECH"
+    ],
+    "sector_pnl": null,
+    "notes": "Sector P&L breakdown is not available in the provided bundle summary."
+  },
+  "recommendations": [
+    {
+      "id": "rec-1",
+      "priority": "high",
+      "title": "Investigate and reduce 'unknown' exit reasons",
+      "body": "The high count of 'unknown' exit reasons in both attribution and exit attribution summaries (1151 in attribution, 451 in 1-day exit_reason_counts_by_window) is a critical blind spot. This needs immediate investigation to understand the true drivers of these exits and assign proper attribution.",
+      "change": "Implement better logging and categorization for currently 'unknown' exit conditions."
+    },
+    {
+      "id": "rec-2",
+      "priority": "high",
+      "title": "Re-evaluate and optimize blocked trade thresholds",
+      "body": "The consistent blocking of trades due to 'displacement_blocked' (1135 in 1-day window) and 'max_positions_reached' (634 in 1-day window) suggests that potentially profitable opportunities are being missed. These constraints should be reviewed for tightness.",
+      "change": "Adjust thresholds for 'max_positions_reached' and 'displacement_blocked' in a controlled, backtested environment to gauge impact on P&L."
+    },
+    {
+      "id": "rec-3",
+      "priority": "medium",
+      "title": "Refine 'signal_decay' exit logic",
+      "body": "With signal decay as a dominant exit reason and a low win rate across all windows, there's a strong indication that trades are being exited prematurely or signals are decaying too rapidly. Further analysis of the optimal decay sensitivity is required.",
+      "change": "Conduct sensitivity analysis on 'signal_decay' thresholds and consider adaptive adjustments based on market regime and signal strength."
+    }
+  ],
+  "top_3_root_causes_pnl_degradation": [
+    "High volume of 'unknown' exit reasons, preventing clear understanding of performance drivers and leading to unaddressed issues. (Source: attribution, exit_reason_counts_by_window)",
+    "Significant opportunity cost from blocked trades due to restrictive 'max_positions_reached' and 'displacement_blocked' rules. (Source: blocked_trades, blocked_trade_counts_by_window)",
+    "Suboptimal 'signal_decay' exit logic, leading to premature trade exits and contributing to the low overall win rate. (Source: attribution, signal_decay_exit_rate_by_window)"
+  ],
+  "top_3_concrete_actions_next": [
+    "1. Engage engineering to implement detailed logging for 'unknown' exit events to capture their underlying conditions and transform them into attributable reasons.",
+    "2. Conduct A/B testing or shadow trading with relaxed 'max_positions_reached' and 'displacement_blocked' thresholds to quantify missed opportunity cost more precisely.",
+    "3. Develop and backtest an adaptive 'signal_decay' mechanism that considers trade duration, current P&L, and market volatility before triggering an exit."
+  ],
+  "expected_impact_per_action": {
+    "1. Engage engineering to implement detailed logging for 'unknown' exit events": "Expected to clarify the cause of at least 50% of 'unknown' exits within 1 week, enabling targeted improvements to those specific exit conditions, potentially increasing P&L by 0.05%.",
+    "2. Conduct A/B testing or shadow trading with relaxed blocked thresholds": "Expected to increase trade count by 10-15% and potentially improve daily P&L by 0.1-0.2% by allowing more high-score trades to execute, measured over a 3-day window.",
+    "3. Develop and backtest an adaptive 'signal_decay' mechanism": "Expected to improve win rate by 3-5% and average P&L per winning trade by 0.1% by preventing premature exits, measured over a 5-day backtest period."
+  },
+  "success_failure_measured_in_3_5_days": [
+    "Success: The proportion of 'unknown' exit reasons in the EOD bundle falls below 20% of total exits.",
+    "Success: The total number of blocked trades due to 'max_positions_reached' and 'displacement_blocked' decreases by 20% without a significant drop in average trade score.",
+    "Success: Rolling 3-day P&L shows a clear positive trend or a reduction in negative P&L compared to the current -112.29 USD. (Source: pnl_by_window)",
+    "Failure: The win rate across all rolling windows (1, 3, 5, 7 day) does not show a sustained improvement, remaining below 0.20. (Source: win_rate_by_window)"
+  ],
+  "citations": [
+    {
+      "source": "attribution",
+      "ref": "logs/attribution.jsonl",
+      "quote": "Total P&L USD (-35.65), trades (2223), wins (446), losses (591), and daily win rate (0.2006) are directly from this source."
+    },
+    {
+      "source": "exit_attribution",
+      "ref": "logs/exit_attribution.jsonl",
+      "quote": "Total exits (3055) and total P&L (-419.80) are from this source."
+    },
+    {
+      "source": "daily_start_equity",
+      "ref": "state/daily_start_equity.json",
+      "quote": "Daily starting equity (50098.6) used for P&L percentage calculation."
+    },
+    {
+      "source": "blocked_trades",
+      "ref": "state/blocked_trades.jsonl",
+      "quote": "Blocked trade counts by reason ('displacement_blocked', 'max_positions_reached', 'expectancy_blocked:score_floor_breach') are from this source."
+    },
+    {
+      "source": "daily_universe_v2",
+      "ref": "state/daily_universe_v2.json",
+      "quote": "Market regime ('BEAR') and sectors traded ('ENERGY', 'TECH', 'UNKNOWN', 'BIOTECH') are derived from this source."
+    },
+    {
+      "source": "pnl_by_window",
+      "ref": "rolling_window_data",
+      "quote": "Rolling P&L figures for 1, 3, 5, and 7 days are used for trend analysis."
+    },
+    {
+      "source": "win_rate_by_window",
+      "ref": "rolling_window_data",
+      "quote": "Rolling win rates for 1, 3, 5, and 7 days are used for performance assessment."
+    },
+    {
+      "source": "exit_reason_counts_by_window",
+      "ref": "rolling_window_data",
+      "quote": "Sample exit reason counts for 1 and 3 days are used to identify dominant exit drivers."
+    },
+    {
+      "source": "blocked_trade_counts_by_window",
+      "ref": "rolling_window_data",
+      "quote": "Sample blocked trade counts for 1 and 3 days are used for identifying system constraints."
+    },
+    {
+      "source": "signal_decay_exit_rate_by_window",
+      "ref": "rolling_window_data",
+      "quote": "Signal decay exit rates across various windows are used to analyze premature exits."
+    }
+  ],
+  "falsification_criteria": [
+    {
+      "id": "fc-1",
+      "description": "If the 3-day rolling win rate fails to increase above 0.17 by the next EOD, the current approach to improving trade selection and exits is insufficient.",
+      "observed": null,
+      "data_source": "win_rate_by_window"
+    },
+    {
+      "id": "fc-2",
+      "description": "If the total number of blocked trades due to 'max_positions_reached' and 'displacement_blocked' combined remains above 1000 in the 1-day window by the next EOD, the system constraints are still too restrictive.",
+      "observed": null,
+      "data_source": "blocked_trade_counts_by_window"
+    }
+  ],
+  "wheel_actions": [
+    {
+      "title": "Address missing signal_strength_cache for open positions",
+      "body": "The 'Signal trend' section (3.4a) reports missing signal_strength_cache data. This is crucial for evaluating the health of open positions. Ensure the engine runs to generate this data.",
+      "owner": "CTO/SRE",
+      "reference_section": "3.4a"
+    },
+    {
+      "title": "Generate correlation cache for risk assessment",
+      "body": "The 'Correlation concentration' section (3.4b) warns about a missing or empty correlation cache. This is vital for understanding concentration risk. Run the specified script to generate this cache.",
+      "owner": "Risk/CRO",
+      "reference_section": "3.4b"
+    },
+    {
+      "title": "Review skip distribution for potential missed opportunities",
+      "body": "The 'Board actions' section (3.5) recommends reviewing skip distribution. Understanding why trades are skipped is key to unlocking potential edge. This review should inform adjustments to filtering or entry criteria.",
+      "owner": "Head of Trading",
+      "reference_section": "3.5"
+    }
+  ],
+  "wheel_signal_trend_insights": [
+    "No signal_strength_cache data available to assess signal trend for open positions. This is a critical data gap."
+  ],
+  "wheel_correlation_risks": [
+    "Correlation cache is missing, preventing assessment of correlation concentration risk within the wheel strategy. This represents an unknown risk exposure."
+  ],
+  "executive_answers": {
+    "CEO": {
+      "convergence_oscillation": "The system is consistently oscillating around a negative P&L and a low win rate. P&L by window shows -42.89 (1-day), -112.29 (3-day), -73.4 (5-day), -43.5 (7-day), indicating no clear convergence to profitability. Win rates are similarly low and stable at ~0.19 across all windows (0.1907, 0.1657, 0.1896, 0.1995). (Source: pnl_by_window, win_rate_by_window)",
+      "metrics_improvement_failure": "No clear improvements are observed in key metrics across the rolling windows; all metrics indicate a failing state. The consistent low win rate and negative P&L across all lookback periods highlight a persistent challenge. (Source: pnl_by_window, win_rate_by_window)",
+      "single_decision_live_tomorrow": "The single most impactful decision for tomorrow is to prioritize fixing the 'unknown' exit reason classification. Without understanding why a significant portion of trades are exiting, we cannot effectively improve the system. This requires immediate engineering focus to instrument better logging and attribution. (Source: attribution, exit_reason_counts_by_window)"
+    },
+    "CTO_SRE": {
+      "systems_blocked_trades_most_over_7_days": "Over the past 7 days, 'displacement_blocked' (1135 in 1-day window) and 'max_positions_reached' (634 in 1-day window) are the systems blocking the most trades. The rolling window data for blocked trades indicates these remain consistent blockers across shorter timeframes. (Source: blocked_trade_counts_by_window)",
+      "constraints_suppressing_edge": "Yes, constraints are very likely suppressing edge. The high volume of blocked trades (2000 total in the 1-day window) due to 'displacement_blocked' and 'max_positions_reached' suggests that a large number of potentially valid trading opportunities are being prevented from execution. This implies the system is too restrictive. (Source: blocked_trades, blocked_trade_counts_by_window)",
+      "instrumentation_still_missing": "Critical instrumentation still missing includes a detailed correlation cache for open positions (warned in 3.4b), signal strength cache for open positions (missing in 3.4a), explicit P&L breakdown by sector, and detailed intra-day drawdown metrics beyond just peak equity. The 'unknown' exit reasons also point to a lack of attribution instrumentation. (Source: 3.4a, 3.4b, attribution)"
+    },
+    "Head_of_Trading": {
+      "exit_reasons_cost_most_money_over_5_7_days": "Based on volume, 'unknown' exits (1151 in attribution, and 451 in 1-day exit_reason_counts_by_window) are a major concern due to their opacity. Among attributable reasons, 'signal_decay' variants (e.g., 'signal_decay(0.59)' with 272 exits in exit attribution, 'signal_decay(0.60)' with 236 exits) are the most frequent, suggesting they are collectively costing the most through premature exits. We lack specific P&L per exit reason for longer windows to quantify precise cost. (Source: attribution, exit_attribution, exit_reason_counts_by_window)",
+      "holding_longer_improved_outcomes": "There is no direct data to confirm if holding longer would have improved outcomes. However, the consistently high 'signal_decay_exit_rate_by_window' (around 0.95 across all windows) indicates that trades are almost always exited due to signal decay. This strongly suggests that trades are not being held long enough to potentially realize larger gains, implying missed opportunities. (Source: signal_decay_exit_rate_by_window)",
+      "signals_deserve_relaxed_decay": "Without detailed P&L attribution by specific signals and their associated decay thresholds, it is impossible to definitively state which signals deserve relaxed decay. However, given the overall negative P&L and high signal decay exit rate, a general re-evaluation of all signal decay parameters, particularly for those with a high frequency of exits at low decay values, is warranted. (Source: attribution, signal_decay_exit_rate_by_window)"
+    },
+    "Risk_CRO": {
+      "losses_clustered_by_correlation": "This cannot be determined at present. The correlation cache is missing (as warned in 3.4b), which is critical data for assessing if losses are clustered by correlated exposures. (Source: 3.4b)",
+      "over_concentrated": "Given the missing correlation cache, it is currently unknown if we are over-concentrated. However, the limited universe size (20 symbols in daily_universe_v2.json) raises a flag that concentration could be a latent risk if positions are not well-diversified or if the selected symbols have high inherent correlation. (Source: 3.4b, daily_universe_v2)",
+      "risk_not_being_priced": "The most significant unpriced risks are correlation risk (due to missing correlation data, 3.4b) and the unknown risk associated with 'unknown' exit reasons. The lack of clarity around these 'unknown' exits means we are unable to quantify or manage the underlying risk factors driving those exits. (Source: 3.4b, attribution, exit_reason_counts_by_window)"
+    }
+  },
+  "customer_advocate_challenges": [
+    {
+      "role": "CEO",
+      "claim_summary": "System oscillating around negative P&L and low win rate; no clear convergence to profitability.",
+      "data_support": "pnl_by_window, win_rate_by_window consistently show negative P&L and win rates around 0.19 across 1, 3, 5, and 7-day windows.",
+      "cost_to_customer": "This oscillation and lack of profitability directly costs the customer money every day. For instance, the 7-day P&L is -43.5 USD. This is a continuous drain on capital.",
+      "why_not_fixed": "If this has been consistently negative, why haven't fundamental changes been implemented to break this cycle? What is preventing convergence to a profitable strategy?",
+      "if_we_do_nothing": "If we do nothing, the system will continue to erode capital, as demonstrated by the persistent negative P&L across all rolling windows, leading to further financial losses for the customer."
+    },
+    {
+      "role": "CEO",
+      "claim_summary": "No clear improvements in metrics; all indicate failing state.",
+      "data_support": "The rolling window data for P&L and win rates show no upward trend, confirming a lack of improvement. (Source: pnl_by_window, win_rate_by_window)",
+      "cost_to_customer": "Every day without improvement means sustained underperformance and potentially missed opportunities for gains, costing the customer compound returns and confidence.",
+      "why_not_fixed": "If no improvements have been observed, why are we not stopping the system or making more drastic changes? What is the tolerance for continued underperformance?",
+      "if_we_do_nothing": "Without identifying what works, the system will continue to generate losses, as no observed improvements suggest current strategies are ineffective."
+    },
+    {
+      "role": "CEO",
+      "claim_summary": "Prioritize fixing 'unknown' exit reason classification.",
+      "data_support": "The 'Attribution' summary (1151 'unknown' exits) and 'Exit Attribution' summary (3055 exits, with significant number of 'unknown' or unclassified reasons) highlight the scale of the problem. (Source: attribution, exit_attribution)",
+      "cost_to_customer": "These 'unknown' exits represent blind spots where the system is losing money without a clear explanation. This lack of transparency costs the customer trust and prevents identifying root causes of losses, potentially costing significant P&L over time. The 1-day P&L of -42.89 could be heavily influenced by these unknown exits. (Source: pnl_by_window)",
+      "why_not_fixed": "This seems like a fundamental data integrity issue. Why has this critical problem of 'unknown' exits persisted and not been addressed with high priority until now?",
+      "if_we_do_nothing": "If we do nothing, we will continue to operate with a significant portion of our exits unexplained, making it impossible to learn from mistakes and improve profitability, guaranteeing continued P&L degradation."
+    },
+    {
+      "role": "CTO/SRE",
+      "claim_summary": "Systems blocking most trades over 7 days are 'displacement_blocked' and 'max_positions_reached'.",
+      "data_support": "Blocked trade counts for the 1-day window show 'displacement_blocked' (1135) and 'max_positions_reached' (634) as dominant reasons. Rolling window data confirms this consistency. (Source: blocked_trade_counts_by_window)",
+      "cost_to_customer": "Each blocked trade represents a missed opportunity for potential profit. The sheer volume (2000 total in 1-day window) indicates significant foregone revenue, directly impacting the customer's overall returns.",
+      "why_not_fixed": "If these are consistently blocking so many trades, why haven't these constraints been optimized or relaxed after review? What is the technical bottleneck preventing this adjustment?",
+      "if_we_do_nothing": "We will continue to suppress potential profitable trades, leaving money on the table and ensuring the system operates below its full capacity, directly impacting customer returns."
+    },
+    {
+      "role": "CTO/SRE",
+      "claim_summary": "Constraints are very likely suppressing edge.",
+      "data_support": "The high count of blocked trades (2000 total, 1135 'displacement_blocked', 634 'max_positions_reached' in 1-day window) directly indicates suppression. (Source: blocked_trades, blocked_trade_counts_by_window)",
+      "cost_to_customer": "Suppressing edge means not capitalizing on high-probability setups, which directly reduces the system's overall profitability and the customer's account growth.",
+      "why_not_fixed": "This seems like a clear technical and strategic problem. What technical or policy reasons prevent adjusting these constraints to allow profitable trades?",
+      "if_we_do_nothing": "If we do nothing, we will continue to actively hinder the system's ability to generate returns, which is fundamentally against the customer's interest."
+    },
+    {
+      "role": "CTO/SRE",
+      "claim_summary": "Critical instrumentation missing: correlation cache, signal strength cache, sector P&L, intra-day drawdown, 'unknown' exit reasons.",
+      "data_support": "Wheel Daily Review sections 3.4a and 3.4b explicitly state 'No signal_strength_cache data' and 'Correlation cache missing or empty'. The bundle summary lacks explicit sector P&L, intra-day drawdown, and many 'unknown' exit reasons. (Source: 3.4a, 3.4b, attribution)",
+      "cost_to_customer": "Missing instrumentation means we are flying blind. We cannot accurately assess risk, identify profitable signals, or understand performance drivers. This directly contributes to the persistent negative P&L and prevents informed decision-making, costing the customer accurate insights and strategic improvements.",
+      "why_not_fixed": "These are basic requirements for a quantitative trading system. Why is this foundational data still missing? What resources are needed to fix this immediately?",
+      "if_we_do_nothing": "If we do nothing, we will continue to lack the necessary data to diagnose and fix systemic issues, perpetuating losses and preventing any meaningful improvement in performance for the customer."
+    },
+    {
+      "role": "Head of Trading",
+      "claim_summary": "Exit reasons costing most money over 5/7 days are 'unknown' and 'signal_decay' variants by volume.",
+      "data_support": "Attribution shows 1151 'unknown' exits. Exit attribution shows 'signal_decay(0.59)' (272 exits) and 'signal_decay(0.60)' (236 exits) as dominant. Rolling 1-day exit counts show 'unknown' as highest. (Source: attribution, exit_attribution, exit_reason_counts_by_window)",
+      "cost_to_customer": "Every 'unknown' exit is a loss without a lesson. For signal decay, it means trades are cut short, likely leaving money on the table. Both contribute to the consistent negative P&L over all windows, directly costing the customer. For example, the 5-day P&L is -73.4 USD. (Source: pnl_by_window)",
+      "why_not_fixed": "If these exit reasons are consistently causing losses, why are we still exiting trades this way? What is the plan to change the exit logic or properly attribute the 'unknowns'?",
+      "if_we_do_nothing": "If we do nothing, these problematic exit behaviors will continue to erode the customer's capital without providing actionable insights for improvement."
+    },
+    {
+      "role": "Head of Trading",
+      "claim_summary": "No direct data on whether holding longer improved outcomes, but high 'signal_decay_exit_rate' suggests premature exits.",
+      "data_support": "The 'signal_decay_exit_rate_by_window' is consistently high (~0.95) across all rolling windows, indicating most trades are exited due to signal decay. (Source: signal_decay_exit_rate_by_window)",
+      "cost_to_customer": "Premature exits mean missed profit opportunities. The customer is losing out on potential upside because trades are not allowed to mature. This directly contributes to the overall negative P&L.",
+      "why_not_fixed": "If we suspect premature exits, why are we not testing strategies to hold trades longer? This seems like a direct trading optimization that should be actively pursued.",
+      "if_we_do_nothing": "We will continue to leave potential profits on the table, as trades are cut short, directly impacting the customer's returns."
+    },
+    {
+      "role": "Head of Trading",
+      "claim_summary": "Cannot definitively state which signals deserve relaxed decay without detailed P&L attribution, but a general re-evaluation is warranted.",
+      "data_support": "The EOD bundle summary does not provide P&L attribution broken down by specific signal decay thresholds or individual signals to make this determination. (Source: EOD bundle summary)",
+      "cost_to_customer": "Without this granular P&L data, we are unable to make informed adjustments to our signal decay logic, meaning we cannot effectively optimize our exits. This costs the customer potential profits.",
+      "why_not_fixed": "This is a critical piece of trading intelligence. Why is the system not designed to provide this level of detail for P&L attribution?",
+      "if_we_do_nothing": "We will continue to make suboptimal decisions regarding exit parameters, leading to continued P&L degradation and missed opportunities for the customer."
+    },
+    {
+      "role": "Risk/CRO",
+      "claim_summary": "Cannot determine if losses are clustered by correlation due to missing correlation cache.",
+      "data_support": "Wheel Daily Review section 3.4b explicitly states 'WARN: Correlation cache missing or empty'. (Source: 3.4b)",
+      "cost_to_customer": "An inability to assess correlation means we cannot effectively manage portfolio risk. If losses are indeed clustered due to correlated assets, the customer is exposed to unexpected large drawdowns. This is a severe, unquantified risk.",
+      "why_not_fixed": "This is a fundamental risk management tool. Why is the correlation cache missing? What is preventing its generation and use?",
+      "if_we_do_nothing": "We will continue to operate with a critical blind spot in risk management, leaving the customer exposed to potentially severe and unmanaged correlation-driven losses."
+    },
+    {
+      "role": "Risk/CRO",
+      "claim_summary": "Currently unknown if we are over-concentrated; limited universe size raises a flag.",
+      "data_support": "The 'daily_universe_v2' lists only 20 symbols. However, without correlation data (missing in 3.4b), actual concentration cannot be determined. (Source: 3.4b, daily_universe_v2)",
+      "cost_to_customer": "If we are over-concentrated, the customer faces amplified risk from adverse movements in specific sectors or highly correlated assets, leading to outsized losses.",
+      "why_not_fixed": "Given the small universe size, assessing concentration is paramount. Why is the necessary correlation data not available to make this determination?",
+      "if_we_do_nothing": "We will continue to potentially hold an undiversified portfolio, subjecting the customer to higher, unmanaged concentration risk and greater volatility."
+    },
+    {
+      "role": "Risk/CRO",
+      "claim_summary": "Most significant unpriced risks are correlation risk and 'unknown' exit reasons.",
+      "data_support": "The correlation cache is missing (3.4b), making correlation risk unquantifiable. The high volume of 'unknown' exit reasons (1151 in attribution) represents unclassified risk. (Source: 3.4b, attribution)",
+      "cost_to_customer": "Unpriced risks mean the system is taking on exposure without proper assessment, potentially leading to unforeseen losses. This directly compromises the customer's capital protection and the integrity of the risk framework.",
+      "why_not_fixed": "These are critical gaps in risk identification. Why have these significant unpriced risks not been addressed through instrumentation or risk model enhancements?",
+      "if_we_do_nothing": "If we do nothing, the system will continue to expose the customer to these unquantified and unmanaged risks, which could lead to substantial and unexpected capital losses."
+    }
+  ],
+  "unresolved_disputes": [],
+  "missed_money": {
+    "blocked_trade_opportunity_cost": {
+      "unknown": true,
+      "reason": "Opportunity cost cannot be precisely quantified without knowing the expected P&L of each blocked trade and the frequency with which these trades would have been profitable. Historical win rates of similar trades would be needed.",
+      "missing_inputs": [
+        "expected P&L per blocked trade",
+        "historical win rate of blocked trade types"
+      ],
+      "instrumentation_needed": [
+        "logging of expected P&L for blocked trades",
+        "post-hoc analysis framework for blocked trade performance"
+      ]
+    },
+    "early_exit_opportunity_cost": {
+      "unknown": true,
+      "reason": "This requires a counterfactual analysis of how much more P&L would have been realized if trades exited by signal decay were held longer. This is not available in the current EOD bundle.",
+      "missing_inputs": [
+        "counterfactual P&L for extended hold periods",
+        "average P&L of trades with relaxed decay"
+      ],
+      "instrumentation_needed": [
+        "simulated P&L for alternative exit strategies",
+        "A/B testing framework for exit parameters"
+      ]
+    },
+    "correlation_concentration_cost": {
+      "unknown": true,
+      "reason": "The correlation cache is missing, making it impossible to identify and quantify any losses specifically attributable to correlated exposures.",
+      "missing_inputs": [
+        "correlation matrix",
+        "P&L attribution by correlated groups"
+      ],
+      "instrumentation_needed": [
+        "correlation cache generation and storage",
+        "P&L attribution by correlation clusters"
+      ]
+    }
+  }
+}
