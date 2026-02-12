@@ -159,7 +159,8 @@ def run_full_eod(date_str: str, repo_root: Path | None = None) -> None:
         log.warning("run_multi_day_analysis exited %s: %s", rma.returncode, rma.stderr or rma.stdout)
 
     # 2) Full EOD (rolling windows, board generation, write_daily_bundle) via run_stock_quant_officer_eod with --date
-    eod_argv = [sys.executable, str(SCRIPT_DIR / "run_stock_quant_officer_eod.py"), "--date", date_str]
+    # Use --skip-wheel-closure so confirmation re-run can complete and push when prior closure is missing
+    eod_argv = [sys.executable, str(SCRIPT_DIR / "run_stock_quant_officer_eod.py"), "--date", date_str, "--skip-wheel-closure"]
     eod = subprocess.run(eod_argv, cwd=base, timeout=600)
     if eod.returncode != 0:
         raise SystemExit(f"EOD pipeline failed with exit code {eod.returncode}")

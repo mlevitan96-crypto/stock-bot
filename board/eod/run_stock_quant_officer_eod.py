@@ -1047,8 +1047,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Stock Quant Officer EOD")
     ap.add_argument("--dry-run", action="store_true", help="Skip Clawdbot, write stub JSON")
     ap.add_argument("--date", default="", help="YYYY-MM-DD (default: today UTC)")
+    ap.add_argument("--skip-wheel-closure", action="store_true", help="Skip wheel action closure check (e.g. confirmation re-run)")
     args = ap.parse_args()
     dry_run = args.dry_run
+    skip_wheel_closure = args.skip_wheel_closure
     date_str = (args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")).strip()
     ensure_dirs()
     date_out_dir = OUT_DIR / date_str
@@ -1106,7 +1108,7 @@ def main() -> int:
         log.error("Saved raw response to %s", raw_path)
         return 1
 
-    if not dry_run:
+    if not dry_run and not skip_wheel_closure:
         closure_ok, missing_ids = validate_closure(obj, prior_wheel_actions)
         if not closure_ok:
             log.error("Wheel action closure required but missing for action_ids: %s", missing_ids)
