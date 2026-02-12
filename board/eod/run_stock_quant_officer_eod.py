@@ -15,6 +15,7 @@ Set CLAWDBOT_SESSION_ID for clawdbot agent --session-id.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import logging
@@ -509,6 +510,21 @@ def build_correlation_watchlist(corr_cache: dict) -> list[dict]:
             "avg_corr_topk": avg_corr_topk,
         })
     return out
+
+
+def validate_survivorship_correlation_review(
+    obj: dict, signal_survivorship: dict | None, corr_cache: dict | None
+) -> tuple[bool, list[str]]:
+    """Board must review signal survivorship and correlation when data exists. Return (ok, errors)."""
+    errors: list[str] = []
+    refs = str(obj.get("summary") or "") + json.dumps(obj.get("executive_answers") or {})
+    if signal_survivorship and (signal_survivorship.get("signals") or {}):
+        if "survivorship" not in refs.lower() and "signal_survivorship" not in refs.lower():
+            errors.append("Board must reference signal survivorship when signals exist")
+    if corr_cache and (corr_cache.get("pairs") or corr_cache.get("top_symbols")):
+        if "correlation" not in refs.lower() and "correl" not in refs.lower():
+            errors.append("Board must reference correlation when cache has data")
+    return (len(errors) == 0), errors
 
 
 def validate_adversarial_output(obj: dict, rolling_windows: dict) -> tuple[bool, list[str]]:
@@ -1028,14 +1044,25 @@ def write_artifacts(
 
 
 def main() -> int:
-    dry_run = "--dry-run" in sys.argv
+    ap = argparse.ArgumentParser(description="Stock Quant Officer EOD")
+    ap.add_argument("--dry-run", action="store_true", help="Skip Clawdbot, write stub JSON")
+    ap.add_argument("--date", default="", help="YYYY-MM-DD (default: today UTC)")
+    args = ap.parse_args()
+    dry_run = args.dry_run
+    date_str = (args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")).strip()
     ensure_dirs()
-    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     date_out_dir = OUT_DIR / date_str
     date_out_dir.mkdir(parents=True, exist_ok=True)
 
     ensure_wheel_daily_review(date_str)
     rolling_windows = load_rolling_windows(date_str)
+    # Signal survivorship: per-symbol avg hold, win rate, P&L, decay-trigger frequency
+    try:
+        from board.eod.rolling_windows import build_signal_survivorship
+        signal_survivorship = build_signal_survivorship(REPO_ROOT, date_str, window_days=7)
+    except Exception as e:
+        log.warning("Signal survivorship build failed: %s", e)
+        signal_survivorship = {"date": date_str, "signals": {}, "message": str(e)}
 
     prior_wheel_actions = load_prior_wheel_actions(date_str)
     data, missing = load_bundle()
@@ -1096,13 +1123,48 @@ def main() -> int:
                 log.error("%s", err)
             log.error("Board must reference rolling windows, include executive answers, customer advocate challenges, and missed_money. Omission FAILS the run.")
             sys.exit(1)
+        surv_corr_ok, surv_corr_errs = validate_survivorship_correlation_review(obj, signal_survivorship, corr_cache)
+        if not surv_corr_ok:
+            for err in surv_corr_errs:
+                log.error("%s", err)
+            log.error("Board must review signal survivorship and correlation when data exists. Omission FAILS the run.")
+            sys.exit(1)
     write_artifacts(obj, date_str, weakening_watchlist, correlation_watchlist, output_dir=date_out_dir)
     write_wheel_actions(date_str, obj, prior_wheel_actions)
     write_wheel_watchlists(date_str, weakening_watchlist, correlation_watchlist, obj)
+    # Auto-rollback: wire check_auto_rollback_and_disable into every EOD run
+    try:
+        from policy_variants import check_auto_rollback_and_disable, _is_canary_disabled
+        rw = rolling_windows or {}
+        pnl_1d = (rw.get("pnl_by_window") or {}).get("1_day")
+        win_rate_1d = (rw.get("win_rate_by_window") or {}).get("1_day")
+        triggered, reason = check_auto_rollback_and_disable(pnl_1d=pnl_1d, win_rate_1d=win_rate_1d)
+        obj["rollback_decision"] = {
+            "triggered": triggered,
+            "reason": reason or "",
+            "canary_disabled": _is_canary_disabled(),
+            "pnl_1d": pnl_1d,
+            "win_rate_1d": win_rate_1d,
+        }
+    except Exception as e:
+        obj["rollback_decision"] = {"triggered": False, "reason": str(e), "canary_disabled": False}
+    # Compute missed_money from logs when available; merge with board guesses
+    try:
+        from board.eod.bundle_writer import compute_missed_money
+        computed = compute_missed_money(REPO_ROOT, date_str, window_days=7)
+        board_missed = obj.get("missed_money") or {}
+        merged_missed = {}
+        for key in ("blocked_trade_opportunity_cost", "early_exit_opportunity_cost", "correlation_concentration_cost"):
+            comp = computed.get(key) or {}
+            board_val = board_missed.get(key) if isinstance(board_missed, dict) else None
+            merged_missed[key] = comp if not comp.get("unknown", True) else (board_val if isinstance(board_val, dict) else comp)
+        obj["missed_money"] = merged_missed
+    except Exception as e:
+        log.warning("compute_missed_money failed: %s", e)
     # Canonical 9-file bundle to board/eod/out/<date>/
     try:
         from board.eod.bundle_writer import write_daily_bundle
-        write_daily_bundle(date_str, obj, rolling_windows, obj.get("missed_money") or {}, REPO_ROOT)
+        write_daily_bundle(date_str, obj, rolling_windows, obj.get("missed_money") or {}, REPO_ROOT, signal_survivorship=signal_survivorship)
     except Exception as e:
         log.warning("Bundle writer failed (non-fatal): %s", e)
     return 0
