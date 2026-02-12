@@ -30,7 +30,7 @@ ALLOWED_EXTENSIONS = {".json", ".md", ".txt", ".csv"}
 DISALLOWED_SUFFIXES = (".gz", ".jsonl.gz")
 # Canonical files we require for "valid" (bundle_writer output)
 REQUIRED_CANONICAL_FILES = ("eod_board.json", "derived_deltas.json", "eod_board.md", "eod_review.md", "weekly_review.md")
-MAX_CANONICAL_FILES = 10
+MAX_CANONICAL_FILES = 11  # 9 from bundle_writer + 2 from multi_day_analysis (json + md)
 
 
 def verify_eod_run(date_str: str, repo_root: Path | None = None) -> dict[str, Any]:
