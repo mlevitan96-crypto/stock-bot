@@ -1,0 +1,419 @@
+{
+  "verdict": "CAUTION",
+  "summary": "The system posted a net loss of $60.51 today, contributing to a consistently negative P&L trend and low win rates across all rolling windows (1, 3, 5, and 7 days). Critical governance issues persist, with the 'Board action closure' badge failing, preventing meaningful progress. Signal decay remains the dominant exit reason, and a high volume of trades were blocked due to capacity constraints, indicating significant missed opportunities and potential issues with exit logic.",
+  "pnl_metrics": {
+    "total_pnl_usd": -60.51,
+    "total_pnl_pct": -0.12,
+    "trades": 2672,
+    "wins": 531,
+    "losses": 712,
+    "win_rate": 0.427,
+    "max_drawdown_pct": 4.96
+  },
+  "regime_context": {
+    "regime_label": "BEAR",
+    "regime_confidence": null,
+    "notes": "Inferred from `daily_universe_v2.json` where all sample symbols are aligned with a BEAR regime. No explicit confidence metric available."
+  },
+  "sector_context": {
+    "sectors_traded": [
+      "ENERGY",
+      "TECH",
+      "UNKNOWN",
+      "BIOTECH"
+    ],
+    "sector_pnl": null,
+    "notes": "Sectors traded inferred from `daily_universe_v2.json`. By-sector P&L is not explicitly available in the provided EOD bundle summary for current day's attribution."
+  },
+  "recommendations": [
+    {
+      "id": "rec-1",
+      "priority": "high",
+      "title": "Resolve Board Action Closure Governance Failure",
+      "body": "The 'Board action closure' badge is in a FAIL state, which is a critical blocker preventing the implementation and tracking of any strategic initiatives. Immediate action is required to establish ownership and a process for resolving board actions.",
+      "owner": "Board/Ops"
+    },
+    {
+      "id": "rec-2",
+      "priority": "high",
+      "title": "Analyze and Adjust Signal Decay Exit Parameters",
+      "body": "With over 95% of exits attributed to signal decay across rolling windows, a deep dive is needed to determine if decay thresholds are too aggressive, leading to premature exits and missed P&L. Focus on the P&L contribution of these exits.",
+      "owner": "Quant/Research"
+    },
+    {
+      "id": "rec-3",
+      "priority": "medium",
+      "title": "Review Blocked Trades for Systemic Constraints",
+      "body": "The high count of 'displacement_blocked' and 'max_positions_reached' trades (totaling over 1700 in 3 days) indicates significant missed opportunities. Investigate the underlying causes of these blocks and adjust system constraints or logic to capture more valid trade entries.",
+      "owner": "Head of Trading/CTO"
+    },
+    {
+      "id": "rec-4",
+      "priority": "high",
+      "title": "Generate and Utilize Correlation Cache",
+      "body": "The absence of a correlation cache is a critical gap in risk management, preventing assessment of concentration risk. The `compute_signal_correlation_snapshot.py` script should be run immediately to establish this essential data source.",
+      "owner": "CTO/SRE"
+    }
+  ],
+  "top_3_root_causes_pnl_degradation": [
+    "Persistent low win rates (sub-20% across 3,5,7 days) and negative P&L across all rolling windows indicate a fundamental flaw in trade selection or overall strategy effectiveness. (win_rate_by_window, pnl_by_window)",
+    "An overwhelming majority of exits (over 95%) are due to 'signal_decay', suggesting that positions are being closed prematurely, or initial signals are rapidly deteriorating, leading to unrealized profit potential or locking in minor losses. (signal_decay_exit_rate_by_window, Attribution, Exit attribution)",
+    "Significant suppression of trading opportunities due to 'displacement_blocked' and 'max_positions_reached' constraints (over 1700 blocked trades in 3 days), implying that the system is unable to capture detected edge, directly impacting P&L. (blocked_trade_counts_by_window)"
+  ],
+  "top_3_concrete_actions_next": [
+    "Immediately establish clear ownership and implement a process to resolve the 'Board action closure: FAIL' governance status to unblock all pending and future system improvements. (Owner: Board/Ops)",
+    "Perform a detailed P&L analysis of all trades exited by 'signal_decay' reasons over the past 7 days to quantify the true cost of these exits and identify specific decay thresholds or signal types that warrant adjustment. (Owner: Quant)",
+    "Temporarily relax the 'max_positions_reached' constraint by a controlled percentage (e.g., 10%) for a 3-day observation period, to assess the impact on captured trades and overall P&L, while closely monitoring risk metrics. (Owner: Head of Trading/Risk)"
+  ],
+  "expected_impact_per_action": {
+    "Immediately establish clear ownership and implement a process to resolve the 'Board action closure: FAIL' governance status": "Unblocks further development, potentially enabling improvements that could collectively increase P&L by 0.5-1% over the next week, as critical initiatives will no longer be stalled.",
+    "Perform a detailed P&L analysis of all trades exited by 'signal_decay' reasons over the past 7 days": "This analysis is expected to identify opportunities to improve win rate by 5-10% and reduce overall losses by 0.1-0.2% by optimizing signal decay parameters and preventing premature exits.",
+    "Temporarily relax the 'max_positions_reached' constraint by a controlled percentage (e.g., 10%) for a 3-day observation period": "This action is expected to increase the number of executed trades by 5-10%, potentially boosting daily P&L by $20-$50 USD by capturing previously blocked opportunities."
+  },
+  "success_failure_measured_in_3_5_days": "Success will be measured by: (1) The 'Board action closure' governance badge transitioning from FAIL to PASS. (2) A quantifiable reduction in the number of trades exiting prematurely due to 'signal_decay' reasons (e.g., a 10% decrease in signal_decay exit count) and a corresponding improvement in the average P&L of these trades. (3) A measurable increase in executed trades and a corresponding positive impact on daily P&L without an adverse increase in max drawdown or other risk metrics.",
+  "citations": [
+    {
+      "source": "attribution",
+      "ref": "logs/attribution.jsonl",
+      "quote": "Trades: 2672, Wins: 531, Losses: 712, Total P&L USD: -60.51. Used for current day P&L, trades, wins, losses."
+    },
+    {
+      "source": "daily_start_equity",
+      "ref": "state/daily_start_equity.json",
+      "quote": "equity: 50018.87, date: 2026-02-11. Used for total_pnl_pct calculation."
+    },
+    {
+      "source": "peak_equity",
+      "ref": "state/peak_equity.json",
+      "quote": "peak_equity: 52566.86, peak_timestamp: 1767811497. Used for max_drawdown_pct calculation."
+    },
+    {
+      "source": "rolling_windows",
+      "ref": "pnl_by_window",
+      "quote": "pnl_by_window: {\"1_day\": 0, \"3_day\": -67.75, \"5_day\": -137.15, \"7_day\": -98.26}. Cited for overall P&L trend."
+    },
+    {
+      "source": "rolling_windows",
+      "ref": "win_rate_by_window",
+      "quote": "win_rate_by_window: {\"1_day\": 0.0, \"3_day\": 0.19, \"5_day\": 0.173, \"7_day\": 0.1895}. Cited for win rate trend."
+    },
+    {
+      "source": "rolling_windows",
+      "ref": "blocked_trade_counts_by_window",
+      "quote": "blocked_trade_counts_by_window: {\"1_day\": {}, \"3_day\": {\"displacement_blocked\": 950, \"max_positions_reached\": 767, \"expectancy_blocked:score_floor_breach\": 279, \"order_validation_failed\": 4}}. Cited for blocked trade analysis."
+    },
+    {
+      "source": "rolling_windows",
+      "ref": "signal_decay_exit_rate_by_window",
+      "quote": "signal_decay_exit_rate_by_window: {\"1_day\": 0.0, \"3_day\": 0.9551, \"5_day\": 0.9493, \"7_day\": 0.9608}. Cited for high signal decay exit rates."
+    },
+    {
+      "source": "daily_universe_v2",
+      "ref": "state/daily_universe_v2.json",
+      "quote": "sample: [{'context': {'regime_label': 'BEAR', 'sector': 'ENERGY'}}, ...]. Used for regime and sector context."
+    },
+    {
+      "source": "exit_attribution",
+      "ref": "logs/exit_attribution.jsonl",
+      "quote": "Exit reasons: {'profit': 7, 'stop': 15, 'signal_decay(0.59)': 293, ...}. Used for exit reason analysis."
+    },
+    {
+      "source": "blocked_trades",
+      "ref": "state/blocked_trades.jsonl",
+      "quote": "By reason: {'max_positions_reached': 767, 'expectancy_blocked:score_floor_breach': 279, 'displacement_blocked': 950, 'order_validation_failed': 4}. Used for blocked trade analysis."
+    },
+    {
+      "source": "wheel_governance_badge",
+      "ref": "Wheel governance badge",
+      "quote": "Status: FAIL, Board action closure: FAIL. Cited for critical governance issue."
+    },
+    {
+      "source": "signal_trend_review",
+      "ref": "3.4a Signal trend (open positions)",
+      "quote": "Multiple symbols showing 'weakening' signal trend. Used for watchlist and signal trend insights."
+    },
+    {
+      "source": "correlation_concentration_review",
+      "ref": "3.4b Correlation concentration",
+      "quote": "WARN: Correlation cache missing or empty. Cited for critical missing instrumentation."
+    }
+  ],
+  "falsification_criteria": [
+    {
+      "id": "fc-1",
+      "description": "If the 'Board action closure' governance badge remains FAIL after 3 days, the proposed immediate action for governance resolution was ineffective.",
+      "observed": null,
+      "data_source": "wheel_governance_badge"
+    },
+    {
+      "id": "fc-2",
+      "description": "If the 3-day rolling win rate (win_rate_by_window) does not increase by at least 5% after the signal decay analysis and adjustment, the impact of signal decay on P&L was overstated or the proposed solution is insufficient.",
+      "observed": null,
+      "data_source": "win_rate_by_window, signal_decay_exit_rate_by_window"
+    },
+    {
+      "id": "fc-3",
+      "description": "If the 'displacement_blocked' and 'max_positions_reached' counts (blocked_trade_counts_by_window) do not decrease by at least 10% within 5 days of implementing the suggested capacity/logic changes, our understanding of trade blocking impact is flawed.",
+      "observed": null,
+      "data_source": "blocked_trade_counts_by_window"
+    },
+    {
+      "id": "fc-4",
+      "description": "If the correlation cache is not generated and available for review within 24 hours, the urgency and priority assigned to this critical risk management task were insufficient.",
+      "observed": null,
+      "data_source": "3.4b Correlation concentration"
+    }
+  ],
+  "wheel_actions": [
+    {
+      "action_id": "56e36d804c0beb21",
+      "status": "blocked",
+      "note": "Blocked by the 'Board action closure: FAIL' governance status. Cannot address until core governance is resolved."
+    },
+    {
+      "action_id": "247598556f6f7307",
+      "status": "blocked",
+      "note": "Blocked by the 'Board action closure: FAIL' governance status and the 'Correlation cache missing' warning. Requires correlation cache to be generated first."
+    },
+    {
+      "action_id": "68bb4cbe4feef78d",
+      "status": "blocked",
+      "note": "Blocked by the 'Board action closure: FAIL' governance status. Requires broader governance resolution before detailed analysis."
+    },
+    {
+      "action_id": "new-action-1",
+      "status": "proposed",
+      "note": "This action is paramount to unblock all other improvements."
+    },
+    {
+      "action_id": "new-action-2",
+      "status": "proposed",
+      "note": "This action aims to address the persistent losses from signal decay."
+    },
+    {
+      "action_id": "new-action-3",
+      "status": "proposed",
+      "note": "This action directly addresses the missing critical risk data."
+    },
+    {
+      "title": "Establish clear ownership and process for board action closure.",
+      "body": "The 'Board action closure: FAIL' status is a critical impediment. A dedicated owner must be assigned, and a clear process implemented to ensure timely resolution and progression of critical board actions. This is the highest-ROI fix as it unblocks all other improvements.",
+      "owner": "Cursor",
+      "reference_section": "Wheel governance badge"
+    },
+    {
+      "title": "Implement a 'fire sale' exit mechanism for highly decaying signals.",
+      "body": "Given the high signal decay exit rate (95%+ across 3, 5, 7 days), signals are decaying significantly. For open positions with rapidly weakening signals (e.g., delta <= -2.0), implement an aggressive 'fire sale' exit to mitigate further losses, rather than holding through decay. This should be a configurable rule.",
+      "owner": "Mark",
+      "reference_section": "3.4a Signal trend (open positions), signal_decay_exit_rate_by_window"
+    },
+    {
+      "title": "Generate the correlation cache for proper risk assessment.",
+      "body": "The correlation cache is missing, preventing proper assessment of concentration risk. Execute `python3 scripts/compute_signal_correlation_snapshot.py --minutes 60 --topk 20` to generate the necessary data for risk analysis.",
+      "owner": "Mark",
+      "reference_section": "3.4b Correlation concentration"
+    },
+    {
+      "title": "Review the impact of 'displacement_blocked' trades.",
+      "body": "950 trades were 'displacement_blocked' over 3 days. This suggests valid entry signals are being missed due to displacement rules. Review the logic of displacement to ensure it's not overly aggressive and is aligned with current market conditions.",
+      "owner": "Mark",
+      "reference_section": "blocked_trade_counts_by_window"
+    }
+  ],
+  "wheel_signal_trend_insights": [
+    "A significant portion (19 out of 47 reviewed) of open positions are showing weakening signals, with 'XLI' (delta -2.94) and 'SLB' (delta -2.47) exhibiting the largest negative deltas, indicating potential for further P&L degradation if not managed effectively.",
+    "The widespread presence of weakening signals suggests a need for more dynamic exit strategies or tighter monitoring of initial signal quality, as holding these positions through decay is likely contributing to negative P&L.",
+    "The observed signal weakening in open positions aligns with the high signal decay exit rates seen in the attribution data, reinforcing the urgency to address this aspect of the trading strategy."
+  ],
+  "wheel_correlation_risks": [
+    "WARNING: Correlation cache missing or empty. This critical absence prevents any quantitative assessment of correlation concentration risk within the portfolio, leaving significant unmanaged exposure.",
+    "The lack of correlation data means the system cannot identify or mitigate risks from highly correlated assets that might move adversely together, potentially amplifying losses during market downturns."
+  ],
+  "wheel_watchlists": {
+    "weakening_signals": [
+      {
+        "symbol": "HOOD",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.24 with -1.048 delta.",
+        "exit_review_condition": "Immediate exit review if signal drops below 1.5, or if asset price breaches a 5% trailing stop from peak, or if there is major negative news for Robinhood."
+      },
+      {
+        "symbol": "SLB",
+        "board_rationale": "Position held despite critically low signal (0.727) and large delta (-2.472), due to current exit logic.",
+        "exit_review_condition": "Immediate exit review and potential 'fire sale' due to critically low signal. Further decline below 0.5 or continued negative delta would necessitate forced exit."
+      },
+      {
+        "symbol": "XLK",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.015 with -1.419 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.5, or if the Technology sector shows further significant weakness, or if the underlying asset breaches key support levels."
+      },
+      {
+        "symbol": "MSFT",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 1.949 with -0.574 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.5, or if Microsoft experiences negative earnings surprises or regulatory concerns."
+      },
+      {
+        "symbol": "NFLX",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.057 with -1.039 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.5, or if subscriber growth concerns intensify, or if competitive pressure increases significantly."
+      },
+      {
+        "symbol": "XLI",
+        "board_rationale": "Position held despite critically low signal (0.557) and largest delta (-2.944), due to current exit logic.",
+        "exit_review_condition": "Immediate exit review and potential 'fire sale' due to critically low signal. Further decline below 0.5 or sustained negative delta would necessitate forced exit."
+      },
+      {
+        "symbol": "BAC",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.017 with -0.716 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.5, or if there's significant negative news in the banking sector (e.g., interest rate changes, loan defaults)."
+      },
+      {
+        "symbol": "BA",
+        "board_rationale": "Position held despite critically low signal (0.981) and large delta (-2.076), due to current exit logic.",
+        "exit_review_condition": "Immediate exit review and potential 'fire sale' due to critically low signal. Further decline below 0.5 or sustained negative delta would necessitate forced exit."
+      },
+      {
+        "symbol": "MS",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.159 with -0.67 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.5, or if Morgan Stanley faces reputational damage, or if there are unfavorable market conditions for investment banks."
+      },
+      {
+        "symbol": "LCID",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.32 with -1.426 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.5, or if Lucid Group's production targets are missed, or if there's increased competition in the EV luxury segment."
+      },
+      {
+        "symbol": "F",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.339 with -0.831 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.5, or if Ford faces significant recall issues, or if the automotive market experiences a downturn."
+      },
+      {
+        "symbol": "COP",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.11 with -0.6 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.5, or if crude oil prices decline sharply, or if ConocoPhillips announces negative production forecasts."
+      },
+      {
+        "symbol": "CVX",
+        "board_rationale": "Position held due to current exit logic not triggering; signal is 1.75 with -1.303 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.0, or if crude oil prices decline sharply, or if Chevron faces environmental regulatory challenges."
+      }
+    ]
+  },
+  "executive_answers": {
+    "CEO": {
+      "converging_oscillating": "The system is currently oscillating with a negative trend. P&L is 0 for 1-day, but -67.75, -137.15, and -98.26 for 3, 5, and 7-day rolling windows respectively, indicating consistent losses. Win rates are also persistently low (0.0, 0.19, 0.173, 0.1895). (pnl_by_window, win_rate_by_window)",
+      "metrics_improved_failed": "No metrics have shown clear improvement; instead, P&L remains negative and win rates are low. The high signal decay exit rate (95.51% over 3 days) suggests that previous adjustments to exit logic, if any, have failed to improve trade longevity or profitability. (signal_decay_exit_rate_by_window)",
+      "single_decision_live_tomorrow": "The single decision that goes live tomorrow is to **immediately establish clear ownership and process for board action closure (action_id: new-action-1)**. This critical governance failure is blocking all other proposed improvements and must be resolved before any other significant changes can be effectively implemented. (Wheel governance badge)"
+    },
+    "CTO_SRE": {
+      "systems_blocked_trades_most": "Over the last 7 days (and 3 days where data is available), the primary systems blocking trades are related to 'displacement_blocked' (950 counts) and 'max_positions_reached' (767 counts). This indicates either aggressive displacement logic or an under-allocated capital base limiting concurrent positions. (blocked_trade_counts_by_window)",
+      "constraints_suppressing_edge": "Yes, constraints are clearly suppressing edge. The high counts of 'displacement_blocked' and 'max_positions_reached' directly imply that potential trades are being identified but not executed due to system or risk management constraints. This is likely leading to missed profit opportunities. (blocked_trade_counts_by_window)",
+      "instrumentation_missing": "The most critical missing instrumentation is the 'Correlation cache'. Its absence directly prevents proper risk assessment and optimization of correlated exposures, as explicitly warned in the daily review. This omission is a significant gap in risk management and portfolio construction. (3.4b Correlation concentration)"
+    },
+    "Head_of_Trading": {
+      "exit_reasons_cost_most": "Over the last 5 and 7 days, 'signal_decay' exit reasons are the most prevalent, representing over 95% of exits. While the precise P&L per exit reason isn't quantified, this high frequency strongly suggests that trades are being exited prematurely or signals are decaying too rapidly, collectively costing significant P&L over time. (signal_decay_exit_rate_by_window, exit_reason_counts_by_window)",
+      "holding_longer_improve_outcomes": "Based on the dominant 'signal_decay' exit reason, it is highly probable that holding positions longer, especially those with initial positive P&L before decay, could improve outcomes. The current aggressive signal decay exits might be cutting off winning trades too early. (signal_decay_exit_rate_by_window)",
+      "signals_deserve_relaxed_decay": "Given the widespread signal decay, an immediate candidate for relaxed decay would be any signal where the initial positive movement is cut short by a rapid decay, particularly for high-conviction entry signals. A detailed post-trade analysis on recently exited 'signal_decay' trades is needed to identify specific signal types or thresholds for relaxation."
+    },
+    "Risk_CRO": {
+      "losses_clustered_by_correlation": "Without the 'Correlation cache', it is unknown if losses are clustered by correlation. This is a critical blind spot for risk assessment. The warning explicitly states 'Correlation cache missing or empty', making this determination impossible. (3.4b Correlation concentration)",
+      "over_concentrated": "It is unknown if we are over-concentrated due to the missing 'Correlation cache'. While the 'daily_universe_v2.json' shows a BEAR regime and some symbols in 'ENERGY' and 'TECH' sectors, the lack of correlation data prevents a definitive assessment of concentration risk. (3.4b Correlation concentration)",
+      "risk_not_priced": "The most significant risk not being properly priced is **correlation risk** due to the missing 'Correlation cache'. This prevents the system from understanding and managing inter-asset dependencies, potentially leading to unforeseen losses during market shifts or sector-specific events. The ongoing losses and low win rates might be exacerbated by unmanaged correlated exposures. (3.4b Correlation concentration)"
+    }
+  },
+  "customer_advocate_challenges": [
+    {
+      "role": "CEO",
+      "claim_summary": "System oscillating negatively; no metrics improved.",
+      "data_support": "P&L and win rate rolling window data consistently negative and low. (pnl_by_window, win_rate_by_window)",
+      "cost_to_customer": "The consistent negative P&L across multiple windows directly costs the customer through reduced capital and missed growth opportunities, evidenced by the -67.75 (3-day) to -137.15 (5-day) P&L figures.",
+      "why_not_fixed": "The 'Board action closure: FAIL' governance status is a core blocker, preventing the resolution of this issue and any other improvements. This must be fixed immediately.",
+      "if_we_do_nothing": "If we do nothing, the system will likely continue its negative P&L oscillation, eroding customer capital further, and the governance failures will ensure no lasting improvements can be made."
+    },
+    {
+      "role": "CEO",
+      "claim_summary": "Single decision for tomorrow: Fix Board action closure.",
+      "data_support": "Wheel governance badge status: FAIL for 'Board action closure'. (Wheel governance badge)",
+      "cost_to_customer": "Every day this is blocked, the customer incurs the opportunity cost of un-implemented improvements that could address the ongoing negative P&L. This is an unquantified but certainly significant cost.",
+      "why_not_fixed": "It is a governance issue requiring clear ownership and process. It seems to be a procedural rather than a technical blocker that has been overlooked.",
+      "if_we_do_nothing": "If we do nothing, the system remains crippled, unable to implement any changes, guaranteeing continued underperformance and dissatisfaction."
+    },
+    {
+      "role": "CTO/SRE",
+      "claim_summary": "Systems blocked trades most due to displacement and max positions.",
+      "data_support": "'displacement_blocked' (950 counts) and 'max_positions_reached' (767 counts) over 3 days. (blocked_trade_counts_by_window)",
+      "cost_to_customer": "These blocked trades represent *missed opportunities*. For example, 'displacement_blocked' implies a valid signal was present but unexecuted. Quantifying the exact cost is difficult without simulating these trades, but it's clearly preventing potential P&L capture. This is a recurring, significant operational cost.",
+      "why_not_fixed": "The continued high counts suggest that either the underlying logic for displacement and position limits is too conservative, or the system's capital base is insufficient for the detected opportunities. This requires an immediate review.",
+      "if_we_do_nothing": "If we do nothing, the system will continue to underperform by actively preventing itself from executing valid trades, directly limiting customer P&L upside and frustrating system capabilities."
+    },
+    {
+      "role": "CTO/SRE",
+      "claim_summary": "Missing instrumentation: Correlation cache.",
+      "data_support": "Explicit 'WARN: Correlation cache missing or empty' in 3.4b Correlation concentration. (3.4b Correlation concentration)",
+      "cost_to_customer": "The absence of a correlation cache means we are operating with a critical blind spot regarding portfolio risk. This unquantified risk could lead to significant, unforeseen losses due to over-concentration in correlated assets, directly impacting customer capital.",
+      "why_not_fixed": "This is a basic data generation and caching issue. It's unclear why this critical piece of instrumentation has been left unaddressed, especially given its direct impact on risk management.",
+      "if_we_do_nothing": "If we do nothing, we expose the customer to unknown and unmanaged correlation risk, which could lead to substantial and unexpected drawdowns, completely undermining trust."
+    },
+    {
+      "role": "Head of Trading",
+      "claim_summary": "Signal decay exit reasons cost the most money.",
+      "data_support": "Over 95% of exits attributed to 'signal_decay' across 3, 5, and 7-day windows. (signal_decay_exit_rate_by_window)",
+      "cost_to_customer": "While specific P&L per exit reason isn't provided, this overwhelming prevalence of signal decay exits strongly implies that trades are being closed prematurely, cutting off potential profits or locking in minor losses instead of allowing for recovery or further gains. This is a consistent drag on overall P&L.",
+      "why_not_fixed": "This suggests that the signal decay thresholds are either too aggressive or the initial signals themselves are of poor quality and decay too quickly. A deeper dive into individual trades is needed to refine these parameters, but this should be a high priority.",
+      "if_we_do_nothing": "If we do nothing, we are essentially guaranteeing that a vast majority of trades will be exited due to decay, which has already led to negative P&L across all windows. This means continuously ceding potential profits to an overly sensitive exit mechanism."
+    },
+    {
+      "role": "Head of Trading",
+      "claim_summary": "Holding longer could improve outcomes; signals deserve relaxed decay.",
+      "data_support": "This is an inference based on the high 'signal_decay' exit rates. (signal_decay_exit_rate_by_window)",
+      "cost_to_customer": "Premature exits due to aggressive signal decay rules directly cost the customer by failing to capture the full profit potential of winning trades. This is an ongoing, insidious cost that aggregates to the overall negative P&L.",
+      "why_not_fixed": "This requires a detailed analysis of individual trade lifecycle and optimization of signal decay parameters. It's a complex problem, but the consistent P&L degradation indicates it's a high-ROI area for improvement that has not been adequately addressed.",
+      "if_we_do_nothing": "If we do nothing, we continue to leave money on the table, as the system will keep exiting trades prematurely, undermining the effectiveness of any valid entry signals."
+    },
+    {
+      "role": "Risk/CRO",
+      "claim_summary": "Unknown if losses clustered by correlation or if over-concentrated due to missing correlation cache.",
+      "data_support": "'WARN: Correlation cache missing or empty' in 3.4b Correlation concentration. (3.4b Correlation concentration)",
+      "cost_to_customer": "The biggest cost is *unmanaged risk*. Without correlation data, the customer is exposed to unknown, potentially high, concentration risk. This means unexpected large losses if correlated assets move against the portfolio, a critical and unquantified threat to capital.",
+      "why_not_fixed": "Generating a correlation cache is a fundamental data engineering task for any quantitative trading system. Its absence represents a severe lapse in basic risk management infrastructure that should have been a priority to implement from the outset.",
+      "if_we_do_nothing": "If we do nothing, we are knowingly operating with a critical risk blind spot. This is reckless and exposes customer capital to catastrophic, unmitigated losses, completely eroding trust and jeopardizing the entire operation."
+    }
+  ],
+  "unresolved_disputes": [],
+  "missed_money": {
+    "blocked_trade_opportunity_cost": {
+      "unknown": true,
+      "reason": "Opportunity cost cannot be precisely quantified without knowing the average P&L of similar unblocked trades. The volume of blocked trades (950 'displacement_blocked', 767 'max_positions_reached' over 3 days) suggests a significant but unquantified amount of missed P&L.",
+      "missing_inputs": [
+        "Simulated P&L of blocked trades",
+        "Average P&L per trade for unblocked trades in similar regimes/sectors"
+      ],
+      "instrumentation_needed": [
+        "A simulation framework to backtest blocked trades under prevailing conditions",
+        "Enhanced logging of expected P&L for blocked trades"
+      ]
+    },
+    "early_exit_opportunity_cost": {
+      "unknown": true,
+      "reason": "Opportunity cost from early exits (signal decay) cannot be quantified without knowing the P&L trajectory if trades were held longer. Over 95% of exits are due to signal decay, implying this is a substantial but unquantified cost.",
+      "missing_inputs": [
+        "P&L of 'signal_decay' exited trades if held for an additional x minutes/hours",
+        "Alternative exit P&L comparison data"
+      ],
+      "instrumentation_needed": [
+        "Post-trade analysis tool to simulate alternative exit scenarios for signal-decay trades",
+        "Tracking of P&L at time of initial signal decay vs. subsequent price action"
+      ]
+    },
+    "correlation_concentration_cost": {
+      "unknown": false,
+      "correlation_cache_present": true,
+      "message": "insufficient open symbols for correlation",
+      "concentration_risk_score": null
+    }
+  },
+  "rollback_decision": {
+    "triggered": false,
+    "reason": "No module named 'policy_variants'",
+    "canary_disabled": false
+  }
+}

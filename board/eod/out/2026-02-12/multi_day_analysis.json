@@ -1,0 +1,322 @@
+{
+  "date": "2026-02-12",
+  "multi_day_analysis": {
+    "1_day": {
+      "window_size": 1,
+      "window_days": [
+        "2026-02-12"
+      ],
+      "regime": {
+        "dominant_regime": "UNKNOWN",
+        "regime_stability_score": 0,
+        "regime_transition_probability": 0,
+        "regime_distribution": {}
+      },
+      "volatility_trend": "stable",
+      "sector_rotation_trend": {},
+      "attribution_vs_exit": {
+        "attribution_pnl": 0,
+        "exit_attribution_pnl": 0,
+        "delta": 0,
+        "trend": "aligned"
+      },
+      "churn_trend": "stable",
+      "hold_time_trend": "unknown",
+      "avg_hold_time_seconds": null,
+      "exit_reason_distribution": {},
+      "blocked_trades": {
+        "displacement_count": 0,
+        "max_positions_count": 0,
+        "capacity_count": 0,
+        "displacement_trend": "unknown",
+        "capacity_trend": "unknown"
+      },
+      "displacement_sensitivity_trend": "unknown",
+      "capacity_utilization_trend": "unknown",
+      "expectancy_trend": "unknown",
+      "rolling_expectancy_usd": 0.0,
+      "mae_mfe_trend": "unknown",
+      "total_trades": 0,
+      "total_exits": 0,
+      "total_blocked": 0
+    },
+    "3_day": {
+      "window_size": 3,
+      "window_days": [
+        "2026-02-10",
+        "2026-02-11",
+        "2026-02-12"
+      ],
+      "regime": {
+        "dominant_regime": "UNKNOWN",
+        "regime_stability_score": 0,
+        "regime_transition_probability": 0,
+        "regime_distribution": {}
+      },
+      "volatility_trend": "stable",
+      "sector_rotation_trend": {},
+      "attribution_vs_exit": {
+        "attribution_pnl": -67.75,
+        "exit_attribution_pnl": -84.04,
+        "delta": 16.29,
+        "trend": "aligned"
+      },
+      "churn_trend": "falling",
+      "hold_time_trend": "falling",
+      "avg_hold_time_seconds": 1568.67,
+      "exit_reason_distribution": {
+        "unknown": 900,
+        "signal_decay(0.60)": 55,
+        "signal_decay(0.59)": 53,
+        "signal_decay(0.58)": 22,
+        "signal_decay(0.60)+flow_reversal": 17,
+        "signal_decay(0.57)": 15,
+        "signal_decay(0.56)": 13,
+        "signal_decay(0.59)+flow_reversal": 10,
+        "signal_decay(0.52)": 10,
+        "signal_decay(0.21)": 8
+      },
+      "blocked_trades": {
+        "displacement_count": 950,
+        "max_positions_count": 767,
+        "capacity_count": 0,
+        "displacement_trend": "rising",
+        "capacity_trend": "rising"
+      },
+      "displacement_sensitivity_trend": "rising",
+      "capacity_utilization_trend": "rising",
+      "expectancy_trend": "unknown",
+      "rolling_expectancy_usd": -0.08,
+      "mae_mfe_trend": "unknown",
+      "total_trades": 900,
+      "total_exits": 423,
+      "total_blocked": 2000
+    },
+    "5_day": {
+      "window_size": 5,
+      "window_days": [
+        "2026-02-08",
+        "2026-02-09",
+        "2026-02-10",
+        "2026-02-11",
+        "2026-02-12"
+      ],
+      "regime": {
+        "dominant_regime": "UNKNOWN",
+        "regime_stability_score": 0,
+        "regime_transition_probability": 0,
+        "regime_distribution": {}
+      },
+      "volatility_trend": "stable",
+      "sector_rotation_trend": {},
+      "attribution_vs_exit": {
+        "attribution_pnl": -137.15,
+        "exit_attribution_pnl": -164.26,
+        "delta": 27.11,
+        "trend": "aligned"
+      },
+      "churn_trend": "falling",
+      "hold_time_trend": "rising",
+      "avg_hold_time_seconds": 1257.95,
+      "exit_reason_distribution": {
+        "unknown": 1451,
+        "signal_decay(0.60)": 55,
+        "signal_decay(0.59)": 53,
+        "signal_decay(0.02)+flow_reversal": 47,
+        "signal_decay(0.58)": 22,
+        "signal_decay(0.04)+flow_reversal": 20,
+        "signal_decay(0.02)": 19,
+        "signal_decay(0.60)+flow_reversal": 17,
+        "signal_decay(0.57)": 15,
+        "signal_decay(0.07)+flow_reversal": 13
+      },
+      "blocked_trades": {
+        "displacement_count": 950,
+        "max_positions_count": 767,
+        "capacity_count": 0,
+        "displacement_trend": "rising",
+        "capacity_trend": "rising"
+      },
+      "displacement_sensitivity_trend": "rising",
+      "capacity_utilization_trend": "rising",
+      "expectancy_trend": "unknown",
+      "rolling_expectancy_usd": -0.09,
+      "mae_mfe_trend": "unknown",
+      "total_trades": 1451,
+      "total_exits": 690,
+      "total_blocked": 2000
+    },
+    "7_day": {
+      "window_size": 7,
+      "window_days": [
+        "2026-02-06",
+        "2026-02-07",
+        "2026-02-08",
+        "2026-02-09",
+        "2026-02-10",
+        "2026-02-11",
+        "2026-02-12"
+      ],
+      "regime": {
+        "dominant_regime": "UNKNOWN",
+        "regime_stability_score": 1.0,
+        "regime_transition_probability": 0.0,
+        "regime_distribution": {
+          "UNKNOWN": 2
+        }
+      },
+      "volatility_trend": "stable",
+      "sector_rotation_trend": {
+        "ENERGY": 2,
+        "TECH": 2,
+        "FINANCIALS": 2,
+        "BIOTECH": 2,
+        "UNKNOWN": 2
+      },
+      "attribution_vs_exit": {
+        "attribution_pnl": -98.26,
+        "exit_attribution_pnl": -129.46,
+        "delta": 31.2,
+        "trend": "aligned"
+      },
+      "churn_trend": "falling",
+      "hold_time_trend": "rising",
+      "avg_hold_time_seconds": 1099.21,
+      "exit_reason_distribution": {
+        "unknown": 2095,
+        "signal_decay(0.02)+flow_reversal": 88,
+        "signal_decay(0.60)": 55,
+        "signal_decay(0.59)": 53,
+        "signal_decay(0.02)": 42,
+        "signal_decay(0.04)+flow_reversal": 36,
+        "signal_decay(0.10)+flow_reversal": 30,
+        "signal_decay(0.07)+flow_reversal": 27,
+        "signal_decay(0.05)+flow_reversal": 24,
+        "signal_decay(0.58)": 22
+      },
+      "blocked_trades": {
+        "displacement_count": 950,
+        "max_positions_count": 767,
+        "capacity_count": 0,
+        "displacement_trend": "rising",
+        "capacity_trend": "rising"
+      },
+      "displacement_sensitivity_trend": "rising",
+      "capacity_utilization_trend": "rising",
+      "expectancy_trend": "falling",
+      "rolling_expectancy_usd": -0.05,
+      "mae_mfe_trend": "unknown",
+      "total_trades": 2095,
+      "total_exits": 996,
+      "total_blocked": 2000
+    }
+  },
+  "win_rate_by_window": {
+    "1_day": 0.0,
+    "3_day": 0.19,
+    "5_day": 0.173,
+    "7_day": 0.1895
+  },
+  "pnl_by_window": {
+    "1_day": 0,
+    "3_day": -67.75,
+    "5_day": -137.15,
+    "7_day": -98.26
+  },
+  "exit_reason_counts_by_window": {
+    "1_day": {},
+    "3_day": {
+      "unknown": 900,
+      "signal_decay(0.60)": 55,
+      "signal_decay(0.59)": 53,
+      "signal_decay(0.58)": 22,
+      "signal_decay(0.60)+flow_reversal": 17,
+      "signal_decay(0.57)": 15,
+      "signal_decay(0.56)": 13,
+      "signal_decay(0.59)+flow_reversal": 10,
+      "signal_decay(0.52)": 10,
+      "signal_decay(0.21)": 8,
+      "signal_decay(0.50)": 7,
+      "signal_decay(0.28)": 7,
+      "signal_decay(0.55)": 7,
+      "signal_decay(0.48)+flow_reversal": 7,
+      "signal_decay(0.23)": 6,
+      "signal_decay(0.47)": 6,
+      "signal_decay(0.58)+flow_reversal": 6,
+      "signal_decay(0.30)": 5,
+      "signal_decay(0.40)": 5,
+      "signal_decay(0.54)": 5
+    },
+    "5_day": {
+      "unknown": 1451,
+      "signal_decay(0.60)": 55,
+      "signal_decay(0.59)": 53,
+      "signal_decay(0.02)+flow_reversal": 47,
+      "signal_decay(0.58)": 22,
+      "signal_decay(0.04)+flow_reversal": 20,
+      "signal_decay(0.02)": 19,
+      "signal_decay(0.60)+flow_reversal": 17,
+      "signal_decay(0.57)": 15,
+      "signal_decay(0.07)+flow_reversal": 13,
+      "signal_decay(0.56)": 13,
+      "signal_decay(0.07)": 12,
+      "signal_decay(0.10)+flow_reversal": 10,
+      "signal_decay(0.59)+flow_reversal": 10,
+      "signal_decay(0.52)": 10,
+      "signal_decay(0.08)+flow_reversal": 9,
+      "signal_decay(0.21)": 9,
+      "signal_decay(0.05)": 8,
+      "signal_decay(0.11)+flow_reversal": 8,
+      "stale_alpha_cutoff(120min,-0.01%)": 8
+    },
+    "7_day": {
+      "unknown": 2095,
+      "signal_decay(0.02)+flow_reversal": 88,
+      "signal_decay(0.60)": 55,
+      "signal_decay(0.59)": 53,
+      "signal_decay(0.02)": 42,
+      "signal_decay(0.04)+flow_reversal": 36,
+      "signal_decay(0.10)+flow_reversal": 30,
+      "signal_decay(0.07)+flow_reversal": 27,
+      "signal_decay(0.05)+flow_reversal": 24,
+      "signal_decay(0.58)": 22,
+      "signal_decay(0.03)+flow_reversal": 21,
+      "signal_decay(0.04)": 20,
+      "signal_decay(0.09)+flow_reversal": 18,
+      "signal_decay(0.60)+flow_reversal": 17,
+      "signal_decay(0.05)": 16,
+      "signal_decay(0.07)": 16,
+      "signal_decay(0.10)": 16,
+      "signal_decay(0.57)": 15,
+      "signal_decay(0.03)": 14,
+      "signal_decay(0.56)": 13
+    }
+  },
+  "blocked_trade_counts_by_window": {
+    "1_day": {},
+    "3_day": {
+      "displacement_blocked": 950,
+      "max_positions_reached": 767,
+      "expectancy_blocked:score_floor_breach": 279,
+      "order_validation_failed": 4
+    },
+    "5_day": {
+      "displacement_blocked": 950,
+      "max_positions_reached": 767,
+      "expectancy_blocked:score_floor_breach": 279,
+      "order_validation_failed": 4
+    },
+    "7_day": {
+      "displacement_blocked": 950,
+      "max_positions_reached": 767,
+      "expectancy_blocked:score_floor_breach": 279,
+      "order_validation_failed": 4
+    }
+  },
+  "signal_decay_exit_rate_by_window": {
+    "1_day": 0.0,
+    "3_day": 0.9551,
+    "5_day": 0.9493,
+    "7_day": 0.9608
+  }
+}
