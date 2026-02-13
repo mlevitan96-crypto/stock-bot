@@ -4,7 +4,7 @@
 
 ## Summary
 
-The system posted a net loss of $60.51 today, contributing to a consistently negative P&L trend and low win rates across all rolling windows (1, 3, 5, and 7 days). Critical governance issues persist, with the 'Board action closure' badge failing, preventing meaningful progress. Signal decay remains the dominant exit reason, and a high volume of trades were blocked due to capacity constraints, indicating significant missed opportunities and potential issues with exit logic.
+The system experienced a net loss of $43.11 today, contributing to a consistently negative P&L trend across 3, 5, and 7-day rolling windows. Win rates remain low, and a critical 'Board action closure' governance failure persists, hindering meaningful progress. A high percentage of exits are attributed to signal decay, and numerous trades were blocked due to displacement and position limits, indicating significant missed opportunities.
 
 ## Canary rollback
 
@@ -28,10 +28,10 @@ The system posted a net loss of $60.51 today, contributing to a consistently neg
 ## CTO_SRE
 
 - **systems_blocked_trades_most**
-  Over the last 7 days (and 3 days where data is available), the primary systems blocking trades are related to 'displacement_blocked' (950 counts) and 'max_positions_reached' (767 counts). This indicates either aggressive displacement logic or an under-allocated capital base limiting concurrent positions. (blocked_trade_counts_by_window)
+  Over the last 7 days (and 3 days where data is available, with 950 and 767 respectively), the primary systems blocking trades are related to 'displacement_blocked' (1223 today) and 'max_positions_reached' (488 today). This indicates either aggressive displacement logic or an under-allocated capital base limiting concurrent positions. (blocked_trades.jsonl, blocked_trade_counts_by_window)
 
 - **constraints_suppressing_edge**
-  Yes, constraints are clearly suppressing edge. The high counts of 'displacement_blocked' and 'max_positions_reached' directly imply that potential trades are being identified but not executed due to system or risk management constraints. This is likely leading to missed profit opportunities. (blocked_trade_counts_by_window)
+  Yes, constraints are clearly suppressing edge. The high counts of 'displacement_blocked' (1223) and 'max_positions_reached' (488) directly imply that potential trades are being identified but not executed due to system or risk management constraints. This is likely leading to missed profit opportunities. (blocked_trades.jsonl, blocked_trade_counts_by_window)
 
 - **instrumentation_missing**
   The most critical missing instrumentation is the 'Correlation cache'. Its absence directly prevents proper risk assessment and optimization of correlated exposures, as explicitly warned in the daily review. This omission is a significant gap in risk management and portfolio construction. (3.4b Correlation concentration)
@@ -39,7 +39,7 @@ The system posted a net loss of $60.51 today, contributing to a consistently neg
 ## Head_of_Trading
 
 - **exit_reasons_cost_most**
-  Over the last 5 and 7 days, 'signal_decay' exit reasons are the most prevalent, representing over 95% of exits. While the precise P&L per exit reason isn't quantified, this high frequency strongly suggests that trades are being exited prematurely or signals are decaying too rapidly, collectively costing significant P&L over time. (signal_decay_exit_rate_by_window, exit_reason_counts_by_window)
+  Over the last 5 and 7 days, 'signal_decay' exit reasons are the most prevalent, representing over 95% of exits. While the precise P&L per exit reason isn't quantified, this high frequency strongly suggests that trades are being exited prematurely or signals are decaying too rapidly, collectively costing significant P&L over time. (signal_decay_exit_rate_by_window, attribution.jsonl, exit_attribution.jsonl)
 
 - **holding_longer_improve_outcomes**
   Based on the dominant 'signal_decay' exit reason, it is highly probable that holding positions longer, especially those with initial positive P&L before decay, could improve outcomes. The current aggressive signal decay exits might be cutting off winning trades too early. (signal_decay_exit_rate_by_window)
@@ -90,7 +90,7 @@ The system posted a net loss of $60.51 today, contributing to a consistently neg
 {
   "role": "CTO/SRE",
   "claim_summary": "Systems blocked trades most due to displacement and max positions.",
-  "data_support": "'displacement_blocked' (950 counts) and 'max_positions_reached' (767 counts) over 3 days. (blocked_trade_counts_by_window)",
+  "data_support": "'displacement_blocked' (1223) and 'max_positions_reached' (488) counts for today, and 3-day window data. (blocked_trades.jsonl, blocked_trade_counts_by_window)",
   "cost_to_customer": "These blocked trades represent *missed opportunities*. For example, 'displacement_blocked' implies a valid signal was present but unexecuted. Quantifying the exact cost is difficult without simulating these trades, but it's clearly preventing potential P&L capture. This is a recurring, significant operational cost.",
   "why_not_fixed": "The continued high counts suggest that either the underlying logic for displacement and position limits is too conservative, or the system's capital base is insufficient for the detected opportunities. This requires an immediate review.",
   "if_we_do_nothing": "If we do nothing, the system will continue to underperform by actively preventing itself from executing valid trades, directly limiting customer P&L upside and frustrating system capabilities."
@@ -151,3 +151,4 @@ The system posted a net loss of $60.51 today, contributing to a consistently neg
 
 ## Unresolved disputes
 
+- The 'Wheel strategy daily review' reports a 'Verdict: PASS' despite the overall system exhibiting consistently negative P&L, low win rates, and critical governance failures. This discrepancy in assessment needs to be investigated to ensure alignment between sub-strategy reporting and overall system health.

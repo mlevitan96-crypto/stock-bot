@@ -1,14 +1,14 @@
 {
   "verdict": "CAUTION",
-  "summary": "The system posted a net loss of $60.51 today, contributing to a consistently negative P&L trend and low win rates across all rolling windows (1, 3, 5, and 7 days). Critical governance issues persist, with the 'Board action closure' badge failing, preventing meaningful progress. Signal decay remains the dominant exit reason, and a high volume of trades were blocked due to capacity constraints, indicating significant missed opportunities and potential issues with exit logic.",
+  "summary": "The system experienced a net loss of $43.11 today, contributing to a consistently negative P&L trend across 3, 5, and 7-day rolling windows. Win rates remain low, and a critical 'Board action closure' governance failure persists, hindering meaningful progress. A high percentage of exits are attributed to signal decay, and numerous trades were blocked due to displacement and position limits, indicating significant missed opportunities.",
   "pnl_metrics": {
-    "total_pnl_usd": -60.51,
-    "total_pnl_pct": -0.12,
-    "trades": 2672,
-    "wins": 531,
-    "losses": 712,
-    "win_rate": 0.427,
-    "max_drawdown_pct": 4.96
+    "total_pnl_usd": -43.11,
+    "total_pnl_pct": -0.0862,
+    "trades": 2350,
+    "wins": 446,
+    "losses": 635,
+    "win_rate": 0.4126,
+    "max_drawdown_pct": 4.978
   },
   "regime_context": {
     "regime_label": "BEAR",
@@ -44,7 +44,7 @@
       "id": "rec-3",
       "priority": "medium",
       "title": "Review Blocked Trades for Systemic Constraints",
-      "body": "The high count of 'displacement_blocked' and 'max_positions_reached' trades (totaling over 1700 in 3 days) indicates significant missed opportunities. Investigate the underlying causes of these blocks and adjust system constraints or logic to capture more valid trade entries.",
+      "body": "The high count of 'displacement_blocked' (1223) and 'max_positions_reached' (488) trades in today's bundle indicates significant missed opportunities. Investigate the underlying causes of these blocks and adjust system constraints or logic to capture more valid trade entries.",
       "owner": "Head of Trading/CTO"
     },
     {
@@ -58,7 +58,7 @@
   "top_3_root_causes_pnl_degradation": [
     "Persistent low win rates (sub-20% across 3,5,7 days) and negative P&L across all rolling windows indicate a fundamental flaw in trade selection or overall strategy effectiveness. (win_rate_by_window, pnl_by_window)",
     "An overwhelming majority of exits (over 95%) are due to 'signal_decay', suggesting that positions are being closed prematurely, or initial signals are rapidly deteriorating, leading to unrealized profit potential or locking in minor losses. (signal_decay_exit_rate_by_window, Attribution, Exit attribution)",
-    "Significant suppression of trading opportunities due to 'displacement_blocked' and 'max_positions_reached' constraints (over 1700 blocked trades in 3 days), implying that the system is unable to capture detected edge, directly impacting P&L. (blocked_trade_counts_by_window)"
+    "Significant suppression of trading opportunities due to 'displacement_blocked' (1223) and 'max_positions_reached' (488) constraints in today's session, implying that the system is unable to capture detected edge, directly impacting P&L. (blocked_trades.jsonl, blocked_trade_counts_by_window)"
   ],
   "top_3_concrete_actions_next": [
     "Immediately establish clear ownership and implement a process to resolve the 'Board action closure: FAIL' governance status to unblock all pending and future system improvements. (Owner: Board/Ops)",
@@ -75,12 +75,12 @@
     {
       "source": "attribution",
       "ref": "logs/attribution.jsonl",
-      "quote": "Trades: 2672, Wins: 531, Losses: 712, Total P&L USD: -60.51. Used for current day P&L, trades, wins, losses."
+      "quote": "Trades: 2350, Wins: 446, Losses: 635, Total P&L USD: -43.11. Used for current day P&L, trades, wins, losses."
     },
     {
       "source": "daily_start_equity",
       "ref": "state/daily_start_equity.json",
-      "quote": "equity: 50018.87, date: 2026-02-11. Used for total_pnl_pct calculation."
+      "quote": "equity: 49993.21, date: 2026-02-12. Used for total_pnl_pct calculation."
     },
     {
       "source": "peak_equity",
@@ -100,7 +100,7 @@
     {
       "source": "rolling_windows",
       "ref": "blocked_trade_counts_by_window",
-      "quote": "blocked_trade_counts_by_window: {\"1_day\": {}, \"3_day\": {\"displacement_blocked\": 950, \"max_positions_reached\": 767, \"expectancy_blocked:score_floor_breach\": 279, \"order_validation_failed\": 4}}. Cited for blocked trade analysis."
+      "quote": "blocked_trade_counts_by_window (3_day): {\"displacement_blocked\": 950, \"max_positions_reached\": 767}. Cited for historical blocked trade analysis."
     },
     {
       "source": "rolling_windows",
@@ -115,12 +115,12 @@
     {
       "source": "exit_attribution",
       "ref": "logs/exit_attribution.jsonl",
-      "quote": "Exit reasons: {'profit': 7, 'stop': 15, 'signal_decay(0.59)': 293, ...}. Used for exit reason analysis."
+      "quote": "Exit reasons: {'profit': 7, 'stop': 15, 'signal_decay(0.59)': 321, ...}. Used for exit reason analysis."
     },
     {
       "source": "blocked_trades",
       "ref": "state/blocked_trades.jsonl",
-      "quote": "By reason: {'max_positions_reached': 767, 'expectancy_blocked:score_floor_breach': 279, 'displacement_blocked': 950, 'order_validation_failed': 4}. Used for blocked trade analysis."
+      "quote": "By reason: {'max_positions_reached': 488, 'displacement_blocked': 1223, 'expectancy_blocked:score_floor_breach': 234, 'order_validation_failed': 8, 'max_new_positions_per_cycle': 47}. Used for current day's blocked trade analysis."
     },
     {
       "source": "wheel_governance_badge",
@@ -130,7 +130,7 @@
     {
       "source": "signal_trend_review",
       "ref": "3.4a Signal trend (open positions)",
-      "quote": "Multiple symbols showing 'weakening' signal trend. Used for watchlist and signal trend insights."
+      "quote": "HOOD current_signal=3.229 prev_signal=3.855 signal_delta=-0.626; UNH current_signal=2.049 prev_signal=3.127 signal_delta=-1.078; XLF current_signal=2.011 prev_signal=2.741 signal_delta=-0.73; XLP current_signal=1.69 prev_signal=2.524 signal_delta=-0.834; DIA current_signal=1.828 prev_signal=2.823 signal_delta=-0.995; AMZN current_signal=2.881 prev_signal=3.492 signal_delta=-0.611. Cited for watchlist and signal trend insights."
     },
     {
       "source": "correlation_concentration_review",
@@ -215,86 +215,53 @@
     },
     {
       "title": "Review the impact of 'displacement_blocked' trades.",
-      "body": "950 trades were 'displacement_blocked' over 3 days. This suggests valid entry signals are being missed due to displacement rules. Review the logic of displacement to ensure it's not overly aggressive and is aligned with current market conditions.",
+      "body": "1223 trades were 'displacement_blocked' today. This suggests valid entry signals are being missed due to displacement rules. Review the logic of displacement to ensure it's not overly aggressive and is aligned with current market conditions.",
       "owner": "Mark",
-      "reference_section": "blocked_trade_counts_by_window"
+      "reference_section": "blocked_trades.jsonl"
     }
   ],
   "wheel_signal_trend_insights": [
-    "A significant portion (19 out of 47 reviewed) of open positions are showing weakening signals, with 'XLI' (delta -2.94) and 'SLB' (delta -2.47) exhibiting the largest negative deltas, indicating potential for further P&L degradation if not managed effectively.",
+    "Six open positions (HOOD, UNH, XLF, XLP, DIA, AMZN) are showing weakening signals with significant negative deltas (ranging from -0.611 to -1.078). This indicates potential for further P&L degradation if not managed effectively.",
     "The widespread presence of weakening signals suggests a need for more dynamic exit strategies or tighter monitoring of initial signal quality, as holding these positions through decay is likely contributing to negative P&L.",
-    "The observed signal weakening in open positions aligns with the high signal decay exit rates seen in the attribution data, reinforcing the urgency to address this aspect of the trading strategy."
+    "The observed signal weakening in open positions aligns with the high signal decay exit rates seen in the attribution data, reinforcing the urgency to address this aspect of the trading strategy.",
+    "The 'Most strengthening' metric showing HD with a +0.00 delta for a 'flat' trend implies no actual strengthening occurred among tracked positions."
   ],
   "wheel_correlation_risks": [
     "WARNING: Correlation cache missing or empty. This critical absence prevents any quantitative assessment of correlation concentration risk within the portfolio, leaving significant unmanaged exposure.",
-    "The lack of correlation data means the system cannot identify or mitigate risks from highly correlated assets that might move adversely together, potentially amplifying losses during market downturns."
+    "The lack of correlation data means the system cannot identify or mitigate risks from highly correlated assets that might move adversely together, potentially amplifying losses during market downturns.",
+    "Without correlation data, it's impossible to determine if the open CSP positions or current weakening signals are concentrated in highly correlated exposures, hindering effective risk management."
   ],
   "wheel_watchlists": {
     "weakening_signals": [
       {
         "symbol": "HOOD",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.24 with -1.048 delta.",
-        "exit_review_condition": "Immediate exit review if signal drops below 1.5, or if asset price breaches a 5% trailing stop from peak, or if there is major negative news for Robinhood."
+        "board_rationale": "Position is held as current exit logic has not triggered; signal is 3.229 with a -0.626 delta.",
+        "exit_review_condition": "Immediate exit review if signal drops below 2.5 or shows further significant negative delta (e.g., another -0.5), or if the underlying asset breaches a pre-defined support level."
       },
       {
-        "symbol": "SLB",
-        "board_rationale": "Position held despite critically low signal (0.727) and large delta (-2.472), due to current exit logic.",
-        "exit_review_condition": "Immediate exit review and potential 'fire sale' due to critically low signal. Further decline below 0.5 or continued negative delta would necessitate forced exit."
+        "symbol": "UNH",
+        "board_rationale": "Position is held as current exit logic has not triggered; signal is 2.049 with a -1.078 delta.",
+        "exit_review_condition": "Immediate exit review if the signal remains below 1.5 or shows any further negative movement. Consider a more aggressive exit if market conditions for healthcare deteriorate."
       },
       {
-        "symbol": "XLK",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.015 with -1.419 delta.",
-        "exit_review_condition": "Exit review if signal drops below 1.5, or if the Technology sector shows further significant weakness, or if the underlying asset breaches key support levels."
+        "symbol": "XLF",
+        "board_rationale": "Position is held as current exit logic has not triggered; signal is 2.011 with a -0.73 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.5 or if the Financial sector shows further significant weakness, or if the underlying asset breaches key support levels."
       },
       {
-        "symbol": "MSFT",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 1.949 with -0.574 delta.",
-        "exit_review_condition": "Exit review if signal drops below 1.5, or if Microsoft experiences negative earnings surprises or regulatory concerns."
+        "symbol": "XLP",
+        "board_rationale": "Position is held as current exit logic has not triggered; signal is 1.69 with a -0.834 delta.",
+        "exit_review_condition": "Exit review if signal drops below 1.0 or if the Consumer Staples sector shows further significant weakness. Consider a 'fire sale' if it drops below 0.5."
       },
       {
-        "symbol": "NFLX",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.057 with -1.039 delta.",
-        "exit_review_condition": "Exit review if signal drops below 1.5, or if subscriber growth concerns intensify, or if competitive pressure increases significantly."
+        "symbol": "DIA",
+        "board_rationale": "Position is held as current exit logic has not triggered; signal is 1.828 with a -0.995 delta.",
+        "exit_review_condition": "Immediate exit review if the signal remains below 1.0 or shows any further negative movement. Consider a more aggressive exit if the broader market (Dow) shows further weakness."
       },
       {
-        "symbol": "XLI",
-        "board_rationale": "Position held despite critically low signal (0.557) and largest delta (-2.944), due to current exit logic.",
-        "exit_review_condition": "Immediate exit review and potential 'fire sale' due to critically low signal. Further decline below 0.5 or sustained negative delta would necessitate forced exit."
-      },
-      {
-        "symbol": "BAC",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.017 with -0.716 delta.",
-        "exit_review_condition": "Exit review if signal drops below 1.5, or if there's significant negative news in the banking sector (e.g., interest rate changes, loan defaults)."
-      },
-      {
-        "symbol": "BA",
-        "board_rationale": "Position held despite critically low signal (0.981) and large delta (-2.076), due to current exit logic.",
-        "exit_review_condition": "Immediate exit review and potential 'fire sale' due to critically low signal. Further decline below 0.5 or sustained negative delta would necessitate forced exit."
-      },
-      {
-        "symbol": "MS",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.159 with -0.67 delta.",
-        "exit_review_condition": "Exit review if signal drops below 1.5, or if Morgan Stanley faces reputational damage, or if there are unfavorable market conditions for investment banks."
-      },
-      {
-        "symbol": "LCID",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.32 with -1.426 delta.",
-        "exit_review_condition": "Exit review if signal drops below 1.5, or if Lucid Group's production targets are missed, or if there's increased competition in the EV luxury segment."
-      },
-      {
-        "symbol": "F",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.339 with -0.831 delta.",
-        "exit_review_condition": "Exit review if signal drops below 1.5, or if Ford faces significant recall issues, or if the automotive market experiences a downturn."
-      },
-      {
-        "symbol": "COP",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 2.11 with -0.6 delta.",
-        "exit_review_condition": "Exit review if signal drops below 1.5, or if crude oil prices decline sharply, or if ConocoPhillips announces negative production forecasts."
-      },
-      {
-        "symbol": "CVX",
-        "board_rationale": "Position held due to current exit logic not triggering; signal is 1.75 with -1.303 delta.",
-        "exit_review_condition": "Exit review if signal drops below 1.0, or if crude oil prices decline sharply, or if Chevron faces environmental regulatory challenges."
+        "symbol": "AMZN",
+        "board_rationale": "Position is held as current exit logic has not triggered; signal is 2.881 with a -0.611 delta.",
+        "exit_review_condition": "Exit review if signal drops below 2.0, or if Amazon experiences negative earnings surprises, or if regulatory concerns intensify."
       }
     ]
   },
@@ -305,12 +272,12 @@
       "single_decision_live_tomorrow": "The single decision that goes live tomorrow is to **immediately establish clear ownership and process for board action closure (action_id: new-action-1)**. This critical governance failure is blocking all other proposed improvements and must be resolved before any other significant changes can be effectively implemented. (Wheel governance badge)"
     },
     "CTO_SRE": {
-      "systems_blocked_trades_most": "Over the last 7 days (and 3 days where data is available), the primary systems blocking trades are related to 'displacement_blocked' (950 counts) and 'max_positions_reached' (767 counts). This indicates either aggressive displacement logic or an under-allocated capital base limiting concurrent positions. (blocked_trade_counts_by_window)",
-      "constraints_suppressing_edge": "Yes, constraints are clearly suppressing edge. The high counts of 'displacement_blocked' and 'max_positions_reached' directly imply that potential trades are being identified but not executed due to system or risk management constraints. This is likely leading to missed profit opportunities. (blocked_trade_counts_by_window)",
+      "systems_blocked_trades_most": "Over the last 7 days (and 3 days where data is available, with 950 and 767 respectively), the primary systems blocking trades are related to 'displacement_blocked' (1223 today) and 'max_positions_reached' (488 today). This indicates either aggressive displacement logic or an under-allocated capital base limiting concurrent positions. (blocked_trades.jsonl, blocked_trade_counts_by_window)",
+      "constraints_suppressing_edge": "Yes, constraints are clearly suppressing edge. The high counts of 'displacement_blocked' (1223) and 'max_positions_reached' (488) directly imply that potential trades are being identified but not executed due to system or risk management constraints. This is likely leading to missed profit opportunities. (blocked_trades.jsonl, blocked_trade_counts_by_window)",
       "instrumentation_missing": "The most critical missing instrumentation is the 'Correlation cache'. Its absence directly prevents proper risk assessment and optimization of correlated exposures, as explicitly warned in the daily review. This omission is a significant gap in risk management and portfolio construction. (3.4b Correlation concentration)"
     },
     "Head_of_Trading": {
-      "exit_reasons_cost_most": "Over the last 5 and 7 days, 'signal_decay' exit reasons are the most prevalent, representing over 95% of exits. While the precise P&L per exit reason isn't quantified, this high frequency strongly suggests that trades are being exited prematurely or signals are decaying too rapidly, collectively costing significant P&L over time. (signal_decay_exit_rate_by_window, exit_reason_counts_by_window)",
+      "exit_reasons_cost_most": "Over the last 5 and 7 days, 'signal_decay' exit reasons are the most prevalent, representing over 95% of exits. While the precise P&L per exit reason isn't quantified, this high frequency strongly suggests that trades are being exited prematurely or signals are decaying too rapidly, collectively costing significant P&L over time. (signal_decay_exit_rate_by_window, attribution.jsonl, exit_attribution.jsonl)",
       "holding_longer_improve_outcomes": "Based on the dominant 'signal_decay' exit reason, it is highly probable that holding positions longer, especially those with initial positive P&L before decay, could improve outcomes. The current aggressive signal decay exits might be cutting off winning trades too early. (signal_decay_exit_rate_by_window)",
       "signals_deserve_relaxed_decay": "Given the widespread signal decay, an immediate candidate for relaxed decay would be any signal where the initial positive movement is cut short by a rapid decay, particularly for high-conviction entry signals. A detailed post-trade analysis on recently exited 'signal_decay' trades is needed to identify specific signal types or thresholds for relaxation."
     },
@@ -340,7 +307,7 @@
     {
       "role": "CTO/SRE",
       "claim_summary": "Systems blocked trades most due to displacement and max positions.",
-      "data_support": "'displacement_blocked' (950 counts) and 'max_positions_reached' (767 counts) over 3 days. (blocked_trade_counts_by_window)",
+      "data_support": "'displacement_blocked' (1223) and 'max_positions_reached' (488) counts for today, and 3-day window data. (blocked_trades.jsonl, blocked_trade_counts_by_window)",
       "cost_to_customer": "These blocked trades represent *missed opportunities*. For example, 'displacement_blocked' implies a valid signal was present but unexecuted. Quantifying the exact cost is difficult without simulating these trades, but it's clearly preventing potential P&L capture. This is a recurring, significant operational cost.",
       "why_not_fixed": "The continued high counts suggest that either the underlying logic for displacement and position limits is too conservative, or the system's capital base is insufficient for the detected opportunities. This requires an immediate review.",
       "if_we_do_nothing": "If we do nothing, the system will continue to underperform by actively preventing itself from executing valid trades, directly limiting customer P&L upside and frustrating system capabilities."
@@ -378,11 +345,13 @@
       "if_we_do_nothing": "If we do nothing, we are knowingly operating with a critical risk blind spot. This is reckless and exposes customer capital to catastrophic, unmitigated losses, completely eroding trust and jeopardizing the entire operation."
     }
   ],
-  "unresolved_disputes": [],
+  "unresolved_disputes": [
+    "The 'Wheel strategy daily review' reports a 'Verdict: PASS' despite the overall system exhibiting consistently negative P&L, low win rates, and critical governance failures. This discrepancy in assessment needs to be investigated to ensure alignment between sub-strategy reporting and overall system health."
+  ],
   "missed_money": {
     "blocked_trade_opportunity_cost": {
       "unknown": true,
-      "reason": "Opportunity cost cannot be precisely quantified without knowing the average P&L of similar unblocked trades. The volume of blocked trades (950 'displacement_blocked', 767 'max_positions_reached' over 3 days) suggests a significant but unquantified amount of missed P&L.",
+      "reason": "Opportunity cost cannot be precisely quantified without knowing the average P&L of similar unblocked trades. The high volume of blocked trades (1223 'displacement_blocked', 488 'max_positions_reached' today) suggests a significant but unquantified amount of missed P&L.",
       "missing_inputs": [
         "Simulated P&L of blocked trades",
         "Average P&L per trade for unblocked trades in similar regimes/sectors"

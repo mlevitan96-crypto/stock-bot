@@ -31,7 +31,7 @@
 {
   "blocked_trade_opportunity_cost": {
     "unknown": true,
-    "reason": "Opportunity cost cannot be precisely quantified without knowing the average P&L of similar unblocked trades. The volume of blocked trades (950 'displacement_blocked', 767 'max_positions_reached' over 3 days) suggests a significant but unquantified amount of missed P&L.",
+    "reason": "Opportunity cost cannot be precisely quantified without knowing the average P&L of similar unblocked trades. The high volume of blocked trades (1223 'displacement_blocked', 488 'max_positions_reached' today) suggests a significant but unquantified amount of missed P&L.",
     "missing_inputs": [
       "Simulated P&L of blocked trades",
       "Average P&L per trade for unblocked trades in similar regimes/sectors"

@@ -113,7 +113,7 @@
   "missed_money": {
     "blocked_trade_opportunity_cost": {
       "unknown": true,
-      "reason": "Opportunity cost cannot be precisely quantified without knowing the average P&L of similar unblocked trades. The volume of blocked trades (950 'displacement_blocked', 767 'max_positions_reached' over 3 days) suggests a significant but unquantified amount of missed P&L.",
+      "reason": "Opportunity cost cannot be precisely quantified without knowing the average P&L of similar unblocked trades. The high volume of blocked trades (1223 'displacement_blocked', 488 'max_positions_reached' today) suggests a significant but unquantified amount of missed P&L.",
       "missing_inputs": [
         "Simulated P&L of blocked trades",
         "Average P&L per trade for unblocked trades in similar regimes/sectors"
@@ -146,355 +146,355 @@
     "date": "2026-02-12",
     "window_days": 7,
     "signals": {
-      "C": {
-        "trade_count": 61,
-        "win_rate": 0.1639,
-        "pnl_contribution_usd": -12.5,
+      "NVDA": {
+        "trade_count": 75,
+        "win_rate": 0.3467,
+        "pnl_contribution_usd": -13.89,
+        "avg_hold_minutes": 21.4,
+        "decay_trigger_count": 30
+      },
+      "AMD": {
+        "trade_count": 92,
+        "win_rate": 0.3587,
+        "pnl_contribution_usd": -9.69,
+        "avg_hold_minutes": 28.5,
+        "decay_trigger_count": 33
+      },
+      "TSLA": {
+        "trade_count": 86,
+        "win_rate": 0.3721,
+        "pnl_contribution_usd": -21.98,
         "avg_hold_minutes": 23.4,
-        "decay_trigger_count": 18
-      },
-      "WFC": {
-        "trade_count": 61,
-        "win_rate": 0.3279,
-        "pnl_contribution_usd": 0.11,
-        "avg_hold_minutes": 11.7,
-        "decay_trigger_count": 19
-      },
-      "BAC": {
-        "trade_count": 81,
-        "win_rate": 0.321,
-        "pnl_contribution_usd": 3.81,
-        "avg_hold_minutes": 17.8,
-        "decay_trigger_count": 26
-      },
-      "JPM": {
-        "trade_count": 95,
-        "win_rate": 0.3158,
-        "pnl_contribution_usd": 1.82,
-        "avg_hold_minutes": 19.5,
-        "decay_trigger_count": 28
-      },
-      "MS": {
-        "trade_count": 79,
-        "win_rate": 0.2785,
-        "pnl_contribution_usd": -6.62,
-        "avg_hold_minutes": 21.9,
-        "decay_trigger_count": 24
-      },
-      "NIO": {
-        "trade_count": 126,
-        "win_rate": 0.0794,
-        "pnl_contribution_usd": -48.68,
-        "avg_hold_minutes": 17.4,
-        "decay_trigger_count": 38
-      },
-      "SOFI": {
-        "trade_count": 99,
-        "win_rate": 0.4242,
-        "pnl_contribution_usd": 39.42,
-        "avg_hold_minutes": 24.3,
-        "decay_trigger_count": 28
-      },
-      "HOOD": {
-        "trade_count": 151,
-        "win_rate": 0.3311,
-        "pnl_contribution_usd": -15.42,
-        "avg_hold_minutes": 17.9,
-        "decay_trigger_count": 46
-      },
-      "RIVN": {
-        "trade_count": 87,
-        "win_rate": 0.2069,
-        "pnl_contribution_usd": -17.16,
-        "avg_hold_minutes": 15.6,
-        "decay_trigger_count": 28
-      },
-      "COIN": {
-        "trade_count": 128,
-        "win_rate": 0.3828,
-        "pnl_contribution_usd": -11.41,
-        "avg_hold_minutes": 19.3,
         "decay_trigger_count": 36
       },
-      "PLTR": {
-        "trade_count": 106,
-        "win_rate": 0.3774,
-        "pnl_contribution_usd": 19.48,
-        "avg_hold_minutes": 13.3,
+      "JNJ": {
+        "trade_count": 51,
+        "win_rate": 0.2549,
+        "pnl_contribution_usd": -2.5,
+        "avg_hold_minutes": 11.5,
+        "decay_trigger_count": 20
+      },
+      "COIN": {
+        "trade_count": 100,
+        "win_rate": 0.39,
+        "pnl_contribution_usd": -19.6,
+        "avg_hold_minutes": 21.0,
+        "decay_trigger_count": 36
+      },
+      "XLI": {
+        "trade_count": 68,
+        "win_rate": 0.3235,
+        "pnl_contribution_usd": -2.16,
+        "avg_hold_minutes": 14.4,
+        "decay_trigger_count": 25
+      },
+      "WFC": {
+        "trade_count": 51,
+        "win_rate": 0.3137,
+        "pnl_contribution_usd": -1.74,
+        "avg_hold_minutes": 9.5,
+        "decay_trigger_count": 19
+      },
+      "XLK": {
+        "trade_count": 105,
+        "win_rate": 0.3143,
+        "pnl_contribution_usd": -3.18,
+        "avg_hold_minutes": 20.7,
+        "decay_trigger_count": 39
+      },
+      "JPM": {
+        "trade_count": 81,
+        "win_rate": 0.3333,
+        "pnl_contribution_usd": 0.31,
+        "avg_hold_minutes": 18.3,
+        "decay_trigger_count": 28
+      },
+      "GOOGL": {
+        "trade_count": 86,
+        "win_rate": 0.2791,
+        "pnl_contribution_usd": -8.11,
+        "avg_hold_minutes": 31.0,
+        "decay_trigger_count": 33
+      },
+      "MSFT": {
+        "trade_count": 43,
+        "win_rate": 0.3256,
+        "pnl_contribution_usd": 15.62,
+        "avg_hold_minutes": 34.5,
+        "decay_trigger_count": 16
+      },
+      "INTC": {
+        "trade_count": 100,
+        "win_rate": 0.23,
+        "pnl_contribution_usd": -4.98,
+        "avg_hold_minutes": 25.6,
         "decay_trigger_count": 34
       },
-      "BA": {
-        "trade_count": 58,
-        "win_rate": 0.1724,
-        "pnl_contribution_usd": -4.72,
-        "avg_hold_minutes": 14.5,
-        "decay_trigger_count": 18
+      "HOOD": {
+        "trade_count": 125,
+        "win_rate": 0.32,
+        "pnl_contribution_usd": -18.16,
+        "avg_hold_minutes": 14.8,
+        "decay_trigger_count": 46
+      },
+      "XLV": {
+        "trade_count": 71,
+        "win_rate": 0.1408,
+        "pnl_contribution_usd": -5.32,
+        "avg_hold_minutes": 14.0,
+        "decay_trigger_count": 26
+      },
+      "NIO": {
+        "trade_count": 107,
+        "win_rate": 0.0654,
+        "pnl_contribution_usd": -51.6,
+        "avg_hold_minutes": 18.5,
+        "decay_trigger_count": 38
+      },
+      "LCID": {
+        "trade_count": 65,
+        "win_rate": 0.2,
+        "pnl_contribution_usd": -43.08,
+        "avg_hold_minutes": 19.3,
+        "decay_trigger_count": 25
+      },
+      "RIVN": {
+        "trade_count": 71,
+        "win_rate": 0.2113,
+        "pnl_contribution_usd": -17.02,
+        "avg_hold_minutes": 14.3,
+        "decay_trigger_count": 28
+      },
+      "PLTR": {
+        "trade_count": 84,
+        "win_rate": 0.3929,
+        "pnl_contribution_usd": 8.56,
+        "avg_hold_minutes": 12.6,
+        "decay_trigger_count": 34
+      },
+      "GM": {
+        "trade_count": 57,
+        "win_rate": 0.2105,
+        "pnl_contribution_usd": -9.26,
+        "avg_hold_minutes": 6.4,
+        "decay_trigger_count": 22
       },
       "V": {
-        "trade_count": 36,
-        "win_rate": 0.1111,
+        "trade_count": 31,
+        "win_rate": 0.129,
         "pnl_contribution_usd": 1.56,
         "avg_hold_minutes": 3.3,
         "decay_trigger_count": 3
       },
-      "GM": {
-        "trade_count": 67,
-        "win_rate": 0.209,
-        "pnl_contribution_usd": -9.22,
-        "avg_hold_minutes": 6.9,
-        "decay_trigger_count": 22
-      },
-      "F": {
-        "trade_count": 63,
-        "win_rate": 0.127,
-        "pnl_contribution_usd": -10.28,
-        "avg_hold_minutes": 14.2,
-        "decay_trigger_count": 20
-      },
-      "GOOGL": {
-        "trade_count": 108,
-        "win_rate": 0.25,
-        "pnl_contribution_usd": -11.45,
-        "avg_hold_minutes": 27.8,
-        "decay_trigger_count": 33
-      },
-      "NVDA": {
-        "trade_count": 94,
-        "win_rate": 0.3191,
-        "pnl_contribution_usd": -16.38,
-        "avg_hold_minutes": 20.4,
-        "decay_trigger_count": 30
-      },
-      "MSFT": {
-        "trade_count": 55,
-        "win_rate": 0.2909,
-        "pnl_contribution_usd": 13.5,
-        "avg_hold_minutes": 31.5,
-        "decay_trigger_count": 16
-      },
-      "AAPL": {
-        "trade_count": 74,
-        "win_rate": 0.2703,
-        "pnl_contribution_usd": -8.58,
-        "avg_hold_minutes": 60.8,
-        "decay_trigger_count": 23
-      },
-      "AMZN": {
-        "trade_count": 54,
-        "win_rate": 0.4074,
-        "pnl_contribution_usd": -12.26,
-        "avg_hold_minutes": 26.3,
-        "decay_trigger_count": 16
-      },
-      "NFLX": {
-        "trade_count": 109,
-        "win_rate": 0.2936,
-        "pnl_contribution_usd": -22.63,
-        "avg_hold_minutes": 22.9,
-        "decay_trigger_count": 35
-      },
-      "LCID": {
-        "trade_count": 84,
-        "win_rate": 0.2143,
-        "pnl_contribution_usd": -47.28,
-        "avg_hold_minutes": 18.1,
-        "decay_trigger_count": 25
-      },
-      "AMD": {
-        "trade_count": 114,
-        "win_rate": 0.3421,
-        "pnl_contribution_usd": -4.82,
-        "avg_hold_minutes": 28.5,
-        "decay_trigger_count": 33
-      },
-      "XLV": {
-        "trade_count": 83,
-        "win_rate": 0.1446,
-        "pnl_contribution_usd": -5.38,
-        "avg_hold_minutes": 15.2,
-        "decay_trigger_count": 26
+      "WMT": {
+        "trade_count": 80,
+        "win_rate": 0.3125,
+        "pnl_contribution_usd": 13.92,
+        "avg_hold_minutes": 16.4,
+        "decay_trigger_count": 28
       },
       "DIA": {
-        "trade_count": 36,
-        "win_rate": 0.3333,
-        "pnl_contribution_usd": 7.73,
-        "avg_hold_minutes": 12.9,
+        "trade_count": 26,
+        "win_rate": 0.3462,
+        "pnl_contribution_usd": 4.77,
+        "avg_hold_minutes": 12.6,
         "decay_trigger_count": 11
       },
-      "XLF": {
+      "LOW": {
+        "trade_count": 47,
+        "win_rate": 0.1277,
+        "pnl_contribution_usd": -4.53,
+        "avg_hold_minutes": 5.1,
+        "decay_trigger_count": 16
+      },
+      "UNH": {
         "trade_count": 64,
-        "win_rate": 0.25,
-        "pnl_contribution_usd": 0.06,
-        "avg_hold_minutes": 12.5,
+        "win_rate": 0.1562,
+        "pnl_contribution_usd": -4.98,
+        "avg_hold_minutes": 6.6,
         "decay_trigger_count": 21
       },
-      "HD": {
-        "trade_count": 90,
-        "win_rate": 0.2,
-        "pnl_contribution_usd": -3.4,
-        "avg_hold_minutes": 16.3,
-        "decay_trigger_count": 28
+      "F": {
+        "trade_count": 55,
+        "win_rate": 0.1273,
+        "pnl_contribution_usd": -10.69,
+        "avg_hold_minutes": 12.0,
+        "decay_trigger_count": 20
       },
-      "TSLA": {
-        "trade_count": 115,
-        "win_rate": 0.3652,
-        "pnl_contribution_usd": -15.46,
-        "avg_hold_minutes": 21.9,
-        "decay_trigger_count": 36
+      "COP": {
+        "trade_count": 42,
+        "win_rate": 0.3095,
+        "pnl_contribution_usd": -0.49,
+        "avg_hold_minutes": 23.4,
+        "decay_trigger_count": 16
       },
-      "MRNA": {
-        "trade_count": 93,
-        "win_rate": 0.2366,
-        "pnl_contribution_usd": -46.12,
-        "avg_hold_minutes": 18.9,
-        "decay_trigger_count": 28
+      "MS": {
+        "trade_count": 64,
+        "win_rate": 0.2969,
+        "pnl_contribution_usd": -5.88,
+        "avg_hold_minutes": 21.3,
+        "decay_trigger_count": 24
       },
-      "INTC": {
-        "trade_count": 117,
-        "win_rate": 0.2393,
-        "pnl_contribution_usd": -8.32,
-        "avg_hold_minutes": 26.4,
-        "decay_trigger_count": 34
+      "XLP": {
+        "trade_count": 67,
+        "win_rate": 0.1791,
+        "pnl_contribution_usd": -4.05,
+        "avg_hold_minutes": 10.9,
+        "decay_trigger_count": 25
+      },
+      "XLF": {
+        "trade_count": 56,
+        "win_rate": 0.25,
+        "pnl_contribution_usd": 0.31,
+        "avg_hold_minutes": 10.9,
+        "decay_trigger_count": 21
+      },
+      "CAT": {
+        "trade_count": 3,
+        "win_rate": 0.3333,
+        "pnl_contribution_usd": 0.51,
+        "avg_hold_minutes": 120.1,
+        "decay_trigger_count": 0
+      },
+      "CVX": {
+        "trade_count": 53,
+        "win_rate": 0.1132,
+        "pnl_contribution_usd": -4.67,
+        "avg_hold_minutes": 9.0,
+        "decay_trigger_count": 18
       },
       "IWM": {
-        "trade_count": 70,
-        "win_rate": 0.4,
-        "pnl_contribution_usd": 7.94,
-        "avg_hold_minutes": 23.3,
+        "trade_count": 61,
+        "win_rate": 0.4426,
+        "pnl_contribution_usd": 9.29,
+        "avg_hold_minutes": 23.1,
         "decay_trigger_count": 22
       },
-      "SPY": {
-        "trade_count": 15,
-        "win_rate": 0.2667,
-        "pnl_contribution_usd": 1.95,
-        "avg_hold_minutes": 120.8,
-        "decay_trigger_count": 2
+      "NFLX": {
+        "trade_count": 92,
+        "win_rate": 0.2935,
+        "pnl_contribution_usd": -17.72,
+        "avg_hold_minutes": 22.0,
+        "decay_trigger_count": 35
       },
       "XLE": {
-        "trade_count": 97,
-        "win_rate": 0.2268,
-        "pnl_contribution_usd": 33.5,
-        "avg_hold_minutes": 28.6,
+        "trade_count": 87,
+        "win_rate": 0.2299,
+        "pnl_contribution_usd": 37.09,
+        "avg_hold_minutes": 27.4,
         "decay_trigger_count": 30
       },
       "QQQ": {
-        "trade_count": 13,
-        "win_rate": 0.4615,
-        "pnl_contribution_usd": 30.59,
+        "trade_count": 10,
+        "win_rate": 0.5,
+        "pnl_contribution_usd": 18.57,
         "avg_hold_minutes": 120.3,
         "decay_trigger_count": 3
       },
-      "XLK": {
-        "trade_count": 122,
-        "win_rate": 0.2951,
-        "pnl_contribution_usd": -3.16,
-        "avg_hold_minutes": 20.9,
-        "decay_trigger_count": 39
-      },
-      "JNJ": {
-        "trade_count": 62,
-        "win_rate": 0.2258,
-        "pnl_contribution_usd": -4.92,
-        "avg_hold_minutes": 13.5,
-        "decay_trigger_count": 20
-      },
-      "XOM": {
-        "trade_count": 69,
-        "win_rate": 0.2609,
-        "pnl_contribution_usd": -4.78,
-        "avg_hold_minutes": 8.8,
-        "decay_trigger_count": 23
-      },
-      "META": {
-        "trade_count": 9,
+      "MA": {
+        "trade_count": 3,
         "win_rate": 0.0,
         "pnl_contribution_usd": 0.0,
         "avg_hold_minutes": null,
         "decay_trigger_count": 0
       },
-      "COP": {
-        "trade_count": 48,
-        "win_rate": 0.2917,
-        "pnl_contribution_usd": -0.88,
-        "avg_hold_minutes": 23.3,
-        "decay_trigger_count": 16
+      "HD": {
+        "trade_count": 76,
+        "win_rate": 0.2237,
+        "pnl_contribution_usd": 2.13,
+        "avg_hold_minutes": 16.9,
+        "decay_trigger_count": 28
       },
-      "CVX": {
-        "trade_count": 56,
-        "win_rate": 0.1071,
-        "pnl_contribution_usd": -5.44,
-        "avg_hold_minutes": 10.1,
+      "SPY": {
+        "trade_count": 12,
+        "win_rate": 0.3333,
+        "pnl_contribution_usd": 1.95,
+        "avg_hold_minutes": 120.8,
+        "decay_trigger_count": 2
+      },
+      "BA": {
+        "trade_count": 50,
+        "win_rate": 0.18,
+        "pnl_contribution_usd": -4.99,
+        "avg_hold_minutes": 12.5,
         "decay_trigger_count": 18
       },
-      "CAT": {
-        "trade_count": 5,
-        "win_rate": 0.4,
-        "pnl_contribution_usd": 1.02,
-        "avg_hold_minutes": 120.1,
-        "decay_trigger_count": 0
+      "XOM": {
+        "trade_count": 57,
+        "win_rate": 0.2807,
+        "pnl_contribution_usd": -4.55,
+        "avg_hold_minutes": 8.9,
+        "decay_trigger_count": 23
+      },
+      "AAPL": {
+        "trade_count": 65,
+        "win_rate": 0.2923,
+        "pnl_contribution_usd": -7.14,
+        "avg_hold_minutes": 64.7,
+        "decay_trigger_count": 23
       },
       "TGT": {
-        "trade_count": 86,
-        "win_rate": 0.2326,
-        "pnl_contribution_usd": -9.92,
-        "avg_hold_minutes": 16.6,
+        "trade_count": 76,
+        "win_rate": 0.25,
+        "pnl_contribution_usd": -9.36,
+        "avg_hold_minutes": 17.5,
         "decay_trigger_count": 27
       },
-      "MA": {
+      "META": {
         "trade_count": 6,
         "win_rate": 0.0,
         "pnl_contribution_usd": 0.0,
         "avg_hold_minutes": null,
         "decay_trigger_count": 0
       },
-      "SLB": {
-        "trade_count": 42,
-        "win_rate": 0.1905,
-        "pnl_contribution_usd": 0.9,
-        "avg_hold_minutes": 15.1,
-        "decay_trigger_count": 14
-      },
-      "WMT": {
-        "trade_count": 90,
-        "win_rate": 0.2889,
-        "pnl_contribution_usd": 13.62,
-        "avg_hold_minutes": 15.4,
+      "SOFI": {
+        "trade_count": 70,
+        "win_rate": 0.4143,
+        "pnl_contribution_usd": 24.81,
+        "avg_hold_minutes": 27.6,
         "decay_trigger_count": 28
       },
-      "XLP": {
-        "trade_count": 75,
-        "win_rate": 0.1867,
-        "pnl_contribution_usd": -4.18,
-        "avg_hold_minutes": 11.6,
-        "decay_trigger_count": 25
+      "BAC": {
+        "trade_count": 71,
+        "win_rate": 0.3239,
+        "pnl_contribution_usd": 1.97,
+        "avg_hold_minutes": 15.8,
+        "decay_trigger_count": 26
       },
-      "XLI": {
-        "trade_count": 76,
-        "win_rate": 0.3158,
-        "pnl_contribution_usd": -1.54,
-        "avg_hold_minutes": 13.7,
-        "decay_trigger_count": 25
+      "MRNA": {
+        "trade_count": 74,
+        "win_rate": 0.2297,
+        "pnl_contribution_usd": -48.97,
+        "avg_hold_minutes": 17.5,
+        "decay_trigger_count": 28
       },
-      "PFE": {
-        "trade_count": 56,
-        "win_rate": 0.2143,
-        "pnl_contribution_usd": 0.44,
-        "avg_hold_minutes": 7.4,
-        "decay_trigger_count": 18
-      },
-      "LOW": {
-        "trade_count": 50,
-        "win_rate": 0.12,
-        "pnl_contribution_usd": -4.68,
-        "avg_hold_minutes": 5.0,
+      "AMZN": {
+        "trade_count": 40,
+        "win_rate": 0.45,
+        "pnl_contribution_usd": -10.75,
+        "avg_hold_minutes": 29.6,
         "decay_trigger_count": 16
       },
-      "UNH": {
-        "trade_count": 66,
-        "win_rate": 0.1515,
-        "pnl_contribution_usd": -5.0,
-        "avg_hold_minutes": 6.5,
-        "decay_trigger_count": 21
+      "PFE": {
+        "trade_count": 54,
+        "win_rate": 0.2222,
+        "pnl_contribution_usd": 0.88,
+        "avg_hold_minutes": 7.6,
+        "decay_trigger_count": 18
+      },
+      "SLB": {
+        "trade_count": 36,
+        "win_rate": 0.1667,
+        "pnl_contribution_usd": 0.72,
+        "avg_hold_minutes": 16.6,
+        "decay_trigger_count": 14
+      },
+      "C": {
+        "trade_count": 49,
+        "win_rate": 0.1837,
+        "pnl_contribution_usd": -12.38,
+        "avg_hold_minutes": 22.9,
+        "decay_trigger_count": 18
       },
       "XLF260220P00051500": {
         "trade_count": 2,

@@ -12,9 +12,9 @@ Rolling windows: 1-day, 3-day, 5-day, 7-day (ending 2026-02-12).
 - **Volatility trend:** stable
 - **Attribution vs exit:** aligned (delta $0.00)
 - **Churn trend:** stable
-- **Hold-time trend:** unknown
+- **Hold-time trend:** falling
 - **Displacement trend:** unknown
-- **Expectancy trend:** unknown (rolling $0.00)
+- **Expectancy trend:** unknown (rolling $0.14)
 
 ## 3-Day Window
 
@@ -26,7 +26,7 @@ Rolling windows: 1-day, 3-day, 5-day, 7-day (ending 2026-02-12).
 - **Churn trend:** falling
 - **Hold-time trend:** falling
 - **Displacement trend:** rising
-- **Expectancy trend:** unknown (rolling $-0.08)
+- **Expectancy trend:** unknown (rolling $-0.01)
 
 ## 5-Day Window
 
@@ -38,7 +38,7 @@ Rolling windows: 1-day, 3-day, 5-day, 7-day (ending 2026-02-12).
 - **Churn trend:** falling
 - **Hold-time trend:** rising
 - **Displacement trend:** rising
-- **Expectancy trend:** unknown (rolling $-0.09)
+- **Expectancy trend:** unknown (rolling $-0.04)
 
 ## 7-Day Window
 
@@ -46,8 +46,8 @@ Rolling windows: 1-day, 3-day, 5-day, 7-day (ending 2026-02-12).
 - **Regime stability:** 100.00%
 - **Regime transition probability:** 0.00%
 - **Volatility trend:** stable
-- **Attribution vs exit:** aligned (delta $31.20)
+- **Attribution vs exit:** aligned (delta $25.79)
 - **Churn trend:** falling
 - **Hold-time trend:** rising
 - **Displacement trend:** rising
-- **Expectancy trend:** falling (rolling $-0.05)
+- **Expectancy trend:** falling (rolling $-0.02)

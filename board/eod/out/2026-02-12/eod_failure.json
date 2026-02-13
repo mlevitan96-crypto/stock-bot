@@ -1,0 +1,6 @@
+{
+  "date": "2026-02-12",
+  "exit_code": 1,
+  "stderr": "WARNING EOD missing or incomplete \u2014 re-running for 2026-02-12.\nINFO Calling Clawdbot agent (TODO: model/provider Gemini)...\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/eod_board.json\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/eod_board.md\nINFO Wrote /root/stock-bot/reports/wheel_actions_2026-02-12.json\nINFO Wrote /root/stock-bot/reports/wheel_watchlists_2026-02-12.json\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/eod_board.json\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/eod_board.md\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/eod_review.md\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/derived_deltas.json\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/raw_exit_attribution.json\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/raw_blocked_trades.csv\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/raw_attribution.json\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/raw_signal_events.json\nINFO Wrote /root/stock-bot/board/eod/out/2026-02-12/weekly_review.md\nEOD re-run completed but verification failed: Canonical outputs exceed 11 files (found 12)\n",
+  "stdout": ""
+}
