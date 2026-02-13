@@ -391,6 +391,29 @@ def wheel_action_id(title: str, owner: str, reference_section: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
+def _load_root_cause_summary(date_out_dir: Path) -> str:
+    """Load root-cause artifacts from date dir and return a short summary for the prompt."""
+    parts: list[str] = []
+    for name in ("uw_root_cause.json", "exit_causality_matrix.json", "constraint_root_cause.json", "missed_money_numeric.json"):
+        p = date_out_dir / name
+        if not p.exists():
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8", errors="replace"))
+            if name == "uw_root_cause.json":
+                parts.append(f"UW root cause: quality_score={data.get('uw_signal_quality_score')} edge_realization={data.get('uw_edge_realization_rate')} edge_suppression={data.get('uw_edge_suppression_rate')} candidates={data.get('total_candidates')}")
+            elif name == "exit_causality_matrix.json":
+                cause_counts = data.get("cause_counts") or {}
+                parts.append(f"Exit causality: cause_counts={cause_counts}")
+            elif name == "constraint_root_cause.json":
+                parts.append(f"Constraint root cause: suppression_cost_usd={data.get('constraint_suppression_cost_usd')} by_reason={[(r.get('block_reason'), r.get('count')) for r in (data.get('by_reason') or [])[:5]]}")
+            elif name == "missed_money_numeric.json":
+                parts.append(f"Missed money numeric: blocked_usd={data.get('blocked_trade_cost_usd')} early_exit_usd={data.get('early_exit_cost_usd')} correlation_score={data.get('correlation_cost_score')}")
+        except Exception:
+            continue
+    return "\n".join(parts) if parts else ""
+
+
 def load_prior_wheel_actions(date_str: str) -> list[dict]:
     """Load the most recent prior wheel_actions_<date>.json (yesterday or latest before today)."""
     try:
@@ -763,6 +786,7 @@ def build_prompt(
     weakening_watchlist: list[dict] | None = None,
     correlation_watchlist: list[dict] | None = None,
     rolling_windows: dict | None = None,
+    root_cause_summary: str = "",
 ) -> str:
     prior = prior_wheel_actions or []
     closure_table = build_closure_table(prior)
@@ -810,6 +834,32 @@ Include 3–5 wheel-specific action items with owners (Cursor / Mark / config ch
         wheel_instructions += "If any watchlist is non-empty, responses are mandatory. Omission FAILS the run.\n\n"
 
     rolling_block = _rolling_windows_prompt_block(rolling) if rolling else ""
+    proactive_block = ""
+
+    # Board must reflect tightened profitability levers (2026-02-12)
+    tightened_levers = """
+### Tightened profitability levers (active)
+- **Exit regimes:** FIRE SALE tightened: signal_delta -0.25, price_delta_pct -3, catastrophic_decay -1.0. LET-IT-BREATHE relaxed: entry_signal 2.5, pnl_delta_15m > 0, relax_decay_multiplier 1.5.
+- **Survivorship:** penalize_strong (pnl<-10, count>=3): score_penalty -0.5. boost_strong (pnl>10, win_rate>=0.45): score_boost +0.5. NO symbol bans; only score adjustments.
+- **UW boosts:** quality_score>=0.6 -> composite_score += 0.75; edge_suppression>0.5 -> allow let-it-breathe, override displacement if score_gap>0.1.
+- **Constraint overrides:** uw_quality>=0.6 OR survivorship boost OR variant_id=live_canary -> allow displacement override, max_positions burst +1. Logged to logs/constraint_overrides.jsonl.
+- **Correlation sizing:** correlation_concentration_risk_multiplier applied BEFORE MIN_NOTIONAL.
+- **Missed-money enforcement:** EOD FAILS if missed_money_numeric.all_numeric is False unless --allow-missing-missed-money.
+These changes were applied to improve profitability: faster fire-sale exits, more permissive let-it-breathe, stronger survivorship penalties/boosts, UW edge protection, high-quality signal constraint overrides.
+"""
+
+    if root_cause_summary:
+        proactive_block = f"""
+### Proactive root-cause (DO NOT wait for Mark to ask)
+Use the following root-cause data to explain WHY, identify WHICH, recommend HOW.
+{root_cause_summary}
+{tightened_levers}
+
+You MUST produce:
+- proactive_insights: list of at least 5 items — "Here are issues Mark did NOT ask about but we identified" across signals, exits, constraints, survivorship, correlation, variants, governance. Each item: {{ subsystem, issue, why_it_happens, recommended_fix, expected_impact }}.
+- root_cause: object with short subsections for uw (why UW candidates fail/succeed, which signals suppressed), exits (why signal_decay dominates, which causes drive decay), constraints (why displacement_blocked/max_positions high), survivorship (which symbols to penalize/boost by score only, NO bans), correlation (why losses cluster), variants (if data present).
+- recommended_fixes: list of {{ fix, subsystem, expected_impact, test_plan }}.
+"""
 
     return f"""You are the Gemini Stock Quant Officer. Today's EOD date: {date_str}.
 Ignore any prior context. Use ONLY the EOD bundle summary and rolling window data below.
@@ -817,18 +867,22 @@ Ignore any prior context. Use ONLY the EOD bundle summary and rolling window dat
 {contract}
 {rolling_block}
 {wheel_instructions}
+{proactive_block}
 ---
 
 {bundle_summary}
 
 ---
 
-Produce a single JSON object with keys: verdict, summary, pnl_metrics, regime_context, sector_context, recommendations, citations, falsification_criteria, wheel_actions, wheel_signal_trend_insights, wheel_correlation_risks, wheel_watchlists, executive_answers, customer_advocate_challenges, unresolved_disputes, missed_money. Emit only valid JSON, no markdown fences or surrounding text.
+Produce a single JSON object with keys: verdict, summary, pnl_metrics, regime_context, sector_context, recommendations, citations, falsification_criteria, wheel_actions, wheel_signal_trend_insights, wheel_correlation_risks, wheel_watchlists, executive_answers, customer_advocate_challenges, unresolved_disputes, missed_money, proactive_insights, root_cause, recommended_fixes. Emit only valid JSON, no markdown fences or surrounding text.
 
 executive_answers: object with keys CEO, CTO_SRE, Head_of_Trading, Risk_CRO; each value is an object mapping question_short_name to answer (must cite pnl_by_window, exit_reason_counts_by_window, or other rolling data).
 customer_advocate_challenges: list of {{ role, claim_summary, data_support, cost_to_customer, why_not_fixed, if_we_do_nothing }} — at least one per executive.
 unresolved_disputes: list of strings (disagreements left open).
 missed_money: {{ blocked_trade_opportunity_cost: number or {{ unknown, reason, missing_inputs?, instrumentation_needed? }}, early_exit_opportunity_cost: same, correlation_concentration_cost: same or qualitative }} — required; unknown must include reason.
+proactive_insights: list of at least 5 items — issues identified proactively (subsystem, issue, why_it_happens, recommended_fix, expected_impact).
+root_cause: object with uw, exits, constraints, survivorship, correlation (and variants if data present) — explain WHY each subsystem fails or succeeds.
+recommended_fixes: list of {{ fix, subsystem, expected_impact, test_plan }}.
 
 wheel_actions: list of concrete actions; each title, body, owner, reference_section; prior action_ids need status (done|blocked|deferred), note. wheel_watchlists: required when watchlists non-empty. At least one concrete change must be proposed (recommendations or wheel_actions). Omission of rolling window citations, executive answers, customer advocate challenges, or missed_money FAILS the run."""
 
@@ -867,6 +921,9 @@ def run_clawdbot_prompt(prompt: str, dry_run: bool = False) -> str:
             "customer_advocate_challenges": [{"role": "CEO", "claim_summary": "Dry-run", "data_support": "N/A", "cost_to_customer": "N/A", "why_not_fixed": "N/A", "if_we_do_nothing": "N/A"}],
             "unresolved_disputes": [],
             "missed_money": {"blocked_trade_opportunity_cost": {"unknown": True, "reason": "dry-run"}, "early_exit_opportunity_cost": {"unknown": True, "reason": "dry-run"}, "correlation_concentration_cost": {"unknown": True, "reason": "dry-run"}},
+            "proactive_insights": [{"subsystem": "signals", "issue": "Dry-run", "why_it_happens": "N/A", "recommended_fix": "N/A", "expected_impact": "N/A"}],
+            "root_cause": {"uw": "N/A", "exits": "N/A", "constraints": "N/A", "survivorship": "N/A", "correlation": "N/A"},
+            "recommended_fixes": [{"fix": "Run with Clawdbot", "subsystem": "board", "expected_impact": "Real insights", "test_plan": "Remove --dry-run"}],
         })
     prompt = _truncate_prompt_for_cli(prompt)
     session_id = os.environ.get("CLAWDBOT_SESSION_ID")
@@ -1048,9 +1105,11 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true", help="Skip Clawdbot, write stub JSON")
     ap.add_argument("--date", default="", help="YYYY-MM-DD (default: today UTC)")
     ap.add_argument("--skip-wheel-closure", action="store_true", help="Skip wheel action closure check (e.g. confirmation re-run)")
+    ap.add_argument("--allow-missing-missed-money", action="store_true", help="Do not FAIL EOD when missed_money_numeric.all_numeric is False")
     args = ap.parse_args()
     dry_run = args.dry_run
     skip_wheel_closure = args.skip_wheel_closure
+    allow_missing_missed_money = args.allow_missing_missed_money
     date_str = (args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")).strip()
     ensure_dirs()
     date_out_dir = OUT_DIR / date_str
@@ -1058,6 +1117,23 @@ def main() -> int:
 
     ensure_wheel_daily_review(date_str)
     rolling_windows = load_rolling_windows(date_str)
+    # Proactive root-cause: uw_root_cause, exit_causality_matrix, constraint_root_cause, etc.
+    try:
+        from board.eod.root_cause import write_all_root_cause_artifacts
+        write_all_root_cause_artifacts(REPO_ROOT, date_str, window_days=7)
+    except Exception as e:
+        log.warning("Root-cause artifacts failed: %s", e)
+    # Missed-money numeric enforcement: FAIL EOD unless all_numeric or --allow-missing-missed-money
+    if not allow_missing_missed_money:
+        mm_path = OUT_DIR / date_str / "missed_money_numeric.json"
+        if mm_path.exists():
+            try:
+                mm = json.loads(mm_path.read_text(encoding="utf-8"))
+                if mm.get("all_numeric") is False:
+                    log.error("missed_money_numeric.all_numeric is False; critical logs missing. EOD FAIL.")
+                    sys.exit(1)
+            except Exception as e:
+                log.warning("Could not check missed_money_numeric: %s", e)
     # Signal survivorship: per-symbol avg hold, win rate, P&L, decay-trigger frequency
     try:
         from board.eod.rolling_windows import build_signal_survivorship
@@ -1086,11 +1162,13 @@ def main() -> int:
     contract = load_contract()
     bundle_summary = summarize_bundle(data, missing, date_str, wheel_governance_badge)
     badge_status = (wheel_governance_badge or {}).get("overall_status", "?")
+    root_cause_summary = _load_root_cause_summary(date_out_dir)
     prompt = build_prompt(
         contract, bundle_summary, date_str, prior_wheel_actions, badge_status,
         weakening_watchlist=weakening_watchlist,
         correlation_watchlist=correlation_watchlist,
         rolling_windows=rolling_windows,
+        root_cause_summary=root_cause_summary,
     )
 
     log.info("Calling Clawdbot agent (TODO: model/provider Gemini)...")
@@ -1131,6 +1209,16 @@ def main() -> int:
                 log.error("%s", err)
             log.error("Board must review signal survivorship and correlation when data exists. Omission FAILS the run.")
             sys.exit(1)
+        try:
+            from board.eod.governance_enforcer import check_governance
+            gov_ok, gov_reasons, _ = check_governance(REPO_ROOT, date_str)
+            if not gov_ok:
+                for r in gov_reasons:
+                    log.error("Governance: %s", r)
+                log.error("High-priority action unclosed >3 days or repeated recommendation without implementation. FAIL EOD.")
+                sys.exit(1)
+        except Exception as e:
+            log.warning("Governance check skipped: %s", e)
     write_artifacts(obj, date_str, weakening_watchlist, correlation_watchlist, output_dir=date_out_dir)
     write_wheel_actions(date_str, obj, prior_wheel_actions)
     write_wheel_watchlists(date_str, weakening_watchlist, correlation_watchlist, obj)

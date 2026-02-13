@@ -1,0 +1,61 @@
+{
+  "baseline": {
+    "signal_decay": {
+      "decay_ratio_threshold": 0.6,
+      "hold_tolerance_factor": 1,
+      "min_hold_minutes_before_decay_exit": 0,
+      "disable_decay_for_top_quartile_entry": false
+    },
+    "blockers": {
+      "max_positions_burst_pct": 0,
+      "displacement_override_top_n": 0,
+      "displacement_override_score_gap_min": null
+    }
+  },
+  "live_canary": {
+    "signal_decay": {
+      "decay_ratio_threshold": 0.4,
+      "hold_tolerance_factor": 1.5,
+      "min_hold_minutes_before_decay_exit": 4,
+      "disable_decay_for_top_quartile_entry": false
+    },
+    "blockers": {
+      "max_positions_burst_pct": 0.1,
+      "displacement_override_top_n": 2,
+      "displacement_override_score_gap_min": 1.5
+    }
+  },
+  "paper_aggressive": {
+    "signal_decay": {
+      "decay_ratio_threshold": 0.2,
+      "hold_tolerance_factor": 3,
+      "min_hold_minutes_before_decay_exit": 12,
+      "disable_decay_for_top_quartile_entry": true
+    },
+    "blockers": {
+      "max_positions_burst_pct": 0.25,
+      "displacement_override_top_n": 5,
+      "displacement_override_score_gap_min": 1
+    }
+  },
+  "live": {
+    "canary_ratio": 0.2,
+    "use_baseline_plus_canary": true
+  },
+  "paper": {
+    "canary_ratio": 1,
+    "use_paper_aggressive": true
+  },
+  "live_safety": {
+    "max_daily_loss_usd": 500,
+    "max_open_positions": 20,
+    "max_notional_exposure": 50000,
+    "max_new_positions_per_cycle": 6
+  },
+  "auto_rollback": {
+    "pnl_threshold_usd": -300,
+    "win_rate_threshold": 0.15,
+    "cycles_lookback": 3,
+    "disable_if_canary_underperforms_baseline": true
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "fire_sale": {
+    "signal_delta_threshold": -0.25,
+    "price_delta_pct_threshold": -3,
+    "catastrophic_decay_delta": -1.0,
+    "enabled": true
+  },
+  "let_it_breathe": {
+    "entry_signal_strength_threshold": 2.5,
+    "pnl_delta_15m_threshold": 0,
+    "relax_decay_multiplier": 1.5,
+    "enabled": true
+  }
+}

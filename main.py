@@ -969,32 +969,68 @@ def log_signal_to_history(symbol: str, direction: str, raw_score: float, whale_b
     except Exception:
         pass  # Fail silently - don't break trading
 
-def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = None, 
-                      direction: str = None, decision_price: float = None, 
+def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = None,
+                      direction: str = None, decision_price: float = None,
                       components: dict = None, **kw):
     """
-    Log blocked trades for counterfactual learning analysis.
-    
-    CRITICAL FOR ML: We track what we DIDN'T do so we can learn whether we should have.
-    By capturing the decision_price at the moment of rejection, we can later compute
-    what the theoretical P&L would have been if we had entered.
+    Log blocked trades for counterfactual learning and missed-money (blocked EV).
+    Appends: block_reason, candidate_rank, candidate_score, expected_value_usd, would_have_entered_price.
     """
+    side = "long" if (direction or "").lower() == "bullish" else "short"
+    expected_ev = kw.pop("expected_value_usd", None)
+    if expected_ev is None and score is not None:
+        try:
+            expected_ev = round(float(score) * 10.0, 2)  # score proxy for EV (best-effort)
+        except (TypeError, ValueError):
+            expected_ev = None
     record = {
         "timestamp": now_iso(),
         "symbol": symbol,
         "reason": reason,
+        "block_reason": reason,
         "score": score,
+        "candidate_score": score,
+        "candidate_rank": kw.pop("candidate_rank", None),
+        "expected_value_usd": expected_ev,
+        "would_have_entered_price": decision_price,
+        "side": side,
         "signals": signals or {},
-        "direction": direction,  # bullish/bearish - needed for theoretical P&L
-        "decision_price": decision_price,  # Price at decision time for counterfactual
-        "components": components or {},  # All 21 signal components for ML learning
-        "outcome_tracked": False,  # Flag for counterfactual tracker
+        "direction": direction,
+        "decision_price": decision_price,
+        "components": components or {},
+        "outcome_tracked": False,
         **kw
     }
     blocked_path = os.path.join("state", "blocked_trades.jsonl")
     os.makedirs(os.path.dirname(blocked_path), exist_ok=True)
     with open(blocked_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record) + "\n")
+        f.write(json.dumps(record, default=str) + "\n")
+
+
+def log_exit_hold_longer(symbol: str, side: str, exit_reason: str, exit_price: float, exit_ts: str = None,
+                         price_5m: float = None, price_15m: float = None, price_60m: float = None,
+                         pnl_delta_5m: float = None, pnl_delta_15m: float = None, pnl_delta_60m: float = None):
+    """Missed-money: record signal_decay (and other) exits for hold-longer delta analysis. +5m/+15m/+60m filled by backfill or cron."""
+    path = os.path.join("logs", "exit_hold_longer.jsonl")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    rec = {
+        "symbol": symbol,
+        "side": side,
+        "exit_reason": exit_reason,
+        "exit_price": exit_price,
+        "timestamp": exit_ts or now_iso(),
+        "price_5m": price_5m,
+        "price_15m": price_15m,
+        "price_60m": price_60m,
+        "pnl_delta_5m": pnl_delta_5m,
+        "pnl_delta_15m": pnl_delta_15m,
+        "pnl_delta_60m": pnl_delta_60m,
+    }
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, default=str) + "\n")
+    except Exception:
+        pass
     # Signal context capture (read-only): full signal state at block for profitability learning.
     try:
         from telemetry.signal_context_logger import (
@@ -2109,6 +2145,7 @@ def log_exit_attribution(
         v2_exit_components = v2_exit.get("v2_exit_components", {}) if isinstance(v2_exit.get("v2_exit_components"), dict) else {}
         score_det = float(v2_exit.get("score_deterioration") or 0.0)
 
+        variant_id = (metadata or {}).get("variant_id") or (info or {}).get("variant_id") if isinstance(metadata, dict) or isinstance(info, dict) else None
         rec = build_exit_attribution_record(
             symbol=str(symbol).upper(),
             entry_timestamp=str(context.get("entry_ts") or ""),
@@ -2132,6 +2169,7 @@ def log_exit_attribution(
             replacement_candidate=v2_exit.get("replacement_candidate"),
             replacement_reasoning=v2_exit.get("replacement_reasoning") if isinstance(v2_exit.get("replacement_reasoning"), dict) else None,
             exit_timestamp=now_aware.isoformat(),
+            variant_id=variant_id,
         )
         append_exit_attribution(rec)
         # Signal context capture (read-only): full signal state at exit for profitability learning.
@@ -5526,6 +5564,18 @@ class AlpacaExecutor:
             {"pct": t, "hit": False, "fraction": Config.SCALE_OUT_FRACTIONS[i] if i < len(Config.SCALE_OUT_FRACTIONS) else 0.0}
             for i, t in enumerate(Config.PROFIT_TARGETS)
         ]
+        # Variant tagging for root-cause attribution
+        try:
+            from policy_variants import get_variant_id
+            strategy_id = "equity"
+            try:
+                from strategies.context import get_strategy_id
+                strategy_id = get_strategy_id()
+            except Exception:
+                pass
+            variant_id = get_variant_id(symbol, strategy_id)
+        except Exception:
+            variant_id = "baseline"
         record = {
             "entry_price": entry_price,
             "ts": now,
@@ -5542,6 +5592,7 @@ class AlpacaExecutor:
             "direction": direction,
             "regime_modifier": regime_modifier,  # V4.0: Store regime multiplier applied to composite score
             "ignition_status": ignition_status,  # V4.0: Store momentum filter status
+            "variant_id": variant_id,  # Root-cause: propagate to exit attribution
         }
         if atr_mult is not None and Config.ENABLE_PER_TICKER_LEARNING:
             atr = compute_atr(self.api, symbol, Config.ATR_LOOKBACK)
@@ -5580,6 +5631,7 @@ class AlpacaExecutor:
             correlation_id=correlation_id,
             alpha_signature=alpha_signature,
             v2_context=v2_context,
+            variant_id=variant_id,
         )
         
         # Update state manager (Risk #6 - State Persistence)
@@ -5602,7 +5654,7 @@ class AlpacaExecutor:
         except Exception as e:
             log_event("state_manager", "update_position_failed", symbol=symbol, error=str(e))
     
-    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None, alpha_signature: dict = None, v2_context: dict = None):
+    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None, alpha_signature: dict = None, v2_context: dict = None, variant_id: str = None):
         """Persist position metadata to durable file for restart recovery with atomic write.
         
         V2.0: Now stores all 21 signal components for ML learning when trade closes.
@@ -5641,6 +5693,7 @@ class AlpacaExecutor:
                 "ignition_status": ignition_status,  # V4.0: Store momentum filter status
                 "correlation_id": correlation_id,  # V4.0: Store UW-to-Alpaca correlation ID for tracking
                 "alpha_signature": alpha_signature,  # Phase 5: RVOL/RSI/PCR observability for forensics
+                "variant_id": variant_id,  # Root-cause: baseline | live_canary | paper_aggressive
                 "updated_at": datetime.utcnow().isoformat()
             }
             
@@ -6602,26 +6655,37 @@ class AlpacaExecutor:
                     pass
                 print(f"DEBUG EXITS: {symbol} STOP LOSS HIT - P&L={pnl_pct:.2f}% <= -1.0%, entry=${entry_price:.2f}, current=${current_price:.2f}", flush=True)
             
-            # 2. Signal Decay Check: Current Score drops >40% below Entry Score
+            # 2. Signal Decay Check (variant-scoped: baseline / live_canary / paper_aggressive)
             entry_score = info.get("entry_score", 0.0)
             signal_decay_exit = False
             decay_ratio = None
-            if entry_score > 0:
-                # Get current composite score for this symbol
-                try:
-                    current_composite = current_signals.get("composite_score", 0.0)
-                    if current_composite == 0:
-                        # Try to compute current score if not available
-                        # For now, skip if not available (fail open)
-                        pass
-                    else:
-                        decay_ratio = current_composite / entry_score
-                        # Exit if current score < 60% of entry score (40% drop)
-                        signal_decay_exit = decay_ratio < 0.60
-                        if signal_decay_exit:
-                            exit_signals["signal_decay"] = round(decay_ratio, 2)
-                except Exception as e:
-                    log_event("exit", "signal_decay_check_error", symbol=symbol, error=str(e))
+            try:
+                from policy_variants import get_variant_params
+                variant = get_variant_params(symbol, "equity")
+                decay_threshold = float(variant.get("decay_ratio_threshold", 0.60))
+                min_hold_min = float(variant.get("min_hold_minutes_before_decay_exit", 0))
+                disable_for_top_quartile = bool(variant.get("disable_decay_for_top_quartile_entry", False))
+            except Exception:
+                decay_threshold = 0.60
+                min_hold_min = 0
+                disable_for_top_quartile = False
+            entry_ts_info = info.get("ts", datetime.utcnow())
+            if hasattr(entry_ts_info, "tzinfo") and entry_ts_info.tzinfo is not None:
+                entry_ts_info = entry_ts_info.replace(tzinfo=None)
+            position_age_min = (datetime.utcnow() - entry_ts_info).total_seconds() / 60.0
+            if entry_score > 0 and position_age_min >= min_hold_min:
+                if disable_for_top_quartile and entry_score >= 7.0:
+                    pass  # do not trigger decay exit for top-quartile entry
+                else:
+                    try:
+                        current_composite = current_signals.get("composite_score", 0.0)
+                        if current_composite != 0:
+                            decay_ratio = current_composite / entry_score
+                            signal_decay_exit = decay_ratio < decay_threshold
+                            if signal_decay_exit:
+                                exit_signals["signal_decay"] = round(decay_ratio, 2)
+                    except Exception as e:
+                        log_event("exit", "signal_decay_check_error", symbol=symbol, error=str(e))
             
             # 3. Profit Target: regime-aware (see profit_target_decimal above)
             profit_target_hit = pnl_pct_decimal >= profit_target_decimal
@@ -6646,6 +6710,42 @@ class AlpacaExecutor:
                     exit_signals["signal_decay_ratio"] = round(decay_ratio, 2)
             if profit_target_hit:
                 exit_signals["profit_target_075"] = True
+
+            # Root-cause: exit regimes (fire_sale / let_it_breathe)
+            exit_regime = "normal"
+            exit_regime_reason = ""
+            exit_regime_context = {}
+            try:
+                from board.eod.exit_regimes import get_exit_regime, log_exit_regime_decision
+                current_composite = current_signals.get("composite_score", 0.0) or 0.0
+                signal_delta = (float(current_composite) - float(entry_score)) if (entry_score and current_composite) else None
+                price_delta_pct = (float(current_price - entry_price) / float(entry_price) * 100.0) if entry_price and entry_price > 0 else None
+                exit_regime, exit_regime_reason, exit_regime_context = get_exit_regime(
+                    signal_delta=signal_delta,
+                    price_delta_pct=price_delta_pct,
+                    entry_signal_strength=float(entry_score) if entry_score else None,
+                    pnl_delta_15m=None,
+                    catastrophic_decay=False,
+                )
+                if exit_regime == "fire_sale":
+                    signal_decay_exit = True
+                    exit_signals["signal_decay_exit"] = True
+                    if decay_ratio is not None:
+                        exit_signals["signal_decay_ratio"] = round(decay_ratio, 2)
+                    exit_signals["exit_regime"] = "fire_sale"
+                    exit_signals["exit_regime_reason"] = exit_regime_reason
+                elif exit_regime == "let_it_breathe":
+                    # Relax decay: do not exit on decay alone for this position
+                    if signal_decay_exit and decay_ratio is not None:
+                        relaxed_threshold = decay_threshold * 1.25
+                        if decay_ratio >= relaxed_threshold:
+                            signal_decay_exit = False
+                            exit_signals.pop("signal_decay_exit", None)
+                            exit_signals.pop("signal_decay", None)
+                    exit_signals["exit_regime"] = "let_it_breathe"
+                    exit_regime_reason = exit_regime_reason or "relaxed decay thresholds"
+            except Exception as e:
+                log_event("exit", "exit_regime_check_error", symbol=symbol, error=str(e))
 
             ret_pct = _position_return_pct(info["entry_price"], current_price, info.get("side", "buy"))
             
@@ -6735,6 +6835,12 @@ class AlpacaExecutor:
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 if _passes_hold_floor(exit_timing_cfg, hold_seconds):
                     to_close.append(symbol)
+                    # Root-cause: log exit regime for every exit
+                    try:
+                        from board.eod.exit_regimes import log_exit_regime_decision
+                        log_exit_regime_decision(symbol, exit_regime, exit_regime_reason, exit_regime_context)
+                    except Exception:
+                        pass
                 else:
                     log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
                 exit_reason_str = "stop_loss" if stop_loss_hit else ("signal_decay" if signal_decay_exit else ("profit_075" if profit_target_hit else "trail_stop"))
@@ -7042,7 +7148,18 @@ class AlpacaExecutor:
                         thesis_tags_at_exit=_ex_tags,
                         thesis_break_reason=_ex_break,
                     )
-                else:
+                if "signal_decay" in (close_reason or "").lower():
+                    try:
+                        log_exit_hold_longer(
+                            symbol=symbol,
+                            side=info.get("side", "buy"),
+                            exit_reason="signal_decay",
+                            exit_price=exit_fill_price if exit_fill_price > 0 else decision_exit_price,
+                            exit_ts=now_iso(),
+                        )
+                    except Exception:
+                        pass
+                if not (exit_fill_price > 0 and exit_fill_qty > 0):
                     log_event(
                         "data_integrity",
                         "exit_fill_missing_skip_attribution",
@@ -7164,6 +7281,14 @@ class StrategyEngine:
     @global_failure_wrapper("decision")
     def decide_and_execute(self, clusters: list, confirm_map: dict, gex_map: dict, decisions_map: dict = None, market_regime: str = "mixed"):
         orders = []
+        # LIVE kill switch: if state/kill_switch.json enabled, halt trading
+        try:
+            from policy_variants import kill_switch_active
+            if kill_switch_active():
+                log_event("gate", "kill_switch_active", message="Trading halted by state/kill_switch.json")
+                return orders
+        except Exception:
+            pass
         # Reset per-cycle gate symbol tracker (used for missed-candidate detection).
         try:
             global _CYCLE_GATE_SYMBOLS, _PHASE2_CYCLE_COUNTS
@@ -7196,9 +7321,30 @@ class StrategyEngine:
         
         open_positions = []
         try:
-            open_positions = self.executor.api.list_positions()
+            open_positions = self.executor.api.list_positions() or []
         except Exception:
             open_positions = []  # FIX: Initialize to empty list if API call fails
+
+        # LIVE safety caps: halt cycle if any cap is hit
+        try:
+            from policy_variants import check_live_safety_caps, get_live_safety_caps
+            notional_usd = 0.0
+            for pos in open_positions:
+                try:
+                    notional_usd += float(getattr(pos, "market_value", 0) or 0)
+                except Exception:
+                    pass
+            allowed, cap_reason = check_live_safety_caps(
+                daily_pnl_usd=None,
+                open_positions_count=len(open_positions),
+                notional_exposure_usd=notional_usd if open_positions else 0,
+                new_positions_this_cycle=0,
+            )
+            if not allowed:
+                log_event("gate", "live_safety_cap", message=cap_reason)
+                return orders
+        except Exception:
+            pass
 
         # Market-data health probe (observability only).
         # Contract: when 1Min bars are stale, emit a clear stale event (probe is observability-only).
@@ -7260,9 +7406,16 @@ class StrategyEngine:
         bayes_profiles = v32.AdaptiveWeighting.load_profiles()
         system_stage = v32.get_system_stage(bayes_profiles)
         
-        # V3.2.1: Safety cap - max new positions per cycle (increased for stronger signal utilization)
+        # V3.2.1: Safety cap - max new positions per cycle (from config when LIVE; paper uses env from paper_mode_config)
         new_positions_this_cycle = 0
-        MAX_NEW_POSITIONS_PER_CYCLE = 6
+        try:
+            import os
+            from policy_variants import get_live_safety_caps, is_live
+            caps = get_live_safety_caps() if is_live() else {}
+            default_per_cycle = int(os.environ.get("MAX_NEW_POSITIONS_PER_CYCLE", 6))
+            MAX_NEW_POSITIONS_PER_CYCLE = int(caps.get("max_new_positions_per_cycle", default_per_cycle))
+        except Exception:
+            MAX_NEW_POSITIONS_PER_CYCLE = 6
         
         # CRITICAL: Sort clusters by composite_score DESC to trade strongest signals first
         clusters_sorted = sorted(clusters, key=lambda x: x.get("composite_score", 0.0), reverse=True)
@@ -7317,7 +7470,7 @@ class StrategyEngine:
             )
             return orders
         
-        for c in clusters_sorted:
+        for candidate_rank, c in enumerate(clusters_sorted):
             log_signal(c)
             symbol = c["ticker"]
             try:
@@ -7341,6 +7494,15 @@ class StrategyEngine:
             except Exception:
                 pass
             cluster_source = c.get("source", "unknown")
+            # Root-cause: UW and survivorship entry adjustments (BEFORE displacement and max_positions)
+            uw_details: dict = {}
+            surv_action = ""
+            try:
+                from board.eod.live_entry_adjustments import apply_uw_to_score, apply_survivorship_to_score
+                score, uw_details = apply_uw_to_score(symbol, float(score))
+                score, surv_action = apply_survivorship_to_score(symbol, float(score))
+            except Exception:
+                pass
             print(f"DEBUG {symbol}: Processing cluster - direction={direction}, initial_score={score:.2f}, source={cluster_source}", flush=True)
             
             # LOGIC STAGNATION DETECTOR: Record signal for monitoring
@@ -7726,7 +7888,15 @@ class StrategyEngine:
             
             # Apply multiplier to quantity
             qty = max(1, int(qty * size_multiplier))
-            
+            # Correlation snapshot: reduce size when concentration risk is high
+            try:
+                from board.eod.live_entry_adjustments import correlation_concentration_risk_multiplier
+                corr_mult = correlation_concentration_risk_multiplier()
+                if corr_mult < 1.0:
+                    qty = max(1, int(qty * corr_mult))
+            except Exception:
+                pass
+
             # MIN_NOTIONAL_USD floor check to prevent tiny orders
             ref_price_check = self.executor.get_last_trade(symbol)
             actual_notional = qty * ref_price_check
@@ -8105,6 +8275,26 @@ class StrategyEngine:
                         policy_allowed = True
                         policy_diag = None
 
+                    # Variant: override-if-dominant-rank — top N candidates bypass displacement if score gap >= threshold
+                    # Constraint override: uw_quality>=0.6 OR survivorship boost OR variant_id==live_canary -> allow displacement
+                    if not policy_allowed:
+                        try:
+                            from policy_variants import get_variant_id, get_variant_params
+                            from board.eod.live_entry_adjustments import check_constraint_override_eligible
+                            vid = get_variant_id(symbol, "equity")
+                            eligible, _ = check_constraint_override_eligible(symbol, uw_details, surv_action, vid)
+                            if eligible:
+                                policy_allowed = True
+                                policy_reason = "constraint_override: high_quality_signal"
+                            else:
+                                vp = get_variant_params(symbol, "equity")
+                                top_n = int(vp.get("displacement_override_top_n") or 0)
+                                gap_min = vp.get("displacement_override_score_gap_min")
+                                dc_adv = displacement_candidate.get("score_advantage") if isinstance(displacement_candidate, dict) else None
+                                if top_n > 0 and gap_min is not None and candidate_rank < top_n and isinstance(dc_adv, (int, float)) and float(dc_adv) >= float(gap_min):
+                                    policy_allowed = True
+                        except Exception:
+                            pass
                     if not policy_allowed:
                         print(f"DEBUG {symbol}: BLOCKED - displacement policy ({policy_reason})", flush=True)
                         try:
@@ -8139,7 +8329,7 @@ class StrategyEngine:
                                           components=comps,
                                           displaced_symbol=dc_symbol,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
-                                          policy_reason=policy_reason)
+                                          policy_reason=policy_reason, candidate_rank=candidate_rank)
                         log_signal_to_history(
                             symbol=symbol, direction=direction, raw_score=raw_score, whale_boost=whale_boost,
                             final_score=final_score, atr_multiplier=atr_multiplier or 0.0,
@@ -8215,47 +8405,63 @@ class StrategyEngine:
                         actual_positions = len(positions)
                     except Exception as pos_count_err:
                         log_event("gate", "position_count_error", symbol=symbol, error=str(pos_count_err))
-                        # Use executor.opens as fallback
                         actual_positions = len(self.executor.opens)
-                    print(f"DEBUG {symbol}: BLOCKED by max_positions_reached (Alpaca positions: {actual_positions}, executor.opens: {len(self.executor.opens)}, max: {Config.MAX_CONCURRENT_POSITIONS}), no displacement candidates", flush=True)
-                    _inc_gate("max_positions_reached")
+                    max_pos = Config.MAX_CONCURRENT_POSITIONS
+                    # Variant: allow burst capacity for highest-ranked candidate only (live_canary +10%, paper_aggressive +25%)
+                    # Constraint override: uw_quality>=0.6 OR survivorship boost OR variant_id==live_canary -> burst capacity +1
+                    allow_burst = False
                     try:
-                        log_system_event("displacement", "displacement_blocked_no_candidate", "INFO",
-                                         symbol=symbol, new_signal_score=round(score, 2), regime=market_regime or "")
+                        from policy_variants import get_variant_id, get_variant_params
+                        from board.eod.live_entry_adjustments import check_constraint_override_eligible
+                        vid = get_variant_id(symbol, "equity")
+                        eligible, _ = check_constraint_override_eligible(symbol, uw_details, surv_action, vid)
+                        if eligible and actual_positions <= max_pos + 1:
+                            allow_burst = True
+                        elif not eligible:
+                            vp = get_variant_params(symbol, "equity")
+                            burst_pct = float(vp.get("max_positions_burst_pct") or 0)
+                            if burst_pct > 0 and candidate_rank == 0 and actual_positions <= max_pos * (1 + burst_pct):
+                                allow_burst = True
                     except Exception:
                         pass
-                    log_event("gate", "max_positions_reached", symbol=symbol, 
-                             alpaca_positions=actual_positions,
-                             executor_opens=len(self.executor.opens),
-                             max=Config.MAX_CONCURRENT_POSITIONS,
-                             displacement_attempted=True, no_candidates=True)
-                    log_blocked_trade(symbol, "max_positions_reached", score,
-                                      direction=c.get("direction"),
-                                      decision_price=ref_price_check,
-                                      components=comps,
-                                      alpaca_positions=actual_positions,
-                                      composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
-                                      executor_opens=len(self.executor.opens),
-                                      max_positions=Config.MAX_CONCURRENT_POSITIONS)
-                    # Shadow tracking removed (v2-only engine).
-                    
-                    # SIGNAL HISTORY: Log blocked signal with alpha signature
-                    log_signal_to_history(
-                        symbol=symbol,
-                        direction=direction,
-                        raw_score=raw_score,
-                        whale_boost=whale_boost,
-                        final_score=final_score,
-                        atr_multiplier=atr_multiplier or 0.0,
-                        momentum_pct=momentum_pct,
-                        momentum_required_pct=momentum_required_pct,
-                        decision="Blocked: capacity_limit",
-                        metadata={
-                            "alpaca_positions": actual_positions,
-                            "max": Config.MAX_CONCURRENT_POSITIONS,
-                        }
-                    )
-                    continue
+                    if not allow_burst:
+                        print(f"DEBUG {symbol}: BLOCKED by max_positions_reached (Alpaca positions: {actual_positions}, executor.opens: {len(self.executor.opens)}, max: {max_pos}), no displacement candidates", flush=True)
+                        _inc_gate("max_positions_reached")
+                        try:
+                            log_system_event("displacement", "displacement_blocked_no_candidate", "INFO",
+                                             symbol=symbol, new_signal_score=round(score, 2), regime=market_regime or "")
+                        except Exception:
+                            pass
+                        log_event("gate", "max_positions_reached", symbol=symbol, 
+                                 alpaca_positions=actual_positions,
+                                 executor_opens=len(self.executor.opens),
+                                 max=max_pos,
+                                 displacement_attempted=True, no_candidates=True)
+                        log_blocked_trade(symbol, "max_positions_reached", score,
+                                          direction=c.get("direction"),
+                                          decision_price=ref_price_check,
+                                          components=comps,
+                                          alpaca_positions=actual_positions,
+                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                                          executor_opens=len(self.executor.opens),
+                                          max_positions=max_pos, candidate_rank=candidate_rank)
+                        log_signal_to_history(
+                            symbol=symbol,
+                            direction=direction,
+                            raw_score=raw_score,
+                            whale_boost=whale_boost,
+                            final_score=final_score,
+                            atr_multiplier=atr_multiplier or 0.0,
+                            momentum_pct=momentum_pct,
+                            momentum_required_pct=momentum_required_pct,
+                            decision="Blocked: capacity_limit",
+                            metadata={
+                                "alpaca_positions": actual_positions,
+                                "max": max_pos,
+                            }
+                        )
+                        continue
+                    # allow_burst: fall through and place order (capacity exceeded by variant policy)
             if not self.executor.can_open_symbol(symbol):
                 print(f"DEBUG {symbol}: BLOCKED by symbol_on_cooldown", flush=True)
                 _inc_gate("symbol_on_cooldown")
