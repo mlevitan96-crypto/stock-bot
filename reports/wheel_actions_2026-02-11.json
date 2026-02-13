@@ -1,0 +1,59 @@
+{
+  "date": "2026-02-11",
+  "actions": [
+    {
+      "action_id": "56e36d804c0beb21",
+      "title": "",
+      "owner": "",
+      "reference_section": "",
+      "rationale": "",
+      "status": "blocked",
+      "notes": "Blocked by the 'Board action closure: FAIL' governance status. Cannot address until core governance is resolved."
+    },
+    {
+      "action_id": "247598556f6f7307",
+      "title": "",
+      "owner": "",
+      "reference_section": "",
+      "rationale": "",
+      "status": "blocked",
+      "notes": "Blocked by the 'Board action closure: FAIL' governance status and the 'Correlation cache missing' warning. Requires correlation cache to be generated first."
+    },
+    {
+      "action_id": "68bb4cbe4feef78d",
+      "title": "",
+      "owner": "",
+      "reference_section": "",
+      "rationale": "",
+      "status": "blocked",
+      "notes": "Blocked by the 'Board action closure: FAIL' governance status. Requires broader governance resolution before detailed analysis."
+    },
+    {
+      "action_id": "new-action-1",
+      "title": "Establish clear ownership and process for board action closure.",
+      "owner": "Mark",
+      "reference_section": "Wheel governance badge",
+      "rationale": "Define a clear process and assign specific owners for each proposed board action to ensure timely resolution and update the 'Board action closure' status. Reference: Wheel governance badge.",
+      "status": "proposed",
+      "notes": ""
+    },
+    {
+      "action_id": "new-action-2",
+      "title": "Implement a 'fire sale' exit mechanism for highly decaying signals.",
+      "owner": "Cursor",
+      "reference_section": "3.4a Signal trend",
+      "rationale": "For open positions with a signal_delta < -1.5, trigger an immediate market exit to prevent further losses from rapid signal degradation. This rule needs to be configurable and tested in paper mode first. Reference: Section 3.4a Signal trend (open positions).",
+      "status": "proposed",
+      "notes": ""
+    },
+    {
+      "action_id": "new-action-3",
+      "title": "Generate the correlation cache for proper risk assessment.",
+      "owner": "SRE",
+      "reference_section": "3.4b Correlation concentration",
+      "rationale": "Run the `python3 scripts/compute_signal_correlation_snapshot.py` script to generate the missing correlation cache. This is critical for assessing concentration risk. Reference: Section 3.4b Correlation concentration.",
+      "status": "proposed",
+      "notes": ""
+    }
+  ]
+}

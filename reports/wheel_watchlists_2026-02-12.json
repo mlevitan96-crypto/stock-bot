@@ -1,0 +1,70 @@
+{
+  "date": "2026-02-12",
+  "thresholds": {
+    "signal_weakening": -0.5,
+    "correlation_concentration": 0.8
+  },
+  "weakening_signals": [
+    {
+      "symbol": "HOOD",
+      "side": "LONG",
+      "current_signal": 3.229,
+      "prev_signal": 3.855,
+      "signal_delta": -0.626,
+      "evaluated_at": "2026-02-12T20:22:59.756738Z",
+      "board_rationale": "Position is held as current exit logic has not triggered; signal is 3.229 with a -0.626 delta.",
+      "exit_review_condition": "Immediate exit review if signal drops below 2.5 or shows further significant negative delta (e.g., another -0.5), or if the underlying asset breaches a pre-defined support level."
+    },
+    {
+      "symbol": "UNH",
+      "side": "LONG",
+      "current_signal": 2.049,
+      "prev_signal": 3.127,
+      "signal_delta": -1.078,
+      "evaluated_at": "2026-02-12T20:42:48.186852Z",
+      "board_rationale": "Position is held as current exit logic has not triggered; signal is 2.049 with a -1.078 delta.",
+      "exit_review_condition": "Immediate exit review if the signal remains below 1.5 or shows any further negative movement. Consider a more aggressive exit if market conditions for healthcare deteriorate."
+    },
+    {
+      "symbol": "XLF",
+      "side": "LONG",
+      "current_signal": 2.011,
+      "prev_signal": 2.741,
+      "signal_delta": -0.73,
+      "evaluated_at": "2026-02-12T20:30:21.582628Z",
+      "board_rationale": "Position is held as current exit logic has not triggered; signal is 2.011 with a -0.73 delta.",
+      "exit_review_condition": "Exit review if signal drops below 1.5 or if the Financial sector shows further significant weakness, or if the underlying asset breaches key support levels."
+    },
+    {
+      "symbol": "XLP",
+      "side": "SHORT",
+      "current_signal": 1.69,
+      "prev_signal": 2.524,
+      "signal_delta": -0.834,
+      "evaluated_at": "2026-02-12T19:37:45.884359Z",
+      "board_rationale": "Position is held as current exit logic has not triggered; signal is 1.69 with a -0.834 delta.",
+      "exit_review_condition": "Exit review if signal drops below 1.0 or if the Consumer Staples sector shows further significant weakness. Consider a 'fire sale' if it drops below 0.5."
+    },
+    {
+      "symbol": "DIA",
+      "side": "SHORT",
+      "current_signal": 1.828,
+      "prev_signal": 2.823,
+      "signal_delta": -0.995,
+      "evaluated_at": "2026-02-12T18:57:20.842902Z",
+      "board_rationale": "Position is held as current exit logic has not triggered; signal is 1.828 with a -0.995 delta.",
+      "exit_review_condition": "Immediate exit review if the signal remains below 1.0 or shows any further negative movement. Consider a more aggressive exit if the broader market (Dow) shows further weakness."
+    },
+    {
+      "symbol": "AMZN",
+      "side": "LONG",
+      "current_signal": 2.881,
+      "prev_signal": 3.492,
+      "signal_delta": -0.611,
+      "evaluated_at": "2026-02-12T20:24:21.962898Z",
+      "board_rationale": "Position is held as current exit logic has not triggered; signal is 2.881 with a -0.611 delta.",
+      "exit_review_condition": "Exit review if signal drops below 2.0, or if Amazon experiences negative earnings surprises, or if regulatory concerns intensify."
+    }
+  ],
+  "correlation_concentration": []
+}

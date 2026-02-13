@@ -1,0 +1,83 @@
+{
+  "results": {
+    "baseline_realized": {
+      "UNKNOWN:UNKNOWN": {
+        "exits": 2578,
+        "pnl": -280.3926867334639
+      }
+    },
+    "scenarios": {
+      "baseline_current": {
+        "buckets": {
+          "UNKNOWN:UNKNOWN": {
+            "exits": 156,
+            "pnl": -823.2315680000016,
+            "rows_skipped": 2422,
+            "rows_used": 156
+          }
+        },
+        "description": "No additional hold floor; preserve existing behavior (control)."
+      },
+      "bear_regime_patience": {
+        "buckets": {
+          "UNKNOWN:UNKNOWN": {
+            "exits": 156,
+            "pnl": -823.2315680000016,
+            "rows_skipped": 2422,
+            "rows_used": 156
+          }
+        },
+        "description": "Regime-aware: in BEAR, require longer holds (helps avoid chopping mean reversion)."
+      },
+      "live_50pct_push": {
+        "buckets": {
+          "UNKNOWN:UNKNOWN": {
+            "exits": 156,
+            "pnl": -823.2315680000016,
+            "rows_skipped": 2422,
+            "rows_used": 156
+          }
+        },
+        "description": "Mild anti-churn: slightly longer holds + slightly reduced decay/displacement sensitivity."
+      },
+      "paper_150pct_push": {
+        "buckets": {
+          "UNKNOWN:UNKNOWN": {
+            "exits": 156,
+            "pnl": -823.2315680000016,
+            "rows_skipped": 2422,
+            "rows_used": 156
+          }
+        },
+        "description": "Meaningful patience: multi-hour holds; materially reduced decay/displacement sensitivity."
+      },
+      "shadow_250pct_push": {
+        "buckets": {
+          "UNKNOWN:UNKNOWN": {
+            "exits": 156,
+            "pnl": -823.2315680000016,
+            "rows_skipped": 2422,
+            "rows_used": 156
+          }
+        },
+        "description": "Aggressive exploration: long holds (24h default) and very low decay/displacement sensitivity."
+      },
+      "shadow_3day_hold": {
+        "buckets": {
+          "UNKNOWN:UNKNOWN": {
+            "exits": 156,
+            "pnl": -823.2315680000016,
+            "rows_skipped": 2422,
+            "rows_used": 156
+          }
+        },
+        "description": "Explicit 72h hold exploration for longer-horizon mean reversion / drift capture."
+      }
+    }
+  },
+  "skipped": {
+    "missing_bars_for_symbol": 14370,
+    "missing_entry_or_exit_fields": 108,
+    "no_bar_after_target_exit": 54
+  }
+}

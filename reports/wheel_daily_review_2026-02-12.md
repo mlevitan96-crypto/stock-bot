@@ -1,0 +1,116 @@
+## Wheel governance badge
+
+- **Status:** FAIL
+- **Event chain coverage:** 100.0%
+- **Cycles with full chain:** 0 / 0
+- **Idempotency hits:** 0
+- **Board action closure:** FAIL
+- **Dominant blocker:** none
+- **Generated at:** 2026-02-12T01:23:25.166363+00:00
+
+---
+
+# Wheel Daily Review — 2026-02-12
+
+**Verdict:** PASS
+
+## 3.1 Execution summary
+
+- **Cycles run:** 0
+- **Orders submitted:** 0
+- **Fills:** 0
+- **Open CSP positions (count):** 1
+- **Cycles with full chain:** 0
+- **Cycles missing decision_context:** 0
+- **Cycles missing contract_selected (given submit):** 0
+- **Cycles missing state_change after fill:** 0
+
+## 3.2 Performance proxy (paper-safe)
+
+- **Total premium collected (fills):** $0.00
+- **Premium per day (window):** $0.00
+
+## 3.3 Top decisions (per fill)
+
+_No fills in window._
+
+
+## 3.4 Skip analysis
+
+### Counts by skip reason
+
+
+### Top 10 symbols most skipped (and why)
+
+
+
+## 3.4a Signal trend (open positions)
+
+| symbol | side | current | prev | delta | trend | evaluated_at |
+|--------|------|---------|------|-------|-------|--------------|
+| HD | LONG | 0.32 | 0.32 | +0.00 | flat | 2026-02-12T01:23:08 |
+| META | LONG | 0.31 | 0.31 | +0.00 | flat | 2026-02-12T01:23:08 |
+| MRNA | LONG | 0.73 | 0.73 | +0.00 | flat | 2026-02-12T01:23:08 |
+| NIO | SHORT | 0.73 | 0.73 | +0.00 | flat | 2026-02-12T01:23:08 |
+| PFE | LONG | 0.34 | 0.34 | +0.00 | flat | 2026-02-12T01:23:08 |
+| SOFI | LONG | 0.81 | 0.81 | +0.00 | flat | 2026-02-12T01:23:09 |
+| SPY | LONG | 0.15 | 0.15 | +0.00 | flat | 2026-02-12T01:23:09 |
+| WMT | LONG | 0.20 | 0.20 | +0.00 | flat | 2026-02-12T01:23:09 |
+| AMD | LONG | 0.93 | 0.93 | +0.00 | flat | 2026-02-12T01:23:08 |
+| TSLA | LONG | 0.77 | 0.77 | +0.00 | flat | 2026-02-12T01:23:09 |
+| NVDA | SHORT | 0.44 | 0.44 | +0.00 | flat | 2026-02-12T01:23:08 |
+| PLTR | SHORT | 0.79 | 0.79 | +0.00 | flat | 2026-02-12T01:23:08 |
+| TGT | SHORT | 0.42 | 0.42 | +0.00 | flat | 2026-02-12T01:23:09 |
+| LOW | LONG | 0.21 | 0.21 | +0.00 | flat | 2026-02-12T01:23:08 |
+| QQQ | LONG | 0.26 | 0.26 | +0.00 | flat | 2026-02-12T01:23:09 |
+| JNJ | LONG | 0.15 | 0.15 | +0.00 | flat | 2026-02-12T01:23:08 |
+| GOOGL | LONG | 1.84 | 1.85 | -0.00 | flat | 2026-02-11T20:56:00 |
+| XLF | SHORT | 2.08 | 2.09 | -0.00 | flat | 2026-02-11T19:53:29 |
+| DIA | LONG | 2.70 | 2.71 | -0.01 | flat | 2026-02-11T20:51:21 |
+| IWM | LONG | 2.73 | 2.73 | -0.01 | flat | 2026-02-11T19:59:59 |
+| XOM | SHORT | 2.27 | 2.27 | -0.01 | flat | 2026-02-11T20:45:15 |
+| COIN | LONG | 3.46 | 3.47 | -0.01 | flat | 2026-02-11T20:21:07 |
+| C | LONG | 2.70 | 2.71 | -0.01 | flat | 2026-02-11T20:21:07 |
+| INTC | SHORT | 1.99 | 2.01 | -0.02 | flat | 2026-02-11T20:56:23 |
+| GM | LONG | 2.85 | 2.87 | -0.02 | flat | 2026-02-11T20:31:58 |
+| UNH | SHORT | 2.24 | 2.27 | -0.04 | flat | 2026-02-11T20:56:24 |
+| XLP | LONG | 2.81 | 2.85 | -0.04 | flat | 2026-02-11T19:48:56 |
+| WFC | LONG | 1.78 | — | — | unknown | 2026-02-11T18:21:04 |
+| JPM | LONG | 2.36 | 2.42 | -0.06 | weakening | 2026-02-11T20:34:24 |
+| XLE | LONG | 1.86 | 1.96 | -0.10 | weakening | 2026-02-11T20:53:56 |
+| AMZN | LONG | 3.27 | 3.38 | -0.11 | weakening | 2026-02-11T18:47:54 |
+| AAPL | LONG | 2.99 | 3.16 | -0.17 | weakening | 2026-02-11T20:31:46 |
+| RIVN | LONG | 2.04 | 2.25 | -0.20 | weakening | 2026-02-11T20:05:18 |
+| XLV | LONG | 1.78 | 2.13 | -0.35 | weakening | 2026-02-11T17:51:24 |
+| MSFT | LONG | 1.95 | 2.52 | -0.57 | weakening | 2026-02-11T20:52:51 |
+| COP | SHORT | 2.11 | 2.71 | -0.60 | weakening | 2026-02-11T20:42:32 |
+| MS | SHORT | 2.16 | 2.83 | -0.67 | weakening | 2026-02-11T19:16:44 |
+| BAC | LONG | 2.02 | 2.73 | -0.72 | weakening | 2026-02-11T19:15:44 |
+| F | LONG | 2.34 | 3.17 | -0.83 | weakening | 2026-02-11T18:30:18 |
+| NFLX | SHORT | 2.06 | 3.10 | -1.04 | weakening | 2026-02-11T20:35:21 |
+| HOOD | LONG | 2.24 | 3.29 | -1.05 | weakening | 2026-02-11T20:41:30 |
+| CVX | SHORT | 1.75 | 3.05 | -1.30 | weakening | 2026-02-11T19:09:49 |
+| XLK | SHORT | 2.02 | 3.43 | -1.42 | weakening | 2026-02-11T20:30:30 |
+| LCID | LONG | 2.32 | 3.75 | -1.43 | weakening | 2026-02-11T20:05:18 |
+| BA | SHORT | 0.98 | 3.06 | -2.08 | weakening | 2026-02-11T17:04:10 |
+| SLB | LONG | 0.73 | 3.20 | -2.47 | weakening | 2026-02-11T16:00:46 |
+| XLI | SHORT | 0.56 | 3.50 | -2.94 | weakening | 2026-02-11T16:00:46 |
+
+**Summary:** flat: 27, unknown: 1, weakening: 19
+- **Most weakening:** XLI (delta -2.94)
+- **Most strengthening:** HD (delta +0.00)
+
+## 3.4b Correlation concentration
+
+_WARN: Correlation cache missing or empty. Run: `python3 scripts/compute_signal_correlation_snapshot.py --minutes 60 --topk 20`_
+
+## 3.5 Board actions (recommended)
+
+1. - **No strong signal:** Review skip distribution and open positions; run `python3 scripts/run_wheel_check_on_droplet.py` for live diagnostics.
+
+## Board Watchlists (Derived from Signal Trends & Correlation)
+
+_No watchlist artifact for this date. Run Board EOD to generate `reports/wheel_watchlists_<date>.json`._
+
+---
+*Generated by scripts/generate_wheel_daily_review.py for 2026-02-12 (lookback 24h).*

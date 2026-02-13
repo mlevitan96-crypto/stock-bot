@@ -1,0 +1,282 @@
+{
+  "date": "2026-02-10",
+  "summary": {
+    "total_pnl_usd": -42.89,
+    "trades": 451,
+    "win_rate": 0.1907
+  },
+  "by_ticker": [
+    {
+      "ticker": "MA",
+      "trades": 43,
+      "pnl_usd": 0.0
+    },
+    {
+      "ticker": "XLF",
+      "trades": 47,
+      "pnl_usd": 0.21
+    },
+    {
+      "ticker": "LCID",
+      "trades": 47,
+      "pnl_usd": -5.96
+    },
+    {
+      "ticker": "XLV",
+      "trades": 48,
+      "pnl_usd": -2.14
+    },
+    {
+      "ticker": "XLP",
+      "trades": 47,
+      "pnl_usd": -1.58
+    },
+    {
+      "ticker": "NVDA",
+      "trades": 51,
+      "pnl_usd": 0.22
+    },
+    {
+      "ticker": "IWM",
+      "trades": 42,
+      "pnl_usd": -0.86
+    },
+    {
+      "ticker": "META",
+      "trades": 53,
+      "pnl_usd": 0.0
+    },
+    {
+      "ticker": "QQQ",
+      "trades": 46,
+      "pnl_usd": 0.0
+    },
+    {
+      "ticker": "DIA",
+      "trades": 44,
+      "pnl_usd": 0.0
+    },
+    {
+      "ticker": "SPY",
+      "trades": 46,
+      "pnl_usd": -0.64
+    },
+    {
+      "ticker": "AAPL",
+      "trades": 53,
+      "pnl_usd": -2.16
+    },
+    {
+      "ticker": "AMZN",
+      "trades": 53,
+      "pnl_usd": -2.58
+    },
+    {
+      "ticker": "MSFT",
+      "trades": 53,
+      "pnl_usd": 4.83
+    },
+    {
+      "ticker": "INTC",
+      "trades": 53,
+      "pnl_usd": -0.02
+    },
+    {
+      "ticker": "AMD",
+      "trades": 52,
+      "pnl_usd": -2.01
+    },
+    {
+      "ticker": "TSLA",
+      "trades": 52,
+      "pnl_usd": -1.4
+    },
+    {
+      "ticker": "GOOGL",
+      "trades": 52,
+      "pnl_usd": -1.95
+    },
+    {
+      "ticker": "MRNA",
+      "trades": 52,
+      "pnl_usd": -9.5
+    },
+    {
+      "ticker": "NFLX",
+      "trades": 50,
+      "pnl_usd": -2.53
+    },
+    {
+      "ticker": "SOFI",
+      "trades": 52,
+      "pnl_usd": -4.19
+    },
+    {
+      "ticker": "NIO",
+      "trades": 50,
+      "pnl_usd": -3.21
+    },
+    {
+      "ticker": "HOOD",
+      "trades": 49,
+      "pnl_usd": -1.02
+    },
+    {
+      "ticker": "PLTR",
+      "trades": 47,
+      "pnl_usd": 1.78
+    },
+    {
+      "ticker": "HD",
+      "trades": 52,
+      "pnl_usd": 0.55
+    },
+    {
+      "ticker": "UNH",
+      "trades": 51,
+      "pnl_usd": -0.1
+    },
+    {
+      "ticker": "RIVN",
+      "trades": 45,
+      "pnl_usd": -2.84
+    },
+    {
+      "ticker": "WMT",
+      "trades": 52,
+      "pnl_usd": -0.93
+    },
+    {
+      "ticker": "PFE",
+      "trades": 46,
+      "pnl_usd": -0.08
+    },
+    {
+      "ticker": "SLB",
+      "trades": 47,
+      "pnl_usd": -0.46
+    },
+    {
+      "ticker": "LOW",
+      "trades": 51,
+      "pnl_usd": -0.67
+    },
+    {
+      "ticker": "BA",
+      "trades": 44,
+      "pnl_usd": -2.25
+    },
+    {
+      "ticker": "COP",
+      "trades": 47,
+      "pnl_usd": 0.15
+    },
+    {
+      "ticker": "CVX",
+      "trades": 42,
+      "pnl_usd": -0.12
+    },
+    {
+      "ticker": "JNJ",
+      "trades": 43,
+      "pnl_usd": 0.0
+    },
+    {
+      "ticker": "GM",
+      "trades": 42,
+      "pnl_usd": -0.54
+    },
+    {
+      "ticker": "COST",
+      "trades": 51,
+      "pnl_usd": 0.0
+    },
+    {
+      "ticker": "F",
+      "trades": 46,
+      "pnl_usd": -0.69
+    },
+    {
+      "ticker": "XOM",
+      "trades": 47,
+      "pnl_usd": 0.0
+    },
+    {
+      "ticker": "CAT",
+      "trades": 43,
+      "pnl_usd": 0.0
+    },
+    {
+      "ticker": "XLI",
+      "trades": 48,
+      "pnl_usd": -0.61
+    },
+    {
+      "ticker": "XLK",
+      "trades": 49,
+      "pnl_usd": 2.56
+    },
+    {
+      "ticker": "WFC",
+      "trades": 43,
+      "pnl_usd": -0.37
+    },
+    {
+      "ticker": "V",
+      "trades": 42,
+      "pnl_usd": -0.02
+    },
+    {
+      "ticker": "C",
+      "trades": 48,
+      "pnl_usd": -1.56
+    },
+    {
+      "ticker": "BLK",
+      "trades": 42,
+      "pnl_usd": 0.0
+    },
+    {
+      "ticker": "MS",
+      "trades": 48,
+      "pnl_usd": 0.53
+    },
+    {
+      "ticker": "XLE",
+      "trades": 50,
+      "pnl_usd": -0.41
+    },
+    {
+      "ticker": "COIN",
+      "trades": 47,
+      "pnl_usd": -7.3
+    },
+    {
+      "ticker": "TGT",
+      "trades": 51,
+      "pnl_usd": 0.36
+    },
+    {
+      "ticker": "JPM",
+      "trades": 46,
+      "pnl_usd": 5.3
+    },
+    {
+      "ticker": "BAC",
+      "trades": 43,
+      "pnl_usd": 1.33
+    },
+    {
+      "ticker": "GS",
+      "trades": 45,
+      "pnl_usd": 0.0
+    }
+  ],
+  "by_cluster_size": [
+    {
+      "size_bucket": "<3",
+      "trades": 2533,
+      "pnl_usd": 0.0
+    }
+  ]
+}

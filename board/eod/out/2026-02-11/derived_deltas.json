@@ -1,0 +1,174 @@
+{
+  "date": "2026-02-11",
+  "rolling_windows": {
+    "win_rate_by_window": {
+      "1_day": 0.1893,
+      "3_day": 0.173,
+      "5_day": 0.173,
+      "7_day": 0.1977
+    },
+    "pnl_by_window": {
+      "1_day": -24.86,
+      "3_day": -137.15,
+      "5_day": -137.15,
+      "7_day": -68.36
+    },
+    "exit_reason_counts_by_window": {
+      "1_day": {
+        "unknown": 449,
+        "signal_decay(0.60)": 25,
+        "signal_decay(0.59)": 21,
+        "signal_decay(0.60)+flow_reversal": 13,
+        "signal_decay(0.58)": 10,
+        "signal_decay(0.52)": 9,
+        "signal_decay(0.57)": 8,
+        "signal_decay(0.56)": 7,
+        "signal_decay(0.55)": 4,
+        "signal_decay(0.40)": 4,
+        "signal_decay(0.23)": 4,
+        "signal_decay(0.14)": 4,
+        "signal_decay(0.48)": 4,
+        "signal_decay(0.53)": 4,
+        "signal_decay(0.58)+flow_reversal": 4,
+        "signal_decay(0.28)": 3,
+        "signal_decay(0.21)": 3,
+        "signal_decay(0.50)+flow_reversal": 3,
+        "signal_decay(0.50)": 3,
+        "signal_decay(0.47)": 3
+      },
+      "3_day": {
+        "unknown": 1451,
+        "signal_decay(0.60)": 55,
+        "signal_decay(0.59)": 53,
+        "signal_decay(0.02)+flow_reversal": 47,
+        "signal_decay(0.58)": 22,
+        "signal_decay(0.04)+flow_reversal": 20,
+        "signal_decay(0.02)": 19,
+        "signal_decay(0.60)+flow_reversal": 17,
+        "signal_decay(0.57)": 15,
+        "signal_decay(0.07)+flow_reversal": 13,
+        "signal_decay(0.56)": 13,
+        "signal_decay(0.07)": 12,
+        "signal_decay(0.10)+flow_reversal": 10,
+        "signal_decay(0.59)+flow_reversal": 10,
+        "signal_decay(0.52)": 10,
+        "signal_decay(0.08)+flow_reversal": 9,
+        "signal_decay(0.21)": 9,
+        "signal_decay(0.05)": 8,
+        "signal_decay(0.11)+flow_reversal": 8,
+        "stale_alpha_cutoff(120min,-0.01%)": 8
+      },
+      "5_day": {
+        "unknown": 1451,
+        "signal_decay(0.60)": 55,
+        "signal_decay(0.59)": 53,
+        "signal_decay(0.02)+flow_reversal": 47,
+        "signal_decay(0.58)": 22,
+        "signal_decay(0.04)+flow_reversal": 20,
+        "signal_decay(0.02)": 19,
+        "signal_decay(0.60)+flow_reversal": 17,
+        "signal_decay(0.57)": 15,
+        "signal_decay(0.07)+flow_reversal": 13,
+        "signal_decay(0.56)": 13,
+        "signal_decay(0.07)": 12,
+        "signal_decay(0.10)+flow_reversal": 10,
+        "signal_decay(0.59)+flow_reversal": 10,
+        "signal_decay(0.52)": 10,
+        "signal_decay(0.08)+flow_reversal": 9,
+        "signal_decay(0.21)": 9,
+        "signal_decay(0.05)": 8,
+        "signal_decay(0.11)+flow_reversal": 8,
+        "stale_alpha_cutoff(120min,-0.01%)": 8
+      },
+      "7_day": {
+        "unknown": 2514,
+        "signal_decay(0.02)+flow_reversal": 88,
+        "signal_decay(0.59)": 82,
+        "signal_decay(0.60)": 80,
+        "signal_decay(0.02)": 42,
+        "signal_decay(0.04)+flow_reversal": 36,
+        "signal_decay(0.58)": 31,
+        "signal_decay(0.10)+flow_reversal": 30,
+        "signal_decay(0.07)+flow_reversal": 27,
+        "signal_decay(0.60)+flow_reversal": 24,
+        "signal_decay(0.05)+flow_reversal": 24,
+        "signal_decay(0.03)+flow_reversal": 21,
+        "signal_decay(0.04)": 20,
+        "signal_decay(0.57)": 19,
+        "signal_decay(0.09)+flow_reversal": 18,
+        "signal_decay(0.56)": 16,
+        "signal_decay(0.59)+flow_reversal": 16,
+        "signal_decay(0.05)": 16,
+        "signal_decay(0.07)": 16,
+        "signal_decay(0.10)": 16
+      }
+    },
+    "blocked_trade_counts_by_window": {
+      "1_day": {
+        "displacement_blocked": 950,
+        "max_positions_reached": 767,
+        "expectancy_blocked:score_floor_breach": 279,
+        "order_validation_failed": 4
+      },
+      "3_day": {
+        "displacement_blocked": 950,
+        "max_positions_reached": 767,
+        "expectancy_blocked:score_floor_breach": 279,
+        "order_validation_failed": 4
+      },
+      "5_day": {
+        "displacement_blocked": 950,
+        "max_positions_reached": 767,
+        "expectancy_blocked:score_floor_breach": 279,
+        "order_validation_failed": 4
+      },
+      "7_day": {
+        "displacement_blocked": 950,
+        "max_positions_reached": 767,
+        "expectancy_blocked:score_floor_breach": 279,
+        "order_validation_failed": 4
+      }
+    },
+    "signal_decay_exit_rate_by_window": {
+      "1_day": 0.9624,
+      "3_day": 0.9493,
+      "5_day": 0.9493,
+      "7_day": 0.9504
+    }
+  },
+  "missed_money": {
+    "blocked_trade_opportunity_cost": {
+      "unknown": true,
+      "reason": "Lack of P&L tracking or simulation for blocked trades in the provided EOD bundle. Requires specific instrumentation to simulate P&L of blocked entries.",
+      "missing_inputs": [
+        "P&L associated with each blocked trade entry (simulated or actual outcome if allowed)"
+      ],
+      "instrumentation_needed": [
+        "Blocked trade P&L simulation engine",
+        "Historical data for all blocked symbols to backtest potential outcomes"
+      ]
+    },
+    "early_exit_opportunity_cost": {
+      "unknown": true,
+      "reason": "Quantifying early exit opportunity cost (holding longer to gain more P&L) requires counterfactual simulation of how much P&L would have been gained by holding positions longer past their 'signal_decay' exits. The current data only shows realized P&L at exit.",
+      "missing_inputs": [
+        "Counterfactual P&L paths for exited trades"
+      ],
+      "instrumentation_needed": [
+        "Counterfactual P&L simulation engine for trade exits",
+        "Historical price and signal data for exited symbols post-exit"
+      ]
+    },
+    "correlation_concentration_cost": {
+      "unknown": true,
+      "reason": "The correlation cache is missing, making it impossible to assess or quantify the cost of concentration. Without correlation data, we cannot identify clustered losses.",
+      "missing_inputs": [
+        "Correlation matrix or pairwise correlations for all traded and universe symbols"
+      ],
+      "instrumentation_needed": [
+        "Correlation calculation and caching service",
+        "P&L attribution by correlated clusters"
+      ]
+    }
+  }
+}

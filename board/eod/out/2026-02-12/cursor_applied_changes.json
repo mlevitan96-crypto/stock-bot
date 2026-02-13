@@ -1,0 +1,19 @@
+{
+  "date": "2026-02-12",
+  "timestamp": "2026-02-13T02:06:28.933806+00:00",
+  "changes": {
+    "survivorship": "No symbol bans; only score penalties/boosts applied.",
+    "uw": "UW quality wired into live entry scoring and logged in uw_entry_adjustments.jsonl.",
+    "blocks": "Blocks fully instrumented; not minimized blindly; blocked trades enriched with UW/survivorship context.",
+    "exits": "Exit regimes (fire_sale/let_it_breathe/normal) fully wired and logged with causality context.",
+    "paper_mode_capacity": "Max positions and per-cycle caps increased for paper trading; logged in config snapshot.",
+    "data_completeness": "Missing: ['uw_root_cause.json', 'exit_causality_matrix.json', 'survivorship_adjustments.json', 'constraint_root_cause.json', 'missed_money_numeric.json', 'correlation_snapshot.json']",
+    "cron": "cron_diagnose_and_fix confirms cron service, entries, and dry-run; EOD forced and generated.",
+    "board_prompt": "Board prompt includes proactive_insights, root_cause, and recommended_fixes using new data."
+  },
+  "errors": [
+    "Test validation/scenarios/test_proactive_root_cause.py failed",
+    "Test validation/scenarios/test_tightened_profitability_levers.py failed",
+    "Test validation/scenarios/test_cron_diagnose_and_fix.py failed"
+  ]
+}

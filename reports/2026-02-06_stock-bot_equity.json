@@ -1,0 +1,90 @@
+{
+  "strategy_id": "equity",
+  "date": "2026-02-06",
+  "realized_pnl": 38.89,
+  "unrealized_pnl": 57.43,
+  "max_drawdown": null,
+  "positions_by_symbol": {
+    "BA": {
+      "qty": 2,
+      "market_value": 486.06,
+      "cost_basis": 486.832308
+    },
+    "CAT": {
+      "qty": 0,
+      "market_value": 502.78324,
+      "cost_basis": 497.774468
+    },
+    "CVX": {
+      "qty": 7,
+      "market_value": 1266.02,
+      "cost_basis": 1266.06333
+    },
+    "DIA": {
+      "qty": 1,
+      "market_value": 1001.999879,
+      "cost_basis": 996.246981
+    },
+    "HD": {
+      "qty": 1,
+      "market_value": 385.15,
+      "cost_basis": 385.174286
+    },
+    "INTC": {
+      "qty": 1,
+      "market_value": 50.59,
+      "cost_basis": 50.497093
+    },
+    "IWM": {
+      "qty": 1,
+      "market_value": 265.02,
+      "cost_basis": 263.979091
+    },
+    "MA": {
+      "qty": 3,
+      "market_value": 2018.836686,
+      "cost_basis": 1999.931587
+    },
+    "META": {
+      "qty": 2,
+      "market_value": 1502.339383,
+      "cost_basis": 1492.680238
+    },
+    "NFLX": {
+      "qty": 1,
+      "market_value": 82.2,
+      "cost_basis": 81.451935
+    },
+    "QQQ": {
+      "qty": 2,
+      "market_value": 1502.958336,
+      "cost_basis": 1495.163725
+    },
+    "SPY": {
+      "qty": 2,
+      "market_value": 1502.719874,
+      "cost_basis": 1495.92505
+    },
+    "WFC": {
+      "qty": 6,
+      "market_value": 563.82,
+      "cost_basis": 565.42182
+    },
+    "XLF": {
+      "qty": 10,
+      "market_value": 542.6,
+      "cost_basis": 541.88947
+    },
+    "XLI": {
+      "qty": 1,
+      "market_value": 173.18,
+      "cost_basis": 172.0525
+    },
+    "XLV": {
+      "qty": 3,
+      "market_value": 473.13,
+      "cost_basis": 470.893845
+    }
+  },
+  "exposure_by_sector": null
+}

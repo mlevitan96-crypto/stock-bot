@@ -1,0 +1,36 @@
+{
+  "date": "2026-02-06",
+  "total_realized_pnl": 38.89,
+  "total_unrealized_pnl": 57.43,
+  "equity_strategy_pnl": 96.32,
+  "wheel_strategy_pnl": 0,
+  "capital_allocation": {
+    "equity": 1.0,
+    "wheel": 0.0
+  },
+  "account_equity": 50223.41,
+  "buying_power": 186110.35,
+  "strategy_comparison": {
+    "equity_realized_pnl": 38.89,
+    "wheel_realized_pnl": 0.0,
+    "equity_unrealized_pnl": 57.43,
+    "wheel_unrealized_pnl": 0.0,
+    "equity_drawdown": null,
+    "wheel_drawdown": null,
+    "equity_sharpe_proxy": null,
+    "wheel_sharpe_proxy": null,
+    "equity_win_rate": null,
+    "wheel_win_rate": null,
+    "wheel_yield_per_period": null,
+    "capital_efficiency_equity": 0.007819,
+    "capital_efficiency_wheel": 0.0,
+    "promotion_readiness_score": 45,
+    "assignment_health": 0.5,
+    "recommendation": "WAIT",
+    "reasons": [
+      "promotion_readiness_score below threshold",
+      "wheel realized PnL not positive",
+      "yield not consistent"
+    ]
+  }
+}

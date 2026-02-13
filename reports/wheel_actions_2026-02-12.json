@@ -1,0 +1,95 @@
+{
+  "date": "2026-02-12",
+  "actions": [
+    {
+      "action_id": "56e36d804c0beb21",
+      "title": "",
+      "owner": "",
+      "reference_section": "",
+      "rationale": "",
+      "status": "blocked",
+      "notes": "Blocked by the 'Board action closure: FAIL' governance status. Cannot address until core governance is resolved."
+    },
+    {
+      "action_id": "247598556f6f7307",
+      "title": "",
+      "owner": "",
+      "reference_section": "",
+      "rationale": "",
+      "status": "blocked",
+      "notes": "Blocked by the 'Board action closure: FAIL' governance status and the 'Correlation cache missing' warning. Requires correlation cache to be generated first."
+    },
+    {
+      "action_id": "68bb4cbe4feef78d",
+      "title": "",
+      "owner": "",
+      "reference_section": "",
+      "rationale": "",
+      "status": "blocked",
+      "notes": "Blocked by the 'Board action closure: FAIL' governance status. Requires broader governance resolution before detailed analysis."
+    },
+    {
+      "action_id": "new-action-1",
+      "title": "",
+      "owner": "",
+      "reference_section": "",
+      "rationale": "",
+      "status": "proposed",
+      "notes": "This action is paramount to unblock all other improvements."
+    },
+    {
+      "action_id": "new-action-2",
+      "title": "",
+      "owner": "",
+      "reference_section": "",
+      "rationale": "",
+      "status": "proposed",
+      "notes": "This action aims to address the persistent losses from signal decay."
+    },
+    {
+      "action_id": "new-action-3",
+      "title": "",
+      "owner": "",
+      "reference_section": "",
+      "rationale": "",
+      "status": "proposed",
+      "notes": "This action directly addresses the missing critical risk data."
+    },
+    {
+      "action_id": "758459fd20119e0a",
+      "title": "Establish clear ownership and process for board action closure.",
+      "owner": "Cursor",
+      "reference_section": "Wheel governance badge",
+      "rationale": "The 'Board action closure: FAIL' status is a critical impediment. A dedicated owner must be assigned, and a clear process implemented to ensure timely resolution and progression of critical board actions. This is the highest-ROI fix as it unblocks all other improvements.",
+      "status": "proposed",
+      "notes": ""
+    },
+    {
+      "action_id": "09cb9e161672ea59",
+      "title": "Implement a 'fire sale' exit mechanism for highly decaying signals.",
+      "owner": "Mark",
+      "reference_section": "3.4a Signal trend (open positions), signal_decay_exit_rate_by_window",
+      "rationale": "Given the high signal decay exit rate (95%+ across 3, 5, 7 days), signals are decaying significantly. For open positions with rapidly weakening signals (e.g., delta <= -2.0), implement an aggressive 'fire sale' exit to mitigate further losses, rather than holding through decay. This should be a configurable rule.",
+      "status": "proposed",
+      "notes": ""
+    },
+    {
+      "action_id": "7ea2a302f63647c0",
+      "title": "Generate the correlation cache for proper risk assessment.",
+      "owner": "Mark",
+      "reference_section": "3.4b Correlation concentration",
+      "rationale": "The correlation cache is missing, preventing proper assessment of concentration risk. Execute `python3 scripts/compute_signal_correlation_snapshot.py --minutes 60 --topk 20` to generate the necessary data for risk analysis.",
+      "status": "proposed",
+      "notes": ""
+    },
+    {
+      "action_id": "2ade2f9bf82a5f67",
+      "title": "Review the impact of 'displacement_blocked' trades.",
+      "owner": "Mark",
+      "reference_section": "blocked_trades.jsonl",
+      "rationale": "1223 trades were 'displacement_blocked' today. This suggests valid entry signals are being missed due to displacement rules. Review the logic of displacement to ensure it's not overly aggressive and is aligned with current market conditions.",
+      "status": "proposed",
+      "notes": ""
+    }
+  ]
+}

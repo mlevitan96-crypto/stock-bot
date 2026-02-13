@@ -1,0 +1,10 @@
+{
+  "overall_status": "FAIL",
+  "event_chain_coverage_pct": 100.0,
+  "cycles_with_full_chain": 0,
+  "cycles_total": 0,
+  "idempotency_hits": 0,
+  "board_action_closure": "FAIL",
+  "dominant_blocker": "none",
+  "generated_at": "2026-02-11T21:30:01.819515+00:00"
+}

@@ -1,6 +1,6 @@
 # Dashboard Endpoint Audit
 
-**Generated:** 2026-02-04T02:00:10.534567+00:00 (UTC)
+**Generated:** 2026-02-13T02:00:20.518917+00:00 (UTC)
 **Base URL:** http://127.0.0.1:5000
 
 ---
@@ -8,7 +8,7 @@
 ## Version / commit parity
 
 - **Running dashboard commit:** ecc4216d420917d50f96b194c3650f33d6b65a72
-- **Expected commit:** 539ed5b99193c8d3a3f9b7bc0bb46f0b9e10a238
+- **Expected commit:** 3601a68123e2cb07e177a3e5e91a0214e826587a
 
 ---
 
@@ -42,11 +42,11 @@
 |  / /api/closed_positions | PASS | OK |  |  |
 |  / /api/pnl/reconcile | PASS | OK |  |  |
 |  / /health | PASS | OK |  |  |
-|  / /api/version | FAIL | PROCESS_DRIFT |  | running=ecc4216d420917d50f96b194c3650f33d6b65a72 expected=539ed5b99193c8d3a3f9b7 |
+|  / /api/version | FAIL | PROCESS_DRIFT |  | running=ecc4216d420917d50f96b194c3650f33d6b65a72 expected=3601a68123e2cb07e177a3 |
 
 ## Failing endpoints (detail)
 
 ### /api/version
-- Status: 200, Latency: 4.2 ms
+- Status: 200, Latency: 6.0 ms
 - reason_code: PROCESS_DRIFT
-- Notes: running=ecc4216d420917d50f96b194c3650f33d6b65a72 expected=539ed5b99193c8d3a3f9b7bc0bb46f0b9e10a238
+- Notes: running=ecc4216d420917d50f96b194c3650f33d6b65a72 expected=3601a68123e2cb07e177a3e5e91a0214e826587a

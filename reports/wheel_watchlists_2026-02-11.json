@@ -1,0 +1,140 @@
+{
+  "date": "2026-02-11",
+  "thresholds": {
+    "signal_weakening": -0.5,
+    "correlation_concentration": 0.8
+  },
+  "weakening_signals": [
+    {
+      "symbol": "HOOD",
+      "side": "LONG",
+      "current_signal": 2.24,
+      "prev_signal": 3.288,
+      "signal_delta": -1.048,
+      "evaluated_at": "2026-02-11T20:41:30.311606Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.5 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "SLB",
+      "side": "LONG",
+      "current_signal": 0.727,
+      "prev_signal": 3.199,
+      "signal_delta": -2.472,
+      "evaluated_at": "2026-02-11T16:00:46.412422Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 0.5 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "XLK",
+      "side": "SHORT",
+      "current_signal": 2.015,
+      "prev_signal": 3.434,
+      "signal_delta": -1.419,
+      "evaluated_at": "2026-02-11T20:30:30.598418Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.0 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "MSFT",
+      "side": "LONG",
+      "current_signal": 1.949,
+      "prev_signal": 2.523,
+      "signal_delta": -0.574,
+      "evaluated_at": "2026-02-11T20:52:51.702981Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.0 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "NFLX",
+      "side": "SHORT",
+      "current_signal": 2.057,
+      "prev_signal": 3.096,
+      "signal_delta": -1.039,
+      "evaluated_at": "2026-02-11T20:35:21.106716Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.0 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "XLI",
+      "side": "SHORT",
+      "current_signal": 0.557,
+      "prev_signal": 3.501,
+      "signal_delta": -2.944,
+      "evaluated_at": "2026-02-11T16:00:46.600311Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 0.25 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "BAC",
+      "side": "LONG",
+      "current_signal": 2.017,
+      "prev_signal": 2.733,
+      "signal_delta": -0.716,
+      "evaluated_at": "2026-02-11T19:15:44.774174Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.0 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "BA",
+      "side": "SHORT",
+      "current_signal": 0.981,
+      "prev_signal": 3.057,
+      "signal_delta": -2.076,
+      "evaluated_at": "2026-02-11T17:04:10.772960Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 0.5 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "MS",
+      "side": "SHORT",
+      "current_signal": 2.159,
+      "prev_signal": 2.829,
+      "signal_delta": -0.67,
+      "evaluated_at": "2026-02-11T19:16:44.884213Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.0 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "LCID",
+      "side": "LONG",
+      "current_signal": 2.32,
+      "prev_signal": 3.746,
+      "signal_delta": -1.426,
+      "evaluated_at": "2026-02-11T20:05:18.376796Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.5 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "F",
+      "side": "LONG",
+      "current_signal": 2.339,
+      "prev_signal": 3.17,
+      "signal_delta": -0.831,
+      "evaluated_at": "2026-02-11T18:30:18.885794Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.5 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "COP",
+      "side": "SHORT",
+      "current_signal": 2.11,
+      "prev_signal": 2.71,
+      "signal_delta": -0.6,
+      "evaluated_at": "2026-02-11T20:42:32.466658Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.0 or pnl_pct falls below -2%, trigger an immediate exit review."
+    },
+    {
+      "symbol": "CVX",
+      "side": "SHORT",
+      "current_signal": 1.75,
+      "prev_signal": 3.053,
+      "signal_delta": -1.303,
+      "evaluated_at": "2026-02-11T19:09:49.478391Z",
+      "board_rationale": "Position still held as no explicit automated exit condition has been met beyond the signal decay, implying current logic prioritizes other factors or has a higher decay tolerance.",
+      "exit_review_condition": "If current_signal drops below 1.0 or pnl_pct falls below -2%, trigger an immediate exit review."
+    }
+  ],
+  "correlation_concentration": []
+}
