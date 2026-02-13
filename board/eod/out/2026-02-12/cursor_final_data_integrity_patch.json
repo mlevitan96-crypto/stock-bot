@@ -1,0 +1,12 @@
+{
+  "status": "complete",
+  "changes": [
+    "Hard-fail on missing EOD artifacts",
+    "Attribution logging guaranteed",
+    "Exit regime attribution added",
+    "Correlation snapshot fallback + hourly cron",
+    "Blocked trade logs enriched with UW + survivorship + variant",
+    "EOD forced and pushed",
+    "All changes executed on droplet"
+  ]
+}
