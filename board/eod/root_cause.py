@@ -425,9 +425,9 @@ def build_correlation_snapshot(base: Path, date_str: str) -> dict[str, Any]:
     Compute pairwise correlations, concentration_risk_score. Write state/correlation_snapshot.json.
     """
     path = base / "state" / "signal_correlation_cache.json"
-    out: dict[str, Any] = {"date": date_str, "pairs": [], "concentration_risk_score": None, "message": ""}
+    out: dict[str, Any] = {"date": date_str, "pairs": [], "concentration_risk_score": 0, "message": ""}
     if not path.exists():
-        out["message"] = "signal_correlation_cache.json missing"
+        out["message"] = "fallback: signal_correlation_cache.json missing"
         state_path = base / "state" / "correlation_snapshot.json"
         state_path.parent.mkdir(parents=True, exist_ok=True)
         state_path.write_text(json.dumps(out, indent=2), encoding="utf-8")
@@ -436,9 +436,11 @@ def build_correlation_snapshot(base: Path, date_str: str) -> dict[str, Any]:
         data = json.loads(path.read_text(encoding="utf-8"))
         pairs = data.get("pairs") or []
         out["pairs"] = pairs[:20]
-        if pairs:
+        if data.get("concentration_risk_score") is not None:
+            out["concentration_risk_score"] = float(data["concentration_risk_score"])
+        elif pairs:
             abs_corrs = [abs(float(p.get("corr", 0))) for p in pairs[:10] if isinstance(p, dict)]
-            out["concentration_risk_score"] = round(sum(abs_corrs), 4) if abs_corrs else None
+            out["concentration_risk_score"] = round(sum(abs_corrs), 4) if abs_corrs else 0
         state_path = base / "state" / "correlation_snapshot.json"
         state_path.parent.mkdir(parents=True, exist_ok=True)
         state_path.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
@@ -469,6 +471,17 @@ def write_all_root_cause_artifacts(base: Path, date_str: str, window_days: int =
         p = out_dir / "missed_money_numeric.json"
         p.write_text(json.dumps(mm, indent=2), encoding="utf-8")
         written["missed_money_numeric.json"] = p
+    except Exception:
+        pass
+    # Force correlation snapshot into EOD: run compute script before build
+    try:
+        import subprocess
+        import sys
+        subprocess.run(
+            [sys.executable, str(base / "scripts" / "compute_signal_correlation_snapshot.py"),
+             "--minutes", "1440", "--topk", "20"],
+            cwd=str(base), capture_output=True, timeout=60,
+        )
     except Exception:
         pass
     corr = build_correlation_snapshot(base, date_str)

@@ -1825,6 +1825,9 @@ def log_exit_attribution(
     feature_snapshot_at_exit: Optional[dict] = None,
     thesis_tags_at_exit: Optional[dict] = None,
     thesis_break_reason: Optional[str] = None,
+    exit_regime_decision: str = "normal",
+    exit_regime_reason: str = "",
+    exit_regime_context: Optional[dict] = None,
 ):
     """
     Log complete exit attribution with actual P&L for ML learning.
@@ -2170,6 +2173,9 @@ def log_exit_attribution(
             replacement_reasoning=v2_exit.get("replacement_reasoning") if isinstance(v2_exit.get("replacement_reasoning"), dict) else None,
             exit_timestamp=now_aware.isoformat(),
             variant_id=variant_id,
+            exit_regime_decision=exit_regime_decision,
+            exit_regime_reason=exit_regime_reason,
+            exit_regime_context=dict(exit_regime_context or {}),
         )
         append_exit_attribution(rec)
         # Signal context capture (read-only): full signal state at exit for profitability learning.
@@ -5874,6 +5880,7 @@ class AlpacaExecutor:
         
         to_close = []
         exit_reasons = {}  # Track composite exit reasons per symbol
+        exit_regime_info = {}  # exit_decision_regime (fire_sale/let_it_breathe/normal) per symbol for attribution
         exit_intel_by_symbol = {}  # v2 exit intel snapshot per symbol (for attribution on close)
         # BULLETPROOF: Safe position fetching with error handling
         positions_index = {}
@@ -6834,6 +6841,7 @@ class AlpacaExecutor:
                 if symbol not in exit_reasons:
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)
                 if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                    exit_regime_info[symbol] = (exit_regime, exit_regime_reason, exit_regime_context)
                     to_close.append(symbol)
                     # Root-cause: log exit regime for every exit
                     try:
@@ -7135,6 +7143,7 @@ class AlpacaExecutor:
                     pass
                 # Only log exit attribution when we have executed fill fields.
                 if exit_fill_price > 0 and exit_fill_qty > 0:
+                    regime, regime_reason, regime_ctx = exit_regime_info.get(symbol, ("normal", "", {}))
                     log_exit_attribution(
                         symbol=symbol,
                         info=info,
@@ -7147,6 +7156,9 @@ class AlpacaExecutor:
                         feature_snapshot_at_exit=_ex_snap,
                         thesis_tags_at_exit=_ex_tags,
                         thesis_break_reason=_ex_break,
+                        exit_regime_decision=regime,
+                        exit_regime_reason=regime_reason,
+                        exit_regime_context=regime_ctx,
                     )
                 if "signal_decay" in (close_reason or "").lower():
                     try:
@@ -7497,10 +7509,13 @@ class StrategyEngine:
             # Root-cause: UW and survivorship entry adjustments (BEFORE displacement and max_positions)
             uw_details: dict = {}
             surv_action = ""
+            vid = None
             try:
                 from board.eod.live_entry_adjustments import apply_uw_to_score, apply_survivorship_to_score
+                from policy_variants import get_variant_id
                 score, uw_details = apply_uw_to_score(symbol, float(score))
                 score, surv_action = apply_survivorship_to_score(symbol, float(score))
+                vid = get_variant_id(symbol, "equity")
             except Exception:
                 pass
             print(f"DEBUG {symbol}: Processing cluster - direction={direction}, initial_score={score:.2f}, source={cluster_source}", flush=True)
@@ -8209,7 +8224,10 @@ class StrategyEngine:
                                   components=comps,
                                   min_required=min_score,
                                   composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
-                                  stage=system_stage)
+                                  stage=system_stage,
+                                  uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
+                                  uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
+                                  survivorship_adjustment=surv_action or None, variant_id=vid)
                 
                 # SIGNAL HISTORY: Log blocked signal
                 log_signal_to_history(
@@ -8329,7 +8347,10 @@ class StrategyEngine:
                                           components=comps,
                                           displaced_symbol=dc_symbol,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
-                                          policy_reason=policy_reason, candidate_rank=candidate_rank)
+                                          policy_reason=policy_reason, candidate_rank=candidate_rank,
+                                          uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
+                                          uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
+                                          survivorship_adjustment=surv_action or None, variant_id=vid)
                         log_signal_to_history(
                             symbol=symbol, direction=direction, raw_score=raw_score, whale_boost=whale_boost,
                             final_score=final_score, atr_multiplier=atr_multiplier or 0.0,
@@ -8380,7 +8401,10 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           displaced_symbol=displaced_sym,
-                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
+                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                                          uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
+                                          uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
+                                          survivorship_adjustment=surv_action or None, variant_id=vid)
                         # SIGNAL HISTORY: Log blocked signal
                         log_signal_to_history(
                             symbol=symbol,
@@ -8444,7 +8468,10 @@ class StrategyEngine:
                                           alpaca_positions=actual_positions,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           executor_opens=len(self.executor.opens),
-                                          max_positions=max_pos, candidate_rank=candidate_rank)
+                                          max_positions=max_pos, candidate_rank=candidate_rank,
+                                          uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
+                                          uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
+                                          survivorship_adjustment=surv_action or None, variant_id=vid)
                         log_signal_to_history(
                             symbol=symbol,
                             direction=direction,
@@ -8470,7 +8497,10 @@ class StrategyEngine:
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
                                   components=comps,
-                                  composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
+                                  composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                                  uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
+                                  uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
+                                  survivorship_adjustment=surv_action or None, variant_id=vid)
                 # SIGNAL HISTORY: Log blocked signal
                 log_signal_to_history(
                     symbol=symbol,

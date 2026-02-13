@@ -247,12 +247,15 @@ def repair_cron(client: Any | None = None) -> tuple[bool, str]:
         "CLAWDBOT_SESSION_ID=\"stock_quant_eod_$(date -u +%Y-%m-%d)\" "
         f"/usr/bin/python3 {root}/board/eod/eod_confirmation.py >> /var/log/eod_confirmation.log 2>&1"
     )
+    corr_line = (
+        f"0 * * * * /usr/bin/python3 {root}/scripts/compute_signal_correlation_snapshot.py --minutes 60 --topk 20 >> /var/log/correlation_snapshot.log 2>&1"
+    )
     # Remove old entries, add new (ensure /var/log writable)
     install_cmd = (
-        "(crontab -l 2>/dev/null | grep -v eod_confirmation | grep -v run_stock_quant_officer_eod | grep -v cron_health_check || true; "
-        f"echo '{health_line}'; echo '{eod_line}') | crontab -"
+        "(crontab -l 2>/dev/null | grep -v eod_confirmation | grep -v run_stock_quant_officer_eod | grep -v cron_health_check | grep -v compute_signal_correlation_snapshot || true; "
+        f"echo '{health_line}'; echo '{eod_line}'; echo '{corr_line}') | crontab -"
     )
-    mkdir_cmd = "touch /var/log/cron_health.log /var/log/eod_confirmation.log 2>/dev/null || true"
+    mkdir_cmd = "touch /var/log/cron_health.log /var/log/eod_confirmation.log /var/log/correlation_snapshot.log 2>/dev/null || true"
 
     if client is not None:
         client._execute(mkdir_cmd, timeout=5)

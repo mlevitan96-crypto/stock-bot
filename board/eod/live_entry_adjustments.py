@@ -108,6 +108,7 @@ def apply_uw_to_score(symbol: str, composite_score: float, base: Path | None = N
 
     if quality is not None:
         q = float(quality)
+        details["uw_signal_quality_score"] = q
         if q >= 0.6:
             delta += UW_QUALITY_BOOST_STRONG
             details["uw_quality_boost_strong"] = True
@@ -117,9 +118,10 @@ def apply_uw_to_score(symbol: str, composite_score: float, base: Path | None = N
             delta += q * UW_QUALITY_WEIGHT
     if real is not None and real > 0.5:
         delta += UW_EDGE_REALIZATION_BOOST
-    if supp is not None and supp > 0.5:
-        delta -= UW_EDGE_SUPPRESSION_PENALTY
+    if supp is not None:
         details["uw_edge_suppression_rate"] = supp
+        if supp > 0.5:
+            delta -= UW_EDGE_SUPPRESSION_PENALTY
         details["allow_let_it_breathe"] = True
         details["override_displacement_if_score_gap"] = 0.1
 

@@ -109,7 +109,8 @@ def main() -> int:
             "method": "pearson",
             "pairs": [],
             "top_symbols": {},
-            "message": "insufficient open symbols for correlation",
+            "concentration_risk_score": 0,
+            "message": "fallback: insufficient symbols",
         }
         CORRELATION_CACHE.parent.mkdir(parents=True, exist_ok=True)
         CORRELATION_CACHE.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
@@ -125,7 +126,8 @@ def main() -> int:
             "method": "pearson",
             "pairs": [],
             "top_symbols": {},
-            "message": "no events file",
+            "concentration_risk_score": 0,
+            "message": "fallback: no events file",
         }
         CORRELATION_CACHE.parent.mkdir(parents=True, exist_ok=True)
         CORRELATION_CACHE.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
@@ -201,6 +203,9 @@ def main() -> int:
         }
 
     as_of = datetime.now(timezone.utc).isoformat()
+    concentration_risk_score = 0.0
+    if pairs_topk:
+        concentration_risk_score = round(sum(abs(p["corr"]) for p in pairs_topk[:10]), 4)
     out = {
         "as_of": as_of,
         "window_minutes": args.minutes,
@@ -208,6 +213,7 @@ def main() -> int:
         "pairs": pairs_topk,
         "top_symbols": top_symbols,
         "pair_count_considered": len(pairs),
+        "concentration_risk_score": concentration_risk_score,
     }
     CORRELATION_CACHE.parent.mkdir(parents=True, exist_ok=True)
     CORRELATION_CACHE.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")

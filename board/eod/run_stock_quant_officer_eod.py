@@ -1123,6 +1123,17 @@ def main() -> int:
         write_all_root_cause_artifacts(REPO_ROOT, date_str, window_days=7)
     except Exception as e:
         log.warning("Root-cause artifacts failed: %s", e)
+
+    # Hard-fail data completeness: EOD MUST have all required root-cause artifacts
+    REQUIRED_ROOT_CAUSE = [
+        "uw_root_cause.json", "exit_causality_matrix.json", "survivorship_adjustments.json",
+        "constraint_root_cause.json", "missed_money_numeric.json", "correlation_snapshot.json",
+    ]
+    for f in REQUIRED_ROOT_CAUSE:
+        p = date_out_dir / f
+        if not p.exists():
+            log.error("Missing required artifact: %s", f)
+            sys.exit(1)
     # Missed-money numeric enforcement: FAIL EOD unless all_numeric or --allow-missing-missed-money
     if not allow_missing_missed_money:
         mm_path = OUT_DIR / date_str / "missed_money_numeric.json"

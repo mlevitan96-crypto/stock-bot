@@ -72,8 +72,12 @@ def build_exit_attribution_record(
     replacement_candidate: Optional[str] = None,
     replacement_reasoning: Optional[Dict[str, Any]] = None,
     exit_timestamp: Optional[str] = None,
+    variant_id: Optional[str] = None,
+    exit_regime_decision: str = "normal",
+    exit_regime_reason: str = "",
+    exit_regime_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    return {
+    rec: Dict[str, Any] = {
         "symbol": str(symbol).upper(),
         "timestamp": exit_timestamp or _now_iso(),
         "entry_timestamp": str(entry_timestamp),
@@ -98,4 +102,10 @@ def build_exit_attribution_record(
         "replacement_reasoning": dict(replacement_reasoning or {}) if replacement_reasoning else None,
         "composite_version": "v2",
     }
+    if variant_id is not None:
+        rec["variant_id"] = str(variant_id)
+    rec["exit_regime_decision"] = str(exit_regime_decision or "normal")
+    rec["exit_regime_reason"] = str(exit_regime_reason or "")
+    rec["exit_regime_context"] = dict(exit_regime_context or {})
+    return rec
 
