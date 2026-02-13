@@ -135,12 +135,17 @@ def verify_eod_run(date_str: str, repo_root: Path | None = None) -> dict[str, An
     return result
 
 
-def run_full_eod(date_str: str, repo_root: Path | None = None) -> None:
+def run_full_eod(
+    date_str: str,
+    repo_root: Path | None = None,
+    allow_missing_missed_money: bool = False,
+) -> None:
     """
     Run the entire EOD pipeline for date_str: rolling windows, multi-day analysis,
     missed-money computation, board generation, weekly synthesis, bundle_writer.write_daily_bundle.
     Ensures no .gz in output and canonical outputs <= 10 files.
     Fails hard if verify_eod_run still invalid after run.
+    If missed_money_numeric.all_numeric is False and allow_missing_missed_money is False, FAIL EOD.
     """
     base = repo_root or REPO_ROOT
     if str(base) not in sys.path:
@@ -161,9 +166,26 @@ def run_full_eod(date_str: str, repo_root: Path | None = None) -> None:
     # 2) Full EOD (rolling windows, board generation, write_daily_bundle) via run_stock_quant_officer_eod with --date
     # Use --skip-wheel-closure so confirmation re-run can complete and push when prior closure is missing
     eod_argv = [sys.executable, str(SCRIPT_DIR / "run_stock_quant_officer_eod.py"), "--date", date_str, "--skip-wheel-closure"]
+    if allow_missing_missed_money:
+        eod_argv.append("--allow-missing-missed-money")
     eod = subprocess.run(eod_argv, cwd=base, timeout=600)
     if eod.returncode != 0:
         raise SystemExit(f"EOD pipeline failed with exit code {eod.returncode}")
+
+    # 3) Strict missed-money enforcement: FAIL if all_numeric is False unless --allow-missing-missed-money
+    mm_path = base / "board" / "eod" / "out" / date_str / "missed_money_numeric.json"
+    if mm_path.exists() and not allow_missing_missed_money:
+        try:
+            mm = json.loads(mm_path.read_text(encoding="utf-8"))
+            if mm.get("all_numeric") is False:
+                raise SystemExit(
+                    "EOD FAIL: missed_money_numeric.all_numeric is False. "
+                    "Pass --allow-missing-missed-money to bypass."
+                )
+        except SystemExit:
+            raise
+        except Exception as e:
+            log.warning("Could not check missed_money_numeric: %s", e)
 
     # Re-verify
     result = verify_eod_run(date_str, repo_root=base)
@@ -246,5 +268,27 @@ def run_eod_confirmation(repo_root: Path | None = None) -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    run_eod_confirmation()
+    ap = argparse.ArgumentParser(description="EOD confirmation: verify, re-run if needed, push to GitHub")
+    ap.add_argument("--date", help="Force date (YYYY-MM-DD); defaults to today UTC")
+    ap.add_argument("--allow-missing-missed-money", action="store_true", help="Allow EOD when missed_money_numeric.all_numeric is False")
+    ap.add_argument("--dry-run", action="store_true", help="Verify imports and config only; do not run full EOD")
+    args = ap.parse_args()
+    date_str = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    allow_mm = getattr(args, "allow_missing_missed_money", False)
+
+    if getattr(args, "dry_run", False):
+        # Cron-like verification: module loads, no crash on import
+        log.info("Dry-run: eod_confirmation loads OK")
+        sys.exit(0)
+
+    base = REPO_ROOT
+    result = verify_eod_run(date_str, repo_root=base)
+
+    if not result.get("exists") or not result.get("valid"):
+        log.warning("EOD missing or incomplete — re-running for %s.", date_str)
+        run_full_eod(date_str, repo_root=base, allow_missing_missed_money=allow_mm)
+
+    push_eod_to_github(date_str, repo_root=base)
