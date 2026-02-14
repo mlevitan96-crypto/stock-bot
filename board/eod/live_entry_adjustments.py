@@ -263,6 +263,15 @@ def apply_signal_quality_to_score(
         regime_label=regime_label,
         sector_momentum=sector_momentum,
     )
+    # Block 3B: optional small additive from raw signal engine (keep weights small)
+    raw_weight = 0.01
+    for key in (
+        "trend_signal", "momentum_signal", "volatility_signal", "regime_signal",
+        "sector_signal", "reversal_signal", "breakout_signal", "mean_reversion_signal",
+    ):
+        v = ctx.get(key)
+        if v is not None and isinstance(v, (int, float)):
+            delta += raw_weight * float(v)
     if delta == 0:
         return composite_score
     out = composite_score + delta
