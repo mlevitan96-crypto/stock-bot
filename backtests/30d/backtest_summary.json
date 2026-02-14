@@ -1,0 +1,38 @@
+{
+  "config": {
+    "start_date": "2026-01-14",
+    "end_date": "2026-02-13",
+    "mode": "paper",
+    "use_exit_regimes": true,
+    "use_uw": true,
+    "use_survivorship": true,
+    "use_constraints": true,
+    "use_correlation_sizing": true,
+    "use_wheel_strategy": true,
+    "log_all_candidates": true,
+    "log_all_exits": true,
+    "log_all_blocks": true
+  },
+  "window_start": "2026-01-14",
+  "window_end": "2026-02-13",
+  "trades_count": 0,
+  "exits_count": 35,
+  "blocks_count": 0,
+  "total_pnl_usd": 0,
+  "winning_trades": 0,
+  "losing_trades": 0,
+  "win_rate_pct": 0.0,
+  "exit_reason_counts": {
+    "profit": 35
+  },
+  "exit_regime_counts": {
+    "normal": 35
+  },
+  "block_reason_counts": {},
+  "artifacts": {
+    "backtest_trades": "C:\\Dev\\stock-bot\\backtests\\30d\\backtest_trades.jsonl",
+    "backtest_exits": "C:\\Dev\\stock-bot\\backtests\\30d\\backtest_exits.jsonl",
+    "backtest_blocks": "C:\\Dev\\stock-bot\\backtests\\30d\\backtest_blocks.jsonl"
+  },
+  "generated_at": "2026-02-14T02:19:24.739969+00:00"
+}

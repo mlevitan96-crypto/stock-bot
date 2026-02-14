@@ -1,0 +1,14 @@
+{
+  "start_date": "2026-01-14",
+  "end_date": "2026-02-13",
+  "mode": "paper",
+  "use_exit_regimes": true,
+  "use_uw": true,
+  "use_survivorship": true,
+  "use_constraints": true,
+  "use_correlation_sizing": true,
+  "use_wheel_strategy": true,
+  "log_all_candidates": true,
+  "log_all_exits": true,
+  "log_all_blocks": true
+}
