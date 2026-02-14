@@ -227,6 +227,50 @@ def _mock_response(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Di
     }
 
 
+# Default cache TTL (seconds) to reduce API load when caller does not pass cache_policy.
+UW_DEFAULT_CACHE_TTL_SECONDS = 60
+
+
+def _uw_retry_with_backoff(
+    endpoint: str,
+    params: Optional[Dict[str, Any]],
+    url: str,
+    headers: Dict[str, Any],
+    timeout_s: float,
+    max_attempts: int = 3,
+) -> Tuple[int, Dict[str, Any], Dict[str, Any]]:
+    """Execute GET with 3 attempts and exponential backoff. Returns (status, data, headers)."""
+    import logging
+    log = logging.getLogger(__name__)
+    last_status, last_data, last_headers = 0, {"data": []}, {}
+    for attempt in range(max_attempts):
+        try:
+            r = requests.get(url, headers=headers, params=params or {}, timeout=float(timeout_s))
+            status = int(getattr(r, "status_code", 0) or 0)
+            try:
+                resp_headers = dict(getattr(r, "headers", {}) or {})
+            except Exception:
+                resp_headers = {}
+            try:
+                data = r.json() if r.content else {"data": []}
+            except Exception:
+                data = {"data": []}
+            if status == 200:
+                return status, data if isinstance(data, dict) else {"data": []}, resp_headers
+            last_status, last_data, last_headers = status, data, resp_headers
+            if status in (429, 503) and attempt < max_attempts - 1:
+                wait_s = (2 ** attempt) + (attempt * 0.5)
+                time.sleep(wait_s)
+            else:
+                break
+        except Exception as e:
+            last_status, last_data, last_headers = 0, {"data": []}, {}
+            log.warning("uw_http_get attempt %s failed: %s", attempt + 1, e)
+            if attempt < max_attempts - 1:
+                time.sleep((2 ** attempt) + (attempt * 0.5))
+    return last_status, last_data if isinstance(last_data, dict) else {"data": []}, last_headers
+
+
 def uw_http_get(
     endpoint: str,
     params: Optional[Dict[str, Any]] = None,
@@ -237,8 +281,9 @@ def uw_http_get(
     """
     Low-level UW GET with:
     - minute + daily limits
-    - optional cache
-    - system_events logging
+    - optional cache (default 60s TTL when cache_policy not provided)
+    - retry: 3 attempts, exponential backoff
+    - structured logging for all UW calls
     Returns: (status_code, json_body, response_headers_dict)
     Never raises.
     """
@@ -246,6 +291,13 @@ def uw_http_get(
     _validate_endpoint_or_raise(endpoint)
 
     policy = _normalize_policy(cache_policy)
+    if policy.ttl_seconds <= 0:
+        policy = UwCachePolicy(
+            ttl_seconds=UW_DEFAULT_CACHE_TTL_SECONDS,
+            key_prefix=policy.key_prefix,
+            endpoint_name=policy.endpoint_name or "default",
+            max_calls_per_day=policy.max_calls_per_day,
+        )
     now = time.time()
     per_min, per_day, buf = _limits()
 
@@ -333,7 +385,7 @@ def uw_http_get(
     except Exception:
         pass
 
-    # Execute request (or deterministic mock with limits enforced)
+    # Execute request with retry (or deterministic mock with limits enforced)
     t0 = time.time()
     status = 0
     data: Dict[str, Any] = {"data": []}
@@ -344,20 +396,9 @@ def uw_http_get(
             data = _mock_response(endpoint, params=params)
             resp_headers = {}
         else:
-            r = requests.get(url, headers=headers, params=params or {}, timeout=float(timeout_s))
-            status = int(getattr(r, "status_code", 0) or 0)
-            try:
-                resp_headers = dict(getattr(r, "headers", {}) or {})
-            except Exception:
-                resp_headers = {}
-            try:
-                if status == 200:
-                    data = r.json() if r.content else {"data": []}
-                else:
-                    # Keep body best-effort for observability, but never raise.
-                    data = r.json() if r.content else {"data": []}
-            except Exception:
-                data = {"data": []}
+            status, data, resp_headers = _uw_retry_with_backoff(
+                endpoint, params, url, headers, timeout_s, max_attempts=3
+            )
     except Exception as e:
         status = 0
         data = {"data": []}
@@ -367,7 +408,13 @@ def uw_http_get(
                 subsystem="uw",
                 event_type="uw_call",
                 severity="ERROR",
-                details={"endpoint": str(endpoint), "error": str(e), "error_type": type(e).__name__},
+                details={
+                    "endpoint": str(endpoint),
+                    "params": params or {},
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "caller": _caller_hint(),
+                },
             )
         except Exception:
             pass
@@ -396,9 +443,11 @@ def uw_http_get(
             details={
                 "endpoint": str(endpoint),
                 "endpoint_name": policy.endpoint_name,
+                "params": params or {},
                 "status": int(status),
                 "cache_hit": False,
                 "latency_ms": int(dt_ms),
+                "caller": _caller_hint(),
             },
         )
     except Exception:

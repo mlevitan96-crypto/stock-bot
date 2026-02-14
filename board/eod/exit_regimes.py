@@ -15,6 +15,15 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = REPO_ROOT / "config" / "exit_regimes.json"
 log = logging.getLogger(__name__)
 
+# Minimum hold (seconds) before any decay-based exit. Reduces noise-triggered exits.
+MIN_HOLD_SECONDS_NO_DECAY = 90
+
+# Decay threshold deltas by regime (applied to base 0.60): exit when decay_ratio < threshold.
+# normal: stricter 0.50; let_it_breathe: 0.40; fire_sale: exit sooner 0.70.
+DECAY_THRESHOLD_NORMAL_DELTA = 0.10   # base - 0.10 -> 0.50
+DECAY_THRESHOLD_LET_IT_BREATHE_DELTA = 0.20  # base - 0.20 -> 0.40
+DECAY_THRESHOLD_FIRE_SALE_DELTA = 0.10  # base + 0.10 -> 0.70 (exit sooner)
+
 DEFAULT_CONFIG = {
     "fire_sale": {
         "signal_delta_threshold": -0.25,
@@ -89,6 +98,32 @@ def get_exit_regime(
             return "let_it_breathe", f"entry_signal_strength>={entry_thr} and pnl_delta_15m>{pnl_15m_min}", context
 
     return "normal", "", context
+
+
+def get_effective_decay_threshold(regime_name: str, base: float = 0.60) -> float:
+    """
+    Return decay ratio threshold for exit: exit when decay_ratio < threshold.
+    Stricter (lower threshold) = fewer noise-triggered exits.
+    """
+    if regime_name == "fire_sale":
+        return max(0.0, min(1.0, base + DECAY_THRESHOLD_FIRE_SALE_DELTA))  # 0.70
+    if regime_name == "let_it_breathe":
+        return max(0.0, min(1.0, base - DECAY_THRESHOLD_LET_IT_BREATHE_DELTA))
+    # normal
+    return max(0.0, min(1.0, base - DECAY_THRESHOLD_NORMAL_DELTA))
+
+
+def smooth_signal_delta(raw_delta: float | None, history: list[float], alpha: float = 0.3) -> float | None:
+    """EMA of signal_delta for decay decisions. history is list of prior deltas (newest last)."""
+    if raw_delta is None:
+        return None
+    if not history:
+        return round(raw_delta, 4)
+    ema = float(history[-1]) if history else raw_delta
+    for d in history[:-1]:
+        ema = alpha * float(d) + (1 - alpha) * ema
+    ema = alpha * raw_delta + (1 - alpha) * ema
+    return round(ema, 4)
 
 
 def log_exit_regime_decision(

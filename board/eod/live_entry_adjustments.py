@@ -22,8 +22,11 @@ SURVIVORSHIP_BOOST = 0.3
 SURVIVORSHIP_BOOST_STRONG = 0.5
 UW_QUALITY_WEIGHT = 0.1
 UW_QUALITY_BOOST_STRONG = 0.75  # When uw_signal_quality_score >= 0.6
+UW_QUALITY_LONGEVITY_BOOST = 0.15  # When uw_signal_quality_score >= 0.7
+UW_QUALITY_PRE_FILTER_MIN = 0.25  # Reject candidates below this
 UW_EDGE_REALIZATION_BOOST = 0.15
 UW_EDGE_SUPPRESSION_PENALTY = 0.1
+UW_EDGE_SUPPRESSION_STRONG_PENALTY = 0.2  # When uw_edge_suppression_rate > 0.8
 
 
 def _append_jsonl(path: Path, rec: dict) -> None:
@@ -50,26 +53,37 @@ def load_survivorship_adjustments(base: Path | None = None) -> dict[str, Any]:
 def apply_survivorship_to_score(symbol: str, composite_score: float, base: Path | None = None) -> tuple[float, str]:
     """
     Apply survivorship adjustment. Returns (adjusted_score, action_applied).
-    action_applied: "" | "penalize" | "penalize_strong" | "boost" | "boost_strong"
+    action_applied: "" | "penalize" | "penalize_strong" | "boost" | "boost_strong" | "penalize_decay"
+    Also applies delta from src.intelligence.survivorship (chronic losers, consistent winners, decay-based).
     """
     data = load_survivorship_adjustments(base)
+    delta = 0.0
+    action = ""
     for adj in data.get("adjustments") or []:
         if adj.get("symbol") == symbol:
             action = (adj.get("action") or "").strip().lower()
-            delta = 0.0
             if action == "penalize_strong":
-                delta = adj.get("score_penalty", SURVIVORSHIP_PENALTY_STRONG) or SURVIVORSHIP_PENALTY_STRONG
-                delta = -abs(delta)
+                delta += adj.get("score_penalty", SURVIVORSHIP_PENALTY_STRONG) or SURVIVORSHIP_PENALTY_STRONG
+                delta = -abs(delta) if delta > 0 else delta
             elif action == "penalize":
-                delta = -SURVIVORSHIP_PENALTY
+                delta -= SURVIVORSHIP_PENALTY
+            elif action == "penalize_decay":
+                delta += adj.get("score_penalty", -0.1) or -0.1
             elif action == "boost_strong":
-                delta = adj.get("score_boost", SURVIVORSHIP_BOOST_STRONG) or SURVIVORSHIP_BOOST_STRONG
+                delta += adj.get("score_boost", SURVIVORSHIP_BOOST_STRONG) or SURVIVORSHIP_BOOST_STRONG
             elif action == "boost":
-                delta = SURVIVORSHIP_BOOST
-            if delta != 0:
-                out = composite_score + delta
-                _append_jsonl(SURVIVORSHIP_LOG, {"symbol": symbol, "action": action, "delta": delta, "score_before": composite_score, "score_after": out})
-                return out, action
+                delta += SURVIVORSHIP_BOOST
+            break
+    if not action:
+        try:
+            from src.intelligence.survivorship import survivorship_score_delta
+            delta += survivorship_score_delta(symbol, base)
+        except Exception:
+            pass
+    if delta != 0:
+        out = composite_score + delta
+        _append_jsonl(SURVIVORSHIP_LOG, {"symbol": symbol, "action": action or "intelligence_delta", "delta": round(delta, 4), "score_before": composite_score, "score_after": out})
+        return out, action or "intelligence_delta"
     return composite_score, ""
 
 
@@ -96,8 +110,9 @@ def load_uw_root_cause_latest(base: Path | None = None) -> dict[str, Any]:
 def apply_uw_to_score(symbol: str, composite_score: float, base: Path | None = None) -> tuple[float, dict]:
     """
     Apply UW root-cause adjustments. Returns (adjusted_score, details).
-    Uses uw_signal_quality_score, uw_edge_realization_rate, uw_edge_suppression_rate and per-candidate data if present.
-    Stronger boosts: quality >= 0.6 -> +0.75; edge_suppression > 0.5 -> allow let-it-breathe, override displacement if score gap > 0.1.
+    Pre-filter: reject (score -> -inf) when uw_signal_quality_score < 0.25.
+    UW longevity: quality >= 0.7 -> +0.15; UW suppression: edge_suppression > 0.8 -> -0.2.
+    Stronger boosts: quality >= 0.6 -> +0.75; override displacement if score gap > 0.1.
     """
     data = load_uw_root_cause_latest(base)
     details: dict[str, Any] = {}
@@ -105,6 +120,22 @@ def apply_uw_to_score(symbol: str, composite_score: float, base: Path | None = N
     quality = data.get("uw_signal_quality_score")
     supp = data.get("uw_edge_suppression_rate")
     real = data.get("uw_edge_realization_rate")
+
+    # Per-candidate quality for pre-filter and longevity
+    cand_quality: float | None = None
+    for c in data.get("candidates") or []:
+        if c.get("symbol") == symbol:
+            details["candidate"] = c
+            cand_quality = c.get("uw_signal_quality_score")
+            if cand_quality is not None:
+                cand_quality = float(cand_quality)
+            break
+    use_quality = cand_quality if cand_quality is not None else (float(quality) if quality is not None else None)
+    if use_quality is not None and use_quality < UW_QUALITY_PRE_FILTER_MIN:
+        details["uw_rejected_low_quality"] = True
+        details["uw_signal_quality_score"] = use_quality
+        _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "rejected": True, "quality": use_quality, "threshold": UW_QUALITY_PRE_FILTER_MIN})
+        return float("-inf"), details
 
     if quality is not None:
         q = float(quality)
@@ -116,19 +147,21 @@ def apply_uw_to_score(symbol: str, composite_score: float, base: Path | None = N
             details["allow_max_positions_override"] = True
         else:
             delta += q * UW_QUALITY_WEIGHT
+        if q >= 0.7:
+            delta += UW_QUALITY_LONGEVITY_BOOST
+            details["uw_longevity_boost"] = True
     if real is not None and real > 0.5:
         delta += UW_EDGE_REALIZATION_BOOST
     if supp is not None:
         details["uw_edge_suppression_rate"] = supp
-        if supp > 0.5:
+        if float(supp) > 0.8:
+            delta -= UW_EDGE_SUPPRESSION_STRONG_PENALTY
+            details["uw_suppression_strong"] = True
+        elif float(supp) > 0.5:
             delta -= UW_EDGE_SUPPRESSION_PENALTY
         details["allow_let_it_breathe"] = True
         details["override_displacement_if_score_gap"] = 0.1
 
-    for c in data.get("candidates") or []:
-        if c.get("symbol") == symbol:
-            details["candidate"] = c
-            break
     out = composite_score + delta
     if delta != 0 or details:
         if delta != 0:

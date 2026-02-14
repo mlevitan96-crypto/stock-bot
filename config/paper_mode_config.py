@@ -15,20 +15,23 @@ def is_paper_mode() -> bool:
 
 def apply_paper_overrides() -> None:
     """
-    For PAPER mode: increase max_positions and max_new_positions_per_cycle by 1.5x.
+    For PAPER mode: increase max_positions and max_new_positions_per_cycle by 2.0x.
+    Recalibrated for intelligence overhaul; allows displacement override for high-UW candidates.
     Keeps risk discipline (MIN_NOTIONAL, correlation_concentration_risk_multiplier) unchanged.
     """
     if not is_paper_mode():
         return
     base_max = int(os.environ.get("MAX_CONCURRENT_POSITIONS", 16))
-    new_max = int(base_max * 1.5)
+    new_max = int(base_max * 2.0)
     os.environ["MAX_CONCURRENT_POSITIONS"] = str(new_max)
-    # policy_variants.get_live_safety_caps uses max_new_positions_per_cycle; paper uses caps only when is_live()
-    # For paper, main.py uses MAX_NEW_POSITIONS_PER_CYCLE from get_live_safety_caps when is_live() else default 6.
-    # Since paper => is_live() is False, we need to set an env that main.py or policy_variants reads for paper.
     base_per_cycle = int(os.environ.get("MAX_NEW_POSITIONS_PER_CYCLE", 6))
-    new_per_cycle = int(base_per_cycle * 1.5)
+    new_per_cycle = int(base_per_cycle * 2.0)
     os.environ["MAX_NEW_POSITIONS_PER_CYCLE"] = str(new_per_cycle)
+
+
+def score_floor_breach_threshold_multiplier() -> float:
+    """Paper mode: reduce score_floor_breach sensitivity by 10% (multiplier 0.9)."""
+    return 0.9 if is_paper_mode() else 1.0
 
 
 def write_paper_mode_intel_state() -> None:

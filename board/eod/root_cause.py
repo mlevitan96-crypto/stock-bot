@@ -370,47 +370,71 @@ def build_survivorship_adjustments(base: Path, date_str: str, window_days: int =
         surv = build_signal_survivorship(base, date_str, window_days=window_days)
     except Exception:
         surv = {"signals": {}}
+    try:
+        from src.intelligence.survivorship import (
+            CHRONIC_LOSER_PENALTY,
+            CONSISTENT_WINNER_BOOST,
+            DECAY_EXIT_RATE_THRESHOLD,
+            DECAY_EXIT_PENALTY,
+        )
+    except Exception:
+        CHRONIC_LOSER_PENALTY = -0.15
+        CONSISTENT_WINNER_BOOST = 0.10
+        DECAY_EXIT_RATE_THRESHOLD = 0.70
+        DECAY_EXIT_PENALTY = -0.10
     signals = surv.get("signals") or {}
     chronic_losers: list[dict] = []
     consistent_winners: list[dict] = []
+    decay_penalties: list[dict] = []
     for sym, d in signals.items():
         if not isinstance(d, dict):
             continue
         pnl = d.get("pnl_contribution_usd") or 0
         count = d.get("trade_count") or 0
         wr = d.get("win_rate") or 0
-        # Penalize chronic losers harder: pnl < -10, count >= 3 -> penalize_strong
+        decay_count = d.get("decay_trigger_count") or 0
+        decay_rate = (decay_count / count) if count else 0.0
+        # Penalize chronic losers: pnl < -10, count >= 3 -> penalize_strong; extra -0.15 when win_rate < 0.25
         if count >= 3 and pnl < -10:
+            penalty = -0.5 + (CHRONIC_LOSER_PENALTY if wr is not None and wr < 0.25 else 0)
             chronic_losers.append({
                 "symbol": sym, "pnl_contribution_usd": pnl, "trade_count": count, "win_rate": wr,
                 "action": "penalize_strong",
-                "score_penalty": -0.5,
+                "score_penalty": round(penalty, 2),
             })
         elif count >= 3 and pnl < -20:
             chronic_losers.append({"symbol": sym, "pnl_contribution_usd": pnl, "trade_count": count, "win_rate": wr, "action": "penalize"})
-        # Boost consistent winners more: pnl > 10, win_rate >= 0.45 -> boost_strong
+        # Boost consistent winners: win_rate > 0.55 gets extra +0.10
         if count >= 3 and pnl > 10 and wr >= 0.45:
+            boost = 0.5 + (CONSISTENT_WINNER_BOOST if wr is not None and wr > 0.55 else 0)
             consistent_winners.append({
                 "symbol": sym, "pnl_contribution_usd": pnl, "trade_count": count, "win_rate": wr,
                 "action": "boost_strong",
-                "score_boost": 0.5,
+                "score_boost": round(boost, 2),
             })
         elif count >= 3 and pnl > 20 and wr >= 0.5:
             consistent_winners.append({"symbol": sym, "pnl_contribution_usd": pnl, "trade_count": count, "win_rate": wr, "action": "boost"})
+        # Decay-based survivorship: penalize symbols with >70% decay exits
+        if count >= 2 and decay_rate > DECAY_EXIT_RATE_THRESHOLD:
+            decay_penalties.append({
+                "symbol": sym, "decay_trigger_count": decay_count, "trade_count": count,
+                "decay_exit_rate": round(decay_rate, 4), "action": "penalize_decay",
+                "score_penalty": DECAY_EXIT_PENALTY,
+            })
     def adj_row(x: dict) -> dict:
         r = {"symbol": x["symbol"], "action": x["action"]}
         if x.get("score_penalty") is not None:
             r["score_penalty"] = x["score_penalty"]
         if x.get("score_boost") is not None:
             r["score_boost"] = x["score_boost"]
-        # NO symbol bans: survivorship only adjusts scores (penalize/boost), never block_for_days
         return r
 
     out = {
         "date": date_str,
         "chronic_losers": chronic_losers,
         "consistent_winners": consistent_winners,
-        "adjustments": [adj_row(x) for x in chronic_losers + consistent_winners],
+        "decay_penalties": decay_penalties,
+        "adjustments": [adj_row(x) for x in chronic_losers + consistent_winners + decay_penalties],
     }
     state_path = base / "state" / "survivorship_adjustments.json"
     state_path.parent.mkdir(parents=True, exist_ok=True)

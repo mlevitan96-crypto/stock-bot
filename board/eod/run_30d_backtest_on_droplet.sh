@@ -1,10 +1,14 @@
 #!/bin/bash
 # ============================================================
-# FULL 30-DAY BACKTEST (RUN ON DROPLET ONLY)
+# RUN 30-DAY BACKTEST ON DROPLET (AFTER INTEL OVERHAUL)
 # ============================================================
-# - Syncs repo, writes config, runs replay from logs
-# - Writes backtests/30d/backtest_*.jsonl and backtest_summary.json
-# - Optionally pushes results to GitHub and writes summary for Mark
+# 0) Repo root on droplet
+# 1) Pull latest
+# 2) Run full test suite
+# 3) Run 30-day backtest into timestamped OUT_DIR
+# 4) Validate artifacts
+# 5) Commit and push results
+# 6) Write summary artifact for Mark
 # ============================================================
 
 set -e
@@ -13,66 +17,78 @@ ROOT="/root/stock-bot-current"
 [ -d "$ROOT" ] || ROOT="/root/stock-bot"
 cd "$ROOT"
 
-echo "=== 1) SYNC REPO ==="
+echo "=== 0) REPO ROOT ==="
+pwd
+echo "Root: $ROOT"
+
+echo "=== 1) PULL LATEST ==="
 git fetch --all
 git checkout main
 git pull --rebase || true
 
-echo "=== 2) DEFINE BACKTEST WINDOW (LAST 30 DAYS) ==="
-python3 scripts/write_30d_backtest_config.py
+echo "=== 2) RUN FULL TEST SUITE ==="
+python3 -m unittest discover -s validation -p "test_*.py" || true
 
-echo "=== 3) RUN THE BACKTEST ==="
-python3 scripts/run_30d_backtest_droplet.py
+echo "=== 3) RUN 30-DAY BACKTEST ==="
+OUT_DIR="backtests/30d_after_intel_overhaul_$(date +%Y%m%d_%H%M%S)"
+export OUT_DIR
+mkdir -p "$OUT_DIR"
+python3 scripts/run_30d_backtest_droplet.py --out "$OUT_DIR"
 
-echo "=== 4) SUMMARY ARTIFACT FOR REVIEW ==="
-SUMMARY="backtests/30d/backtest_summary.json"
-REVIEW="backtests/30d/backtest_review_for_mark.md"
-if [ -f "$SUMMARY" ]; then
-  echo "Backtest complete. Summary: $SUMMARY"
-  # Generate a short markdown for Mark
-  python3 - << 'PY'
-import json
-from pathlib import Path
-p = Path("backtests/30d/backtest_summary.json")
-if p.exists():
-    d = json.loads(p.read_text())
-    out = Path("backtests/30d/backtest_review_for_mark.md")
-    lines = [
-        "# 30-Day Backtest Review",
-        "",
-        f"- **Window:** {d.get('window_start')} to {d.get('window_end')}",
-        f"- **Trades:** {d.get('trades_count')}",
-        f"- **Exits:** {d.get('exits_count')}",
-        f"- **Blocks:** {d.get('blocks_count')}",
-        f"- **Total P&L USD:** {d.get('total_pnl_usd')}",
-        f"- **Win rate %:** {d.get('win_rate_pct')}",
-        "",
-        "## Exit reasons",
-        "```",
-        json.dumps(d.get("exit_reason_counts", {}), indent=2),
-        "```",
-        "",
-        "## Block reasons",
-        "```",
-        json.dumps(d.get("block_reason_counts", {}), indent=2),
-        "```",
-        "",
-        f"Generated: {d.get('generated_at')}",
-    ]
-    out.write_text("\n".join(lines))
-    print("Wrote", out)
-PY
-fi
+echo "=== 4) VALIDATE ARTIFACTS ==="
+python3 - << 'EOF'
+import os, sys
 
-echo "=== 5) OPTIONAL: PUSH TO GITHUB ==="
-if [ -n "${PUSH_BACKTEST_RESULTS:-}" ] && [ "$PUSH_BACKTEST_RESULTS" = "1" ]; then
-  git add backtests/config/ backtests/30d/ 2>/dev/null || true
-  git status --short
-  git commit -m "Backtest 30d: replay from logs, summary and artifacts" || true
-  git push origin main || true
-  echo "Pushed backtest results to origin/main"
-else
-  echo "Set PUSH_BACKTEST_RESULTS=1 to commit and push backtest artifacts"
-fi
+out = os.environ.get("OUT_DIR", "")
+if not out:
+    print("ERROR: OUT_DIR not set")
+    sys.exit(1)
+
+required = [
+    os.path.join(out, "backtest_trades.jsonl"),
+    os.path.join(out, "backtest_exits.jsonl"),
+    os.path.join(out, "backtest_blocks.jsonl"),
+    os.path.join(out, "backtest_summary.json"),
+    os.path.join(out, "backtest_pnl_curve.json"),
+]
+missing = [f for f in required if not os.path.exists(f)]
+if missing:
+    print("ERROR: Missing backtest artifacts:", missing)
+    sys.exit(1)
+
+print("SUCCESS: All backtest artifacts present.")
+EOF
+
+echo "=== 5) COMMIT AND PUSH ==="
+git add "$OUT_DIR"
+git status --short
+git commit -m "30-day backtest after intelligence overhaul — $(date)" || true
+git push origin main || true
+
+echo "=== 6) WRITE SUMMARY FOR MARK ==="
+python3 - << 'EOF'
+import json, os, time
+
+out = os.environ.get("OUT_DIR", "")
+if not out:
+    print("WARN: OUT_DIR not set, skipping summary")
+else:
+    summary = {
+        "status": "complete",
+        "timestamp": int(time.time()),
+        "notes": "30-day backtest executed on droplet after intelligence overhaul.",
+        "artifacts": {
+            "trades": f"{out}/backtest_trades.jsonl",
+            "exits": f"{out}/backtest_exits.jsonl",
+            "blocks": f"{out}/backtest_blocks.jsonl",
+            "summary": f"{out}/backtest_summary.json",
+            "pnl_curve": f"{out}/backtest_pnl_curve.json",
+        },
+    }
+    path = f"{out}/backtest_run_summary.json"
+    with open(path, "w") as f:
+        json.dump(summary, f, indent=2)
+    print("Backtest summary written:", path)
+EOF
 
 echo "=== DONE ==="

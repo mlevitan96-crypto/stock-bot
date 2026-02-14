@@ -6662,25 +6662,49 @@ class AlpacaExecutor:
                     pass
                 print(f"DEBUG EXITS: {symbol} STOP LOSS HIT - P&L={pnl_pct:.2f}% <= -1.0%, entry=${entry_price:.2f}, current=${current_price:.2f}", flush=True)
             
-            # 2. Signal Decay Check (variant-scoped: baseline / live_canary / paper_aggressive)
+            # 2. Signal Decay Check (variant-scoped + regime-aware threshold, 90s min hold)
             entry_score = info.get("entry_score", 0.0)
             signal_decay_exit = False
             decay_ratio = None
+            min_hold_sec_no_decay = 90
+            try:
+                from board.eod.exit_regimes import (
+                    get_exit_regime,
+                    get_effective_decay_threshold,
+                    MIN_HOLD_SECONDS_NO_DECAY,
+                )
+                min_hold_sec_no_decay = MIN_HOLD_SECONDS_NO_DECAY
+                current_composite_tmp = current_signals.get("composite_score", 0.0) or 0.0
+                signal_delta_tmp = (float(current_composite_tmp) - float(entry_score)) if (entry_score and current_composite_tmp) else None
+                price_delta_pct_tmp = (float(current_price - entry_price) / float(entry_price) * 100.0) if entry_price and entry_price > 0 else None
+                exit_regime_for_decay, _, _ = get_exit_regime(
+                    signal_delta=signal_delta_tmp,
+                    price_delta_pct=price_delta_pct_tmp,
+                    entry_signal_strength=float(entry_score) if entry_score else None,
+                    pnl_delta_15m=None,
+                    catastrophic_decay=False,
+                )
+                decay_threshold = get_effective_decay_threshold(exit_regime_for_decay, base=0.60)
+            except Exception:
+                decay_threshold = 0.50
             try:
                 from policy_variants import get_variant_params
                 variant = get_variant_params(symbol, "equity")
-                decay_threshold = float(variant.get("decay_ratio_threshold", 0.60))
+                variant_decay = float(variant.get("decay_ratio_threshold", 0.60))
                 min_hold_min = float(variant.get("min_hold_minutes_before_decay_exit", 0))
                 disable_for_top_quartile = bool(variant.get("disable_decay_for_top_quartile_entry", False))
+                # Use stricter of regime threshold and variant (lower ratio = stricter)
+                decay_threshold = min(decay_threshold, variant_decay)
             except Exception:
-                decay_threshold = 0.60
                 min_hold_min = 0
                 disable_for_top_quartile = False
             entry_ts_info = info.get("ts", datetime.utcnow())
             if hasattr(entry_ts_info, "tzinfo") and entry_ts_info.tzinfo is not None:
                 entry_ts_info = entry_ts_info.replace(tzinfo=None)
-            position_age_min = (datetime.utcnow() - entry_ts_info).total_seconds() / 60.0
-            if entry_score > 0 and position_age_min >= min_hold_min:
+            position_age_sec = (datetime.utcnow() - entry_ts_info).total_seconds()
+            position_age_min = position_age_sec / 60.0
+            min_hold_sec = max(min_hold_sec_no_decay, min_hold_min * 60.0)
+            if entry_score > 0 and position_age_sec >= min_hold_sec:
                 if disable_for_top_quartile and entry_score >= 7.0:
                     pass  # do not trigger decay exit for top-quartile entry
                 else:

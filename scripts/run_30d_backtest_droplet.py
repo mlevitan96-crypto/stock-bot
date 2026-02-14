@@ -3,14 +3,12 @@
 Full 30-day backtest (run on droplet only).
 Replays from logs: attribution, exit_attribution, blocked_trades.
 Applies config flags (exit_regimes, UW, survivorship, wheel, constraints, correlation) as metadata.
-Writes:
-  backtests/30d/backtest_trades.jsonl
-  backtests/30d/backtest_exits.jsonl
-  backtests/30d/backtest_blocks.jsonl
-  backtests/30d/backtest_summary.json
+Writes: backtest_trades.jsonl, backtest_exits.jsonl, backtest_blocks.jsonl, backtest_summary.json, backtest_pnl_curve.json.
+Usage: python scripts/run_30d_backtest_droplet.py [--out backtests/30d_after_intel_overhaul]
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -21,12 +19,21 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+
+def _parse_args():
+    p = argparse.ArgumentParser(description="Run 30-day backtest")
+    p.add_argument("--out", default=None, help="Output directory (default: backtests/30d)")
+    return p.parse_args()
+
+
+def _out_dir(args) -> Path:
+    if getattr(args, "out", None):
+        p = Path(args.out)
+        return p if p.is_absolute() else REPO_ROOT / p
+    return REPO_ROOT / "backtests" / "30d"
+
+
 CONFIG_PATH = REPO_ROOT / "backtests" / "config" / "30d_backtest_config.json"
-OUT_DIR = REPO_ROOT / "backtests" / "30d"
-TRADES_PATH = OUT_DIR / "backtest_trades.jsonl"
-EXITS_PATH = OUT_DIR / "backtest_exits.jsonl"
-BLOCKS_PATH = OUT_DIR / "backtest_blocks.jsonl"
-SUMMARY_PATH = OUT_DIR / "backtest_summary.json"
 
 
 def _day_utc(ts) -> str | None:
@@ -79,6 +86,14 @@ def _load_config() -> dict:
 
 
 def run() -> int:
+    args = _parse_args()
+    OUT_DIR = _out_dir(args)
+    TRADES_PATH = OUT_DIR / "backtest_trades.jsonl"
+    EXITS_PATH = OUT_DIR / "backtest_exits.jsonl"
+    BLOCKS_PATH = OUT_DIR / "backtest_blocks.jsonl"
+    SUMMARY_PATH = OUT_DIR / "backtest_summary.json"
+    PNL_CURVE_PATH = OUT_DIR / "backtest_pnl_curve.json"
+
     cfg = _load_config()
     start_date = cfg.get("start_date") or ""
     end_date = cfg.get("end_date") or ""
@@ -204,15 +219,27 @@ def run() -> int:
             "backtest_trades": str(TRADES_PATH),
             "backtest_exits": str(EXITS_PATH),
             "backtest_blocks": str(BLOCKS_PATH),
+            "backtest_summary": str(SUMMARY_PATH),
+            "backtest_pnl_curve": str(PNL_CURVE_PATH),
         },
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     SUMMARY_PATH.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
 
+    # PnL curve: cumulative PnL by trade index (and optionally by date)
+    pnl_curve = {"cumulative_pnl_usd": [], "dates": [], "trade_index": []}
+    cum = 0.0
+    for i, t in enumerate(trades):
+        cum += float(t.get("pnl_usd") or 0)
+        pnl_curve["cumulative_pnl_usd"].append(round(cum, 2))
+        pnl_curve["trade_index"].append(i)
+        pnl_curve["dates"].append(_day_utc(t.get("timestamp")) or "")
+    PNL_CURVE_PATH.write_text(json.dumps(pnl_curve, indent=2, default=str), encoding="utf-8")
+
     print("[30d BACKTEST] Done.")
     print(f"  Trades: {len(trades)}, Exits: {len(exits)}, Blocks: {len(blocks)}")
     print(f"  P&L: ${summary['total_pnl_usd']:.2f}, Win rate: {summary['win_rate_pct']}%")
-    print(f"  Wrote: {TRADES_PATH}, {EXITS_PATH}, {BLOCKS_PATH}, {SUMMARY_PATH}")
+    print(f"  Wrote: {TRADES_PATH}, {EXITS_PATH}, {BLOCKS_PATH}, {SUMMARY_PATH}, {PNL_CURVE_PATH}")
     return 0
 
 

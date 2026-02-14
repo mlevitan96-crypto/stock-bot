@@ -14,12 +14,14 @@ Rules:
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 log = logging.getLogger(__name__)
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Sector mapping for universe tickers (non-tech focus)
 SECTOR_MAP: Dict[str, str] = {
@@ -273,9 +275,31 @@ def select_wheel_candidates(
     else:
         ordered_symbols = candidate_tickers
 
+    # UW quality floor and survivorship/decay filters (wheel_v2)
+    uw_quality_min = _get("universe_uw_quality_min", 0.5)
+    survivorship_min = 0.0
+    decay_exit_rate_max = 0.80
+    wheel_candidates_log = REPO_ROOT / "logs" / "wheel_candidates.jsonl"
+
+    def _get_decay_exit_rate(sym: str) -> Optional[float]:
+        try:
+            from src.intelligence.survivorship import get_decay_exit_rate as _decay_rate
+            return _decay_rate(sym, REPO_ROOT)
+        except Exception:
+            return None
+
+    def _get_survivorship_score(sym: str) -> Optional[float]:
+        try:
+            from src.intelligence.survivorship import get_survivorship_score
+            return get_survivorship_score(sym, REPO_ROOT)
+        except Exception:
+            return None
+
     results: List[Dict[str, Any]] = []
     uw_scores_map = {s: sc for s, sc in uw_ranked} if uw_ranked else {}
     for symbol in ordered_symbols:
+        sector = _get_sector(symbol)
+        vol = _get_avg_daily_volume(api, symbol)
         oi = _get_option_open_interest(api, symbol)
         spread_pct = _get_spread_pct(api, symbol)
         iv_proxy = _get_iv_proxy(symbol)
@@ -296,12 +320,22 @@ def select_wheel_candidates(
             liquidity_score * 0.4 + iv_score * 0.3 + spread_score * 0.3
         )
 
-        passed = pass_vol and pass_oi and pass_spread and pass_iv
         uw_score = uw_scores_map.get(symbol)
         if uw_score is not None and uw_score <= -1e8:
             uw_score = None
+        if uw_quality_min > 0 and (uw_score is None or uw_score < uw_quality_min):
+            continue
+        surv_score = _get_survivorship_score(symbol)
+        if surv_score is not None and surv_score < survivorship_min:
+            continue
+        decay_rate = _get_decay_exit_rate(symbol)
+        if decay_rate is not None and decay_rate > decay_exit_rate_max:
+            continue
+
+        passed = pass_vol and pass_oi and pass_spread and pass_iv
         rec = {
             "symbol": symbol,
+            "variant_id": "wheel_v2",
             "uw_composite_score": round(uw_score, 4) if uw_score is not None else None,
             "liquidity_score": round(liquidity_score, 4),
             "iv_score": round(iv_score, 4),
@@ -319,6 +353,12 @@ def select_wheel_candidates(
             "passed": passed,
         }
         results.append(rec)
+        try:
+            wheel_candidates_log.parent.mkdir(parents=True, exist_ok=True)
+            with wheel_candidates_log.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, default=str) + "\n")
+        except Exception:
+            pass
 
     # PATH B: Order already by UW rank; take top N (hard filters spot/contract run in wheel_strategy)
     selected = results[:max_candidates]
