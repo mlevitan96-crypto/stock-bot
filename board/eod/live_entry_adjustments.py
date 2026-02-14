@@ -230,6 +230,40 @@ def check_constraint_override_eligible(
     return eligible, reasons
 
 
+def apply_signal_quality_to_score(
+    symbol: str,
+    composite_score: float,
+    market_context: dict | None = None,
+    base: Path | None = None,
+) -> float:
+    """
+    Apply signal-quality adjustment: smoothing, persistence, longevity, trend, volatility filter.
+    market_context may contain: raw_signal (float), atr (float).
+    Returns adjusted score. If no context, returns composite_score unchanged.
+    """
+    try:
+        from src.intelligence.signal_quality import signal_quality_delta
+    except Exception:
+        return composite_score
+    ctx = market_context or {}
+    raw_signal = ctx.get("raw_signal")
+    if raw_signal is None:
+        raw_signal = composite_score
+    atr = ctx.get("atr")
+    delta = signal_quality_delta(symbol, raw_signal=float(raw_signal), atr=atr)
+    if delta == 0:
+        return composite_score
+    out = composite_score + delta
+    try:
+        _append_jsonl(
+            REPO_ROOT / "logs" / "signal_quality_adjustments.jsonl",
+            {"symbol": symbol, "delta": delta, "score_before": composite_score, "score_after": out},
+        )
+    except Exception:
+        pass
+    return out
+
+
 def correlation_concentration_risk_multiplier(base: Path | None = None, threshold: float = 2.0) -> float:
     """
     If concentration_risk_score > threshold, return a multiplier < 1.0 for position size.

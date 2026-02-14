@@ -7530,13 +7530,19 @@ class StrategyEngine:
             except Exception:
                 pass
             cluster_source = c.get("source", "unknown")
-            # Root-cause: UW and survivorship entry adjustments (BEFORE displacement and max_positions)
+            # Root-cause: signal quality, UW, survivorship entry adjustments (BEFORE displacement and max_positions)
             uw_details: dict = {}
             surv_action = ""
             vid = None
             try:
-                from board.eod.live_entry_adjustments import apply_uw_to_score, apply_survivorship_to_score
+                from board.eod.live_entry_adjustments import (
+                    apply_signal_quality_to_score,
+                    apply_uw_to_score,
+                    apply_survivorship_to_score,
+                )
                 from policy_variants import get_variant_id
+                market_ctx = {"raw_signal": c.get("composite_score", score), "atr": c.get("atr")}
+                score = apply_signal_quality_to_score(symbol, float(score), market_ctx)
                 score, uw_details = apply_uw_to_score(symbol, float(score))
                 score, surv_action = apply_survivorship_to_score(symbol, float(score))
                 vid = get_variant_id(symbol, "equity")

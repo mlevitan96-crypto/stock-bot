@@ -31,7 +31,8 @@ echo "=== 2) RUN FULL TEST SUITE ==="
 python3 -m unittest discover -s validation -p "test_*.py" || true
 
 echo "=== 3) RUN 30-DAY BACKTEST ==="
-OUT_DIR="backtests/30d_after_intel_overhaul_$(date +%Y%m%d_%H%M%S)"
+OUT_PREFIX="${OUT_DIR_PREFIX:-30d_after_intel_overhaul}"
+OUT_DIR="backtests/${OUT_PREFIX}_$(date +%Y%m%d_%H%M%S)"
 export OUT_DIR
 mkdir -p "$OUT_DIR"
 python3 scripts/run_30d_backtest_droplet.py --out "$OUT_DIR"
