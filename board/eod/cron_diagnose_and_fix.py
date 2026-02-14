@@ -297,11 +297,13 @@ def force_run_eod(date_str: str, client: Any | None = None, allow_missing_missed
     """
     Force-run eod_confirmation.py --date <date_str>.
     Returns (exit_code, stdout, stderr).
+    When allow_missing_missed_money=True, bypasses missed_money_numeric.all_numeric check (for cron recovery).
     """
     root = _detect_stockbot_root()
+    mm_flag = " --allow-missing-missed-money" if allow_missing_missed_money else ""
     cmd = (
         f"cd {root} && CLAWDBOT_SESSION_ID=stock_quant_eod_{date_str} "
-        f"/usr/bin/python3 board/eod/eod_confirmation.py --date {date_str}"
+        f"/usr/bin/python3 board/eod/eod_confirmation.py --date {date_str}{mm_flag}"
     )
 
     if client is not None:
@@ -421,8 +423,12 @@ def run_on_droplet(date_str: str) -> int:
 
     diagnosis["repair_actions_taken"] = repair_actions
 
-    # 4. Force-run EOD (enforce missed-money numeric unless data incomplete)
+    # 4. Force-run EOD. First try strict; if failed (e.g. missed_money_numeric), retry with --allow-missing-missed-money.
+    # EOD MUST run and push every weekday — no exceptions. Partial data is better than no data.
     rc, stdout, stderr = force_run_eod(date_str, client=None, allow_missing_missed_money=False)
+    if rc != 0 and "missed_money_numeric" in (stderr or "").lower():
+        diagnosis["repair_actions_taken"].append("EOD retry with --allow-missing-missed-money (data incomplete)")
+        rc, stdout, stderr = force_run_eod(date_str, client=None, allow_missing_missed_money=True)
     diagnosis["eod_exit_code"] = rc
     diagnosis["eod_stdout"] = stdout[-2000:] if stdout else ""
     diagnosis["eod_stderr"] = stderr[-2000:] if stderr else ""
