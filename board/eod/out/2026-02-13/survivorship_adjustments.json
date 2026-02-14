@@ -1,0 +1,113 @@
+{
+  "date": "2026-02-13",
+  "chronic_losers": [
+    {
+      "symbol": "COIN",
+      "pnl_contribution_usd": -14.59,
+      "trade_count": 41,
+      "win_rate": 0.4634,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "NIO",
+      "pnl_contribution_usd": -20.27,
+      "trade_count": 40,
+      "win_rate": 0.175,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "TSLA",
+      "pnl_contribution_usd": -13.95,
+      "trade_count": 33,
+      "win_rate": 0.4848,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "LCID",
+      "pnl_contribution_usd": -24.01,
+      "trade_count": 24,
+      "win_rate": 0.2083,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "MRNA",
+      "pnl_contribution_usd": -32.38,
+      "trade_count": 31,
+      "win_rate": 0.2903,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    }
+  ],
+  "consistent_winners": [
+    {
+      "symbol": "SOFI",
+      "pnl_contribution_usd": 13.19,
+      "trade_count": 30,
+      "win_rate": 0.5,
+      "action": "boost_strong",
+      "score_boost": 0.5
+    },
+    {
+      "symbol": "WFC",
+      "pnl_contribution_usd": 10.03,
+      "trade_count": 20,
+      "win_rate": 0.45,
+      "action": "boost_strong",
+      "score_boost": 0.5
+    },
+    {
+      "symbol": "HOOD",
+      "pnl_contribution_usd": 20.13,
+      "trade_count": 48,
+      "win_rate": 0.4583,
+      "action": "boost_strong",
+      "score_boost": 0.5
+    }
+  ],
+  "adjustments": [
+    {
+      "symbol": "COIN",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "NIO",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "TSLA",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "LCID",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "MRNA",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "SOFI",
+      "action": "boost_strong",
+      "score_boost": 0.5
+    },
+    {
+      "symbol": "WFC",
+      "action": "boost_strong",
+      "score_boost": 0.5
+    },
+    {
+      "symbol": "HOOD",
+      "action": "boost_strong",
+      "score_boost": 0.5
+    }
+  ]
+}

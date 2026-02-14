@@ -1,0 +1,50 @@
+{
+  "date": "2026-02-13",
+  "window_days": 7,
+  "by_reason": [
+    {
+      "block_reason": "expectancy_blocked:score_floor_breach",
+      "count": 357,
+      "avg_candidate_score": 2.8169,
+      "avg_expected_value_usd": 4635.45,
+      "avg_rank": null
+    },
+    {
+      "block_reason": "displacement_blocked",
+      "count": 214,
+      "avg_candidate_score": 4.03,
+      "avg_expected_value_usd": 531.34,
+      "avg_rank": 23.79
+    },
+    {
+      "block_reason": "order_validation_failed",
+      "count": 43,
+      "avg_candidate_score": 3.6177,
+      "avg_expected_value_usd": 1176.59,
+      "avg_rank": null
+    },
+    {
+      "block_reason": "max_new_positions_per_cycle",
+      "count": 1041,
+      "avg_candidate_score": 3.5162,
+      "avg_expected_value_usd": 10209.11,
+      "avg_rank": null
+    },
+    {
+      "block_reason": "max_positions_reached",
+      "count": 282,
+      "avg_candidate_score": 3.4358,
+      "avg_expected_value_usd": 950.68,
+      "avg_rank": 31.72
+    },
+    {
+      "block_reason": "symbol_on_cooldown",
+      "count": 63,
+      "avg_candidate_score": 3.9874,
+      "avg_expected_value_usd": 1087.06,
+      "avg_rank": null
+    }
+  ],
+  "constraint_suppression_cost_usd": 18590.23,
+  "constraint_false_positive_rate": null
+}

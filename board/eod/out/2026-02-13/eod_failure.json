@@ -1,0 +1,6 @@
+{
+  "date": "2026-02-13",
+  "exit_code": 1,
+  "stderr": "WARNING EOD missing or incomplete \u2014 re-running for 2026-02-13.\nINFO Generated /root/stock-bot/reports/wheel_daily_review_2026-02-13.md\nINFO Generated /root/stock-bot/reports/wheel_governance_badge_2026-02-13.json\nINFO Computed and wrote rolling windows to /root/stock-bot/state/eod_rolling_windows_2026-02-13.json\nERROR missed_money_numeric.all_numeric is False; critical logs missing. EOD FAIL.\nEOD pipeline failed with exit code 1\n",
+  "stdout": ""
+}

@@ -1,0 +1,79 @@
+{
+  "date": "2026-02-13",
+  "pairs": [
+    {
+      "a": "PLTR",
+      "b": "QQQ",
+      "corr": 1.4142,
+      "n": 9
+    },
+    {
+      "a": "QQQ",
+      "b": "MA",
+      "corr": 1.4142,
+      "n": 9
+    },
+    {
+      "a": "META",
+      "b": "AMD",
+      "corr": -1.0,
+      "n": 9
+    },
+    {
+      "a": "SPY",
+      "b": "QQQ",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "AMD",
+      "b": "TSLA",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "TSLA",
+      "corr": -0.7071,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "META",
+      "corr": 0.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "AMD",
+      "corr": 0.0,
+      "n": 9
+    },
+    {
+      "a": "META",
+      "b": "TSLA",
+      "corr": 0.0,
+      "n": 9
+    },
+    {
+      "a": "SPY",
+      "b": "PLTR",
+      "corr": 0.0,
+      "n": 9
+    },
+    {
+      "a": "SPY",
+      "b": "MA",
+      "corr": 0.0,
+      "n": 9
+    },
+    {
+      "a": "PLTR",
+      "b": "MA",
+      "corr": 0.0,
+      "n": 9
+    }
+  ],
+  "concentration_risk_score": 6.5355,
+  "message": ""
+}
