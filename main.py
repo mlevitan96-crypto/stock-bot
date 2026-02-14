@@ -7549,6 +7549,17 @@ class StrategyEngine:
                     "regime_label": market_regime,
                     "sector_momentum": c.get("sector_momentum", 0),
                 }
+                try:
+                    from src.signals.raw_signal_engine import build_raw_signals
+                    price_series = c.get("price_series") or c.get("prices") or []
+                    raw_signals = build_raw_signals(
+                        price_series=price_series,
+                        regime_label=market_regime,
+                        sector_momentum=c.get("sector_momentum", 0),
+                    )
+                    market_ctx.update(raw_signals)
+                except Exception:
+                    pass
                 score = apply_signal_quality_to_score(symbol, float(score), market_ctx)
                 score, uw_details = apply_uw_to_score(symbol, float(score))
                 score, surv_action = apply_survivorship_to_score(symbol, float(score))
