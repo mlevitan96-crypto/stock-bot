@@ -24,7 +24,8 @@ echo "Root: $ROOT"
 echo "=== 1) PULL LATEST ==="
 git fetch --all
 git checkout main
-git pull --rebase || true
+git stash push -m 'pre-backtest' || true
+git pull --rebase origin main || git reset --hard origin/main
 
 echo "=== 2) RUN FULL TEST SUITE ==="
 python3 -m unittest discover -s validation -p "test_*.py" || true
