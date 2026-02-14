@@ -54,6 +54,30 @@ class SignalQuality:
         a, b, c = self.history[-3], self.history[-2], self.history[-1]
         return 1.0 if (a < b < c) else (-1.0 if (a > b > c) else 0.0)
 
+    def multi_frame_validation(self, fast: float, slow: float) -> float:
+        """
+        Multi-frame validation: require fast-frame signal to agree with slow-frame trend.
+        Returns 1 if same sign, -1 if opposite.
+        """
+        if fast > 0 and slow > 0:
+            return 1.0
+        if fast < 0 and slow < 0:
+            return 1.0
+        return -1.0
+
+    def regime_alignment(self, regime_label: str) -> float:
+        """Require signal direction to align with market regime. Returns 1 or -1."""
+        ema = self.last_ema or 0.0
+        if (regime_label or "").upper() == "BULL" and ema > 0:
+            return 1.0
+        if (regime_label or "").upper() == "BEAR" and ema < 0:
+            return 1.0
+        return -1.0
+
+    def sector_alignment(self, sector_momentum: float) -> float:
+        """Require sector momentum to be positive. Returns 1 or -1."""
+        return 1.0 if float(sector_momentum or 0) > 0 else -1.0
+
     def volatility_filter(self, atr: float, threshold: float = 0.2) -> float:
         """Reject signals during extreme chop (low ATR). Returns 1 if ok, -1 if filter."""
         return 1.0 if (atr is not None and float(atr) > threshold) else -1.0
@@ -71,15 +95,22 @@ def signal_quality_delta(
     raw_signal: float = 0.0,
     atr: float | None = None,
     *,
+    fast_signal: float | None = None,
+    slow_signal: float | None = None,
+    regime_label: str | None = None,
+    sector_momentum: float | None = None,
     weight_smoothed: float = 0.10,
     weight_persistence: float = 0.05,
     weight_longevity: float = 0.10,
     weight_trend: float = 0.05,
     weight_vol: float = 0.05,
+    weight_mfv: float = 0.10,
+    weight_regime: float = 0.10,
+    weight_sector: float = 0.10,
 ) -> float:
     """
     Compute signal-quality adjustment to add to composite score.
-    Uses smoothing, persistence, longevity, trend confirmation, volatility filter.
+    Includes predictive scoring: multi-frame validation, regime alignment, sector alignment.
     Returns delta (can be negative). If no history yet, returns 0.
     """
     engine = get_engine(symbol)
@@ -89,11 +120,19 @@ def signal_quality_delta(
     trend = engine.trend_confirmation()
     atr_val = float(atr) if atr is not None else 0.5
     vol_ok = engine.volatility_filter(atr_val)
+    fast = float(fast_signal) if fast_signal is not None else smoothed
+    slow = float(slow_signal) if slow_signal is not None else smoothed
+    mfv = engine.multi_frame_validation(fast, slow)
+    regime_score = engine.regime_alignment(regime_label or "")
+    sector_score = engine.sector_alignment(sector_momentum or 0)
     delta = (
         weight_smoothed * smoothed
         + weight_persistence * persistence
         + weight_longevity * longevity
         + weight_trend * trend
         + weight_vol * vol_ok
+        + weight_mfv * mfv
+        + weight_regime * regime_score
+        + weight_sector * sector_score
     )
     return round(delta, 4)

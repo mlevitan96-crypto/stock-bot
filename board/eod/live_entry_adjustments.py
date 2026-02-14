@@ -250,7 +250,19 @@ def apply_signal_quality_to_score(
     if raw_signal is None:
         raw_signal = composite_score
     atr = ctx.get("atr")
-    delta = signal_quality_delta(symbol, raw_signal=float(raw_signal), atr=atr)
+    fast_signal = ctx.get("fast_signal")
+    slow_signal = ctx.get("slow_signal")
+    regime_label = ctx.get("regime_label")
+    sector_momentum = ctx.get("sector_momentum")
+    delta = signal_quality_delta(
+        symbol,
+        raw_signal=float(raw_signal),
+        atr=atr,
+        fast_signal=fast_signal,
+        slow_signal=slow_signal,
+        regime_label=regime_label,
+        sector_momentum=sector_momentum,
+    )
     if delta == 0:
         return composite_score
     out = composite_score + delta

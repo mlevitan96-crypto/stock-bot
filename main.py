@@ -7541,7 +7541,14 @@ class StrategyEngine:
                     apply_survivorship_to_score,
                 )
                 from policy_variants import get_variant_id
-                market_ctx = {"raw_signal": c.get("composite_score", score), "atr": c.get("atr")}
+                market_ctx = {
+                    "raw_signal": c.get("composite_score", score),
+                    "atr": c.get("atr"),
+                    "fast_signal": c.get("fast_signal"),
+                    "slow_signal": c.get("slow_signal"),
+                    "regime_label": market_regime,
+                    "sector_momentum": c.get("sector_momentum", 0),
+                }
                 score = apply_signal_quality_to_score(symbol, float(score), market_ctx)
                 score, uw_details = apply_uw_to_score(symbol, float(score))
                 score, surv_action = apply_survivorship_to_score(symbol, float(score))
