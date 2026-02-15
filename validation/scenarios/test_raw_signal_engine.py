@@ -61,3 +61,41 @@ class TestRawSignalEngineSanity(unittest.TestCase):
         self.assertEqual(compute_regime_signal("BULL"), 1.0)
         self.assertEqual(compute_regime_signal("BEAR"), -1.0)
         self.assertAlmostEqual(compute_regime_signal("RANGE"), 0.0, places=2)
+
+
+class TestBlock3CWeightingAndGating(unittest.TestCase):
+    """Block 3C: gate multiplier and weighted signal delta return floats and behave as specified."""
+
+    def test_gate_multiplier_returns_float(self):
+        from src.signals.raw_signal_engine import compute_signal_gate_multiplier
+        g = compute_signal_gate_multiplier({"volatility_signal": 0.5, "regime_signal": 1.0})
+        self.assertIsInstance(g, float)
+        self.assertGreaterEqual(g, 0.0)
+        self.assertLessEqual(g, 1.0)
+
+    def test_gate_full_when_healthy_vol_and_bull_regime(self):
+        from src.signals.raw_signal_engine import compute_signal_gate_multiplier
+        g = compute_signal_gate_multiplier({"volatility_signal": 0.5, "regime_signal": 1.0})
+        self.assertEqual(g, 1.0)
+
+    def test_gate_damp_when_regime_range(self):
+        from src.signals.raw_signal_engine import compute_signal_gate_multiplier
+        g = compute_signal_gate_multiplier({"volatility_signal": 0.5, "regime_signal": 0.0})
+        self.assertEqual(g, 0.5)
+
+    def test_gate_damp_when_vol_negative(self):
+        from src.signals.raw_signal_engine import compute_signal_gate_multiplier
+        g = compute_signal_gate_multiplier({"volatility_signal": -0.5, "regime_signal": 1.0})
+        self.assertEqual(g, 0.25)
+
+    def test_weighted_signal_delta_returns_float(self):
+        from src.signals.raw_signal_engine import get_weighted_signal_delta, DEFAULT_SIGNAL_WEIGHTS
+        d = get_weighted_signal_delta({"trend_signal": 0.5, "momentum_signal": 0.3}, DEFAULT_SIGNAL_WEIGHTS)
+        self.assertIsInstance(d, float)
+
+    def test_weighted_signal_delta_bounded(self):
+        from src.signals.raw_signal_engine import get_weighted_signal_delta, DEFAULT_SIGNAL_WEIGHTS
+        all_ones = {k: 1.0 for k in DEFAULT_SIGNAL_WEIGHTS}
+        d = get_weighted_signal_delta(all_ones, DEFAULT_SIGNAL_WEIGHTS)
+        self.assertIsInstance(d, float)
+        self.assertLessEqual(abs(d), 0.2)

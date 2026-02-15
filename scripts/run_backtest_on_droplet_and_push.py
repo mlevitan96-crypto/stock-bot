@@ -28,7 +28,7 @@ def main() -> int:
             f"cd {root} 2>/dev/null || cd /root/stock-bot-current 2>/dev/null || cd /root/stock-bot && "
             "git stash push -m 'pre-backtest' || true && "
             "git fetch --all && git checkout main && git pull --rebase origin main && "
-            "export OUT_DIR_PREFIX=30d_after_signal_engine_block3b && "
+            "export OUT_DIR_PREFIX=30d_after_signal_engine_block3c && "
             "bash board/eod/run_30d_backtest_on_droplet.sh"
         )
         print("Running on droplet:", cmd[:120], "...")

@@ -1,12 +1,26 @@
 """
-Raw Signal Engine — Block 3B predictive logic.
+Raw Signal Engine — Block 3B predictive logic; Block 3C weighting and gating.
 Computes trend, momentum, volatility, regime, sector, reversal, breakout, mean-reversion signals.
 All signals normalized or bounded to [-1, 1] where applicable.
+Block 3C: per-signal weights and gate multiplier (volatility/regime) for safe integration.
 """
 from __future__ import annotations
 
 import math
 from typing import Any, Dict, List, Union
+
+# Block 3C: small safe weights for first iteration (max total ~0.18)
+DEFAULT_SIGNAL_WEIGHTS: Dict[str, float] = {
+    "trend_signal": 0.03,
+    "momentum_signal": 0.03,
+    "volatility_signal": 0.02,
+    "regime_signal": 0.02,
+    "sector_signal": 0.02,
+    "reversal_signal": 0.02,
+    "breakout_signal": 0.02,
+    "mean_reversion_signal": 0.02,
+}
+SIGNAL_KEYS = list(DEFAULT_SIGNAL_WEIGHTS.keys())
 
 
 def _clamp(x: float, lo: float, hi: float) -> float:
@@ -235,3 +249,50 @@ def build_raw_signals(
         "breakout_signal": float(compute_breakout_signal(ps)),
         "mean_reversion_signal": float(compute_mean_reversion_signal(ps)),
     }
+
+
+def compute_signal_gate_multiplier(raw_signals: Union[Dict[str, float], Any]) -> float:
+    """
+    Block 3C: gate multiplier in [0, 1] based on volatility and regime.
+    - 1.0 when volatility in healthy band and regime is BULL/BEAR.
+    - 0.5 when regime is RANGE/UNKNOWN (damp).
+    - 0.25 when volatility indicates chop/chaos (vol_signal < 0).
+    Ensures we don't amplify signals in chaotic or unclear regimes.
+    """
+    if not isinstance(raw_signals, dict):
+        return 0.5
+    vol = raw_signals.get("volatility_signal")
+    regime = raw_signals.get("regime_signal")
+    try:
+        vol_f = float(vol) if vol is not None else 0.0
+        regime_f = float(regime) if regime is not None else 0.0
+    except (TypeError, ValueError):
+        return 0.5
+    if vol_f < 0:
+        return 0.25
+    if regime_f == 0.0:
+        return 0.5
+    return 1.0
+
+
+def get_weighted_signal_delta(
+    raw_signals: Union[Dict[str, float], Any],
+    weights: Union[Dict[str, float], None] = None,
+) -> float:
+    """
+    Block 3C: weighted sum of raw signals for entry score delta.
+    delta = sum(weights[k] * raw_signals[k]) for each k in weights.
+    Missing keys in raw_signals treated as 0.0. Returns float.
+    """
+    if not isinstance(raw_signals, dict):
+        return 0.0
+    w = weights if isinstance(weights, dict) else DEFAULT_SIGNAL_WEIGHTS
+    delta = 0.0
+    for k, weight in w.items():
+        try:
+            v = raw_signals.get(k)
+            val = float(v) if v is not None else 0.0
+        except (TypeError, ValueError):
+            val = 0.0
+        delta += weight * val
+    return float(delta)
