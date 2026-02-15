@@ -27,12 +27,13 @@ def main() -> int:
         cmd = (
             f"cd {root} 2>/dev/null || cd /root/stock-bot-current 2>/dev/null || cd /root/stock-bot && "
             "git stash push -m 'pre-backtest' || true && "
-            "git fetch --all && git checkout main && git pull --rebase origin main && "
+            "git fetch --all && git checkout main && "
+            "(git pull --rebase origin main || git reset --hard origin/main) && "
             "export OUT_DIR_PREFIX=30d_after_signal_engine_block3g && "
             "bash board/eod/run_30d_backtest_on_droplet.sh"
         )
         print("Running on droplet:", cmd[:120], "...")
-        out, err, rc = c._execute(cmd, timeout=300)
+        out, err, rc = c._execute(cmd, timeout=3600)
         print(out)
         if err:
             print(err, file=sys.stderr)
