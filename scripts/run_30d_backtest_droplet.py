@@ -19,6 +19,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+try:
+    from scripts.replay_signal_injection import compute_signals_for_timestamp
+except Exception:
+    compute_signals_for_timestamp = None  # type: ignore
+
 
 def _parse_args():
     p = argparse.ArgumentParser(description="Run 30-day backtest")
@@ -119,6 +124,7 @@ def run() -> int:
     blocked_path = base / "state" / "blocked_trades.jsonl"
 
     # Load attribution (executed trades) in window (Block 3E: context carries signal fields)
+    # Block 3G: replay-time signal injection — compute signals at entry timestamp and merge into context
     trades = []
     for r in _iter_jsonl(attr_path):
         if r.get("type") != "attribution":
@@ -126,18 +132,30 @@ def run() -> int:
         day = _day_utc(r.get("timestamp") or r.get("ts"))
         if day not in window_days:
             continue
-        ctx = r.get("context") or {}
+        ctx = dict(r.get("context") or {})
         entry_score = r.get("entry_score") if r.get("entry_score") is not None else ctx.get("entry_score")
-        trades.append({
-            "timestamp": r.get("timestamp") or r.get("ts"),
-            "symbol": r.get("symbol"),
+        ts = r.get("timestamp") or r.get("ts")
+        sym = r.get("symbol")
+        rec = {
+            "timestamp": ts,
+            "symbol": sym,
             "entry_score": entry_score,
             "pnl_usd": r.get("pnl_usd"),
             "pnl_pct": r.get("pnl_pct"),
             "hold_minutes": r.get("hold_minutes"),
             "context": ctx,
             "source": "attribution",
-        })
+        }
+        if compute_signals_for_timestamp and sym and ts:
+            try:
+                signals = compute_signals_for_timestamp(sym, ts)
+                for k, v in signals.items():
+                    if v is not None or k in ("regime_label", "sector_momentum"):
+                        ctx[k] = v
+                        rec[k] = v
+            except Exception:
+                pass
+        trades.append(rec)
 
     # Load exit_attribution (exits with regime/reason) in window
     exits = []
@@ -158,7 +176,7 @@ def run() -> int:
             "source": "exit_attribution",
         })
 
-    # Load blocked_trades in window (Block 3E: preserve signal fields for edge analysis)
+    # Load blocked_trades in window (Block 3E: preserve signal fields; Block 3G: replay-time injection)
     _signal_keys = (
         "trend_signal", "momentum_signal", "volatility_signal", "regime_signal",
         "sector_signal", "reversal_signal", "breakout_signal", "mean_reversion_signal",
@@ -169,9 +187,11 @@ def run() -> int:
         day = _day_utc(r.get("timestamp") or r.get("ts"))
         if day not in window_days:
             continue
+        ts = r.get("timestamp") or r.get("ts")
+        sym = r.get("symbol")
         blk = {
-            "timestamp": r.get("timestamp") or r.get("ts"),
-            "symbol": r.get("symbol"),
+            "timestamp": ts,
+            "symbol": sym,
             "reason": r.get("reason") or r.get("block_reason"),
             "score": r.get("score"),
             "expected_value_usd": r.get("expected_value_usd"),
@@ -182,6 +202,14 @@ def run() -> int:
         for k in _signal_keys:
             if k in r and r[k] is not None:
                 blk[k] = r[k]
+        if compute_signals_for_timestamp and sym and ts:
+            try:
+                signals = compute_signals_for_timestamp(sym, ts)
+                for k, v in signals.items():
+                    if v is not None or k in ("regime_label", "sector_momentum"):
+                        blk[k] = v
+            except Exception:
+                pass
         blocks.append(blk)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
