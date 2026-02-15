@@ -1,8 +1,9 @@
 """
-Raw Signal Engine — Block 3B predictive logic; Block 3C weighting and gating.
+Raw Signal Engine — Block 3B predictive logic; Block 3C/3D weighting and gating.
 Computes trend, momentum, volatility, regime, sector, reversal, breakout, mean-reversion signals.
 All signals normalized or bounded to [-1, 1] where applicable.
-Block 3C: per-signal weights and gate multiplier (volatility/regime) for safe integration.
+Block 3C: per-signal weights and gate multiplier (volatility/regime).
+Block 3D: regime-specific weights, sector alignment, composite gate, bounded delta.
 """
 from __future__ import annotations
 
@@ -21,6 +22,26 @@ DEFAULT_SIGNAL_WEIGHTS: Dict[str, float] = {
     "mean_reversion_signal": 0.02,
 }
 SIGNAL_KEYS = list(DEFAULT_SIGNAL_WEIGHTS.keys())
+
+# Block 3D: base weights (trend/momentum stronger; reversal/mean_reversion lower)
+DEFAULT_SIGNAL_WEIGHTS_3D: Dict[str, float] = {
+    "trend_signal": 0.05,
+    "momentum_signal": 0.04,
+    "volatility_signal": 0.025,
+    "regime_signal": 0.025,
+    "sector_signal": 0.025,
+    "reversal_signal": 0.015,
+    "breakout_signal": 0.025,
+    "mean_reversion_signal": 0.015,
+}
+# Block 3D: bounds for weighted delta (final delta added to score)
+WEIGHTED_DELTA_MAX_ABS = 0.25
+COMPOSITE_GATE_MIN = 0.1
+# Volatility gate thresholds on vol_signal [-1, 1]: low = chop/chaos, high = very healthy
+VOL_GATE_THRESHOLD_LOW = 0.0
+VOL_GATE_THRESHOLD_HIGH = 0.7
+SECTOR_ALIGNMENT_DAMP = 0.5
+SECTOR_ALIGNMENT_BOOST = 1.2
 
 
 def _clamp(x: float, lo: float, hi: float) -> float:
@@ -296,3 +317,139 @@ def get_weighted_signal_delta(
             val = 0.0
         delta += weight * val
     return float(delta)
+
+
+# ---------- Block 3D: regime-specific weights, sector alignment, composite gate ----------
+
+
+def compute_regime_adjusted_weights(regime_label: str) -> Dict[str, float]:
+    """
+    Block 3D: regime-specific weight multipliers applied to base weights.
+    BULL: increase trend, momentum, breakout; decrease reversal, mean_reversion.
+    BEAR: increase trend, momentum, reversal; decrease mean_reversion.
+    RANGE: increase reversal, mean_reversion; decrease trend, breakout.
+    Returns dict of final weights (base * regime multiplier). All values floats.
+    """
+    base = dict(DEFAULT_SIGNAL_WEIGHTS_3D)
+    r = (regime_label or "").strip().upper()
+    if r == "BULL":
+        base["trend_signal"] *= 1.3
+        base["momentum_signal"] *= 1.2
+        base["breakout_signal"] *= 1.2
+        base["reversal_signal"] *= 0.7
+        base["mean_reversion_signal"] *= 0.7
+    elif r == "BEAR":
+        base["trend_signal"] *= 1.2
+        base["momentum_signal"] *= 1.2
+        base["reversal_signal"] *= 1.3
+        base["mean_reversion_signal"] *= 0.8
+        base["breakout_signal"] *= 0.9
+    else:
+        base["trend_signal"] *= 0.7
+        base["momentum_signal"] *= 0.8
+        base["reversal_signal"] *= 1.3
+        base["mean_reversion_signal"] *= 1.3
+        base["breakout_signal"] *= 0.7
+    return {k: float(v) for k, v in base.items()}
+
+
+def compute_sector_alignment_multiplier(raw_signals: Union[Dict[str, float], Any]) -> float:
+    """
+    Block 3D: sector-trend alignment. If sector_signal and trend_signal disagree → damp (0.5);
+    if they agree → boost (1.2). Missing keys treated as 0.0. Returns float.
+    """
+    if not isinstance(raw_signals, dict):
+        return 1.0
+    try:
+        sector = float(raw_signals.get("sector_signal") or 0.0)
+        trend = float(raw_signals.get("trend_signal") or 0.0)
+    except (TypeError, ValueError):
+        return 1.0
+    if sector == 0.0 and trend == 0.0:
+        return 1.0
+    if (sector > 0 and trend > 0) or (sector < 0 and trend < 0):
+        return float(SECTOR_ALIGNMENT_BOOST)
+    return float(SECTOR_ALIGNMENT_DAMP)
+
+
+def compute_volatility_gate(raw_signals: Union[Dict[str, float], Any]) -> float:
+    """
+    Block 3D: volatility gate. vol_signal > threshold_high → 0.5; vol_signal < threshold_low → 0.25;
+    else → 1.0. vol_signal in [-1, 1]; low = chop/chaos, high = very healthy. Returns float.
+    """
+    if not isinstance(raw_signals, dict):
+        return 0.5
+    try:
+        vol = float(raw_signals.get("volatility_signal") or 0.0)
+    except (TypeError, ValueError):
+        return 0.5
+    if vol < VOL_GATE_THRESHOLD_LOW:
+        return 0.25
+    if vol > VOL_GATE_THRESHOLD_HIGH:
+        return 0.5
+    return 1.0
+
+
+def _compute_regime_gate(raw_signals: Union[Dict[str, float], Any], regime_label: str) -> float:
+    """
+    Block 3D: regime gate. If signal direction contradicts regime (e.g. BULL but trend < 0) → 0.5; else 1.0.
+    """
+    if not isinstance(raw_signals, dict):
+        return 1.0
+    r = (regime_label or "").strip().upper()
+    try:
+        trend = float(raw_signals.get("trend_signal") or 0.0)
+        momentum = float(raw_signals.get("momentum_signal") or 0.0)
+    except (TypeError, ValueError):
+        return 1.0
+    if r == "BULL":
+        if trend < 0 or momentum < 0:
+            return 0.5
+    elif r == "BEAR":
+        if trend > 0 or momentum > 0:
+            return 0.5
+    return 1.0
+
+
+def compute_composite_gate(
+    raw_signals: Union[Dict[str, float], Any],
+    regime_label: str,
+    sector_momentum: float,
+) -> float:
+    """
+    Block 3D: composite gate = vol_gate * regime_gate * sector_alignment_multiplier.
+    Bounded >= COMPOSITE_GATE_MIN (0.1). All inputs optional; missing keys → safe defaults.
+    Returns float.
+    """
+    if not isinstance(raw_signals, dict):
+        raw_signals = {}
+    vol_gate = compute_volatility_gate(raw_signals)
+    regime_gate = _compute_regime_gate(raw_signals, regime_label or "")
+    sector_mult = compute_sector_alignment_multiplier(raw_signals)
+    composite = float(vol_gate) * float(regime_gate) * float(sector_mult)
+    return float(max(COMPOSITE_GATE_MIN, min(1.0, composite)))
+
+
+def get_weighted_signal_delta_3D(
+    raw_signals: Union[Dict[str, float], Any],
+    weights: Union[Dict[str, float], None],
+    gate: float,
+) -> float:
+    """
+    Block 3D: weighted delta with gate applied; result clamped to [-WEIGHTED_DELTA_MAX_ABS, +WEIGHTED_DELTA_MAX_ABS].
+    weights default to DEFAULT_SIGNAL_WEIGHTS_3D. Missing keys in raw_signals → 0.0. Returns float.
+    """
+    if not isinstance(raw_signals, dict):
+        return 0.0
+    w = weights if isinstance(weights, dict) else DEFAULT_SIGNAL_WEIGHTS_3D
+    delta = 0.0
+    for k, weight in w.items():
+        try:
+            v = raw_signals.get(k)
+            val = float(v) if v is not None else 0.0
+        except (TypeError, ValueError):
+            val = 0.0
+        delta += weight * val
+    g = float(gate) if gate is not None else 0.5
+    result = g * delta
+    return float(_clamp(result, -WEIGHTED_DELTA_MAX_ABS, WEIGHTED_DELTA_MAX_ABS))

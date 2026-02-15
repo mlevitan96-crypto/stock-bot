@@ -263,12 +263,12 @@ def apply_signal_quality_to_score(
         regime_label=regime_label,
         sector_momentum=sector_momentum,
     )
-    # Block 3C: weighted raw signals with gating (volatility/regime)
+    # Block 3D: regime-specific weights, sector alignment, composite gate, bounded delta
     try:
         from src.signals.raw_signal_engine import (
-            DEFAULT_SIGNAL_WEIGHTS,
-            compute_signal_gate_multiplier,
-            get_weighted_signal_delta,
+            compute_composite_gate,
+            compute_regime_adjusted_weights,
+            get_weighted_signal_delta_3D,
             SIGNAL_KEYS,
         )
         raw_signals = {}
@@ -278,9 +278,14 @@ def apply_signal_quality_to_score(
                 raw_signals[k] = float(v)
             else:
                 raw_signals[k] = 0.0
-        gate = compute_signal_gate_multiplier(raw_signals)
-        weighted_delta = get_weighted_signal_delta(raw_signals, DEFAULT_SIGNAL_WEIGHTS)
-        delta += float(gate) * float(weighted_delta)
+        regime_label_ctx = ctx.get("regime_label") or regime_label
+        sector_momentum_ctx = ctx.get("sector_momentum")
+        if sector_momentum_ctx is None:
+            sector_momentum_ctx = 0.0
+        gate = compute_composite_gate(raw_signals, regime_label_ctx, sector_momentum_ctx)
+        weights_3d = compute_regime_adjusted_weights(regime_label_ctx or "")
+        weighted_delta = get_weighted_signal_delta_3D(raw_signals, weights_3d, gate)
+        delta += float(weighted_delta)
     except Exception:
         pass
     if delta == 0:

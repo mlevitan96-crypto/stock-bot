@@ -99,3 +99,94 @@ class TestBlock3CWeightingAndGating(unittest.TestCase):
         d = get_weighted_signal_delta(all_ones, DEFAULT_SIGNAL_WEIGHTS)
         self.assertIsInstance(d, float)
         self.assertLessEqual(abs(d), 0.2)
+
+
+class TestBlock3DWeightingAndGating(unittest.TestCase):
+    """Block 3D: regime-adjusted weights, sector alignment, composite gate, bounded delta."""
+
+    def test_compute_regime_adjusted_weights_returns_dict_of_floats(self):
+        from src.signals.raw_signal_engine import compute_regime_adjusted_weights, SIGNAL_KEYS
+        w = compute_regime_adjusted_weights("BULL")
+        self.assertIsInstance(w, dict)
+        for k in SIGNAL_KEYS:
+            self.assertIn(k, w)
+            self.assertIsInstance(w[k], float)
+
+    def test_regime_adjusted_weights_bull_boosts_trend_momentum(self):
+        from src.signals.raw_signal_engine import compute_regime_adjusted_weights, DEFAULT_SIGNAL_WEIGHTS_3D
+        w_bull = compute_regime_adjusted_weights("BULL")
+        self.assertGreater(w_bull["trend_signal"], DEFAULT_SIGNAL_WEIGHTS_3D["trend_signal"])
+        self.assertGreater(w_bull["momentum_signal"], DEFAULT_SIGNAL_WEIGHTS_3D["momentum_signal"])
+        self.assertLess(w_bull["reversal_signal"], DEFAULT_SIGNAL_WEIGHTS_3D["reversal_signal"])
+
+    def test_regime_adjusted_weights_range_boosts_reversal_mean_reversion(self):
+        from src.signals.raw_signal_engine import compute_regime_adjusted_weights, DEFAULT_SIGNAL_WEIGHTS_3D
+        w_range = compute_regime_adjusted_weights("RANGE")
+        self.assertGreater(w_range["reversal_signal"], DEFAULT_SIGNAL_WEIGHTS_3D["reversal_signal"])
+        self.assertGreater(w_range["mean_reversion_signal"], DEFAULT_SIGNAL_WEIGHTS_3D["mean_reversion_signal"])
+        self.assertLess(w_range["trend_signal"], DEFAULT_SIGNAL_WEIGHTS_3D["trend_signal"])
+
+    def test_compute_sector_alignment_multiplier_agree_returns_boost(self):
+        from src.signals.raw_signal_engine import compute_sector_alignment_multiplier, SECTOR_ALIGNMENT_BOOST
+        m = compute_sector_alignment_multiplier({"sector_signal": 0.5, "trend_signal": 0.3})
+        self.assertEqual(m, SECTOR_ALIGNMENT_BOOST)
+
+    def test_compute_sector_alignment_multiplier_disagree_returns_damp(self):
+        from src.signals.raw_signal_engine import compute_sector_alignment_multiplier, SECTOR_ALIGNMENT_DAMP
+        m = compute_sector_alignment_multiplier({"sector_signal": -0.5, "trend_signal": 0.3})
+        self.assertEqual(m, SECTOR_ALIGNMENT_DAMP)
+
+    def test_compute_sector_alignment_multiplier_missing_keys_default_safe(self):
+        from src.signals.raw_signal_engine import compute_sector_alignment_multiplier
+        self.assertEqual(compute_sector_alignment_multiplier({}), 1.0)
+        self.assertEqual(compute_sector_alignment_multiplier(None), 1.0)
+
+    def test_compute_volatility_gate_returns_float_in_bounds(self):
+        from src.signals.raw_signal_engine import compute_volatility_gate
+        g = compute_volatility_gate({"volatility_signal": 0.5})
+        self.assertIsInstance(g, float)
+        self.assertIn(g, (0.25, 0.5, 1.0))
+
+    def test_compute_volatility_gate_low_vol_returns_025(self):
+        from src.signals.raw_signal_engine import compute_volatility_gate
+        self.assertEqual(compute_volatility_gate({"volatility_signal": -0.5}), 0.25)
+
+    def test_compute_volatility_gate_high_vol_returns_05(self):
+        from src.signals.raw_signal_engine import compute_volatility_gate
+        self.assertEqual(compute_volatility_gate({"volatility_signal": 0.9}), 0.5)
+
+    def test_compute_composite_gate_returns_float_bounded(self):
+        from src.signals.raw_signal_engine import compute_composite_gate, COMPOSITE_GATE_MIN
+        g = compute_composite_gate(
+            {"volatility_signal": 0.5, "trend_signal": 0.3, "regime_signal": 1.0},
+            "BULL",
+            0.1,
+        )
+        self.assertIsInstance(g, float)
+        self.assertGreaterEqual(g, COMPOSITE_GATE_MIN)
+        self.assertLessEqual(g, 1.0)
+
+    def test_compute_composite_gate_missing_keys_safe(self):
+        from src.signals.raw_signal_engine import compute_composite_gate, COMPOSITE_GATE_MIN
+        g = compute_composite_gate({}, "", 0.0)
+        self.assertIsInstance(g, float)
+        self.assertGreaterEqual(g, COMPOSITE_GATE_MIN)
+
+    def test_get_weighted_signal_delta_3d_returns_float_bounded(self):
+        from src.signals.raw_signal_engine import (
+            get_weighted_signal_delta_3D,
+            compute_regime_adjusted_weights,
+            WEIGHTED_DELTA_MAX_ABS,
+        )
+        raw = {k: 1.0 for k in ("trend_signal", "momentum_signal", "volatility_signal", "regime_signal",
+                                "sector_signal", "reversal_signal", "breakout_signal", "mean_reversion_signal")}
+        w = compute_regime_adjusted_weights("BULL")
+        d = get_weighted_signal_delta_3D(raw, w, 1.0)
+        self.assertIsInstance(d, float)
+        self.assertLessEqual(abs(d), WEIGHTED_DELTA_MAX_ABS)
+
+    def test_get_weighted_signal_delta_3d_missing_keys_default_zero(self):
+        from src.signals.raw_signal_engine import get_weighted_signal_delta_3D, DEFAULT_SIGNAL_WEIGHTS_3D
+        d = get_weighted_signal_delta_3D({}, DEFAULT_SIGNAL_WEIGHTS_3D, 1.0)
+        self.assertIsInstance(d, float)
+        self.assertEqual(d, 0.0)
