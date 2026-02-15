@@ -118,7 +118,7 @@ def run() -> int:
     exit_attr_path = base / "logs" / "exit_attribution.jsonl"
     blocked_path = base / "state" / "blocked_trades.jsonl"
 
-    # Load attribution (executed trades) in window
+    # Load attribution (executed trades) in window (Block 3E: context carries signal fields)
     trades = []
     for r in _iter_jsonl(attr_path):
         if r.get("type") != "attribution":
@@ -126,14 +126,16 @@ def run() -> int:
         day = _day_utc(r.get("timestamp") or r.get("ts"))
         if day not in window_days:
             continue
+        ctx = r.get("context") or {}
+        entry_score = r.get("entry_score") if r.get("entry_score") is not None else ctx.get("entry_score")
         trades.append({
             "timestamp": r.get("timestamp") or r.get("ts"),
             "symbol": r.get("symbol"),
-            "entry_score": r.get("entry_score"),
+            "entry_score": entry_score,
             "pnl_usd": r.get("pnl_usd"),
             "pnl_pct": r.get("pnl_pct"),
             "hold_minutes": r.get("hold_minutes"),
-            "context": r.get("context"),
+            "context": ctx,
             "source": "attribution",
         })
 
@@ -156,13 +158,18 @@ def run() -> int:
             "source": "exit_attribution",
         })
 
-    # Load blocked_trades in window
+    # Load blocked_trades in window (Block 3E: preserve signal fields for edge analysis)
+    _signal_keys = (
+        "trend_signal", "momentum_signal", "volatility_signal", "regime_signal",
+        "sector_signal", "reversal_signal", "breakout_signal", "mean_reversion_signal",
+        "regime_label", "sector_momentum",
+    )
     blocks = []
     for r in _iter_jsonl(blocked_path):
         day = _day_utc(r.get("timestamp") or r.get("ts"))
         if day not in window_days:
             continue
-        blocks.append({
+        blk = {
             "timestamp": r.get("timestamp") or r.get("ts"),
             "symbol": r.get("symbol"),
             "reason": r.get("reason") or r.get("block_reason"),
@@ -171,7 +178,11 @@ def run() -> int:
             "strategy": r.get("strategy") or r.get("variant_id"),
             "uw_signal_quality_score": r.get("uw_signal_quality_score"),
             "source": "blocked_trades",
-        })
+        }
+        for k in _signal_keys:
+            if k in r and r[k] is not None:
+                blk[k] = r[k]
+        blocks.append(blk)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 

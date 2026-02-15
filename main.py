@@ -971,10 +971,11 @@ def log_signal_to_history(symbol: str, direction: str, raw_score: float, whale_b
 
 def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = None,
                       direction: str = None, decision_price: float = None,
-                      components: dict = None, **kw):
+                      components: dict = None, market_context: dict = None, **kw):
     """
     Log blocked trades for counterfactual learning and missed-money (blocked EV).
     Appends: block_reason, candidate_rank, candidate_score, expected_value_usd, would_have_entered_price.
+    Block 3E: market_context adds raw signals (trend_signal, momentum_signal, etc.) for edge analysis.
     """
     side = "long" if (direction or "").lower() == "bullish" else "short"
     expected_ev = kw.pop("expected_value_usd", None)
@@ -1001,6 +1002,15 @@ def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = No
         "outcome_tracked": False,
         **kw
     }
+    # Block 3E: add raw signal fields for edge analysis
+    if isinstance(market_context, dict):
+        try:
+            from src.signals.raw_signal_engine import extract_signals_for_attribution
+            for k, v in extract_signals_for_attribution(market_context).items():
+                if v is not None:
+                    record[k] = v
+        except Exception:
+            pass
     blocked_path = os.path.join("state", "blocked_trades.jsonl")
     os.makedirs(os.path.dirname(blocked_path), exist_ok=True)
     with open(blocked_path, "a", encoding="utf-8") as f:
@@ -7534,6 +7544,7 @@ class StrategyEngine:
             uw_details: dict = {}
             surv_action = ""
             vid = None
+            market_ctx = {}  # Block 3E: always init for attribution logging
             try:
                 from board.eod.live_entry_adjustments import (
                     apply_signal_quality_to_score,
@@ -7663,6 +7674,7 @@ class StrategyEngine:
                                  decision_price=ref_price_check if 'ref_price_check' in locals() else 0.0,
                                  components=comps if 'comps' in locals() else {},
                                  net_delta_pct=net_delta_pct,
+                                 market_context=market_ctx,
                                  composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                 # SIGNAL HISTORY: Log blocked signal
                 log_signal_to_history(
@@ -8152,6 +8164,7 @@ class StrategyEngine:
                                   decision_price=ref_price_check,
                                   components=comps,
                                   expectancy=expectancy, stage=system_stage,
+                                  market_context=market_ctx,
                                   composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                 
                 # SIGNAL HISTORY: Log blocked signal
@@ -8181,6 +8194,7 @@ class StrategyEngine:
                                   decision_price=ref_price_check,
                                   components=comps,
                                   cycle_count=new_positions_this_cycle,
+                                  market_context=market_ctx,
                                   composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                 
                 # Shadow tracking removed (v2-only engine).
@@ -8271,6 +8285,7 @@ class StrategyEngine:
                                   decision_price=ref_price_check,
                                   components=comps,
                                   min_required=min_score,
+                                  market_context=market_ctx,
                                   composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                   stage=system_stage,
                                   uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
@@ -8394,6 +8409,7 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           displaced_symbol=dc_symbol,
+                                          market_context=market_ctx,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           policy_reason=policy_reason, candidate_rank=candidate_rank,
                                           uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
@@ -8449,6 +8465,7 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           displaced_symbol=displaced_sym,
+                                          market_context=market_ctx,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
                                           uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
@@ -8514,6 +8531,7 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           alpaca_positions=actual_positions,
+                                          market_context=market_ctx,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           executor_opens=len(self.executor.opens),
                                           max_positions=max_pos, candidate_rank=candidate_rank,
@@ -8545,6 +8563,7 @@ class StrategyEngine:
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
                                   components=comps,
+                                  market_context=market_ctx,
                                   composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                   uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
                                   uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
@@ -8599,6 +8618,7 @@ class StrategyEngine:
                                              direction=c.get("direction"),
                                              decision_price=ref_price_check,
                                              components=comps, reason=symbol_reason,
+                                             market_context=market_ctx,
                                              composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                             # SIGNAL HISTORY: Log blocked signal
                             log_signal_to_history(
@@ -8623,6 +8643,7 @@ class StrategyEngine:
                                          direction=c.get("direction"),
                                          decision_price=ref_price_check,
                                          components=comps, reason=sector_reason,
+                                         market_context=market_ctx,
                                          composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                         # SIGNAL HISTORY: Log blocked signal
                         log_signal_to_history(
@@ -8685,6 +8706,7 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           price_change_pct=momentum_check.get("price_change_pct", 0.0),
+                                          market_context=market_ctx,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                           reason=block_reason)
                         
@@ -8831,6 +8853,7 @@ class StrategyEngine:
                                      direction=c.get("direction"),
                                      decision_price=ref_price_check,
                                      components=comps, validation_error=order_error,
+                                     market_context=market_ctx,
                                      composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                     # SIGNAL HISTORY: Log blocked signal
                     log_signal_to_history(
@@ -8975,6 +8998,7 @@ class StrategyEngine:
                                       direction=c.get("direction"),
                                       decision_price=ref_price_check,
                                       components=comps,
+                                      market_context=market_ctx,
                                       composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                     # SIGNAL HISTORY: Log blocked signal
                     log_signal_to_history(
@@ -9046,6 +9070,7 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           reason=dg_reason,
+                                          market_context=market_ctx,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                         log_signal_to_history(
                             symbol=symbol, direction=direction, raw_score=raw_score, whale_boost=whale_boost,
@@ -9250,6 +9275,7 @@ class StrategyEngine:
                                           decision_price=ref_price_check,
                                           components=comps,
                                           reason="entry_score must be > 0.0",
+                                          market_context=market_ctx,
                                           composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                         continue  # Skip this position - don't enter with invalid score
                     
@@ -9409,7 +9435,13 @@ class StrategyEngine:
                     })
                 else:
                     context["confirm_score"] = confirm_map.get(symbol, 0.0)
-                
+                # Block 3E: add raw signals to attribution context for edge analysis
+                try:
+                    from src.signals.raw_signal_engine import extract_signals_for_attribution
+                    for k, v in extract_signals_for_attribution(market_ctx).items():
+                        context[k] = v
+                except Exception:
+                    pass
                 # Append to orders list for both filled and submitted orders
                 # This ensures we track all order attempts, not just immediate fills
                 orders.append({"symbol": symbol, "qty": exec_qty, "side": side, "score": score, 

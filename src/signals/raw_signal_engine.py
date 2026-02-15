@@ -43,6 +43,40 @@ VOL_GATE_THRESHOLD_HIGH = 0.7
 SECTOR_ALIGNMENT_DAMP = 0.5
 SECTOR_ALIGNMENT_BOOST = 1.2
 
+# Block 3E: keys to extract for attribution logging
+ATTRIBUTION_SIGNAL_KEYS = (
+    "trend_signal", "momentum_signal", "volatility_signal", "regime_signal",
+    "sector_signal", "reversal_signal", "breakout_signal", "mean_reversion_signal",
+)
+
+
+def extract_signals_for_attribution(market_context: Union[Dict[str, Any], None]) -> Dict[str, Any]:
+    """
+    Block 3E: Extract signal fields from market_context for attribution logging.
+    Returns dict with float or None values; missing/invalid → None.
+    Safe to merge into attribution payloads.
+    """
+    if not isinstance(market_context, dict):
+        return {}
+    out: Dict[str, Any] = {}
+    for k in ATTRIBUTION_SIGNAL_KEYS:
+        v = market_context.get(k)
+        if v is not None and isinstance(v, (int, float)):
+            try:
+                out[k] = float(v)
+            except (TypeError, ValueError):
+                out[k] = None
+        else:
+            out[k] = None
+    if "regime_label" in market_context and market_context.get("regime_label") is not None:
+        out["regime_label"] = str(market_context["regime_label"])
+    if "sector_momentum" in market_context and market_context.get("sector_momentum") is not None:
+        try:
+            out["sector_momentum"] = float(market_context["sector_momentum"])
+        except (TypeError, ValueError):
+            out["sector_momentum"] = None
+    return out
+
 
 def _clamp(x: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, x))

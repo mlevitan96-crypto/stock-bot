@@ -71,7 +71,7 @@ def _regime_from_context(ctx: dict | None) -> str:
     """Extract regime label from context."""
     if not ctx or not isinstance(ctx, dict):
         return "UNKNOWN"
-    r = ctx.get("market_regime") or ctx.get("regime") or ""
+    r = ctx.get("regime_label") or ctx.get("market_regime") or ctx.get("regime") or ""
     if isinstance(r, str) and r.strip():
         return r.strip().upper()
     return "UNKNOWN"
