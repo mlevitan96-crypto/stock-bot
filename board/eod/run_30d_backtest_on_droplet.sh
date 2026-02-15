@@ -61,8 +61,19 @@ if missing:
 print("SUCCESS: All backtest artifacts present.")
 EOF
 
+echo "=== 4.5) RUN SIGNAL EDGE ANALYSIS ==="
+python3 scripts/run_signal_edge_analysis.py --backtest-dir "$OUT_DIR" || true
+# Also run on any existing block3d dirs missing the report
+for d in backtests/30d_after_signal_engine_block3d_*/; do
+  [ -d "$d" ] || continue
+  [ -f "$d/SIGNAL_EDGE_ANALYSIS_REPORT.md" ] && continue
+  [ -f "$d/backtest_trades.jsonl" ] || continue
+  python3 scripts/run_signal_edge_analysis.py --backtest-dir "$d" || true
+done
+
 echo "=== 5) COMMIT AND PUSH ==="
 git add "$OUT_DIR"
+git add backtests/*/SIGNAL_EDGE_ANALYSIS_REPORT.md 2>/dev/null || true
 git status --short
 git commit -m "30-day backtest after intelligence overhaul — $(date)" || true
 git push origin main || true
