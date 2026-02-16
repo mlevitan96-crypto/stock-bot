@@ -35,7 +35,9 @@ OUT_PREFIX="${OUT_DIR_PREFIX:-30d_after_intel_overhaul}"
 OUT_DIR="backtests/${OUT_PREFIX}_$(date +%Y%m%d_%H%M%S)"
 export OUT_DIR
 mkdir -p "$OUT_DIR"
-python3 scripts/run_30d_backtest_droplet.py --out "$OUT_DIR"
+DAYS_ARG=""
+[ -n "${BACKTEST_DAYS:-}" ] && DAYS_ARG="--days $BACKTEST_DAYS"
+python3 scripts/run_30d_backtest_droplet.py --out "$OUT_DIR" $DAYS_ARG
 
 echo "=== 4) VALIDATE ARTIFACTS ==="
 python3 - << 'EOF'

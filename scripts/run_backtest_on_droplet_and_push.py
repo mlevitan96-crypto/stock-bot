@@ -5,6 +5,7 @@ Uses DropletClient (SSH). Requires droplet_config.json and paramiko.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -24,12 +25,15 @@ def main() -> int:
     with DropletClient() as c:
         root = c.project_dir
         # Run: sync repo, write config, run backtest, then push results
+        # Optional: BACKTEST_DAYS=7 for faster 7-day run (fewer events, quicker injection)
+        backtest_days = "" if not os.environ.get("BACKTEST_DAYS") else f"export BACKTEST_DAYS={os.environ.get('BACKTEST_DAYS')} && "
         cmd = (
             f"cd {root} 2>/dev/null || cd /root/stock-bot-current 2>/dev/null || cd /root/stock-bot && "
             "git stash push -m 'pre-backtest' || true && "
             "git fetch --all && git checkout main && "
             "(git pull --rebase origin main || git reset --hard origin/main) && "
             "export OUT_DIR_PREFIX=30d_after_signal_engine_block3g && "
+            f"{backtest_days}"
             "bash board/eod/run_30d_backtest_on_droplet.sh"
         )
         print("Running on droplet:", cmd[:120], "...")

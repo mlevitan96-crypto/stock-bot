@@ -34,6 +34,20 @@ DEFAULT_SIGNAL_WEIGHTS_3D: Dict[str, float] = {
     "breakout_signal": 0.025,
     "mean_reversion_signal": 0.015,
 }
+
+# Block 3H: first profitability iteration — conservative tweaks from 3D
+# Slightly more trend/momentum (follow strength); slightly less reversal/mean_reversion (reduce noise in MIXED)
+# Replace with data-driven values once 3g run with injection produces edge report
+DEFAULT_SIGNAL_WEIGHTS_3H: Dict[str, float] = {
+    "trend_signal": 0.055,
+    "momentum_signal": 0.045,
+    "volatility_signal": 0.025,
+    "regime_signal": 0.025,
+    "sector_signal": 0.025,
+    "reversal_signal": 0.012,
+    "breakout_signal": 0.025,
+    "mean_reversion_signal": 0.012,
+}
 # Block 3D: bounds for weighted delta (final delta added to score)
 WEIGHTED_DELTA_MAX_ABS = 0.25
 COMPOSITE_GATE_MIN = 0.1
@@ -358,13 +372,14 @@ def get_weighted_signal_delta(
 
 def compute_regime_adjusted_weights(regime_label: str) -> Dict[str, float]:
     """
-    Block 3D: regime-specific weight multipliers applied to base weights.
+    Block 3D/3H: regime-specific weight multipliers applied to base weights.
+    Uses DEFAULT_SIGNAL_WEIGHTS_3H as base (Block 3H profitability iteration).
     BULL: increase trend, momentum, breakout; decrease reversal, mean_reversion.
     BEAR: increase trend, momentum, reversal; decrease mean_reversion.
     RANGE: increase reversal, mean_reversion; decrease trend, breakout.
     Returns dict of final weights (base * regime multiplier). All values floats.
     """
-    base = dict(DEFAULT_SIGNAL_WEIGHTS_3D)
+    base = dict(DEFAULT_SIGNAL_WEIGHTS_3H)
     r = (regime_label or "").strip().upper()
     if r == "BULL":
         base["trend_signal"] *= 1.3
@@ -475,7 +490,7 @@ def get_weighted_signal_delta_3D(
     """
     if not isinstance(raw_signals, dict):
         return 0.0
-    w = weights if isinstance(weights, dict) else DEFAULT_SIGNAL_WEIGHTS_3D
+    w = weights if isinstance(weights, dict) else DEFAULT_SIGNAL_WEIGHTS_3H
     delta = 0.0
     for k, weight in w.items():
         try:

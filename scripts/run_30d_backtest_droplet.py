@@ -28,6 +28,9 @@ except Exception:
 def _parse_args():
     p = argparse.ArgumentParser(description="Run 30-day backtest")
     p.add_argument("--out", default=None, help="Output directory (default: backtests/30d)")
+    p.add_argument("--start-date", default=None, help="Window start YYYY-MM-DD (overrides config)")
+    p.add_argument("--end-date", default=None, help="Window end YYYY-MM-DD (overrides config)")
+    p.add_argument("--days", type=int, default=None, help="Number of days (use with --end-date or defaults to last N days)")
     return p.parse_args()
 
 
@@ -100,8 +103,21 @@ def run() -> int:
     PNL_CURVE_PATH = OUT_DIR / "backtest_pnl_curve.json"
 
     cfg = _load_config()
-    start_date = cfg.get("start_date") or ""
-    end_date = cfg.get("end_date") or ""
+    start_date = getattr(args, "start_date", None) or cfg.get("start_date") or ""
+    end_date = getattr(args, "end_date", None) or cfg.get("end_date") or ""
+    days = getattr(args, "days", None)
+    if days is not None and end_date:
+        try:
+            end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
+            start_d = end_d - timedelta(days=days - 1)
+            start_date = str(start_d)
+        except Exception:
+            pass
+    elif days is not None:
+        end_d = datetime.now(timezone.utc).date()
+        start_d = end_d - timedelta(days=days - 1)
+        start_date = str(start_d)
+        end_date = str(end_d)
     window_days = []
     try:
         start_d = datetime.strptime(start_date, "%Y-%m-%d").date()
