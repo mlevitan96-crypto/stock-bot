@@ -9,6 +9,18 @@
 
 The "0 signal" in the Positions table is **Entry Signal Strength** = `entry_score` from `state/position_metadata.json`. Most positions showed 0.00 because their metadata was created by **reconciliation or health-check** when the position was discovered in Alpaca *after* the fact (e.g. order submitted → fill detected later, or restart sync). Those paths did not have access to the original composite score and wrote metadata **without** `entry_score` (or with 0.0).
 
+### Why we never intentionally enter with score 0
+
+**The engine never opens a new position with a zero or missing score.** Scoring exists so we only enter when we have an edge. The flow is:
+
+1. **Entry gate:** `submit_entry()` in main.py requires `entry_score > 0` (and valid regime). If `entry_score` is missing or ≤ 0, we return `None` with reason `missing_entry_score` and **do not submit the order** (see `CRITICAL_missing_entry_score_abort`).
+2. **Before mark_open:** We block again: if `score <= 0.0` we log `invalid_entry_score_blocked` and **do not call** `mark_open()`.
+3. So any position that **appears** in the dashboard with Entry Signal 0.00 was **not** opened by the current entry path with a zero score. It was either:
+   - **Discovered** by reconciliation (position already in Alpaca from a prior run, pending fill, or manual/external), and metadata was created without a score at that time, or
+   - Legacy data from before we persisted `entry_score` consistently.
+
+The fixes below ensure that when we *do* discover a position (reconciliation/health check), we recover and store the score when possible (pending_fill file, attribution), so the dashboard and exit logic see a real score instead of 0.
+
 ---
 
 ## Root causes

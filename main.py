@@ -4150,6 +4150,7 @@ class AlpacaExecutor:
         Self-healing: All orders must pass trade_guard before submission.
         """
         # Logging upgrade: mandatory metadata integrity
+        # We never enter a new position without a positive score (scoring exists to only enter when we have edge).
         # - entry_score must exist and be positive
         # - market_regime must be explicitly known (not "unknown")
         if entry_score is None or not isinstance(entry_score, (int, float)) or float(entry_score) <= 0.0:
