@@ -127,6 +127,8 @@ class StateFiles:
     
     BOT_HEARTBEAT = Directories.STATE / "bot_heartbeat.json"
     POSITION_METADATA = Directories.STATE / "position_metadata.json"
+    # Pending-fill entry scores: symbol -> {score, ts} for positions submitted but not yet filled (reconciliation uses this to set entry_score when fill is detected).
+    PENDING_FILL_SCORES = Directories.STATE / "pending_fill_scores.json"
     DISPLACEMENT_COOLDOWNS = Directories.STATE / "displacement_cooldowns.json"
     INTERNAL_POSITIONS = Directories.STATE / "internal_positions.json"
     SMART_POLLER = Directories.STATE / "smart_poller.json"

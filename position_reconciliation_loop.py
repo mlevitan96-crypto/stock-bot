@@ -376,6 +376,17 @@ class PositionReconcilerV2:
                 
                 # Update metadata if missing or incomplete
                 if symbol not in position_metadata or position_metadata[symbol].get("entry_score", 0.0) == 0.0:
+                    # Try to recover entry_score from pending_fill_scores or attribution when missing
+                    if entry_score == 0.0:
+                        try:
+                            from utils.entry_score_recovery import recover_entry_score_for_symbol
+                            recovered = recover_entry_score_for_symbol(symbol, pop_pending=True)
+                            if recovered is not None and recovered > 0:
+                                entry_score = recovered
+                                executor_opens[symbol]["entry_score"] = entry_score
+                                self.audit_log("entry_score_recovered", {"symbol": symbol, "entry_score": entry_score})
+                        except Exception:
+                            pass
                     # Try to preserve existing metadata if available (V4.0: Preserve all fields including regime_modifier and ignition_status)
                     existing_meta = position_metadata.get(symbol, {})
                     position_metadata[symbol] = {
@@ -383,7 +394,7 @@ class PositionReconcilerV2:
                         "entry_price": pos["avg_entry_price"],
                         "qty": abs(pos["qty"]),
                         "side": pos["side"],
-                        "entry_score": entry_score,  # Preserve existing or default to 0.0
+                        "entry_score": entry_score,  # Preserve existing, recovered, or default to 0.0
                         "components": existing_meta.get("components", {}),
                         "market_regime": existing_meta.get("market_regime", "unknown"),
                         "direction": existing_meta.get("direction", "unknown"),

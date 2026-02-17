@@ -16,11 +16,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-# Ensure repo root is on path so health/config import when cwd differs (e.g. systemd)
+# Ensure repo root is on path and cwd so state/logs paths resolve (e.g. systemd may start with different cwd)
 _DASHBOARD_ROOT = Path(__file__).resolve().parent
 TELEMETRY_ROOT = _DASHBOARD_ROOT / "telemetry"
 if str(_DASHBOARD_ROOT) not in sys.path:
     sys.path.insert(0, str(_DASHBOARD_ROOT))
+try:
+    os.chdir(_DASHBOARD_ROOT)
+except Exception:
+    pass
 
 # Process-start timestamps for /api/version (source of truth for build/version contract)
 _BUILD_TIME_UTC = datetime.now(timezone.utc).isoformat()
@@ -3173,47 +3177,49 @@ def _api_positions_impl():
     positions = _alpaca_api.list_positions()
     account = _alpaca_api.get_account()
 
-    # CRITICAL FIX: Load entry scores from position metadata
+    # CRITICAL FIX: Load entry scores from position metadata (resolve against repo root so cwd-independent)
     metadata = {}
     try:
         from config.registry import StateFiles, read_json
-        metadata_path = StateFiles.POSITION_METADATA
+        metadata_path = (Path(_DASHBOARD_ROOT) / StateFiles.POSITION_METADATA).resolve()
         if metadata_path.exists():
             metadata = read_json(metadata_path, default={})
     except Exception as e:
         print(f"[Dashboard] Warning: Failed to load position metadata: {e}", flush=True)
 
-    # Load UW cache for current score calculation (same way as main.py)
+    # Load UW cache for current score calculation (paths resolved against repo root for cwd-independence)
     uw_cache = {}
     current_regime = "mixed"
     try:
-        from config.registry import CacheFiles, read_json
+        from config.registry import CacheFiles, read_json, StateFiles
         import json as json_module
-        cache_file = CacheFiles.UW_FLOW_CACHE
+        cache_file = (Path(_DASHBOARD_ROOT) / CacheFiles.UW_FLOW_CACHE).resolve()
         if cache_file.exists():
             uw_cache = read_json(cache_file, default={})
-        try:
-            from config.registry import StateFiles
-            for regime_file in [getattr(StateFiles, "REGIME_DETECTOR_STATE", None), StateFiles.REGIME_DETECTOR]:
-                if not regime_file:
-                    continue
-                if regime_file.exists():
-                    regime_data = json_module.loads(regime_file.read_text())
+        for regime_file in [getattr(StateFiles, "REGIME_DETECTOR_STATE", None), StateFiles.REGIME_DETECTOR]:
+            if not regime_file:
+                continue
+            rp = (Path(_DASHBOARD_ROOT) / regime_file).resolve()
+            if rp.exists():
+                try:
+                    regime_data = json_module.loads(rp.read_text())
                     if isinstance(regime_data, dict):
                         current_regime = regime_data.get("current_regime") or regime_data.get("regime") or "mixed"
                         break
-        except Exception:
-            pass
+                except Exception:
+                    pass
     except Exception as e:
         print(f"[Dashboard] Warning: Failed to load UW cache for current scores: {e}", flush=True)
 
-    # Signal propagation: prefer persisted signal_strength_cache (from open_position_refresh) so we distinguish evaluated 0.0 vs not evaluated.
+    # Signal propagation: prefer persisted signal_strength_cache (paths resolved against repo root)
     signal_strength_cache = {}
     try:
         from config.registry import StateFiles
         cache_path = getattr(StateFiles, "SIGNAL_STRENGTH_CACHE", None)
-        if cache_path and cache_path.exists():
-            signal_strength_cache = json.loads(cache_path.read_text(encoding="utf-8", errors="replace")) or {}
+        if cache_path:
+            cp = (Path(_DASHBOARD_ROOT) / cache_path).resolve()
+            if cp.exists():
+                signal_strength_cache = json.loads(cp.read_text(encoding="utf-8", errors="replace")) or {}
         if not isinstance(signal_strength_cache, dict):
             signal_strength_cache = {}
     except Exception as e:
@@ -3222,7 +3228,20 @@ def _api_positions_impl():
     pos_list = []
     for p in positions:
         symbol = p.symbol
-        entry_score = metadata.get(symbol, {}).get("entry_score", 0.0) if metadata else 0.0
+        meta = (metadata.get(symbol, {}) or {}) if metadata else {}
+        entry_score = meta.get("entry_score")
+        if entry_score is None or (isinstance(entry_score, (int, float)) and float(entry_score) <= 0):
+            try:
+                from utils.entry_score_recovery import recover_entry_score_for_symbol
+                recovered = recover_entry_score_for_symbol(symbol, pop_pending=False)
+                if recovered is not None and float(recovered) > 0:
+                    entry_score = float(recovered)
+            except Exception:
+                pass
+        if entry_score is None or (isinstance(entry_score, (int, float)) and float(entry_score) <= 0):
+            entry_score = 0.0
+        else:
+            entry_score = float(entry_score)
         current_score = None
         current_signal_evaluated = False
         cached = signal_strength_cache.get(symbol) if isinstance(signal_strength_cache.get(symbol), dict) else None

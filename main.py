@@ -9338,6 +9338,12 @@ class StrategyEngine:
                     log_event("order", "entry_submitted_pending_fill", symbol=symbol, side=side, 
                              requested_qty=qty, filled_qty=filled_qty, order_type=order_type, 
                              client_order_id=client_order_id_base, entry_status=entry_status)
+                    # Persist score so reconciliation can set entry_score when fill is detected
+                    try:
+                        from utils.entry_score_recovery import persist_pending_fill_score
+                        persist_pending_fill_score(symbol, score)
+                    except Exception:
+                        pass
                     # Don't mark_open for unfilled orders - reconciliation will do that when fill occurs
                     # But we still want to count this as a successful order submission
                 
@@ -13063,20 +13069,30 @@ def continuous_position_health_check():
                 for symbol in missing_in_bot:
                     alpaca_pos = next((p for p in alpaca_positions if getattr(p, 'symbol') == symbol), None)
                     if alpaca_pos:
-                        # Preserve existing entry_score if available, but use Alpaca data as base
+                        # Preserve existing entry_score if available; else recover from pending_fill or attribution
                         existing_metadata = local_metadata.get(symbol, {})
+                        entry_score_val = existing_metadata.get("entry_score")
+                        if entry_score_val is None or (isinstance(entry_score_val, (int, float)) and float(entry_score_val) <= 0):
+                            try:
+                                from utils.entry_score_recovery import recover_entry_score_for_symbol
+                                recovered = recover_entry_score_for_symbol(symbol, pop_pending=True)
+                                if recovered is not None and recovered > 0:
+                                    entry_score_val = recovered
+                                    log_event("health_check", "entry_score_recovered", symbol=symbol, entry_score=entry_score_val)
+                            except Exception:
+                                pass
+                        if entry_score_val is None:
+                            entry_score_val = 0.0
                         local_metadata[symbol] = {
                             "entry_ts": existing_metadata.get("entry_ts") or datetime.utcnow().isoformat() + "Z",
                             "entry_price": float(getattr(alpaca_pos, 'avg_entry_price', 0)),
                             "qty": int(getattr(alpaca_pos, 'qty', 0)),
                             "side": "short" if int(getattr(alpaca_pos, 'qty', 0)) < 0 else "long",
+                            "entry_score": float(entry_score_val),
                             "recovered_from": "continuous_health_check",
                             "unrealized_pl": float(getattr(alpaca_pos, 'unrealized_pl', 0)),
                             "reconciled_at": datetime.utcnow().isoformat() + "Z"
                         }
-                        # Preserve entry_score if it exists
-                        if "entry_score" in existing_metadata:
-                            local_metadata[symbol]["entry_score"] = existing_metadata["entry_score"]
             
             # Remove orphaned positions (positions in bot metadata but not in Alpaca)
             # CRITICAL: Alpaca is authoritative - if position doesn't exist in Alpaca, remove from metadata
@@ -13174,14 +13190,24 @@ def startup_reconcile_positions():
         if missing_in_bot:
             log_event("reconcile", "positions_missing_in_bot", symbols=list(missing_in_bot), count=len(missing_in_bot))
             for symbol in missing_in_bot:
-                # Add missing position metadata from Alpaca
+                # Add missing position metadata from Alpaca; recover entry_score from pending_fill or attribution when possible
                 alpaca_pos = next((p for p in alpaca_positions if getattr(p, 'symbol') == symbol), None)
                 if alpaca_pos:
+                    entry_score_val = 0.0
+                    try:
+                        from utils.entry_score_recovery import recover_entry_score_for_symbol
+                        recovered = recover_entry_score_for_symbol(symbol, pop_pending=True)
+                        if recovered is not None and recovered > 0:
+                            entry_score_val = recovered
+                            log_event("reconcile", "entry_score_recovered", symbol=symbol, entry_score=entry_score_val)
+                    except Exception:
+                        pass
                     local_metadata[symbol] = {
                         "entry_ts": datetime.utcnow().isoformat() + "Z",  # Unknown exact time
                         "entry_price": float(getattr(alpaca_pos, 'avg_entry_price', 0)),
                         "qty": int(getattr(alpaca_pos, 'qty', 0)),
                         "side": "short" if int(getattr(alpaca_pos, 'qty', 0)) < 0 else "long",
+                        "entry_score": float(entry_score_val),
                         "recovered_from": "alpaca_reconcile",
                         "unrealized_pl": float(getattr(alpaca_pos, 'unrealized_pl', 0))
                     }
