@@ -14,16 +14,21 @@ PYTHON="${VENV_PYTHON:-/usr/bin/python3}"
 # 0) Ensure unified daily intelligence pack exists (so audit MEDIUM passes)
 "$PYTHON" scripts/run_stockbot_daily_reports.py --date "$DATE" --base-dir "$REPO_DIR" || true
 
-# 1) Run audit, capture full output and exit code
+# 1) Run audit, capture full output and exit code (do not block sync on audit failure)
 LOG="$AUDIT_DIR/audit_summary.txt"
+set +e
 "$PYTHON" scripts/audit_stock_bot_readiness.py --date "$DATE" --verbose 2>&1 | tee "$LOG"
 AUDIT_EXIT=${PIPESTATUS[0]}
+set -e
+if [ "$AUDIT_EXIT" -ne 0 ]; then
+  echo "Audit failed (exit $AUDIT_EXIT); will still sync EOD and push."
+fi
 
 # 2) Write machine-readable result
 if [ "$AUDIT_EXIT" -eq 0 ]; then STATUS="pass"; else STATUS="fail"; fi
 echo "{\"date\":\"$DATE\",\"exit_code\":$AUDIT_EXIT,\"status\":\"$STATUS\"}" > "$AUDIT_DIR/audit_result.json"
 
-# 3) Pull latest, add EOD outputs and droplet_audit, commit, push
+# 3) Pull latest, add EOD outputs and droplet_audit, commit, push (EOD report must reach GitHub)
 git fetch origin
 git pull --rebase --autostash origin main || true
 git add board/eod/out/*.md board/eod/out/*.json 2>/dev/null || true
