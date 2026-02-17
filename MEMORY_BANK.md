@@ -1145,12 +1145,28 @@ If service won't start:
 
 ---
 
-## 6.6 DASHBOARD DEPLOYMENT (VERIFIED 2026-01-12)
+## 6.6 DASHBOARD DEPLOYMENT (VERIFIED 2026-01-12, UPDATED 2026-02-17)
 
-### Deployment Process
-**VERIFIED WORKING:** SSH deployment via `droplet_client.py` works correctly.
+### Dashboard URL and How It Runs
+- **Live URL:** http://104.236.102.57:5000/
+- **Service:** `stock-bot.service` (systemd) runs **one** process: `deploy_supervisor.py`.
+- **deploy_supervisor.py** starts **child processes**: `dashboard.py` (port 5000), `uw_flow_daemon.py`, `main.py` (trading engine). The dashboard is **not** a separate systemd unit; it is a subprocess of the supervisor.
+- **CRITICAL — Stale dashboard PIDs:** When you run `sudo systemctl restart stock-bot`, systemd kills only the **supervisor** process. The supervisor’s **child** (e.g. `dashboard.py`) may **survive as an orphan** and keep holding port 5000. A **new** supervisor then starts a **new** dashboard, which may bind to another port (e.g. 5001). Users hitting :5000 then see **old code** (e.g. no Strategy column, no Wheel open positions). So **every deploy must kill all dashboard processes** before or when restarting, so the **new** supervisor’s dashboard is the only one and binds 5000.
 
-**Deployment Script:** `deploy_dashboard_via_ssh.py`
+### Deploy Steps (Use This Every Time)
+1. **Push:** Commit and push to GitHub.
+2. **Deploy via DropletClient:** `DropletClient().deploy()` (or equivalent SSH).
+3. **Deploy sequence on droplet (automated in `droplet_client.deploy()`):**
+   - `git pull origin main`
+   - **`pkill -f 'dashboard\.py'`** — kill ALL dashboard processes (stale orphans).
+   - `sudo systemctl restart stock-bot` — supervisor and fresh children (one dashboard) start.
+4. **User after deploy:** **Hard-refresh** the browser (Ctrl+Shift+R or Ctrl+F5) so cached HTML/JS are dropped and the new dashboard (Strategy column, Wheel tab open positions) loads.
+5. **Verify:** Open http://104.236.102.57:5000/ → Positions tab: first column must be "Strategy" (Wheel/Equity). Wheel Strategy tab: "Current wheel positions" section must show if state/wheel_state.json has open CSPs/CCs.
+
+### Deployment Process (Scripts)
+**VERIFIED WORKING:** SSH deployment via `droplet_client.py` works correctly. `deploy()` now runs `pkill -f 'dashboard\.py'` before restarting stock-bot.
+
+**Deployment Script:** `deploy_dashboard_via_ssh.py` (alternative). Prefer `DropletClient().deploy()` so stale-dashboard kill is included.
 
 **Required Dependencies:**
 - `paramiko` library: `python -m pip install paramiko`
@@ -1161,9 +1177,9 @@ If service won't start:
 1. **Code Push:** Commit and push to GitHub
 2. **SSH Connection:** Use `DropletClient()` from `droplet_client.py`
 3. **Pull Code:** `git pull origin main` on droplet
-4. **Restart Dashboard:** 
-   - Kill existing: `pkill -f 'python.*dashboard.py'`
-   - Start new: `nohup python3 dashboard.py > logs/dashboard.log 2>&1 &`
+4. **Kill stale dashboard then restart:** 
+   - `pkill -f 'dashboard\.py'`  (or `pkill -f 'python.*dashboard.py'`) so no orphan holds port 5000
+   - `sudo systemctl restart stock-bot`
 5. **Verify (Basic Auth required):** `set -a && source /root/stock-bot/.env && set +a && curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health`
 
 ### Dashboard Startup
@@ -1192,12 +1208,18 @@ curl -u "$DASHBOARD_USER:$DASHBOARD_PASS" http://localhost:5000/health
 - ✅ All endpoints return valid JSON even on errors
 - ✅ Memory-efficient file operations
 
+### Top Strip (Health, P&L today, 7d, Last signal)
+- **Data source:** `loadTopStrip()` fetches `/api/sre/health`, `/api/executive_summary?timeframe=24h`, `/api/executive_summary?timeframe=7d`. "Last signal" comes from `/api/health_status` (or health payload) `last_signal_timestamp`; if that API or `signal_history_storage.get_last_signal_timestamp()` fails, the UI shows "Last signal: Error".
+- If Health / P&L today / P&L 7d show "—", the SRE or executive summary endpoints may be failing, unreachable, or the engine may be down. "Last signal: Error" usually means the health/signal-history path failed (e.g. import error or missing file).
+
 ### Troubleshooting Dashboard
 If dashboard not responding:
 1. Check if running: `ps aux | grep dashboard.py | grep -v grep`
-2. Check logs: `tail -50 /root/stock-bot/logs/dashboard.log`
-3. Start manually: `cd /root/stock-bot && nohup python3 dashboard.py > logs/dashboard.log 2>&1 &`
-4. Verify port: `netstat -tlnp | grep 5000` or `ss -tlnp | grep 5000`
+2. **If multiple dashboard PIDs:** run `pkill -f 'dashboard\.py'` then `sudo systemctl restart stock-bot` so only one dashboard runs on 5000.
+3. Check logs: `tail -50 /root/stock-bot/logs/dashboard.log`
+4. Start manually (only if not using supervisor): `cd /root/stock-bot && nohup python3 dashboard.py > logs/dashboard.log 2>&1 &`
+5. Verify port: `netstat -tlnp | grep 5000` or `ss -tlnp | grep 5000`
+6. **After code deploy:** always hard-refresh browser (Ctrl+Shift+R) so new HTML/JS load.
 
 ---
 

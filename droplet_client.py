@@ -20,6 +20,8 @@ Usage:
 
 import json
 import os
+import threading
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
@@ -191,19 +193,54 @@ class DropletClient:
     
     def _execute(self, command: str, timeout: int = 30) -> Tuple[str, str, int]:
         """
-        Execute command on droplet.
-        
-        Returns:
-            Tuple of (stdout, stderr, exit_code)
+        Execute command on droplet with a real timeout.
+        Paramiko's exec_command(timeout=) does not reliably limit runtime;
+        recv_exit_status() can hang. We poll exit_status_ready() until deadline
+        and read stdout/stderr in a thread so the channel does not block.
+        On timeout we close the channel and return exit_code 124 (same as timeout(1)).
         """
         ssh = self._connect()
-        stdin, stdout, stderr = ssh.exec_command(command, timeout=timeout)
-        
-        exit_code = stdout.channel.recv_exit_status()
-        stdout_text = stdout.read().decode('utf-8', errors='replace')
-        stderr_text = stderr.read().decode('utf-8', errors='replace')
-        
-        return stdout_text, stderr_text, exit_code
+        # Use get_pty=False and short timeout only for opening the channel
+        stdin, stdout, stderr = ssh.exec_command(command, timeout=60)
+        channel = stdout.channel
+        out_buf: List[str] = []
+        err_buf: List[str] = []
+
+        def read_streams() -> None:
+            try:
+                out_buf.append(stdout.read().decode("utf-8", errors="replace"))
+            except Exception:
+                pass
+            try:
+                err_buf.append(stderr.read().decode("utf-8", errors="replace"))
+            except Exception:
+                pass
+
+        reader = threading.Thread(target=read_streams, daemon=True)
+        reader.start()
+        deadline = time.monotonic() + timeout
+        try:
+            while time.monotonic() < deadline:
+                if channel.exit_status_ready():
+                    break
+                time.sleep(1)
+            if not channel.exit_status_ready():
+                channel.close()
+                reader.join(timeout=5)
+                return (
+                    "".join(out_buf),
+                    "".join(err_buf) + f"\n[Command timed out after {timeout}s]\n",
+                    124,
+                )
+            reader.join(timeout=10)
+            exit_code = channel.recv_exit_status()
+            return "".join(out_buf), "".join(err_buf), exit_code
+        finally:
+            if not channel.exit_status_ready() and channel.active:
+                try:
+                    channel.close()
+                except Exception:
+                    pass
     
     def _execute_with_cd(self, command: str, timeout: int = 30) -> Tuple[str, str, int]:
         """Execute command in project directory."""
@@ -441,8 +478,16 @@ class DropletClient:
             results["success"] = False
             results["error"] = "Git pull failed"
             return results
-        
-        # Step 2: Check if deployment script exists and run it
+
+        # Step 2a: Kill ALL dashboard.py processes so no orphan holds port 5000.
+        # (systemctl restart stock-bot kills deploy_supervisor but its child dashboard may survive as orphan.)
+        kill_out, kill_err, kill_rc = self._execute_with_cd("pkill -f 'dashboard\\.py' 2>/dev/null; sleep 1; true")
+        results["steps"].append({
+            "name": "kill_stale_dashboard",
+            "result": {"success": True, "note": "pkill dashboard.py so new deploy_supervisor owns port 5000"}
+        })
+
+        # Step 2b: Check if deployment script exists and run it
         deploy_script = f"{self.project_dir}/deploy.sh"
         stdout, _, exit_code = self._execute(f"test -f {deploy_script} && echo 'exists' || echo 'not-found'")
         
@@ -450,7 +495,7 @@ class DropletClient:
             step2 = self.execute_command("./deploy.sh", timeout=300)
             results["steps"].append({"name": "deploy_script", "result": step2})
         else:
-            # Fallback: restart service
+            # Fallback: restart service (supervisor will start fresh dashboard)
             step2 = self.execute_command("sudo systemctl restart stock-bot", timeout=60)
             results["steps"].append({"name": "restart_service", "result": step2})
         
