@@ -945,17 +945,43 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 - **Report:** `reports/BLOCKED_TRADE_INTEL_<DATE>.md` — blocked counts by reason, intelligence at block time, shadow profile deltas (hypothetical; NO-APPLY).
 - **Runner:** `scripts/run_exit_join_and_blocked_attribution_on_droplet.py` — intel producers → UW audit → harness (if needed) → exit join health → blocked intel report → commit + push.
 
-### Molt.bot — Learning & Engineering Governor
-- **Role:** Molt is the orchestration and governance layer. Cursor implements all workflows. Molt produces artifacts and proposals ONLY; never applies changes.
-- **NO-APPLY guarantee:** Molt MUST NEVER change weights, gates, or decisions. Artifact-only consumption. No live UW calls. No orders.
+### OpenClaw (Clawdbot / Moltbot) — same product
+- **Naming:** OpenClaw, Clawdbot, and Moltbot are different names for the same AI product. The CLI is invoked as `clawdbot` (or `moltbot`); e.g. `clawdbot agent --session-id ... --message <prompt>`. Code uses `CLAWDBOT_SESSION_ID` and `clawdbot` in PATH.
+- **EOD:** `board/eod/run_stock_quant_officer_eod.py` calls OpenClaw once per EOD (bundle summary → wheel_actions, recommended_fixes, memo). Requires `clawdbot` (or `moltbot`) in PATH and `CLAWDBOT_SESSION_ID`; on droplet, if missing, use `--dry-run` for stub output. See `docs/EOD_DATA_PIPELINE.md`.
+- **Leverage:** OpenClaw is currently used only in EOD. For more impact: pre-market brief, weekly P&L post-mortem, Molt-workflow synthesis (see `reports/AI_LEVERAGE_OPENCLAW_CURSOR_2026-02-17.md`).
+- **Cursor daily checklist:** See **Daily AI Review Checklist** below.
+
+#### Daily AI Review Checklist
+After EOD and Molt workflow runs, Cursor should consider:
+- `reports/LEARNING_STATUS_<today>.md`
+- `reports/ENGINEERING_HEALTH_<today>.md`
+- `reports/PROMOTION_PROPOSAL_<today>.md` or `reports/REJECTION_WITH_REASON_<today>.md`
+- `reports/MEMORY_BANK_CHANGE_PROPOSAL_<today>.md`
+- `reports/MOLT_OPENCLAW_SYNTHESIS_<today>.md` (if present)
+
+If the user asks:
+- "what should I do next?"
+- "status"
+- "AI summary"
+
+Cursor should summarize these artifacts and suggest:
+- reviews to perform
+- experiments to consider
+- proposals that may be applied manually
+
+Cursor MUST NOT apply changes unless explicitly instructed.
+
+### In-repo Molt workflow (moltbot/ package) — not the OpenClaw product
+- **Role:** The `moltbot/` directory is the "Learning & Engineering Governor" *workflow* — in-repo Python code that produces reports. It is separate from the OpenClaw product; it does not call OpenClaw. It is rule-based (no LLM). Cursor implements all code; this workflow produces artifacts ONLY; never applies changes.
+- **NO-APPLY guarantee:** The Molt workflow MUST NEVER change weights, gates, or decisions. Artifact-only consumption. No live UW calls. No orders.
 - **Workflows:**
   - **Learning Orchestrator** (`moltbot/orchestrator.py`): Verifies Memory Bank version, learning pipeline artifacts, NO-APPLY compliance. Output: `reports/LEARNING_STATUS_<DATE>.md`
   - **Engineering Sentinel** (`moltbot/sentinel.py`): Reads cron logs, EXIT_JOIN_HEALTH, BLOCKED_TRADE_INTEL, SNAPSHOT_OUTCOME_ATTRIBUTION. Output: `reports/ENGINEERING_HEALTH_<DATE>.md`. No code changes.
   - **Multi-Agent Learning Board** (`moltbot/board.py`): signal_advocate, risk_auditor, counterfactual_analyst, governance_chair. Output: `reports/PROMOTION_PROPOSAL_<DATE>.md` or `reports/REJECTION_WITH_REASON_<DATE>.md`
   - **Promotion Discipline** (`moltbot/promotion_discipline.py`): Multi-day stability, regime consistency, blocked-trade impact, shadow persistence. No automatic promotion. Output: `reports/PROMOTION_DISCIPLINE_<DATE>.md`
   - **Memory Bank Evolution** (`moltbot/memory_evolution.py`): Detects patterns, proposes Memory Bank updates. Output: `reports/MEMORY_BANK_CHANGE_PROPOSAL_<DATE>.md`. Never writes MEMORY_BANK directly.
-- **Automation:** `scripts/run_molt_workflow.py` — runs full Molt pipeline. `scripts/run_molt_on_droplet.sh` — droplet runner. Cron: 21:35 UTC weekdays (post-market) via `scripts/install_molt_cron_on_droplet.py`
-- **Promotion:** Human approval required. Molt proposes; Cursor/human approves and applies.
+- **Automation:** `scripts/run_molt_workflow.py` — runs full Molt workflow. `scripts/run_molt_on_droplet.sh` — droplet runner. Cron: 21:35 UTC weekdays (post-market) via `scripts/install_molt_cron_on_droplet.py`
+- **Promotion:** Human approval required. The Molt workflow proposes; Cursor/human approves and applies.
 
 ### UW canonical rules
 - **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.
