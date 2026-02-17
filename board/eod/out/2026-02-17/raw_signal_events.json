@@ -1,0 +1,6386 @@
+[
+  {
+    "timestamp": "2026-02-17T20:49:18.046917+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.409,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:18.046769Z"
+    },
+    "symbol": "AMD"
+  },
+  {
+    "timestamp": "2026-02-17T20:49:18.047067+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.409,
+      "prev_signal_strength": 3.561,
+      "signal_delta": -1.152,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:18.046769Z",
+      "event_schema_version": 1
+    },
+    "symbol": "AMD"
+  },
+  {
+    "timestamp": "2026-02-17T20:49:18.120858+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.632,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:18.120644Z"
+    },
+    "symbol": "INTC"
+  },
+  {
+    "timestamp": "2026-02-17T20:49:18.121085+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.632,
+      "prev_signal_strength": 3.564,
+      "signal_delta": -0.932,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:18.120644Z",
+      "event_schema_version": 1
+    },
+    "symbol": "INTC"
+  },
+  {
+    "timestamp": "2026-02-17T20:49:18.199652+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.679,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:18.199521Z"
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:49:18.199802+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.679,
+      "prev_signal_strength": 3.65,
+      "signal_delta": 0.029,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:18.199521Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:49:47.560826+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.165,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:47.560697Z"
+    },
+    "symbol": "RIVN"
+  },
+  {
+    "timestamp": "2026-02-17T20:49:47.560950+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.165,
+      "prev_signal_strength": 3.177,
+      "signal_delta": -0.012,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:47.560697Z",
+      "event_schema_version": 1
+    },
+    "symbol": "RIVN"
+  },
+  {
+    "timestamp": "2026-02-17T20:49:47.610744+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.505,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:47.610565Z"
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:49:47.610934+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.505,
+      "prev_signal_strength": 3.679,
+      "signal_delta": -0.174,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:49:47.610565Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:17.906420+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.073,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:17.906228Z"
+    },
+    "symbol": "NIO"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:17.906647+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.073,
+      "prev_signal_strength": 3.268,
+      "signal_delta": -0.195,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:17.906228Z",
+      "event_schema_version": 1
+    },
+    "symbol": "NIO"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:17.995537+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.446,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:17.995371Z"
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:17.995756+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.446,
+      "prev_signal_strength": 3.505,
+      "signal_delta": -0.059,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:17.995371Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:37.624288+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.542,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:37.624100Z"
+    },
+    "symbol": "XLE"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:37.624512+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.542,
+      "prev_signal_strength": 3.491,
+      "signal_delta": 0.051,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:37.624100Z",
+      "event_schema_version": 1
+    },
+    "symbol": "XLE"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:46.291684+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.368,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:46.291426Z"
+    },
+    "symbol": "XLE"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:46.291944+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.368,
+      "prev_signal_strength": 3.542,
+      "signal_delta": -0.174,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:46.291426Z",
+      "event_schema_version": 1
+    },
+    "symbol": "XLE"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:58.139555+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.917,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:58.139339Z"
+    },
+    "symbol": "COP"
+  },
+  {
+    "timestamp": "2026-02-17T20:50:58.139793+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.917,
+      "prev_signal_strength": 3.365,
+      "signal_delta": -0.448,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:50:58.139339Z",
+      "event_schema_version": 1
+    },
+    "symbol": "COP"
+  },
+  {
+    "timestamp": "2026-02-17T20:51:39.211363+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.904,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:51:39.211113Z"
+    },
+    "symbol": "UNH"
+  },
+  {
+    "timestamp": "2026-02-17T20:51:39.211565+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.904,
+      "prev_signal_strength": 2.936,
+      "signal_delta": -0.032,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:51:39.211113Z",
+      "event_schema_version": 1
+    },
+    "symbol": "UNH"
+  },
+  {
+    "timestamp": "2026-02-17T20:51:39.244632+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.358,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:51:39.244491Z"
+    },
+    "symbol": "XLK"
+  },
+  {
+    "timestamp": "2026-02-17T20:51:39.244780+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.358,
+      "prev_signal_strength": 3.311,
+      "signal_delta": 0.047,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:51:39.244491Z",
+      "event_schema_version": 1
+    },
+    "symbol": "XLK"
+  },
+  {
+    "timestamp": "2026-02-17T20:51:43.671730+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.216,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:51:43.671581Z"
+    },
+    "symbol": "XLK"
+  },
+  {
+    "timestamp": "2026-02-17T20:51:43.671916+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.216,
+      "prev_signal_strength": 3.358,
+      "signal_delta": -0.142,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:51:43.671581Z",
+      "event_schema_version": 1
+    },
+    "symbol": "XLK"
+  },
+  {
+    "timestamp": "2026-02-17T20:52:09.989802+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.694,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:52:09.989597Z"
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:52:09.990020+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 2.694,
+      "prev_signal_strength": 3.1,
+      "signal_delta": -0.406,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:52:09.989597Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:52:50.885462+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.798,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:52:50.885330Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:52:50.885587+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.798,
+      "prev_signal_strength": 3.422,
+      "signal_delta": 0.376,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:52:50.885330Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:52:50.917184+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.646,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:52:50.917051Z"
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:52:50.917324+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.646,
+      "prev_signal_strength": 2.694,
+      "signal_delta": 0.952,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:52:50.917051Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:52:50.973776+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.567,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:52:50.973634Z"
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:52:50.973972+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.567,
+      "prev_signal_strength": 2.799,
+      "signal_delta": 0.768,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:52:50.973634Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:05.405482+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.612,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:05.405343Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:05.405636+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.612,
+      "prev_signal_strength": 3.798,
+      "signal_delta": -0.186,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:05.405343Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:05.549527+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.452,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:05.549340Z"
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:05.549693+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.452,
+      "prev_signal_strength": 3.646,
+      "signal_delta": -0.194,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:05.549340Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:05.686928+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.386,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:05.686748Z"
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:05.687107+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.386,
+      "prev_signal_strength": 3.567,
+      "signal_delta": -0.181,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:05.686748Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:06.572457+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.61,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:06.572236Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:06.572607+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.61,
+      "prev_signal_strength": 3.612,
+      "signal_delta": -0.002,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:06.572236Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:06.673491+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.449,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:06.673328Z"
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:06.673648+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.449,
+      "prev_signal_strength": 3.452,
+      "signal_delta": -0.003,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:06.673328Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:06.872033+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.384,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:06.871866Z"
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:06.872270+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.384,
+      "prev_signal_strength": 3.386,
+      "signal_delta": -0.002,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:06.871866Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:23.289878+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.717,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:23.289735Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:23.290044+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.717,
+      "prev_signal_strength": 3.61,
+      "signal_delta": 0.107,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:23.289735Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:23.360549+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.561,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:23.360350Z"
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:23.360718+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.561,
+      "prev_signal_strength": 3.449,
+      "signal_delta": 0.112,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:23.360350Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:23.427642+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.485,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:23.427477Z"
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:23.427801+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.485,
+      "prev_signal_strength": 3.384,
+      "signal_delta": 0.101,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:23.427477Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:28.607822+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.704,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:28.607709Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:28.607963+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.704,
+      "prev_signal_strength": 3.717,
+      "signal_delta": -0.013,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:28.607709Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:28.642748+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.548,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:28.642636Z"
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:28.642886+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.548,
+      "prev_signal_strength": 3.561,
+      "signal_delta": -0.013,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:28.642636Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:28.678955+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.472,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:28.678832Z"
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:28.679115+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.472,
+      "prev_signal_strength": 3.485,
+      "signal_delta": -0.013,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:28.678832Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:29.165851+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.556,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:29.165637Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:29.166022+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.556,
+      "prev_signal_strength": 3.704,
+      "signal_delta": -0.148,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:29.165637Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:29.247786+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.393,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:29.247627Z"
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:29.247973+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.393,
+      "prev_signal_strength": 3.548,
+      "signal_delta": -0.155,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:29.247627Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:29.447116+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.33,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:29.446910Z"
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:53:29.447334+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.33,
+      "prev_signal_strength": 3.472,
+      "signal_delta": -0.142,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:53:29.446910Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SLB"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:11.128596+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.462,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:11.128471Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:11.128720+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.462,
+      "prev_signal_strength": 3.556,
+      "signal_delta": -0.094,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:11.128471Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:11.230325+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.839,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:11.228161Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:11.230549+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.839,
+      "prev_signal_strength": 3.631,
+      "signal_delta": 0.208,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:11.228161Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:11.350726+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.293,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:11.347913Z"
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:11.350900+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.293,
+      "prev_signal_strength": 3.393,
+      "signal_delta": -0.1,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:11.347913Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:19.051487+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.444,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:19.051328Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:19.051642+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.444,
+      "prev_signal_strength": 3.462,
+      "signal_delta": -0.018,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:19.051328Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:19.323556+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.821,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:19.323288Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:19.323782+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.821,
+      "prev_signal_strength": 3.839,
+      "signal_delta": -0.018,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:19.323288Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:19.590047+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.274,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:19.589867Z"
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:19.593355+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.274,
+      "prev_signal_strength": 3.293,
+      "signal_delta": -0.019,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:19.589867Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PFE"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:19.766205+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.666,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:19.766054Z"
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:19.777693+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.666,
+      "prev_signal_strength": 3.446,
+      "signal_delta": 0.22,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:19.766054Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:30.235542+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.558,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:30.235377Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:30.235951+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.558,
+      "prev_signal_strength": 3.444,
+      "signal_delta": 0.114,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:30.235377Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:30.272714+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.742,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:30.272536Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:30.272882+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.742,
+      "prev_signal_strength": 3.772,
+      "signal_delta": -0.03,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:30.272536Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:30.310614+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.778,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:30.310456Z"
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:54:30.310776+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.778,
+      "prev_signal_strength": 3.666,
+      "signal_delta": 0.112,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:54:30.310456Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:55:07.095703+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.338,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:55:07.095425Z"
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:55:07.095915+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "LONG",
+      "signal_strength": 3.338,
+      "prev_signal_strength": 3.558,
+      "signal_delta": -0.22,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:55:07.095425Z",
+      "event_schema_version": 1
+    },
+    "symbol": "BA"
+  },
+  {
+    "timestamp": "2026-02-17T20:55:07.149607+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.382,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:55:07.149465Z"
+    },
+    "symbol": "COIN"
+  },
+  {
+    "timestamp": "2026-02-17T20:55:07.149793+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.382,
+      "prev_signal_strength": 3.475,
+      "signal_delta": -0.093,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:55:07.149465Z",
+      "event_schema_version": 1
+    },
+    "symbol": "COIN"
+  },
+  {
+    "timestamp": "2026-02-17T20:55:07.189363+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.422,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:55:07.189161Z"
+    },
+    "symbol": "PLTR"
+  },
+  {
+    "timestamp": "2026-02-17T20:55:07.189542+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.422,
+      "prev_signal_strength": 3.516,
+      "signal_delta": -0.094,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:55:07.189161Z",
+      "event_schema_version": 1
+    },
+    "symbol": "PLTR"
+  },
+  {
+    "timestamp": "2026-02-17T20:55:38.025877+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.185,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:55:38.025723Z"
+    },
+    "symbol": "RIVN"
+  },
+  {
+    "timestamp": "2026-02-17T20:55:38.026025+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.185,
+      "prev_signal_strength": 3.165,
+      "signal_delta": 0.02,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:55:38.025723Z",
+      "event_schema_version": 1
+    },
+    "symbol": "RIVN"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:34.113116+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.967,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:34.112903Z"
+    },
+    "symbol": "HD"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:34.113340+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.967,
+      "prev_signal_strength": 3.139,
+      "signal_delta": -0.172,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:34.112903Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HD"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:34.199046+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.631,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:34.198885Z"
+    },
+    "symbol": "NIO"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:34.199206+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.631,
+      "prev_signal_strength": 3.073,
+      "signal_delta": 0.558,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:34.198885Z",
+      "event_schema_version": 1
+    },
+    "symbol": "NIO"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:34.284376+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.935,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:34.284220Z"
+    },
+    "symbol": "TGT"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:34.284519+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.935,
+      "prev_signal_strength": 2.794,
+      "signal_delta": 0.141,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:34.284220Z",
+      "event_schema_version": 1
+    },
+    "symbol": "TGT"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:42.347839+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.754,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:42.347702Z"
+    },
+    "symbol": "NIO"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:42.348048+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.754,
+      "prev_signal_strength": 3.631,
+      "signal_delta": 0.123,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:42.347702Z",
+      "event_schema_version": 1
+    },
+    "symbol": "NIO"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:47.208190+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.6,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:47.208019Z"
+    },
+    "symbol": "NIO"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:47.208369+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.6,
+      "prev_signal_strength": 3.754,
+      "signal_delta": -0.154,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:47.208019Z",
+      "event_schema_version": 1
+    },
+    "symbol": "NIO"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:58.636657+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.123,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:58.636525Z"
+    },
+    "symbol": "WMT"
+  },
+  {
+    "timestamp": "2026-02-17T20:56:58.636799+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.123,
+      "prev_signal_strength": 2.525,
+      "signal_delta": 0.598,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:56:58.636525Z",
+      "event_schema_version": 1
+    },
+    "symbol": "WMT"
+  },
+  {
+    "timestamp": "2026-02-17T20:57:42.723744+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.356,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:57:42.723604Z"
+    },
+    "symbol": "CVX"
+  },
+  {
+    "timestamp": "2026-02-17T20:57:42.723938+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.356,
+      "prev_signal_strength": 2.864,
+      "signal_delta": 0.492,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:57:42.723604Z",
+      "event_schema_version": 1
+    },
+    "symbol": "CVX"
+  },
+  {
+    "timestamp": "2026-02-17T20:57:42.754079+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.353,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:57:42.753940Z"
+    },
+    "symbol": "GM"
+  },
+  {
+    "timestamp": "2026-02-17T20:57:42.754224+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.353,
+      "prev_signal_strength": 3.214,
+      "signal_delta": 0.139,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:57:42.753940Z",
+      "event_schema_version": 1
+    },
+    "symbol": "GM"
+  },
+  {
+    "timestamp": "2026-02-17T20:57:42.785914+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.237,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:57:42.785769Z"
+    },
+    "symbol": "JNJ"
+  },
+  {
+    "timestamp": "2026-02-17T20:57:42.786084+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.237,
+      "prev_signal_strength": 2.803,
+      "signal_delta": 0.434,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:57:42.785769Z",
+      "event_schema_version": 1
+    },
+    "symbol": "JNJ"
+  },
+  {
+    "timestamp": "2026-02-17T20:57:54.420197+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.324,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:57:54.420018Z"
+    },
+    "symbol": "GM"
+  },
+  {
+    "timestamp": "2026-02-17T20:57:54.420390+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.324,
+      "prev_signal_strength": 3.353,
+      "signal_delta": -0.029,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:57:54.420018Z",
+      "event_schema_version": 1
+    },
+    "symbol": "GM"
+  },
+  {
+    "timestamp": "2026-02-17T20:59:05.479654+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.819,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:59:05.479531Z"
+    },
+    "symbol": "AMD"
+  },
+  {
+    "timestamp": "2026-02-17T20:59:05.479798+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.819,
+      "prev_signal_strength": 2.409,
+      "signal_delta": 1.41,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:59:05.479531Z",
+      "event_schema_version": 1
+    },
+    "symbol": "AMD"
+  },
+  {
+    "timestamp": "2026-02-17T20:59:28.971781+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.796,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:59:28.971638Z"
+    },
+    "symbol": "INTC"
+  },
+  {
+    "timestamp": "2026-02-17T20:59:28.971939+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.796,
+      "prev_signal_strength": 2.632,
+      "signal_delta": 1.164,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:59:28.971638Z",
+      "event_schema_version": 1
+    },
+    "symbol": "INTC"
+  },
+  {
+    "timestamp": "2026-02-17T20:59:29.002992+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.297,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:59:29.002860Z"
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:59:29.003111+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.297,
+      "prev_signal_strength": 3.778,
+      "signal_delta": -0.481,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:59:29.002860Z",
+      "event_schema_version": 1
+    },
+    "symbol": "SOFI"
+  },
+  {
+    "timestamp": "2026-02-17T20:59:53.538582+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 4.12,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:59:53.538401Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T20:59:53.538768+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 4.12,
+      "prev_signal_strength": 3.821,
+      "signal_delta": 0.299,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T20:59:53.538401Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:14.939835+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.835,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:14.939612Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:14.940062+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.835,
+      "prev_signal_strength": 3.742,
+      "signal_delta": -0.907,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:14.939612Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:15.000002+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.932,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:14.999813Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:15.000270+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.932,
+      "prev_signal_strength": 4.12,
+      "signal_delta": -0.188,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:14.999813Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:23.067392+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.82,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:23.067222Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:23.067597+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.82,
+      "prev_signal_strength": 2.835,
+      "signal_delta": -0.015,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:23.067222Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:23.102072+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.911,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:23.101883Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:23.102314+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.911,
+      "prev_signal_strength": 3.932,
+      "signal_delta": -0.021,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:23.101883Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:57.429293+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.892,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:57.429056Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:57.429526+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.892,
+      "prev_signal_strength": 2.82,
+      "signal_delta": 0.072,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:57.429056Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:57.465759+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.964,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:57.465635Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:00:57.465928+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.964,
+      "prev_signal_strength": 3.911,
+      "signal_delta": 0.053,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:00:57.465635Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:01:00.297315+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.763,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:01:00.297040Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:01:00.297600+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.763,
+      "prev_signal_strength": 2.892,
+      "signal_delta": -0.129,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:01:00.297040Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:01:00.335295+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.826,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:01:00.335082Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:01:00.335527+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.826,
+      "prev_signal_strength": 3.964,
+      "signal_delta": -0.138,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:01:00.335082Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:01:52.865463+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.804,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:01:52.865312Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:01:52.865652+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.804,
+      "prev_signal_strength": 2.763,
+      "signal_delta": 0.041,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:01:52.865312Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:01:52.899858+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.835,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:01:52.899746Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:01:52.900015+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.835,
+      "prev_signal_strength": 3.826,
+      "signal_delta": 0.009,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:01:52.899746Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:11.529525+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.775,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:11.529390Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:11.529689+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.775,
+      "prev_signal_strength": 2.804,
+      "signal_delta": -0.029,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:11.529390Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:11.568589+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.792,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:11.568442Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:11.568768+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.792,
+      "prev_signal_strength": 3.835,
+      "signal_delta": -0.043,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:11.568442Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:11.911389+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.657,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:11.911267Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:11.911506+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.657,
+      "prev_signal_strength": 2.775,
+      "signal_delta": -0.118,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:11.911267Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:11.943684+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.668,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:11.943535Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:11.943865+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.668,
+      "prev_signal_strength": 3.792,
+      "signal_delta": -0.124,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:11.943535Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:19.984802+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.762,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:19.984617Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:19.985005+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.762,
+      "prev_signal_strength": 2.657,
+      "signal_delta": 0.105,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:19.984617Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:20.026197+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.774,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:20.026026Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:02:20.026403+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.774,
+      "prev_signal_strength": 3.668,
+      "signal_delta": 0.106,
+      "signal_trend": "strengthening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:02:20.026026Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:03:33.524349+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.652,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:03:33.524183Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:03:33.524531+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.652,
+      "prev_signal_strength": 2.762,
+      "signal_delta": -0.11,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:03:33.524183Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:03:33.574296+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.614,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:03:33.574130Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:03:33.574492+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.614,
+      "prev_signal_strength": 3.774,
+      "signal_delta": -0.16,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:03:33.574130Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:03:33.803773+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.542,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:03:33.803574Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:03:33.803965+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.542,
+      "prev_signal_strength": 2.652,
+      "signal_delta": -0.11,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:03:33.803574Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:03:33.840895+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.497,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:03:33.840738Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:03:33.841070+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.497,
+      "prev_signal_strength": 3.614,
+      "signal_delta": -0.117,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:03:33.840738Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:04:55.325187+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.537,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:04:55.325035Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:04:55.325408+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.537,
+      "prev_signal_strength": 2.542,
+      "signal_delta": -0.005,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:04:55.325035Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:04:55.361380+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.446,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:04:55.361131Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:04:55.361570+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.446,
+      "prev_signal_strength": 3.497,
+      "signal_delta": -0.051,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:04:55.361131Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:04:55.715468+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.433,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:04:55.715312Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:04:55.715625+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.433,
+      "prev_signal_strength": 2.537,
+      "signal_delta": -0.104,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:04:55.715312Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:04:55.750121+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.337,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:04:55.749989Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:04:55.750831+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.337,
+      "prev_signal_strength": 3.446,
+      "signal_delta": -0.109,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:04:55.749989Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:06:17.137759+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.429,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:06:17.137610Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:06:17.137932+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.429,
+      "prev_signal_strength": 2.433,
+      "signal_delta": -0.004,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:06:17.137610Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:06:17.174329+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.289,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:06:17.174158Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:06:17.174506+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.289,
+      "prev_signal_strength": 3.337,
+      "signal_delta": -0.048,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:06:17.174158Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:06:17.543169+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.332,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:06:17.543006Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:06:17.543398+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.332,
+      "prev_signal_strength": 2.429,
+      "signal_delta": -0.097,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:06:17.543006Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:06:17.577974+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.186,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:06:17.577803Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:06:17.578170+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.186,
+      "prev_signal_strength": 3.289,
+      "signal_delta": -0.103,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:06:17.577803Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:07:38.832393+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.329,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:07:38.832269Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:07:38.832555+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.329,
+      "prev_signal_strength": 2.332,
+      "signal_delta": -0.003,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:07:38.832269Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:07:38.871228+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.143,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:07:38.871066Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:07:38.871439+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.143,
+      "prev_signal_strength": 3.186,
+      "signal_delta": -0.043,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:07:38.871066Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:07:39.648988+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.236,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:07:39.648840Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:07:39.649134+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.236,
+      "prev_signal_strength": 2.329,
+      "signal_delta": -0.093,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:07:39.648840Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:07:39.683772+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.045,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:07:39.683646Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:07:39.683912+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.045,
+      "prev_signal_strength": 3.143,
+      "signal_delta": -0.098,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:07:39.683646Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:09:00.770975+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.234,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:09:00.770821Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:09:00.771131+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.234,
+      "prev_signal_strength": 2.236,
+      "signal_delta": -0.002,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:09:00.770821Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:09:00.804622+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.004,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:09:00.804499Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:09:00.804783+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 3.004,
+      "prev_signal_strength": 3.045,
+      "signal_delta": -0.041,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:09:00.804499Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:09:01.496308+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.146,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:09:01.496058Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:09:01.496529+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.146,
+      "prev_signal_strength": 2.234,
+      "signal_delta": -0.088,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:09:01.496058Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:09:01.541934+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.912,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:09:01.541758Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:09:01.542159+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.912,
+      "prev_signal_strength": 3.004,
+      "signal_delta": -0.092,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:09:01.541758Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:10:22.520093+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.144,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:10:22.519942Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:10:22.520348+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.144,
+      "prev_signal_strength": 2.146,
+      "signal_delta": -0.002,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:10:22.519942Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:10:22.562778+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.873,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:10:22.562610Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:10:22.562949+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.873,
+      "prev_signal_strength": 2.912,
+      "signal_delta": -0.039,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:10:22.562610Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:10:23.390287+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.062,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:10:23.390110Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:10:23.390466+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.062,
+      "prev_signal_strength": 2.144,
+      "signal_delta": -0.082,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:10:23.390110Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:10:23.426301+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.787,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:10:23.426112Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:10:23.426494+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.787,
+      "prev_signal_strength": 2.873,
+      "signal_delta": -0.086,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:10:23.426112Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:11:44.266417+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.06,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:11:44.266218Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:11:44.266591+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.06,
+      "prev_signal_strength": 2.062,
+      "signal_delta": -0.002,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:11:44.266218Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:11:44.301528+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.751,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:11:44.301372Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:11:44.301705+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.751,
+      "prev_signal_strength": 2.787,
+      "signal_delta": -0.036,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:11:44.301372Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:11:45.492106+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.983,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:11:45.491897Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:11:45.492463+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.983,
+      "prev_signal_strength": 2.06,
+      "signal_delta": -0.077,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:11:45.491897Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:11:45.531666+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.67,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:11:45.531519Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:11:45.531814+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.67,
+      "prev_signal_strength": 2.751,
+      "signal_delta": -0.081,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:11:45.531519Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:13:05.984970+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.982,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:13:05.984809Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:13:05.985230+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.982,
+      "prev_signal_strength": 1.983,
+      "signal_delta": -0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:13:05.984809Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:13:06.021906+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.638,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:13:06.021766Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:13:06.022123+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.638,
+      "prev_signal_strength": 2.67,
+      "signal_delta": -0.032,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:13:06.021766Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:13:07.240670+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.909,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:13:07.240505Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:13:07.240851+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.909,
+      "prev_signal_strength": 1.982,
+      "signal_delta": -0.073,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:13:07.240505Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:13:07.275095+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.56,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:13:07.274938Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:13:07.275305+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.56,
+      "prev_signal_strength": 2.638,
+      "signal_delta": -0.078,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:13:07.274938Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:14:27.712680+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.908,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:14:27.712524Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:14:27.712855+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.908,
+      "prev_signal_strength": 1.909,
+      "signal_delta": -0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:14:27.712524Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:14:27.746973+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.53,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:14:27.746814Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:14:27.747201+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.53,
+      "prev_signal_strength": 2.56,
+      "signal_delta": -0.03,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:14:27.746814Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:14:29.041004+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.84,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:14:29.040871Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:14:29.041146+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.84,
+      "prev_signal_strength": 1.908,
+      "signal_delta": -0.068,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:14:29.040871Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:14:29.074804+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.457,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:14:29.074669Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:14:29.074976+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.457,
+      "prev_signal_strength": 2.53,
+      "signal_delta": -0.073,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:14:29.074669Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:15:49.441631+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.839,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:15:49.441455Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:15:49.441863+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.839,
+      "prev_signal_strength": 1.84,
+      "signal_delta": -0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:15:49.441455Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:15:49.477266+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.428,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:15:49.477105Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:15:49.477463+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.428,
+      "prev_signal_strength": 2.457,
+      "signal_delta": -0.029,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:15:49.477105Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:15:50.734817+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.775,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:15:50.734681Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:15:50.734977+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.775,
+      "prev_signal_strength": 1.839,
+      "signal_delta": -0.064,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:15:50.734681Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:15:50.766921+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.361,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:15:50.766793Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:15:50.767060+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.361,
+      "prev_signal_strength": 2.428,
+      "signal_delta": -0.067,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:15:50.766793Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:17:11.201595+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.773,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:17:11.201479Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:17:11.201717+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.773,
+      "prev_signal_strength": 1.775,
+      "signal_delta": -0.002,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:17:11.201479Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:17:11.231714+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.333,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:17:11.231576Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:17:11.231864+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.333,
+      "prev_signal_strength": 2.361,
+      "signal_delta": -0.028,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:17:11.231576Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:17:12.538692+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.714,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:17:12.538565Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:17:12.538835+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.714,
+      "prev_signal_strength": 1.773,
+      "signal_delta": -0.059,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:17:12.538565Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:17:12.569315+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.27,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:17:12.569153Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:17:12.569485+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.27,
+      "prev_signal_strength": 2.333,
+      "signal_delta": -0.063,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:17:12.569153Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:18:33.026874+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.713,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:18:33.026755Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:18:33.027019+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.713,
+      "prev_signal_strength": 1.714,
+      "signal_delta": -0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:18:33.026755Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:18:33.139488+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.244,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:18:33.139342Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:18:33.139745+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.244,
+      "prev_signal_strength": 2.27,
+      "signal_delta": -0.026,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:18:33.139342Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:18:34.212394+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.656,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:18:34.212175Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:18:34.212703+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.656,
+      "prev_signal_strength": 1.713,
+      "signal_delta": -0.057,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:18:34.212175Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:18:34.248589+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.185,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:18:34.248430Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:18:34.248760+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.185,
+      "prev_signal_strength": 2.244,
+      "signal_delta": -0.059,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:18:34.248430Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:19:54.806410+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.655,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:19:54.806276Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:19:54.806554+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.655,
+      "prev_signal_strength": 1.656,
+      "signal_delta": -0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:19:54.806276Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:19:54.841390+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.161,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:19:54.841254Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:19:54.841536+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.161,
+      "prev_signal_strength": 2.185,
+      "signal_delta": -0.024,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:19:54.841254Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:19:55.943209+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.603,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:19:55.943041Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:19:55.943470+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.603,
+      "prev_signal_strength": 1.655,
+      "signal_delta": -0.052,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:19:55.943041Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:19:55.979349+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.105,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:19:55.979170Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:19:55.979511+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.105,
+      "prev_signal_strength": 2.161,
+      "signal_delta": -0.056,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:19:55.979170Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:21:16.702831+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.601,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:21:16.702658Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:21:16.703016+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.601,
+      "prev_signal_strength": 1.603,
+      "signal_delta": -0.002,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:21:16.702658Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:21:16.738958+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.082,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:21:16.738807Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:21:16.739189+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.082,
+      "prev_signal_strength": 2.105,
+      "signal_delta": -0.023,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:21:16.738807Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:21:17.696281+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.552,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:21:17.696081Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:21:17.696499+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.552,
+      "prev_signal_strength": 1.601,
+      "signal_delta": -0.049,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:21:17.696081Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:21:17.733588+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.03,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:21:17.733424Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:21:17.733750+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.03,
+      "prev_signal_strength": 2.082,
+      "signal_delta": -0.052,
+      "signal_trend": "weakening",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:21:17.733424Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:22:38.478946+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.55,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:22:38.478795Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:22:38.479147+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.55,
+      "prev_signal_strength": 1.552,
+      "signal_delta": -0.002,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:22:38.478795Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:22:38.515218+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.008,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:22:38.515070Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:22:38.515418+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 2.008,
+      "prev_signal_strength": 2.03,
+      "signal_delta": -0.022,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:22:38.515070Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:22:39.412735+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.504,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:22:39.412570Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:22:39.412935+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.504,
+      "prev_signal_strength": 1.55,
+      "signal_delta": -0.046,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:22:39.412570Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:22:39.448890+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.959,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:22:39.448727Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:22:39.449084+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.959,
+      "prev_signal_strength": 2.008,
+      "signal_delta": -0.049,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:22:39.448727Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:24:00.226617+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.503,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:24:00.226453Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:24:00.226851+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.503,
+      "prev_signal_strength": 1.504,
+      "signal_delta": -0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:24:00.226453Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:24:00.262265+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.939,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:24:00.262115Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:24:00.262419+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.939,
+      "prev_signal_strength": 1.959,
+      "signal_delta": -0.02,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:24:00.262115Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:24:01.171512+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.459,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:24:01.171347Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:24:01.171685+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.459,
+      "prev_signal_strength": 1.503,
+      "signal_delta": -0.044,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:24:01.171347Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:24:01.242993+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.893,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:24:01.242783Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:24:01.243191+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.893,
+      "prev_signal_strength": 1.939,
+      "signal_delta": -0.046,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:24:01.242783Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:25:22.032660+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.459,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:25:22.032510Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:25:22.032834+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.459,
+      "prev_signal_strength": 1.459,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:25:22.032510Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:25:22.073298+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.874,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:25:22.073095Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:25:22.073583+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.874,
+      "prev_signal_strength": 1.893,
+      "signal_delta": -0.019,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:25:22.073095Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:25:23.483046+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.417,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:25:23.482792Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:25:23.483284+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.417,
+      "prev_signal_strength": 1.459,
+      "signal_delta": -0.042,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:25:23.482792Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:25:23.530890+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.831,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:25:23.530691Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:25:23.531066+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.831,
+      "prev_signal_strength": 1.874,
+      "signal_delta": -0.043,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:25:23.530691Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:26:44.464052+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.416,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:26:44.463865Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:26:44.464329+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.416,
+      "prev_signal_strength": 1.417,
+      "signal_delta": -0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:26:44.463865Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:26:44.501944+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.813,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:26:44.501767Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:26:44.502154+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.813,
+      "prev_signal_strength": 1.831,
+      "signal_delta": -0.018,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:26:44.501767Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:26:45.338699+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.378,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:26:45.338436Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:26:45.339020+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.378,
+      "prev_signal_strength": 1.416,
+      "signal_delta": -0.038,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:26:45.338436Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:26:45.515689+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.772,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:26:45.515448Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:26:45.515973+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.772,
+      "prev_signal_strength": 1.813,
+      "signal_delta": -0.041,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:26:45.515448Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:28:06.207632+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.377,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:28:06.207509Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:28:06.207776+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.377,
+      "prev_signal_strength": 1.378,
+      "signal_delta": -0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:28:06.207509Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:28:06.239001+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.755,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:28:06.238869Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:28:06.239154+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.755,
+      "prev_signal_strength": 1.772,
+      "signal_delta": -0.017,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:28:06.238869Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:28:09.356705+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.34,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:28:09.356585Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:28:09.356866+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.34,
+      "prev_signal_strength": 1.377,
+      "signal_delta": -0.037,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:28:09.356585Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:28:09.386399+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.716,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:28:09.386278Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:28:09.386515+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.716,
+      "prev_signal_strength": 1.755,
+      "signal_delta": -0.039,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:28:09.386278Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:29:27.870970+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.34,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:29:27.870842Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:29:27.871132+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.34,
+      "prev_signal_strength": 1.34,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:29:27.870842Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:29:27.902684+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.702,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:29:27.902513Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:29:27.902875+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.702,
+      "prev_signal_strength": 1.716,
+      "signal_delta": -0.014,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:29:27.902513Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:29:31.048161+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.305,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:29:31.047993Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:29:31.048418+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.305,
+      "prev_signal_strength": 1.34,
+      "signal_delta": -0.035,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:29:31.047993Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:29:31.082929+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.664,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:29:31.082776Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:29:31.083113+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.664,
+      "prev_signal_strength": 1.702,
+      "signal_delta": -0.038,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:29:31.082776Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:30:49.573751+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.305,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:30:49.573618Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:30:49.573895+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.305,
+      "prev_signal_strength": 1.305,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:30:49.573618Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:30:49.610862+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.651,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:30:49.610718Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:30:49.611043+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.651,
+      "prev_signal_strength": 1.664,
+      "signal_delta": -0.013,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:30:49.610718Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:30:52.713600+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.273,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:30:52.713419Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:30:52.713770+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.273,
+      "prev_signal_strength": 1.305,
+      "signal_delta": -0.032,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:30:52.713419Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:30:52.749829+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.616,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:30:52.749674Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:30:52.749986+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.616,
+      "prev_signal_strength": 1.651,
+      "signal_delta": -0.035,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:30:52.749674Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:32:11.355418+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.273,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:32:11.355286Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:32:11.355563+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.273,
+      "prev_signal_strength": 1.273,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:32:11.355286Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:32:11.385139+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.604,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:32:11.384974Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:32:11.385368+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.604,
+      "prev_signal_strength": 1.616,
+      "signal_delta": -0.012,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:32:11.384974Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:32:14.415795+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.242,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:32:14.415672Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:32:14.415944+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.242,
+      "prev_signal_strength": 1.273,
+      "signal_delta": -0.031,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:32:14.415672Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:32:14.450064+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.571,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:32:14.449927Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:32:14.450209+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.571,
+      "prev_signal_strength": 1.604,
+      "signal_delta": -0.033,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:32:14.449927Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:33:33.082174+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.242,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:33:33.081994Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:33:33.082382+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.242,
+      "prev_signal_strength": 1.242,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:33:33.081994Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:33:33.117082+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.559,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:33:33.116920Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:33:33.117344+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.559,
+      "prev_signal_strength": 1.571,
+      "signal_delta": -0.012,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:33:33.116920Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:33:36.079353+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.213,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:33:36.079196Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:33:36.079526+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.213,
+      "prev_signal_strength": 1.242,
+      "signal_delta": -0.029,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:33:36.079196Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:33:36.112682+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.528,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:33:36.112545Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:33:36.112860+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.528,
+      "prev_signal_strength": 1.559,
+      "signal_delta": -0.031,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:33:36.112545Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:34:54.787895+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.214,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:34:54.787779Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:34:54.788113+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.214,
+      "prev_signal_strength": 1.213,
+      "signal_delta": 0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:34:54.787779Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:34:54.822742+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.518,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:34:54.822588Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:34:54.822890+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.518,
+      "prev_signal_strength": 1.528,
+      "signal_delta": -0.01,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:34:54.822588Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:34:57.763136+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.187,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:34:57.763009Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:34:57.763329+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.187,
+      "prev_signal_strength": 1.214,
+      "signal_delta": -0.027,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:34:57.763009Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:34:57.795203+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.489,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:34:57.795076Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:34:57.795385+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.489,
+      "prev_signal_strength": 1.518,
+      "signal_delta": -0.029,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:34:57.795076Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:36:16.528859+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.187,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:36:16.528692Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:36:16.529140+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.187,
+      "prev_signal_strength": 1.187,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:36:16.528692Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:36:16.566738+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.478,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:36:16.566585Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:36:16.566910+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.478,
+      "prev_signal_strength": 1.489,
+      "signal_delta": -0.011,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:36:16.566585Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:36:19.556840+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.161,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:36:19.556690Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:36:19.557016+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.161,
+      "prev_signal_strength": 1.187,
+      "signal_delta": -0.026,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:36:19.556690Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:36:19.590301+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.451,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:36:19.590130Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:36:19.590472+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.451,
+      "prev_signal_strength": 1.478,
+      "signal_delta": -0.027,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:36:19.590130Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:37:38.206998+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.161,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:37:38.206832Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:37:38.207152+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.161,
+      "prev_signal_strength": 1.161,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:37:38.206832Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:37:38.242060+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.441,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:37:38.241933Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:37:38.242207+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.441,
+      "prev_signal_strength": 1.451,
+      "signal_delta": -0.01,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:37:38.241933Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:37:41.260683+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.137,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:37:41.260515Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:37:41.260854+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.137,
+      "prev_signal_strength": 1.161,
+      "signal_delta": -0.024,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:37:41.260515Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:37:41.295803+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.416,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:37:41.295638Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:37:41.296036+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.416,
+      "prev_signal_strength": 1.441,
+      "signal_delta": -0.025,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:37:41.295638Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:38:59.919634+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.138,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:38:59.919515Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:38:59.919776+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.138,
+      "prev_signal_strength": 1.137,
+      "signal_delta": 0.001,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:38:59.919515Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:38:59.954441+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.407,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:38:59.954280Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:38:59.954631+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.407,
+      "prev_signal_strength": 1.416,
+      "signal_delta": -0.009,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:38:59.954280Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:39:03.083529+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.115,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:39:03.083382Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:39:03.083679+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.115,
+      "prev_signal_strength": 1.138,
+      "signal_delta": -0.023,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:39:03.083382Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:39:03.118795+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.383,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:39:03.118655Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:39:03.119002+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.383,
+      "prev_signal_strength": 1.407,
+      "signal_delta": -0.024,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:39:03.118655Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:40:21.625277+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.115,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:40:21.625105Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:40:21.625459+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.115,
+      "prev_signal_strength": 1.115,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:40:21.625105Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:40:21.661941+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.374,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:40:21.661783Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:40:21.662128+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.374,
+      "prev_signal_strength": 1.383,
+      "signal_delta": -0.009,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:40:21.661783Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:40:24.810521+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.094,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:40:24.810361Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:40:24.810713+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.094,
+      "prev_signal_strength": 1.115,
+      "signal_delta": -0.021,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:40:24.810361Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:40:24.846010+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.352,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:40:24.845877Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:40:24.846191+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.352,
+      "prev_signal_strength": 1.374,
+      "signal_delta": -0.022,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:40:24.845877Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:41:43.503650+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.094,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:41:43.503518Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:41:43.503840+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.094,
+      "prev_signal_strength": 1.094,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:41:43.503518Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:41:43.554107+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.344,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:41:43.553976Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:41:43.554279+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.344,
+      "prev_signal_strength": 1.352,
+      "signal_delta": -0.008,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:41:43.553976Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:41:46.523177+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.075,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:41:46.523028Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:41:46.523387+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.075,
+      "prev_signal_strength": 1.094,
+      "signal_delta": -0.019,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:41:46.523028Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:41:46.556986+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.323,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:41:46.556819Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:41:46.557158+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.323,
+      "prev_signal_strength": 1.344,
+      "signal_delta": -0.021,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:41:46.556819Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:43:05.273901+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.075,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:43:05.273762Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:43:05.274074+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.075,
+      "prev_signal_strength": 1.075,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:43:05.273762Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:43:05.308075+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.315,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:43:05.307945Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:43:05.308228+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.315,
+      "prev_signal_strength": 1.323,
+      "signal_delta": -0.008,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:43:05.307945Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:43:08.228389+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.056,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:43:08.228221Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:43:08.228552+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.056,
+      "prev_signal_strength": 1.075,
+      "signal_delta": -0.019,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:43:08.228221Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:43:08.262415+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.295,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:43:08.262284Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:43:08.262559+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.295,
+      "prev_signal_strength": 1.315,
+      "signal_delta": -0.02,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:43:08.262284Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:44:26.982459+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.056,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:44:26.982307Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:44:26.982623+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.056,
+      "prev_signal_strength": 1.056,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:44:26.982307Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:44:27.018041+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.288,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:44:27.017873Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:44:27.018308+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.288,
+      "prev_signal_strength": 1.295,
+      "signal_delta": -0.007,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:44:27.017873Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:44:29.946911+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.039,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:44:29.946757Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:44:29.947108+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.039,
+      "prev_signal_strength": 1.056,
+      "signal_delta": -0.017,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:44:29.946757Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:44:29.984564+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.27,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:44:29.984421Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:44:29.984752+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.27,
+      "prev_signal_strength": 1.288,
+      "signal_delta": -0.018,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:44:29.984421Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:45:48.679420+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.039,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:45:48.679272Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:45:48.679588+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.039,
+      "prev_signal_strength": 1.039,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:45:48.679272Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:45:48.714477+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.263,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:45:48.714349Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:45:48.714656+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.263,
+      "prev_signal_strength": 1.27,
+      "signal_delta": -0.007,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:45:48.714349Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:45:51.704278+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.023,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:45:51.704098Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:45:51.704439+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.023,
+      "prev_signal_strength": 1.039,
+      "signal_delta": -0.016,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:45:51.704098Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:45:51.739685+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.246,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:45:51.739515Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:45:51.739841+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.246,
+      "prev_signal_strength": 1.263,
+      "signal_delta": -0.017,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:45:51.739515Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:47:10.345066+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.023,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:47:10.344906Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:47:10.345277+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.023,
+      "prev_signal_strength": 1.023,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:47:10.344906Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:47:10.378581+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.239,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:47:10.378410Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:47:10.378781+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.239,
+      "prev_signal_strength": 1.246,
+      "signal_delta": -0.007,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:47:10.378410Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:47:13.591173+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.007,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:47:13.591013Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:47:13.591399+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.007,
+      "prev_signal_strength": 1.023,
+      "signal_delta": -0.016,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:47:13.591013Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:47:13.673956+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.223,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:47:13.673749Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:47:13.674161+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.223,
+      "prev_signal_strength": 1.239,
+      "signal_delta": -0.016,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:47:13.673749Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:48:32.434702+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.007,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:48:32.434527Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:48:32.434876+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.007,
+      "prev_signal_strength": 1.007,
+      "signal_delta": 0.0,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:48:32.434527Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:48:32.509681+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.217,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:48:32.509539Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:48:32.509836+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.217,
+      "prev_signal_strength": 1.223,
+      "signal_delta": -0.006,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:48:32.509539Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:48:36.035950+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 0.993,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:48:36.035754Z"
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:48:36.036158+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 0.993,
+      "prev_signal_strength": 1.007,
+      "signal_delta": -0.014,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:48:36.035754Z",
+      "event_schema_version": 1
+    },
+    "symbol": "HOOD"
+  },
+  {
+    "timestamp": "2026-02-17T21:48:36.137002+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_strength_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.201,
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:48:36.136787Z"
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:48:36.137203+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_trend_evaluated",
+    "severity": "INFO",
+    "details": {
+      "position_side": "SHORT",
+      "signal_strength": 1.201,
+      "prev_signal_strength": 1.217,
+      "signal_delta": -0.016,
+      "signal_trend": "flat",
+      "evaluation_context": "open_position_refresh",
+      "timestamp": "2026-02-17T21:48:36.136787Z",
+      "event_schema_version": 1
+    },
+    "symbol": "MRNA"
+  },
+  {
+    "timestamp": "2026-02-17T21:48:45.362927+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_correlation_snapshot",
+    "severity": "INFO",
+    "details": {
+      "as_of": "2026-02-17T21:48:45.335057+00:00",
+      "window_minutes": 1440.0,
+      "pair_count_considered": 1,
+      "pairs_topk": [
+        {
+          "a": "HOOD",
+          "b": "MRNA",
+          "corr": 0.9742,
+          "n": 39
+        }
+      ],
+      "concentration_summary": {
+        "max_abs_corr": 0.9742,
+        "avg_abs_corr": 0.9742
+      },
+      "event_schema_version": 1
+    }
+  }
+]
