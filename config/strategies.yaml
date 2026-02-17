@@ -31,8 +31,8 @@ strategies:
       - Communication Services
     # Per-position limits are a fraction of wheel budget (25% of account). Paper: enable trading for learning.
     per_position_fraction_of_wheel_budget: 0.5   # allow up to 50% of wheel budget per CSP
-    max_concurrent_positions: 1                  # start with 1 CSP at a time for clarity
-    max_positions: 5                             # cap open CSPs (max_concurrent_positions takes precedence when set)
+    max_concurrent_positions: 5                  # allow multiple CSPs at a time for more data
+    max_positions: 12                            # cap open CSPs (room to learn and collect premiums)
     csp:
       target_dte_min: 5
       target_dte_max: 10

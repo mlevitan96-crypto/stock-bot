@@ -464,7 +464,7 @@ DASHBOARD_HTML = """
     };
     function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
     function loadVersion(){fetch('/api/version',creds).then(function(r){if(!r.ok){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v??? ('+r.status+')';b.title='HTTP '+r.status;}}return r.ok?r.json():null;}).then(function(d){var b=document.getElementById('version-badge');if(!b||!d)return;var s=(d.git_commit_short||(d.git_commit||'').substring(0,7))||'???';b.textContent='Dashboard v'+s;b.title='Commit '+s;}).catch(function(){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v???';b.title='Version fetch failed';}});}
-    function loadPositions(){fetch('/api/positions',creds).then(function(r){if(!r.ok){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Server '+r.status+'. Refresh and log in again.</p>';return null;}return r.json();}).then(function(d){if(!d){return;}var el=document.getElementById('positions-content');if(!el)return;if(d.error){el.innerHTML='<p class="no-positions">'+d.error+'</p>';return;}var pos=Array.isArray(d.positions)?d.positions:[];var tp=document.getElementById('total-positions');if(tp)tp.textContent=pos.length;var tv=document.getElementById('total-value');if(tv)tv.textContent='$'+fmt(d.total_value);var up=document.getElementById('unrealized-pnl');if(up){up.textContent='$'+fmt(d.unrealized_pnl);up.className='stat-value '+(Number(d.unrealized_pnl)>=0?'positive':'negative');}var dp=document.getElementById('day-pnl');if(dp){dp.textContent='$'+fmt(d.day_pnl);dp.className='stat-value '+(Number(d.day_pnl)>=0?'positive':'negative');}if(pos.length===0){el.innerHTML='<p class="no-positions">No open positions</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th></tr></thead><tbody>';for(var i=0;i<pos.length;i++){var p=pos[i];var side=p.side||'long';var qty=p.qty!=null?p.qty:0;var entry=p.avg_entry_price!=null?fmt(p.avg_entry_price):'-';var cur=p.current_price!=null?fmt(p.current_price):'-';var val=p.market_value!=null?fmt(p.market_value):'-';var pl=p.unrealized_pnl!=null?fmt(p.unrealized_pnl):'-';var plp=(p.unrealized_pnl_pct!=null?fmt(p.unrealized_pnl_pct):'-')+'%';var cls=Number(p.unrealized_pnl)>=0?'positive':'negative';h+='<tr><td>'+p.symbol+'</td><td>'+side+'</td><td>'+qty+'</td><td>'+entry+'</td><td>'+cur+'</td><td>'+val+'</td><td class="'+cls+'">'+pl+'</td><td class="'+cls+'">'+plp+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;}).catch(function(e){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Positions failed: '+(e&&e.message?e.message:'network error')+'. Refresh and log in.</p>';});}
+    function loadPositions(){fetch('/api/positions',creds).then(function(r){if(!r.ok){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Server '+r.status+'. Refresh and log in again.</p>';return null;}return r.json();}).then(function(d){if(!d){return;}var el=document.getElementById('positions-content');if(!el)return;if(d.error){el.innerHTML='<p class="no-positions">'+d.error+'</p>';return;}var pos=Array.isArray(d.positions)?d.positions:[];var tp=document.getElementById('total-positions');if(tp)tp.textContent=pos.length;var tv=document.getElementById('total-value');if(tv)tv.textContent='$'+fmt(d.total_value);var up=document.getElementById('unrealized-pnl');if(up){up.textContent='$'+fmt(d.unrealized_pnl);up.className='stat-value '+(Number(d.unrealized_pnl)>=0?'positive':'negative');}var dp=document.getElementById('day-pnl');if(dp){dp.textContent='$'+fmt(d.day_pnl);dp.className='stat-value '+(Number(d.day_pnl)>=0?'positive':'negative');}if(pos.length===0){el.innerHTML='<p class="no-positions">No open positions</p>';return;}var h='<table><thead><tr><th>Strategy</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th></tr></thead><tbody>';for(var i=0;i<pos.length;i++){var p=pos[i];var strat=(p.strategy_id||'equity')==='wheel'?'Wheel':'Equity';var side=p.side||'long';var qty=p.qty!=null?p.qty:0;var entry=p.avg_entry_price!=null?fmt(p.avg_entry_price):'-';var cur=p.current_price!=null?fmt(p.current_price):'-';var val=p.market_value!=null?fmt(p.market_value):'-';var pl=p.unrealized_pnl!=null?fmt(p.unrealized_pnl):'-';var plp=(p.unrealized_pnl_pct!=null?fmt(p.unrealized_pnl_pct):'-')+'%';var cls=Number(p.unrealized_pnl)>=0?'positive':'negative';h+='<tr><td>'+strat+'</td><td>'+p.symbol+'</td><td>'+side+'</td><td>'+qty+'</td><td>'+entry+'</td><td>'+cur+'</td><td>'+val+'</td><td class="'+cls+'">'+pl+'</td><td class="'+cls+'">'+plp+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;}).catch(function(e){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Positions failed: '+(e&&e.message?e.message:'network error')+'. Refresh and log in.</p>';});}
     function err(el,msg){if(el)el.innerHTML='<div class="loading" style="color:#ef4444;">'+msg+'</div>';}
     function cur(v){if(v==null||v===undefined)return '';var n=Number(v);return isFinite(n)?'$'+n.toFixed(2):String(v);}
     window.loadSREContent=function(){var el=document.getElementById('sre-content');if(!el)return;el.innerHTML='<div class="loading">Loading SRE...</div>';fetch('/api/sre/health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var m=d.sre_metrics||{};var f=d.signal_funnel||{};var h='<div class="stat-card" style="margin-bottom:16px;"><h3>SRE Health</h3><p><strong>Overall:</strong> '+(d.overall_health||'—')+'</p><p><strong>Bot:</strong> '+(d.bot_process&&d.bot_process.running?'Running':'—')+'</p><p><strong>Market:</strong> '+(d.market_status||'—')+' '+(d.market_open?'(open)':'')+'</p></div>';
@@ -500,7 +500,7 @@ DASHBOARD_HTML = """
     h+='<div class="stat-card"><h3>Closed Trades ('+list.length+')</h3><table style="width:100%;font-size:12px;"><thead><tr><th>Strategy</th><th>Symbol</th><th>Time</th><th>P&L</th><th>Close</th><th>Phase</th><th>Type</th><th>Strike</th><th>Expiry</th><th>DTE</th><th>Premium</th><th>Assigned</th><th>Called</th></tr></thead><tbody>';
     for(var i=0;i<list.length;i++){var t=list[i];var sid=t.strategy_id||'equity';var stratLabel=sid==='wheel'?'Wheel':'Equity';var ts=t.timestamp?new Date(t.timestamp).toLocaleString():'—';var pnl=t.pnl_usd!=null?'$'+Number(t.pnl_usd).toFixed(2):'—';var close=t.close_reason||'—';var ph=t.wheel_phase||'—';var ot=t.option_type||'—';var st=t.strike!=null?t.strike:'—';var ex=t.expiry||'—';var dte=t.dte!=null?t.dte:'—';var pr=t.premium!=null?'$'+Number(t.premium).toFixed(2):'—';var asn=t.assigned===true?'Y':(t.assigned===false?'N':'—');var ca=t.called_away===true?'Y':(t.called_away===false?'N':'—');h+='<tr><td>'+stratLabel+'</td><td>'+(t.symbol||'—')+'</td><td>'+ts+'</td><td>'+pnl+'</td><td>'+close+'</td><td>'+ph+'</td><td>'+ot+'</td><td>'+st+'</td><td>'+ex+'</td><td>'+dte+'</td><td>'+pr+'</td><td>'+asn+'</td><td>'+ca+'</td></tr>';}
     h+='</tbody></table></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Closed trades failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadWheelAnalytics=function(){var el=document.getElementById('wheel_strategy-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Strategy...</div>';Promise.all([fetch('/api/stockbot/wheel_analytics',creds).then(function(r){return r.ok?r.json():null;}),fetch('/api/wheel/universe_health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var d=arr[0];var univ=arr[1];if(!d)d={};var h='<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> '+(d.total_trades!=null?d.total_trades:0)+'</p><p><strong>Premium collected:</strong> $'+(d.premium_collected!=null?Number(d.premium_collected).toFixed(2):'0.00')+'</p><p><strong>Assignment count:</strong> '+(d.assignment_count!=null?d.assignment_count:0)+' | <strong>Call-away count:</strong> '+(d.call_away_count!=null?d.call_away_count:0)+'</p><p><strong>Assignment rate:</strong> '+(d.assignment_rate_pct!=null?d.assignment_rate_pct.toFixed(1):'—')+'% | <strong>Call-away rate:</strong> '+(d.call_away_rate_pct!=null?d.call_away_rate_pct.toFixed(1):'—')+'%</p><p><strong>Expectancy per trade (USD):</strong> '+(d.expectancy_per_trade_usd!=null?'$'+Number(d.expectancy_per_trade_usd).toFixed(2):'—')+'</p><p><strong>Realized P&L sum:</strong> '+(d.realized_pnl_sum!=null?'$'+Number(d.realized_pnl_sum).toFixed(2):'—')+'</p></div>';if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}if(univ){h+='<div class="stat-card" style="margin-top:16px;"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(univ.date||'—')+'</p><p><strong>Universe:</strong> '+(Array.isArray(univ.current_universe)?univ.current_universe.join(', '):(univ.message||'—'))+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(univ.selected_candidates)?univ.selected_candidates.join(', '):'—')+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel analytics failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadWheelAnalytics=function(){var el=document.getElementById('wheel_strategy-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Strategy...</div>';Promise.all([fetch('/api/stockbot/wheel_analytics',creds).then(function(r){return r.ok?r.json():null;}),fetch('/api/wheel/universe_health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var d=arr[0];var univ=arr[1];if(!d)d={};var h='<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> '+(d.total_trades!=null?d.total_trades:0)+'</p><p><strong>Premium collected:</strong> $'+(d.premium_collected!=null?Number(d.premium_collected).toFixed(2):'0.00')+'</p><p><strong>Assignment count:</strong> '+(d.assignment_count!=null?d.assignment_count:0)+' | <strong>Call-away count:</strong> '+(d.call_away_count!=null?d.call_away_count:0)+'</p><p><strong>Assignment rate:</strong> '+(d.assignment_rate_pct!=null?d.assignment_rate_pct.toFixed(1):'—')+'% | <strong>Call-away rate:</strong> '+(d.call_away_rate_pct!=null?d.call_away_rate_pct.toFixed(1):'—')+'%</p><p><strong>Expectancy per trade (USD):</strong> '+(d.expectancy_per_trade_usd!=null?'$'+Number(d.expectancy_per_trade_usd).toFixed(2):'—')+'</p><p><strong>Realized P&L sum:</strong> '+(d.realized_pnl_sum!=null?'$'+Number(d.realized_pnl_sum).toFixed(2):'—')+'</p></div>';var openPos=d.open_wheel_positions||[];h+='<div class="stat-card" style="margin-top:16px;"><h3>Current wheel positions</h3>';if(openPos.length){h+='<table style="width:100%;font-size:12px;"><thead><tr><th>Symbol</th><th>Stage</th><th>Strike</th><th>Expiry</th><th>Premium</th><th>Status</th></tr></thead><tbody>';for(var i=0;i<openPos.length;i++){var p=openPos[i];h+='<tr><td>'+(p.symbol||'—')+'</td><td>'+(p.phase||'—')+'</td><td>'+(p.strike!=null?p.strike:'—')+'</td><td>'+(p.expiry||'—').toString().substring(0,10)+'</td><td>'+(p.premium!=null?'$'+Number(p.premium).toFixed(2):'—')+'</td><td>'+(p.status||'open')+'</td></tr>';}h+='</tbody></table></div>';}else{h+='<p>No open wheel positions. Wheel positions appear here and in Open Positions with Strategy=Wheel.</p></div>';}if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}if(univ){h+='<div class="stat-card" style="margin-top:16px;"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(univ.date||'—')+'</p><p><strong>Universe:</strong> '+(Array.isArray(univ.current_universe)?univ.current_universe.join(', '):(univ.message||'—'))+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(univ.selected_candidates)?univ.selected_candidates.join(', '):'—')+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel analytics failed: '+(e&&e.message?e.message:'network'));});};
     function loadTopStrip(){Promise.all([fetch('/api/sre/health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=24h',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=7d',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var health=arr[0];var d24=arr[1];var d7=arr[2];var hel=document.getElementById('strip-health');if(hel){var h=health&&health.overall_health?health.overall_health:'—';hel.textContent=h;hel.className='strip-health '+(h==='healthy'?'healthy':h==='degraded'?'degraded':'critical');}var todayEl=document.getElementById('strip-pnl-today');if(todayEl){var pm24=d24&&d24.pnl_metrics?d24.pnl_metrics:{};var p24=pm24.pnl!=null?pm24.pnl:(pm24.pnl_2d!=null?pm24.pnl_2d:0);todayEl.textContent='$'+fmt(p24);todayEl.className=Number(p24)>=0?'positive':'negative';}var d7El=document.getElementById('strip-pnl-7d');if(d7El){var pm7=d7&&d7.pnl_metrics?d7.pnl_metrics:{};var p7=pm7.pnl!=null?pm7.pnl:0;d7El.textContent='$'+fmt(p7);d7El.className=Number(p7)>=0?'positive':'negative';}var lu=document.getElementById('last-update');if(lu)lu.textContent=new Date().toLocaleTimeString();});}
     try{document.body.setAttribute('data-js','1');}catch(e){}
     setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();},0);
@@ -1777,6 +1777,25 @@ DASHBOARD_HTML = """
                     const premium = d.premium_collected != null ? Number(d.premium_collected).toFixed(2) : '0.00';
                     const allZero = totalTrades === 0 && parseFloat(premium) === 0 && (d.assignment_count || 0) === 0 && (d.call_away_count || 0) === 0;
                     let h = '<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> ' + totalTrades + '</p><p><strong>Premium collected:</strong> $' + premium + '</p><p><strong>Assignment count:</strong> ' + (d.assignment_count != null ? d.assignment_count : '0') + ' | <strong>Call-away count:</strong> ' + (d.call_away_count != null ? d.call_away_count : '0') + '</p><p><strong>Assignment rate:</strong> ' + (d.assignment_rate_pct != null ? d.assignment_rate_pct.toFixed(1) : '0.0') + '% | <strong>Call-away rate:</strong> ' + (d.call_away_rate_pct != null ? d.call_away_rate_pct.toFixed(1) : '0.0') + '%</p><p><strong>Expectancy per trade (USD):</strong> ' + (d.expectancy_per_trade_usd != null ? '$' + Number(d.expectancy_per_trade_usd).toFixed(2) : '—') + '</p><p><strong>Realized P&L sum:</strong> $' + (d.realized_pnl_sum != null ? Number(d.realized_pnl_sum).toFixed(2) : '0.00') + '</p></div>';
+                    const openPos = d.open_wheel_positions || [];
+                    h += '<div class="stat-card" style="margin-top:16px;"><h3>Current wheel positions</h3>';
+                    if (openPos.length) {
+                        h += '<table style="width:100%;font-size:12px;"><thead><tr><th>Symbol</th><th>Stage</th><th>Strike</th><th>Expiry</th><th>Premium</th><th>Status</th><th>Opened</th></tr></thead><tbody>';
+                        for (let i = 0; i < openPos.length; i++) {
+                            const p = openPos[i];
+                            const sym = p.symbol || '—';
+                            const phase = p.phase || '—';
+                            const strike = p.strike != null ? p.strike : '—';
+                            const expiry = (p.expiry || '—').toString().substring(0, 10);
+                            const prem = p.premium != null ? '$' + Number(p.premium).toFixed(2) : '—';
+                            const status = p.status || 'open';
+                            const opened = p.opened_at ? new Date(p.opened_at).toLocaleString() : '—';
+                            h += '<tr><td>' + sym + '</td><td>' + phase + '</td><td>' + strike + '</td><td>' + expiry + '</td><td>' + prem + '</td><td>' + status + '</td><td>' + opened + '</td></tr>';
+                        }
+                        h += '</tbody></table></div>';
+                    } else {
+                        h += '<p>No open wheel positions. Open positions from wheel (CSP/CC) appear here and in Open Positions with Strategy=Wheel.</p></div>';
+                    }
                     if (allZero) h += '<div class="stat-card" style="border-left:4px solid #64748b;"><p style="color:#64748b;font-size:0.9em;"><strong>Data sources:</strong> logs/attribution.jsonl, logs/telemetry.jsonl (strategy_id=wheel), reports/*_stock-bot_wheel.json, state/wheel_state.json. Run <code>python3 scripts/generate_daily_strategy_reports.py</code> to refresh reports. Wheel data appears when the wheel strategy executes trades.</p></div>';
                     if (d.error) h += '<div class="stat-card" style="border-color:#f59e0b;"><p>' + (d.error || '') + '</p></div>';
                     el.innerHTML = h;
@@ -2426,14 +2445,17 @@ DASHBOARD_HTML = """
                     if (!container) return;
                     var existingTable = container.querySelector('table');
                     var existingRows = existingTable ? existingTable.querySelectorAll('tbody tr').length : 0;
-                    var needsFullRebuild = !existingTable || existingRows !== positions.length;
+                    var firstRow = existingTable ? existingTable.querySelector('tbody tr') : null;
+                    var colCount = firstRow ? firstRow.querySelectorAll('td').length : 0;
+                    var needsFullRebuild = !existingTable || existingRows !== positions.length || colCount < 14;
                     
                     if (needsFullRebuild) {
                         var html = '<table><thead><tr>';
-                        html += '<th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
+                        html += '<th>Strategy</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
                         html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry</th><th>Current</th><th>Prev</th><th>Delta</th><th>Trend</th></tr></thead><tbody>';
                         
                         positions.forEach(function(pos) {
+                            var stratLabel = (pos.strategy_id || 'equity') === 'wheel' ? 'Wheel' : 'Equity';
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
                             const entryScore = pos.entry_score !== undefined && pos.entry_score !== null ? pos.entry_score.toFixed(2) : '0.00';
                             const currentScoreEvaluated = pos.current_signal_evaluated === true;
@@ -2455,6 +2477,7 @@ DASHBOARD_HTML = """
                             }
                             
                             html += '<tr data-symbol="' + pos.symbol + '">';
+                            html += '<td><span class="strategy ' + (pos.strategy_id || 'equity') + '">' + stratLabel + '</span></td>';
                             html += '<td class="symbol">' + pos.symbol + '</td>';
                             html += '<td><span class="side ' + pos.side + '">' + pos.side.toUpperCase() + '</span></td>';
                             html += '<td>' + pos.qty + '</td>';
@@ -2486,54 +2509,54 @@ DASHBOARD_HTML = """
                         if (tbody) positions.forEach(function(pos, index) {
                             const row = tbody.children[index];
                             if (!row) return;
-                            
+                            var stratLabel = (pos.strategy_id || 'equity') === 'wheel' ? 'Wheel' : 'Equity';
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
                             const cells = row.querySelectorAll('td');
-                            
-                            // Only update cells that changed (skip symbol, side as they don't change)
-                            if (cells.length >= 13) {
-                                cells[2].textContent = pos.qty;
-                                cells[3].textContent = formatCurrency(pos.avg_entry_price);
-                                cells[4].textContent = formatCurrency(pos.current_price);
-                                cells[5].textContent = formatCurrency(pos.market_value);
-                                cells[6].textContent = formatCurrency(pos.unrealized_pnl);
-                                cells[6].className = pnlClass;
-                                cells[7].textContent = formatPercent(pos.unrealized_pnl_pct);
+                            // Columns: Strategy, Symbol, Side, Qty, Entry, Current, Value, P&L, P&L %, Entry score, Current, Prev, Delta, Trend (14)
+                            if (cells.length >= 14) {
+                                cells[0].textContent = stratLabel;
+                                cells[3].textContent = pos.qty;
+                                cells[4].textContent = formatCurrency(pos.avg_entry_price);
+                                cells[5].textContent = formatCurrency(pos.current_price);
+                                cells[6].textContent = formatCurrency(pos.market_value);
+                                cells[7].textContent = formatCurrency(pos.unrealized_pnl);
                                 cells[7].className = pnlClass;
+                                cells[8].textContent = formatPercent(pos.unrealized_pnl_pct);
+                                cells[8].className = pnlClass;
                                 const entryScore = pos.entry_score !== undefined && pos.entry_score !== null ? pos.entry_score.toFixed(2) : '0.00';
-                                cells[8].textContent = entryScore;
+                                cells[9].textContent = entryScore;
                                 if (pos.entry_score === 0) {
-                                    cells[8].style.color = '#ef4444';
-                                    cells[8].style.fontWeight = 'bold';
-                                } else {
-                                    cells[8].style.color = '';
-                                    cells[8].style.fontWeight = '';
-                                }
-                                const currentScoreEvaluated = pos.current_signal_evaluated === true;
-                                const currentScore = currentScoreEvaluated && pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : (currentScoreEvaluated ? '0.00' : 'N/A');
-                                cells[9].textContent = currentScore;
-                                if (currentScoreEvaluated && pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
-                                    const decayRatio = pos.current_score / pos.entry_score;
-                                    if (decayRatio < 0.6) {
-                                        cells[9].style.color = '#ef4444';
-                                        cells[9].style.fontWeight = 'bold';
-                                    } else if (decayRatio < 0.8) {
-                                        cells[9].style.color = '#f59e0b';
-                                        cells[9].style.fontWeight = '';
-                                    } else {
-                                        cells[9].style.color = '';
-                                        cells[9].style.fontWeight = '';
-                                    }
+                                    cells[9].style.color = '#ef4444';
+                                    cells[9].style.fontWeight = 'bold';
                                 } else {
                                     cells[9].style.color = '';
                                     cells[9].style.fontWeight = '';
                                 }
+                                const currentScoreEvaluated = pos.current_signal_evaluated === true;
+                                const currentScore = currentScoreEvaluated && pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : (currentScoreEvaluated ? '0.00' : 'N/A');
+                                cells[10].textContent = currentScore;
+                                if (currentScoreEvaluated && pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
+                                    const decayRatio = pos.current_score / pos.entry_score;
+                                    if (decayRatio < 0.6) {
+                                        cells[10].style.color = '#ef4444';
+                                        cells[10].style.fontWeight = 'bold';
+                                    } else if (decayRatio < 0.8) {
+                                        cells[10].style.color = '#f59e0b';
+                                        cells[10].style.fontWeight = '';
+                                    } else {
+                                        cells[10].style.color = '';
+                                        cells[10].style.fontWeight = '';
+                                    }
+                                } else {
+                                    cells[10].style.color = '';
+                                    cells[10].style.fontWeight = '';
+                                }
                                 const prevScore = currentScoreEvaluated && pos.prev_score !== undefined && pos.prev_score !== null ? pos.prev_score.toFixed(2) : 'N/A';
                                 const deltaVal = currentScoreEvaluated && pos.signal_delta !== undefined && pos.signal_delta !== null ? (pos.signal_delta >= 0 ? '+' : '') + pos.signal_delta.toFixed(2) : 'N/A';
                                 const trendVal = currentScoreEvaluated && pos.signal_trend ? pos.signal_trend : 'N/A';
-                                cells[10].textContent = prevScore;
-                                cells[11].textContent = deltaVal;
-                                cells[12].textContent = trendVal;
+                                cells[11].textContent = prevScore;
+                                cells[12].textContent = deltaVal;
+                                cells[13].textContent = trendVal;
                             }
                         });
                     }
@@ -3187,6 +3210,28 @@ def _api_positions_impl():
     except Exception as e:
         print(f"[Dashboard] Warning: Failed to load position metadata: {e}", flush=True)
 
+    # Wheel designation: symbols that are part of wheel (open CSPs, open CCs, or assigned shares)
+    wheel_symbols = set()
+    try:
+        wheel_state_path = (Path(_DASHBOARD_ROOT) / "state" / "wheel_state.json").resolve()
+        if wheel_state_path.exists():
+            wheel_state = json.loads(wheel_state_path.read_text(encoding="utf-8", errors="replace"))
+            wheel_symbols.update((wheel_state.get("open_csps") or {}).keys())
+            wheel_symbols.update((wheel_state.get("open_ccs") or {}).keys())
+            wheel_symbols.update((wheel_state.get("assigned_shares") or {}).keys())
+    except Exception as e:
+        print(f"[Dashboard] Warning: Failed to load wheel state for strategy_id: {e}", flush=True)
+
+    def _underlying_for_position(alpaca_symbol: str, asset_class: str) -> str:
+        """Return underlying symbol for wheel matching. Equity: symbol as-is. Option: extract root (e.g. XLF from XLF260320P00051000)."""
+        if getattr(asset_class, "lower", lambda: "")() == "option" and len(alpaca_symbol) >= 2:
+            for L in range(min(6, len(alpaca_symbol)), 0, -1):
+                cand = alpaca_symbol[:L]
+                if cand in wheel_symbols:
+                    return cand
+            return alpaca_symbol[:6] if len(alpaca_symbol) >= 6 else alpaca_symbol
+        return alpaca_symbol
+
     # Load UW cache for current score calculation (paths resolved against repo root for cwd-independence)
     uw_cache = {}
     current_regime = "mixed"
@@ -3228,7 +3273,10 @@ def _api_positions_impl():
     pos_list = []
     for p in positions:
         symbol = p.symbol
-        meta = (metadata.get(symbol, {}) or {}) if metadata else {}
+        asset_class = getattr(p, "asset_class", None) or "us_equity"
+        underlying = _underlying_for_position(symbol, asset_class)
+        strategy_id = "wheel" if underlying in wheel_symbols else (metadata.get(symbol, {}) or {}).get("strategy_id") or (metadata.get(underlying, {}) or {}).get("strategy_id") or "equity"
+        meta = (metadata.get(symbol, metadata.get(underlying, {})) or {}) if metadata else {}
         entry_score = meta.get("entry_score")
         if entry_score is None or (isinstance(entry_score, (int, float)) and float(entry_score) <= 0):
             try:
@@ -3299,6 +3347,7 @@ def _api_positions_impl():
             "prev_score": float(prev_score) if prev_score is not None else None,
             "signal_delta": float(signal_delta) if signal_delta is not None else None,
             "signal_trend": signal_trend,
+            "strategy_id": strategy_id,
         })
 
     missed_alpha_usd = 0.0
@@ -3766,6 +3815,44 @@ def api_stockbot_wheel_analytics():
         assignment_rate = (assigned_count / total * 100) if total else 0
         call_away_rate = (called_away_count / total * 100) if total else 0
         expectancy = (pnl_sum / total) if total else None
+
+        # Current open wheel positions from state/wheel_state.json (open_csps, open_ccs)
+        open_wheel_positions = []
+        try:
+            wheel_state_path = Path(_DASHBOARD_ROOT) / "state" / "wheel_state.json"
+            if wheel_state_path.exists():
+                ws = json.loads(wheel_state_path.read_text(encoding="utf-8", errors="replace"))
+                open_csps = ws.get("open_csps") or {}
+                open_ccs = ws.get("open_ccs") or {}
+                for underlying, entries in open_csps.items():
+                    for ent in (entries if isinstance(entries, list) else [entries]):
+                        if isinstance(ent, dict) and (ent.get("status") or "open") == "open":
+                            open_wheel_positions.append({
+                                "symbol": ent.get("underlying_symbol") or underlying,
+                                "phase": "CSP",
+                                "option_symbol": ent.get("option_symbol"),
+                                "strike": ent.get("strike"),
+                                "expiry": ent.get("expiry"),
+                                "premium": ent.get("open_credit"),
+                                "status": ent.get("status", "open"),
+                                "opened_at": ent.get("opened_at"),
+                            })
+                for underlying, entries in open_ccs.items():
+                    for ent in (entries if isinstance(entries, list) else [entries]):
+                        if isinstance(ent, dict) and (ent.get("status") or "open") == "open":
+                            open_wheel_positions.append({
+                                "symbol": ent.get("underlying_symbol") or underlying,
+                                "phase": "CC",
+                                "option_symbol": ent.get("option_symbol"),
+                                "strike": ent.get("strike"),
+                                "expiry": ent.get("expiry"),
+                                "premium": ent.get("open_credit"),
+                                "status": ent.get("status", "open"),
+                                "opened_at": ent.get("opened_at"),
+                            })
+        except Exception:
+            pass
+
         return jsonify({
             "strategy_id": "wheel",
             "total_trades": total,
@@ -3776,9 +3863,10 @@ def api_stockbot_wheel_analytics():
             "call_away_rate_pct": round(call_away_rate, 2),
             "expectancy_per_trade_usd": round(expectancy, 2) if expectancy is not None else None,
             "realized_pnl_sum": round(pnl_sum, 2),
+            "open_wheel_positions": open_wheel_positions,
         }), 200
     except Exception as e:
-        return jsonify({"strategy_id": "wheel", "total_trades": 0, "error": str(e)}), 200
+        return jsonify({"strategy_id": "wheel", "total_trades": 0, "open_wheel_positions": [], "error": str(e)}), 200
 
 
 @app.route("/api/closed_positions")
