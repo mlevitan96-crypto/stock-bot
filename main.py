@@ -1906,7 +1906,7 @@ def log_exit_attribution(
         pnl_usd = 0.0
         pnl_pct = 0.0
 
-    # Signal snapshot (observability-only): EXIT_FILL when exit filled
+    # Signal snapshot (observability-only): EXIT_FILL when exit filled (Phase 4: full attribution)
     try:
         if exit_price > 0 and (exit_qty or entry_qty):
             from pathlib import Path
@@ -1916,6 +1916,12 @@ def log_exit_attribution(
             now_v2 = v2e.get("now_v2") or {}
             comps = now_v2.get("v2_exit_components") or {}
             composite_meta = {"components": comps, "component_contributions": comps, "component_sources": {}}
+            if v2e.get("v2_exit_attribution_components") is not None:
+                composite_meta["attribution_components"] = v2e["v2_exit_attribution_components"]
+            if v2e.get("v2_exit_reason_code"):
+                composite_meta["exit_reason_code"] = v2e["v2_exit_reason_code"]
+            composite_meta["decision_id"] = f"dec_{str(symbol).upper()}_{now_aware.isoformat().replace(':', '-').replace('+00:00', 'Z')[:24]}"
+            composite_meta["attribution_schema_version"] = "1.0.0"
             entry_ts_dt = info.get("ts", now_aware)
             entry_ts_iso = entry_ts_dt.isoformat() if hasattr(entry_ts_dt, "isoformat") else str(entry_ts_dt)
             if entry_ts_iso and "Z" not in entry_ts_iso and "+" not in entry_ts_iso:
@@ -2157,8 +2163,37 @@ def log_exit_attribution(
         v2_exit_score = float(v2_exit.get("v2_exit_score") or 0.0)
         v2_exit_components = v2_exit.get("v2_exit_components", {}) if isinstance(v2_exit.get("v2_exit_components"), dict) else {}
         score_det = float(v2_exit.get("score_deterioration") or 0.0)
+        # Phase 4: Exit attribution components and stable reason code
+        v2_exit_attribution_components = v2_exit.get("v2_exit_attribution_components")
+        v2_exit_reason_code = v2_exit.get("v2_exit_reason_code") or "other"
+        exit_ts_iso = now_aware.isoformat()
+        decision_id = f"dec_{str(symbol).upper()}_{exit_ts_iso.replace(':', '-').replace('+00:00', 'Z')[:24]}"
+        # Phase 4: Exit quality metrics (observational)
+        exit_quality_metrics = None
+        try:
+            from src.exit.exit_quality_metrics import compute_exit_quality_metrics
+            entry_ts_dt = info.get("ts", now_aware)
+            if hasattr(entry_ts_dt, "tzinfo") and entry_ts_dt.tzinfo is None:
+                entry_ts_dt = entry_ts_dt.replace(tzinfo=timezone.utc)
+            high_water = (info.get("high_water") or entry_price) if entry_price else None
+            # Guard: when high_water unavailable or equal to entry, giveback cannot be computed
+            if high_water is None or (entry_price and abs(float(high_water) - float(entry_price)) < 1e-9):
+                log_event("data_integrity", "exit_quality_high_water_unavailable", symbol=symbol,
+                          high_water=high_water, entry_price=entry_price, note="giveback will be null")
+            exit_quality_metrics = compute_exit_quality_metrics(
+                entry_price=float(entry_price or 0),
+                exit_price=float(exit_price or 0),
+                entry_ts=entry_ts_dt,
+                exit_ts=now_aware,
+                high_water_price=float(high_water) if high_water else None,
+                qty=float(context.get("qty") or 1),
+                side=str(info.get("side") or "buy"),
+            )
+        except Exception:
+            pass
 
         variant_id = (metadata or {}).get("variant_id") or (info or {}).get("variant_id") if isinstance(metadata, dict) or isinstance(info, dict) else None
+        from src.exit.exit_attribution import ATTRIBUTION_SCHEMA_VERSION
         rec = build_exit_attribution_record(
             symbol=str(symbol).upper(),
             entry_timestamp=str(context.get("entry_ts") or ""),
@@ -2181,11 +2216,16 @@ def log_exit_attribution(
             v2_exit_components=dict(v2_exit_components or {}),
             replacement_candidate=v2_exit.get("replacement_candidate"),
             replacement_reasoning=v2_exit.get("replacement_reasoning") if isinstance(v2_exit.get("replacement_reasoning"), dict) else None,
-            exit_timestamp=now_aware.isoformat(),
+            exit_timestamp=exit_ts_iso,
             variant_id=variant_id,
             exit_regime_decision=exit_regime_decision,
             exit_regime_reason=exit_regime_reason,
             exit_regime_context=dict(exit_regime_context or {}),
+            attribution_components=v2_exit_attribution_components,
+            decision_id=decision_id,
+            exit_reason_code=v2_exit_reason_code,
+            attribution_schema_version=ATTRIBUTION_SCHEMA_VERSION,
+            exit_quality_metrics=exit_quality_metrics,
         )
         append_exit_attribution(rec)
         # Signal context capture (read-only): full signal state at exit for profitability learning.
@@ -5506,6 +5546,8 @@ class AlpacaExecutor:
             
             # Only attribute exits when we have executed fill fields.
             if exit_fill_price > 0 and exit_fill_qty > 0:
+                # Data integrity: ensure high_water available for exit_quality_metrics (giveback)
+                info["high_water"] = self.high_water.get(symbol, info.get("high_water") or entry_price)
                 log_exit_attribution(
                     symbol=symbol,
                     info=info,
@@ -6352,7 +6394,7 @@ class AlpacaExecutor:
 
                 direction_norm = str(info.get("direction", "") or ("bullish" if str(info.get("side", "buy")) == "buy" else "bearish"))
 
-                v2_exit_score, v2_exit_components, v2_exit_reason = compute_exit_score_v2(
+                v2_exit_score, v2_exit_components, v2_exit_reason, v2_exit_attribution_components, v2_exit_reason_code = compute_exit_score_v2(
                     symbol=str(symbol),
                     direction=direction_norm,
                     entry_v2_score=float(info.get("entry_score", 0.0) or 0.0),
@@ -6397,6 +6439,8 @@ class AlpacaExecutor:
                     "v2_exit_score": float(v2_exit_score),
                     "v2_exit_components": dict(v2_exit_components or {}),
                     "v2_exit_reason": str(v2_exit_reason or ""),
+                    "v2_exit_attribution_components": list(v2_exit_attribution_components or []),
+                    "v2_exit_reason_code": str(v2_exit_reason_code or "other"),
                     "entry_v2_score": float(info.get("entry_score", 0.0) or 0.0),
                     "now_v2_score": float(current_composite_score or 0.0),
                     "score_deterioration": float(max(0.0, float(info.get("entry_score", 0.0) or 0.0) - float(current_composite_score or 0.0))),
@@ -6970,16 +7014,23 @@ class AlpacaExecutor:
                     decision_exit_price = entry_price
                 
                 print(f"DEBUG EXITS: Closing {symbol} (decision_px={decision_exit_price:.2f}, entry={entry_price:.2f}, hold={holding_period_min:.1f}min)", flush=True)
-                # EXIT_DECISION snapshot (observability-only): capture state before placing exit order
+                # EXIT_DECISION snapshot (observability-only): capture state before placing exit order (Phase 4: full attribution)
                 try:
                     from pathlib import Path
                     from telemetry.signal_snapshot_writer import write_snapshot_safe
                     base = Path(__file__).resolve().parent if "__file__" in dir() else Path.cwd()
                     meta = all_metadata.get(symbol, {}) if isinstance(all_metadata, dict) else {}
-                    v2e = meta.get("v2_exit") or {}
+                    v2e = exit_intel_by_symbol.get(str(symbol).upper()) or meta.get("v2_exit") or {}
                     now_v2 = v2e.get("now_v2") or {}
-                    comps = now_v2.get("v2_exit_components") or {}
+                    comps = now_v2.get("v2_exit_components") or v2e.get("v2_exit_components") or {}
                     composite_meta = {"components": comps, "component_contributions": comps, "component_sources": {}}
+                    if v2e.get("v2_exit_attribution_components") is not None:
+                        composite_meta["attribution_components"] = v2e["v2_exit_attribution_components"]
+                    if v2e.get("v2_exit_reason_code"):
+                        composite_meta["exit_reason_code"] = v2e["v2_exit_reason_code"]
+                    exit_ts_iso_dec = datetime.now(timezone.utc).isoformat()
+                    composite_meta["decision_id"] = f"dec_{str(symbol).upper()}_{exit_ts_iso_dec.replace(':', '-').replace('+00:00', 'Z')[:24]}"
+                    composite_meta["attribution_schema_version"] = "1.0.0"
                     entry_ts_dt = info.get("ts", datetime.utcnow())
                     entry_ts_iso = entry_ts_dt.isoformat() if hasattr(entry_ts_dt, "isoformat") else str(entry_ts_dt)
                     if entry_ts_iso and "Z" not in entry_ts_iso and "+" not in entry_ts_iso:
@@ -6988,7 +7039,7 @@ class AlpacaExecutor:
                     pos_side = str(info.get("position_side") or ("long" if str(info.get("side", "buy")).lower() in ("buy", "long") else "short"))
                     write_snapshot_safe(
                         base, symbol, "EXIT_DECISION", "PAPER",
-                        composite_score_v2=now_v2.get("v2_exit_score") or info.get("entry_score"),
+                        composite_score_v2=v2e.get("v2_exit_score") or now_v2.get("v2_exit_score") or info.get("entry_score"),
                         composite_meta=composite_meta,
                         regime_label=info.get("regime") or meta.get("regime"),
                         trade_id=stable_trade_id,
@@ -7178,6 +7229,8 @@ class AlpacaExecutor:
                     pass
                 # Only log exit attribution when we have executed fill fields.
                 if exit_fill_price > 0 and exit_fill_qty > 0:
+                    # Data integrity: ensure high_water available for exit_quality_metrics (giveback)
+                    info["high_water"] = self.high_water.get(symbol, info.get("high_water") or entry_price)
                     regime, regime_reason, regime_ctx = exit_regime_info.get(symbol, ("normal", "", {}))
                     log_exit_attribution(
                         symbol=symbol,
@@ -9406,6 +9459,12 @@ class StrategyEngine:
                     context["entry_price_source"] = None
                 context["entry_score"] = score
                 context["components"] = comps if 'comps' in locals() else context.get("components", {})
+                # Phase 3: Persist full attribution_components for backtest/lab parity (same schema as composite result)
+                _composite_meta = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else {}
+                if _composite_meta.get("attribution_components") is not None:
+                    context["attribution_components"] = _composite_meta.get("attribution_components")
+                if _composite_meta.get("attribution_schema_version"):
+                    context["attribution_schema_version"] = _composite_meta.get("attribution_schema_version")
                 context["regime"] = market_regime
                 context["position_side"] = "long" if side == "buy" else "short"
                 context["first_signal_ts_utc"] = _first_signal_ts_cache.get(symbol)
