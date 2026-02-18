@@ -74,8 +74,22 @@ def load_joined_closed_trades(
     date_from_exit: bool = True,
 ) -> List[Dict[str, Any]]:
     """
-    Load attribution and exit_attribution, join on symbol+entry_timestamp.
-    Returns list of joined records: each has exit record fields + entry_* from attribution context.
+    Load attribution and exit_attribution, join on trade_id (primary) or symbol+entry_ts_bucket (fallback).
+
+    Join key definition:
+    - Primary: trade_id. Entry (attribution): trade_id like "open_SYMBOL_<entry_ts_iso>". Exit (exit_attribution):
+      must carry same trade_id so entry_by_trade_id[ex["trade_id"]] finds the entry.
+    - Fallback: key = symbol|entry_ts_bucket(ts). Entry: attr_entry_key(r) uses context.entry_ts or r.entry_ts/ts.
+      Exit: exit_key(ex) uses ex.entry_timestamp or ex.entry_ts. Bucket = first 19 chars of ts string (Z/+00:00 stripped).
+
+    Expected fields:
+    - Attribution (entry): type=attribution, trade_id startswith "open_", context.entry_ts, context.entry_score,
+      context.attribution_components, context.regime.
+    - Exit_attribution: symbol, entry_timestamp (or entry_ts), trade_id (recommended for stable join), timestamp/ts.
+
+    Returns list of joined records: each has exit record fields + entry_score, entry_attribution_components,
+    entry_regime, entry_context from the matched attribution entry. quality_flags may include "join_fallback" if
+    matched by key only.
     """
     attr_all = load_jsonl(attribution_path)
     exit_all = load_jsonl(exit_attribution_path)

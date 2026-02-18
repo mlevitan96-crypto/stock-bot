@@ -25,6 +25,9 @@ from src.exit.exit_attribution_enrich import enrich_exit_row
 # Allow regression runs to isolate log outputs (prevents polluting droplet logs).
 OUT = Path(os.environ.get("EXIT_ATTRIBUTION_LOG_PATH", "logs/exit_attribution.jsonl"))
 
+# Schema version for attribution/exit records (docs: ATTRIBUTION_SCHEMA_CANONICAL_V1, ATTRIBUTION_TRUTH_CONTRACT).
+ATTRIBUTION_SCHEMA_VERSION = "1.0.0"
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -76,6 +79,7 @@ def build_exit_attribution_record(
     exit_regime_decision: str = "normal",
     exit_regime_reason: str = "",
     exit_regime_context: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     rec: Dict[str, Any] = {
         "symbol": str(symbol).upper(),
@@ -107,5 +111,8 @@ def build_exit_attribution_record(
     rec["exit_regime_decision"] = str(exit_regime_decision or "normal")
     rec["exit_regime_reason"] = str(exit_regime_reason or "")
     rec["exit_regime_context"] = dict(exit_regime_context or {})
+    # Caller may pass decision_id, exit_quality_metrics, exit_reason_code, trade_id, attribution_components, etc.
+    for k, v in kwargs.items():
+        rec[k] = v
     return rec
 

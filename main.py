@@ -2197,10 +2197,13 @@ def log_exit_attribution(
             pass
 
         variant_id = (metadata or {}).get("variant_id") or (info or {}).get("variant_id") if isinstance(metadata, dict) or isinstance(info, dict) else None
+        # Join key: exit record must carry entry trade_id so attribution_loader can match by trade_id (primary) or symbol|entry_ts_bucket (fallback).
+        entry_ts_iso_attr = str(context.get("entry_ts") or "")
+        open_trade_id = f"open_{str(symbol).upper()}_{entry_ts_iso_attr}" if entry_ts_iso_attr else None
         from src.exit.exit_attribution import ATTRIBUTION_SCHEMA_VERSION
         rec = build_exit_attribution_record(
             symbol=str(symbol).upper(),
-            entry_timestamp=str(context.get("entry_ts") or ""),
+            entry_timestamp=entry_ts_iso_attr,
             exit_reason=str(close_reason or ""),
             pnl=float(pnl_usd) if pnl_usd is not None else None,
             pnl_pct=float(pnl_pct) if pnl_pct is not None else None,
@@ -2230,6 +2233,7 @@ def log_exit_attribution(
             exit_reason_code=v2_exit_reason_code,
             attribution_schema_version=ATTRIBUTION_SCHEMA_VERSION,
             exit_quality_metrics=exit_quality_metrics,
+            trade_id=open_trade_id,
         )
         append_exit_attribution(rec)
         # Signal context capture (read-only): full signal state at exit for profitability learning.
