@@ -1724,12 +1724,16 @@ def log_attribution(trade_id: str, symbol: str, pnl_usd: float, context: dict):
             )
     except Exception:
         pass
+    # Blame classification: ensure entry_score is present for open_ records so joined rows have it
+    ctx_out = dict(context) if isinstance(context, dict) else {}
+    if str(trade_id or "").startswith("open_") and "entry_score" not in ctx_out:
+        ctx_out["entry_score"] = ctx_out.get("score") or 0.0
     jsonl_write("attribution", {
         "type": "attribution",
         "trade_id": trade_id,
         "symbol": symbol,
         "pnl_usd": pnl_usd,
-        "context": context
+        "context": ctx_out
     })
     # Master trade log (append-only, additive).
     # Only emit entry records for filled entries (avoid synthetic prices for pending fills).
