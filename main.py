@@ -8187,8 +8187,16 @@ class StrategyEngine:
             else:
                 toxicity_penalty = 0.0
             
+            # SCORE CONTRACT: Expectancy gate must evaluate the SAME composite score that passed the prior gate.
+            try:
+                composite_exec_score = float(c.get("composite_score", score))
+            except (TypeError, ValueError):
+                composite_exec_score = float(score)
+            expectancy_floor = float(getattr(Config, "MIN_EXEC_SCORE", 3.0))
+            score_floor_breach = (composite_exec_score < expectancy_floor)
+            
             expectancy = v32.ExpectancyGate.calculate_expectancy(
-                composite_score=score,
+                composite_score=composite_exec_score,
                 ticker_bayes_expectancy=ticker_bayes_expectancy,
                 regime_modifier=regime_modifier,
                 tca_modifier=tca_modifier,
@@ -8203,15 +8211,17 @@ class StrategyEngine:
             should_trade, gate_reason = v32.ExpectancyGate.should_enter(
                 ticker=symbol,
                 expectancy=expectancy,
-                composite_score=score,
+                composite_score=composite_exec_score,
                 stage=system_stage,
                 regime=market_regime,
                 tca_modifier=tca_modifier,
                 freeze_active=freeze_active,
-                score_floor_breach=(score < Config.MIN_EXEC_SCORE),
+                score_floor_breach=score_floor_breach,
                 broker_health_degraded=False  # TODO: Link to broker health monitor
             )
             
+            if os.environ.get("EXPECTANCY_DEBUG") == "1":
+                print(f"EXPECTANCY_DEBUG {symbol}: composite_score={composite_exec_score:.4f}, score_used_by_expectancy={composite_exec_score:.4f}, expectancy_floor={expectancy_floor}, decision={'pass' if should_trade else 'fail'} ({gate_reason})", flush=True)
             print(f"DEBUG {symbol}: expectancy={expectancy:.4f}, should_trade={should_trade}, reason={gate_reason}", flush=True)
             
             if not should_trade:
