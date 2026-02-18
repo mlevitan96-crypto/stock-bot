@@ -1,10 +1,16 @@
 #!/bin/bash
 # EOD report auto-sync to GitHub. Run on droplet.
 # Cron: 32 21 * * 1-5 (weekdays 21:32 UTC)
-# Path-agnostic: uses REPO_DIR or script's parent directory
+# Use REPO_DIR if set; else detect same root as EOD cron (stock-bot-current, then stock-bot).
 # EOD output lives in board/eod/out/YYYY-MM-DD/; must add that folder explicitly.
 set -e
-REPO_DIR="${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+if [ -z "${REPO_DIR}" ]; then
+  if [ -d /root/stock-bot-current/scripts ] && [ -f /root/stock-bot-current/board/eod/eod_confirmation.py ]; then
+    REPO_DIR=/root/stock-bot-current
+  else
+    REPO_DIR=/root/stock-bot
+  fi
+fi
 cd "$REPO_DIR" || exit 1
 DATE=$(date -u +%Y-%m-%d)
 git fetch origin
