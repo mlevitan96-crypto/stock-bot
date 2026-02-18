@@ -1,0 +1,22 @@
+{
+  "date": "2026-02-18",
+  "window_days": 7,
+  "by_reason": [
+    {
+      "block_reason": "expectancy_blocked:score_floor_breach",
+      "count": 961,
+      "avg_candidate_score": 0.1966,
+      "avg_expected_value_usd": 1889.45,
+      "avg_rank": null
+    },
+    {
+      "block_reason": "score_below_min",
+      "count": 1039,
+      "avg_candidate_score": 0.1971,
+      "avg_expected_value_usd": 2047.79,
+      "avg_rank": null
+    }
+  ],
+  "constraint_suppression_cost_usd": 3937.24,
+  "constraint_false_positive_rate": null
+}

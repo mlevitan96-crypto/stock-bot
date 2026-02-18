@@ -1,0 +1,16 @@
+[
+  {
+    "timestamp": "2026-02-18T23:57:33.779994+00:00",
+    "subsystem": "signals",
+    "event_type": "signal_correlation_snapshot",
+    "severity": "INFO",
+    "details": {
+      "as_of": "2026-02-18T23:57:33.751138+00:00",
+      "window_minutes": 1440.0,
+      "pair_count_considered": 0,
+      "pairs_topk": [],
+      "concentration_summary": {},
+      "event_schema_version": 1
+    }
+  }
+]

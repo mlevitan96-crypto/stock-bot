@@ -1,0 +1,127 @@
+{
+  "date": "2026-02-18",
+  "chronic_losers": [
+    {
+      "symbol": "BA",
+      "pnl_contribution_usd": -13.26,
+      "trade_count": 42,
+      "win_rate": 0.1429,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "SOFI",
+      "pnl_contribution_usd": -17.26,
+      "trade_count": 117,
+      "win_rate": 0.1453,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "MRNA",
+      "pnl_contribution_usd": -20.41,
+      "trade_count": 116,
+      "win_rate": 0.2328,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "HOOD",
+      "pnl_contribution_usd": -15.38,
+      "trade_count": 123,
+      "win_rate": 0.2358,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "COIN",
+      "pnl_contribution_usd": -27.07,
+      "trade_count": 135,
+      "win_rate": 0.1704,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "NIO",
+      "pnl_contribution_usd": -36.49,
+      "trade_count": 97,
+      "win_rate": 0.0103,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "LCID",
+      "pnl_contribution_usd": -26.21,
+      "trade_count": 91,
+      "win_rate": 0.0659,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "RIVN",
+      "pnl_contribution_usd": -15.55,
+      "trade_count": 114,
+      "win_rate": 0.2193,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    }
+  ],
+  "consistent_winners": [],
+  "decay_penalties": [
+    {
+      "symbol": "XLP",
+      "decay_trigger_count": 18,
+      "trade_count": 25,
+      "decay_exit_rate": 0.72,
+      "action": "penalize_decay",
+      "score_penalty": -0.1
+    }
+  ],
+  "adjustments": [
+    {
+      "symbol": "BA",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "SOFI",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "MRNA",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "HOOD",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "COIN",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "NIO",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "LCID",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "RIVN",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "XLP",
+      "action": "penalize_decay",
+      "score_penalty": -0.1
+    }
+  ]
+}

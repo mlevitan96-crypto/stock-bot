@@ -1,0 +1,422 @@
+{
+  "verdict": "NO_GO",
+  "summary": "The system experienced a negative P&L of -131.84 USD over the 3, 5, and 7-day rolling windows, with a significantly low win rate of 0.1313 for the 1-day window. The primary exit reason is signal decay, and a substantial number of trades were blocked due to low scores and expectancy breaches, indicating fundamental issues with signal quality and trade selection.",
+  "pnl_metrics": {
+    "total_pnl_usd": -131.84,
+    "trades": 2253,
+    "wins": 285,
+    "losses": 761,
+    "win_rate": 0.1265,
+    "max_drawdown_pct": 5.64
+  },
+  "regime_context": {
+    "regime_label": "BEAR",
+    "regime_confidence": null,
+    "notes": "Most symbols in the daily universe are currently categorized under a BEAR market regime, as observed in daily_universe_v2.json."
+  },
+  "sector_context": {
+    "sectors_traded": [
+      "ENERGY",
+      "TECH",
+      "UNKNOWN",
+      "BIOTECH"
+    ],
+    "sector_pnl": null,
+    "notes": "Sector-specific P&L is not directly provided in the bundle summary. Traded sectors include Energy, Tech, Biotech, and Unknown categories based on daily_universe_v2.json."
+  },
+  "recommendations": [
+    {
+      "id": "rec-1",
+      "priority": "high",
+      "title": "Enhance Signal Quality and Reduce Suppression",
+      "body": "Focus on improving the underlying signal quality and reducing the high edge suppression rate (0.98), which is significantly impacting edge realization (0.16). This includes reviewing UW parameters and feature engineering.",
+      "owner": "Mark",
+      "reference_section": "Proactive root-cause"
+    },
+    {
+      "id": "rec-2",
+      "priority": "high",
+      "title": "Refine Exit Strategies for Signal Decay and Improve Attribution",
+      "body": "Address the dominance of 'signal_decay' as an exit reason across all observed decay levels and the large number of 'unknown' exit reasons. Implement more sophisticated exit conditions beyond simple decay and ensure all exits are clearly attributed.",
+      "owner": "Cursor",
+      "reference_section": "Proactive root-cause, Attribution, Exit attribution"
+    },
+    {
+      "id": "rec-3",
+      "priority": "high",
+      "title": "Re-evaluate Trade Blocking Thresholds and Expectancy",
+      "body": "Investigate and adjust the `score_floor_breach` and `score_below_min` thresholds that are causing a high volume of blocked trades and significant opportunity cost (3937.24 USD). Ensure these constraints are not overly aggressive.",
+      "owner": "Cursor",
+      "reference_section": "Proactive root-cause, Blocked trades"
+    }
+  ],
+  "top_3_root_causes_pnl_degradation": [
+    {
+      "id": "rc-1",
+      "description": "Poor signal quality and high edge suppression: The underwriting (UW) system shows a quality score of 0.0 and edge suppression of 0.98, leading to only 0.16 edge realization among candidates. This means that even if good candidates exist, they are being filtered out or their edge isn't being captured, resulting in trades with negative expectancy.",
+      "data_source": "Proactive root-cause (UW root cause)"
+    },
+    {
+      "id": "rc-2",
+      "description": "Dominance of signal decay and unknown exit reasons: 'Signal decay' is the predominant explicit exit reason across multiple thresholds, indicating that trades are often exited as signals weaken rather than reaching profitability targets. Furthermore, 2000 exits are categorized as 'unknown' in exit attribution, hindering granular analysis of loss drivers.",
+      "data_source": "Proactive root-cause (Exit causality), Attribution, Exit attribution"
+    },
+    {
+      "id": "rc-3",
+      "description": "Significant capital suppression from blocked trades: A large number of trades (2000) were blocked, incurring an opportunity cost of 3937.24 USD. The primary reasons were 'score_below_min' (1039) and 'expectancy_blocked:score_floor_breach' (961), suggesting that valid trading opportunities might be missed due to overly strict or miscalibrated entry criteria.",
+      "data_source": "Proactive root-cause (Constraint root cause), Blocked trades, Missed money numeric"
+    }
+  ],
+  "top_3_concrete_actions_next": [
+    {
+      "id": "action-1",
+      "action": "Implement an A/B test for adjusted UW `quality_score` and `edge_suppression` thresholds to allow more higher-potential signals to pass through while monitoring P&L impact.",
+      "owner": "Cursor"
+    },
+    {
+      "id": "action-2",
+      "action": "Develop and deploy a new exit module focused on dynamic profit-taking and stop-loss mechanisms, reducing reliance on simple 'signal_decay' and aiming to decrease the count of 'unknown' exit reasons.",
+      "owner": "Cursor"
+    },
+    {
+      "id": "action-3",
+      "action": "Conduct a deep dive into the `score_floor_breach` and `score_below_min` blocking reasons, analyzing historical performance of such blocked trades to identify if viable opportunities were missed and adjust parameters accordingly.",
+      "owner": "Mark"
+    }
+  ],
+  "expected_impact_per_action": {
+    "action-1": "Expected impact: Increase total_pnl_usd by 10-15% over a 3-day window by unlocking suppressed edge and improving trade selection.",
+    "action-2": "Expected impact: Improve win_rate by 5-7% and reduce total_pnl_usd degradation from early exits, with a target of reducing 'unknown' exit reasons to less than 10% of all exits.",
+    "action-3": "Expected impact: Reduce blocked_trade_opportunity_cost by 20-30% over a 5-day window by accurately distinguishing between genuinely low-quality and overly constrained high-quality signals."
+  },
+  "success_failure_measured_in_3_5_days": "Success will be measured by an increase in 'total_pnl_usd' for actions 1 and 2, a quantifiable reduction in 'blocked_trade_opportunity_cost' for action 3, and a decrease in the proportion of 'signal_decay' and 'unknown' exit reasons in exit_attribution.jsonl. Failure would be indicated by further degradation in P&L metrics or no measurable improvement in the specified areas.",
+  "citations": [
+    {
+      "source": "attribution",
+      "ref": "logs/attribution.jsonl",
+      "quote": "Trades: 2253, Wins: 285, Losses: 761, Total P&L USD: -131.84, Exit reasons for core P&L and metrics."
+    },
+    {
+      "source": "exit_attribution",
+      "ref": "logs/exit_attribution.jsonl",
+      "quote": "Exits: 2000, Total P&L: -241.92, Exit reasons (e.g., signal_decay) for granular exit analysis."
+    },
+    {
+      "source": "blocked_trades",
+      "ref": "state/blocked_trades.jsonl",
+      "quote": "Count: 2000, By reason: {'expectancy_blocked:score_floor_breach': 961, 'score_below_min': 1039} for blocked trade analysis."
+    },
+    {
+      "source": "daily_start_equity",
+      "ref": "state/daily_start_equity.json",
+      "quote": "equity: 49731.24 for P&L calculation baseline."
+    },
+    {
+      "source": "peak_equity",
+      "ref": "state/peak_equity.json",
+      "quote": "peak_equity: 52566.86 for drawdown calculation."
+    },
+    {
+      "source": "daily_universe_v2",
+      "ref": "state/daily_universe_v2.json",
+      "quote": "Regime context 'BEAR' and sector breakdown for overall market and sector context."
+    },
+    {
+      "source": "rolling_window_data",
+      "ref": "pnl_by_window",
+      "quote": "pnl_by_window: {\"1_day\": -61.63, \"3_day\": -131.84, \"5_day\": -131.84, \"7_day\": -131.84} for multi-day P&L assessment."
+    },
+    {
+      "source": "rolling_window_data",
+      "ref": "win_rate_by_window",
+      "quote": "win_rate_by_window: {\"1_day\": 0.1313, \"3_day\": 0.1265, \"5_day\": 0.1265, \"7_day\": 0.1265} for multi-day win rate assessment."
+    },
+    {
+      "source": "rolling_window_data",
+      "ref": "missed_money_numeric",
+      "quote": "blocked_usd=3937.24, early_exit_usd=0.0, correlation_score=0.9742 for missed money quantification."
+    }
+  ],
+  "falsification_criteria": [
+    {
+      "id": "fc-1",
+      "description": "If, within 3-5 days, the 'total_pnl_usd' for the 3-day window fails to improve by at least 10% (i.e., less negative than -118.66 USD), the proposed signal and constraint improvements were insufficient.",
+      "observed": null,
+      "data_source": "attribution, pnl_by_window"
+    },
+    {
+      "id": "fc-2",
+      "description": "If, after 5 days, the 'win_rate_by_window' for the 1-day period remains below 0.15, the exit strategy revisions have not effectively retained profitable trades or the incoming signals are fundamentally flawed.",
+      "observed": null,
+      "data_source": "attribution, win_rate_by_window"
+    }
+  ],
+  "wheel_actions": [
+    {
+      "action_id": "56e36d804c0beb21",
+      "status": "deferred",
+      "note": "Blocked by the 'Board action closure: PASS' governance status. However, since the system is still operating at a loss, this indicates deeper issues requiring holistic resolution first. Deferring until overall system profitability is addressed."
+    },
+    {
+      "action_id": "247598556f6f7307",
+      "status": "deferred",
+      "note": "Blocked by the 'Board action closure: PASS' governance status and the 'Correlation cache missing' warning. Requires correlation cache to be generated first. Deferring until overall system profitability is addressed."
+    },
+    {
+      "action_id": "68bb4cbe4feef78d",
+      "status": "deferred",
+      "note": "Blocked by the 'Board action closure: PASS' governance status. Requires broader governance resolution before detailed analysis. Deferring until overall system profitability is addressed."
+    },
+    {
+      "action_id": "new-action-1",
+      "status": "proposed",
+      "note": "This action is paramount to unblock all other improvements and is addressed by the main recommendations."
+    },
+    {
+      "action_id": "new-action-2",
+      "status": "proposed",
+      "note": "This action aims to address the persistent losses from signal decay and is addressed by the main recommendations."
+    },
+    {
+      "action_id": "new-action-3",
+      "status": "proposed",
+      "note": "This action directly addresses the missing critical risk data and is addressed by the main recommendations."
+    },
+    {
+      "action_id": "758459fd20119e0a",
+      "status": "done",
+      "note": "Board action closure status is PASS, indicating this process is established."
+    },
+    {
+      "action_id": "09cb9e161672ea59",
+      "status": "proposed",
+      "note": "This action is crucial for mitigating losses from rapidly decaying signals and is incorporated into the recommended fixes for exit strategies."
+    },
+    {
+      "action_id": "7ea2a302f63647c0",
+      "status": "deferred",
+      "note": "Generating the correlation cache for proper risk assessment is critical, but dependent on broader data pipeline stability. Deferring for now."
+    },
+    {
+      "action_id": "2ade2f9bf82a5f67",
+      "status": "proposed",
+      "note": "Reviewing the impact of 'displacement_blocked' trades is essential and is included in the recommended fixes for constraint re-evaluation."
+    },
+    {
+      "title": "Capital/allocation blocks: Review 25% allocation or reduce concurrent positions.",
+      "body": "The 'dominant blocker' is 'allocation_exceeded' (63 skips), indicating that the current capital allocation strategy is preventing trades. This requires a review of the 25% allocation rule or a reduction in concurrent positions to allow the strategy to execute more trades. (Reference: Wheel Daily Review section 3.5)",
+      "owner": "Mark",
+      "reference_section": "Wheel Daily Review section 3.5",
+      "status": "proposed"
+    },
+    {
+      "title": "Wheel running but zero submissions: Address 'allocation_exceeded'.",
+      "body": "Despite the wheel strategy running, there are zero orders submitted due to the 'allocation_exceeded' blocker. This needs immediate attention, potentially through configuration changes to relax allocation constraints or increase the wheel budget. (Reference: Wheel Daily Review section 3.5)",
+      "owner": "Cursor",
+      "reference_section": "Wheel Daily Review section 3.5",
+      "status": "proposed"
+    }
+  ],
+  "wheel_signal_trend_insights": [
+    "Most open positions are 'flat' in signal trend (35 symbols), suggesting a lack of strong directional conviction or slow-moving signals.",
+    "Five open positions are experiencing 'weakening' signals, with BA showing the largest negative delta (-7.37). This indicates potential for future P&L degradation if not addressed promptly.",
+    "Nine open positions show 'strengthening' signals, with MSFT having the largest positive delta (+7.91), which could represent emerging opportunities.",
+    "The significant weakening in signals for some open positions (e.g., BA, COP, HD, V) suggests that current exit mechanisms might be holding positions through periods of adverse signal decay."
+  ],
+  "wheel_correlation_risks": [
+    "A high correlation of 0.97 exists between HOOD and MRNA, indicating a significant concentration risk. If one of these highly correlated assets moves unfavorably, the other is likely to follow, potentially leading to magnified losses.",
+    "The 'max_corr' for HOOD and MRNA being 0.97 suggests that positions in these symbols, if held concurrently, could be over-concentrated and exacerbate drawdown during market downturns."
+  ],
+  "wheel_watchlists": {
+    "weakening_signals": [
+      {
+        "symbol": "HD",
+        "board_rationale": "The position is still held despite a significant signal delta of -2.428, likely due to a lack of immediate hard exit conditions or a 'let-it-breathe' regime override being active. The current profitability levers include a 'FIRE_SALE' tightened regime and a 'LET-IT-BREATHE' relaxed regime, which might allow this position to be held through decay if other conditions are met (e.g., pnl_delta_15m > 0).",
+        "exit_review_condition": "An exit review would be triggered if the current signal drops below a critical threshold (e.g., 0.1) or if the P&L starts to significantly deteriorate (e.g., reaching a pre-defined stop-loss level, or if the 'FIRE_SALE' conditions are met due to a catastrophic decay or price delta)."
+      },
+      {
+        "symbol": "BA",
+        "board_rationale": "BA is still held despite the most significant signal delta of -7.369. This could be due to the 'LET-IT-BREATHE' regime being active, which might allow holding through decay if the entry signal was strong enough (2.5) and 15m P&L is positive. However, such a large decay implies a failure in either the initial signal's robustness or the exit's responsiveness.",
+        "exit_review_condition": "An immediate exit review should be triggered if the 'current_signal' for BA drops below a threshold (e.g., 0.5) or if the position enters a significant drawdown that meets 'FIRE_SALE' criteria, particularly the catastrophic_decay or price_delta thresholds."
+      },
+      {
+        "symbol": "COP",
+        "board_rationale": "The COP position is held with a signal delta of -2.811. Similar to HD and BA, this might be a consequence of the 'LET-IT-BREATHE' regime allowing for a longer hold. However, given the negative overall P&L, such decays are contributing to losses.",
+        "exit_review_condition": "An exit review should be initiated if the 'current_signal' falls further (e.g., below 0.3) or if the position's P&L crosses a predefined stop-loss, activating the 'FIRE_SALE' exit regime due to sustained negative price action."
+      },
+      {
+        "symbol": "V",
+        "board_rationale": "V shows a signal delta of -1.305. The position is held, potentially under the 'LET-IT-BREATHE' exit regime. This suggests a tolerance for some signal decay, but given the overall negative performance, this tolerance needs re-evaluation.",
+        "exit_review_condition": "Exit review for V would be triggered if the 'current_signal' continues to decline (e.g., below 1.0) or if the position experiences a rapid price decline, triggering the 'FIRE_SALE' regime due to either a steep price_delta_pct or catastrophic_decay."
+      }
+    ]
+  },
+  "executive_answers": {
+    "CEO": {
+      "convergence_oscillation": "Across the 1/3/5/7 day windows, the P&L indicates a consistent negative trend, with a slight convergence from -61.63 USD (1-day) to -131.84 USD (3, 5, 7-day). This suggests sustained losses rather than oscillation around a mean, indicating a systemic issue. (Citation: pnl_by_window)",
+      "changes_impact": "Based on the rolling window data, no recent change has improved metrics; rather, the win rate has remained consistently low (around 0.13), and P&L is negative across all observed windows. This suggests that implemented changes, if any, have failed to improve profitability. (Citation: pnl_by_window, win_rate_by_window)",
+      "single_decision_live_tomorrow": "The single decision to go live tomorrow is to implement an A/B test for adjusted UW `quality_score` and `edge_suppression` thresholds, targeting a minimum 10% improvement in total P&L. This aims to immediately address the core issue of poor signal quality and suppressed edge. (Citation: proactive_insights, root_cause)"
+    },
+    "CTO_SRE": {
+      "systems_blocked_trades_most": "Over the last 7 days, the primary systems blocking trades are those related to `score_below_min` and `expectancy_blocked:score_floor_breach`, accounting for 1039 and 961 blocks respectively. These constraints are severely limiting trade execution. (Citation: blocked_trade_counts_by_window, proactive root-cause)",
+      "constraints_suppressing_edge": "Yes, constraints are definitely suppressing edge. The constraint root cause shows a suppression cost of 3937.24 USD, explicitly from `expectancy_blocked:score_floor_breach` and `score_below_min`. This indicates that potentially profitable trades are being filtered out. (Citation: proactive root-cause, missed_money_numeric)",
+      "instrumentation_missing": "The primary missing instrumentation is a granular breakdown of P&L by sector and market regime within the EOD bundle. This prevents a detailed analysis of performance in different market conditions and asset classes. Additionally, a clear attribution for the 2000 'unknown' exits in the `exit_attribution.jsonl` is missing, which is critical for understanding exit performance. (Citation: sector_context, Exit attribution)"
+    },
+    "Head_of_Trading": {
+      "exit_reasons_costing_most": "Over the 5/7 days, 'signal_decay' reasons (e.g., 'signal_decay(0.96)', 'signal_decay(0.91)', 'signal_decay(0.90)') are consistently the most frequent exit reasons after 'unknown', strongly suggesting they are costing the most money through suboptimal exits as signals weaken, rather than for profit-taking. (Citation: exit_reason_counts_by_window)",
+      "holding_longer_outcomes": "There is no direct evidence that holding longer improved outcomes. The pervasive 'signal_decay' as an exit reason implies that holding through decay is leading to losses. The 'FIRE_SALE' and 'LET-IT-BREATHE' levers are active, but the current P&L suggests 'LET-IT-BREATHE' might be too permissive or not adequately counterbalanced. (Citation: exit_reason_counts_by_window, Tightened profitability levers)",
+      "signals_deserve_relaxed_decay": "The data does not clearly point to specific signals deserving relaxed decay. Given the low win rate and negative P&L across all windows, the current focus should be on tightening exit criteria and improving signal quality overall, rather than relaxing decay. If any, signals with consistently high quality scores and strong edge realization that are being prematurely exited by decay could be candidates for future review. (Citation: win_rate_by_window, proactive root-cause)"
+    },
+    "Risk_CRO": {
+      "losses_clustered_by_correlation": "While no specific symbols are currently on the 'correlation concentration watchlist', the 'Max |corr| pair' identified as HOOD\u2013MRNA with a correlation of 0.97 indicates a high potential for clustered losses if positions were held in both. The `correlation_score` of 0.9742 from `missed_money_numeric` further supports this risk, even if not directly linked to current losses. (Citation: Wheel Daily Review section 3.4b, missed_money_numeric)",
+      "over_concentrated": "The wheel strategy has a dominant blocker 'allocation_exceeded' (63 skips), suggesting potential over-concentration in capital allocation, even if not by symbol count. The presence of highly correlated pairs like HOOD\u2013MRNA (corr=0.97) also highlights a risk of concentration, even if positions are not currently active in both. (Citation: Wheel governance badge, Wheel Daily Review section 3.4b)",
+      "risk_not_being_priced": "The significant opportunity cost from blocked trades (3937.24 USD) due to `score_below_min` and `expectancy_blocked:score_floor_breach` suggests that the risk of missing valid opportunities, or mispricing the true expectancy of certain signals, is not adequately priced or factored into the current system. (Citation: missed_money_numeric, Constraint root cause)"
+    }
+  },
+  "customer_advocate_challenges": [
+    {
+      "role": "CEO",
+      "claim_summary": "P&L indicates a consistent negative trend with slight convergence; no change improved metrics, instead sustained losses; single decision to go live is an A/B test for UW thresholds.",
+      "data_support": "The P&L for 1-day (-61.63), 3-day (-131.84), 5-day (-131.84), and 7-day (-131.84) windows confirms a consistently negative P&L. The win rate across all windows is also consistently low (around 0.13). (Citation: pnl_by_window, win_rate_by_window)",
+      "cost_to_customer": "The customer has incurred consistent losses, totaling at least 131.84 USD over the last 3-7 days. The failure to improve metrics means a continued drain on capital without positive returns. The proposed A/B test, while necessary, implies further experimentation with customer capital rather than an immediate fix.",
+      "why_not_fixed": "Why has the system been allowed to operate with consistent losses and a low win rate for days without a more decisive intervention? The root causes (poor signal quality, suppressed edge, and blocked trades) appear to be fundamental, yet a 'single decision' to run an A/B test feels like a delayed response to a persistent problem.",
+      "if_we_do_nothing": "If we do nothing, the system will continue to generate consistent losses, eroding customer capital. The low win rate will persist, and the identified root causes will remain unaddressed, leading to further P&L degradation and missed opportunities."
+    },
+    {
+      "role": "CTO/SRE",
+      "claim_summary": "Systems blocking trades most over 7 days are related to `score_below_min` and `expectancy_blocked:score_floor_breach`; constraints are suppressing edge costing 3937.24 USD; primary missing instrumentation is granular P&L by sector/regime and exit attribution.",
+      "data_support": "Blocked trade counts by window show 'score_below_min' (1039) and 'expectancy_blocked:score_floor_breach' (961) as dominant reasons for blocking. Missed money numeric quantifies `blocked_usd` at 3937.24. Sector and regime P&L is noted as 'null' in sector_context, and exit_attribution has 2000 'unknown' exits. (Citation: blocked_trade_counts_by_window, missed_money_numeric, sector_context, Exit attribution)",
+      "cost_to_customer": "The customer is directly losing out on 3937.24 USD in opportunity cost from blocked trades. Additionally, the lack of detailed P&L by sector/regime and clear exit attribution means we cannot pinpoint where money is being lost or gained effectively, leading to continued suboptimal performance and further customer losses.",
+      "why_not_fixed": "Why have these known blocking constraints not been adjusted or refined when they are costing thousands in missed opportunities? Why is critical instrumentation for P&L analysis and exit attribution still missing when it's vital for understanding and improving performance? These are systemic failures that impact customer profitability daily.",
+      "if_we_do_nothing": "If we do nothing, the system will continue to block potentially profitable trades, incurring significant opportunity costs. The inability to analyze performance by sector/regime or understand exit causality will prevent any meaningful improvements, ensuring continued P&L degradation for the customer."
+    },
+    {
+      "role": "Head of Trading",
+      "claim_summary": "Signal decay reasons costing the most money over 5/7 days; no direct evidence holding longer improved outcomes; no specific signals deserve relaxed decay.",
+      "data_support": "The `exit_reason_counts_by_window` for 3-day (which covers 5 and 7-day as the data is identical) shows 'signal_decay' as the dominant non-unknown exit reason (e.g., signal_decay(0.96) is 245 in 1-day, 245 in 3-day). P&L is consistently negative across all windows. (Citation: exit_reason_counts_by_window, pnl_by_window)",
+      "cost_to_customer": "The persistent 'signal_decay' exits indicate that trades are being held through periods of signal weakening, leading to realized losses or reduced profits. The overall negative P&L directly impacts the customer's account. The lack of clarity on holding periods means we're potentially missing out on better exits.",
+      "why_not_fixed": "Given that 'signal decay' is the primary explicit exit reason and contributes to negative P&L, why hasn't a more aggressive or dynamic exit strategy been implemented to cut losses sooner or capture profits more effectively? Why are we waiting for signals to decay rather than acting proactively?",
+      "if_we_do_nothing": "If we do nothing, trades will continue to suffer from 'signal decay' exits, contributing to ongoing losses. Without a refined exit strategy, the customer will continue to experience suboptimal trade management and eroded capital."
+    },
+    {
+      "role": "Risk/CRO",
+      "claim_summary": "Potential for clustered losses from highly correlated pairs like HOOD\u2013MRNA (corr=0.97); potential over-concentration due to 'allocation_exceeded' and highly correlated pairs; risk of missing valid opportunities or mispricing expectancy not adequately priced.",
+      "data_support": "Wheel Daily Review section 3.4b identifies HOOD\u2013MRNA with a correlation of 0.97. The `correlation_score` from `missed_money_numeric` is 0.9742. 'allocation_exceeded' is the 'Dominant blocker' in the Wheel governance badge. (Citation: Wheel Daily Review section 3.4b, missed_money_numeric, Wheel governance badge)",
+      "cost_to_customer": "The high correlation between HOOD and MRNA, if traded, exposes the customer to magnified losses in adverse market conditions due to concentration risk. The 'allocation_exceeded' blocker, while not directly a loss, represents missed opportunities that could have generated P&L, effectively costing the customer potential gains. The mispricing of expectancy through blocked trades directly results in missed profitable trades.",
+      "why_not_fixed": "Why is the system allowing highly correlated pairs to be identified as a risk without a direct, enforceable mechanism to manage or avoid such concentration? Why are capital allocation constraints leading to 'allocation_exceeded' being the dominant blocker, effectively limiting trading activity and potential P&L? These are critical risk management gaps.",
+      "if_we_do_nothing": "If we do nothing, the system will continue to be exposed to concentration risk from highly correlated assets, potentially leading to significant clustered losses. The 'allocation_exceeded' blocker will continue to prevent trading activity, and the mispricing of expectancy will lead to ongoing missed opportunities, all contributing to negative customer outcomes."
+    }
+  ],
+  "unresolved_disputes": [],
+  "missed_money": {
+    "blocked_trade_opportunity_cost": {
+      "unknown": false,
+      "total_expected_value_usd": 3937.24,
+      "by_reason": {
+        "expectancy_blocked:score_floor_breach": 1889.45,
+        "score_below_min": 2047.79
+      }
+    },
+    "early_exit_opportunity_cost": {
+      "unknown": true,
+      "reason": "The raw P&L from early exits due to signal decay is not explicitly quantified as 'opportunity cost' in the provided `missed_money_numeric` data. While `signal_decay` is a dominant exit reason, calculating the exact missed profit from holding longer would require a counterfactual analysis not present.",
+      "missing_inputs": [
+        "historical counterfactual P&L for signal decay exits",
+        "average profit potential of trades exited due to signal decay"
+      ],
+      "instrumentation_needed": [
+        "A simulation engine to quantify opportunity cost for various exit strategies.",
+        "Detailed logging of potential P&L if a trade was held for X more minutes after exit."
+      ]
+    },
+    "correlation_concentration_cost": {
+      "unknown": false,
+      "correlation_cache_present": true,
+      "message": "insufficient pairs",
+      "concentration_risk_score": null
+    }
+  },
+  "proactive_insights": [
+    {
+      "subsystem": "Underwriting (UW)",
+      "issue": "Extremely low quality score and high edge suppression.",
+      "why_it_happens": "The UW root cause indicates `quality_score=0.0` and `edge_suppression=0.98`, leading to only `edge_realization=0.16`. This means signals are either inherently poor or too aggressively filtered, preventing any potential edge from being traded.",
+      "recommended_fix": "Perform a comprehensive review of UW feature engineering and model parameters. Implement an adaptive feedback loop to dynamically adjust `quality_score` and `edge_suppression` based on realized P&L, potentially using a canary deployment of less restrictive settings.",
+      "expected_impact": "Significantly increase `edge_realization` and improve `total_pnl_usd` by allowing more high-quality signals to generate trades, potentially reducing `blocked_trade_opportunity_cost`."
+    },
+    {
+      "subsystem": "Exits",
+      "issue": "Dominance of 'signal_decay' exits and 2000 'unknown' exits.",
+      "why_it_happens": "Many trades are exited due to `signal_decay` across various thresholds, suggesting a lack of robust profit-taking or stop-loss mechanisms that act before signal degradation. The high count of 'unknown' exits indicates a critical gap in attributing exit reasons.",
+      "recommended_fix": "Develop a multi-faceted exit strategy incorporating dynamic profit targets, time-based exits, and clearly defined hard stop-losses, in addition to signal decay. Implement robust logging for all exit reasons to eliminate 'unknown' categories.",
+      "expected_impact": "Improve `win_rate` by optimizing profit capture and loss limitation, and enable more granular analysis of exit performance by reducing 'unknown' exits to zero."
+    },
+    {
+      "subsystem": "Constraints",
+      "issue": "High `suppression_cost_usd` from `score_below_min` and `expectancy_blocked:score_floor_breach`.",
+      "why_it_happens": "Constraints are blocking a significant volume of trades (2000 count, 3937.24 USD cost) due to signals not meeting minimum score thresholds or expectancy criteria. This indicates that either the signals are genuinely poor or the thresholds are too conservative, suppressing valid opportunities.",
+      "recommended_fix": "Analyze the historical performance of trades that would have been executed but were blocked by these reasons. Adjust `score_floor_breach` and `score_below_min` thresholds based on this analysis to find an optimal balance between risk management and opportunity capture.",
+      "expected_impact": "Reduce `blocked_trade_opportunity_cost` by allowing more high-expectancy trades to execute, directly increasing `total_pnl_usd` without increasing overall risk profile."
+    },
+    {
+      "subsystem": "Survivorship",
+      "issue": "Potential for persistent underperformers not being effectively penalized by score adjustments.",
+      "why_it_happens": "The survivorship rules penalize symbols with `pnl<-10, count>=3` with a `score_penalty -0.5`. Given the negative overall P&L and low win rates, it's possible that this penalty isn't strong enough or doesn't apply to a wide enough range of underperforming symbols.",
+      "recommended_fix": "Review the `penalize_strong` criteria. Consider introducing a more dynamic penalty based on cumulative P&L and drawdown, or a more frequent re-evaluation of penalties/boosts based on recent performance. Ensure penalties effectively disincentivize re-entry into persistently losing symbols.",
+      "expected_impact": "Improve overall `win_rate` and `total_pnl_usd` by reducing exposure to persistently underperforming symbols without resorting to outright bans, allowing for gradual re-evaluation."
+    },
+    {
+      "subsystem": "Governance (Wheel Strategy)",
+      "issue": "'allocation_exceeded' is the dominant blocker despite 'Board action closure: PASS'.",
+      "why_it_happens": "While Board action closure is 'PASS', the wheel strategy's dominant blocker is 'allocation_exceeded' (63 skips), preventing orders from being submitted. This indicates a disconnect between governance process health and operational effectiveness.",
+      "recommended_fix": "Establish a direct feedback loop between the 'Dominant blocker' status and immediate configuration adjustments for capital allocation. This could involve dynamically increasing `wheel_budget` or reducing concurrent position limits when 'allocation_exceeded' is identified as the primary blocker. (Reference: Wheel governance badge, Wheel Daily Review section 3.5)",
+      "expected_impact": "Increase the number of executed wheel trades and potential `total_premium_collected` by removing artificial capital allocation constraints, thereby improving the `premium_per_day` metric."
+    }
+  ],
+  "root_cause": {
+    "uw": "UW candidates are failing primarily due to an effective `quality_score=0.0` and a high `edge_suppression=0.98`, leading to minimal `edge_realization=0.16`. This indicates that the signals being generated are either of very low quality or are being overly filtered, preventing the system from selecting profitable trades.",
+    "exits": "The dominant exit reason is `signal_decay` across various thresholds, implying trades are often held through weakening signals until a decay condition is met, rather than being actively managed for profit or loss. The 2000 'unknown' exits in `exit_attribution.jsonl` further obscure the true causality of losses at the exit stage.",
+    "constraints": "A significant portion of potential trades are blocked (`suppression_cost_usd=3937.24`) due to `expectancy_blocked:score_floor_breach` (961) and `score_below_min` (1039). This suggests that the constraints are too aggressive, or the underlying signals are not strong enough to meet even conservative thresholds, leading to missed opportunities.",
+    "survivorship": "The system applies score penalties for underperforming symbols, but given the consistent negative P&L and low win rate, these penalties may not be sufficiently impactful or responsive enough to prevent re-exposure to persistently losing assets. There's no evidence of symbols being effectively boosted for strong performance to increase exposure.",
+    "correlation": "The `correlation_score` of 0.9742 and the highly correlated pair (HOOD\u2013MRNA at 0.97) indicate a significant concentration risk. While not directly causing realized losses in this EOD, it represents an unmitigated risk that could lead to clustered losses during adverse market moves if such positions were actively held simultaneously."
+  },
+  "recommended_fixes": [
+    {
+      "fix": "Tune UW `quality_score` and `edge_suppression` parameters via A/B testing with a focus on improving `edge_realization`.",
+      "subsystem": "uw",
+      "expected_impact": "Increase `total_pnl_usd` by 10-15% over 3 days and improve `win_rate` by 5-7% by allowing more profitable signals to be traded.",
+      "test_plan": "A/B test with a canary group running slightly relaxed `quality_score` and `edge_suppression` thresholds, monitoring `total_pnl_usd`, `win_rate`, and `blocked_trade_counts` over 3-day windows."
+    },
+    {
+      "fix": "Implement a new dynamic exit module incorporating profit targets, adaptive stop-losses, and clearer attribution for all exit reasons.",
+      "subsystem": "exits",
+      "expected_impact": "Improve `win_rate` by optimizing profit capture and loss limitation, aiming to reduce `signal_decay` exits by 20% and 'unknown' exits to below 10% of total exits.",
+      "test_plan": "Deploy the new exit module to a shadow environment initially, comparing exit P&L, frequency of `signal_decay` exits, and 'unknown' exit counts against the current system over a 5-day period. Then A/B test in a live environment."
+    },
+    {
+      "fix": "Re-evaluate `score_below_min` and `expectancy_blocked:score_floor_breach` thresholds based on historical analysis of blocked trades.",
+      "subsystem": "constraints",
+      "expected_impact": "Reduce `blocked_trade_opportunity_cost` by 20-30% over 5 days, leading to a direct increase in `total_pnl_usd` by enabling more profitable trades.",
+      "test_plan": "Analyze past blocked trades to identify missed profitable opportunities. Propose adjusted thresholds and A/B test them in a live environment, monitoring `blocked_trade_counts`, `blocked_trade_opportunity_cost`, and `total_pnl_usd`."
+    },
+    {
+      "fix": "Review and enhance survivorship rules to dynamically penalize underperformers based on recent cumulative P&L and drawdown metrics.",
+      "subsystem": "survivorship",
+      "expected_impact": "Improve `total_pnl_usd` and `win_rate` by reducing exposure to consistently losing symbols without outright bans, facilitating a more adaptive portfolio.",
+      "test_plan": "Deploy a revised survivorship model to a shadow environment. Monitor changes in symbol exposure and simulated P&L for penalized symbols. A/B test in a live environment after successful shadow testing."
+    },
+    {
+      "fix": "Implement automated adjustment mechanisms for `wheel_budget` or `concurrent_position_limits` when `allocation_exceeded` is the dominant blocker.",
+      "subsystem": "governance",
+      "expected_impact": "Increase `total_premium_collected` and `premium_per_day` by ensuring the wheel strategy can execute a higher volume of trades, removing an artificial constraint on profitability.",
+      "test_plan": "Develop a control loop that monitors the `dominant_blocker`. If `allocation_exceeded` persists, automatically trigger a predefined increase in `wheel_budget` (e.g., +10%) or reduction in `concurrent_position_limits` (e.g., -1 position), logging the changes and their impact on wheel execution metrics over 3 days."
+    }
+  ],
+  "rollback_decision": {
+    "triggered": false,
+    "reason": "",
+    "canary_disabled": false,
+    "pnl_1d": -61.63,
+    "win_rate_1d": 0.1313
+  }
+}
