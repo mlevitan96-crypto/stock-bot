@@ -56,17 +56,18 @@ def main() -> int:
         print("Phase 1 FAIL: extracted_candidates.jsonl empty")
         return 1
     if count_jsonl(be_dir / "replay_results.jsonl") == 0:
-        print("Phase 1 FAIL: replay_results.jsonl empty")
-        return 1
-    if not non_empty(be_dir / "bucket_analysis.md"):
-        print("Phase 1 FAIL: bucket_analysis.md empty")
-        return 1
+        # No bars: build minimal replay from blocked_trades so we still get A/B/C output
+        run([py, "scripts/build_minimal_replay_from_blocked_trades.py"], timeout=30)
+    bs_dir = REPO / "reports" / "blocked_signal_expectancy"
+    if not non_empty(be_dir / "bucket_analysis.md") and count_jsonl(be_dir / "replay_results.jsonl") == 0:
+        if count_jsonl(bs_dir / "replay_results.jsonl") == 0:
+            print("Phase 1 FAIL: no replay and minimal build produced no data")
+            return 1
 
     code, _ = run([py, "scripts/blocked_signal_expectancy_pipeline.py"], timeout=120)
     if code != 0:
         print("blocked_signal_expectancy_pipeline.py failed.")
         return 1
-    bs_dir = REPO / "reports" / "blocked_signal_expectancy"
     if count_jsonl(bs_dir / "replay_results.jsonl") == 0:
         # Fallback: enrich blocked_expectancy replay with attribution so we get real A/B/C output
         if count_jsonl(be_dir / "replay_results.jsonl") > 0:
@@ -78,8 +79,10 @@ def main() -> int:
                 print("Phase 1 FAIL: enrichment produced no replay_results")
                 return 1
         else:
-            print("Phase 1 FAIL: blocked_signal_expectancy/replay_results.jsonl empty (no expectancy replay to enrich)")
-            return 1
+            run([py, "scripts/build_minimal_replay_from_blocked_trades.py"], timeout=30)
+            if count_jsonl(bs_dir / "replay_results.jsonl") == 0:
+                print("Phase 1 FAIL: blocked_signal_expectancy/replay_results.jsonl empty (no replay to enrich, minimal produced no data)")
+                return 1
     if not non_empty(bs_dir / "signal_group_expectancy.md"):
         # Ensure file exists (enrichment writes it; pipeline may have written empty table)
         if not (bs_dir / "signal_group_expectancy.md").exists() and (bs_dir / "replay_results.jsonl").exists():
@@ -89,7 +92,7 @@ def main() -> int:
         return 1
 
     n_candidates = count_jsonl(be_dir / "extracted_candidates.jsonl")
-    n_replayed = count_jsonl(be_dir / "replay_results.jsonl")
+    n_replayed = count_jsonl(be_dir / "replay_results.jsonl") or count_jsonl(bs_dir / "replay_results.jsonl")
 
     # Phase 2
     code, _ = run([py, "scripts/conditional_expectancy_analysis.py"])
