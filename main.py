@@ -8187,11 +8187,14 @@ class StrategyEngine:
             else:
                 toxicity_penalty = 0.0
             
-            # SCORE CONTRACT: Expectancy gate must evaluate the SAME composite score that passed the prior gate.
+            # SCORE CONTRACT: Expectancy gate must evaluate the SAME score as the min-score gate (adjusted score
+            # after signal_quality, UW, survivorship, regime/macro). Using c.get("composite_score") caused
+            # raw cluster score to be used here while min gate used adjusted score → score_floor_breach could
+            # block after min gate had passed (pipeline integrity fix).
             try:
-                composite_exec_score = float(c.get("composite_score", score))
-            except (TypeError, ValueError):
                 composite_exec_score = float(score)
+            except (TypeError, ValueError):
+                composite_exec_score = float(c.get("composite_score", 0.0))
             expectancy_floor = float(getattr(Config, "MIN_EXEC_SCORE", 3.0))
             score_floor_breach = (composite_exec_score < expectancy_floor)
             
