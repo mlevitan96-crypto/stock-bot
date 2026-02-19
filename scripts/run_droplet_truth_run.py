@@ -68,8 +68,22 @@ def main() -> int:
         return 1
     bs_dir = REPO / "reports" / "blocked_signal_expectancy"
     if count_jsonl(bs_dir / "replay_results.jsonl") == 0:
-        print("Phase 1 FAIL: blocked_signal_expectancy/replay_results.jsonl empty")
-        return 1
+        # Fallback: enrich blocked_expectancy replay with attribution so we get real A/B/C output
+        if count_jsonl(be_dir / "replay_results.jsonl") > 0:
+            code2, out2 = run([py, "scripts/enrich_replay_with_attribution.py"], timeout=60)
+            if code2 != 0:
+                print("enrich_replay_with_attribution.py failed:", out2[:500])
+                return 1
+            if count_jsonl(bs_dir / "replay_results.jsonl") == 0:
+                print("Phase 1 FAIL: enrichment produced no replay_results")
+                return 1
+        else:
+            print("Phase 1 FAIL: blocked_signal_expectancy/replay_results.jsonl empty (no expectancy replay to enrich)")
+            return 1
+    if not non_empty(bs_dir / "signal_group_expectancy.md"):
+        # Ensure file exists (enrichment writes it; pipeline may have written empty table)
+        if not (bs_dir / "signal_group_expectancy.md").exists() and (bs_dir / "replay_results.jsonl").exists():
+            run([py, "scripts/enrich_replay_with_attribution.py"], timeout=60)
     if not non_empty(bs_dir / "signal_group_expectancy.md"):
         print("Phase 1 FAIL: signal_group_expectancy.md empty")
         return 1

@@ -22,11 +22,11 @@ OUT_DIR = REPO / "reports" / "blocked_signal_expectancy"
 SNAPSHOT_PATH = REPO / "logs" / "score_snapshot.jsonl"
 BLOCKED_PATH = REPO / "state" / "blocked_trades.jsonl"
 
-# Map composite components to signal groups for attribution
-UW_KEYS = {"options_flow", "dark_pool", "insider", "whale_persistence", "event_alignment"}
-REGIME_MACRO_KEYS = {"regime_modifier", "market_tide", "calendar_catalyst", "temporal_motif"}
+# Map composite components to signal groups (match uw_composite_v2 component keys)
+UW_KEYS = {"flow", "dark_pool", "insider", "whale", "event"}
+REGIME_MACRO_KEYS = {"regime", "market_tide", "calendar", "motif_bonus"}
 OTHER_COMPONENT_KEYS = {
-    "congress", "shorts_squeeze", "institutional", "iv_term_skew", "smile_slope",
+    "congress", "shorts_squeeze", "institutional", "iv_skew", "smile",
     "toxicity_penalty", "greeks_gamma", "ftd_pressure", "iv_rank", "oi_change", "etf_flow", "squeeze_score"
 }
 TRAILING_STOP_PCT = 0.015
@@ -91,11 +91,14 @@ def extract_blocked_candidates():
             except (TypeError, ValueError):
                 composite = None
             signal_group_scores = r.get("signal_group_scores")
-            if isinstance(signal_group_scores, dict):
+            comps = r.get("weighted_contributions")
+            if not comps and isinstance(signal_group_scores, dict):
                 comps = signal_group_scores.get("components") or signal_group_scores
-            else:
+            if not isinstance(comps, dict):
                 comps = {}
-            group_sums = _component_group_sums(comps)
+            group_sums = r.get("group_sums")
+            if not group_sums:
+                group_sums = _component_group_sums(comps)
             candidates.append({
                 "ts": r.get("ts"),
                 "ts_iso": r.get("ts_iso"),
@@ -120,9 +123,11 @@ def extract_blocked_candidates():
                 continue
             ts = r.get("timestamp") or r.get("ts")
             key = (r.get("symbol"), ts)
+            att = r.get("attribution_snapshot") or {}
             bt_by_key[key] = {
                 "decision_price": r.get("would_have_entered_price") or r.get("decision_price"),
-                "components": r.get("components") or {},
+                "components": att.get("weighted_contributions") or r.get("components") or {},
+                "group_sums": att.get("group_sums"),
                 "direction": r.get("direction"),
             }
     # Merge: add entry_price to candidates (match by symbol + nearest ts)
@@ -143,9 +148,13 @@ def extract_blocked_candidates():
         if best:
             c["entry_price"] = best.get("decision_price")
             c["direction"] = best.get("direction", "bullish")
-            if not c.get("signal_group_scores") and best.get("components"):
-                c["signal_group_scores"] = best["components"]
-                c["group_sums"] = _component_group_sums(best["components"])
+            if best.get("components"):
+                if not c.get("signal_group_scores"):
+                    c["signal_group_scores"] = best["components"]
+                if best.get("group_sums"):
+                    c["group_sums"] = best["group_sums"]
+                elif not c.get("group_sums"):
+                    c["group_sums"] = _component_group_sums(best["components"])
         c["entry_price"] = c.get("entry_price")
         try:
             c["entry_price"] = float(c["entry_price"]) if c.get("entry_price") is not None else None
@@ -153,6 +162,49 @@ def extract_blocked_candidates():
             c["entry_price"] = None
         c["side"] = "long" if (c.get("direction") or "bullish").lower() == "bullish" else "short"
         c["bucket"] = _score_bucket(c.get("composite_score"))
+    # Fallback: when snapshot yields zero candidates (e.g. different schema or no snapshot rows),
+    # build from blocked_trades so we still get replay + attribution for conditional/research pipeline.
+    if not candidates and BLOCKED_PATH.exists():
+        for line in BLOCKED_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
+            if not line.strip():
+                continue
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            reason = (r.get("reason") or r.get("block_reason") or "").strip()
+            if reason not in ("score_below_min", "expectancy_blocked:score_floor_breach"):
+                continue
+            ts = r.get("timestamp") or r.get("ts")
+            score = r.get("score") or r.get("candidate_score")
+            try:
+                score = float(score) if score is not None else None
+            except (TypeError, ValueError):
+                score = None
+            att = r.get("attribution_snapshot") or {}
+            comps = att.get("weighted_contributions") or r.get("components") or {}
+            gs = att.get("group_sums")
+            if not gs and isinstance(comps, dict):
+                gs = _component_group_sums(comps)
+            entry_price = r.get("would_have_entered_price") or r.get("decision_price")
+            try:
+                entry_price = float(entry_price) if entry_price is not None else None
+            except (TypeError, ValueError):
+                entry_price = None
+            direction = (r.get("direction") or "bullish").lower()
+            candidates.append({
+                "ts": ts,
+                "ts_iso": r.get("ts_iso"),
+                "symbol": (r.get("symbol") or "?").strip().upper(),
+                "composite_score": score,
+                "block_reason": reason,
+                "signal_group_scores": comps if isinstance(comps, dict) else {},
+                "group_sums": gs or {},
+                "entry_price": entry_price,
+                "direction": direction,
+                "side": "long" if direction == "bullish" else "short",
+                "bucket": _score_bucket(score),
+            })
     return candidates
 
 
@@ -243,6 +295,7 @@ def replay_one(candidate: dict) -> dict | None:
         "exit_reason": exit_reason,
         "hold_bars": hold_bars,
         "group_sums": candidate.get("group_sums") or {},
+        "components": candidate.get("signal_group_scores") or {},
     }
 
 
