@@ -216,7 +216,7 @@ class ConfigFiles:
 class Thresholds:
     """All tunable thresholds - centralized defaults with env override."""
     
-    MIN_EXEC_SCORE = get_env("MIN_EXEC_SCORE", 3.0, float)  # V3.0: Increased to 3.0 for predatory entry filter
+    MIN_EXEC_SCORE = get_env("MIN_EXEC_SCORE", 2.5, float)  # 2.5: lowered per blocked-trade expectancy analysis (reversible via env)
     MAX_CONCURRENT_POSITIONS = get_env("MAX_CONCURRENT_POSITIONS", 16, int)  # Increased from 12 - was capacity constrained
     MAX_NEW_POSITIONS_PER_CYCLE = 6
     

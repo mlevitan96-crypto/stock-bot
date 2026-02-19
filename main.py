@@ -368,7 +368,7 @@ class Config:
     CONFIRM_DARKPOOL_W = float(get_env("CONFIRM_DARKPOOL_W", "0.25"))
     CONFIRM_NET_PREMIUM_W = float(get_env("CONFIRM_NET_PREMIUM_W", "0.25"))
     CONFIRM_VOL_W = float(get_env("CONFIRM_VOL_W", "0.1"))
-    MIN_EXEC_SCORE = float(get_env("MIN_EXEC_SCORE", "3.0"))  # V3.0: Increased to 3.0 for predatory entry filter
+    MIN_EXEC_SCORE = float(get_env("MIN_EXEC_SCORE", "2.5"))  # 2.5: lowered per blocked-trade expectancy analysis (reversible via env)
 
     # Confirmation thresholds
     DARKPOOL_OFFLIT_MIN = float(get_env("DARKPOOL_OFFLIT_MIN", "1000000"))
@@ -8223,7 +8223,29 @@ class StrategyEngine:
             if os.environ.get("EXPECTANCY_DEBUG") == "1":
                 print(f"EXPECTANCY_DEBUG {symbol}: composite_score={composite_exec_score:.4f}, score_used_by_expectancy={composite_exec_score:.4f}, expectancy_floor={expectancy_floor}, decision={'pass' if should_trade else 'fail'} ({gate_reason})", flush=True)
             print(f"DEBUG {symbol}: expectancy={expectancy:.4f}, should_trade={should_trade}, reason={gate_reason}", flush=True)
-            
+
+            # Canonical score snapshot for truth audit (append-only JSONL)
+            _snap_debug = os.environ.get("SCORE_SNAPSHOT_DEBUG") == "1"
+            if _snap_debug:
+                print(f"SCORE_SNAPSHOT_DEBUG: hook entered symbol={symbol} composite_score={composite_exec_score}", flush=True)
+            try:
+                from score_snapshot_writer import append_score_snapshot
+                append_score_snapshot(
+                    symbol=symbol,
+                    composite_score=composite_exec_score,
+                    expectancy_floor=expectancy_floor,
+                    composite_gate_pass=True,
+                    expectancy_gate_pass=should_trade,
+                    block_reason=gate_reason if not should_trade else None,
+                    signal_group_scores=c.get("composite_meta") or None,
+                )
+                if _snap_debug:
+                    print(f"SCORE_SNAPSHOT_DEBUG: append_score_snapshot success symbol={symbol}", flush=True)
+            except Exception as _e:
+                if _snap_debug:
+                    print(f"SCORE_SNAPSHOT_DEBUG: append_score_snapshot FAILED symbol={symbol} error={_e!r}", flush=True)
+                pass
+
             if not should_trade:
                 _inc_gate(f"expectancy_blocked:{gate_reason}")
                 log_event("gate", "expectancy_blocked", symbol=symbol, 
