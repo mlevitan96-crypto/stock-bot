@@ -717,6 +717,13 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     
     # V3.1: Get adaptive weights if available (V2.0: regime-specific)
     weights = WEIGHTS_V3.copy()
+    # Reversible config: emphasize flow when blocked-trade signal expectancy shows UW edge (env FLOW_WEIGHT_MULTIPLIER, default 1.0)
+    try:
+        mult = float(os.environ.get("FLOW_WEIGHT_MULTIPLIER", "1.0"))
+        if "options_flow" in weights and mult != 1.0:
+            weights["options_flow"] = weights["options_flow"] * mult
+    except Exception:
+        pass
     adaptive_active = False
     if use_adaptive_weights:
         # V2.0: Get regime-specific adaptive weights

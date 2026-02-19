@@ -8388,7 +8388,20 @@ class StrategyEngine:
                                   uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
                                   uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
                                   survivorship_adjustment=surv_action or None, variant_id=vid)
-                
+                # Canonical snapshot for blocked-trade expectancy (same schema as expectancy gate)
+                try:
+                    from score_snapshot_writer import append_score_snapshot
+                    append_score_snapshot(
+                        symbol=symbol,
+                        composite_score=float(score),
+                        expectancy_floor=float(min_score),
+                        composite_gate_pass=False,
+                        expectancy_gate_pass=False,
+                        block_reason="score_below_min",
+                        signal_group_scores=c.get("composite_meta") or None,
+                    )
+                except Exception:
+                    pass
                 # SIGNAL HISTORY: Log blocked signal
                 log_signal_to_history(
                     symbol=symbol,
