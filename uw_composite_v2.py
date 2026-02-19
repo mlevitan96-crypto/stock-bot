@@ -717,13 +717,21 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     
     # V3.1: Get adaptive weights if available (V2.0: regime-specific)
     weights = WEIGHTS_V3.copy()
-    # Reversible config: emphasize flow when blocked-trade signal expectancy shows UW edge (env FLOW_WEIGHT_MULTIPLIER, default 1.0)
-    try:
-        mult = float(os.environ.get("FLOW_WEIGHT_MULTIPLIER", "1.0"))
-        if "options_flow" in weights and mult != 1.0:
-            weights["options_flow"] = weights["options_flow"] * mult
-    except Exception:
-        pass
+    # Reversible config: signal weight multipliers from win/loss profile (env, default 1.0)
+    for env_key, weight_keys in (
+        ("FLOW_WEIGHT_MULTIPLIER", ["options_flow"]),
+        ("UW_WEIGHT_MULTIPLIER", ["dark_pool", "insider", "whale_persistence", "event_alignment"]),
+        ("REGIME_WEIGHT_MULTIPLIER", ["regime_modifier", "market_tide", "calendar_catalyst", "temporal_motif"]),
+    ):
+        try:
+            mult = float(os.environ.get(env_key, "1.0"))
+            if mult == 1.0:
+                continue
+            for k in weight_keys:
+                if k in weights:
+                    weights[k] = weights[k] * mult
+        except Exception:
+            pass
     adaptive_active = False
     if use_adaptive_weights:
         # V2.0: Get regime-specific adaptive weights
