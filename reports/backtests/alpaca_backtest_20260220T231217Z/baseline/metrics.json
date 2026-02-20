@@ -1,0 +1,12 @@
+{
+  "net_pnl": 0,
+  "gate_p10": null,
+  "gate_p50": null,
+  "gate_p90": null,
+  "trades_count": 0,
+  "win_rate_pct": 0.0,
+  "winning_trades": 0,
+  "losing_trades": 0,
+  "window_start": "2026-01-15",
+  "window_end": "2026-02-14"
+}

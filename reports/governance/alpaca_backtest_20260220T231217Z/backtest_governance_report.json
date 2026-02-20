@@ -1,0 +1,12 @@
+{
+  "verdict": "PASS",
+  "backtest_dir": "/root/stock-bot/reports/backtests/alpaca_backtest_20260220T231217Z",
+  "failures": [],
+  "checks": {
+    "provenance": true,
+    "config": true,
+    "metrics": true,
+    "trades": false,
+    "summary_md": true
+  }
+}
