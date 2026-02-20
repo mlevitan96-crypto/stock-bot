@@ -386,10 +386,9 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
-    # Neutral default when data missing so composite is not crushed (SIGNAL_FLOW_FINDINGS fix).
-    w = get_weight("congress", "neutral")
+    # No hardcoded number when data missing: 0 contribution so scoring is data-driven only (long/short from data).
     if not congress_data:
-        return round(w * 0.2, 4), "congress_neutral_default"
+        return 0.0, ""
     
     recent_count = congress_data.get("recent_count", 0)
     buys = congress_data.get("buys", 0)
@@ -397,7 +396,7 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     conviction_boost = _to_num(congress_data.get("conviction_boost", 0.0))
     
     if recent_count == 0:
-        return round(w * 0.2, 4), "congress_neutral_default"
+        return 0.0, ""
     
     # Calculate net direction
     net_trades = buys - sells
@@ -410,7 +409,7 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     aligned = (congress_sign == flow_sign) and congress_sign != 0
     opposing = (congress_sign != 0 and flow_sign != 0 and congress_sign != flow_sign)
 
-    # V2.0: Use regime-aware weight (though congress component doesn't take regime parameter, use NEUTRAL)
+    w = get_weight("congress", "neutral")
     if aligned:
         component = w * (0.6 + activity_strength * 0.4) * (1.0 + conviction_boost)
         notes = f"congress_confirm({buys}B/{sells}S)"
@@ -440,9 +439,8 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "n
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
-    w = get_weight("shorts_squeeze", regime)
     if not shorts_data:
-        return round(w * 0.2, 4), "shorts_neutral_default"
+        return 0.0, ""
     
     interest_pct = _to_num(shorts_data.get("interest_pct", 0))
     days_to_cover = _to_num(shorts_data.get("days_to_cover", 0))
@@ -450,8 +448,9 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "n
     squeeze_risk = shorts_data.get("squeeze_risk", False)
     
     if interest_pct == 0:
-        return round(w * 0.2, 4), "shorts_neutral_default"
+        return 0.0, ""
     
+    w = get_weight("shorts_squeeze", regime)
     notes_parts = []
     component = 0.0
     
@@ -536,7 +535,7 @@ def compute_institutional_component(insider_data: Dict, institutional_data: Dict
 
     # Fallback: insider-based institutional proxy (directional)
     if not insider_data:
-        return round(w * 0.2, 4), "institutional_neutral_default"
+        return 0.0, ""
     
     net_buys = insider_data.get("net_buys", 0)
     net_sells = insider_data.get("net_sells", 0)
@@ -544,7 +543,7 @@ def compute_institutional_component(insider_data: Dict, institutional_data: Dict
     sentiment = insider_data.get("sentiment", "NEUTRAL")
     
     if net_buys == 0 and net_sells == 0:
-        return round(w * 0.2, 4), "institutional_neutral_default"
+        return 0.0, ""
     
     # Institutional direction
     inst_sign = 1 if net_buys > net_sells else (-1 if net_sells > net_buys else 0)
@@ -598,9 +597,8 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str =
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
-    w_tide = get_weight("market_tide", regime)
     if not tide_data:
-        return round(w_tide * 0.2, 4), "tide_neutral_default"
+        return 0.0, ""
     
     call_prem = 0.0
     put_prem = 0.0
@@ -618,7 +616,7 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str =
     
     total_prem = call_prem + put_prem
     if total_prem == 0:
-        return round(w_tide * 0.2, 4), "tide_neutral_default"
+        return 0.0, ""
     
     call_ratio = call_prem / total_prem
     tide_sign = 1 if call_ratio > 0.55 else (-1 if call_ratio < 0.45 else 0)
@@ -626,7 +624,7 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str =
     imbalance = abs(call_ratio - 0.5) * 2
     
     aligned = (tide_sign == flow_sign) and tide_sign != 0
-    w = w_tide
+    w = get_weight("market_tide", regime)
     
     if aligned:
         component = w * (0.4 + imbalance * 0.6)
@@ -659,10 +657,10 @@ def compute_calendar_component(calendar_data: Optional[Dict], symbol: str, regim
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
-    w = get_weight("calendar_catalyst", regime)
     if not calendar_data:
-        return round(w * 0.2, 4), "calendar_neutral_default"
+        return 0.0, ""
     
+    w = get_weight("calendar_catalyst", regime)
     notes_parts = []
     component = 0.0
     
@@ -859,16 +857,16 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     smile_weight = get_weight("smile_slope", regime)
     smile_component = smile_weight * abs(smile_slope)
     
-    # 6. Whale persistence (use regime-aware weight); neutral default when not detected (SIGNAL_FLOW_FINDINGS fix)
+    # 6. Whale persistence (use regime-aware weight); 0 when not detected so scoring is data-driven only.
     whale_detected = motif_whale.get("detected", False)
     whale_weight = get_weight("whale_persistence", regime)
-    whale_score = whale_weight * 0.15 if not whale_detected else whale_weight * _to_num(motif_whale.get("avg_conviction", 0.0))
+    whale_score = 0.0 if not whale_detected else whale_weight * _to_num(motif_whale.get("avg_conviction", 0.0))
     
     # 7. Event alignment (use regime-aware weight)
     event_weight = get_weight("event_alignment", regime)
     event_component = event_weight * event_align
     
-    # 8. Temporal motif bonus (use regime-aware weight); neutral default when no motif (SIGNAL_FLOW_FINDINGS fix)
+    # 8. Temporal motif bonus (use regime-aware weight); 0 when no motif so scoring is data-driven only.
     motif_weight = get_weight("temporal_motif", regime)
     motif_bonus = 0.0
     if motif_staircase.get("detected"):
@@ -878,8 +876,6 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         intensity = motif_burst.get("intensity", 0.0)
         motif_bonus += motif_weight * min(1.0, intensity / 2.0)
         all_notes.append(f"burst({motif_burst.get('count', 0)} updates)")
-    if motif_bonus == 0.0:
-        motif_bonus = motif_weight * 0.15
     
     # 9. Toxicity penalty - FIXED: Apply penalty starting at 0.5 (was 0.85)
     # CRITICAL: Ensure toxicity weight is NEGATIVE (it's a penalty, not a boost)
