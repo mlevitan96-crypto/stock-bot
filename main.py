@@ -1016,6 +1016,50 @@ def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = No
     with open(blocked_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(record, default=str) + "\n")
 
+    # Decision ledger: emit one event per block when DECISION_LEDGER_CAPTURE=1
+    if os.environ.get("DECISION_LEDGER_CAPTURE") == "1":
+        try:
+            _repo = Path(__file__).resolve().parent
+            _writer_path = _repo / "scripts" / "decision_ledger_writer.py"
+            if _writer_path.exists():
+                import importlib.util as _util
+                _spec = _util.spec_from_file_location("decision_ledger_writer", _writer_path)
+                _mod = _util.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                append_jsonl = _mod.append_jsonl
+            else:
+                append_jsonl = None
+            if append_jsonl is not None:
+                _ledger_path = _repo / "reports" / "decision_ledger" / "decision_ledger.jsonl"
+                _ledger_path.parent.mkdir(parents=True, exist_ok=True)
+                _ts = int(time.time())
+                _run_id = os.environ.get("RUN_ID", f"live_{_ts}")
+                _gate_name = (reason.split(":")[0] if ":" in reason else reason) or "blocked"
+                _comps = components or {}
+                _score_components = {k: {"value": v, "weight": None, "contribution": v} for k, v in _comps.items()} if isinstance(_comps, dict) else {}
+                _min_required = kw.get("min_required") or record.get("min_required")
+                _ev = {
+                    "run_id": _run_id,
+                    "ts": _ts,
+                    "ts_iso": record.get("timestamp", ""),
+                    "symbol": symbol,
+                    "venue": "alpaca",
+                    "timeframe": "1m",
+                    "mode": os.environ.get("TRADING_MODE", "observe"),
+                    "signal_raw": signals or {},
+                    "features": {},
+                    "score_components": _score_components,
+                    "score_final": float(score) if score is not None else 0.0,
+                    "thresholds": {"min_exec_score": _min_required} if _min_required is not None else {},
+                    "gates": [{"gate_name": _gate_name, "pass": False, "reason": reason, "params": {"min_required": _min_required} if _min_required is not None else {}, "measured": {"score": score}}],
+                    "candidate_status": "BLOCKED",
+                    "order_intent": None,
+                    "order_result": None,
+                }
+                append_jsonl(_ledger_path, _ev)
+        except Exception:
+            pass
+
 
 def log_exit_hold_longer(symbol: str, side: str, exit_reason: str, exit_price: float, exit_ts: str = None,
                          price_5m: float = None, price_15m: float = None, price_60m: float = None,
@@ -3832,6 +3876,12 @@ class AlpacaExecutor:
                 "symbol": symbol,
                 "caller": caller,
             })
+        except Exception:
+            pass
+        
+        # ORDER TRUTH CONTRACT: Instrumentation immediately before broker submit (droplet evidence)
+        try:
+            log_event("submit_order_called", "SUBMIT_ORDER_CALLED", symbol=symbol, ts=time.time(), mode=order_type, qty=qty, side=side)
         except Exception:
             pass
         
@@ -7634,11 +7684,53 @@ class StrategyEngine:
                 except Exception:
                     pass
                 score = apply_signal_quality_to_score(symbol, float(score), market_ctx)
-                score, uw_details = apply_uw_to_score(symbol, float(score))
+                _eval_ts = int(time.time()) if hasattr(time, "time") else None
+                score, uw_details = apply_uw_to_score(symbol, float(score), ts=_eval_ts)
                 score, surv_action = apply_survivorship_to_score(symbol, float(score))
                 vid = get_variant_id(symbol, "equity")
             except Exception:
                 pass
+            # UW DEFERRED: first-class outcome — do not treat as reject; record and skip to next candidate
+            if uw_details.get("uw_deferred"):
+                _defer_ts = int(time.time())
+                _retry_min = int(os.environ.get("UW_DEFER_RETRY_EVERY_MINUTES", "15"))
+                _next_retry = _defer_ts + _retry_min * 60
+                _defer_reason = uw_details.get("defer_reason") or "uw_deferred"
+                try:
+                    _uw_health = Path(__file__).resolve().parents[0] / "reports" / "uw_health"
+                    _uw_health.mkdir(parents=True, exist_ok=True)
+                    _defer_log = _uw_health / "uw_deferred_candidates.jsonl"
+                    with _defer_log.open("a", encoding="utf-8") as _f:
+                        _f.write(json.dumps({
+                            "symbol": symbol, "first_defer_ts": _defer_ts, "next_retry_ts": _next_retry,
+                            "defer_reason": _defer_reason, "score_before": float(c.get("composite_score", 0) or 0),
+                        }, default=str) + "\n")
+                except Exception:
+                    pass
+                try:
+                    from score_snapshot_writer import append_score_snapshot
+                    meta = c.get("composite_meta") or {}
+                    append_score_snapshot(
+                        symbol=symbol,
+                        composite_score=float(c.get("composite_score", 0) or 0),
+                        expectancy_floor=float(getattr(Config, "MIN_EXEC_SCORE", 2.5)),
+                        composite_gate_pass=True,
+                        expectancy_gate_pass=False,
+                        block_reason=_defer_reason,
+                        signal_group_scores=meta if meta else None,
+                        weighted_contributions=meta.get("components"),
+                        group_sums=meta.get("group_sums"),
+                        composite_pre_norm=meta.get("composite_pre_clamp"),
+                        composite_post_norm=None,
+                        uw_deferred=True,
+                        defer_reason=_defer_reason,
+                        next_retry_ts=_next_retry,
+                        candidate_status="DEFERRED",
+                    )
+                except Exception:
+                    pass
+                log_event("gate", "uw_deferred", symbol=symbol, defer_reason=_defer_reason, next_retry_ts=_next_retry, gate_type="uw_defer", signal_type=c.get("signal_type", "UNKNOWN"))
+                continue
             print(f"DEBUG {symbol}: Processing cluster - direction={direction}, initial_score={score:.2f}, source={cluster_source}", flush=True)
             
             # LOGIC STAGNATION DETECTOR: Record signal for monitoring
@@ -8227,12 +8319,97 @@ class StrategyEngine:
                 print(f"EXPECTANCY_DEBUG {symbol}: composite_score={composite_exec_score:.4f}, score_used_by_expectancy={composite_exec_score:.4f}, expectancy_floor={expectancy_floor}, decision={'pass' if should_trade else 'fail'} ({gate_reason})", flush=True)
             print(f"DEBUG {symbol}: expectancy={expectancy:.4f}, should_trade={should_trade}, reason={gate_reason}", flush=True)
 
+            # Expectancy gate truth log (env-guarded; source of truth for funnel)
+            if os.environ.get("EXPECTANCY_GATE_TRUTH_LOG") == "1":
+                try:
+                    from pathlib import Path as _Path
+                    _meta = c.get("composite_meta") or {}
+                    _pre = _meta.get("composite_pre_clamp")
+                    _rec = {
+                        "ts_eval_epoch": time.time(),
+                        "ts_eval_iso": datetime.now(timezone.utc).isoformat(),
+                        "symbol": symbol,
+                        "trace_id": c.get("decision_id") or c.get("trade_id"),
+                        "score_used_by_gate": float(composite_exec_score),
+                        "min_exec_score": float(expectancy_floor),
+                        "gate_outcome": "pass" if should_trade else "fail",
+                        "fail_reason": gate_reason if not should_trade else None,
+                        "score_pre_adjust": float(_pre) if _pre is not None else None,
+                        "score_post_adjust": float(composite_exec_score),
+                        "adjustment_deltas": _meta.get("v2_adjustments") or _meta.get("v2_uw_adjustments") or {},
+                        "uw_outcome": getattr(c, "uw_outcome", None) or c.get("uw_outcome"),
+                        "failure_class": getattr(c, "failure_class", None) or c.get("failure_class"),
+                    }
+                    _path = _Path("logs") / "expectancy_gate_truth.jsonl"
+                    _path.parent.mkdir(parents=True, exist_ok=True)
+                    with _path.open("a", encoding="utf-8") as _f:
+                        _f.write(json.dumps(_rec, default=str) + "\n")
+                except Exception:
+                    pass
+
+            # Signal score breakdown (env-guarded; droplet-only, no inference)
+            if os.environ.get("SIGNAL_SCORE_BREAKDOWN_LOG") == "1":
+                try:
+                    from pathlib import Path as _Path
+                    _meta = c.get("composite_meta") or {}
+                    _comps = _meta.get("components") or {}
+                    _sources = _meta.get("component_sources") or {}
+                    _pre = _meta.get("composite_pre_clamp")
+                    composite_pre = float(_pre) if _pre is not None else None
+                    composite_post = float(composite_exec_score)
+                    gate_outcome = "pass" if should_trade else "fail"
+                    # Canonical list of signal names (match uw_composite_v2 components)
+                    _all_names = (
+                        "flow", "dark_pool", "insider", "iv_skew", "smile", "whale", "event", "motif_bonus",
+                        "toxicity_penalty", "regime", "congress", "shorts_squeeze", "institutional", "market_tide",
+                        "calendar", "greeks_gamma", "ftd_pressure", "iv_rank", "oi_change", "etf_flow", "squeeze_score",
+                        "freshness_factor",
+                    )
+                    signals_list = []
+                    for _name in _all_names:
+                        _contrib = _comps.get(_name)
+                        if _contrib is None:
+                            _contrib = 0.0
+                        try:
+                            _contrib = float(_contrib)
+                        except (TypeError, ValueError):
+                            _contrib = 0.0
+                        _src = _sources.get(_name) or "missing"
+                        _missing = _src == "missing"
+                        _zero = _contrib == 0.0
+                        signals_list.append({
+                            "signal_name": _name,
+                            "raw_value": _contrib,
+                            "normalized_value": _contrib,
+                            "weight": None,
+                            "contribution": _contrib,
+                            "is_missing": _missing,
+                            "is_zero": _zero,
+                        })
+                    _rec = {
+                        "ts_eval": datetime.now(timezone.utc).isoformat(),
+                        "ts_eval_epoch": time.time(),
+                        "symbol": symbol,
+                        "trace_id": c.get("decision_id") or c.get("trade_id"),
+                        "signals": signals_list,
+                        "composite_score_pre": composite_pre,
+                        "composite_score_post": composite_post,
+                        "gate_outcome": gate_outcome,
+                    }
+                    _path = _Path("logs") / "signal_score_breakdown.jsonl"
+                    _path.parent.mkdir(parents=True, exist_ok=True)
+                    with _path.open("a", encoding="utf-8") as _f:
+                        _f.write(json.dumps(_rec, default=str) + "\n")
+                except Exception:
+                    pass
+
             # Canonical score snapshot for truth audit (append-only JSONL)
             _snap_debug = os.environ.get("SCORE_SNAPSHOT_DEBUG") == "1"
             if _snap_debug:
                 print(f"SCORE_SNAPSHOT_DEBUG: hook entered symbol={symbol} composite_score={composite_exec_score}", flush=True)
             try:
                 from score_snapshot_writer import append_score_snapshot
+                meta = c.get("composite_meta") or {}
                 append_score_snapshot(
                     symbol=symbol,
                     composite_score=composite_exec_score,
@@ -8240,7 +8417,11 @@ class StrategyEngine:
                     composite_gate_pass=True,
                     expectancy_gate_pass=should_trade,
                     block_reason=gate_reason if not should_trade else None,
-                    signal_group_scores=c.get("composite_meta") or None,
+                    signal_group_scores=meta if meta else None,
+                    weighted_contributions=meta.get("components"),
+                    group_sums=meta.get("group_sums"),
+                    composite_pre_norm=meta.get("composite_pre_clamp"),
+                    composite_post_norm=float(composite_exec_score),
                 )
                 if _snap_debug:
                     print(f"SCORE_SNAPSHOT_DEBUG: append_score_snapshot success symbol={symbol}", flush=True)
@@ -8256,12 +8437,19 @@ class StrategyEngine:
 
                 # Shadow A/B removed (v2-only engine).
                 
-                log_blocked_trade(symbol, f"expectancy_blocked:{gate_reason}", score, 
+                meta = c.get("composite_meta") or {}
+                log_blocked_trade(symbol, f"expectancy_blocked:{gate_reason}", score,
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
                                   components=comps,
                                   expectancy=expectancy, stage=system_stage,
                                   market_context=market_ctx,
+                                  attribution_snapshot={
+                                      "weighted_contributions": meta.get("components"),
+                                      "group_sums": meta.get("group_sums"),
+                                      "composite_pre_norm": meta.get("composite_pre_clamp"),
+                                      "composite_post_norm": float(score),
+                                  } if meta else None,
                                   composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol))
                 
                 # SIGNAL HISTORY: Log blocked signal
@@ -8377,20 +8565,28 @@ class StrategyEngine:
 
                 # Shadow A/B removed (v2-only engine).
                 
+                meta_sb = c.get("composite_meta") or {}
                 log_blocked_trade(symbol, "score_below_min", score,
                                   direction=c.get("direction"),
                                   decision_price=ref_price_check,
                                   components=comps,
                                   min_required=min_score,
                                   market_context=market_ctx,
-                                  composite_meta=c.get("composite_meta"), first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                                  composite_meta=meta_sb, first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
                                   stage=system_stage,
                                   uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
                                   uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
-                                  survivorship_adjustment=surv_action or None, variant_id=vid)
+                                  survivorship_adjustment=surv_action or None, variant_id=vid,
+                                  attribution_snapshot={
+                                      "weighted_contributions": meta_sb.get("components"),
+                                      "group_sums": meta_sb.get("group_sums"),
+                                      "composite_pre_norm": meta_sb.get("composite_pre_clamp"),
+                                      "composite_post_norm": float(score),
+                                  } if meta_sb else None)
                 # Canonical snapshot for blocked-trade expectancy (same schema as expectancy gate)
                 try:
                     from score_snapshot_writer import append_score_snapshot
+                    meta = c.get("composite_meta") or {}
                     append_score_snapshot(
                         symbol=symbol,
                         composite_score=float(score),
@@ -8398,7 +8594,11 @@ class StrategyEngine:
                         composite_gate_pass=False,
                         expectancy_gate_pass=False,
                         block_reason="score_below_min",
-                        signal_group_scores=c.get("composite_meta") or None,
+                        signal_group_scores=meta if meta else None,
+                        weighted_contributions=meta.get("components"),
+                        group_sums=meta.get("group_sums"),
+                        composite_pre_norm=meta.get("composite_pre_clamp"),
+                        composite_post_norm=float(score),
                     )
                 except Exception:
                     pass
