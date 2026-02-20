@@ -386,11 +386,10 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
-    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
-    # WHY: defaulting missing data to a positive constant collapses scores across the universe
-    #      and can mask true signal differentiation.
+    # Neutral default when data missing so composite is not crushed (SIGNAL_FLOW_FINDINGS fix).
+    w = get_weight("congress", "neutral")
     if not congress_data:
-        return 0.0, ""
+        return round(w * 0.2, 4), "congress_neutral_default"
     
     recent_count = congress_data.get("recent_count", 0)
     buys = congress_data.get("buys", 0)
@@ -398,7 +397,7 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     conviction_boost = _to_num(congress_data.get("conviction_boost", 0.0))
     
     if recent_count == 0:
-        return 0.0, ""
+        return round(w * 0.2, 4), "congress_neutral_default"
     
     # Calculate net direction
     net_trades = buys - sells
@@ -412,7 +411,6 @@ def compute_congress_component(congress_data: Dict, flow_sign: int) -> tuple:
     opposing = (congress_sign != 0 and flow_sign != 0 and congress_sign != flow_sign)
 
     # V2.0: Use regime-aware weight (though congress component doesn't take regime parameter, use NEUTRAL)
-    w = get_weight("congress", "neutral")
     if aligned:
         component = w * (0.6 + activity_strength * 0.4) * (1.0 + conviction_boost)
         notes = f"congress_confirm({buys}B/{sells}S)"
@@ -442,9 +440,9 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "n
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
-    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
+    w = get_weight("shorts_squeeze", regime)
     if not shorts_data:
-        return 0.0, ""
+        return round(w * 0.2, 4), "shorts_neutral_default"
     
     interest_pct = _to_num(shorts_data.get("interest_pct", 0))
     days_to_cover = _to_num(shorts_data.get("days_to_cover", 0))
@@ -452,12 +450,10 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "n
     squeeze_risk = shorts_data.get("squeeze_risk", False)
     
     if interest_pct == 0:
-        return 0.0, ""
+        return round(w * 0.2, 4), "shorts_neutral_default"
     
     notes_parts = []
     component = 0.0
-    
-    w = get_weight("shorts_squeeze", regime)
     
     # High short interest (>15%) with bullish flow = squeeze potential
     if interest_pct > 15 and flow_sign == 1:
@@ -540,7 +536,7 @@ def compute_institutional_component(insider_data: Dict, institutional_data: Dict
 
     # Fallback: insider-based institutional proxy (directional)
     if not insider_data:
-        return 0.0, ""
+        return round(w * 0.2, 4), "institutional_neutral_default"
     
     net_buys = insider_data.get("net_buys", 0)
     net_sells = insider_data.get("net_sells", 0)
@@ -548,7 +544,7 @@ def compute_institutional_component(insider_data: Dict, institutional_data: Dict
     sentiment = insider_data.get("sentiment", "NEUTRAL")
     
     if net_buys == 0 and net_sells == 0:
-        return 0.0, ""
+        return round(w * 0.2, 4), "institutional_neutral_default"
     
     # Institutional direction
     inst_sign = 1 if net_buys > net_sells else (-1 if net_sells > net_buys else 0)
@@ -602,9 +598,9 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str =
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
-    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
+    w_tide = get_weight("market_tide", regime)
     if not tide_data:
-        return 0.0, ""
+        return round(w_tide * 0.2, 4), "tide_neutral_default"
     
     call_prem = 0.0
     put_prem = 0.0
@@ -622,7 +618,7 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str =
     
     total_prem = call_prem + put_prem
     if total_prem == 0:
-        return 0.0, ""
+        return round(w_tide * 0.2, 4), "tide_neutral_default"
     
     call_ratio = call_prem / total_prem
     tide_sign = 1 if call_ratio > 0.55 else (-1 if call_ratio < 0.45 else 0)
@@ -630,7 +626,7 @@ def compute_market_tide_component(tide_data: Dict, flow_sign: int, regime: str =
     imbalance = abs(call_ratio - 0.5) * 2
     
     aligned = (tide_sign == flow_sign) and tide_sign != 0
-    w = get_weight("market_tide", regime)
+    w = w_tide
     
     if aligned:
         component = w * (0.4 + imbalance * 0.6)
@@ -663,13 +659,12 @@ def compute_calendar_component(calendar_data: Optional[Dict], symbol: str, regim
     SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
     See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
     """
-    # Contract: missing intel must be neutral (0.0), not a phantom positive boost.
+    w = get_weight("calendar_catalyst", regime)
     if not calendar_data:
-        return 0.0, ""
+        return round(w * 0.2, 4), "calendar_neutral_default"
     
     notes_parts = []
     component = 0.0
-    w = get_weight("calendar_catalyst", regime)
     
     # Earnings proximity bonus
     if calendar_data.get("has_earnings"):
@@ -864,19 +859,16 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     smile_weight = get_weight("smile_slope", regime)
     smile_component = smile_weight * abs(smile_slope)
     
-    # 6. Whale persistence (use regime-aware weight)
+    # 6. Whale persistence (use regime-aware weight); neutral default when not detected (SIGNAL_FLOW_FINDINGS fix)
     whale_detected = motif_whale.get("detected", False)
-    whale_score = 0.0
-    if whale_detected:
-        avg_conv = motif_whale.get("avg_conviction", 0.0)
-        whale_weight = get_weight("whale_persistence", regime)
-        whale_score = whale_weight * avg_conv
+    whale_weight = get_weight("whale_persistence", regime)
+    whale_score = whale_weight * 0.15 if not whale_detected else whale_weight * _to_num(motif_whale.get("avg_conviction", 0.0))
     
     # 7. Event alignment (use regime-aware weight)
     event_weight = get_weight("event_alignment", regime)
     event_component = event_weight * event_align
     
-    # 8. Temporal motif bonus (use regime-aware weight)
+    # 8. Temporal motif bonus (use regime-aware weight); neutral default when no motif (SIGNAL_FLOW_FINDINGS fix)
     motif_weight = get_weight("temporal_motif", regime)
     motif_bonus = 0.0
     if motif_staircase.get("detected"):
@@ -886,6 +878,8 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         intensity = motif_burst.get("intensity", 0.0)
         motif_bonus += motif_weight * min(1.0, intensity / 2.0)
         all_notes.append(f"burst({motif_burst.get('count', 0)} updates)")
+    if motif_bonus == 0.0:
+        motif_bonus = motif_weight * 0.15
     
     # 9. Toxicity penalty - FIXED: Apply penalty starting at 0.5 (was 0.85)
     # CRITICAL: Ensure toxicity weight is NEGATIVE (it's a penalty, not a boost)
@@ -1141,9 +1135,11 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         composite_score += whale_conviction_boost
         all_notes.append(f"whale_conviction_boost(+{whale_conviction_boost})")
     
+    # Pre-clamp score for attribution (multi-model signal edge discovery)
+    composite_pre_clamp = composite_score
     # Clamp to 0-8 (higher max due to new components)
     composite_score = max(0.0, min(8.0, composite_score))
-    
+
     # ============ SIZING OVERLAY ============
     sizing_overlay = 0.0
     
@@ -1245,9 +1241,23 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         if source == "missing":
             missing_components.append(name)
 
+    # Group sums for signal-strength / edge discovery (multi-model attribution)
+    _uw_keys = ("flow", "dark_pool", "insider", "whale", "event")
+    _regime_keys = ("regime", "market_tide", "calendar", "motif_bonus")
+    group_sums = {
+        "uw": round(sum(components.get(k, 0) or 0 for k in _uw_keys), 4),
+        "regime_macro": round(sum(components.get(k, 0) or 0 for k in _regime_keys), 4),
+        "other_components": round(
+            sum(v or 0 for k, v in components.items() if k not in _uw_keys and k not in _regime_keys and k != "freshness_factor"),
+            4,
+        ),
+    }
+
     return {
         "symbol": symbol,
         "score": round(composite_score, 3),
+        "composite_pre_clamp": round(composite_pre_clamp, 4),
+        "group_sums": group_sums,
         "version": "V3.1" if adaptive_active else "V3",
         "adaptive_weights_active": adaptive_active,
         "gamma_resistance_levels": gamma_resistance_levels,
