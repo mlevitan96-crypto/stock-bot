@@ -1,0 +1,44 @@
+=== PREFLIGHT CHECK ===
+no plugins dir
+Alpaca bars present
+data/bars/alpaca_daily.parquet
+data/snapshots/alpaca_1m_snapshot_20260220T231131Z.tar.gz
+data/snapshots/alpaca_1m_snapshot_20260221T053447Z.tar.gz
+data/snapshots/alpaca_1m_snapshot_20260221T055759Z.tar.gz
+data/snapshots/alpaca_1m_snapshot_20260220T232751Z.tar.gz
+data/snapshots/alpaca_1m_snapshot_20260221T052556Z.tar.gz
+data/snapshots/alpaca_1m_snapshot_20260220T231056Z.tar.gz
+data/snapshots/alpaca_1m_snapshot_20260221T162756Z.tar.gz
+data/snapshots/alpaca_1m_snapshot_20260220T231217Z.tar.gz
+data/snapshots/alpaca_1m_snapshot_20260221T154058Z.tar.gz
+data/bars present:
+data/bars/2026-02-19/NVDA_5Min.json
+data/bars/2026-02-19/XLE_1Min.json
+data/bars/2026-02-19/MRNA_1Min.json
+data/bars/2026-02-19/COST_1Min.json
+data/bars/2026-02-19/PFE_1Min.json
+data/bars/2026-02-19/LCID_15Min.json
+data/bars/2026-02-19/BLK_1Min.json
+data/bars/2026-02-19/XLF_5Min.json
+data/bars/2026-02-19/MS_15Min.json
+data/bars/2026-02-19/MSFT_5Min.json
+data/bars/2026-02-19/AMD_5Min.json
+data/bars/2026-02-19/COP_15Min.json
+data/bars/2026-02-19/DIA_1Min.json
+data/bars/2026-02-19/GS_15Min.json
+data/bars/2026-02-19/META_1Min.json
+data/bars/2026-02-19/NFLX_1Min.json
+data/bars/2026-02-19/LOW_15Min.json
+data/bars/2026-02-19/TSLA_5Min.json
+data/bars/2026-02-19/BLK_5Min.json
+data/bars/2026-02-19/META_5Min.json
+data/bars/2026-02-19/CVX_5Min.json
+data/bars/2026-02-19/SPY_1Min.json
+data/bars/2026-02-19/JPM_5Min.json
+data/bars/2026-02-19/TGT_5Min.json
+data/bars/2026-02-19/XLK_1Min.json
+data/bars/2026-02-19/AMZN_5Min.json
+data/bars/2026-02-19/PLTR_5Min.json
+data/bars/2026-02-19/SLB_15Min.json
+data/bars/2026-02-19/XOM_1Min.json
+data/bars/2026-02-19/GOOGL_15Min.json
