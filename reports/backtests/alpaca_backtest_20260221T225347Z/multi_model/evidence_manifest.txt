@@ -1,4 +1,0 @@
-backtest_summary.json
-backtest_trades.jsonl
-uw_expanded_intel.json
-uw_flow_cache.json
