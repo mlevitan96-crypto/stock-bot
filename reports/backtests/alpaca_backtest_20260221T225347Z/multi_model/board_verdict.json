@@ -1,0 +1,14 @@
+{
+  "verdict": "ACCEPT",
+  "verdict_note": "Run produced trades; governance and artifacts complete.",
+  "roles_run": [
+    "prosecutor",
+    "defender",
+    "sre",
+    "board"
+  ],
+  "backtest_dir": "reports/backtests/alpaca_backtest_20260221T225347Z",
+  "trades_count": 10715,
+  "net_pnl": -7667.75,
+  "win_rate_pct": 48.92
+}

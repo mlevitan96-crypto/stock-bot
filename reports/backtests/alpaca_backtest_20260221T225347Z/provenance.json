@@ -1,0 +1,21 @@
+{
+  "git_commit": "7689ac095900440be0f73fafcfea35a6353994b3",
+  "timestamp": "2026-02-21T22:53:48.086148Z",
+  "config": {
+    "data_snapshot": "data/snapshots/alpaca_1m_snapshot_20260221T225347Z.tar.gz",
+    "lab_mode": true,
+    "decision_latency_seconds": 60,
+    "min_exec_score": 1.8,
+    "slippage_model": {
+      "type": "pct",
+      "value": 0.0005
+    },
+    "commission_per_trade": 0.005,
+    "borrow_cost_annual_pct": 0.05,
+    "walkforward": {
+      "train_months": 3,
+      "test_months": 1
+    },
+    "random_seed": 42
+  }
+}
