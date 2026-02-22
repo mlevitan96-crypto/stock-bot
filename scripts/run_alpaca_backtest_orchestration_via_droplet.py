@@ -33,6 +33,11 @@ DEPLOY_FILES = [
     "scripts/generate_backtest_summary.py",
     "scripts/run_governance_full.py",
     "scripts/backtest_governance_check.py",
+    "scripts/score_vs_profitability.py",
+    "scripts/customer_advocate_report.py",
+    "scripts/review_score_analysis_soundness.py",
+    "scripts/analysis/run_effectiveness_reports.py",
+    "scripts/analysis/attribution_loader.py",
     "configs/backtest_config.json",
     "configs/param_grid.json",
 ]
@@ -221,6 +226,9 @@ def _fetch_artifacts(c, run_id: str) -> None:
         (f"{remote_base}/FINAL_VERDICT.txt", local_base / "FINAL_VERDICT.txt"),
         (f"{remote_base}/provenance.json", local_base / "provenance.json"),
         (f"{remote_base}/preflight.txt", local_base / "preflight.txt"),
+        (f"{remote_base}/score_analysis/score_bands.json", local_base / "score_analysis" / "score_bands.json"),
+        (f"{remote_base}/score_analysis/score_vs_profitability.md", local_base / "score_analysis" / "score_vs_profitability.md"),
+        (f"{remote_base}/customer_advocate.md", local_base / "customer_advocate.md"),
     ]:
         get(rem, loc)
     try:
@@ -349,6 +357,9 @@ def _run_one(c):
     get(f"{remote_base}/FINAL_VERDICT.txt", local_base / "FINAL_VERDICT.txt")
     get(f"{remote_base}/provenance.json", local_base / "provenance.json")
     get(f"{remote_base}/preflight.txt", local_base / "preflight.txt")
+    get(f"{remote_base}/score_analysis/score_bands.json", local_base / "score_analysis" / "score_bands.json")
+    get(f"{remote_base}/score_analysis/score_vs_profitability.md", local_base / "score_analysis" / "score_vs_profitability.md")
+    get(f"{remote_base}/customer_advocate.md", local_base / "customer_advocate.md")
 
     try:
         sftp.close()

@@ -107,6 +107,37 @@ python3 scripts/run_simulation_backtest_on_droplet.py \
   exit 1
 }
 
+# 4a. Score-vs-profitability: bucket trades by entry_score for min_exec_score tuning
+mkdir -p reports/backtests/${RUN_ID}/score_analysis
+TRADES_FILE=""
+if [ -f reports/backtests/${RUN_ID}/baseline/backtest_trades.jsonl ]; then
+  TRADES_FILE="reports/backtests/${RUN_ID}/baseline/backtest_trades.jsonl"
+fi
+if [ -z "${TRADES_FILE}" ] && [ -f reports/backtests/${RUN_ID}/baseline_data.json ]; then
+  TRADES_FILE="reports/backtests/${RUN_ID}/baseline_data.json"
+fi
+if [ -f scripts/score_vs_profitability.py ] && [ -n "${TRADES_FILE}" ]; then
+  python3 scripts/score_vs_profitability.py --trades "${TRADES_FILE}" --out reports/backtests/${RUN_ID}/score_analysis || echo "SCORE_VS_PROFITABILITY_WARN: non-zero exit"
+fi
+
+# 4b. Effectiveness (per-signal and exit from baseline)
+mkdir -p reports/backtests/${RUN_ID}/effectiveness
+if [ -f scripts/analysis/run_effectiveness_reports.py ] && [ -f reports/backtests/${RUN_ID}/baseline/backtest_exits.jsonl ]; then
+  python3 scripts/analysis/run_effectiveness_reports.py \
+    --backtest-dir reports/backtests/${RUN_ID}/baseline \
+    --out-dir reports/backtests/${RUN_ID}/effectiveness || echo "EFFECTIVENESS_WARN: non-zero exit"
+fi
+
+# 4c. Customer advocate report (uses baseline metrics + score_analysis if present)
+if [ -f scripts/customer_advocate_report.py ]; then
+  python3 scripts/customer_advocate_report.py --run-dir reports/backtests/${RUN_ID} || echo "CUSTOMER_ADVOCATE_WARN: non-zero exit"
+fi
+
+# 4d. Score analysis soundness reviewer (totals match, win_rate in [0,100])
+if [ -f scripts/review_score_analysis_soundness.py ]; then
+  python3 scripts/review_score_analysis_soundness.py --run-dir reports/backtests/${RUN_ID} || echo "REVIEW_SCORE_SOUNDNESS_WARN: non-zero exit"
+fi
+
 # 5. Event studies (lab-mode)
 mkdir -p reports/backtests/${RUN_ID}/event_studies
 python3 scripts/run_event_studies_on_droplet.py \
