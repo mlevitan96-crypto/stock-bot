@@ -249,7 +249,7 @@ ls -1 reports/backtests/${RUN_ID}/multi_model/evidence 2>/dev/null > reports/bac
 
 # 17. Multi-model adversarial review (prosecutor, defender, sre, board) with evidence bundle
 mkdir -p reports/backtests/${RUN_ID}/multi_model
-python3 scripts/multi_model_runner.py --backtest_dir reports/backtests/${RUN_ID} --roles prosecutor,defender,sre,board --evidence reports/backtests/${RUN_ID}/multi_model/evidence || { echo "MULTI_MODEL_FAILED" >> reports/backtests/${RUN_ID}/ERROR.txt; }
+python3 scripts/multi_model_runner.py --backtest_dir reports/backtests/${RUN_ID} --roles prosecutor,defender,sre,board --evidence reports/backtests/${RUN_ID}/multi_model/evidence --out reports/backtests/${RUN_ID}/multi_model || { echo "MULTI_MODEL_FAILED" >> reports/backtests/${RUN_ID}/ERROR.txt; }
 if [ ! -f reports/backtests/${RUN_ID}/multi_model/board_verdict.json ]; then echo "MULTI_MODEL_VERDICT_MISSING" >> reports/backtests/${RUN_ID}/ERROR.txt; fi
 
 # 18. Summarize and governance artifacts
