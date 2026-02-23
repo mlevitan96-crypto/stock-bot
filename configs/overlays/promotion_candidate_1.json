@@ -1,1 +1,1 @@
-{"composite_weights":{"dark_pool":0.75,"freshness_factor":0.7},"freshness_smoothing_window":3}
+{"composite_weights":{"dark_pool":0.65,"freshness_factor":0.6},"freshness_smoothing_window":5}
