@@ -84,4 +84,18 @@ python3 scripts/multi_model_runner.py \
   --evidence reports/backtests/promotion_candidate_1_check/multi_model/evidence \
   --out reports/backtests/promotion_candidate_1_check/multi_model/out || echo "WARN: multi_model_runner failed"
 
-echo "Done. Check reports/backtests/promotion_candidate_1_check/multi_model/out/ for board_verdict.md"
+# Write PROMOTION_CANDIDATES.md so wrapper/consumers can detect completion
+RUN_DIR="reports/backtests/promotion_candidate_1_check"
+PROM="${RUN_DIR}/PROMOTION_CANDIDATES.md"
+echo "# Promotion candidate 1" > "${PROM}"
+echo "" >> "${PROM}"
+echo "Overlay: dark_pool 0.75, freshness_factor 0.7, freshness_smoothing_window 3." >> "${PROM}"
+echo "" >> "${PROM}"
+if [ -f "${MET_SRC}" ]; then
+  echo "## Metrics" >> "${PROM}"
+  jq '{net_pnl, trades_count, win_rate_pct}' "${MET_SRC}" >> "${PROM}" 2>/dev/null || true
+fi
+echo "" >> "${PROM}"
+echo "Artifacts: ${RUN_DIR}/multi_model/out/board_verdict.md, ${RUN_DIR}/exec_sensitivity/exec_sensitivity.json" >> "${PROM}"
+
+echo "Done. Check ${RUN_DIR}/multi_model/out/ for board_verdict.md and ${PROM}"
