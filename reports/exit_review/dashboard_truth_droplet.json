@@ -1,0 +1,38 @@
+[
+  {
+    "panel": "Live Trades",
+    "source": "journalctl:stock-bot.service",
+    "status": "PASS",
+    "reason": ""
+  },
+  {
+    "panel": "Expectancy Gate Status",
+    "source": "logs/gate_truth.jsonl",
+    "status": "WARN",
+    "reason": "stale (2677s)"
+  },
+  {
+    "panel": "Signal Health",
+    "source": "logs/signal_health.jsonl",
+    "status": "WARN",
+    "reason": "stale (2677s)"
+  },
+  {
+    "panel": "Score Telemetry",
+    "source": "state/score_telemetry.json",
+    "status": "WARN",
+    "reason": "stale (2624s)"
+  },
+  {
+    "panel": "UW Cache",
+    "source": "data/uw_flow_cache.json",
+    "status": "PASS",
+    "reason": ""
+  },
+  {
+    "panel": "Exit Truth",
+    "source": "logs/exit_truth.jsonl",
+    "status": "PASS",
+    "reason": ""
+  }
+]

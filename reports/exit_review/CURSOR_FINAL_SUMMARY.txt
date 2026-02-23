@@ -1,0 +1,67 @@
+# CURSOR ONE BLOCK — Robust multi-factor exits + learning loop
+
+## Deliverables produced
+
+### Code
+- src/exit/exit_pressure_v3.py — unified exit pressure score (0..1), components, two-tier thresholds, decision HOLD/CLOSE_NORMAL/CLOSE_URGENT.
+- src/exit/exit_truth_log.py — append_exit_truth() for logs/exit_truth.jsonl (per evaluation tick and per close).
+- main.py — exit loop: when EXIT_PRESSURE_ENABLED=1, compute pressure, emit truth, use pressure as primary trigger (after overrides); hard overrides unchanged.
+
+### Analysis
+- reports/exit_review/EXIT_REDESIGN_CONTRACT.md — acceptance criteria, promotion gates, truth contract.
+- reports/exit_review/exit_effectiveness_v2.{json,md} — script: scripts/analysis/run_exit_effectiveness_v2.py (by exit_reason_code, regime, overall).
+- docs/EXIT_OBJECTIVE_FUNCTION.md — minimize giveback/left_money/tail loss; maximize realized pnl/saved_loss; constraints.
+- reports/exit_review/exit_tuning_recommendations.md + exit_tuning_patch.json — script: scripts/exit_tuning/suggest_exit_tuning.py (recommendations only; no auto-apply).
+- reports/exit_review/EXIT_PROMOTION_CHECKLIST.md — G1–G6 gates and sign-off.
+- reports/exit_review/exit_counterfactuals.json — schema placeholder for hold+N / exit-earlier labels.
+
+### Ops
+- Dashboard truth contract: added "Exit Truth" panel (logs/exit_truth.jsonl, evidence exit_pressure|decision, freshness 600s) in CURSOR_DASHBOARD_TRUTH_AUDIT_AND_EOD_WIRING.sh.
+- EOD: reports/exit_review/EOD_EXIT_ENFORCEMENT.md — run effectiveness v2 + dashboard audit; fail if exit_truth missing/stale or audit FAIL.
+
+### Governance
+- This file (CURSOR_FINAL_SUMMARY.txt).
+- Rollback steps below.
+
+---
+
+## SAFE_TO_APPLY checklist
+
+- [ ] EXIT_PRESSURE_ENABLED remains OFF (default) until promotion gates pass.
+- [ ] Backtest + shadow run show improvement or neutral on objective; tail loss within tolerance.
+- [ ] Dashboard truth audit PASS (including Exit Truth panel when enabled).
+- [ ] Rollback plan validated (disable flag, redeploy).
+
+---
+
+## Rollback steps
+
+1. Set EXIT_PRESSURE_ENABLED=0 (or unset) in environment / systemd / config so pressure path is not used.
+2. Redeploy or restart the trading process so the exit loop uses only the existing cascade (v2_exit, regime, adaptive, stale, trail, decay, profit target).
+3. No change to hard overrides (stop loss, compliance, regime safety); they remain in place.
+4. Optional: remove or comment the "Exit pressure v3" block in main.py if reverting code; otherwise leaving it gated is sufficient.
+
+---
+
+## Config / env (all reversible)
+
+- EXIT_PRESSURE_ENABLED — default OFF.
+- EXIT_PRESSURE_NORMAL — default 0.55.
+- EXIT_PRESSURE_URGENT — default 0.80.
+- Component weights in exit_pressure_v3.py (or future config file); override via env if needed.
+
+---
+
+## Acceptance criteria (from contract)
+
+- AC1: Exit decision driven by multi-factor pressure when enabled; overrides unchanged.
+- AC2: Every evaluation/close emits truth log (exit_truth.jsonl).
+- AC3: Effectiveness v2 shows measurable improvement or neutral; tail constrained.
+- AC4: Dashboard audit PASS for exit panels and truth coverage.
+- AC5: EOD enforces exit truth and effectiveness daily.
+
+---
+
+## Board review (summary)
+
+See reports/exit_review/BOARD_REVIEW_OUTPUT.md for the consolidated Board review form and sign-off. Exit tuning: reports/exit_review/exit_tuning_recommendations.md (Board review section). Promotion: reports/exit_review/EXIT_PROMOTION_CHECKLIST.md (Board review section).
