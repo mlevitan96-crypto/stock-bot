@@ -1,35 +1,13 @@
 #!/usr/bin/env bash
-# CURSOR TASK — End-to-end: run promotion candidate check, generate persona recommendations,
-# append to promotion candidates, and print a concise persona summary for governance.
-#
+# CURSOR TASK — End-to-end promotion candidate run, persona extraction, append to promotion candidates, and concise persona summary.
 # Run on the droplet at /root/stock-bot as the repo user.
 set -euo pipefail
 
-REPO="/root/stock-bot"
-cd "${REPO}" || { echo "Repo root ${REPO} not found"; exit 1; }
+REPO_ROOT="/root/stock-bot"
+cd "${REPO_ROOT}" || { echo "Repo root ${REPO_ROOT} not found"; exit 1; }
 
-# 0) Pull latest and ensure scripts are executable
-git pull origin main
-chmod +x scripts/run_promotion_candidate_1_check_on_droplet.sh \
-         scripts/run_promotion_candidate_1_check_with_tail_on_droplet.sh \
-         scripts/run_final_finish_on_droplet.sh \
-         scripts/run_push_with_plugins_on_droplet.sh \
-         scripts/run_finalize_push_on_droplet.sh \
-         scripts/run_persona_recommendations_for_promotion_on_droplet.sh \
-         scripts/run_promotion_candidate_1_e2e_on_droplet.sh 2>/dev/null || true
-
-# 1) Start the promotion candidate check in background (merges overlay, runs sim, exec sensitivity, multi-model)
+# --- Configurable variables ---
 LOG="/tmp/promotion_candidate_1_check.log"
-nohup bash scripts/run_promotion_candidate_1_check_on_droplet.sh >> "${LOG}" 2>&1 &
-PROM_PID=$!
-echo "Started promotion candidate check (PID ${PROM_PID}), logging to ${LOG}"
-
-# 2) Start the wrapper that tails and polls (same log; note: tail wrapper also starts the check — to avoid two checks, run only this e2e script once, or run only the tail wrapper)
-nohup bash scripts/run_promotion_candidate_1_check_with_tail_on_droplet.sh >> "${LOG}" 2>&1 &
-TAIL_WRAPPER_PID=$!
-echo "Started tail+poll wrapper (PID ${TAIL_WRAPPER_PID}), also logging to ${LOG}"
-
-# 3) Wait for promotion run artifacts (timeout 45m)
 RUN_DIR="reports/backtests/promotion_candidate_1_check"
 MM_OUT="${RUN_DIR}/multi_model/out"
 PERSONA_JSON="${MM_OUT}/persona_recommendations.json"
@@ -37,42 +15,74 @@ BOARD_VERDICT="${MM_OUT}/board_verdict.md"
 PROM_CAND="${RUN_DIR}/PROMOTION_CANDIDATES.md"
 METRIC_CAND="${RUN_DIR}/metrics.json"
 ES_SUM="${RUN_DIR}/exec_sensitivity/exec_sensitivity.json"
+ES_RECHK="${RUN_DIR}/exec_sensitivity/exec_sensitivity_recheck.json"
+
+# --- 0) Pull latest and ensure scripts are executable ---
+git pull origin main
+chmod +x scripts/run_promotion_candidate_1_check_on_droplet.sh \
+         scripts/run_promotion_candidate_1_check_with_tail_on_droplet.sh \
+         scripts/run_persona_recommendations_for_promotion_on_droplet.sh \
+         scripts/run_final_finish_on_droplet.sh \
+         scripts/run_push_with_plugins_on_droplet.sh \
+         scripts/run_finalize_push_on_droplet.sh \
+         scripts/run_promotion_candidate_1_e2e_on_droplet.sh 2>/dev/null || true
+
+# --- 1) Start the promotion candidate check wrapper (background) ---
+if pgrep -f "run_promotion_candidate_1_check_on_droplet.sh" >/dev/null 2>&1; then
+  echo "Promotion candidate check already running (skipping start)."
+else
+  echo "Starting promotion candidate check (background). Log: ${LOG}"
+  nohup bash scripts/run_promotion_candidate_1_check_on_droplet.sh >> "${LOG}" 2>&1 &
+  PROM_PID=$!
+  echo "Started PID ${PROM_PID}"
+fi
+
+# --- 2) Start the tail+poll wrapper (background) if not already running ---
+if pgrep -f "run_promotion_candidate_1_check_with_tail_on_droplet.sh" >/dev/null 2>&1; then
+  echo "Tail+poll wrapper already running (skipping start)."
+else
+  echo "Starting tail+poll wrapper (background). Log: ${LOG}"
+  nohup bash scripts/run_promotion_candidate_1_check_with_tail_on_droplet.sh >> "${LOG}" 2>&1 &
+  TAIL_WRAPPER_PID=$!
+  echo "Started PID ${TAIL_WRAPPER_PID}"
+fi
+
+# --- 3) Wait for key artifacts (up to WAIT_MIN minutes) ---
 WAIT_MIN=45
-SLEEP=10
-MAX_ITER=$(( (WAIT_MIN*60) / SLEEP ))
+SLEEP_SEC=10
+MAX_ITER=$(( (WAIT_MIN*60) / SLEEP_SEC ))
 i=0
-echo "Waiting up to ${WAIT_MIN} minutes for promotion run artifacts under ${RUN_DIR}..."
+echo "Waiting up to ${WAIT_MIN} minutes for multi-model output or key artifacts..."
 while [ $i -lt $MAX_ITER ]; do
   if [ -f "${PERSONA_JSON}" ] || [ -f "${BOARD_VERDICT}" ]; then
-    echo "Multi-model output detected."
+    echo "Detected multi-model output."
     break
   fi
   if [ -f "${METRIC_CAND}" ] && [ -f "${PROM_CAND}" ] && ( [ -f "${ES_SUM}" ] || [ -f "${BOARD_VERDICT}" ] ); then
-    echo "Key artifacts present (metrics + exec_sensitivity/board + PROMOTION_CANDIDATES)."
+    echo "Detected metrics + PROMOTION_CANDIDATES + (exec_sensitivity or board_verdict)."
     break
   fi
-  if ! kill -0 "${PROM_PID}" 2>/dev/null; then
-    echo "Promotion candidate process PID ${PROM_PID} no longer running; waiting 120s for final artifacts..."
+  if ! pgrep -f "run_promotion_candidate_1_check_on_droplet.sh" >/dev/null 2>&1; then
+    echo "Promotion candidate process not running; waiting 120s for final artifacts..."
     sleep 120
     break
   fi
-  sleep "${SLEEP}"
+  sleep "${SLEEP_SEC}"
   i=$((i+1))
 done
 
-# 4) If persona JSON missing, run persona recommendations script to synthesize or extract
+# --- 4) Ensure persona_recommendations.json exists; if not, run extractor script ---
 if [ ! -f "${PERSONA_JSON}" ]; then
-  echo "persona_recommendations.json not found; running persona extraction script..."
+  echo "persona_recommendations.json missing; running persona extraction helper..."
   bash scripts/run_persona_recommendations_for_promotion_on_droplet.sh >> "${LOG}" 2>&1 || true
 fi
 
-# 5) If still missing, synthesize from board_verdict.md
-if [ ! -f "${PERSONA_JSON}" ]; then
-  if [ -f "${BOARD_VERDICT}" ]; then
-    echo "Synthesizing persona_recommendations.json from board_verdict.md (final attempt)..."
-    mkdir -p "${MM_OUT}"
-    TMP=$(mktemp)
-    python3 - "${BOARD_VERDICT}" <<'PY' > "${TMP}"
+# --- 5) If still missing, synthesize from board_verdict.md (best-effort) ---
+if [ ! -f "${PERSONA_JSON}" ] && [ -f "${BOARD_VERDICT}" ]; then
+  echo "Synthesizing persona_recommendations.json from board_verdict.md (best-effort)..."
+  mkdir -p "${MM_OUT}"
+  TMP=$(mktemp)
+  python3 - "${BOARD_VERDICT}" <<'PY' > "${TMP}"
 import re, sys, json
 bd_path = sys.argv[1]
 out = []
@@ -108,14 +118,11 @@ if not out:
         })
 print(json.dumps(out, indent=2))
 PY
-    mv "${TMP}" "${PERSONA_JSON}"
-    echo "Wrote synthesized persona_recommendations.json -> ${PERSONA_JSON}"
-  else
-    echo "No board_verdict.md available to synthesize persona JSON; check ${LOG}"
-  fi
+  mv "${TMP}" "${PERSONA_JSON}"
+  echo "Wrote synthesized persona_recommendations.json -> ${PERSONA_JSON}"
 fi
 
-# 6) Append persona recommendations to PROMOTION_CANDIDATES.md (idempotent)
+# --- 6) Append persona recommendations to PROMOTION_CANDIDATES.md idempotently ---
 if [ -f "${PERSONA_JSON}" ]; then
   mkdir -p "$(dirname "${PROM_CAND}")"
   if ! grep -q "## Persona recommendations (multi-model)" "${PROM_CAND}" 2>/dev/null; then
@@ -127,7 +134,10 @@ import json, sys
 pjson = sys.argv[1]
 prom = sys.argv[2]
 data = json.load(open(pjson))
-existing = open(prom).read()
+try:
+    existing = open(prom).read()
+except FileNotFoundError:
+    existing = ""
 lines = []
 for p in data:
     persona = p.get("persona", "unknown")
@@ -140,22 +150,19 @@ for p in data:
     line = f"- **{persona}**: **{verdict}** (confidence {conf}%) — {action}"
     if ev:
         line += f" ; evidence: {ev}"
-    if (line + "\n") not in existing:
-        lines.append(line)
-        existing += line + "\n"
-if lines:
-    with open(prom, "a") as f:
-        for L in lines:
+    lines.append(line)
+with open(prom, "a") as f:
+    for L in lines:
+        if L + "\n" not in existing:
             f.write(L + "\n")
-    print("Appended persona lines to", prom)
-else:
-    print("No new persona lines to append.")
+            existing += L + "\n"
+print("Appended persona lines to", prom)
 PY
 else
-  echo "persona_recommendations.json still missing; skipping append."
+  echo "persona_recommendations.json missing; skipping append to PROMOTION_CANDIDATES.md"
 fi
 
-# 7) Print concise persona summary table for governance copy/paste
+# --- 7) Print concise persona table for governance copy/paste ---
 if [ -f "${PERSONA_JSON}" ]; then
   echo
   echo "=== Persona recommendations (concise table) ==="
@@ -174,15 +181,15 @@ for p in data:
     print("{:<12} {:<12} {:<10} {:<40}".format(persona, verdict, conf, action))
 PY
 else
-  echo "No persona recommendations to print."
+  echo "No persona_recommendations.json to print."
 fi
 
-# 8) Print locations of key artifacts
+# --- 8) Print artifact locations for governance ---
 echo
-echo "Key artifacts (for copy/paste into governance notes):"
+echo "Key artifacts (copy/paste):"
 echo "- Promotion run dir: ${RUN_DIR}"
 echo "- Metrics: ${METRIC_CAND} (or ${RUN_DIR}/baseline/metrics.json)"
-echo "- Exec sensitivity: ${ES_SUM} (or exec_sensitivity_recheck.json)"
+echo "- Exec sensitivity: ${ES_SUM} (or ${RUN_DIR}/exec_sensitivity/exec_sensitivity_recheck.json)"
 echo "- Multi-model board verdict: ${BOARD_VERDICT}"
 echo "- Persona JSON: ${PERSONA_JSON}"
 echo "- Promotion candidates file: ${PROM_CAND}"
