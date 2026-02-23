@@ -49,8 +49,8 @@ mkdir -p "$(dirname "${LOG}")"
 : > "${LOG}"
 cd "${REPO_PATH}" || fail "Repo path ${REPO_PATH} not found"
 
-[ -f scripts/cursor_run_and_review.sh ] || fail "scripts/cursor_run_and_review.sh missing"
-[ -f scripts/run_promotion_candidate_parallel_orchestrator.sh ] || log "parallel orchestrator script missing; local/droplet modes still supported"
+[ "${MODE}" = "parallel" ] && [ ! -f scripts/run_promotion_candidate_parallel_orchestrator.sh ] && fail "scripts/run_promotion_candidate_parallel_orchestrator.sh missing for MODE=parallel"
+[ "${MODE}" = "local" ] && [ ! -x scripts/run_promotion_candidate_full_on_droplet.sh ] && fail "scripts/run_promotion_candidate_full_on_droplet.sh missing or not executable for MODE=local"
 chmod +x scripts/*.sh 2>/dev/null || true
 
 # Start orchestrator according to MODE
