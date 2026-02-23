@@ -65,6 +65,9 @@ case "${MODE}" in
       nohup bash scripts/run_promotion_candidate_full_oneshot_on_droplet.sh >> "${LOG}" 2>&1 &
     elif [ -x scripts/run_promotion_candidate_1_single_run_on_droplet.sh ]; then
       nohup bash scripts/run_promotion_candidate_1_single_run_on_droplet.sh >> "${LOG}" 2>&1 &
+    elif [ -x scripts/run_promotion_candidate_1_check_on_droplet.sh ]; then
+      log "Using run_promotion_candidate_1_check_on_droplet.sh (focused validation)"
+      nohup bash scripts/run_promotion_candidate_1_check_on_droplet.sh >> "${LOG}" 2>&1 &
     else
       fail "No droplet run script found"
     fi
