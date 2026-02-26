@@ -20,14 +20,15 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 
-def _run_online() -> int:
-    """Deploy and start equity governance autopilot on droplet (background)."""
+def _run_online(loop: bool = False) -> int:
+    """Deploy and start equity governance autopilot on droplet (background). If loop=True, run until stopping condition."""
     from droplet_client import DropletClient
     log_path = "/tmp/equity_governance_autopilot.log"
+    script = "scripts/run_equity_governance_loop_on_droplet.sh" if loop else "scripts/CURSOR_DROPLET_EQUITY_GOVERNANCE_AUTOPILOT.sh"
     cmd = (
         "cd /root/stock-bot && git fetch origin && git reset --hard origin/main && "
-        "[ -f scripts/CURSOR_DROPLET_EQUITY_GOVERNANCE_AUTOPILOT.sh ] || { echo 'Script missing'; exit 1; } && "
-        f"nohup bash -c 'bash scripts/CURSOR_DROPLET_EQUITY_GOVERNANCE_AUTOPILOT.sh' "
+        f"[ -f {script} ] || {{ echo 'Script missing'; exit 1; }} && "
+        f"nohup bash -c 'bash {script}' "
         f"</dev/null >> {log_path} 2>&1 & sleep 5 && tail -20 {log_path}"
     )
     with DropletClient() as c:
@@ -67,11 +68,12 @@ def _status() -> int:
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("Usage: online | offline | status")
+        print("Usage: online [--loop] | offline | status")
         return 1
     mode = sys.argv[1].lower()
+    loop = "--loop" in sys.argv
     if mode == "online":
-        return _run_online()
+        return _run_online(loop=loop)
     if mode == "offline":
         return _run_offline()
     if mode == "status":

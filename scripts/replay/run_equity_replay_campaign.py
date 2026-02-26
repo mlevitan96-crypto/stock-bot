@@ -75,7 +75,8 @@ def main() -> int:
         "all_results": results,
     }
     (out_dir / "campaign_results.json").write_text(json.dumps(campaign, indent=2), encoding="utf-8")
-    print(f"Wrote {out_dir / 'campaign_results.json'} (ranked {len(ranked)} with >= {min_trades} trades)")
+    (out_dir / "ranked_candidates.json").write_text(json.dumps(ranked[:20], indent=2), encoding="utf-8")
+    print(f"Wrote {out_dir / 'campaign_results.json'} and ranked_candidates.json (ranked {len(ranked)} with >= {min_trades} trades)")
     return 0
 
 
