@@ -384,6 +384,14 @@ def main() -> int:
         if isinstance(v, dict) and v.get("avg_profit_giveback") is not None:
             gb_list.extend([v["avg_profit_giveback"]] * (v.get("frequency", 0) or 0))
     agg_giveback = round(sum(gb_list) / len(gb_list), 4) if gb_list else None
+    # Fallback: compute from joined rows' exit_quality_metrics.profit_giveback when no exit reason had giveback
+    if agg_giveback is None:
+        direct_gb = [
+            (r.get("exit_quality_metrics") or {}).get("profit_giveback")
+            for r in joined
+            if (r.get("exit_quality_metrics") or {}).get("profit_giveback") is not None
+        ]
+        agg_giveback = round(sum(direct_gb) / len(direct_gb), 4) if direct_gb else None
     total_pnl = sum(_safe_float(r.get("pnl")) for r in joined)
     expectancy_per_trade = round(total_pnl / n_joined, 6) if n_joined else None
     (out_dir / "effectiveness_aggregates.json").write_text(
