@@ -109,10 +109,21 @@ else
   python3 - <<PY
 import json
 lever = "${LEVER}"
+rec_path = "${OUT_DIR}/recommendation.json"
+suggested = None
+if __import__("os").path.exists(rec_path):
+    try:
+        r = json.load(open(rec_path))
+        suggested = r.get("suggested_min_exec_score")
+    except Exception: pass
 if lever == "entry":
-  cfg = {"run_tag": "${RUN_TAG}", "lever": "entry", "paper_only": True, "change": {"type": "entry_bump", "delta": float("${ENTRY_SCORE_BUMP}")}}
+    if suggested is not None:
+        change = {"type": "entry_bump", "min_exec_score": float(suggested)}
+    else:
+        change = {"type": "entry_bump", "delta": float("${ENTRY_SCORE_BUMP}")}
+    cfg = {"run_tag": "${RUN_TAG}", "lever": "entry", "paper_only": True, "change": change}
 else:
-  cfg = {"run_tag": "${RUN_TAG}", "lever": "exit", "paper_only": True, "change": {"type": "single_exit_tweak", "strength": float("${EXIT_TWEAK_STRENGTH}")}}
+    cfg = {"run_tag": "${RUN_TAG}", "lever": "exit", "paper_only": True, "change": {"type": "single_exit_tweak", "strength": float("${EXIT_TWEAK_STRENGTH}")}}
 with open("${OUT_DIR}/overlay_config.json", "w") as f:
   json.dump(cfg, f, indent=2)
 print("WROTE", "${OUT_DIR}/overlay_config.json")

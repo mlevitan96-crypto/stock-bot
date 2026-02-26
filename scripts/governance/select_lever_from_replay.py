@@ -36,7 +36,8 @@ def main() -> int:
         lever_type = r.get("lever_type")
         params = r.get("lever_params") or {}
         if lever_type == "entry" and "min_exec_score" in params:
-            chosen = {"lever": "entry", "change": {"type": "entry_bump", "delta": round(params["min_exec_score"] - 2.5, 2)}}
+            score = float(params["min_exec_score"])
+            chosen = {"lever": "entry", "change": {"type": "entry_bump", "min_exec_score": round(score, 2), "delta": round(score - 2.5, 2)}}
             break
         if lever_type == "exit" and "flow_deterioration" in params:
             chosen = {"lever": "exit", "change": {"type": "single_exit_tweak", "strength": round(params["flow_deterioration"] - 0.22, 2)}}

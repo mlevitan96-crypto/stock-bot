@@ -166,8 +166,11 @@ def main() -> int:
     weak_pct = blame.get("weak_entry_pct") or 0
     timing_pct = blame.get("exit_timing_pct") or 0
     next_lever = "entry" if weak_pct > timing_pct else "exit"
+    # Entry strength lever: suggest threshold for continued evaluation (2.7, 2.9, 3.0)
+    suggested_min_exec_score = 2.7 if weak_pct <= timing_pct else 2.9  # tighten slightly when entry is blamed
     recommendation = {
         "next_lever": next_lever,
+        "suggested_min_exec_score": suggested_min_exec_score,
         "weak_entry_pct": weak_pct,
         "exit_timing_pct": timing_pct,
         "total_losing_trades": blame.get("total_losing_trades"),

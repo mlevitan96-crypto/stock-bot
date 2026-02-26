@@ -19,6 +19,12 @@ Stop the live improvement loop only when **all** are true over the last ≥100 c
 
 When met: stop applying new levers, write final summary, leave locked config active.
 
+**Continued evaluation:** Each cycle writes `lock_or_revert_decision.json` with `stopping_checks` (expectancy_gt_0, win_rate_ge_baseline_plus_2pp, giveback_le_baseline_plus_005, joined_count_ge_100) so you can see how close you are to the stop. Entry strength lever: recommendation includes `suggested_min_exec_score` (2.7 or 2.9); overlay can use absolute threshold for continued evaluation.
+
+### Risk brake (manual)
+
+If drawdown is unacceptable while the loop runs: **raise MIN_EXEC_SCORE** (e.g. to 3.0) or **pause new entries** until the next lever is applied. Document as a temporary brake; do not change the loop logic. To apply: set env or drop-in MIN_EXEC_SCORE and restart stock-bot; or use overlay with `min_exec_score` in change.
+
 ## Part A — ONLINE Autopilot (100-trade gate)
 
 - **Script:** `scripts/CURSOR_DROPLET_EQUITY_GOVERNANCE_AUTOPILOT.sh`

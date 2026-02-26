@@ -45,9 +45,14 @@ def main() -> int:
     overlay_start_date = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%d")
 
     if lever == "entry":
-        delta = float(change.get("delta", 0.2))
-        current = float(os.environ.get("MIN_EXEC_SCORE", "2.5"))
-        new_score = round(current + delta, 2)
+        # Support absolute min_exec_score (entry strength lever) or delta bump
+        if change.get("min_exec_score") is not None:
+            new_score = round(float(change["min_exec_score"]), 2)
+            delta = new_score - float(os.environ.get("MIN_EXEC_SCORE", "2.5"))
+        else:
+            delta = float(change.get("delta", 0.2))
+            current = float(os.environ.get("MIN_EXEC_SCORE", "2.5"))
+            new_score = round(current + delta, 2)
         env_path = state_dir / "paper_overlay.env"
         env_path.write_text(
             f"# Path-to-profitability paper overlay (entry)\n"

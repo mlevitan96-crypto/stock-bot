@@ -78,21 +78,24 @@ def main() -> int:
             decision = "LOCK"
             reasons.append("win_rate and giveback within tolerance vs baseline")
 
-    # Global stopping condition (live equity governance): stop loop when all true
-    stopping_condition_met = False
-    stopping_checks = {}
-    if cand_joined >= 100 and cand_exp is not None and base_wr is not None and base_gb is not None:
-        exp_ok = cand_exp > 0
-        wr_ok_stop = cand_wr is not None and (cand_wr >= base_wr + 0.02)
-        gb_ok_stop = cand_gb is not None and (cand_gb <= base_gb + 0.05)
-        attr_ok = cand_joined >= 100
-        stopping_checks = {
-            "expectancy_gt_0": exp_ok,
-            "win_rate_ge_baseline_plus_2pp": wr_ok_stop,
-            "giveback_le_baseline_plus_005": gb_ok_stop,
-            "joined_count_ge_100": attr_ok,
-        }
-        stopping_condition_met = exp_ok and wr_ok_stop and gb_ok_stop and attr_ok
+    # Global stopping condition (live equity governance): stop loop when all true.
+    # Always emit stopping_checks for continued evaluation (null when data missing).
+    attr_ok = cand_joined >= 100
+    exp_ok = (cand_exp > 0) if cand_exp is not None else None
+    wr_ok_stop = (cand_wr is not None and base_wr is not None and cand_wr >= base_wr + 0.02) if (cand_wr is not None and base_wr is not None) else None
+    gb_ok_stop = (cand_gb is not None and base_gb is not None and cand_gb <= base_gb + 0.05) if (cand_gb is not None and base_gb is not None) else None
+    stopping_checks = {
+        "expectancy_gt_0": exp_ok,
+        "win_rate_ge_baseline_plus_2pp": wr_ok_stop,
+        "giveback_le_baseline_plus_005": gb_ok_stop,
+        "joined_count_ge_100": attr_ok,
+    }
+    stopping_condition_met = (
+        attr_ok
+        and exp_ok is True
+        and wr_ok_stop is True
+        and gb_ok_stop is True
+    )
 
     out_obj = {
         "decision": decision,
