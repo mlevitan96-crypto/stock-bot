@@ -1,0 +1,101 @@
+{
+  "strategy": "equity",
+  "repo": "C:\\Dev\\stock-bot",
+  "sources": {
+    "attribution": {
+      "path": "C:\\Dev\\stock-bot\\logs\\attribution.jsonl",
+      "exists": true,
+      "description": "Live equity trade attribution"
+    },
+    "exit_attribution": {
+      "path": "C:\\Dev\\stock-bot\\logs\\exit_attribution.jsonl",
+      "exists": true,
+      "description": "Live equity trade exit_attribution"
+    },
+    "truth_root": {
+      "path": "C:\\Dev\\stock-bot\\reports\\truth",
+      "exists": false
+    },
+    "effectiveness": {
+      "dirs_sample": [
+        "C:\\Dev\\stock-bot\\reports\\effectiveness_baseline_blame",
+        "C:\\Dev\\stock-bot\\reports\\effectiveness_example",
+        "C:\\Dev\\stock-bot\\reports\\effectiveness_paper_score028_current",
+        "C:\\Dev\\stock-bot\\reports\\effectiveness_test_run",
+        "C:\\Dev\\stock-bot\\reports\\effectiveness_baseline_blame"
+      ],
+      "description": "Effectiveness report dirs (aggregates, blame, signal/exit)"
+    },
+    "bars": {
+      "path": "C:\\Dev\\stock-bot\\data\\bars",
+      "exists": true,
+      "description": "OHLCV bars for price paths"
+    },
+    "backtests": {
+      "dirs_sample": [
+        "C:\\Dev\\stock-bot\\backtests\\1d_signal_summary_20260220_222408",
+        "C:\\Dev\\stock-bot\\backtests\\30d",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_intel_overhaul_20260214_204538",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3b_20260214_213034",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3c_20260215_002515",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3d_20260215_003157",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3d_20260215_004825",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3e_20260215_010031",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3f_20260215_153119",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3g_20260215_155617",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3g_20260218_002100",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_scaffolding_20260214_211701",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_overhaul_20260214_210246",
+        "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_overhaul_block2_20260214_210746",
+        "C:\\Dev\\stock-bot\\backtests\\30d_baseline_20260218_032951",
+        "C:\\Dev\\stock-bot\\backtests\\30d_block3g_injection_local",
+        "C:\\Dev\\stock-bot\\backtests\\30d_block3g_test",
+        "C:\\Dev\\stock-bot\\backtests\\30d_proposed_20260218_032957",
+        "C:\\Dev\\stock-bot\\backtests\\30d_tune_baseline_20260218_040651",
+        "C:\\Dev\\stock-bot\\backtests\\30d_tune_flow022_20260218_040706",
+        "C:\\Dev\\stock-bot\\backtests\\30d_tune_score028_20260218_040930",
+        "C:\\Dev\\stock-bot\\backtests\\config",
+        "C:\\Dev\\stock-bot\\backtests\\README.md"
+      ],
+      "description": "Backtest output dirs (exits, attribution)"
+    }
+  },
+  "paths": {
+    "attribution": "C:\\Dev\\stock-bot\\logs\\attribution.jsonl",
+    "exit_attribution": "C:\\Dev\\stock-bot\\logs\\exit_attribution.jsonl",
+    "truth_root": "C:\\Dev\\stock-bot\\reports\\truth",
+    "effectiveness_dirs": [
+      "C:\\Dev\\stock-bot\\reports\\effectiveness_baseline_blame",
+      "C:\\Dev\\stock-bot\\reports\\effectiveness_example",
+      "C:\\Dev\\stock-bot\\reports\\effectiveness_paper_score028_current",
+      "C:\\Dev\\stock-bot\\reports\\effectiveness_test_run",
+      "C:\\Dev\\stock-bot\\reports\\effectiveness_baseline_blame"
+    ],
+    "bars_dir": "C:\\Dev\\stock-bot\\data\\bars",
+    "backtest_dirs": [
+      "C:\\Dev\\stock-bot\\backtests\\1d_signal_summary_20260220_222408",
+      "C:\\Dev\\stock-bot\\backtests\\30d",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_intel_overhaul_20260214_204538",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3b_20260214_213034",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3c_20260215_002515",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3d_20260215_003157",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3d_20260215_004825",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3e_20260215_010031",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3f_20260215_153119",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3g_20260215_155617",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_block3g_20260218_002100",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_engine_scaffolding_20260214_211701",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_overhaul_20260214_210246",
+      "C:\\Dev\\stock-bot\\backtests\\30d_after_signal_overhaul_block2_20260214_210746",
+      "C:\\Dev\\stock-bot\\backtests\\30d_baseline_20260218_032951",
+      "C:\\Dev\\stock-bot\\backtests\\30d_block3g_injection_local",
+      "C:\\Dev\\stock-bot\\backtests\\30d_block3g_test",
+      "C:\\Dev\\stock-bot\\backtests\\30d_proposed_20260218_032957",
+      "C:\\Dev\\stock-bot\\backtests\\30d_tune_baseline_20260218_040651",
+      "C:\\Dev\\stock-bot\\backtests\\30d_tune_flow022_20260218_040706",
+      "C:\\Dev\\stock-bot\\backtests\\30d_tune_score028_20260218_040930",
+      "C:\\Dev\\stock-bot\\backtests\\config",
+      "C:\\Dev\\stock-bot\\backtests\\README.md"
+    ]
+  }
+}

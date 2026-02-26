@@ -50,6 +50,8 @@ def main() -> int:
     cand_wr = cand_agg.get("win_rate")
     base_gb = base_agg.get("avg_profit_giveback")
     cand_gb = cand_agg.get("avg_profit_giveback")
+    base_exp = base_agg.get("expectancy_per_trade")
+    cand_exp = cand_agg.get("expectancy_per_trade")
 
     # LOCK: win_rate change >= -2%, giveback change <= +0.05, and not materially worse
     # REVERT: win_rate drop > 2%, or giveback increase > 0.05, or material PnL regression
@@ -76,18 +78,38 @@ def main() -> int:
             decision = "LOCK"
             reasons.append("win_rate and giveback within tolerance vs baseline")
 
+    # Global stopping condition (live equity governance): stop loop when all true
+    stopping_condition_met = False
+    stopping_checks = {}
+    if cand_joined >= 100 and cand_exp is not None and base_wr is not None and base_gb is not None:
+        exp_ok = cand_exp > 0
+        wr_ok_stop = cand_wr is not None and (cand_wr >= base_wr + 0.02)
+        gb_ok_stop = cand_gb is not None and (cand_gb <= base_gb + 0.05)
+        attr_ok = cand_joined >= 100
+        stopping_checks = {
+            "expectancy_gt_0": exp_ok,
+            "win_rate_ge_baseline_plus_2pp": wr_ok_stop,
+            "giveback_le_baseline_plus_005": gb_ok_stop,
+            "joined_count_ge_100": attr_ok,
+        }
+        stopping_condition_met = exp_ok and wr_ok_stop and gb_ok_stop and attr_ok
+
     out_obj = {
         "decision": decision,
         "reasons": reasons,
+        "stopping_condition_met": stopping_condition_met,
+        "stopping_checks": stopping_checks,
         "baseline": {
             "joined_count": base_joined,
             "win_rate": base_wr,
             "avg_profit_giveback": base_gb,
+            "expectancy_per_trade": base_exp,
         },
         "candidate": {
             "joined_count": cand_joined,
             "win_rate": cand_wr,
             "avg_profit_giveback": cand_gb,
+            "expectancy_per_trade": cand_exp,
         },
     }
     args.out = args.out.resolve()

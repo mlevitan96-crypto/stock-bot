@@ -375,7 +375,7 @@ def main() -> int:
     (out_dir / "exit_effectiveness.json").write_text(json.dumps(exit_report, indent=2), encoding="utf-8")
     (out_dir / "entry_vs_exit_blame.json").write_text(json.dumps(blame_report, indent=2), encoding="utf-8")
     (out_dir / "counterfactual_exit.json").write_text(json.dumps(counterfactual, indent=2), encoding="utf-8")
-    # Gate comparison: one-place aggregates
+    # Gate comparison: one-place aggregates + expectancy (for governance stopping condition)
     n_joined = len(joined)
     n_losers = blame_report.get("total_losing_trades", 0)
     agg_win_rate = round((n_joined - n_losers) / n_joined, 4) if n_joined else None
@@ -384,12 +384,16 @@ def main() -> int:
         if isinstance(v, dict) and v.get("avg_profit_giveback") is not None:
             gb_list.extend([v["avg_profit_giveback"]] * (v.get("frequency", 0) or 0))
     agg_giveback = round(sum(gb_list) / len(gb_list), 4) if gb_list else None
+    total_pnl = sum(_safe_float(r.get("pnl")) for r in joined)
+    expectancy_per_trade = round(total_pnl / n_joined, 6) if n_joined else None
     (out_dir / "effectiveness_aggregates.json").write_text(
         json.dumps({
             "joined_count": n_joined,
             "total_losing_trades": n_losers,
             "win_rate": agg_win_rate,
             "avg_profit_giveback": agg_giveback,
+            "total_pnl": round(total_pnl, 2),
+            "expectancy_per_trade": expectancy_per_trade,
         }, indent=2),
         encoding="utf-8",
     )
