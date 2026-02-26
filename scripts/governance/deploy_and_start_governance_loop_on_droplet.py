@@ -21,12 +21,10 @@ def main() -> int:
             print("Pull failed:", out, err)
             return 1
         print("Pull OK")
-        # Reset state (write JSON)
-        state = '{"last_lever":"","last_candidate_expectancy":null,"prev_candidate_expectancy":null,"last_decision":""}'
+        # Reset state (write JSON; include multi-cycle fields for loop)
         c._execute("mkdir -p /root/stock-bot/state", timeout=5)
-        # Write state via Python on droplet
         c._execute(
-            "cd /root/stock-bot && python3 -c \"import json; open('state/equity_governance_loop_state.json','w').write(json.dumps({'last_lever':'','last_candidate_expectancy':None,'prev_candidate_expectancy':None,'last_decision':''}))\"",
+            "cd /root/stock-bot && python3 -c \"import json; open('state/equity_governance_loop_state.json','w').write(json.dumps({'last_lever':'','last_candidate_expectancy':None,'prev_candidate_expectancy':None,'last_decision':'','expectancy_history':[],'last_replay_jump_cycle':0}))\"",
             timeout=10,
         )
         # Start loop

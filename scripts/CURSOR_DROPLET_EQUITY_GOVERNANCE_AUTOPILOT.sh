@@ -98,11 +98,15 @@ if [ "${LEVER}" != "entry" ] && [ "${LEVER}" != "exit" ]; then
 fi
 
 # ------------------------------------------------------------
-# A3 — APPLY ONE OVERLAY
+# A3 — APPLY ONE OVERLAY (or use replay-driven overlay if REPLAY_OVERLAY_CONFIG set)
 # ------------------------------------------------------------
-log "A3 Applying ONE overlay (${LEVER})"
-
-python3 - <<PY
+if [ -n "${REPLAY_OVERLAY_CONFIG:-}" ] && [ -f "${REPLAY_OVERLAY_CONFIG}" ]; then
+  cp "${REPLAY_OVERLAY_CONFIG}" "${OUT_DIR}/overlay_config.json"
+  LEVER="$(python3 -c "import json; j=json.load(open('${OUT_DIR}/overlay_config.json')); print(j.get('lever','')).lower()")"
+  log "A3 Using replay-driven overlay from ${REPLAY_OVERLAY_CONFIG} -> lever=${LEVER}"
+else
+  log "A3 Applying ONE overlay (${LEVER})"
+  python3 - <<PY
 import json
 lever = "${LEVER}"
 if lever == "entry":
@@ -113,6 +117,7 @@ with open("${OUT_DIR}/overlay_config.json", "w") as f:
   json.dump(cfg, f, indent=2)
 print("WROTE", "${OUT_DIR}/overlay_config.json")
 PY
+fi
 
 python3 scripts/ops/apply_paper_overlay.py \
   --overlay "${OUT_DIR}/overlay_config.json" \
