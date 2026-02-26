@@ -100,9 +100,14 @@ j=json.load(open("${OUT_DIR}/recommendation.json"))
 print(j.get("next_lever","").lower())
 PY
 )"
+# Allow override to run EXIT autopilot even when recommender says entry
+if [ -n "${FORCE_LEVER:-}" ]; then
+  LEVER="$(echo "${FORCE_LEVER}" | tr '[:upper:]' '[:lower:]')"
+  log "FORCE_LEVER=${FORCE_LEVER} -> lever=${LEVER}"
+fi
 log "Recommended lever=${LEVER}"
 if [ "${LEVER}" != "exit" ]; then
-  log "ERROR: recommender did not select EXIT. Aborting to avoid stacking."
+  log "ERROR: recommender did not select EXIT (set FORCE_LEVER=exit to run anyway). Aborting to avoid stacking."
   exit 4
 fi
 

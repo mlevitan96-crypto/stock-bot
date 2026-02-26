@@ -22,7 +22,7 @@ def main() -> int:
         "cd /root/stock-bot && "
         "git fetch origin && git reset --hard origin/main && "
         "[ -f scripts/CURSOR_DROPLET_PATH_TO_PROFITABILITY_EXIT_AUTOPILOT.sh ] || { echo 'ERROR: EXIT autopilot script missing'; exit 1; } && "
-        f"nohup bash -c 'bash scripts/CURSOR_DROPLET_PATH_TO_PROFITABILITY_EXIT_AUTOPILOT.sh' "
+        f"nohup bash -c 'FORCE_LEVER=exit bash scripts/CURSOR_DROPLET_PATH_TO_PROFITABILITY_EXIT_AUTOPILOT.sh' "
         f"</dev/null >> {log_path} 2>&1 & "
         "sleep 5 && "
         "echo '--- EXIT autopilot background start ---' && "
