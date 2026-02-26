@@ -57,3 +57,17 @@ Thumbs.db
 
 # Model/cache artifacts
 *.pkl
+
+# Backtest run outputs (regeneratable)
+backtests/30d_*/
+reports/backtests/
+
+# Bars / droplet run artifacts
+reports/bars/
+reports/bars_droplet_*/
+
+# Fetched bar data (regeneratable)
+data/bars/
+
+# Timestamped Cursor/board run outputs (regeneratable)
+reports/*/*_202*Z/
