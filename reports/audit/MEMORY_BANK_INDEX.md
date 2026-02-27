@@ -68,4 +68,5 @@
 - **Governance:** reports/governance/EQUITY_GOVERNANCE_ORCHESTRATOR_RUNBOOK.md; scripts/run_equity_governance_loop_on_droplet.sh; scripts/analysis/compare_effectiveness_runs.py.
 - **Replay:** scripts/replay/run_equity_replay_campaign.py → campaign_results.json, ranked_candidates.json; scripts/governance/select_lever_from_replay.py.
 - **Exit v2:** src/exit/exit_score_v2.py (5-value return); main.py unpacks and writes v2_exit_score, v2_exit_components, exit_reason_code to exit_intel and logs.
+- **Exit attribution schema (canonical):** All exit attribution components use the **`exit_`** prefix for `signal_id` (e.g. exit_flow_deterioration, exit_score_deterioration). See MEMORY_BANK.md §7.12; validation/scenarios/test_exit_attribution_phase4.py enforces no unprefixed components.
 - **Tests before promotion:** pytest validation/scenarios/test_exit_attribution_phase4.py validation/scenarios/test_effectiveness_reports.py validation/scenarios/test_attribution_loader_join.py.

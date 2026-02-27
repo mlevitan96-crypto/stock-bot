@@ -34,7 +34,7 @@ The system has **three** exit-decision layers; only the last one was both trigge
 - **Components:** flow_deterioration, darkpool_deterioration, sentiment_deterioration, score_deterioration, regime_shift, sector_shift, vol_expansion, thesis_invalidated, earnings_risk, overnight_flow_risk.
 - **Weights (into 0–1 score):** flow 20%, score_det 25%, sentiment 10%, darkpool 10%, regime_shift 10%, vol_exp 10%, thesis_invalidated 10%, sector_shift 5%.
 - **Trigger:** Only adds to close if **v2_exit_score >= 0.80** (very high). So in practice, most closes were not driven by this path.
-- **Attribution:** Now that the unpack bug is fixed, this block always populates **exit_intel_by_symbol[symbol]** with v2_exit_components and reason_code, so they are written to exit_attribution even when the actual close is triggered by signal_decay.
+- **Attribution:** Now that the unpack bug is fixed, this block always populates **exit_intel_by_symbol[symbol]** with v2_exit_components and reason_code, so they are written to exit_attribution even when the actual close is triggered by signal_decay. All exit attribution component `signal_id` values use the canonical **`exit_`** prefix (e.g. exit_flow_deterioration, exit_score_deterioration).
 
 ### C. Binary checks (what was firing and visible)
 

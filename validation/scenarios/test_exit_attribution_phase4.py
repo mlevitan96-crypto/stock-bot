@@ -2,7 +2,7 @@
 Phase 4 exit attribution tests.
 - exit_score_v2 returns (score, components, reason, attribution_components, exit_reason_code)
 - exit_score == sum(attribution_components.contribution_to_score)
-- No opaque exit components (every component has signal_id, source)
+- No opaque exit components (every component has signal_id with "exit_" prefix, source)
 - build_exit_attribution_record accepts and stores attribution_components, decision_id, exit_reason_code
 - exit_quality_metrics module returns expected shape
 """
@@ -79,7 +79,8 @@ def test_exit_attribution_no_opaque_components():
     )
     for c in ac:
         assert "signal_id" in c, c
-        assert c.get("signal_id", "").startswith("exit."), c.get("signal_id")
+        sid = c.get("signal_id", "")
+        assert sid.startswith("exit_"), f"exit attribution signal_id must have 'exit_' prefix, got {sid!r}"
         assert c.get("source") == "exit", c
         assert "contribution_to_score" in c, c
 
@@ -106,7 +107,7 @@ def test_build_exit_attribution_record_phase4_fields():
         relative_strength_deterioration=0.0,
         v2_exit_score=0.6,
         v2_exit_components={"score_deterioration": 0.1},
-        attribution_components=[{"signal_id": "exit.score_deterioration", "source": "exit", "contribution_to_score": 0.025}],
+        attribution_components=[{"signal_id": "exit_score_deterioration", "source": "exit", "contribution_to_score": 0.025}],
         decision_id="dec_AAPL_2026-02-17T15-00-00Z",
         exit_reason_code="profit",
         attribution_schema_version=ATTRIBUTION_SCHEMA_VERSION,

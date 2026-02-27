@@ -2,6 +2,8 @@
 
 When the board decision stays **TUNE**, we need a concrete path to better exits and more profit. This plan uses the data we already have, runs on the droplet, and iterates over many exit-rule variations to find the best combinations.
 
+**Exit attribution schema:** Records in `logs/exit_attribution.jsonl` use `attribution_components` where every component has `signal_id` starting with **`exit_`** (e.g. exit_flow_deterioration, exit_score_deterioration). Effectiveness and board review rely on this canonical naming.
+
 ---
 
 ## 1. What we do with current data

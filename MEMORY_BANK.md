@@ -591,6 +591,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Exit score must be intel-driven (multi-factor)**:
   - Engine: `src/exit/exit_score_v2.py`
   - Includes UW/sector/regime + score deterioration + thesis flags.
+- **Exit attribution naming contract**: All exit attribution components (the list written to `attribution_components` in exit_attribution records) MUST have `signal_id` values beginning with the **`exit_`** prefix (e.g. `exit_flow_deterioration`, `exit_score_deterioration`, `exit_regime_shift`). This is the canonical schema for effectiveness and board review.
 - **Dynamic targets and stops are required** (best-effort when prices are available):
   - Targets: `src/exit/profit_targets_v2.py`
   - Stops: `src/exit/stops_v2.py`

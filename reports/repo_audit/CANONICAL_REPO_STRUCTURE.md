@@ -40,6 +40,7 @@ stock-bot/
 - **Governance**: reports/equity_governance/, reports/effectiveness_baseline_blame (or effectiveness_*), state/equity_governance_loop_state.json.
 - **Replay**: historical_replay_engine.py; scripts under scripts/replay/.
 - **Deploy**: deploy_supervisor.py, droplet_client.py, board/eod/deploy_on_droplet.sh, scripts/governance/deploy_and_start_governance_loop_on_droplet.py.
+- **Exit attribution schema**: `logs/exit_attribution.jsonl` records use `attribution_components` with `signal_id` values that all start with the **`exit_`** prefix (e.g. exit_flow_deterioration). Enforced by src/exit/exit_score_v2.py and validation/scenarios/test_exit_attribution_phase4.py.
 
 ## What is not canonical
 

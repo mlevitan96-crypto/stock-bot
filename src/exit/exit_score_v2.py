@@ -118,7 +118,11 @@ def compute_exit_score_v2(
         reason = "profit"
     reason_code = str(reason or "hold").strip() or "hold"
 
-    # Attribution: per-component contribution to exit_score (for logs/exit_attribution.jsonl)
+    # Attribution: per-component contribution to exit_score (for logs/exit_attribution.jsonl).
+    # Canonical naming: all exit attribution signal_ids use "exit_" prefix (e.g. exit_flow_deterioration).
+    def _exit_signal_id(key: str) -> str:
+        return key if key.startswith("exit_") else f"exit_{key}"
+
     weights = {
         "flow_deterioration": 0.20,
         "darkpool_deterioration": 0.10,
@@ -132,7 +136,11 @@ def compute_exit_score_v2(
         "overnight_flow_risk": 0.0,
     }
     attribution_components = [
-        {"signal_id": k, "contribution_to_score": round(float(weights.get(k, 0.0)) * float(components.get(k, 0.0)), 6)}
+        {
+            "signal_id": _exit_signal_id(k),
+            "source": "exit",
+            "contribution_to_score": round(float(weights.get(k, 0.0)) * float(components.get(k, 0.0)), 6),
+        }
         for k in components
     ]
 
