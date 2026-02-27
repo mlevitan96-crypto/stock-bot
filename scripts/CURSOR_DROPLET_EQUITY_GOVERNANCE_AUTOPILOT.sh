@@ -73,6 +73,11 @@ if [ "${JOINED_COUNT}" -lt 30 ] || [ "${LOSING_TRADES}" -lt 5 ]; then
   exit 3
 fi
 
+# A1.1 — Expectancy-gate diagnostic (additive; does not affect LOCK/REVERT)
+python3 scripts/analysis/run_expectancy_gate_diagnostic.py \
+  --start "${START_DATE_UTC}" --end "${END_DATE_UTC}" --base-dir "${REPO}" --out-dir "${BASELINE_DIR}" \
+  | tee -a "${LOG}" || true
+
 # ------------------------------------------------------------
 # A2 — LEVER SELECTION (from recommendation or FORCE_LEVER)
 # ------------------------------------------------------------
