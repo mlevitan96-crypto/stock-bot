@@ -188,6 +188,9 @@ with open(state_path,'w') as f:
   fi
   unset REPLAY_OVERLAY_CONFIG 2>/dev/null || true
 
+  # Board and persona review (additive; live on droplet)
+  python3 scripts/governance/run_board_persona_review.py --base-dir "${REPO}" --out-dir "${REPO}/reports/governance" | tee -a /tmp/equity_governance_autopilot.log || true
+
   # Check stopping condition
   if [ -n "${LAST_OUT}" ] && [ -f "${LAST_OUT}/lock_or_revert_decision.json" ]; then
     STOPPING="$(python3 -c "
