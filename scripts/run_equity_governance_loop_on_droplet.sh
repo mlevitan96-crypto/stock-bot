@@ -26,7 +26,8 @@ if [ ! -f "${STATE_FILE}" ]; then
 import json
 json.dump({
   'last_lever':'','last_candidate_expectancy':None,'prev_candidate_expectancy':None,'last_decision':'',
-  'expectancy_history':[],'last_replay_jump_cycle':0
+  'expectancy_history':[],'last_replay_jump_cycle':0,
+  'tried_entry_thresholds':[],'tried_exit_strengths':[]
 }, open('${STATE_FILE}','w'), indent=2)
 "
 fi
@@ -70,6 +71,8 @@ except Exception:
   s={}
 if 'expectancy_history' not in s: s['expectancy_history']=[]
 if 'last_replay_jump_cycle' not in s: s['last_replay_jump_cycle']=0
+if 'tried_entry_thresholds' not in s: s['tried_entry_thresholds']=[]
+if 'tried_exit_strengths' not in s: s['tried_exit_strengths']=[]
 with open(p,'w') as f: json.dump(s,f,indent=2)
 " 2>/dev/null || true
 
@@ -142,6 +145,30 @@ except Exception:
     unset FORCE_LEVER
   fi
 
+  # Lever variety: prefer next untried entry threshold (2.7, 2.9, 3.0) and exit strength (0.02, 0.03, 0.05)
+  LEVER_VARS="$(python3 -c "
+import json, os
+p='${STATE_FILE}'
+try: s=json.load(open(p))
+except Exception: s={}
+tried_e = s.get('tried_entry_thresholds') or []
+tried_x = s.get('tried_exit_strengths') or []
+ENTRY_OPTS = [2.7, 2.9, 3.0]
+EXIT_OPTS = [0.02, 0.03, 0.05]
+def next_untried(opts, tried):
+    tried_set = set(float(x) for x in tried)
+    for v in opts:
+        if float(v) not in tried_set:
+            return v
+    return opts[${CYCLE} % len(opts)]
+entry = next_untried(ENTRY_OPTS, tried_e)
+exit_st = next_untried(EXIT_OPTS, tried_x)
+print('GOVERNANCE_ENTRY_THRESHOLD={}\\nGOVERNANCE_EXIT_STRENGTH={}'.format(entry, exit_st))
+")"
+  export GOVERNANCE_ENTRY_THRESHOLD="$(echo "${LEVER_VARS}" | grep GOVERNANCE_ENTRY_THRESHOLD= | cut -d= -f2)"
+  export GOVERNANCE_EXIT_STRENGTH="$(echo "${LEVER_VARS}" | grep GOVERNANCE_EXIT_STRENGTH= | cut -d= -f2)"
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Lever variety: cycle=${CYCLE} ENTRY_THRESHOLD=${GOVERNANCE_ENTRY_THRESHOLD} EXIT_STRENGTH=${GOVERNANCE_EXIT_STRENGTH}" | tee -a /tmp/equity_governance_autopilot.log
+
   if ! bash scripts/CURSOR_DROPLET_EQUITY_GOVERNANCE_AUTOPILOT.sh; then
     echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Autopilot script failed. Exiting loop."
     exit 1
@@ -156,6 +183,7 @@ import json, os
 dec=json.load(open('${LAST_OUT}/lock_or_revert_decision.json'))
 cand=dec.get('candidate',{})
 lev=None
+oc=None
 if __import__('os').path.exists('${LAST_OUT}/overlay_config.json'):
     try:
         oc=json.load(open('${LAST_OUT}/overlay_config.json'))
@@ -173,10 +201,22 @@ except Exception:
     s={}
 s.setdefault('expectancy_history', [])
 s.setdefault('last_replay_jump_cycle', 0)
+s.setdefault('tried_entry_thresholds', [])
+s.setdefault('tried_exit_strengths', [])
 s['prev_candidate_expectancy']=s.get('last_candidate_expectancy')
 s['last_candidate_expectancy']=cand.get('expectancy_per_trade')
 s['last_decision']=dec.get('decision','')
 s['last_lever']=lev or s.get('last_lever','')
+# Tried-lever tracking: append applied entry threshold or exit strength so next cycle prefers untried
+ch = oc.get('change') or {} if oc else {}
+if lev == 'entry':
+    v = ch.get('min_exec_score')
+    if v is not None:
+        s['tried_entry_thresholds'] = (s['tried_entry_thresholds'] + [float(v)])[-12:]
+elif lev == 'exit':
+    v = ch.get('strength') or (0.03 if ch.get('type') else None)
+    if v is not None:
+        s['tried_exit_strengths'] = (s['tried_exit_strengths'] + [float(v)])[-12:]
 # On LOCK, append expectancy to history (keep last ${EXPECTANCY_HISTORY_N})
 if dec.get('decision') == 'LOCK' and cand.get('expectancy_per_trade') is not None:
     s['expectancy_history'] = (s['expectancy_history'] + [float(cand['expectancy_per_trade'])])[-${EXPECTANCY_HISTORY_N}:]

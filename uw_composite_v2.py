@@ -1283,6 +1283,13 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         ),
     }
 
+    # Attribution: list of {signal_id, name, contribution_to_score} for effectiveness/signal_effectiveness (Phase 5 join).
+    attribution_components = [
+        {"signal_id": k, "name": k, "contribution_to_score": round(float(v), 4)}
+        for k, v in components.items()
+        if k != "freshness_factor" and isinstance(v, (int, float))
+    ]
+
     return {
         "symbol": symbol,
         "score": round(composite_score, 3),
@@ -1292,6 +1299,7 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         "adaptive_weights_active": adaptive_active,
         "gamma_resistance_levels": gamma_resistance_levels,
         "components": components,
+        "attribution_components": attribution_components,
         "component_sources": component_sources,
         "missing_components": missing_components,
         "motifs": {

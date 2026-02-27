@@ -21,10 +21,13 @@ def main() -> int:
             print("Pull failed:", out, err)
             return 1
         print("Pull OK")
+        # Restart stock-bot so it runs new code (e.g. attribution_components in composite)
+        c._execute("sudo systemctl restart stock-bot.service || true", timeout=15)
+        print("stock-bot.service restarted")
         # Reset state (write JSON; include multi-cycle fields for loop)
         c._execute("mkdir -p /root/stock-bot/state", timeout=5)
         c._execute(
-            "cd /root/stock-bot && python3 -c \"import json; open('state/equity_governance_loop_state.json','w').write(json.dumps({'last_lever':'','last_candidate_expectancy':None,'prev_candidate_expectancy':None,'last_decision':'','expectancy_history':[],'last_replay_jump_cycle':0}))\"",
+            "cd /root/stock-bot && python3 -c \"import json; open('state/equity_governance_loop_state.json','w').write(json.dumps({'last_lever':'','last_candidate_expectancy':None,'prev_candidate_expectancy':None,'last_decision':'','expectancy_history':[],'last_replay_jump_cycle':0,'tried_entry_thresholds':[],'tried_exit_strengths':[]}))\"",
             timeout=10,
         )
         # Start loop
