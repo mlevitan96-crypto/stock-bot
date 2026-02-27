@@ -45,14 +45,25 @@ def main() -> int:
     overlay_start_date = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%d")
 
     if lever == "entry":
-        # Support absolute min_exec_score (entry strength lever) or delta bump
+        # Support: min_exec_score (absolute or delta), and/or signal_weight_delta (down-weight worst signal)
+        signal_weight_delta = change.get("signal_weight_delta")
+        if isinstance(signal_weight_delta, dict):
+            signal_weight_delta = {k: round(float(v), 4) for k, v in signal_weight_delta.items()}
+        else:
+            signal_weight_delta = None
+
         if change.get("min_exec_score") is not None:
             new_score = round(float(change["min_exec_score"]), 2)
             delta = new_score - float(os.environ.get("MIN_EXEC_SCORE", "2.5"))
+        elif signal_weight_delta and not change.get("delta") and change.get("min_exec_score") is None:
+            # Down-weight-only lever: keep MIN_EXEC_SCORE at baseline
+            new_score = 2.5
+            delta = 0.0
         else:
             delta = float(change.get("delta", 0.2))
             current = float(os.environ.get("MIN_EXEC_SCORE", "2.5"))
             new_score = round(current + delta, 2)
+
         env_path = state_dir / "paper_overlay.env"
         env_path.write_text(
             f"# Path-to-profitability paper overlay (entry)\n"
@@ -69,6 +80,9 @@ def main() -> int:
             "min_exec_score_new": new_score,
             "paper_only": True,
         }
+        if signal_weight_delta:
+            audit["signal_weight_delta"] = signal_weight_delta
+            print(f"Signal weight delta overlay: {signal_weight_delta}")
         (state_dir / "path_to_profitability_overlay.json").write_text(
             json.dumps(audit, indent=2), encoding="utf-8"
         )

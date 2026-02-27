@@ -19,6 +19,12 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+# Component names valid for down-weight overlay (must match composite/adaptive_signal_optimizer)
+try:
+    from adaptive_signal_optimizer import SIGNAL_COMPONENTS as _VALID_ENTRY_COMPONENTS
+except Exception:
+    _VALID_ENTRY_COMPONENTS = frozenset()
+
 
 def load_effectiveness(effectiveness_dir: Path) -> dict:
     out = {}
@@ -168,9 +174,25 @@ def main() -> int:
     next_lever = "entry" if weak_pct > timing_pct else "exit"
     # Entry strength lever: suggest threshold for continued evaluation (2.7, 2.9, 3.0)
     suggested_min_exec_score = 2.7 if weak_pct <= timing_pct else 2.9  # tighten slightly when entry is blamed
+
+    # Down-weight worst signal: when entry lever and we have a harmful signal that maps to a composite component
+    entry_lever_type = "min_exec_score"
+    worst_signal_id = None
+    down_weight_delta = None
+    if next_lever == "entry" and top5_harmful and _VALID_ENTRY_COMPONENTS:
+        first = top5_harmful[0]
+        sid = first.get("signal_id") or first.get("name")
+        if sid and sid in _VALID_ENTRY_COMPONENTS and first.get("trade_count", 0) >= 5:
+            entry_lever_type = "down_weight_signal"
+            worst_signal_id = sid
+            down_weight_delta = -0.05
+
     recommendation = {
         "next_lever": next_lever,
+        "entry_lever_type": entry_lever_type,
         "suggested_min_exec_score": suggested_min_exec_score,
+        "worst_signal_id": worst_signal_id,
+        "down_weight_delta": down_weight_delta,
         "weak_entry_pct": weak_pct,
         "exit_timing_pct": timing_pct,
         "total_losing_trades": blame.get("total_losing_trades"),

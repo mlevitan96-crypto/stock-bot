@@ -29,6 +29,36 @@ THRESHOLD_STATE = Path("state/uw_thresholds_hierarchical.json")
 AUDIT_LOG = Path("data/audit_uw_upgrade.jsonl")
 EXPANDED_INTEL_CACHE = Path("data/uw_expanded_intel.json")
 GATE_DIAGNOSTIC_LOG = Path("logs/gate_diagnostic.jsonl")
+PATH_TO_PROFITABILITY_OVERLAY = Path("state/path_to_profitability_overlay.json")
+
+# Cache for governance entry overlay (signal_weight_delta) to avoid repeated file reads
+_governance_overlay_cache: Tuple[Optional[str], float, Optional[Dict[str, float]]] = (None, 0.0, None)
+
+def _get_governance_signal_weight_overlay() -> Optional[Dict[str, float]]:
+    """Read state/path_to_profitability_overlay.json; return signal_weight_delta when lever=entry. Cached by path mtime."""
+    global _governance_overlay_cache
+    path = PATH_TO_PROFITABILITY_OVERLAY
+    try:
+        if not path.exists():
+            _governance_overlay_cache = ("", 0.0, None)
+            return None
+        mtime = path.stat().st_mtime
+        path_key = str(path.resolve())
+        if path_key == _governance_overlay_cache[0] and mtime == _governance_overlay_cache[1]:
+            return _governance_overlay_cache[2]
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if (data.get("lever") or "").lower() != "entry":
+            _governance_overlay_cache = (path_key, mtime, None)
+            return None
+        delta = data.get("signal_weight_delta")
+        if isinstance(delta, dict):
+            out = {k: float(v) for k, v in delta.items()}
+            _governance_overlay_cache = (path_key, mtime, out)
+            return out
+        _governance_overlay_cache = (path_key, mtime, None)
+        return None
+    except Exception:
+        return None
 
 # Permanent system events + global failure wrapper (non-blocking import).
 try:
@@ -124,37 +154,44 @@ def get_weight(component: str, regime: str = "neutral") -> float:
     """
     global _cached_weights, _weights_cache_ts
     
-    # CRITICAL FIX: Temporarily disable adaptive weights for options_flow
-    # The adaptive system learned a bad weight (0.612 instead of 2.4), killing all scores
-    # TODO: Re-enable once we have better learning data
+    # CRITICAL FIX: options_flow uses default weight unless governance overlay down-weights it
+    effective_weight: Optional[float] = None
     if component == "options_flow":
-        # Force use default weight to restore trading
-        return WEIGHTS_V3.get(component, 0.0)
-    
-    # Try to get regime-aware weight from optimizer
-    optimizer = _get_adaptive_optimizer()
-    if optimizer and hasattr(optimizer, 'entry_model'):
-        try:
-            # Get regime-aware effective weight
-            effective_weight = optimizer.entry_model.get_effective_weight(component, regime)
-            # Safety check: Don't let options_flow drop below 1.5 (still too low, but better than 0.6)
-            if component == "options_flow" and effective_weight < 1.5:
-                return WEIGHTS_V3.get(component, 2.4)
-            return effective_weight
-        except Exception:
-            pass
-    
-    # Fallback to cached weights (non-regime-aware)
-    now = time.time()
-    if now - _weights_cache_ts > 60:
-        adaptive = get_adaptive_weights()
-        if adaptive:
-            _cached_weights = {**WEIGHTS_V3, **adaptive}
-        else:
-            _cached_weights = WEIGHTS_V3.copy()
-        _weights_cache_ts = now
-    
-    return _cached_weights.get(component, WEIGHTS_V3.get(component, 0.0))
+        effective_weight = WEIGHTS_V3.get(component, 2.4)
+
+    # Try to get regime-aware weight from optimizer (skip for options_flow, already set)
+    if effective_weight is None:
+        optimizer = _get_adaptive_optimizer()
+        if optimizer and hasattr(optimizer, 'entry_model'):
+            try:
+                # Get regime-aware effective weight
+                effective_weight = optimizer.entry_model.get_effective_weight(component, regime)
+                # Safety check: Don't let options_flow drop below 1.5 (still too low, but better than 0.6)
+                if component == "options_flow" and effective_weight < 1.5:
+                    effective_weight = WEIGHTS_V3.get(component, 2.4)
+            except Exception:
+                effective_weight = None
+
+    if effective_weight is None:
+        # Fallback to cached weights (non-regime-aware)
+        now = time.time()
+        if now - _weights_cache_ts > 60:
+            adaptive = get_adaptive_weights()
+            if adaptive:
+                _cached_weights = {**WEIGHTS_V3, **adaptive}
+            else:
+                _cached_weights = WEIGHTS_V3.copy()
+            _weights_cache_ts = now
+        effective_weight = _cached_weights.get(component, WEIGHTS_V3.get(component, 0.0))
+
+    # Governance entry overlay: down-weight worst signal (path_to_profitability_overlay.json)
+    gov_overlay = _get_governance_signal_weight_overlay()
+    if gov_overlay and component in gov_overlay:
+        delta = gov_overlay[component]
+        effective_weight = effective_weight * (1.0 + delta)
+        effective_weight = max(0.25, min(2.5, effective_weight))
+
+    return effective_weight
 
 def get_all_current_weights() -> Dict[str, float]:
     """Get all current weights (adaptive merged with defaults)"""
@@ -426,7 +463,7 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "n
     """
     Calculate short interest & squeeze potential component
     
-    Shorts data format from cache:
+    Shorts data format from cache (from daemon normalizer or API):
     {
         "interest_pct": float (0-100),
         "days_to_cover": float,
@@ -436,25 +473,22 @@ def compute_shorts_component(shorts_data: Dict, flow_sign: int, regime: str = "n
     
     Returns: (component_score, notes)
     
-    SCORING PIPELINE FIX (Priority 4): Provide neutral default instead of 0.0 when data missing
-    See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
+    ROOT CAUSE FIX: Contribute from ftd_count/squeeze_risk even when interest_pct is missing,
+    so FTD-only data from UW API still produces a score (no longer 0 for all symbols).
     """
     if not shorts_data:
         return 0.0, ""
-    
+
+    ftd_count = int(_to_num(shorts_data.get("ftd_count", 0)))
+    squeeze_risk = bool(shorts_data.get("squeeze_risk", False))
     interest_pct = _to_num(shorts_data.get("interest_pct", 0))
     days_to_cover = _to_num(shorts_data.get("days_to_cover", 0))
-    ftd_count = shorts_data.get("ftd_count", 0)
-    squeeze_risk = shorts_data.get("squeeze_risk", False)
-    
-    if interest_pct == 0:
-        return 0.0, ""
-    
+
     w = get_weight("shorts_squeeze", regime)
     notes_parts = []
     component = 0.0
-    
-    # High short interest (>15%) with bullish flow = squeeze potential
+
+    # High short interest (>15%) with bullish flow = squeeze potential (only when we have SI data)
     if interest_pct > 15 and flow_sign == 1:
         squeeze_strength = min(1.0, (interest_pct - 15) / 25)  # Scale 15-40%
         component += w * 0.5 * squeeze_strength
@@ -742,11 +776,10 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     # Base flow components (from enriched_data / cache)
     # Contract: missing/None sentiment must behave as NEUTRAL.
     flow_sent = enriched_data.get("sentiment") or "NEUTRAL"
-    # Contract: missing/None conviction must default to 0.5 (neutral), not 0.0.
-    # WHY: many upstream producers set conviction=None when unavailable; treating None as 0.0 suppresses scoring
-    #      and can create a "no trades" condition unrelated to actual alpha.
+    # REAL SCORES: No placeholder. When conviction is missing use 0.0 so score is data-driven.
+    # See reports/SIGNAL_INTEGRITY_REAL_SCORES_PATH.md
     conv_raw = enriched_data.get("conviction", None)
-    flow_conv = _to_num(conv_raw) if conv_raw is not None else 0.5
+    flow_conv = _to_num(conv_raw) if conv_raw is not None else 0.0
     flow_sign = _sign_from_sentiment(flow_sent)
     
     # Dark pool (Phase 5: use 1h notional, not neutral constant)
@@ -783,6 +816,8 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     all_notes = []
     if adaptive_active:
         all_notes.append("adaptive_weights_active")
+    if conv_raw is None:
+        all_notes.append("conviction_missing")
     
     # 1. Options flow (primary)
     # CAUSAL INSIGHT: Low Magnitude Flow (Stealth Flow) has 100% win rate
@@ -938,11 +973,10 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     # 16. Greeks/Gamma (squeeze detection)
     greeks_data = enriched_data.get("greeks", {})
     gamma_resistance_levels = _extract_gamma_resistance_levels(greeks_data if isinstance(greeks_data, dict) else {})
-    # SCORING PIPELINE FIX (Priority 4): Provide neutral default if data missing
+    # REAL SCORES: No placeholder. When greeks data missing use 0.0 (see SIGNAL_INTEGRITY_REAL_SCORES_PATH.md).
     if not greeks_data:
-        greeks_weight = get_weight("greeks_gamma", regime)
-        greeks_gamma_component = greeks_weight * 0.2  # Neutral default
-        all_notes.append("greeks_neutral_default")
+        greeks_gamma_component = 0.0
+        all_notes.append("greeks_missing")
     else:
         # FIXED: Calculate gamma_exposure from call_gamma and put_gamma if not directly available
         gamma_exposure = _to_num(greeks_data.get("gamma_exposure", 0))

@@ -116,13 +116,21 @@ import json
 lever = "${LEVER}"
 rec_path = "${OUT_DIR}/recommendation.json"
 suggested = None
+entry_lever_type = None
+worst_signal_id = None
+down_weight_delta = None
 if __import__("os").path.exists(rec_path):
     try:
         r = json.load(open(rec_path))
         suggested = r.get("suggested_min_exec_score")
+        entry_lever_type = r.get("entry_lever_type") or "min_exec_score"
+        worst_signal_id = r.get("worst_signal_id")
+        down_weight_delta = r.get("down_weight_delta")
     except Exception: pass
 if lever == "entry":
-    if suggested is not None:
+    if entry_lever_type == "down_weight_signal" and worst_signal_id and down_weight_delta is not None:
+        change = {"signal_weight_delta": {worst_signal_id: float(down_weight_delta)}}
+    elif suggested is not None:
         change = {"type": "entry_bump", "min_exec_score": float(suggested)}
     else:
         change = {"type": "entry_bump", "delta": float("${ENTRY_SCORE_BUMP}")}
@@ -144,9 +152,14 @@ if [ "${LEVER}" = "entry" ]; then
   MIN_SCORE="$(python3 -c "
 import json
 j=json.load(open('${OUT_DIR}/overlay_config.json'))
-# assume current 2.5 + bump
-delta = (j.get('change') or {}).get('delta', 0.2)
-print(round(2.5 + delta, 2))
+ch = j.get('change') or {}
+if ch.get('min_exec_score') is not None:
+    print(round(float(ch['min_exec_score']), 2))
+elif ch.get('signal_weight_delta'):
+    print('2.5')
+else:
+    delta = ch.get('delta', 0.2)
+    print(round(2.5 + float(delta), 2))
 ")"
   DROPIN_DIR="/etc/systemd/system/stock-bot.service.d"
   sudo mkdir -p "${DROPIN_DIR}"
@@ -243,6 +256,7 @@ if [ "${DECISION}" = "REVERT" ]; then
   log "A6 REVERT: removing overlay and restarting"
   sudo rm -f /etc/systemd/system/stock-bot.service.d/paper-overlay.conf
   sudo rm -f /etc/systemd/system/stock-bot.service.d/exit-paper-overlay.conf
+  rm -f "${REPO}/state/path_to_profitability_overlay.json" "${REPO}/state/paper_overlay.env"
   sudo systemctl daemon-reload
   sudo systemctl restart stock-bot.service
   log "Rebuilding baseline for next cycle"
