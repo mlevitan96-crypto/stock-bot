@@ -49,6 +49,15 @@ Check status:
 python scripts/governance/run_equity_governance_orchestrator.py status
 ```
 
+### Board and persona review (live on droplet)
+
+After each governance cycle the loop runs **board and persona review**: Adversarial, Quant, Product/Operator, Execution/SRE, Risk, and Board verdict. It reads current data (state, lock_or_revert_decision, effectiveness_aggregates, expectancy_gate_diagnostic, recommendation) and prior docs (STRATEGIC_REVIEW, PERSONAS_WHAT_TO_DO_DIFFERENTLY, FIVE_IDEAS) and writes:
+
+- `reports/governance/board_review_<timestamp>.md` and `.json`
+- `reports/governance/board_review_latest.md` and `board_review_latest.json`
+
+Script: `scripts/governance/run_board_persona_review.py`. To run standalone on droplet: `python3 scripts/governance/run_board_persona_review.py --base-dir /root/stock-bot --out-dir /root/stock-bot/reports/governance`. Plugins dir (if present) is listed in the review output.
+
 ## Part B — OFFLINE Replay Engine
 
 - **Data discovery:** `python scripts/replay/discover_equity_data_manifest.py` → `reports/replay/equity_data_manifest.json`
