@@ -106,16 +106,17 @@ def run() -> int:
     start_date = getattr(args, "start_date", None) or cfg.get("start_date") or ""
     end_date = getattr(args, "end_date", None) or cfg.get("end_date") or ""
     days = getattr(args, "days", None)
-    if days is not None and end_date:
-        try:
-            end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
-            start_d = end_d - timedelta(days=days - 1)
-            start_date = str(start_d)
-        except Exception:
-            pass
-    elif days is not None:
+    # When --days is passed, always use last N days from today so we overlap with current attribution logs
+    if days is not None:
         end_d = datetime.now(timezone.utc).date()
         start_d = end_d - timedelta(days=days - 1)
+        start_date = str(start_d)
+        end_date = str(end_d)
+    elif days is None and end_date and start_date:
+        pass  # use config or CLI start/end
+    elif not end_date:
+        end_d = datetime.now(timezone.utc).date()
+        start_d = end_d - timedelta(days=29)
         start_date = str(start_d)
         end_date = str(end_d)
     window_days = []

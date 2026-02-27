@@ -23,11 +23,22 @@ def main() -> int:
         "[ -f .env ] && set -a && source .env && set +a; "
         "python3 scripts/run_droplet_truth_run.py"
     )
+    def safe_print(text: str, file=None) -> None:
+        if not text:
+            return
+        # Avoid Windows cp1252 encode errors (e.g. Unicode arrow in "start -> end")
+        safe = text.replace("\u2192", "->").replace("\u2014", "-").encode("ascii", errors="replace").decode("ascii")
+        f = file or sys.stdout
+        f.write(safe)
+        if not safe.endswith("\n"):
+            f.write("\n")
+        f.flush()
+
     with DropletClient() as c:
         out, err, rc = c._execute(cmd, timeout=600)
-        print(out or "")
+        safe_print(out or "")
         if err:
-            print(err, file=sys.stderr)
+            safe_print(err, file=sys.stderr)
         return rc
 
 

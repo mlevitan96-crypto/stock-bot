@@ -117,7 +117,7 @@ def main() -> int:
 
     sections.append("## Entry\n")
     sections.append("- **Score gate:** Trades are taken only when the composite **exec score** meets or exceeds **MIN_EXEC_SCORE** (live value: **{}**). ".format(min_exec))
-    sections.append("Direction: score ≥ 3.0 → long; otherwise short. ")
+    sections.append("Direction: score >= 3.0 -> long; otherwise short. ")
     sections.append("Hierarchical thresholds (base/canary/champion) from uw_composite_v2 ENTRY_THRESHOLDS: base {:.1f}, canary {:.1f}, champion {:.1f}. ".format(
         ENTRY_THRESHOLDS.get("base", 0), ENTRY_THRESHOLDS.get("canary", 0), ENTRY_THRESHOLDS.get("champion", 0)))
     sections.append("Composite uses **config/registry COMPOSITE_WEIGHTS_V2** (version: {}). ".format(cw_version))
@@ -127,12 +127,12 @@ def main() -> int:
         getattr(Thresholds, "MAX_CONCURRENT_POSITIONS", "N/A") if Thresholds else "N/A"))
 
     sections.append("## Exit\n")
-    sections.append("**Exit urgency** (adaptive_signal_optimizer): urgency = sum of weighted components; **urgency ≥ 6.0 → EXIT**, **≥ 3.0 → REDUCE**, else **HOLD**. ")
+    sections.append("**Exit urgency** (adaptive_signal_optimizer): urgency = sum of weighted components; **urgency >= 6.0 -> EXIT**, **>= 3.0 -> REDUCE**, else **HOLD**. ")
     sections.append("**Exit signal components** (and default weights): entry_decay (1.0), adverse_flow (1.2), drawdown_velocity (1.5), time_decay (0.8), momentum_reversal (1.3), volume_exhaustion (0.9), support_break (1.4). ")
     sections.append("Entry decay: when current_score/entry_score < 0.7. Adverse flow: flow reversal vs position direction. Loss limit: +2.0 urgency if current_pnl_pct < -5%. ")
     sections.append("**Hard/rule-based exits:** Trailing stop at **TRAILING_STOP_PCT** (live: **{}**); ".format(trail_pct))
     sections.append("time exit at **TIME_EXIT_MINUTES** (live: **{}**); ".format(time_exit_min))
-    sections.append("stale position: age ≥ **TIME_EXIT_DAYS_STALE** ({} days) and PnL < **TIME_EXIT_STALE_PNL_THRESH_PCT** ({}). ".format(
+    sections.append("stale position: age >= **TIME_EXIT_DAYS_STALE** ({} days) and PnL < **TIME_EXIT_STALE_PNL_THRESH_PCT** ({}). ".format(
         time_exit_stale_days, stale_pnl_thresh))
     sections.append("Profit acceleration: after 30 min in profit, trailing stop can tighten to 0.5%; in MIXED regime default trail 1.0%. ")
     sections.append("Displacement and regime-protection exits also apply.\n")

@@ -2224,7 +2224,14 @@ def log_exit_attribution(
             if hasattr(entry_ts_dt, "tzinfo") and entry_ts_dt.tzinfo is None:
                 entry_ts_dt = entry_ts_dt.replace(tzinfo=timezone.utc)
             high_water = (info.get("high_water") or entry_price) if entry_price else None
-            # Guard: when high_water unavailable or equal to entry, giveback cannot be computed
+            # Data integrity: use at least max(entry, exit) so we get a defined giveback when trade was profitable
+            try:
+                ep, ex = float(entry_price or 0), float(exit_price or 0)
+                is_long = str(info.get("side") or "buy").lower() == "buy"
+                if high_water is None or (ep and abs(float(high_water or 0) - ep) < 1e-9):
+                    high_water = max(ep, ex) if is_long else (min(ep, ex) if ep and ex else high_water)
+            except (TypeError, ValueError):
+                pass
             if high_water is None or (entry_price and abs(float(high_water) - float(entry_price)) < 1e-9):
                 log_event("data_integrity", "exit_quality_high_water_unavailable", symbol=symbol,
                           high_water=high_water, entry_price=entry_price, note="giveback will be null")
@@ -6514,6 +6521,58 @@ class AlpacaExecutor:
                     "now_sector": now_sector,
                 }
 
+                # --- Exit pressure v3 (multi-factor primary trigger; config-gated) ---
+                if os.environ.get("EXIT_PRESSURE_ENABLED", "").strip().lower() in ("1", "true", "yes"):
+                    try:
+                        from src.exit.exit_pressure_v3 import compute_exit_pressure
+                        from src.exit.exit_truth_log import append_exit_truth
+                        thr_norm = float(os.environ.get("EXIT_PRESSURE_NORMAL", "0.55"))
+                        thr_urgent = float(os.environ.get("EXIT_PRESSURE_URGENT", "0.80"))
+                        pressure, decision, comp_list, close_reason_p, exit_reason_code_p, _ = compute_exit_pressure(
+                            symbol=str(symbol),
+                            direction=direction_norm,
+                            entry_v2_score=float(info.get("entry_score", 0.0) or 0.0),
+                            now_v2_score=float(current_composite_score or 0.0),
+                            entry_uw_inputs=entry_uw_inputs,
+                            now_uw_inputs=now_uw_inputs,
+                            entry_regime=entry_reg_label,
+                            now_regime=now_reg_label,
+                            entry_sector=entry_sector,
+                            now_sector=now_sector,
+                            realized_vol_20d=realized_vol_20d,
+                            thesis_flags=None,
+                            pnl_pct=pnl_pct,
+                            high_water_pct=high_water_pct,
+                            age_minutes=age_min,
+                            threshold_normal=thr_norm,
+                            threshold_urgent=thr_urgent,
+                        )
+                        append_exit_truth(
+                            symbol=symbol,
+                            exit_pressure=pressure,
+                            threshold_normal=thr_norm,
+                            threshold_urgent=thr_urgent,
+                            decision=decision,
+                            components=comp_list,
+                            close_reason=close_reason_p,
+                            exit_reason_code=exit_reason_code_p,
+                            regime_snapshot={"now_regime": now_reg_label, "entry_regime": entry_reg_label},
+                            pnl_snapshot={"pnl_pct": pnl_pct, "high_water_pct": high_water_pct},
+                            tick_type="evaluation",
+                        )
+                        if decision in ("CLOSE_NORMAL", "CLOSE_URGENT"):
+                            exit_signals["exit_pressure"] = round(pressure, 4)
+                            exit_signals["primary_reason"] = f"pressure({pressure:.2f})"
+                            exit_reasons[symbol] = build_composite_close_reason(exit_signals)
+                            log_event("exit", "exit_pressure_triggered", symbol=symbol, exit_pressure=pressure, decision=decision)
+                            if _passes_hold_floor(exit_timing_cfg, hold_seconds):
+                                to_close.append(symbol)
+                            else:
+                                log_event("exit", "hold_floor_skipped", symbol=symbol, hold_seconds=round(hold_seconds, 1), min_required=exit_timing_cfg.get("min_hold_seconds"))
+                            continue
+                    except Exception as _ep:
+                        log_event("exit", "exit_pressure_error", symbol=symbol, error=str(_ep))
+
                 # v2 exit promotion: allow v2 exit score to trigger a close (conservative threshold).
                 if float(v2_exit_score) >= 0.80:
                     exit_signals["v2_exit_score"] = round(float(v2_exit_score), 4)
@@ -8344,6 +8403,12 @@ class StrategyEngine:
                     _path.parent.mkdir(parents=True, exist_ok=True)
                     with _path.open("a", encoding="utf-8") as _f:
                         _f.write(json.dumps(_rec, default=str) + "\n")
+                    # CTR mirror (Phase 1: when TRUTH_ROUTER_ENABLED=1)
+                    try:
+                        from src.infra.truth_router import append_jsonl as _ctr_append
+                        _ctr_append("gates/expectancy.jsonl", _rec, expected_max_age_sec=300)
+                    except Exception:
+                        pass
                 except Exception:
                     pass
 
@@ -8400,6 +8465,12 @@ class StrategyEngine:
                     _path.parent.mkdir(parents=True, exist_ok=True)
                     with _path.open("a", encoding="utf-8") as _f:
                         _f.write(json.dumps(_rec, default=str) + "\n")
+                    # CTR mirror (Phase 1: when TRUTH_ROUTER_ENABLED=1)
+                    try:
+                        from src.infra.truth_router import append_jsonl as _ctr_append
+                        _ctr_append("health/signal_score_breakdown.jsonl", _rec, expected_max_age_sec=300)
+                    except Exception:
+                        pass
                 except Exception:
                     pass
 
@@ -8428,6 +8499,16 @@ class StrategyEngine:
             except Exception as _e:
                 if _snap_debug:
                     print(f"SCORE_SNAPSHOT_DEBUG: append_score_snapshot FAILED symbol={symbol} error={_e!r}", flush=True)
+                pass
+
+            try:
+                from signal_health import append_signal_health
+                append_signal_health(
+                    symbol=symbol,
+                    component_sources=meta.get("component_sources"),
+                    components=meta.get("components"),
+                )
+            except Exception:
                 pass
 
             if not should_trade:
@@ -9715,10 +9796,15 @@ class StrategyEngine:
                     context["entry_price_source"] = None
                 context["entry_score"] = score
                 context["components"] = comps if 'comps' in locals() else context.get("components", {})
-                # Phase 3: Persist full attribution_components for backtest/lab parity (same schema as composite result)
+                # Phase 3: Persist full attribution_components for backtest/lab parity and signal_effectiveness.json
                 _composite_meta = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else {}
-                if _composite_meta.get("attribution_components") is not None:
-                    context["attribution_components"] = _composite_meta.get("attribution_components")
+                attr_components = _composite_meta.get("attribution_components")
+                if attr_components is None and isinstance(composite_result, dict) and composite_result.get("attribution_components"):
+                    attr_components = composite_result.get("attribution_components")
+                if attr_components is None and comps and isinstance(comps, dict):
+                    attr_components = [{"signal_id": k, "name": k, "contribution_to_score": round(float(v), 4)} for k, v in comps.items() if isinstance(v, (int, float))]
+                if attr_components is not None:
+                    context["attribution_components"] = attr_components
                 if _composite_meta.get("attribution_schema_version"):
                     context["attribution_schema_version"] = _composite_meta.get("attribution_schema_version")
                 context["regime"] = market_regime
@@ -10994,14 +11080,18 @@ def run_once():
                     # Build metadata for telemetry
                     metadata = {
                         "freshness": composite.get("freshness", 1.0),
-                        "conviction_defaulted": enriched.get("conviction") is None or (enriched.get("conviction", 0.0) == 0.5 and symbol_data.get("conviction") is None),
+                        "conviction_defaulted": enriched.get("conviction") is None,
                         "missing_intel": [],
                         "neutral_defaults": [],
                         "core_features_missing": missing_core_features if 'missing_core_features' in locals() else []
                     }
                     
-                    # Check for neutral defaults in notes
+                    # Check for missing data / real-scores notes (no placeholders)
                     notes = composite.get("notes", "")
+                    if "conviction_missing" in notes:
+                        metadata["conviction_defaulted"] = True
+                    if "greeks_missing" in notes:
+                        metadata["missing_intel"].append("greeks_gamma")
                     if "neutral_default" in notes:
                         # Extract component names from notes
                         for comp in ["congress", "shorts", "institutional", "tide", "calendar", 

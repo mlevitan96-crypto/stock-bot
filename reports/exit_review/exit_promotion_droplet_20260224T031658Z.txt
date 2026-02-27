@@ -1,0 +1,42 @@
+=== stdout ===
+=== RUNNING EXIT PROMOTION ON DROPLET ===
+Executing promotion script...
+[2026-02-24T03:16:57Z] === EXECUTE EXIT PROMOTION ON DROPLET execute_exit_promotion_20260224T031657Z ===
+[2026-02-24T03:16:57Z] Using grid run: /root/stock-bot/reports/exit_review/exit_grid_with_bars_20260224T005443Z
+[2026-02-24T03:16:57Z] Promoting grid-approved exit params to runtime config
+Runtime exit config written to config/exit_candidate_signals.tuned.json
+[2026-02-24T03:16:57Z] Committing runtime exit promotion
+[main 573ca87] Activate grid-approved exit strategy for PAPER trading
+ 1 file changed, 6 insertions(+)
+ create mode 100644 config/exit_candidate_signals.tuned.json
+To https://github.com/mlevitan96-crypto/stock-bot.git
+ ! [rejected]        main -> main (non-fast-forward)
+error: failed to push some refs to 'https://github.com/mlevitan96-crypto/stock-bot.git'
+To https://github.com/mlevitan96-crypto/stock-bot.git
+ ! [rejected]        main -> main (non-fast-forward)
+error: failed to push some refs to 'https://github.com/mlevitan96-crypto/stock-bot.git'
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart. If you want to integrate the remote changes,
+hint: use 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart. If you want to integrate the remote changes,
+hint: use 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+[2026-02-24T03:16:57Z] Restarting PAPER trading service
+Failed to restart stock-bot-paper.service: Unit stock-bot-paper.service not found.
+[2026-02-24T03:16:57Z] WARNING: PAPER service restart failed — verify runner manually.
+[2026-02-24T03:16:57Z] Verifying runtime config exists and is non-empty
+RUN_DIR: /root/stock-bot/reports/exit_review/execute_exit_promotion_20260224T031657Z
+DECISION: EXIT_STRATEGY_NOW_LIVE_IN_PAPER
+[2026-02-24T03:16:57Z] === EXIT PROMOTION EXECUTION COMPLETE ===
+=== EXIT STRATEGY PROMOTION COMPLETE ===
+STATUS: PAPER trading now uses grid-approved exits
+LIVE capital remains untouched
+
+
+=== stderr ===
+
+
+=== exit_code ===
+0

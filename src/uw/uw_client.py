@@ -41,6 +41,70 @@ except Exception:  # pragma: no cover
 UW_USAGE_STATE_PATH = Path("state/uw_usage_state.json")
 UW_CACHE_DIR = Path("state/uw_cache")
 
+# Data integrity: append-only log for any UW API failure (no numeric quality from failed calls)
+def _uw_api_errors_path() -> Path:
+    return Path(__file__).resolve().parents[2] / "reports" / "uw_health" / "uw_api_errors.jsonl"
+
+
+def _uw_api_error_type(status: int, data: Dict[str, Any], endpoint: str) -> str:
+    """Classify failure for uw_api_error_type (404/401/403/rate_limit/schema/empty/stale)."""
+    if status == 401:
+        return "401"
+    if status == 403:
+        return "403"
+    if status == 404:
+        return "404"
+    if status == 429:
+        return "rate_limit"
+    if status >= 500:
+        return "5xx"
+    if status != 200:
+        return "http_error"
+    # 200 but invalid body
+    if not isinstance(data, dict):
+        return "schema"
+    if "_blocked" in data and data.get("_blocked"):
+        return "rate_limit"
+    # Most UW list endpoints return {"data": [...]}
+    if "data" not in data:
+        return "schema"
+    if data.get("data") is None:
+        return "empty"
+    if isinstance(data.get("data"), list) and len(data.get("data", [])) == 0 and "/api/" in str(endpoint):
+        return "empty"
+    return "ok"
+
+
+def _append_uw_api_error(
+    *,
+    http_status: int,
+    endpoint: str,
+    response_body: Any,
+    request_params: Optional[Dict[str, Any]],
+    ts: float,
+    uw_api_error_type: str,
+    caller: str = "",
+) -> None:
+    """Append one record to reports/uw_health/uw_api_errors.jsonl. Never raises."""
+    try:
+        path = _uw_api_errors_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        body_trunc = json.dumps(response_body, default=str)[:2000] if response_body is not None else ""
+        rec = {
+            "ts": ts,
+            "http_status": http_status,
+            "endpoint": str(endpoint),
+            "response_body_truncated": body_trunc,
+            "request_params": request_params or {},
+            "uw_api_error_type": uw_api_error_type,
+            "caller": caller or _caller_hint(),
+        }
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, default=str) + "\n")
+    except Exception:
+        pass
+
+
 def _caller_hint() -> str:
     try:
         for fr in inspect.stack()[2:12]:
@@ -403,6 +467,15 @@ def uw_http_get(
         status = 0
         data = {"data": []}
         resp_headers = {}
+        _append_uw_api_error(
+            http_status=0,
+            endpoint=endpoint,
+            response_body={"error": str(e), "error_type": type(e).__name__},
+            request_params=params,
+            ts=time.time(),
+            uw_api_error_type="exception",
+            caller=_caller_hint(),
+        )
         try:
             log_system_event(
                 subsystem="uw",
@@ -435,11 +508,22 @@ def uw_http_get(
             pass
 
     dt_ms = int((time.time() - t0) * 1000)
+    error_type = _uw_api_error_type(status, data, endpoint)
+    if status != 200 or error_type != "ok":
+        _append_uw_api_error(
+            http_status=status,
+            endpoint=endpoint,
+            response_body=data,
+            request_params=params,
+            ts=time.time(),
+            uw_api_error_type=error_type,
+            caller=_caller_hint(),
+        )
     try:
         log_system_event(
             subsystem="uw",
             event_type="uw_call",
-            severity="INFO" if status == 200 else "WARN",
+            severity="INFO" if status == 200 and error_type == "ok" else "WARN",
             details={
                 "endpoint": str(endpoint),
                 "endpoint_name": policy.endpoint_name,
@@ -453,8 +537,8 @@ def uw_http_get(
     except Exception:
         pass
 
-    # Cache write
-    if policy.ttl_seconds > 0 and status == 200 and isinstance(data, dict):
+    # Cache write (only on success and valid schema)
+    if policy.ttl_seconds > 0 and status == 200 and isinstance(data, dict) and error_type == "ok":
         try:
             _write_cache(
                 key,
@@ -477,13 +561,23 @@ def uw_get(endpoint: str, params: Optional[Dict[str, Any]] = None, cache_policy:
     """
     Public UW interface.
     Returns dict (typically with "data").
+    On API failure: still returns dict but with _uw_api_failure=True and uw_api_error_type set;
+    callers must NOT use numeric quality from failed calls (treat as UW_MISSING_DATA).
     Never raises.
     """
     status, data, _hdr = uw_http_get(endpoint, params=params, cache_policy=cache_policy)
     if not isinstance(data, dict):
-        return {"data": []}
-    # normalize on rate limit block
+        return {"data": [], "_uw_api_failure": True, "uw_api_error_type": "schema"}
+    if status != 200:
+        return {
+            "data": [],
+            "_uw_api_failure": True,
+            "uw_api_error_type": "rate_limit" if status == 429 else "404" if status == 404 else "401" if status == 401 else "403" if status == 403 else "5xx" if status >= 500 else "http_error",
+        }
     if status == 429 and data.get("_blocked"):
-        return {"data": [], "_blocked": True, "_reason": data.get("_reason")}
+        return {"data": [], "_blocked": True, "_reason": data.get("_reason"), "_uw_api_failure": True, "uw_api_error_type": "rate_limit"}
+    error_type = _uw_api_error_type(200, data, endpoint)
+    if error_type != "ok":
+        return {"data": data.get("data") if isinstance(data.get("data"), list) else [], "_uw_api_failure": True, "uw_api_error_type": error_type}
     return data
 

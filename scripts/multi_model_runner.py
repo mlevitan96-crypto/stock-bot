@@ -10,11 +10,12 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Optional
 
 REPO = Path(__file__).resolve().parents[1]
 
 
-def _load_json(path: Path) -> dict | None:
+def _load_json(path: Path) -> Optional[dict]:
     if not path.exists():
         return None
     try:
@@ -45,6 +46,11 @@ def main() -> int:
     config = _load_json(backtest_dir / "config.json")
     summary_md = (backtest_dir / "summary" / "summary.md")
     summary_text = summary_md.read_text(encoding="utf-8") if summary_md.exists() else ""
+    # Effectiveness and customer advocate (if present) for evidence-based verdicts
+    eff_summary = backtest_dir / "effectiveness" / "EFFECTIVENESS_SUMMARY.md"
+    effectiveness_text = eff_summary.read_text(encoding="utf-8", errors="replace") if eff_summary.exists() else ""
+    customer_advocate_path = backtest_dir / "customer_advocate.md"
+    customer_advocate_text = customer_advocate_path.read_text(encoding="utf-8", errors="replace") if customer_advocate_path.exists() else ""
 
     trades_count = 0
     net_pnl = None
@@ -75,15 +81,26 @@ def main() -> int:
         prosecutor_claim,
         "",
         "## Evidence",
-        f"- **Trades count:** {trades_count}",
-        f"- **Net PnL (USD):** {net_pnl}",
-        f"- **Win rate (%):** {win_rate}",
+        "- **Trades count:** {}".format(trades_count),
+        "- **Net PnL (USD):** {}".format(net_pnl),
+        "- **Win rate (%):** {}".format(win_rate),
         "",
-        "## Dominant chokes / risks",
-        "1. **Expectancy / min_exec_score gate:** Low trades or sub-threshold scores prevent edge assessment; fallback score can inflate trade count without real signal.",
-        "2. **Bar discovery / timeframe mismatch:** Discovery must include 1Min, 5Min, 15Min; wrong glob yields zero trades for wrong reason.",
-        "3. **UW cache dependency:** Without uw_flow_cache the primary path yields zero; fallback (bar-only) may not reflect live behavior.",
-        "4. **Negative PnL:** With 10k+ trades, negative net PnL and win rate < 50% indicate no statistical edge in this simulation.",
+    ]
+    if effectiveness_text or customer_advocate_text:
+        prosecutor_lines.append("### Effectiveness and customer advocate (when present)")
+        if effectiveness_text:
+            prosecutor_lines.append("")
+            prosecutor_lines.append(effectiveness_text[:2000] + ("..." if len(effectiveness_text) > 2000 else ""))
+        if customer_advocate_text:
+            prosecutor_lines.append("")
+            prosecutor_lines.append(customer_advocate_text[:1500] + ("..." if len(customer_advocate_text) > 1500 else ""))
+        prosecutor_lines.append("")
+    prosecutor_lines.append("## Dominant chokes / risks")
+    prosecutor_lines.append("1. **Expectancy / min_exec_score gate:** Low trades or sub-threshold scores prevent edge assessment; fallback score can inflate trade count without real signal.")
+    prosecutor_lines.append("2. **Bar discovery / timeframe mismatch:** Discovery must include 1Min, 5Min, 15Min; wrong glob yields zero trades for wrong reason.")
+    prosecutor_lines.append("3. **UW cache dependency:** Without uw_flow_cache the primary path yields zero; fallback (bar-only) may not reflect live behavior.")
+    prosecutor_lines.append("4. **Negative PnL:** With 10k+ trades, negative net PnL and win rate < 50% indicate no statistical edge in this simulation.")
+    prosecutor_lines += [
         "",
         "## Top evidence trace_ids",
         "Use baseline/backtest_trades.jsonl trade_id and logs for trace; sample worst drawdown trades for forensic review.",
@@ -103,6 +120,16 @@ def main() -> int:
     defender_lines = [
         "# Defender (Pushback to Prosecutor)",
         "",
+    ]
+    if effectiveness_text or customer_advocate_text:
+        defender_lines.append("### Evidence (effectiveness / customer advocate)")
+        if customer_advocate_text:
+            defender_lines.append(customer_advocate_text[:1500] + ("..." if len(customer_advocate_text) > 1500 else ""))
+        if effectiveness_text:
+            defender_lines.append("")
+            defender_lines.append(effectiveness_text[:1500] + ("..." if len(effectiveness_text) > 1500 else ""))
+        defender_lines.append("")
+    defender_lines += [
         "## Falsifications of prosecutor claims",
         "1. **Zero/low trades ≠ worthless signals.** Operational chokes (discovery, threshold) were fixed; we now have 1Min/5Min/15Min discovery and fallback score.",
         "2. **Negative PnL in one run ≠ no edge.** Single simulation with fixed hold_bars and no regime filter; live path uses UW cache and survivorship — do not reject pipeline on this alone.",
@@ -147,10 +174,10 @@ def main() -> int:
         except Exception:
             sre_lines.append("**Evidence bundle:** path provided but unreadable.")
             sre_lines.append("")
-    sre_lines.extend([
+    sre_lines += [
         "---",
         "*Generated by scripts/multi_model_runner.py (sre)*",
-    ])
+    ]
     (out / "sre_output.md").write_text("\n".join(sre_lines), encoding="utf-8")
 
     # --- Board: synthesize prosecutor vs defender, one minimal fix, acceptance, rollout ---
@@ -159,16 +186,23 @@ def main() -> int:
     board_lines = [
         "# Multi-Model Board Verdict",
         "",
-        f"**Verdict:** {verdict}",
-        f"**Note:** {verdict_note}",
-        f"**Roles run:** {', '.join(roles)}",
-        f"**Backtest dir:** {args.backtest_dir}",
+        "**Verdict:** {}".format(verdict),
+        "**Note:** {}".format(verdict_note),
+        "**Roles run:** {}".format(", ".join(roles)),
+        "**Backtest dir:** {}".format(args.backtest_dir),
         "",
         "## Synthesis (Prosecutor vs Defender)",
         "- **Prosecutor:** Zero or low trades imply chokes (min_exec_score, bar discovery, UW cache); do not promote until we see meaningful trade count.",
         "- **Defender:** Chokes are operational (discovery/timeframe, threshold); pipeline is deterministic; fix discovery and threshold and re-run.",
         "- **Board:** We side with the defender for *next steps*: treat zero-trade run as a configuration/data issue until one run with discovery + fallback score produces trades. If after that we still see zero trades, then treat as prosecutor win.",
         "",
+    ]
+    if customer_advocate_text:
+        board_lines.append("## Customer advocate summary")
+        board_lines.append("")
+        board_lines.append(customer_advocate_text[:2500] + ("..." if len(customer_advocate_text) > 2500 else ""))
+        board_lines.append("")
+    board_lines += [
         "## One minimal reversible fix",
         "1. Ensure simulation uses bar discovery for 1Min, 5Min, 15Min and loads bars with the discovered timeframe.",
         "2. Add fallback score from raw bar-based signals when UW composite is 0.",
@@ -197,9 +231,11 @@ def main() -> int:
         "trades_count": trades_count,
         "net_pnl": net_pnl,
         "win_rate_pct": win_rate,
+        "effectiveness_included": bool(effectiveness_text),
+        "customer_advocate_included": bool(customer_advocate_text),
     }
     (out / "board_verdict.json").write_text(json.dumps(verdict_json, indent=2), encoding="utf-8")
-    print(f"Multi-model -> {out} (prosecutor_output.md, defender_output.md, sre_output.md, board_verdict.json, board_verdict.md)")
+    print("Multi-model -> {} (prosecutor_output.md, defender_output.md, sre_output.md, board_verdict.json, board_verdict.md)".format(out))
     return 0
 
 

@@ -38,6 +38,18 @@ def main() -> int:
 
     with DropletClient() as c:
         pd = c.project_dir
+        # Expand ~ to actual path for remote commands
+        if pd.startswith("~"):
+            out, _, _ = c._execute(f"echo {pd}", timeout=5)
+            pd = (out or pd).strip() or pd
+        print("--- UPLOAD REVIEW SCRIPTS (so run works even if git pull fails) ---")
+        script_local = REPO / "scripts" / "trading_environment_review_on_droplet.py"
+        if script_local.exists():
+            try:
+                c.put_file(script_local, f"{pd}/scripts/trading_environment_review_on_droplet.py")
+                print("Uploaded trading_environment_review_on_droplet.py")
+            except Exception as e:
+                print(f"Upload warning: {e}", file=sys.stderr)
         print("--- GIT PULL ---")
         out, err, rc = _run(c, "git fetch origin && git pull origin main", timeout=60)
         print(out[:600] if out else "(no output)")

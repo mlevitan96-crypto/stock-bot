@@ -20,16 +20,19 @@ The droplet client allows Cursor to:
 
 **SSH Config Host:** `alpaca` (configured in `~/.ssh/config`)
 
-**Configuration File:** `droplet_config.json`
+**Configuration File:** `droplet_config.json` (preferred: alpaca; alternative: direct IP — see MEMORY_BANK §6.3)
 ```json
 {
   "host": "alpaca",
   "port": 22,
   "username": "root",
   "use_ssh_config": true,
-  "project_dir": "~/stock-bot"
+  "project_dir": "~/stock-bot",
+  "connect_timeout": 30,
+  "connect_retries": 5
 }
 ```
+Alternative: `"host": "104.236.102.57"`, `"use_ssh_config": false`, `"key_file": "C:/Users/markl/.ssh/id_ed25519"`.
 
 **How It Works:**
 - Uses your standard SSH config file (`~/.ssh/config`)

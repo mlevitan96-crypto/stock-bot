@@ -1,0 +1,36 @@
+{
+  "change_id": "example_exit_flow_weight_20260217",
+  "title": "Example: Slight increase in exit flow_deterioration weight",
+  "date": "2026-02-17",
+  "status": "draft",
+  "config_diff": {
+    "description": "Overlay for config/tuning/active.json or GOVERNED_TUNING_CONFIG",
+    "before": {
+      "version": "baseline",
+      "exit_weights": {
+        "flow_deterioration": 0.20
+      }
+    },
+    "after": {
+      "version": "2026-02-17_exit_flow_plus_0.02",
+      "exit_weights": {
+        "flow_deterioration": 0.22
+      }
+    }
+  },
+  "why": {
+    "source_reports": ["reports/effectiveness_2026-02-17/exit_effectiveness.json"],
+    "observation": "Exits with high flow_deterioration component show higher avg_profit_giveback; slight weight increase may reduce giveback.",
+    "evidence_snippet": { "exit_reason_code": "profit", "avg_profit_giveback": 0.28 }
+  },
+  "expected_impact": [
+    { "metric": "avg_profit_giveback", "direction": "decrease", "measure": "Phase 5 exit_effectiveness report" },
+    { "metric": "win_rate", "direction": "maintain_or_improve", "measure": "Backtest comparison" }
+  ],
+  "falsification_criteria": [
+    "win_rate drops by more than 2% over 7 days paper",
+    "avg_profit_giveback increases by more than 0.05",
+    "Regression guards fail (attribution invariant or exit quality)"
+  ],
+  "rollback": "Remove config/tuning/active.json overlay or set GOVERNED_TUNING_CONFIG to baseline; re-run guards."
+}

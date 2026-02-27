@@ -42,9 +42,11 @@ def compute_exit_score_v2(
     now_sector: str,
     realized_vol_20d: Optional[float] = None,
     thesis_flags: Optional[Dict[str, Any]] = None,
-) -> Tuple[float, Dict[str, Any], str]:
+) -> Tuple[float, Dict[str, Any], str, list, str]:
     """
-    Returns (exit_score [0..1], components, recommended_reason)
+    Returns (exit_score [0..1], components, recommended_reason, attribution_components, reason_code).
+    attribution_components: list of {"signal_id", "contribution_to_score"} for logging.
+    reason_code: normalized string for exit_reason_code (same as recommended_reason).
     """
     entry_flow = float((entry_uw_inputs or {}).get("flow_strength", 0.0) or 0.0)
     now_flow = float((now_uw_inputs or {}).get("flow_strength", 0.0) or 0.0)
@@ -100,7 +102,7 @@ def compute_exit_score_v2(
     )
     score = _clamp(score, 0.0, 1.0)
 
-    # Recommended reason
+    # Recommended reason and reason_code (for attribution)
     reason = "hold"
     if thesis_bad >= 1.0:
         reason = "intel_deterioration"
@@ -114,6 +116,25 @@ def compute_exit_score_v2(
         reason = "replacement"
     elif score >= 0.55:
         reason = "profit"
+    reason_code = str(reason or "hold").strip() or "hold"
 
-    return float(score), components, reason
+    # Attribution: per-component contribution to exit_score (for logs/exit_attribution.jsonl)
+    weights = {
+        "flow_deterioration": 0.20,
+        "darkpool_deterioration": 0.10,
+        "sentiment_deterioration": 0.10,
+        "score_deterioration": 0.25,
+        "regime_shift": 0.10,
+        "sector_shift": 0.05,
+        "vol_expansion": 0.10,
+        "thesis_invalidated": 0.10,
+        "earnings_risk": 0.0,
+        "overnight_flow_risk": 0.0,
+    }
+    attribution_components = [
+        {"signal_id": k, "contribution_to_score": round(float(weights.get(k, 0.0)) * float(components.get(k, 0.0)), 6)}
+        for k in components
+    ]
+
+    return float(score), components, reason, attribution_components, reason_code
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install EOD cron job on droplet: weekdays 21:30 UTC. Path-agnostic (stock-bot-current, stock-bot)."""
+"""Install EOD + sync cron jobs on droplet: EOD 21:30 UTC, sync 21:32 UTC weekdays. Path-agnostic (stock-bot-current, stock-bot)."""
 from __future__ import annotations
 
 import sys
@@ -26,27 +26,35 @@ def main() -> int:
 
     c = DropletClient()
     root = detect_stockbot_root(c)
-    cron_line = (
+    # EOD: 21:30 UTC weekdays (Memory Bank §5.5)
+    eod_line = (
         f"30 21 * * 1-5 cd {root} && "
         "CLAWDBOT_SESSION_ID=\"stock_quant_eod_$(date -u +\\%Y-\\%m-\\%d)\" "
         f"/usr/bin/python3 board/eod/run_stock_quant_officer_eod.py >> {root}/logs/cron_eod.log 2>&1"
     )
-    # Ensure logs dir exists
+    # Sync: 21:32 UTC weekdays — prefer run_droplet_audit_and_sync.sh, else droplet_sync_to_github.sh
+    sync_script = "run_droplet_audit_and_sync.sh" if (REPO / "scripts" / "run_droplet_audit_and_sync.sh").exists() else "droplet_sync_to_github.sh"
+    sync_line = (
+        f"32 21 * * 1-5 cd {root} && bash scripts/{sync_script} >> {root}/logs/cron_sync.log 2>&1"
+    )
+
     c._execute(f"mkdir -p {root}/logs", timeout=5)
 
-    # (crontab -l | grep -v run_stock_quant_officer_eod; echo 'LINE') | crontab -
-    # Escape single quotes in cron_line for shell
-    cron_escaped = cron_line.replace("'", "'\"'\"'")
+    # Remove old stock-bot EOD/sync lines and install both EOD and sync
+    eod_escaped = eod_line.replace("'", "'\"'\"'")
+    sync_escaped = sync_line.replace("'", "'\"'\"'")
     install = (
-        "(crontab -l 2>/dev/null | grep -v 'run_stock_quant_officer_eod' || true; "
-        f"printf '%s\\n' '{cron_escaped}') | crontab -"
+        "(crontab -l 2>/dev/null | grep -v 'run_stock_quant_officer_eod' | grep -v 'droplet_sync_to_github' | grep -v 'run_droplet_audit_and_sync' || true; "
+        f"printf '%s\\n' '{eod_escaped}' '{sync_escaped}') | crontab -"
     )
-    print("=== Installing cron job ===")
+    print("=== Installing EOD (21:30) + sync (21:32) cron jobs ===")
+    print(f"Sync script: {sync_script}")
     out, err, rc = c._execute(install, timeout=10)
     print("stdout:", out or "(none)")
     print("stderr:", err or "(none)")
     print("exit:", rc)
     if rc != 0:
+        c.close()
         return rc
     print("\n=== crontab -l ===")
     out2, err2, rc2 = c._execute("crontab -l", timeout=5)

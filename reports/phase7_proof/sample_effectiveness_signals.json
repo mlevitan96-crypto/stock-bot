@@ -1,0 +1,8 @@
+{
+  "source": "/path/to/backtests/30d_xxx/effectiveness",
+  "source_mtime": 1739800000,
+  "signals": {
+    "uw.flow": {"trade_count": 42, "win_rate": 0.55, "avg_pnl": 8.2, "avg_profit_giveback": 0.12},
+    "momentum": {"trade_count": 38, "win_rate": 0.52, "avg_pnl": 5.1, "avg_profit_giveback": 0.18}
+  }
+}

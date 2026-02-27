@@ -1,0 +1,374 @@
+{
+  "symbol": "AAPL",
+  "score": 3.106,
+  "attribution_schema_version": "1.0.0",
+  "attribution_components": [
+    {
+      "name": "uw.flow.premium",
+      "source": "uw",
+      "raw_value": 650000.0,
+      "normalized_value": 0.7750552033050264,
+      "weight": 0.4,
+      "contribution_to_score": 0.361399,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.flow.premium"
+    },
+    {
+      "name": "uw.flow.sweep_ratio",
+      "source": "uw",
+      "raw_value": 1.0,
+      "normalized_value": 1.0,
+      "weight": 0.2,
+      "contribution_to_score": 0.233143,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.flow.sweep_ratio"
+    },
+    {
+      "name": "uw.flow.aggressor",
+      "source": "uw",
+      "raw_value": 0.9999999999999983,
+      "normalized_value": 0.9999999999999991,
+      "weight": 0.25,
+      "contribution_to_score": 0.145715,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.flow.aggressor"
+    },
+    {
+      "name": "uw.flow.conviction",
+      "source": "uw",
+      "raw_value": 0.715,
+      "normalized_value": 0.715,
+      "weight": 0.5,
+      "contribution_to_score": 0.416745,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.flow.conviction"
+    },
+    {
+      "name": "uw.flow.volume",
+      "source": "uw",
+      "raw_value": 150,
+      "normalized_value": 0.15,
+      "weight": 0.1,
+      "contribution_to_score": 0.017486,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.flow.volume"
+    },
+    {
+      "name": "uw.flow.oi",
+      "source": "uw",
+      "raw_value": 600,
+      "normalized_value": 0.12,
+      "weight": 0.1,
+      "contribution_to_score": 0.013989,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.flow.oi"
+    },
+    {
+      "name": "uw.flow.magnitude",
+      "source": "uw",
+      "raw_value": "HIGH",
+      "normalized_value": 1.0,
+      "weight": 0.2,
+      "contribution_to_score": 0.233143,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.flow.magnitude"
+    },
+    {
+      "name": "uw.dark_pool.notional",
+      "source": "uw",
+      "raw_value": 1200000.0,
+      "normalized_value": 0.810557547727939,
+      "weight": 0.5,
+      "contribution_to_score": 0.472442,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.dark_pool.notional"
+    },
+    {
+      "name": "uw.dark_pool.lit_ratio",
+      "source": "uw",
+      "raw_value": 0.1999999999996,
+      "normalized_value": 0.1999999999996,
+      "weight": 0.2,
+      "contribution_to_score": 0.046628,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.dark_pool.lit_ratio"
+    },
+    {
+      "name": "uw.dark_pool.side",
+      "source": "uw",
+      "raw_value": "buy",
+      "normalized_value": 0.7,
+      "weight": 0.3,
+      "contribution_to_score": 0.069943,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.dark_pool.side"
+    },
+    {
+      "name": "uw.insider.activity",
+      "source": "uw",
+      "raw_value": 4,
+      "normalized_value": 0.6,
+      "weight": 0.4,
+      "contribution_to_score": 0.046628,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.insider.activity"
+    },
+    {
+      "name": "uw.insider.usd",
+      "source": "uw",
+      "raw_value": 1500000.0,
+      "normalized_value": 0.7720114435731549,
+      "weight": 0.3,
+      "contribution_to_score": 0.269985,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.insider.usd"
+    },
+    {
+      "name": "uw.insider.sentiment",
+      "source": "uw",
+      "raw_value": "BULLISH",
+      "normalized_value": 0.5,
+      "weight": 0.3,
+      "contribution_to_score": 0.0,
+      "quality_flags": [],
+      "missing_reason": null,
+      "signal_id": "uw.insider.sentiment"
+    },
+    {
+      "signal_id": "internal.iv_skew",
+      "name": "internal.iv_skew",
+      "source": "internal",
+      "contribution_to_score": 0.040322,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.smile",
+      "name": "internal.smile",
+      "source": "internal",
+      "contribution_to_score": 0.007237,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.whale",
+      "name": "internal.whale",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.event",
+      "name": "internal.event",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.motif_bonus",
+      "name": "internal.motif_bonus",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "derived.toxicity_penalty",
+      "name": "derived.toxicity_penalty",
+      "source": "derived",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.regime",
+      "name": "internal.regime",
+      "source": "internal",
+      "contribution_to_score": 0.012407,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.congress",
+      "name": "internal.congress",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.shorts_squeeze",
+      "name": "internal.shorts_squeeze",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.institutional",
+      "name": "internal.institutional",
+      "source": "internal",
+      "contribution_to_score": 0.349662,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.market_tide",
+      "name": "internal.market_tide",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.calendar",
+      "name": "internal.calendar",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.greeks_gamma",
+      "name": "internal.greeks_gamma",
+      "source": "internal",
+      "contribution_to_score": 0.082711,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.ftd_pressure",
+      "name": "internal.ftd_pressure",
+      "source": "internal",
+      "contribution_to_score": 0.062033,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.iv_rank",
+      "name": "internal.iv_rank",
+      "source": "internal",
+      "contribution_to_score": 0.031017,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.oi_change",
+      "name": "internal.oi_change",
+      "source": "internal",
+      "contribution_to_score": 0.072372,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.etf_flow",
+      "name": "internal.etf_flow",
+      "source": "internal",
+      "contribution_to_score": 0.062033,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.squeeze_score",
+      "name": "internal.squeeze_score",
+      "source": "internal",
+      "contribution_to_score": 0.041356,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.freshness",
+      "name": "internal.freshness",
+      "source": "internal",
+      "contribution_to_score": -0.46326,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.whale_conviction_boost",
+      "name": "internal.whale_conviction_boost",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.v2_vol_bonus",
+      "name": "internal.v2_vol_bonus",
+      "source": "internal",
+      "contribution_to_score": 0.382126,
+      "raw_value": 0.42,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.v2_low_vol_penalty",
+      "name": "internal.v2_low_vol_penalty",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.v2_beta_bonus",
+      "name": "internal.v2_beta_bonus",
+      "source": "internal",
+      "contribution_to_score": 0.041873,
+      "raw_value": 1.15,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.v2_uw_bonus",
+      "name": "internal.v2_uw_bonus",
+      "source": "internal",
+      "contribution_to_score": 0.056864,
+      "raw_value": 0.715,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.v2_premarket_bonus",
+      "name": "internal.v2_premarket_bonus",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.v2_regime_align_bonus",
+      "name": "internal.v2_regime_align_bonus",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.v2_regime_misalign_penalty",
+      "name": "internal.v2_regime_misalign_penalty",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    },
+    {
+      "signal_id": "internal.v2_shaping_adj",
+      "name": "internal.v2_shaping_adj",
+      "source": "internal",
+      "contribution_to_score": 0.0,
+      "raw_value": null,
+      "quality_flags": []
+    }
+  ]
+}

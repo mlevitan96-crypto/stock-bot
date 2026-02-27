@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Tunable parameters schema (Phase 6)",
+  "description": "All tuning is via this config. No hard-coded tuning.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Unique version tag for this config (e.g. 2026-02-17_baseline)"
+    },
+    "entry": {
+      "type": "object",
+      "description": "Overlay for config.registry.COMPOSITE_WEIGHTS_V2 and v2_params in uw_composite_v2",
+      "additionalProperties": true
+    },
+    "entry_weights_v3": {
+      "type": "object",
+      "description": "Overlay for uw_composite_v2.WEIGHTS_V3 (component names: options_flow, dark_pool, insider, iv_term_skew, ...)",
+      "additionalProperties": { "type": "number" }
+    },
+    "entry_thresholds": {
+      "type": "object",
+      "properties": {
+        "base": { "type": "number" },
+        "canary": { "type": "number" },
+        "champion": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "exit_weights": {
+      "type": "object",
+      "description": "Overlay for src.exit.exit_score_v2.EXIT_WEIGHTS",
+      "properties": {
+        "flow_deterioration": { "type": "number" },
+        "darkpool_deterioration": { "type": "number" },
+        "sentiment_deterioration": { "type": "number" },
+        "score_deterioration": { "type": "number" },
+        "regime_shift": { "type": "number" },
+        "sector_shift": { "type": "number" },
+        "vol_expansion": { "type": "number" },
+        "thesis_invalidated": { "type": "number" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

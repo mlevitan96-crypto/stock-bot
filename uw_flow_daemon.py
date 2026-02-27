@@ -1328,21 +1328,18 @@ class UWFlowDaemon:
             if self.poller.should_poll(f"shorts_ftds:{ticker}"):
                 try:
                     print(f"[UW-DAEMON] Polling shorts_ftds for {ticker}...", flush=True)
-                    ftd_data = self.client.get_shorts_ftds(ticker)
-                    # Always store ftd_pressure (even if empty) so we know it was polled.
-                    # Also write shorts_ftds so UW audit (ENDPOINT_CACHE_KEYS) sees this endpoint as USED.
-                    if not ftd_data:
-                        ftd_data = {}  # Store empty structure
+                    raw_ftd = self.client.get_shorts_ftds(ticker)
+                    # Normalize to shape composite expects (ftd_count, squeeze_risk, etc.) so shorts_squeeze/ftd_pressure contribute
+                    ftd_data = self._normalize_ftd_for_composite(raw_ftd)
                     self._update_cache(ticker, {"ftd_pressure": ftd_data, "shorts_ftds": ftd_data})
-                    if ftd_data:
-                        print(f"[UW-DAEMON] Updated ftd_pressure for {ticker}: {len(str(ftd_data))} bytes", flush=True)
+                    if ftd_data.get("ftd_count") or ftd_data.get("squeeze_risk"):
+                        print(f"[UW-DAEMON] Updated ftd_pressure for {ticker}: ftd_count={ftd_data.get('ftd_count')}", flush=True)
                     else:
-                        print(f"[UW-DAEMON] shorts_ftds for {ticker}: API returned empty (stored as empty)", flush=True)
+                        print(f"[UW-DAEMON] shorts_ftds for {ticker}: API returned empty (stored normalized empty)", flush=True)
                 except Exception as e:
                     print(f"[UW-DAEMON] Error fetching shorts_ftds for {ticker}: {e}", flush=True)
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
-                    # Store empty on error too (both keys for audit)
                     self._update_cache(ticker, {"ftd_pressure": {}, "shorts_ftds": {}})
             
             # Poll max pain (per-ticker)
@@ -1396,10 +1393,9 @@ class UWFlowDaemon:
             if self.poller.should_poll(f"calendar:{ticker}", interval_override_sec=calendar_interval):
                 try:
                     print(f"[UW-DAEMON] Polling calendar for {ticker}...", flush=True)
-                    calendar_data = self.client.get_calendar(ticker)
-                    # Always store calendar (even if empty) so we know it was polled
-                    if not calendar_data:
-                        calendar_data = {}  # Store empty structure
+                    raw_cal = self.client.get_calendar(ticker)
+                    # Normalize to shape composite expects (has_earnings, days_to_earnings, has_fda, economic_events)
+                    calendar_data = self._normalize_calendar_for_composite(raw_cal) if raw_cal else {}
                     self._update_cache(ticker, {"calendar": calendar_data})
                     if calendar_data:
                         print(f"[UW-DAEMON] Updated calendar for {ticker}: {len(str(calendar_data))} bytes", flush=True)
@@ -1623,6 +1619,83 @@ class UWFlowDaemon:
             "top5_holder_pct": round(top5, 4),
             "sample": t_items[:3],
         }
+
+    def _normalize_ftd_for_composite(self, raw: Any) -> Dict[str, Any]:
+        """
+        Normalize FTD/shorts API response to the shape uw_composite_v2 expects.
+        Composite uses: ftd_count, squeeze_risk, interest_pct, days_to_cover.
+        Ensures shorts_squeeze and ftd_pressure components can contribute when API
+        returns a list of records or different key names.
+        """
+        out: Dict[str, Any] = {
+            "ftd_count": 0,
+            "squeeze_risk": False,
+            "interest_pct": 0.0,
+            "days_to_cover": 0.0,
+        }
+        if not raw:
+            return out
+        if isinstance(raw, list):
+            total = 0
+            for item in raw:
+                if not isinstance(item, dict):
+                    continue
+                q = item.get("quantity", item.get("qty", item.get("ftd_quantity", item.get("fail_count", 0))))
+                try:
+                    total += int(q) if q is not None else 0
+                except (TypeError, ValueError):
+                    pass
+            out["ftd_count"] = total
+            out["squeeze_risk"] = total > 100_000
+            return out
+        if isinstance(raw, dict):
+            out["ftd_count"] = int(raw.get("ftd_count", raw.get("fail_count", raw.get("total_quantity", 0))) or 0
+            if out["ftd_count"] == 0 and isinstance(raw.get("data"), list):
+                for r in raw["data"]:
+                    if isinstance(r, dict):
+                        out["ftd_count"] += int(r.get("quantity", r.get("qty", 0)) or 0)
+            out["squeeze_risk"] = bool(raw.get("squeeze_risk", raw.get("squeeze_pressure", out["ftd_count"] > 100_000)))
+            out["interest_pct"] = float(raw.get("interest_pct", raw.get("short_interest_pct", 0)) or 0)
+            out["days_to_cover"] = float(raw.get("days_to_cover", raw.get("days_to_cover_ratio", 0)) or 0)
+        return out
+
+    def _normalize_calendar_for_composite(self, raw: Any) -> Dict[str, Any]:
+        """
+        Normalize calendar API response to the shape uw_composite_v2 expects.
+        Composite uses: has_earnings, days_to_earnings, has_fda, fda_catalyst, economic_events.
+        """
+        out: Dict[str, Any] = {
+            "has_earnings": False,
+            "days_to_earnings": 999,
+            "has_fda": False,
+            "fda_catalyst": "",
+            "economic_events": [],
+        }
+        if not raw or not isinstance(raw, dict):
+            return out
+        events = raw.get("events", raw.get("data", raw.get("economic_events", [])))
+        if isinstance(events, list) and events:
+            out["economic_events"] = events[:10]
+        for key in ("earnings_date", "earningsDate", "next_earnings", "nextEarnings", "date", "event_date"):
+            v = raw.get(key)
+            if isinstance(v, str) and v.strip():
+                out["has_earnings"] = True
+                try:
+                    from datetime import datetime as _dt, timezone as _tz
+                    parsed = _dt.fromisoformat(v.replace("Z", "+00:00").strip())
+                    delta = (parsed.replace(tzinfo=_tz.utc) if parsed.tzinfo is None else parsed) - _dt.now(_tz.utc)
+                    out["days_to_earnings"] = max(0, delta.days)
+                except Exception:
+                    out["days_to_earnings"] = 7
+                break
+        for key in ("fda_catalyst", "fda_catalyst_date", "has_fda"):
+            v = raw.get(key)
+            if v:
+                out["has_fda"] = True
+                if isinstance(v, str):
+                    out["fda_catalyst"] = v
+                break
+        return out
 
     def _poll_congress_recent_trades_global(self, force_first: bool = False) -> None:
         """

@@ -20,8 +20,15 @@ SUBMIT_CALLED_JSONL = REPO / "logs" / "submit_order_called.jsonl"
 CHECKLIST_MD = REPO / "reports" / "investigation" / "CLOSED_LOOPS_CHECKLIST.md"
 BREAKDOWN_SUMMARY_MD = REPO / "reports" / "signal_review" / "signal_score_breakdown_summary.md"
 ORDER_RECON_MD = REPO / "reports" / "investigation" / "ORDER_RECONCILIATION.md"
+SIGNAL_INVENTORY_JSON = REPO / "reports" / "signal_review" / "SIGNAL_INVENTORY.json"
+SIGNAL_USAGE_MAP_JSON = REPO / "reports" / "signal_review" / "SIGNAL_USAGE_MAP.json"
+SIGNAL_PIPELINE_DEEP_DIVE_MD = REPO / "reports" / "signal_review" / "SIGNAL_PIPELINE_DEEP_DIVE.md"
+ADVERSARIAL_MD = REPO / "reports" / "signal_review" / "multi_model_adversarial_review.md"
+BREAKDOWN_JSONL = REPO / "logs" / "signal_score_breakdown.jsonl"
+COVERAGE_WASTE_MD = REPO / "reports" / "signal_review" / "SIGNAL_COVERAGE_AND_WASTE.md"
 
 GATE_TRUTH_MIN_LINES = 200
+BREAKDOWN_MIN_CANDIDATES = 100
 GATE_TRUTH_COVERAGE_THRESHOLD = 95.0
 
 
@@ -66,6 +73,9 @@ def main() -> int:
     gate_truth_lines = 0
     if GATE_TRUTH_JSONL.exists():
         gate_truth_lines = sum(1 for line in GATE_TRUTH_JSONL.read_text(encoding="utf-8", errors="replace").strip().splitlines() if line.strip())
+    breakdown_candidates = 0
+    if BREAKDOWN_JSONL.exists():
+        breakdown_candidates = sum(1 for line in BREAKDOWN_JSONL.read_text(encoding="utf-8", errors="replace").strip().splitlines() if line.strip())
 
     gate_cov = funnel.get("gate_truth_coverage_pct") or 0.0
     stage5_from_truth = funnel.get("stage5_from_gate_truth") is True
@@ -80,6 +90,8 @@ def main() -> int:
         failures.append("Stage 5 should be from gate truth when coverage >= 95%")
     if gate_truth_lines < GATE_TRUTH_MIN_LINES and n_ledger > 0:
         failures.append(f"Gate truth lines {gate_truth_lines} < {GATE_TRUTH_MIN_LINES} (recommended for 200-line report)")
+    if breakdown_candidates < BREAKDOWN_MIN_CANDIDATES and n_ledger > 0:
+        failures.append(f"Breakdown candidates {breakdown_candidates} < {BREAKDOWN_MIN_CANDIDATES} (required for signal deep dive)")
 
     # Evidence-based checks: 4/5 PASS when gate truth covers (ledger not critical for stage 5; pre-adjust from gate truth)
     ledger_join_closed = _contradictions_section_closed("1) Ledger join") or (stage5_from_truth and gate_cov >= GATE_TRUTH_COVERAGE_THRESHOLD)
@@ -93,19 +105,43 @@ def main() -> int:
 
     no_contradictory_claim = gate_cov >= GATE_TRUTH_COVERAGE_THRESHOLD or dom.get("pct", 0) < 99.9
 
+    signal_inventory_ok = SIGNAL_INVENTORY_JSON.exists()
+    signal_usage_map_ok = SIGNAL_USAGE_MAP_JSON.exists()
+    signal_deep_dive_ok = SIGNAL_PIPELINE_DEEP_DIVE_MD.exists()
+    adversarial_cites_artifacts = False
+    if ADVERSARIAL_MD.exists():
+        adv_text = ADVERSARIAL_MD.read_text(encoding="utf-8", errors="replace")
+        adversarial_cites_artifacts = (
+            "SIGNAL_PIPELINE_DEEP_DIVE" in adv_text or "signal_review" in adv_text
+        ) and ("trace" in adv_text or "gate truth" in adv_text or "p10" in adv_text or "p50" in adv_text)
+
+    entry_reconciliation_clean = False
+    if ORDER_RECON_MD.exists():
+        recon_text = ORDER_RECON_MD.read_text(encoding="utf-8", errors="replace")
+        entry_reconciliation_clean = (
+            "Entry reconciliation:" in recon_text
+            and ("CLEAN" in recon_text or "EXPLAINED" in recon_text)
+        )
+
     def pass_fail(cond: bool) -> str:
         return "PASS" if cond else "FAIL"
 
     items = [
         (1, "Gate truth log exists and populated (≥200 lines)", gate_truth_lines >= GATE_TRUTH_MIN_LINES, f"logs/expectancy_gate_truth.jsonl lines={gate_truth_lines}"),
-        (2, "Gate truth coverage ≥ 95%", gate_cov >= GATE_TRUTH_COVERAGE_THRESHOLD, f"signal_funnel.json gate_truth_coverage_pct={gate_cov}%"),
-        (3, "Stage 5 from gate truth (not inferred)", stage5_from_truth, f"signal_funnel.json stage5_from_gate_truth={stage5_from_truth}"),
-        (4, "Ledger join explained/fixed or removed from critical path", ledger_join_closed, "CONTRADICTIONS_CLOSED §1 or stage5_from_gate_truth"),
-        (5, "Pre-adjust definition proven (no silent defaults)", pre_adjust_closed, "CONTRADICTIONS_CLOSED §2 or gate truth pre_score"),
-        (6, "Paper metric reconciled (candidates / submitted / fills)", paper_recon_ok, "paper_trade_metric_reconciliation.md"),
-        (7, "SUBMIT_ORDER_CALLED reconciles with submit_entry and broker", submit_telemetry_ok, "submit_order_called.jsonl + ORDER_RECONCILIATION.md"),
-        (8, "No contradictory claims (e.g. 100% choke with 0% coverage)", no_contradictory_claim, "signal_funnel.md claim_100_choke"),
-        (9, "Governance fails loudly on low coverage / inferred / contradictions", not failures, "run_closed_loops_checklist_on_droplet.py exit code"),
+        (2, "Breakdown candidates ≥ 100", breakdown_candidates >= BREAKDOWN_MIN_CANDIDATES, f"logs/signal_score_breakdown.jsonl candidates={breakdown_candidates}"),
+        (3, "SIGNAL_INVENTORY exists", signal_inventory_ok, "reports/signal_review/SIGNAL_INVENTORY.json"),
+        (4, "SIGNAL_USAGE_MAP exists", signal_usage_map_ok, "reports/signal_review/SIGNAL_USAGE_MAP.json"),
+        (5, "SIGNAL_PIPELINE_DEEP_DIVE exists", signal_deep_dive_ok, "reports/signal_review/SIGNAL_PIPELINE_DEEP_DIVE.md"),
+        (6, "Adversarial review cites those artifacts", adversarial_cites_artifacts, "multi_model_adversarial_review.md"),
+        (7, "Gate truth coverage ≥ 95%", gate_cov >= GATE_TRUTH_COVERAGE_THRESHOLD, f"signal_funnel.json gate_truth_coverage_pct={gate_cov}%"),
+        (8, "Stage 5 from gate truth (not inferred)", stage5_from_truth, f"signal_funnel.json stage5_from_gate_truth={stage5_from_truth}"),
+        (9, "Ledger join explained/fixed or removed from critical path", ledger_join_closed, "CONTRADICTIONS_CLOSED §1 or stage5_from_gate_truth"),
+        (10, "Pre-adjust definition proven (no silent defaults)", pre_adjust_closed, "CONTRADICTIONS_CLOSED §2 or gate truth pre_score"),
+        (11, "Paper metric reconciled (candidates / submitted / fills)", paper_recon_ok, "paper_trade_metric_reconciliation.md"),
+        (12, "SUBMIT_ORDER_CALLED reconciles with submit_entry and broker", submit_telemetry_ok, "submit_order_called.jsonl + ORDER_RECONCILIATION.md"),
+        (13, "Entry reconciliation is clean (decisions → submit → broker → fills)", entry_reconciliation_clean, "ORDER_RECONCILIATION.md verdict CLEAN/EXPLAINED"),
+        (14, "No contradictory claims (e.g. 100% choke with 0% coverage)", no_contradictory_claim, "signal_funnel.md claim_100_choke"),
+        (15, "Governance fails loudly on low coverage / inferred / contradictions", not failures, "run_closed_loops_checklist_on_droplet.py exit code"),
     ]
 
     lines = [
@@ -113,12 +149,20 @@ def main() -> int:
         "",
         "PASS/FAIL. Each item cites droplet evidence. Do not stop until all PASS.",
         "",
-        "## DROPLET COMMANDS",
+        "## DROPLET COMMANDS (run in order until PASS)",
         "",
         "```bash",
         "cd /root/stock-bot",
-        "python3 scripts/investigation_baseline_snapshot_on_droplet.py",
+        "git fetch && git reset --hard origin/main",
+        "python3 scripts/verify_droplet_script_presence.py",
+        "python3 scripts/signal_inventory_on_droplet.py",
+        "python3 scripts/signal_usage_map_on_droplet.py",
+        "# Set EXPECTANCY_GATE_TRUTH_LOG=1 and SIGNAL_SCORE_BREAKDOWN_LOG=1 in stock-bot systemd service; restart; run until gate truth >= 200, breakdown >= 100",
+        "python3 scripts/truth_log_enablement_proof_on_droplet.py",
         "python3 scripts/expectancy_gate_truth_report_200_on_droplet.py",
+        "python3 scripts/signal_pipeline_deep_dive_on_droplet.py --symbols SPY,QQQ,COIN,NVDA,TSLA --n 25 --window-hours 24",
+        "python3 scripts/signal_coverage_and_waste_report_on_droplet.py",
+        "python3 scripts/order_reconciliation_on_droplet.py",
         "python3 scripts/full_signal_review_on_droplet.py --days 7",
         "python3 scripts/run_closed_loops_checklist_on_droplet.py",
         "```",
@@ -144,29 +188,35 @@ def main() -> int:
         p10 = post.get("p10")
         p50 = post.get("p50")
         p90 = post.get("p90")
-        top10_signals = ""
-        if BREAKDOWN_SUMMARY_MD.exists():
+        top_broken = ""
+        if COVERAGE_WASTE_MD.exists():
+            text = COVERAGE_WASTE_MD.read_text(encoding="utf-8", errors="replace")
+            if "## Broken signals" in text:
+                start = text.find("## Broken signals")
+                end = text.find("## ", start + 5) if start >= 0 else -1
+                block = text[start:end] if end > start else text[start:start+1500]
+                top_broken = block.strip()
+        if not top_broken and BREAKDOWN_SUMMARY_MD.exists():
             text = BREAKDOWN_SUMMARY_MD.read_text(encoding="utf-8", errors="replace")
             if "## Top 10 contributors" in text:
                 start = text.find("## Top 10 contributors")
                 end = text.find("## ", start + 5) if start >= 0 else -1
-                block = text[start:end] if end > start else text[start:start+800]
-                top10_signals = block.strip()[:1200]
+                top_broken = (text[start:end] if end > start else text[start:start+800]).strip()[:1200]
         print("")
         print("--- REQUIRED FINAL TERMINAL OUTPUT ---")
         print("CLOSED LOOPS CHECKLIST: PASS")
-        print(f"Dominant choke point: {dom.get('stage', 'N/A')}/{dom.get('reason', 'N/A')} count={dom.get('count', 0)}, {dom.get('pct', 0)}%")
+        print(f"Dominant choke point: {dom.get('stage', 'N/A')} — {dom.get('reason', 'N/A')} (count={dom.get('count', 0)}, {dom.get('pct', 0)}%)")
         print(f"Gate truth coverage: {gate_cov}%")
-        print(f"score_used_by_gate p10 / p50 / p90: {p10} / {p50} / {p90}")
-        if top10_signals:
-            print("Top 10 signals by contribution + missing/zero rates:")
-            for line in top10_signals.splitlines()[:15]:
-                if line.strip():
-                    print("  " + line)
+        print(f"Gate truth score_used_by_gate p10 / p50 / p90: {p10} / {p50} / {p90}")
+        if top_broken:
+            print("Top broken signals (missing/zero/crushed) with rates:")
+            for line in top_broken.splitlines()[:20]:
+                if line.strip() and (line.strip().startswith("-") or "missing" in line or "zero" in line or "%" in line):
+                    print("  " + line.strip()[:120])
         else:
-            print("Top 10 signals: (see reports/signal_review/signal_score_breakdown_summary.md)")
+            print("Top broken signals: (see reports/signal_review/SIGNAL_COVERAGE_AND_WASTE.md)")
         print(f"submit called: {submit_count}")
-        print("FINAL VERDICT: Expectancy gate is the single source of truth; stage 5 from gate truth; all contradictions closed with droplet-cited proof; governance fails loudly on gaps.")
+        print("FINAL VERDICT: Expectancy gate is the single source of truth; stage 5 from gate truth; signal inventory, usage map, and deep dive artifacts present; adversarial review cites them; governance fails loudly on gaps.")
         print("---")
 
     if failures:

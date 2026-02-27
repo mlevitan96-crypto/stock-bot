@@ -1,0 +1,13 @@
+{
+  "baseline_dir": "C:\\Dev\\stock-bot",
+  "proposed_dir": "C:\\Dev\\stock-bot",
+  "aggregates": {
+    "baseline": {},
+    "proposed": {}
+  },
+  "deltas": {},
+  "entry_vs_exit_blame": {
+    "baseline": null,
+    "proposed": null
+  }
+}

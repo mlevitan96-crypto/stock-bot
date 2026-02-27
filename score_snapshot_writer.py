@@ -7,7 +7,7 @@ import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional  # noqa: F401 Any used for signal_group_scores
 
 # CWD-independent: always write under repo root so tail/wc from repo root see the file.
 _REPO_ROOT = Path(__file__).resolve().parent
@@ -37,10 +37,20 @@ def append_score_snapshot(
     block_reason: Optional[str] = None,
     decision_id: Optional[str] = None,
     trade_id: Optional[str] = None,
-    signal_group_scores: Optional[Dict[str, float]] = None,
+    signal_group_scores: Optional[Dict[str, Any]] = None,
     per_signal: Optional[Dict[str, float]] = None,
+    weighted_contributions: Optional[Dict[str, float]] = None,
+    group_sums: Optional[Dict[str, float]] = None,
+    composite_pre_norm: Optional[float] = None,
+    composite_post_norm: Optional[float] = None,
+    uw_deferred: bool = False,
+    defer_reason: Optional[str] = None,
+    next_retry_ts: Optional[int] = None,
+    candidate_status: Optional[str] = None,
 ) -> None:
-    """Append one JSONL record to logs/score_snapshot.jsonl. Safe to call from live path."""
+    """Append one JSONL record to logs/score_snapshot.jsonl. Safe to call from live path.
+    Multi-model attribution: weighted_contributions, group_sums, composite_pre_norm, composite_post_norm.
+    """
     _snap_debug = os.environ.get("SCORE_SNAPSHOT_DEBUG") == "1"
     try:
         SCORE_SNAPSHOT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -66,12 +76,35 @@ def append_score_snapshot(
             rec["signal_group_scores"] = _sanitize(signal_group_scores)
         if per_signal is not None:
             rec["per_signal"] = _sanitize(per_signal)
+        if weighted_contributions is not None:
+            rec["weighted_contributions"] = _sanitize(weighted_contributions)
+        if group_sums is not None:
+            rec["group_sums"] = _sanitize(group_sums)
+        if composite_pre_norm is not None:
+            rec["composite_pre_norm"] = _sanitize(composite_pre_norm)
+        if composite_post_norm is not None:
+            rec["composite_post_norm"] = _sanitize(composite_post_norm)
+        if uw_deferred or candidate_status == "DEFERRED":
+            rec["uw_deferred"] = True
+            rec["candidate_status"] = "DEFERRED"
+            if defer_reason is not None:
+                rec["defer_reason"] = defer_reason
+            if next_retry_ts is not None:
+                rec["next_retry_ts"] = int(next_retry_ts)
+        elif candidate_status is not None:
+            rec["candidate_status"] = candidate_status
         line = json.dumps(rec, allow_nan=False) + "\n"
         if _snap_debug:
             print(f"SCORE_SNAPSHOT_DEBUG: append_score_snapshot write attempt symbol={symbol}", flush=True)
         with SCORE_SNAPSHOT_FILE.open("a", encoding="utf-8") as f:
             f.write(line)
             f.flush()
+        # CTR mirror (Phase 1: when TRUTH_ROUTER_ENABLED=1)
+        try:
+            from src.infra.truth_router import append_jsonl as ctr_append
+            ctr_append("telemetry/score_snapshot.jsonl", rec, expected_max_age_sec=300)
+        except Exception:
+            pass
         if _snap_debug:
             print(f"SCORE_SNAPSHOT_DEBUG: append_score_snapshot write done symbol={symbol}", flush=True)
     except Exception as e:

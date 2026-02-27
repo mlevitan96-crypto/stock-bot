@@ -1,0 +1,33 @@
+{
+  "timestamp": "20260227T024444Z",
+  "data_summary": {
+    "last_decision": null,
+    "stopping_condition_met": null,
+    "stopping_checks": {},
+    "candidate_expectancy": null,
+    "candidate_win_rate": null,
+    "candidate_joined": null,
+    "baseline_expectancy": null,
+    "baseline_win_rate": null,
+    "state_last_lever": null,
+    "state_expectancy_history_len": 0,
+    "state_last_replay_jump_cycle": null,
+    "aggregates_joined": null,
+    "aggregates_expectancy": null,
+    "aggregates_win_rate": null,
+    "aggregates_giveback": null,
+    "diagnostic_p50_score": null,
+    "diagnostic_pct_marginal": null,
+    "diagnostic_by_bucket": {},
+    "recommendation_next_lever": null,
+    "recommendation_suggested_min_exec_score": null
+  },
+  "personas": {
+    "adversarial": "## Adversarial\n\n**Current numbers:**\n- Stopping: expectancy_gt_0=None, win_rate_ge_baseline_plus_2pp=None, giveback_le=None.\n- Candidate expectancy=None, baseline=None; decision=None.\n- Expectancy-gate diagnostic: p50 entry_score=None, pct_marginal_2_5_to_2_9=None%.\n\n**Prior guidance (strategic review):** Expectancy gate may be selecting for marginal trades; need evidence we are not selecting for bad expectancy by construction.\n\n**Verdict:** Diagnostic not yet populated or no score data; ensure expectancy_gate_diagnostic runs each cycle.\n",
+    "quant": "## Quant\n\n**Current numbers:**\n- Baseline joined=None, expectancy=None, win_rate=None, giveback=None.\n- Recommendation: next_lever=None, suggested_min_exec_score=None.\n- Stopping checks: all four present; expectancy_gt_0, wr_ge_baseline_plus_2pp, giveback_le, joined_ge_100.\n\n**Prior guidance:** Gate on \u226550 (we use 100). WTD vs 30D optional for risk brake. Entry lever variety: add down-weight worst signal as option.\n\n**Verdict:** Evidence pipeline is in place. Optional: add WTD effectiveness comparison; add down-weight-worst-signal as entry lever variant.\n",
+    "product_operator": "## Product / Operator\n\n**Current numbers:**\n- One canonical baseline dir: reports/effectiveness_baseline_blame; joined=None.\n- Last cycle: decision=None, lever=None; expectancy_history length=0.\n\n**Prior guidance:** One baseline, one lever per cycle, 50- or 100-trade gate, LOCK/REVERT. Success = stop guessing, one correct lever, positive expectancy.\n\n**Verdict:** Process aligned. Continue one lever at a time; 100-trade gate is acceptable. No process change required.\n",
+    "execution_sre": "## Execution / SRE\n\n**Current numbers:**\n- Expectancy-gate diagnostic: p50_score=None; by_score_bucket trade counts and expectancy present.\n- Buckets: 2_5_to_2_7 expectancy=None, 2_7_to_2_9=None, above_3_2=None.\n\n**Prior guidance:** Investigate score ledger vs MIN_EXEC_SCORE; ensure gate truth and dashboard align. Diagnostic now runs each cycle.\n\n**Verdict:** Diagnostic is live. If dashboard or gate logic diverges from attribution scores, fix; otherwise continue.\n",
+    "risk": "## Risk\n\n**Current numbers:**\n- Candidate expectancy=None; stopping_condition_met=None.\n- Brake: documented in runbook (raise MIN_EXEC_SCORE or pause); suggested_min_exec_score in use.\n\n**Prior guidance:** If drawdown unacceptable, apply brake (e.g. 3.0 or pause) and document; don't rely on UW for profit yet.\n\n**Verdict:** Brake is optional. Apply only if drawdown is unacceptable; then document the decision.\n",
+    "board_verdict": "## Board verdict\n\n**Synthesis:**\n- Current decision=None, stopping_condition_met=None. All personas have reviewed current data and prior guidance.\n- Adversarial and Execution/SRE: expectancy-gate diagnostic is in place; marginal share and by-bucket expectancy are monitored.\n- Quant: evidence pipeline and stopping_checks are in place; optional WTD and down-weight-worst-signal remain.\n- Product: process aligned; one baseline, one lever, 100-trade gate.\n- Risk: brake documented; apply if drawdown is unacceptable.\n\n**Conclusion:** No change to loop logic. Continue governance cycles; use diagnostic and board review for ongoing evaluation.\n"
+  }
+}

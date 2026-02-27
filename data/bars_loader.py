@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 BARS_DIR = DATA / "bars"
+DAILY_PARQUET = DATA / "bars" / "alpaca_daily.parquet"
 LOGS = ROOT / "logs"
 TELEMETRY_DIR = ROOT / "telemetry"
 
@@ -129,6 +130,48 @@ def get_alpaca_bar_health(date_str: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def load_bars_from_daily_parquet(
+    symbol: str,
+    start_date: str,
+    end_date: str,
+) -> List[Dict[str, Any]]:
+    """
+    Load daily bars from data/bars/alpaca_daily.parquet for symbol in [start_date, end_date].
+    Returns list of {t, o, h, l, c, v} with t as date ISO (e.g. YYYY-MM-DDT09:30:00Z).
+    Empty if parquet missing or symbol/range not present.
+    """
+    if not DAILY_PARQUET.exists():
+        return []
+    try:
+        import pandas as pd
+        df = pd.read_parquet(DAILY_PARQUET)
+        if df.empty or "symbol" not in df.columns or "date" not in df.columns:
+            return []
+        df = df[df["symbol"] == symbol].copy()
+        if df.empty:
+            return []
+        df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+        df = df[(df["date"] >= start_date) & (df["date"] <= end_date)].sort_values("date")
+        if df.empty:
+            return []
+        out = []
+        for _, row in df.iterrows():
+            d = str(row["date"])
+            t = d + "T09:30:00Z"
+            out.append({
+                "t": t,
+                "o": float(row.get("o", 0)),
+                "h": float(row.get("h", 0)),
+                "l": float(row.get("l", 0)),
+                "c": float(row.get("c", 0)),
+                "v": int(row.get("volume", row.get("v", 0))),
+            })
+        return out
+    except Exception as e:
+        _warn(f"bars_loader: daily parquet read {symbol} {start_date}..{end_date}: {e}")
+        return []
+
+
 def cache_path(symbol: str, date_str: str, timeframe: str = "1Min") -> Path:
     safe = symbol.replace("/", "_").strip() or "unknown"
     BARS_DIR.mkdir(parents=True, exist_ok=True)
@@ -146,7 +189,8 @@ def load_bars(
     fetch_if_missing: bool = True,
 ) -> List[Dict[str, Any]]:
     """
-    Load intraday bars for symbol on date_str.
+    Load intraday or daily bars for symbol on date_str.
+    - When timeframe is 1Day and data/bars/alpaca_daily.parquet exists, prefer parquet.
     - use_cache: read from data/bars/YYYY-MM-DD/<symbol>_<timeframe>.json when available.
     - fetch_if_missing: call Alpaca when cache miss; then write cache.
     - start_ts/end_ts: optional window; for full day use None.
@@ -154,6 +198,23 @@ def load_bars(
     """
     if not symbol or symbol == "?":
         return []
+    if (timeframe or "").lower() in ("1day", "1d") and DAILY_PARQUET.exists():
+        end_date = date_str
+        if end_ts:
+            end_date = end_ts.strftime("%Y-%m-%d")
+        bars = load_bars_from_daily_parquet(symbol, date_str, end_date)
+        if bars and (start_ts or end_ts):
+            out = []
+            for b in bars:
+                dt = _parse_ts(b.get("t"))
+                if dt:
+                    if start_ts and dt < start_ts:
+                        continue
+                    if end_ts and dt > end_ts:
+                        continue
+                out.append(b)
+            return out
+        return bars
     path = cache_path(symbol, date_str, timeframe)
     if use_cache and path.exists():
         try:

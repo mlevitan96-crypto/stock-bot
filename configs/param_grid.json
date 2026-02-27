@@ -1,0 +1,6 @@
+{
+  "min_exec_score": [2.0, 2.5, 3.0],
+  "freshness_multiplier": [0.5, 1.0, 1.5],
+  "toxicity_penalty_scale": [0.5, 1.0, 1.5],
+  "flow_weight_scale": [0.5, 1.0, 1.5]
+}

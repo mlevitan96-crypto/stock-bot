@@ -1,0 +1,24 @@
+{
+  "symbols": [
+    "SPY",
+    "QQQ"
+  ],
+  "n_per_symbol": 5,
+  "window_hours": 168,
+  "per_symbol": {
+    "QQQ": {
+      "per_signal_table": {},
+      "trace_table": [],
+      "dominant_failure_mode": "no_candidates"
+    },
+    "SPY": {
+      "per_signal_table": {},
+      "trace_table": [],
+      "dominant_failure_mode": "no_candidates"
+    }
+  },
+  "dominant_failure_modes": {
+    "QQQ": "no_candidates",
+    "SPY": "no_candidates"
+  }
+}

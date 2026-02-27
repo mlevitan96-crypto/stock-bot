@@ -25,9 +25,10 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
+import socket
 import paramiko
 from paramiko import SSHClient, AutoAddPolicy
-from paramiko.ssh_exception import SSHException, AuthenticationException
+from paramiko.ssh_exception import SSHException, AuthenticationException, NoValidConnectionsError
 
 
 class DropletClient:
@@ -65,6 +66,8 @@ class DropletClient:
         config["key_file"] = os.getenv("DROPLET_KEY_FILE", config.get("key_file", ""))
         config["project_dir"] = os.getenv("DROPLET_PROJECT_DIR", config.get("project_dir", "~/stock-bot"))
         config["use_ssh_config"] = config.get("use_ssh_config", False)
+        config["connect_timeout"] = int(os.getenv("DROPLET_CONNECT_TIMEOUT", config.get("connect_timeout", 30)))
+        config["connect_retries"] = int(os.getenv("DROPLET_CONNECT_RETRIES", config.get("connect_retries", 5)))
         
         if not config.get("host"):
             raise ValueError(
@@ -131,65 +134,103 @@ class DropletClient:
         return config
     
     def _connect(self) -> SSHClient:
-        """Establish SSH connection to droplet."""
+        """Establish SSH connection to droplet. Retries with backoff; uses connect_timeout and connect_retries from config."""
         if self.ssh_client and self.ssh_client.get_transport() and self.ssh_client.get_transport().is_active():
             return self.ssh_client
         
-        ssh = SSHClient()
-        ssh.set_missing_host_key_policy(AutoAddPolicy())
+        host = self.config["host"]
+        port = self.config["port"]
+        timeout = self.config.get("connect_timeout", 30)
+        retries = self.config.get("connect_retries", 5)
+        last_error = None
         
-        try:
-            # If using SSH config, try key file first, then fall back to password
-            if self.config.get("key_file") and os.path.exists(self.config["key_file"]):
-                # Use SSH key
-                ssh.connect(
-                    hostname=self.config["host"],
-                    port=self.config["port"],
-                    username=self.config["username"],
-                    key_filename=self.config["key_file"],
-                    timeout=10
-                )
-            elif self.config.get("password"):
-                # Use password
-                ssh.connect(
-                    hostname=self.config["host"],
-                    port=self.config["port"],
-                    username=self.config["username"],
-                    password=self.config["password"],
-                    timeout=10
-                )
-            elif self.config.get("use_ssh_config"):
-                # For SSH config, try key file first if parsed, then SSH agent
+        for attempt in range(1, retries + 1):
+            ssh = SSHClient()
+            ssh.set_missing_host_key_policy(AutoAddPolicy())
+            try:
                 if self.config.get("key_file") and os.path.exists(self.config["key_file"]):
                     ssh.connect(
-                        hostname=self.config["host"],
-                        port=self.config["port"],
+                        hostname=host,
+                        port=port,
                         username=self.config["username"],
                         key_filename=self.config["key_file"],
-                        timeout=10
+                        timeout=timeout,
+                        banner_timeout=timeout,
+                        auth_timeout=timeout,
                     )
-                else:
-                    # Fallback: try connecting without explicit auth (SSH agent or default key)
+                elif self.config.get("password"):
                     ssh.connect(
-                        hostname=self.config["host"],
-                        port=self.config["port"],
+                        hostname=host,
+                        port=port,
                         username=self.config["username"],
-                        timeout=10,
-                        look_for_keys=True,
-                        allow_agent=True
+                        password=self.config["password"],
+                        timeout=timeout,
+                        banner_timeout=timeout,
+                        auth_timeout=timeout,
                     )
-            else:
-                raise ValueError("Either key_file, password, or use_ssh_config must be provided in config")
-            
-            self.ssh_client = ssh
-            return ssh
-            
-        except AuthenticationException:
-            raise ValueError(f"Authentication failed for {self.config['username']}@{self.config['host']}")
-        except SSHException as e:
-            raise ConnectionError(f"SSH connection failed: {e}")
-        except Exception as e:
-            raise ConnectionError(f"Failed to connect to droplet: {e}")
+                elif self.config.get("use_ssh_config"):
+                    if self.config.get("key_file") and os.path.exists(self.config["key_file"]):
+                        ssh.connect(
+                            hostname=host,
+                            port=port,
+                            username=self.config["username"],
+                            key_filename=self.config["key_file"],
+                            timeout=timeout,
+                            banner_timeout=timeout,
+                            auth_timeout=timeout,
+                        )
+                    else:
+                        ssh.connect(
+                            hostname=host,
+                            port=port,
+                            username=self.config["username"],
+                            timeout=timeout,
+                            banner_timeout=timeout,
+                            auth_timeout=timeout,
+                            look_for_keys=True,
+                            allow_agent=True,
+                        )
+                else:
+                    raise ValueError("Either key_file, password, or use_ssh_config must be provided in config")
+                
+                self.ssh_client = ssh
+                return ssh
+            except AuthenticationException as e:
+                raise ValueError(f"Authentication failed for {self.config['username']}@{host}: {e}")
+            except NoValidConnectionsError as e:
+                last_error = e
+                underlying = getattr(e, "errors", {}) or {}
+                parts = [str(e)]
+                for addr, err in underlying.items():
+                    parts.append(f"  {addr}: {type(err).__name__}: {err}")
+                msg = "\n".join(parts)
+                if attempt < retries:
+                    time.sleep(2 * attempt)
+                    continue
+                raise ConnectionError(
+                    f"SSH to {host}:{port} failed after {retries} attempts (timeout={timeout}s).\n"
+                    f"{msg}\n"
+                    "Possible causes: droplet off/rebooting, firewall blocking port 22, network unreachable, "
+                    "or slow network (try increasing connect_timeout or connect_retries in droplet_config.json)."
+                ) from e
+            except (SSHException, socket.timeout, OSError) as e:
+                last_error = e
+                if attempt < retries:
+                    time.sleep(2 * attempt)
+                    continue
+                raise ConnectionError(
+                    f"SSH to {host}:{port} failed after {retries} attempts: {type(e).__name__}: {e}"
+                ) from e
+            except Exception as e:
+                last_error = e
+                if attempt < retries:
+                    time.sleep(2 * attempt)
+                    continue
+                raise ConnectionError(f"Failed to connect to droplet: {e}") from e
+        
+        raise ConnectionError(
+            f"SSH to {host}:{port} failed after {retries} attempts. Last error: {last_error}"
+        )
     
     def _execute(self, command: str, timeout: int = 30) -> Tuple[str, str, int]:
         """
@@ -246,7 +287,19 @@ class DropletClient:
         """Execute command in project directory."""
         full_command = f"cd {self.project_dir} && {command}"
         return self._execute(full_command, timeout)
-    
+
+    def put_file(self, local_path: str | Path, remote_path: str) -> None:
+        """Upload a file to the droplet via SFTP. Uses existing connection or connects."""
+        ssh = self._connect()
+        local = Path(local_path)
+        if not local.is_file():
+            raise FileNotFoundError(f"Local file not found: {local_path}")
+        sftp = ssh.open_sftp()
+        try:
+            sftp.put(str(local), remote_path)
+        finally:
+            sftp.close()
+
     def close(self):
         """Close SSH connection."""
         if self.ssh_client:
@@ -478,6 +531,22 @@ class DropletClient:
             results["success"] = False
             results["error"] = "Git pull failed"
             return results
+
+        # Step 1b: Run minimal pytest spine (exit/attribution/effectiveness). Record result; do not block deploy.
+        pytest_cmd = (
+            "python3 -m pytest validation/scenarios/test_exit_attribution_phase4.py "
+            "validation/scenarios/test_effectiveness_reports.py "
+            "validation/scenarios/test_attribution_loader_join.py -v --tb=short 2>&1 | tail -50"
+        )
+        pytest_out, pytest_err, pytest_rc = self._execute_with_cd(pytest_cmd, timeout=90)
+        results["steps"].append({
+            "name": "pytest_spine",
+            "result": {
+                "success": pytest_rc == 0,
+                "exit_code": pytest_rc,
+                "output_tail": (pytest_out or "")[-1500:],
+            },
+        })
 
         # Step 2a: Kill ALL dashboard.py processes so no orphan holds port 5000.
         # (systemctl restart stock-bot kills deploy_supervisor but its child dashboard may survive as orphan.)

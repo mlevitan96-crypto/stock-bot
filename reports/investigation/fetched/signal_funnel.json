@@ -1,7 +1,10 @@
 {
-  "generated_utc": "2026-02-20T20:14:51.970431+00:00",
+  "generated_utc": "2026-02-20T21:25:54.200153+00:00",
   "window_days": 7,
   "total_candidates": 2922,
+  "stage5_from_gate_truth": false,
+  "gate_truth_coverage_pct": 0.0,
+  "gate_truth_lines_in_window": 0,
   "expectancy_distributions": {
     "pre_adjust": {
       "p10": 0.0,
@@ -64,7 +67,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "COIN",
@@ -73,7 +77,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.172
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "LCID",
@@ -82,7 +87,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.172
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "SPY",
@@ -91,7 +97,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 1.055
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "XLF",
@@ -100,7 +107,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "CAT",
@@ -109,7 +117,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 1.055
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "COP",
@@ -118,7 +127,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "F",
@@ -127,7 +137,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "JPM",
@@ -136,7 +147,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.172
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "NIO",
@@ -145,7 +157,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.172
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "SLB",
@@ -154,7 +167,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "CVX",
@@ -163,7 +177,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "RIVN",
@@ -172,7 +187,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.172
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "INTC",
@@ -181,7 +197,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "AMD",
@@ -190,7 +207,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "GOOGL",
@@ -199,7 +217,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "MRNA",
@@ -208,7 +227,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "NVDA",
@@ -217,7 +237,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "PLTR",
@@ -226,7 +247,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.172
-          }
+          },
+          "source": "ledger_inferred"
         },
         {
           "symbol": "TSLA",
@@ -235,7 +257,8 @@
           "gate_reason": "expectancy_gate:score_floor_breach",
           "measured": {
             "composite_score": 0.316
-          }
+          },
+          "source": "ledger_inferred"
         }
       ]
     },

@@ -1,0 +1,14 @@
+=== stdout ===
+=== RUNNING EXIT PROMOTION ON DROPLET ===
+Executing promotion script...
+[2026-02-24T03:15:55Z] === EXECUTE EXIT PROMOTION ON DROPLET execute_exit_promotion_20260224T031555Z ===
+[2026-02-24T03:15:55Z] Using grid run: /root/stock-bot/reports/exit_review/exit_grid_with_bars_20260224T005443Z
+[2026-02-24T03:15:55Z] Promoting grid-approved exit params to runtime config
+No top_config.params found
+
+
+=== stderr ===
+
+
+=== exit_code ===
+0

@@ -78,7 +78,18 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--max-attempts", type=int, default=3, help="Max orchestration attempts (default 3)")
     ap.add_argument("--detach", action="store_true", help="Start orchestration with nohup on droplet, then poll and fetch (survives SSH disconnect)")
+    ap.add_argument("--fetch-only", type=str, default=None, metavar="RUN_ID", help="Only fetch artifacts for this run_id from droplet (e.g. alpaca_backtest_20260222T022321Z)")
     args = ap.parse_args()
+    if args.fetch_only:
+        try:
+            from droplet_client import DropletClient
+            with DropletClient() as c:
+                _fetch_artifacts(c, args.fetch_only.strip())
+            print("Fetch complete:", args.fetch_only)
+            return 0
+        except Exception as e:
+            print(f"Fetch failed: {e}", file=sys.stderr)
+            return 1
     max_attempts = max(1, args.max_attempts)
     if args.detach:
         return _run_detached(max_attempts)

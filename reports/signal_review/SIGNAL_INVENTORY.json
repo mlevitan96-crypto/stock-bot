@@ -1,0 +1,509 @@
+{
+  "signals": [
+    {
+      "signal_name": "flow",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "dark_pool",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "insider",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "iv_skew",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "smile",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "whale",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "event",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "motif_bonus",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "toxicity_penalty",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "regime",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "congress",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "shorts_squeeze",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "institutional",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "market_tide",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "calendar",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "greeks_gamma",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "ftd_pressure",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "iv_rank",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "oi_change",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "etf_flow",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "squeeze_score",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "freshness_factor",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "uw",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "regime_macro",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "other_components",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "score",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "composite_pre_clamp",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "sizing_overlay",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "toxicity",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "freshness",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "whale_conviction_boost",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "vol_bonus",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "low_vol_penalty",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "beta_bonus",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "uw_bonus",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "premarket_bonus",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "regime_align_bonus",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "regime_misalign_penalty",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "shaping_adj",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "total",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "realized_vol_20d",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "beta_vs_spy",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "uw_conviction",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "spy_overnight_ret",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "qqq_overnight_ret",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "posture_confidence",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "atr_distance",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "distance_pct",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "components dict",
+      "compute_entrypoint": "_compute_composite_score_core",
+      "required_inputs": "enriched_data, regime, expanded_intel",
+      "referenced_in_scoring": "uw_composite_v2.py (composite sum -> clamp)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "options_flow",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "WEIGHTS_V3",
+      "compute_entrypoint": "get_weight(component, regime)",
+      "required_inputs": "regime",
+      "referenced_in_scoring": "uw_composite_v2.py (weight * value -> contribution)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "iv_term_skew",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "WEIGHTS_V3",
+      "compute_entrypoint": "get_weight(component, regime)",
+      "required_inputs": "regime",
+      "referenced_in_scoring": "uw_composite_v2.py (weight * value -> contribution)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "smile_slope",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "WEIGHTS_V3",
+      "compute_entrypoint": "get_weight(component, regime)",
+      "required_inputs": "regime",
+      "referenced_in_scoring": "uw_composite_v2.py (weight * value -> contribution)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "whale_persistence",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "WEIGHTS_V3",
+      "compute_entrypoint": "get_weight(component, regime)",
+      "required_inputs": "regime",
+      "referenced_in_scoring": "uw_composite_v2.py (weight * value -> contribution)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "event_alignment",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "WEIGHTS_V3",
+      "compute_entrypoint": "get_weight(component, regime)",
+      "required_inputs": "regime",
+      "referenced_in_scoring": "uw_composite_v2.py (weight * value -> contribution)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "temporal_motif",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "WEIGHTS_V3",
+      "compute_entrypoint": "get_weight(component, regime)",
+      "required_inputs": "regime",
+      "referenced_in_scoring": "uw_composite_v2.py (weight * value -> contribution)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "regime_modifier",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "WEIGHTS_V3",
+      "compute_entrypoint": "get_weight(component, regime)",
+      "required_inputs": "regime",
+      "referenced_in_scoring": "uw_composite_v2.py (weight * value -> contribution)",
+      "status": "USED_IN_SCORE"
+    },
+    {
+      "signal_name": "calendar_catalyst",
+      "source_file": "uw_composite_v2.py",
+      "line_range": "WEIGHTS_V3",
+      "compute_entrypoint": "get_weight(component, regime)",
+      "required_inputs": "regime",
+      "referenced_in_scoring": "uw_composite_v2.py (weight * value -> contribution)",
+      "status": "USED_IN_SCORE"
+    }
+  ],
+  "source": "signal_inventory_on_droplet.py"
+}

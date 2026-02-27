@@ -16,8 +16,13 @@ LOG="/tmp/cursor_full_automated_orchestrator_runall.log"
 
 # Ensure the compact one-shot script exists and is executable
 SCRIPT="scripts/cursor_one_shot_runall.sh"
+if [ ! -f "${SCRIPT}" ]; then
+  echo "Missing ${SCRIPT}. Ensure scripts/cursor_one_shot_runall.sh is present." | tee -a "${LOG}"
+  exit 1
+fi
+chmod +x "${SCRIPT}" 2>/dev/null || true
 if [ ! -x "${SCRIPT}" ]; then
-  echo "Missing or non-executable ${SCRIPT}. Ensure scripts/cursor_one_shot_runall.sh is present and chmod +x." | tee -a "${LOG}"
+  echo "Could not make ${SCRIPT} executable." | tee -a "${LOG}"
   exit 1
 fi
 

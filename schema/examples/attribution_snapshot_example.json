@@ -1,0 +1,103 @@
+{
+  "snapshot_id": "snap_dec_AAPL_2026-02-17T14:30:00Z_ENTRY_FILL",
+  "trade_id": "live:AAPL:2026-02-17T14:30:00Z",
+  "decision_id": "dec_AAPL_2026-02-17T14:30:00Z",
+  "symbol": "AAPL",
+  "lifecycle_stage": "ENTRY_FILL",
+  "timestamp_utc": "2026-02-17T14:30:00.000000Z",
+  "composite_score": 3.42,
+  "components": [
+    {
+      "signal_id": "uw.flow_premium",
+      "name": "uw.flow_premium",
+      "source": "uw",
+      "raw_value": 500000,
+      "normalized_value": 0.72,
+      "weight": 0.4,
+      "contribution_to_score": 0.288,
+      "quality_flags": [],
+      "sub_components": []
+    },
+    {
+      "signal_id": "uw.flow_conviction",
+      "name": "uw.flow_conviction",
+      "source": "uw",
+      "raw_value": 0.78,
+      "normalized_value": 0.78,
+      "weight": 0.5,
+      "contribution_to_score": 0.39,
+      "quality_flags": [],
+      "sub_components": []
+    },
+    {
+      "signal_id": "uw.dp_notional",
+      "name": "uw.dp_notional",
+      "source": "uw",
+      "raw_value": 1200000,
+      "normalized_value": 0.65,
+      "weight": 0.5,
+      "contribution_to_score": 0.325,
+      "quality_flags": [],
+      "sub_components": []
+    },
+    {
+      "signal_id": "internal.regime_modifier",
+      "name": "internal.regime_modifier",
+      "source": "internal",
+      "raw_value": "RISK_ON",
+      "normalized_value": 0.15,
+      "weight": 0.3,
+      "contribution_to_score": 0.045,
+      "quality_flags": [],
+      "sub_components": []
+    },
+    {
+      "signal_id": "derived.toxicity_penalty",
+      "name": "derived.toxicity_penalty",
+      "source": "derived",
+      "raw_value": 0.2,
+      "normalized_value": 0.2,
+      "weight": -0.9,
+      "contribution_to_score": -0.18,
+      "quality_flags": [],
+      "sub_components": []
+    },
+    {
+      "signal_id": "internal.options_flow",
+      "name": "internal.options_flow",
+      "source": "internal",
+      "raw_value": 0.85,
+      "normalized_value": 0.85,
+      "weight": 2.4,
+      "contribution_to_score": 2.04,
+      "quality_flags": [],
+      "sub_components": []
+    },
+    {
+      "signal_id": "internal.dark_pool",
+      "name": "internal.dark_pool",
+      "source": "internal",
+      "raw_value": 0.6,
+      "normalized_value": 0.6,
+      "weight": 1.3,
+      "contribution_to_score": 0.78,
+      "quality_flags": [],
+      "sub_components": []
+    },
+    {
+      "signal_id": "internal.insider",
+      "name": "internal.insider",
+      "source": "internal",
+      "raw_value": 0.25,
+      "normalized_value": 0.25,
+      "weight": 0.5,
+      "contribution_to_score": 0.125,
+      "quality_flags": ["defaulted"],
+      "missing_reason": "no_recent_insider_data",
+      "sub_components": []
+    }
+  ],
+  "entry_reason_codes": ["score_gate", "regime_gate"],
+  "exit_reason_code": null,
+  "schema_version": "1.0.0"
+}

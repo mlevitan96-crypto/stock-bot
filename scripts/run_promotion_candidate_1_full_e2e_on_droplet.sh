@@ -23,10 +23,11 @@ chmod +x scripts/run_promotion_candidate_1_check_on_droplet.sh \
          scripts/run_promotion_candidate_1_check_with_tail_on_droplet.sh \
          scripts/run_persona_recommendations_for_promotion_on_droplet.sh \
          scripts/run_promotion_candidate_1_e2e_on_droplet.sh \
+         scripts/run_promotion_candidate_1_full_e2e_on_droplet.sh \
+         scripts/run_promotion_candidate_1_entry_on_droplet.sh \
          scripts/run_final_finish_on_droplet.sh \
          scripts/run_push_with_plugins_on_droplet.sh \
-         scripts/run_finalize_push_on_droplet.sh \
-         scripts/run_promotion_candidate_1_full_e2e_on_droplet.sh 2>/dev/null || true
+         scripts/run_finalize_push_on_droplet.sh 2>/dev/null || true
 
 # 1) Start the E2E wrapper if not already running
 if pgrep -f "run_promotion_candidate_1_e2e_on_droplet.sh" >/dev/null 2>&1; then

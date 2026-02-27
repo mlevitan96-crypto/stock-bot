@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stock-bot/schema/attribution_v1.json",
+  "title": "Trade Intelligence Attribution Schema v1",
+  "description": "Canonical schema for per-trade, per-snapshot score decomposition and exit attribution.",
+  "version": "1.0.0",
+  "definitions": {
+    "LifecycleStage": {
+      "type": "string",
+      "enum": ["pre_entry", "entry", "post_entry", "exit_decision", "exit_fill"]
+    },
+    "ComponentSource": {
+      "type": "string",
+      "enum": ["uw", "internal", "derived"]
+    },
+    "ScoreComponent": {
+      "type": "object",
+      "required": ["name", "source", "contribution_to_score"],
+      "properties": {
+        "name": { "type": "string", "description": "Stable key for the component" },
+        "source": { "$ref": "#/definitions/ComponentSource" },
+        "raw_value": {},
+        "normalized_value": { "type": "number" },
+        "weight": { "type": "number" },
+        "contribution_to_score": { "type": "number", "description": "Signed contribution" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "quality_flags": { "type": "array", "items": { "type": "string" } },
+        "timestamp_utc": { "type": "string", "format": "date-time" },
+        "lifecycle_stage": { "$ref": "#/definitions/LifecycleStage" },
+        "sub_components": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ScoreComponent" }
+        },
+        "missing_reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "AttributionSnapshot": {
+      "type": "object",
+      "required": ["trade_id", "symbol", "lifecycle_stage", "timestamp_utc", "total_score", "components", "schema_version"],
+      "properties": {
+        "snapshot_id": { "type": "string" },
+        "trade_id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "lifecycle_stage": { "$ref": "#/definitions/LifecycleStage" },
+        "timestamp_utc": { "type": "string", "format": "date-time" },
+        "total_score": { "type": "number" },
+        "components": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ScoreComponent" }
+        },
+        "entry_reason_codes": { "type": "array", "items": { "type": "string" } },
+        "exit_reason_code": { "type": "string" },
+        "schema_version": { "type": "string", "const": "1.0.0" }
+      },
+      "additionalProperties": false
+    },
+    "TradeAttributionRecord": {
+      "type": "object",
+      "required": ["trade_id", "symbol", "schema_version"],
+      "properties": {
+        "trade_id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "attribution_id": { "type": "string" },
+        "entry_snapshot": { "$ref": "#/definitions/AttributionSnapshot" },
+        "exit_snapshot": { "$ref": "#/definitions/AttributionSnapshot" },
+        "exit_reason_code": { "type": "string" },
+        "schema_version": { "type": "string", "const": "1.0.0" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/definitions/ScoreComponent" },
+    { "$ref": "#/definitions/AttributionSnapshot" },
+    { "$ref": "#/definitions/TradeAttributionRecord" }
+  ]
+}

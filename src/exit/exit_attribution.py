@@ -47,6 +47,12 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
             pass
         with OUT.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
+        # CTR mirror (Phase 1: when TRUTH_ROUTER_ENABLED=1)
+        try:
+            from src.infra.truth_router import append_jsonl as ctr_append
+            ctr_append("exits/exit_attribution.jsonl", rec, expected_max_age_sec=600)
+        except Exception:
+            pass
     except Exception:
         return
 

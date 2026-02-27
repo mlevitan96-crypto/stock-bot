@@ -13,6 +13,7 @@ All paths resolved against `_DASHBOARD_ROOT` (dashboard.py directory). No engine
 | Endpoint | Data Location | Notes |
 |----------|---------------|-------|
 | `/api/ping` | None | Health check |
+| `/api/governance/status` | `reports/equity_governance/equity_governance_*/lock_or_revert_decision.json`, `reports/effectiveness_*/effectiveness_aggregates.json` | giveback, stopping_condition_met, stopping_checks, decision |
 | `/api/version` | Git, process | Build/version info |
 | `/api/positions` | Alpaca API, `state/position_metadata.json`, `data/uw_flow_cache.json`, `data/live_orders.jsonl` | 8s timeout |
 | `/api/pnl/reconcile` | Alpaca API, `state/daily_start_equity.json`, `logs/attribution.jsonl` | Date query |

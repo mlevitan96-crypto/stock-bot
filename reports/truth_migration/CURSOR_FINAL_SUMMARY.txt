@@ -1,0 +1,66 @@
+# Truth migration — Cursor final summary (copy/paste)
+
+RUN_TAG: truth_migration_phase1_mirror
+GIT_SHA: 1f60b2a
+DROPLET_HOST: (set on droplet: hostname or DROPLET_HOST)
+TRUTH_ROOT_PATH: /var/lib/stock-bot/truth (override: STOCKBOT_TRUTH_ROOT)
+
+## Streams: required list + freshness thresholds + current status
+
+| Stream | Freshness (sec) | Status (PASS/WARN/FAIL) |
+|--------|-----------------|-------------------------|
+| gates/expectancy.jsonl | 300 | (run dashboard truth audit) |
+| health/signal_health.jsonl | 600 | (run dashboard truth audit) |
+| health/signal_score_breakdown.jsonl | 300 | (run dashboard truth audit) |
+| exits/exit_truth.jsonl | 600 | (run dashboard truth audit) |
+| exits/exit_attribution.jsonl | 600 | (run dashboard truth audit) |
+| telemetry/score_telemetry.json | 600 | (run dashboard truth audit) |
+| telemetry/score_snapshot.jsonl | 300 | (run dashboard truth audit) |
+| meta/last_write_heartbeat.json | 600 (EOD) | (run EOD with TRUTH_USE_CTR=1) |
+
+## What changed (files touched)
+
+- **New:** src/infra/__init__.py, src/infra/truth_router.py
+- **New:** reports/truth_migration/TRUTH_MIGRATION_CONTRACT.md
+- **New:** reports/truth_migration/board_review/{prosecutor,defender,sre,quant,board}_output.md
+- **New:** reports/truth_migration/droplet_baseline/{path_map.md,systemd_snapshot.txt,freshness_scan.json}
+- **New:** scripts/truth/capture_droplet_baseline.sh, scripts/truth/run_truth_smoke_test.sh
+- **New:** docs/DEPRECATIONS_TRUTH_PATHS.md, docs/TRUTH_ROOT_CONTRACT.md
+- **New:** tests/__init__.py, tests/test_truth_router.py
+- **New:** reports/truth_migration/SAFE_TO_APPLY.md, reports/truth_migration/CURSOR_FINAL_SUMMARY.txt
+- **Modified:** src/exit/exit_attribution.py (CTR mirror after legacy write)
+- **Modified:** src/exit/exit_truth_log.py (CTR mirror)
+- **Modified:** signal_health.py (CTR mirror)
+- **Modified:** score_snapshot_writer.py (CTR mirror)
+- **Modified:** telemetry/score_telemetry.py (CTR mirror)
+- **Modified:** main.py (CTR mirror for expectancy_gate_truth and signal_score_breakdown)
+- **Modified:** scripts/CURSOR_DASHBOARD_TRUTH_AUDIT_AND_EOD_WIRING.sh (legacy path fix: expectancy_gate_truth.jsonl; TRUTH_USE_CTR=1 contract + CTR heartbeat check)
+
+## Deprecations started (legacy paths mapped)
+
+- logs/exit_attribution.jsonl → CTR exits/exit_attribution.jsonl
+- logs/exit_truth.jsonl → CTR exits/exit_truth.jsonl
+- logs/expectancy_gate_truth.jsonl → CTR gates/expectancy.jsonl
+- logs/signal_health.jsonl → CTR health/signal_health.jsonl
+- logs/signal_score_breakdown.jsonl → CTR health/signal_score_breakdown.jsonl
+- state/score_telemetry.json → CTR telemetry/score_telemetry.json
+- logs/score_snapshot.jsonl → CTR telemetry/score_snapshot.jsonl
+
+See docs/DEPRECATIONS_TRUTH_PATHS.md.
+
+## EOD wiring status
+
+- Dashboard truth audit script uses contract; when TRUTH_USE_CTR=1, contract points to CTR paths and EOD checks meta/last_write_heartbeat.json freshness (fail if stale).
+- Legacy contract (default): sources = logs/expectancy_gate_truth.jsonl, logs/signal_health.jsonl, logs/exit_truth.jsonl, state/score_telemetry.json, etc.
+
+## Dashboard truth audit status
+
+- Phase 1: contract points to legacy paths; audit runs unchanged.
+- Phase 2: set TRUTH_USE_CTR=1 and STOCKBOT_TRUTH_ROOT on droplet; re-run CURSOR_DASHBOARD_TRUTH_AUDIT_AND_EOD_WIRING.sh; contract and EOD use CTR; heartbeat enforced.
+
+## Rollback steps (exact)
+
+1. Set TRUTH_ROUTER_ENABLED=0 in systemd env for stock-bot service.
+2. sudo systemctl daemon-reload && sudo systemctl restart stock-bot
+3. Confirm legacy paths updating; dashboard truth audit uses legacy contract (TRUTH_USE_CTR=0 or unset).
+4. Leave CTR in place (no deletion) for postmortem.

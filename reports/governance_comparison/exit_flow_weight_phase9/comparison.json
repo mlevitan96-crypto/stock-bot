@@ -1,0 +1,26 @@
+{
+  "baseline_dir": "backtests/30d_baseline_20260218_032951",
+  "proposed_dir": "backtests/30d_proposed_20260218_032957",
+  "aggregates": {
+    "baseline": {
+      "total_trades": 1618,
+      "total_pnl_usd": -152.34,
+      "win_rate": 0.3424,
+      "avg_profit_giveback": null
+    },
+    "proposed": {
+      "total_trades": 1618,
+      "total_pnl_usd": -152.34,
+      "win_rate": 0.3424,
+      "avg_profit_giveback": null
+    }
+  },
+  "deltas": {
+    "total_pnl_usd": 0.0,
+    "win_rate": 0.0
+  },
+  "entry_vs_exit_blame": {
+    "baseline": null,
+    "proposed": null
+  }
+}

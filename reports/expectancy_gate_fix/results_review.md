@@ -22,14 +22,14 @@
 
 | Lens | Note |
 |------|------|
-| **Adversarial** | |
-| **Quant** | |
-| **Product** | |
+| **Adversarial** | Unblock proof window had 0 candidates per cycle (considered=0), so we did not observe post-fix behavior with candidates. Risk: if cluster composite_score is missing or wrong on some code path, we could still pass bad scores to the gate. Mitigation: contract is explicit (composite_exec_score = c.get("composite_score", score)); audit when considered > 0. |
+| **Quant** | Score distribution: nuclear audit shows candidate_count=33 in last non-zero cycle; aggregated gate_counts still include score_floor_breach (495) and score_below_min (277). Those counts span pre- and post-restart log; floor (3.0) unchanged. No threshold tuning done. |
+| **Product** | Interpretable: one score (composite_exec_score) used for both expectancy and floor check. Auditable: EXPECTANCY_DEBUG=1 logs score_used_by_expectancy, floor, decision. Deploy verified fix present on droplet (grep composite_exec_score). |
 
 ---
 
 ## Verdict
 
-- [ ] Flow restored; score_floor_breach no longer ~100%.
-- [ ] No junk flood observed.
-- [ ] Threshold tuning explicitly deferred.
+- [ ] Flow restored; score_floor_breach no longer ~100%. (Inconclusive: proof window had no candidates; re-check when considered > 0.)
+- [x] No junk flood observed.
+- [x] Threshold tuning explicitly deferred.

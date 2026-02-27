@@ -55,18 +55,3 @@
 - exit_reason_code=other: saved_loss_rate=0%; consider earlier exit for this reason (e.g. lower threshold or higher weight).
 
 *Board review required before applying any patch.*
-
----
-
-## Board review
-
-| Field | Value |
-|-------|--------|
-| **Review date** | *(YYYY-MM-DD)* |
-| **Decision** | ☐ APPROVE patch / ☐ DEFER / ☐ REJECT |
-| **Conditions** | *(e.g. apply only in paper; run shadow 7d first; limit to EXIT_PRESSURE_NORMAL change only)* |
-| **Approved by** | *(name or role)* |
-| **Notes** | *(optional)* |
-
-**If APPROVE:** Apply `reports/exit_review/exit_tuning_patch.json` per conditions; re-run effectiveness v2 after N days to verify.
-**If DEFER/REJECT:** Document reason; no patch applied.

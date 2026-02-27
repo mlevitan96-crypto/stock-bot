@@ -1,0 +1,27 @@
+{
+  "verdict": "FAIL",
+  "timestamp_utc": "2026-02-20T17:04:35.548475+00:00",
+  "checks": {
+    "uw_root_cause": {
+      "pass": false,
+      "message": "uw_root_cause stale (date=2026-02-18, age_days=2.7)"
+    },
+    "alpaca_bars": {
+      "pass": false,
+      "message": "data/bars missing"
+    },
+    "no_bars_rate_24h": {
+      "pass": true,
+      "rate": 0.0,
+      "no_bars_count": 0,
+      "total_events": 0
+    }
+  },
+  "reasons_fail": [
+    "uw_root_cause stale (date=2026-02-18, age_days=2.7)",
+    "data/bars missing"
+  ],
+  "no_bars_rate_24h": 0.0,
+  "no_bars_count_24h": 0,
+  "events_24h": 0
+}

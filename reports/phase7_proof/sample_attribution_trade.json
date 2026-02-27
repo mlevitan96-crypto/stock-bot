@@ -1,0 +1,27 @@
+{
+  "trade_id": "example-trade-123",
+  "entry": [],
+  "exit": [],
+  "joined": {
+    "symbol": "AAPL",
+    "entry_score": 4.2,
+    "entry_attribution_components": [
+      {"signal_id": "uw.flow", "contribution_to_score": 1.1},
+      {"signal_id": "momentum", "contribution_to_score": 0.8},
+      {"signal_id": "vol_regime", "contribution_to_score": 0.5}
+    ],
+    "exit_reason_code": "flow_deterioration",
+    "exit_attribution_components": [
+      {"signal_id": "flow_deterioration", "contribution_to_score": -0.3}
+    ],
+    "exit_quality_metrics": {
+      "mfe": 0.02,
+      "mae": -0.01,
+      "profit_giveback": 0.15,
+      "time_in_trade": 3600,
+      "exit_efficiency": 0.85
+    },
+    "pnl": 12.5
+  },
+  "blame_hint": "Likely exit timing (meaningful giveback or left money on table)."
+}

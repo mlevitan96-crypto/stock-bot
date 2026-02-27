@@ -1,0 +1,52 @@
+=== stdout ===
+[2026-02-24T00:54:39Z] === FINAL GRID EXECUTION final_grid_exec_20260224T005439Z ===
+[2026-02-24T00:54:39Z] Historical run: /root/stock-bot/reports/exit_review/historical_historical_exit_review_20260223T222935Z
+[2026-02-24T00:54:39Z] Bars dir: /root/stock-bot/data/bars
+[2026-02-24T00:54:39Z] Checking bar cache presence
+total 664
+drwxr-xr-x 14 root root   4096 Feb 20 23:27 .
+drwxr-xr-x  6 root root   4096 Feb 24 00:54 ..
+drwxr-xr-x  2 root root   4096 Feb 20 23:27 2026-02-09
+drwxr-xr-x  2 root root   4096 Feb 20 23:27 2026-02-10
+drwxr-xr-x  2 root root   4096 Feb 20 23:27 2026-02-11
+drwxr-xr-x  2 root root   4096 Feb 20 23:27 2026-02-12
+drwxr-xr-x  2 root root   4096 Feb 23 23:42 2026-02-13
+drwxr-xr-x  2 root root   4096 Feb 20 23:27 2026-02-14
+drwxr-xr-x  2 root root   4096 Feb 20 23:27 2026-02-15
+drwxr-xr-x  2 root root   4096 Feb 20 23:27 2026-02-16
+drwxr-xr-x  2 root root   4096 Feb 23 23:42 2026-02-17
+drwxr-xr-x  2 root root   4096 Feb 23 23:42 2026-02-18
+drwxr-xr-x  2 root root   4096 Feb 19 20:17 2026-02-19
+drwxr-xr-x  2 root root   4096 Feb 20 16:12 2026-02-20
+-rw-r--r--  1 root root 622425 Feb 20 04:26 alpaca_daily.parquet
+[2026-02-24T00:54:39Z] Running grid smoke test (grid_size=2)
+Exits with (symbol, entry_ts, entry_price, exit_ts): 2000/2712
+Grid search: 2 configs, 1643/2712 exits simulated, top PnL%=0.9819 -> /root/stock-bot/reports/exit_review/final_grid_exec_20260224T005439Z/grid_smoke_test.json
+[2026-02-24T00:54:43Z] Smoke test n_exits_with_bars=1643
+[2026-02-24T00:54:43Z] Running full fetch + grid + board review pipeline
+[2026-02-24T00:54:43Z] === START FETCH MISSING BARS + GRID RERUN exit_grid_with_bars_20260224T005443Z ===
+[2026-02-24T00:54:43Z] Historical run: /root/stock-bot/reports/exit_review/historical_historical_exit_review_20260223T222935Z
+[2026-02-24T00:54:43Z] Identifying exits missing bar coverage
+Missing bars: 1 symbol-dates (of 143 unique) -> /root/stock-bot/reports/exit_review/exit_grid_with_bars_20260224T005443Z/missing_bars.json
+[2026-02-24T00:54:44Z] Fetching missing bars from Alpaca (only required symbols/dates)
+[fetch_missing_bars] XLE260227P00052000 1Min 2026-02-17: HTTP Error 401: Unauthorized
+Fetched and wrote 0/1 symbol-dates -> /root/stock-bot/data/bars
+[2026-02-24T00:54:44Z] Re-running exit parameter grid search with bars
+Exits with (symbol, entry_ts, entry_price, exit_ts): 2000/2712
+Grid search: 160 configs, 1643/2712 exits simulated, top PnL%=58.6142 -> /root/stock-bot/reports/exit_review/exit_grid_with_bars_20260224T005443Z/grid_results.json
+[2026-02-24T00:59:56Z] Running board review on grid results
+Board review -> /root/stock-bot/reports/exit_review/exit_grid_with_bars_20260224T005443Z/grid_board_review, decision=PROMOTE_TOP_CONFIG
+RUN_DIR: /root/stock-bot/reports/exit_review/exit_grid_with_bars_20260224T005443Z
+DECISION: EXIT_GRID_WITH_BARS_COMPLETE
+[2026-02-24T00:59:56Z] === COMPLETE FETCH MISSING BARS + GRID RERUN ===
+RUN_DIR: /root/stock-bot/reports/exit_review/final_grid_exec_20260224T005439Z
+DECISION: FINAL_GRID_EXECUTION_COMPLETE
+[2026-02-24T00:59:56Z] === COMPLETE FINAL GRID EXECUTION ===
+EXIT_CODE:0
+
+
+=== stderr ===
+
+
+=== exit_code ===
+0

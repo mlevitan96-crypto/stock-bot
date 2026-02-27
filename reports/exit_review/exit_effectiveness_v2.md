@@ -1,13 +1,13 @@
 # Exit Effectiveness v2
 
-Generated: 2026-02-23T20:27:10.209644+00:00
-Joined trades: 2671
+Generated: 2026-02-23T21:11:58.235851+00:00
+Joined trades: 2782
 
 ## By exit_reason_code
 
 | exit_reason_code | frequency | avg_pnl | median_pnl | tail_5% | avg_giveback | saved_loss% | left_money% |
 |------------------|-----------|---------|------------|---------|--------------|-------------|-------------|
-| other | 671 | -0.0671 | -0.04 | -0.64 | None | 0.0 | 0.0 |
+| other | 782 | -0.0733 | -0.04 | -0.69 | None | 0.0 | 0.0 |
 | signal_decay(0.96) | 245 | -0.1505 | -0.07 | -0.75 | None | 0.0 | 0.0 |
 | signal_decay(0.90) | 107 | -0.175 | -0.06 | -0.93 | None | 0.0 | 0.0 |
 | signal_decay(0.88) | 105 | -0.1531 | -0.06 | -0.96 | None | 0.0 | 0.0 |
@@ -169,14 +169,14 @@ Joined trades: 2671
 
 | regime | count | avg_pnl | avg_giveback |
 |--------|-------|---------|--------------|
-| mixed | 1459 | -0.0881 | None |
+| mixed | 1557 | -0.088 | None |
 | BEAR | 1069 | -0.1543 | None |
-| unknown | 105 | 0.0929 | None |
-| NEUTRAL | 38 | -0.0837 | None |
+| unknown | 110 | 0.0666 | None |
+| NEUTRAL | 46 | -0.0991 | None |
 
 ## Overall
 
-- avg_pnl: -0.1074
+- avg_pnl: -0.1076
 - avg_profit_giveback: None
-- wins: 798
-- losses: 1685
+- wins: 831
+- losses: 1755

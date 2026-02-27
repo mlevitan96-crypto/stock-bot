@@ -1,45 +1,67 @@
-# Expectancy gate fix — Unblock proof (short window)
+# Expectancy gate fix — Unblock proof
 
-**Purpose:** After deploy + restart, observe 5–10 cycles and confirm entries are unblocked.
+**Date:** 2026-02-18 19:48 UTC
+**Proof window:** ~15 min after deploy
 
----
+## Aggregated (last 10 cycles / proof window)
+- candidate_count (considered) last cycle: **0**
+- total considered (last 10 cycles): **0**
+- orders_submitted_count (last cycle): **0**
+- total orders (last 10 cycles): **0**
+- expectancy_pass_count (from EXPECTANCY_DEBUG or gate_counts): **0**
+- score_floor_breach blocks: **291** (of 291 expectancy_blocked)
+- score_floor_breach share: **100.0%**
 
-## How to collect
+## Gate counts (expectancy_blocked by reason)
+```
+{
+  "score_floor_breach": 291
+}
+```
 
-1. **On droplet** (or via DropletClient): tail gate and run logs.
-2. **Option A:** Run nuclear audit after 10–15 min: `python scripts/run_nuclear_audit_on_droplet.py` and use `reports/nuclear_audit/<date>/05_entry_pipeline_evidence.md` for gate_counts and cycle_summary.
-3. **Option B:** On droplet: `tail -n 500 logs/gate.jsonl` and parse for `cycle_summary` (considered, orders) and `expectancy_blocked` (reason=score_floor_breach vs expectancy_passed).
+## Last cycle_summary entries (up to 5)
+```
+[
+  {
+    "considered": 0,
+    "orders": 0,
+    "gate_counts": {}
+  },
+  {
+    "considered": 0,
+    "orders": 0,
+    "gate_counts": {}
+  },
+  {
+    "considered": 0,
+    "orders": 0,
+    "gate_counts": {}
+  },
+  {
+    "considered": 0,
+    "orders": 0,
+    "gate_counts": {}
+  },
+  {
+    "considered": 0,
+    "orders": 0,
+    "gate_counts": {}
+  }
+]
+```
 
----
-
-## Metrics to record
-
-| Metric | Source | Before fix (from nuclear audit) | After fix (fill) |
-|--------|--------|---------------------------------|------------------|
-| candidate_count (considered) | cycle_summary | 51 | |
-| expectancy_pass_count | gate events / cycle_summary | 0 | |
-| orders_submitted_count | cycle_summary.orders | 0 | |
-| score_floor_breach % of blocks | gate_counts | ~100% | |
-| gate_counts (top) | gate.jsonl | expectancy_blocked:score_floor_breach 734 | |
-
----
+## Example candidate traces (EXPECTANCY_DEBUG)
+```
+(no EXPECTANCY_DEBUG lines in captured pane)
+```
 
 ## PASS criteria
+- expectancy_pass_count > 0: **FAIL**
+- score_floor_breach not ~100%: **FAIL**
+- orders_submitted_count > 0 or clear cap: **PASS**
 
-- expectancy_pass_count > 0
-- score_floor_breach no longer ~100% of expectancy blocks
-- No explosion in low-score trades (optional: spot-check composite_exec_score in logs if EXPECTANCY_DEBUG=1 was used)
+## Verdict
+**FAIL** (in this proof window)
 
----
-
-## Placeholder (fill after observation)
-
-```
-Date: ___________
-Cycles observed: ___________
-candidate_count (last cycle): ___________
-expectancy_pass_count (approx): ___________
-orders_submitted_count (last 5–10 cycle_summary): ___________
-gate_counts (top): ___________
-PASS / FAIL: ___________
-```
+## Note
+Last 10 cycle_summary entries have **considered=0** (no candidates in those cycles — market or no_clusters). The 291 score_floor_breach are from **earlier** log lines (pre-fix or prior cycles). So this run **cannot confirm** unblock; need evidence from a window where considered > 0. See nuclear_audit_postfix_summary for current pipeline state.

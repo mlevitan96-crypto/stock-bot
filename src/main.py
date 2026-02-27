@@ -113,7 +113,7 @@ def _run_checks() -> List[Tuple[str, bool, str]]:
         from src.exit.profit_targets_v2 import compute_profit_target
         from src.exit.stops_v2 import compute_stop_price
 
-        exit_score, comps, reason = compute_exit_score_v2(
+        exit_score, comps, reason, _ac, _code = compute_exit_score_v2(
             symbol="SPY",
             direction="bullish",
             entry_v2_score=2.0,

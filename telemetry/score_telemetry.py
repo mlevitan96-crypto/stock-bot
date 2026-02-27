@@ -80,6 +80,12 @@ def _save_telemetry():
         with open(temp_file, 'w') as f:
             json.dump(state_to_save, f, indent=2)
         temp_file.replace(TELEMETRY_FILE)
+        # CTR mirror (Phase 1: when TRUTH_ROUTER_ENABLED=1)
+        try:
+            from src.infra.truth_router import write_json as ctr_write_json
+            ctr_write_json("telemetry/score_telemetry.json", state_to_save, expected_max_age_sec=600)
+        except Exception:
+            pass
     except Exception as e:
         print(f"WARNING: Failed to save score telemetry: {e}", flush=True)
 

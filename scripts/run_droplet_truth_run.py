@@ -55,7 +55,12 @@ def main() -> int:
     if count_jsonl(be_dir / "extracted_candidates.jsonl") == 0:
         print("Phase 1 FAIL: extracted_candidates.jsonl empty")
         return 1
+    daily_parquet = REPO / "data" / "bars" / "alpaca_daily.parquet"
+    bars_available = daily_parquet.exists() and daily_parquet.stat().st_size > 0
     if count_jsonl(be_dir / "replay_results.jsonl") == 0:
+        if bars_available:
+            print("Phase 1 FAIL: bars available but no replay (candidates may lack bars in parquet)")
+            return 1
         # No bars: build minimal replay from blocked_trades so we still get A/B/C output
         run([py, "scripts/build_minimal_replay_from_blocked_trades.py"], timeout=30)
     bs_dir = REPO / "reports" / "blocked_signal_expectancy"
@@ -79,6 +84,9 @@ def main() -> int:
                 print("Phase 1 FAIL: enrichment produced no replay_results")
                 return 1
         else:
+            if bars_available:
+                print("Phase 1 FAIL: bars available but no replay for blocked_signal_expectancy")
+                return 1
             run([py, "scripts/build_minimal_replay_from_blocked_trades.py"], timeout=30)
             if count_jsonl(bs_dir / "replay_results.jsonl") == 0:
                 print("Phase 1 FAIL: blocked_signal_expectancy/replay_results.jsonl empty (no replay to enrich, minimal produced no data)")

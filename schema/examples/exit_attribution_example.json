@@ -1,0 +1,41 @@
+{
+  "symbol": "AAPL",
+  "timestamp": "2026-02-17T20:00:00+00:00",
+  "entry_timestamp": "2026-02-17T14:30:00+00:00",
+  "exit_reason": "v2_exit(profit)",
+  "exit_reason_code": "profit",
+  "decision_id": "dec_AAPL_2026-02-17T20-00-00Z",
+  "attribution_schema_version": "1.0.0",
+  "pnl": 125.0,
+  "pnl_pct": 0.65,
+  "entry_price": 192.0,
+  "exit_price": 193.25,
+  "qty": 10,
+  "time_in_trade_minutes": 330.0,
+  "v2_exit_score": 0.58,
+  "score_deterioration": 0.31,
+  "attribution_components": [
+    {"signal_id": "exit.flow_deterioration", "name": "exit.flow_deterioration", "source": "exit", "raw_value": 0.2, "contribution_to_score": 0.04, "quality_flags": []},
+    {"signal_id": "exit.darkpool_deterioration", "name": "exit.darkpool_deterioration", "source": "exit", "raw_value": 0.0, "contribution_to_score": 0.0, "quality_flags": []},
+    {"signal_id": "exit.sentiment_deterioration", "name": "exit.sentiment_deterioration", "source": "exit", "raw_value": 0.0, "contribution_to_score": 0.0, "quality_flags": []},
+    {"signal_id": "exit.score_deterioration", "name": "exit.score_deterioration", "source": "exit", "raw_value": 0.31, "contribution_to_score": 0.0775, "quality_flags": []},
+    {"signal_id": "exit.regime_shift", "name": "exit.regime_shift", "source": "exit", "raw_value": 0.0, "contribution_to_score": 0.0, "quality_flags": []},
+    {"signal_id": "exit.sector_shift", "name": "exit.sector_shift", "source": "exit", "raw_value": 0.0, "contribution_to_score": 0.0, "quality_flags": []},
+    {"signal_id": "exit.vol_expansion", "name": "exit.vol_expansion", "source": "exit", "raw_value": 0.2, "contribution_to_score": 0.02, "quality_flags": []},
+    {"signal_id": "exit.thesis_invalidated", "name": "exit.thesis_invalidated", "source": "exit", "raw_value": 0.0, "contribution_to_score": 0.0, "quality_flags": []},
+    {"signal_id": "exit.earnings_risk", "name": "exit.earnings_risk", "source": "exit", "raw_value": 0.0, "contribution_to_score": 0.0, "quality_flags": []},
+    {"signal_id": "exit.overnight_flow_risk", "name": "exit.overnight_flow_risk", "source": "exit", "raw_value": 0.0, "contribution_to_score": 0.0, "quality_flags": []}
+  ],
+  "exit_quality_metrics": {
+    "mfe": 2.5,
+    "mae": null,
+    "time_in_trade_sec": 19800.0,
+    "profit_giveback": 0.24,
+    "post_exit_excursion": null,
+    "exit_efficiency": {"saved_loss": true, "left_money": false},
+    "realized_pnl_price": 1.25
+  },
+  "entry_regime": "NEUTRAL",
+  "exit_regime": "NEUTRAL",
+  "composite_version": "v2"
+}

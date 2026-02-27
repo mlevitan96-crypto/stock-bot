@@ -4,5 +4,8 @@
   "username": "root",
   "use_ssh_config": true,
   "project_dir": "~/stock-bot",
-  "_comment": "Using SSH config host 'alpaca' - connection details from ~/.ssh/config. This is the standard and secure approach."
+  "connect_timeout": 30,
+  "connect_retries": 5,
+  "_comment_preferred": "Preferred: SSH alias 'alpaca'. Add Host alpaca in ~/.ssh/config pointing to 104.236.102.57.",
+  "_comment_alternative": "Alternative: host 104.236.102.57, use_ssh_config false, key_file path to your private key."
 }

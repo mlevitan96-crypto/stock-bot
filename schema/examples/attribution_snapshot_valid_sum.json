@@ -1,0 +1,21 @@
+{
+  "snapshot_id": "snap_dec_MSFT_2026-02-17T15:00:00Z_ENTRY_FILL",
+  "trade_id": "live:MSFT:2026-02-17T15:00:00Z",
+  "decision_id": "dec_MSFT_2026-02-17T15:00:00Z",
+  "symbol": "MSFT",
+  "lifecycle_stage": "ENTRY_FILL",
+  "timestamp_utc": "2026-02-17T15:00:00.000000Z",
+  "composite_score": 3.50,
+  "components": [
+    { "signal_id": "uw.flow_premium", "name": "uw.flow_premium", "source": "uw", "contribution_to_score": 0.32 },
+    { "signal_id": "uw.flow_conviction", "name": "uw.flow_conviction", "source": "uw", "contribution_to_score": 0.40 },
+    { "signal_id": "uw.dp_notional", "name": "uw.dp_notional", "source": "uw", "contribution_to_score": 0.30 },
+    { "signal_id": "internal.options_flow", "name": "internal.options_flow", "source": "internal", "contribution_to_score": 2.00 },
+    { "signal_id": "internal.dark_pool", "name": "internal.dark_pool", "source": "internal", "contribution_to_score": 0.52 },
+    { "signal_id": "internal.insider", "name": "internal.insider", "source": "internal", "contribution_to_score": 0.06 },
+    { "signal_id": "derived.toxicity_penalty", "name": "derived.toxicity_penalty", "source": "derived", "contribution_to_score": -0.10 }
+  ],
+  "entry_reason_codes": ["score_gate", "regime_gate"],
+  "exit_reason_code": null,
+  "schema_version": "1.0.0"
+}

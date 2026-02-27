@@ -1,0 +1,9 @@
+# Run on droplet to capture. Placeholder content until captured.
+#
+# Commands to run (from repo root, e.g. /root/stock-bot):
+#
+#   systemctl show stock-bot --property=WorkingDirectory --property=Environment --property=EnvironmentFile --property=MainPID --property=ActiveState
+#   systemctl show uw-flow-daemon --property=WorkingDirectory --property=Environment --property=MainPID --property=ActiveState 2>/dev/null || true
+#   ls -la logs/ state/ data/ 2>/dev/null | head -80
+#
+# Paste output above after running.

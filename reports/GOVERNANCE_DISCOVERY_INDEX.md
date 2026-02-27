@@ -6,6 +6,7 @@ Canonical Scheduled Processes:
 - EOD: board/eod/run_stock_quant_officer_eod.py @ 21:30 UTC (Memory Bank §5.5)
 - Sync: scripts/droplet_sync_to_github.sh @ 21:32 UTC (droplet)
 - Molt: scripts/run_molt_on_droplet.sh @ 21:35 UTC weekdays (install via scripts/install_molt_cron_on_droplet.py)
+- Daily governance (fail-closed): scripts/run_daily_governance.sh [YYYY-MM-DD] — Molt + artifact validation; single PASS/FAIL. See docs/ALPACA_DAILY_RUN_INTEGRITY_CONTRACT.md.
 - Local pull (repeatable): scripts/pull_eod_to_local.ps1 or scripts/pull_eod_to_local.sh — run weekdays after 21:35 UTC to get latest EOD without conflicts.
 
 Non-Canonical / Ad-Hoc Tools:
@@ -27,6 +28,15 @@ Molt Artifacts:
 Reports:
 - reports/EXIT_JOIN_HEALTH_<DATE>.md — snapshot→exit match rate
 - reports/BLOCKED_TRADE_INTEL_<DATE>.md — blocked counts, intelligence at block time
+
+Schema / contract diagnostics (Alpaca governance context):
+- scripts/validate_lifecycle_events_schema.py — validate blocked_trades + shadow.jsonl per docs/ALPACA_LIFECYCLE_EVENTS_SCHEMA.md; optional --report PATH, --fail-on-required
+- scripts/diagnose_shadow_starvation.py — WARN-only shadow starvation diagnostic per docs/ALPACA_SHADOW_STARVATION_POLICY.md; optional --report PATH, --strict
+- scripts/data_feed_health_contract.py — data feed health → reports/data_integrity/DATA_FEED_HEALTH_CONTRACT.md
+
+Daily run integrity (fail-closed):
+- scripts/validate_daily_governance_artifacts.py — verify required Molt/board artifacts per docs/ALPACA_DAILY_RUN_INTEGRITY_CONTRACT.md; --date, --base-dir, --skip-timestamps
+- scripts/run_daily_governance.sh — canonical entry: Molt then validation; single PASS/FAIL
 
 AI Governance:
 - Multi-model review required for promotion decisions

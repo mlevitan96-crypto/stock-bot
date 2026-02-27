@@ -90,15 +90,22 @@ def extract_candidates() -> list[dict]:
 
 
 def load_bars_for_candidate(symbol: str, entry_dt: datetime, max_minutes: int = 300) -> list[dict]:
-    """Load bars from entry_dt for up to max_minutes. Uses data/bars_loader if available."""
+    """Load bars from entry_dt. Prefer data/bars/alpaca_daily.parquet (daily) then 1Min/5Min/15Min."""
     if symbol in (None, "", "?"):
         return []
     try:
-        from data.bars_loader import load_bars
+        from data.bars_loader import load_bars, load_bars_from_daily_parquet
+        parquet = REPO / "data" / "bars" / "alpaca_daily.parquet"
     except ImportError:
         return []
     date_str = entry_dt.strftime("%Y-%m-%d")
     end_ts = entry_dt + timedelta(minutes=max_minutes)
+    # Prefer daily parquet when present (real PNL from Alpaca daily bars)
+    if parquet.exists():
+        end_date = (entry_dt + timedelta(days=14)).strftime("%Y-%m-%d")
+        bars = load_bars_from_daily_parquet(symbol, date_str, end_date)
+        if bars:
+            return bars
     bars = load_bars(symbol, date_str, timeframe="1Min", start_ts=entry_dt, end_ts=end_ts, use_cache=True, fetch_if_missing=True)
     if not bars:
         for tf in ("5Min", "15Min"):
@@ -125,8 +132,13 @@ def replay_one(candidate: dict) -> dict | None:
     for b in bars:
         t = b.get("t") or b.get("timestamp")
         dt = _parse_ts(t)
-        if dt is None or dt < entry_dt:
+        if dt is None:
             continue
+        if dt < entry_dt:
+            if getattr(dt, "date", None) and getattr(entry_dt, "date", None) and dt.date() == entry_dt.date():
+                pass
+            else:
+                continue
         o = float(b.get("o", b.get("open", 0)))
         h = float(b.get("h", b.get("high", 0)))
         l = float(b.get("l", b.get("low", 0)))

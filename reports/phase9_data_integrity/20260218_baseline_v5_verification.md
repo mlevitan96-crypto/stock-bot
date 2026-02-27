@@ -1,28 +1,40 @@
 # Baseline v5 verification (2026-02-18)
 
-**After droplet pull and run:**
-
-```bash
-cd /root/stock-bot
-git pull origin main
-python3 scripts/analysis/run_effectiveness_reports.py \
-  --start 2026-02-01 --end $(date +%F) \
-  --out-dir reports/effectiveness_baseline_blame_v5
+## Command
+```
+python3 scripts/analysis/run_effectiveness_reports.py --start 2026-02-01 --end 2026-02-18 --out-dir reports/effectiveness_baseline_blame_v5 2>&1
 ```
 
-## Verify
+## Metrics
+| Metric | Value |
+|--------|--------|
+| joined_count | 2000 |
+| total_losing_trades | 1292 |
+| weak_entry_pct | 0.0 |
+| exit_timing_pct | 0.0 |
+| unclassified_pct | 100.0 |
+| unclassified_count | 1292 |
+| avg_profit_giveback | None |
 
-- [ ] `reports/effectiveness_baseline_blame_v5/entry_vs_exit_blame.json` exists and includes:
-  - weak_entry_pct, exit_timing_pct, unclassified_pct
-- [ ] unclassified_pct < 100% OR explicit "why still unclassified" with counts
-- [ ] exit_quality_metrics coverage proof exists (Step 2) and giveback is either populated OR explicitly explainable
-
-## Paste key excerpts
-
+## entry_vs_exit_blame.json (excerpt)
 ```json
-// entry_vs_exit_blame.json (excerpt)
+{
+  "total_losing_trades": 1292,
+  "weak_entry_pct": 0.0,
+  "exit_timing_pct": 0.0,
+  "unclassified_count": 1292,
+  "unclassified_pct": 100.0
+}
 ```
 
-```text
-// unclassified_pct and reason
+## effectiveness_aggregates.json (excerpt)
+```json
+{
+  "joined_count": 2000,
+  "total_losing_trades": 1292
+}
 ```
+
+## Join / giveback
+- Join uses trade_id (primary) or symbol|entry_ts_bucket (fallback); see attribution_loader docstring.
+- giveback populated: False

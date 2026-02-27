@@ -7,6 +7,8 @@ Apply BEFORE displacement and max_positions. Log all adjustments to JSONL.
 from __future__ import annotations
 
 import json
+import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SURVIVORSHIP_LOG = REPO_ROOT / "logs" / "survivorship_entry_adjustments.jsonl"
 UW_ADJUSTMENTS_LOG = REPO_ROOT / "logs" / "uw_entry_adjustments.jsonl"
 CONSTRAINT_OVERRIDES_LOG = REPO_ROOT / "logs" / "constraint_overrides.jsonl"
+UW_EXPERIMENT_DIR = REPO_ROOT / "reports" / "uw_experiment"
+UW_PENALTY_EVENTS_JSONL = UW_EXPERIMENT_DIR / "uw_penalty_events.jsonl"
+
+# Paper-only: when UW inputs are missing, "reject" (default) vs "penalize" (bounded penalty, emit score_after)
+UW_MISSING_INPUT_MODE = os.environ.get("UW_MISSING_INPUT_MODE", "reject").strip().lower()
+if UW_MISSING_INPUT_MODE not in ("reject", "penalize"):
+    UW_MISSING_INPUT_MODE = "reject"
+UW_MISSING_INPUT_PENALTY = float(os.environ.get("UW_MISSING_INPUT_PENALTY", "0.75"))
 
 # Config: penalty/boost amounts (penalize_strong/boost_strong are stronger)
 SURVIVORSHIP_PENALTY = 0.5
@@ -107,13 +117,57 @@ def load_uw_root_cause_latest(base: Path | None = None) -> dict[str, Any]:
     return best
 
 
-def apply_uw_to_score(symbol: str, composite_score: float, base: Path | None = None) -> tuple[float, dict]:
+def _get_min_exec_score() -> float:
+    try:
+        from config.registry import Config
+        return float(getattr(Config, "MIN_EXEC_SCORE", 2.5))
+    except Exception:
+        return 2.5
+
+
+def _emit_uw_failure_event(
+    symbol: str,
+    ts: float,
+    failure_class: str,
+    missing_inputs: list,
+    upstream_dependency_status: dict,
+    decision_taken: str,
+    base: Path | None,
+    missing_data_indicators: dict | None = None,
+) -> None:
+    """Log one row to reports/uw_health/uw_failure_events.jsonl."""
+    try:
+        from board.eod.uw_failure_diagnostics import UW_FAILURE_EVENTS_JSONL
+        rec = {
+            "symbol": symbol,
+            "ts": ts,
+            "event_ts": ts,
+            "failure_class": failure_class,
+            "missing_inputs": list(missing_inputs),
+            "upstream_dependency_status": upstream_dependency_status,
+            "decision_taken": decision_taken,
+        }
+        if missing_data_indicators is not None:
+            rec["missing_data_indicators"] = missing_data_indicators
+        _append_jsonl(UW_FAILURE_EVENTS_JSONL, rec)
+    except Exception:
+        pass
+
+
+def apply_uw_to_score(
+    symbol: str,
+    composite_score: float,
+    base: Path | None = None,
+    ts: int | float | None = None,
+) -> tuple[float, dict]:
     """
     Apply UW root-cause adjustments. Returns (adjusted_score, details).
-    Pre-filter: reject (score -> -inf) when uw_signal_quality_score < 0.25.
-    UW longevity: quality >= 0.7 -> +0.15; UW suppression: edge_suppression > 0.8 -> -0.2.
-    Stronger boosts: quality >= 0.6 -> +0.75; override displacement if score gap > 0.1.
+    Every reject/penalize is classified (UW_* failure class), logged to uw_failure_events.jsonl,
+    and data-related failures trigger repair attempt; no silent veto.
+    Pre-filter: reject when uw_signal_quality_score < 0.25 (genuine low signal); missing data → diagnose + repair or bounded penalty.
     """
+    base = base or REPO_ROOT
+    event_ts = float(ts) if ts is not None else time.time()
     data = load_uw_root_cause_latest(base)
     details: dict[str, Any] = {}
     delta = 0.0
@@ -131,6 +185,148 @@ def apply_uw_to_score(symbol: str, composite_score: float, base: Path | None = N
                 cand_quality = float(cand_quality)
             break
     use_quality = cand_quality if cand_quality is not None else (float(quality) if quality is not None else None)
+
+    # --- Failure path: missing inputs or quality < threshold ---
+    # Run diagnostics and emit exactly one failure class.
+    if use_quality is None or (use_quality is not None and use_quality < UW_QUALITY_PRE_FILTER_MIN):
+        try:
+            from board.eod.uw_failure_diagnostics import (
+                diagnose_uw_failure,
+                attempt_repair,
+                should_escalate,
+                write_incident,
+                UW_MISSING_DATA,
+                UW_STALE_DATA,
+                UW_BOUNDED_PENALTY_AFTER_REPAIR_FAIL,
+                load_recent_failure_events,
+            )
+        except ImportError:
+            pass
+        else:
+            timestamps = {"evaluation_ts": event_ts, "evaluation_date": None}
+            try:
+                from datetime import datetime, timezone
+                timestamps["evaluation_date"] = datetime.fromtimestamp(int(event_ts), tz=timezone.utc).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+            diag = diagnose_uw_failure(data, symbol, bars=None, timestamps=timestamps, caches={}, base=base)
+            failure_class = diag.get("failure_class", "UW_INTERNAL_ERROR")
+            decision_taken = diag.get("decision_taken", "reject")
+            indicators = diag.get("missing_data_indicators") or {}
+            _emit_uw_failure_event(
+                symbol=symbol,
+                ts=event_ts,
+                failure_class=failure_class,
+                missing_inputs=diag.get("missing_inputs", []),
+                upstream_dependency_status=diag.get("upstream_dependency_status", {}),
+                decision_taken=decision_taken,
+                base=base,
+                missing_data_indicators=indicators,
+            )
+            # Data-failure path: repair; if fail → defer or penalize (never hard-reject)
+            policy = os.environ.get("UW_MISSING_DATA_POLICY", "defer").strip().lower()
+            if policy not in ("defer", "penalize"):
+                policy = "defer"
+            no_bars = indicators.get("no_bars") or indicators.get("bars_empty")
+            is_data_failure = failure_class in (UW_MISSING_DATA, UW_STALE_DATA) or no_bars
+            if is_data_failure:
+                from board.eod.uw_failure_diagnostics import ESCALATION_PERSIST_MINUTES as _ESCAL_PERSIST
+                repair_result = attempt_repair(failure_class, symbol, base)
+                if repair_result.get("repair_success"):
+                    data = load_uw_root_cause_latest(base)
+                    quality = data.get("uw_signal_quality_score")
+                    cand_quality = None
+                    for c in data.get("candidates") or []:
+                        if c.get("symbol") == symbol:
+                            cand_quality = c.get("uw_signal_quality_score")
+                            if cand_quality is not None:
+                                cand_quality = float(cand_quality)
+                            break
+                    use_quality = cand_quality if cand_quality is not None else (float(quality) if quality is not None else None)
+                    if use_quality is not None and use_quality >= UW_QUALITY_PRE_FILTER_MIN:
+                        details["uw_repaired"] = True
+                        # Fall through to normal delta logic below (no return here)
+                    else:
+                        # Repair did not yield passing quality: defer or penalize per policy
+                        _expired = set()
+                        try:
+                            _exp_path = base / "state" / "uw_defer_expired_symbols.json"
+                            if _exp_path.exists():
+                                _d = json.loads(_exp_path.read_text(encoding="utf-8"))
+                                _expired = set(_d.get("symbols", []) if isinstance(_d, dict) else _d)
+                        except Exception:
+                            pass
+                        if policy == "defer" and symbol not in _expired:
+                            details["uw_deferred"] = True
+                            details["defer_reason"] = "repair_failed_defer"
+                            details["uw_signal_quality_score"] = None
+                            _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "decision_taken": "defer", "score_before": composite_score, "reason": "repair_failed_defer"})
+                            return float("-inf"), details  # no trade this cycle; structured defer
+                        score_after = composite_score - UW_BOUNDED_PENALTY_AFTER_REPAIR_FAIL
+                        details["uw_missing_inputs_penalized"] = True
+                        details["uw_signal_quality_score"] = None
+                        details["uw_repair_attempted"] = True
+                        _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "delta": -UW_BOUNDED_PENALTY_AFTER_REPAIR_FAIL, "score_before": composite_score, "score_after": score_after, "reason": "repair_failed_penalize"})
+                        if should_escalate(failure_class, symbol, event_ts):
+                            write_incident(failure_class, [symbol], float(_ESCAL_PERSIST), [repair_result], "Bounded penalty applied; candidate may be blocked from trading.", base=base)
+                        return score_after, details
+                else:
+                    # Repair attempted but failed: defer or penalize (never hard-reject)
+                    _expired = set()
+                    try:
+                        _exp_path = base / "state" / "uw_defer_expired_symbols.json"
+                        if _exp_path.exists():
+                            _d = json.loads(_exp_path.read_text(encoding="utf-8"))
+                            _expired = set(_d.get("symbols", []) if isinstance(_d, dict) else _d)
+                    except Exception:
+                        pass
+                    if policy == "defer" and no_bars and symbol not in _expired:
+                        details["uw_deferred"] = True
+                        details["defer_reason"] = "bars_missing_defer"
+                        details["uw_signal_quality_score"] = None
+                        _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "decision_taken": "defer", "score_before": composite_score, "reason": "bars_missing_defer"})
+                        return float("-inf"), details
+                    score_after = composite_score - UW_BOUNDED_PENALTY_AFTER_REPAIR_FAIL
+                    details["uw_missing_inputs_penalized"] = True
+                    details["uw_signal_quality_score"] = None
+                    details["uw_repair_attempted"] = True
+                    _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "delta": -UW_BOUNDED_PENALTY_AFTER_REPAIR_FAIL, "score_before": composite_score, "score_after": score_after, "reason": "repair_failed_penalize"})
+                    if should_escalate(failure_class, symbol, event_ts):
+                        write_incident(failure_class, [symbol], float(_ESCAL_PERSIST), [repair_result], "Bounded penalty applied; candidate may be blocked from trading.", base=base)
+                    return score_after, details
+            # Not a data failure: apply existing reject/penalize behavior
+            # (fall through to existing blocks below for missing-input penalize or low-quality reject)
+        pass
+
+    # Missing inputs: no UW quality (use_quality is None). Paper-only penalize path.
+    if use_quality is None and UW_MISSING_INPUT_MODE == "penalize":
+        score_after = composite_score - UW_MISSING_INPUT_PENALTY
+        min_exec = _get_min_exec_score()
+        reached_expectancy_gate = True
+        expectancy_gate_pass = score_after >= min_exec
+        _append_jsonl(UW_ADJUSTMENTS_LOG, {
+            "symbol": symbol,
+            "delta": -UW_MISSING_INPUT_PENALTY,
+            "score_before": composite_score,
+            "score_after": score_after,
+            "reason": "missing_inputs_penalized",
+        })
+        UW_EXPERIMENT_DIR.mkdir(parents=True, exist_ok=True)
+        _append_jsonl(UW_PENALTY_EVENTS_JSONL, {
+            "symbol": symbol,
+            "ts": int(event_ts),
+            "score_before": composite_score,
+            "uw_signal_quality_score": None,
+            "penalty_applied": UW_MISSING_INPUT_PENALTY,
+            "score_after": score_after,
+            "reached_expectancy_gate": reached_expectancy_gate,
+            "expectancy_gate_pass": expectancy_gate_pass,
+        })
+        details["uw_missing_inputs_penalized"] = True
+        details["uw_signal_quality_score"] = None
+        return score_after, details
+
+    # Inputs present but quality below threshold: genuine low signal — reject.
     if use_quality is not None and use_quality < UW_QUALITY_PRE_FILTER_MIN:
         details["uw_rejected_low_quality"] = True
         details["uw_signal_quality_score"] = use_quality

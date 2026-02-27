@@ -3077,6 +3077,72 @@ def api_ping():
     return jsonify({"ok": True, "ts": datetime.now(timezone.utc).isoformat()})
 
 
+@app.route("/api/governance/status", methods=["GET"])
+def api_governance_status():
+    """
+    Governance and stopping condition: giveback + stopping_checks from latest lock_or_revert_decision
+    and effectiveness_aggregates. For dashboard panel so operators see if stopping condition can be satisfied.
+    """
+    try:
+        root = Path(_DASHBOARD_ROOT)
+        out = {
+            "avg_profit_giveback": None,
+            "stopping_condition_met": False,
+            "stopping_checks": {},
+            "decision": None,
+            "joined_count": None,
+            "win_rate": None,
+            "expectancy_per_trade": None,
+            "source_decision": None,
+            "source_aggregates": None,
+        }
+        # Latest equity_governance run dir
+        gov_dir = root / "reports" / "equity_governance"
+        if gov_dir.exists():
+            runs = sorted(gov_dir.glob("equity_governance_*"), key=lambda p: p.stat().st_mtime, reverse=True)
+            for run_dir in runs[:1]:
+                dec_path = run_dir / "lock_or_revert_decision.json"
+                if dec_path.exists():
+                    try:
+                        dec = json.loads(dec_path.read_text(encoding="utf-8"))
+                        out["decision"] = dec.get("decision")
+                        out["stopping_condition_met"] = bool(dec.get("stopping_condition_met"))
+                        out["stopping_checks"] = dec.get("stopping_checks") or {}
+                        cand = dec.get("candidate") or {}
+                        out["joined_count"] = cand.get("joined_count")
+                        out["win_rate"] = cand.get("win_rate")
+                        out["expectancy_per_trade"] = cand.get("expectancy_per_trade")
+                        out["avg_profit_giveback"] = cand.get("avg_profit_giveback")
+                        out["source_decision"] = str(dec_path.relative_to(root))
+                        break
+                    except Exception:
+                        pass
+        # Fallback: effectiveness_aggregates from baseline or latest effectiveness dir
+        eff_dirs = list((root / "reports").glob("effectiveness_*"))
+        if not eff_dirs and (root / "reports" / "effectiveness_baseline_blame").exists():
+            eff_dirs = [root / "reports" / "effectiveness_baseline_blame"]
+        for d in sorted(eff_dirs, key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)[:1]:
+            agg_path = d / "effectiveness_aggregates.json"
+            if agg_path.exists():
+                try:
+                    agg = json.loads(agg_path.read_text(encoding="utf-8"))
+                    if out["avg_profit_giveback"] is None:
+                        out["avg_profit_giveback"] = agg.get("avg_profit_giveback")
+                    if out["joined_count"] is None:
+                        out["joined_count"] = agg.get("joined_count")
+                    if out["win_rate"] is None:
+                        out["win_rate"] = agg.get("win_rate")
+                    if out["expectancy_per_trade"] is None:
+                        out["expectancy_per_trade"] = agg.get("expectancy_per_trade")
+                    out["source_aggregates"] = str(agg_path.relative_to(root))
+                    break
+                except Exception:
+                    pass
+        return jsonify(out), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "avg_profit_giveback": None, "stopping_condition_met": False, "stopping_checks": {}}), 200
+
+
 @app.route("/")
 def index():
     return render_template_string(DASHBOARD_HTML)
@@ -5333,14 +5399,14 @@ def api_failure_points():
 
 @app.route("/api/signal_history", methods=["GET"])
 def api_signal_history():
-    """Get the last 50 signal processing events for Signal Review tab"""
+    """Get the last 50 signal processing events for Signal Review tab. Exposes malformed_line_count when corruption is detected."""
     try:
-        from signal_history_storage import get_signal_history, get_last_signal_timestamp
+        from signal_history_storage import get_signal_history_with_meta, get_last_signal_timestamp
         from shadow_tracker import get_shadow_tracker
-        
-        signals = get_signal_history(limit=50)
+
+        signals, malformed_line_count, last_malformed_ts = get_signal_history_with_meta(limit=50)
         last_signal_ts = get_last_signal_timestamp()
-        
+
         # Update virtual P&L from shadow positions
         try:
             shadow_tracker = get_shadow_tracker()
@@ -5349,19 +5415,22 @@ def api_signal_history():
                 if symbol and signal.get("shadow_created"):
                     shadow_pos = shadow_tracker.get_position(symbol)
                     if shadow_pos:
-                        # Update virtual P&L with current max profit
                         signal["virtual_pnl"] = shadow_pos.max_profit_pct
                         if shadow_pos.closed:
                             signal["shadow_closed"] = True
                             signal["shadow_close_reason"] = shadow_pos.close_reason
         except Exception:
-            pass  # Fail silently if shadow tracker unavailable
-        
-        return jsonify({
+            pass
+
+        payload = {
             "signals": signals,
             "last_signal_timestamp": last_signal_ts,
-            "count": len(signals)
-        }), 200
+            "count": len(signals),
+        }
+        if malformed_line_count > 0:
+            payload["malformed_line_count"] = malformed_line_count
+            payload["last_malformed_ts"] = last_malformed_ts
+        return jsonify(payload), 200
     except ImportError:
         return jsonify({
             "signals": [],

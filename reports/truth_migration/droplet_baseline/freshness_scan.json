@@ -1,0 +1,6 @@
+{
+  "_comment": "Run scripts/truth/capture_droplet_baseline.sh on droplet to populate. Schema: for each path, mtime_epoch, size_bytes, path.",
+  "ts_capture_iso": null,
+  "cwd": null,
+  "paths": []
+}

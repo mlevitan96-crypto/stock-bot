@@ -5,11 +5,10 @@ Maintains a high-speed buffer of the last 50 signal processing events for dashbo
 """
 
 import json
-import time
+import math
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, List
-from collections import deque
+from typing import Dict, Any, List, Tuple
 
 SIGNAL_HISTORY_FILE = Path("state/signal_history.jsonl")
 MAX_SIGNALS = 50  # Keep last 50 signals
@@ -36,60 +35,70 @@ def append_signal_history(signal_data: Dict[str, Any]):
         # Ensure state directory exists
         SIGNAL_HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
         
-        # Add timestamp if not present
         if "timestamp" not in signal_data:
             signal_data["timestamp"] = datetime.now(timezone.utc).isoformat()
-        
-        # Append to file
+        safe = _sanitize_for_json(signal_data)
         with SIGNAL_HISTORY_FILE.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(signal_data) + "\n")
-        
-        # Maintain buffer size: Read all, keep last MAX_SIGNALS
+            f.write(json.dumps(safe, allow_nan=False) + "\n")
+            f.flush()
         if SIGNAL_HISTORY_FILE.exists():
             try:
                 with SIGNAL_HISTORY_FILE.open("r", encoding="utf-8") as f:
                     lines = f.readlines()
-                
-                # Keep only last MAX_SIGNALS lines
                 if len(lines) > MAX_SIGNALS:
-                    with SIGNAL_HISTORY_FILE.open("w", encoding="utf-8") as f:
-                        f.writelines(lines[-MAX_SIGNALS:])
+                    tmp = SIGNAL_HISTORY_FILE.with_suffix(".jsonl.tmp")
+                    tmp.write_text("".join(lines[-MAX_SIGNALS:]), encoding="utf-8")
+                    tmp.replace(SIGNAL_HISTORY_FILE)
             except Exception:
-                pass  # If buffer maintenance fails, continue anyway
-        
-    except Exception as e:
-        # Fail silently - don't break trading if history logging fails
+                pass
+    except Exception:
         pass
 
-def get_signal_history(limit: int = MAX_SIGNALS) -> List[Dict[str, Any]]:
-    """
-    Read the last N signals from history.
-    
-    Args:
-        limit: Maximum number of signals to return (default: MAX_SIGNALS)
-    
-    Returns:
-        List of signal dictionaries, most recent first
-    """
+
+def _sanitize_for_json(obj: Any) -> Any:
+    """Replace NaN/Inf so JSON serialization never fails."""
+    if isinstance(obj, float):
+        if math.isfinite(obj):
+            return obj
+        return None
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_for_json(x) for x in obj]
+    return obj
+
+def _read_signal_history(limit: int) -> Tuple[List[Dict[str, Any]], int, str]:
+    """Read up to limit signals; return (signals, malformed_line_count, last_malformed_ts)."""
     if not SIGNAL_HISTORY_FILE.exists():
-        return []
-    
+        return [], 0, ""
+    signals = []
+    malformed = 0
+    last_malformed_ts = ""
     try:
-        signals = []
-        with SIGNAL_HISTORY_FILE.open("r", encoding="utf-8") as f:
+        with SIGNAL_HISTORY_FILE.open("r", encoding="utf-8", errors="replace") as f:
             for line in f:
-                if line.strip():
-                    try:
-                        signal = json.loads(line)
-                        signals.append(signal)
-                    except json.JSONDecodeError:
-                        continue
-        
-        # Return most recent first, limited to requested count
-        return list(reversed(signals[-limit:]))
-    
-    except Exception as e:
-        return []
+                if not line.strip():
+                    continue
+                try:
+                    obj = json.loads(line)
+                    signals.append(_sanitize_for_json(obj))
+                except json.JSONDecodeError:
+                    malformed += 1
+                    last_malformed_ts = datetime.now(timezone.utc).isoformat()
+        return list(reversed(signals[-limit:])), malformed, last_malformed_ts
+    except Exception:
+        return [], malformed, last_malformed_ts
+
+
+def get_signal_history(limit: int = MAX_SIGNALS) -> List[Dict[str, Any]]:
+    """Read the last N signals, most recent first."""
+    signals, _, _ = _read_signal_history(limit)
+    return signals
+
+
+def get_signal_history_with_meta(limit: int = MAX_SIGNALS) -> Tuple[List[Dict[str, Any]], int, str]:
+    """Read the last N signals and corruption counters for dashboard."""
+    return _read_signal_history(limit)
 
 def get_last_signal_timestamp() -> str:
     """

@@ -486,13 +486,41 @@ def write_adversarial_md(funnel: dict, events: list[dict], trace_list: list[tupl
         else:
             breakdown_blurb = " Signal breakdown: reports/signal_review/signal_score_breakdown_summary.md (missing/zero rates per signal)."
 
+    deep_dive_cite = ""
+    deep_dive_md = OUT_DIR / "SIGNAL_PIPELINE_DEEP_DIVE.md"
+    if deep_dive_md.exists():
+        deep_dive_cite = " **SIGNAL_PIPELINE_DEEP_DIVE:** reports/signal_review/SIGNAL_PIPELINE_DEEP_DIVE.md and .json (per-symbol per-signal tables, trace tables, dominant failure mode)."
+    coverage_cite = ""
+    coverage_md = OUT_DIR / "SIGNAL_COVERAGE_AND_WASTE.md"
+    if coverage_md.exists():
+        cov_text = coverage_md.read_text(encoding="utf-8", errors="replace")
+        if "Broken signals" in cov_text:
+            coverage_cite = " **SIGNAL_COVERAGE_AND_WASTE:** reports/signal_review/SIGNAL_COVERAGE_AND_WASTE.md (broken = used but frequently missing/zero; missing/zero rates)."
+
+    gate_p10 = exp.get("post_adjust") or {} if isinstance(exp.get("post_adjust"), dict) else {}
+    if not gate_p10 and GATE_TRUTH_200_MD.exists():
+        gt = GATE_TRUTH_200_MD.read_text(encoding="utf-8", errors="replace")
+        for lab, key in [("p10", "p10"), ("p50", "p50"), ("p90", "p90")]:
+            if f"- {lab}:" in gt:
+                try:
+                    val = float(gt.split(f"- {lab}:")[1].split("\n")[0].strip())
+                    gate_p10[key] = val
+                except Exception:
+                    pass
+    p10 = gate_p10.get("p10")
+    p50 = gate_p10.get("p50")
+    p90 = gate_p10.get("p90")
+
     lines = [
-        "# Multi-model adversarial review (Phase 2)",
+        "# Multi-model adversarial review (Phase 5)",
         "",
         f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
         "",
-        "Evidence: reports/signal_review/signal_funnel.json, signal_funnel.md, top_50_end_to_end_traces.md.",
-        *([(gate_truth_blurb.strip() + " " + breakdown_blurb.strip())] if (gate_truth_blurb or breakdown_blurb) else []),
+        "Evidence: reports/signal_review/signal_funnel.json, signal_funnel.md, top_50_end_to_end_traces.md, SIGNAL_INVENTORY, SIGNAL_USAGE_MAP, SIGNAL_PIPELINE_DEEP_DIVE (see checklist)."
+        + (" " + gate_truth_blurb.strip() if gate_truth_blurb else "")
+        + (" " + breakdown_blurb.strip() if breakdown_blurb else "")
+        + (" " + deep_dive_cite.strip() if deep_dive_cite else "")
+        + (" " + coverage_cite.strip() if coverage_cite else ""),
         "",
         "---",
         "",
@@ -502,9 +530,12 @@ def write_adversarial_md(funnel: dict, events: list[dict], trace_list: list[tupl
         "",
         f"- Dominant choke point: **{dom['stage']}** — reason **{dom['reason']}** (count={dom['count']}, {dom['pct']}%).",
         f"- Funnel: total candidates = {total}; expectancy pre-adjust median = {exp.get('pre_adjust', {}).get('p50', 0):.3f}, post-adjust median = {exp.get('post_adjust', {}).get('p50', 0):.3f}; % above MIN_EXEC_SCORE pre = {exp.get('pct_above_min_exec_pre', 0)}%, post = {exp.get('pct_above_min_exec_post', 0)}%. Gate truth coverage: {join_coverage.get('gate_truth_pct', 0)}%.",
-        f"- Trace evidence (trace_id): {trace_ids_str} (see top_50_end_to_end_traces.md). Each shows score_post_adjust < 2.5 and first failing gate expectancy_gate:score_floor_breach.",
+        f"- Gate truth distribution (score_used_by_gate): p10 = {p10}, p50 = {p50}, p90 = {p90}. Pass rate from expectancy_gate_truth_200.md.",
+        f"- Trace evidence (trace_id): {trace_ids_str} (see top_50_end_to_end_traces.md and SIGNAL_PIPELINE_DEEP_DIVE per-candidate trace table). Each shows score_post_adjust < 2.5 and first failing gate expectancy_gate:score_floor_breach.",
         *([f"- {gate_truth_blurb.strip()}"] if gate_truth_blurb else []),
         *([f"- {breakdown_blurb.strip()}"] if breakdown_blurb else []),
+        *([f"- {deep_dive_cite.strip()}"] if deep_dive_cite else []),
+        *([f"- {coverage_cite.strip()}"] if coverage_cite else []),
         "",
         "Conclusion: Composite scores are below threshold at the expectancy gate; the gate correctly blocks. The blocker is score level, not gate logic.",
         "",

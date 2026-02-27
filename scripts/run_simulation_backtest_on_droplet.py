@@ -173,6 +173,34 @@ def run() -> int:
     hold_bars = args.hold_bars
     uw_cache = _load_uw_cache()
 
+    # Overlay: composite_weights from config merge into uw_composite_v2 for this run
+    overlay_weights = cfg.get("composite_weights") or {}
+    if overlay_weights and uw_v2 is not None:
+        try:
+            base_weights = getattr(uw_v2, "WEIGHTS_V3", None)
+            if isinstance(base_weights, dict):
+                uw_v2.WEIGHTS_V3 = {**base_weights, **overlay_weights}
+            if hasattr(uw_v2, "_cached_weights"):
+                uw_v2._cached_weights = {}
+            if hasattr(uw_v2, "_weights_cache_ts"):
+                uw_v2._weights_cache_ts = 0.0
+        except Exception:
+            pass
+
+    # Exit params from config (optional overlay)
+    exit_cfg = cfg.get("exit") or {}
+    default_stop_loss_pct = float(exit_cfg.get("stop_loss_pct", -1.5))
+    default_profit_target_pct = float(exit_cfg.get("profit_target_pct", 1.5))
+    default_time_stop_bars = int(exit_cfg.get("time_stop_bars", 0)) or min(hold_bars * 3, 60)
+    trail_stop_pct = exit_cfg.get("profit_acceleration_trailing_stop_pct")
+    trail_delay_bars = exit_cfg.get("profit_acceleration_delay_minutes")
+    if trail_delay_bars is not None and trail_stop_pct is not None:
+        trail_stop_pct = float(trail_stop_pct)  # decimal e.g. 0.01 = 1% drop from max (in pct points)
+        trail_delay_bars = int(trail_delay_bars)  # minutes -> assume 1-min bars
+    else:
+        trail_stop_pct = None
+        trail_delay_bars = None
+
     symbol_dates = _discover_symbol_dates()
     if args.max_symbol_days and len(symbol_dates) > args.max_symbol_days:
         symbol_dates = symbol_dates[: args.max_symbol_days]
@@ -253,12 +281,13 @@ def run() -> int:
             if not attribution_components and components_dict:
                 attribution_components = [{"signal_id": k, "contribution_to_score": float(v)} for k, v in components_dict.items()]
 
-            # Walk bars to find exit (diverse: stop_loss, profit_target, time_stop, hold_bars)
-            stop_loss_pct = -1.5
-            profit_target_pct = 1.5
-            time_stop_bars = min(hold_bars * 3, 60)  # cap time stop
+            # Walk bars to find exit (stop_loss, profit_target, time_stop, optional trailing)
+            stop_loss_pct = default_stop_loss_pct
+            profit_target_pct = default_profit_target_pct
+            time_stop_bars = default_time_stop_bars
             exit_bar_idx = i + hold_bars
             exit_reason = "hold_bars"
+            max_pct_seen = None  # for trailing stop
             for j in range(i + 1, min(i + hold_bars + time_stop_bars, len(bars_sorted))):
                 bar_j = bars_sorted[j]
                 price_j = float(bar_j.get("c") or bar_j.get("close") or entry_price)
@@ -274,6 +303,17 @@ def run() -> int:
                     exit_bar_idx = j
                     exit_reason = "profit_target"
                     break
+                # Optional: trailing stop after delay (e.g. profit_acceleration)
+                if trail_stop_pct is not None and trail_delay_bars is not None:
+                    if j - i >= trail_delay_bars:
+                        if max_pct_seen is None:
+                            max_pct_seen = pct_j
+                        else:
+                            max_pct_seen = max(max_pct_seen, pct_j)
+                        if max_pct_seen > 0 and (max_pct_seen - pct_j) >= trail_stop_pct * 100.0:  # trail_stop_pct as decimal 0.01 = 1%
+                            exit_bar_idx = j
+                            exit_reason = "trailing_stop"
+                            break
                 if j - i >= time_stop_bars:
                     exit_bar_idx = j
                     exit_reason = "time_stop"
@@ -301,6 +341,7 @@ def run() -> int:
                 "pnl_usd": round(pnl_usd, 2),
                 "pnl_pct": round(pnl_pct, 4),
                 "hold_minutes": hold_min,
+                "exit_reason": exit_reason,
                 "source": "simulation",
                 "context": {
                     "attribution_components": attribution_components,

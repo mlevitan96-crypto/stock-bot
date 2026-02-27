@@ -112,7 +112,7 @@ if [ -n "${REPLAY_OVERLAY_CONFIG:-}" ] && [ -f "${REPLAY_OVERLAY_CONFIG}" ]; the
 else
   log "A3 Applying ONE overlay (${LEVER})"
   python3 - <<PY
-import json
+import json, os
 lever = "${LEVER}"
 rec_path = "${OUT_DIR}/recommendation.json"
 suggested = None
@@ -127,16 +127,22 @@ if __import__("os").path.exists(rec_path):
         worst_signal_id = r.get("worst_signal_id")
         down_weight_delta = r.get("down_weight_delta")
     except Exception: pass
+# Lever variety: use GOVERNANCE_ENTRY_THRESHOLD / GOVERNANCE_EXIT_STRENGTH from loop (rotation by cycle)
+gov_entry = os.environ.get("GOVERNANCE_ENTRY_THRESHOLD")
+gov_exit = os.environ.get("GOVERNANCE_EXIT_STRENGTH")
 if lever == "entry":
     if entry_lever_type == "down_weight_signal" and worst_signal_id and down_weight_delta is not None:
         change = {"signal_weight_delta": {worst_signal_id: float(down_weight_delta)}}
+    elif gov_entry:
+        change = {"type": "entry_bump", "min_exec_score": float(gov_entry)}
     elif suggested is not None:
         change = {"type": "entry_bump", "min_exec_score": float(suggested)}
     else:
         change = {"type": "entry_bump", "delta": float("${ENTRY_SCORE_BUMP}")}
     cfg = {"run_tag": "${RUN_TAG}", "lever": "entry", "paper_only": True, "change": change}
 else:
-    cfg = {"run_tag": "${RUN_TAG}", "lever": "exit", "paper_only": True, "change": {"type": "single_exit_tweak", "strength": float("${EXIT_TWEAK_STRENGTH}")}}
+    strength = float(gov_exit) if gov_exit else float("${EXIT_TWEAK_STRENGTH}")
+    cfg = {"run_tag": "${RUN_TAG}", "lever": "exit", "paper_only": True, "change": {"type": "single_exit_tweak", "strength": strength}}
 with open("${OUT_DIR}/overlay_config.json", "w") as f:
   json.dump(cfg, f, indent=2)
 print("WROTE", "${OUT_DIR}/overlay_config.json")

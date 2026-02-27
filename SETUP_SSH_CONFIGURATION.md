@@ -10,14 +10,16 @@
 
 **SSH Config Host:** `alpaca` (configured in `~/.ssh/config`)
 
-**Configuration File:** `droplet_config.json`
+**Configuration File:** `droplet_config.json` (preferred: alpaca; alternative: host 104.236.102.57 with use_ssh_config false and key_file)
 ```json
 {
   "host": "alpaca",
   "port": 22,
   "username": "root",
   "use_ssh_config": true,
-  "project_dir": "~/stock-bot"
+  "project_dir": "~/stock-bot",
+  "connect_timeout": 30,
+  "connect_retries": 5
 }
 ```
 

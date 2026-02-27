@@ -1,0 +1,30 @@
+# UW Micro-Signal Weights (Phase 2)
+# Use these to weight individual UW micro-signals instead of a single "UW score".
+# Schema: component_key -> weight (applied as contribution = weight * normalized_value).
+# Weights can be tuned per regime or globally; this file is the default.
+
+version: "1.0"
+
+default:
+  # Flow
+  uw_flow_premium: 0.4
+  uw_flow_sweep_ratio: 0.2
+  uw_flow_aggressor: 0.25
+  uw_flow_conviction: 0.5
+  uw_flow_volume: 0.1
+  uw_flow_oi: 0.1
+  uw_flow_magnitude: 0.2
+  # Dark pool
+  uw_dp_notional: 0.5
+  uw_dp_lit_ratio: 0.2
+  uw_dp_side: 0.3
+  # Insider
+  uw_insider_activity: 0.4
+  uw_insider_usd: 0.3
+  uw_insider_sentiment: 0.3
+
+# Optional: regime overrides (future)
+# risk_on:
+#   uw_flow_conviction: 0.6
+# risk_off:
+#   uw_dp_notional: 0.6
