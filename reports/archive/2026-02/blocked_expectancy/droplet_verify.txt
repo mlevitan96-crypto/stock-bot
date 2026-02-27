@@ -1,0 +1,7 @@
+fbb93e0 EOD report for 2026-02-18 (auto-confirmed and pushed)
+0060af4 Fix: ensure score snapshot emission
+e5edde4 Daily Alpha Audit 2026-02-18 - MEMORY_BANK.md Specialist Tier Monitoring
+539c5f9 Fix: align expectancy gate to composite exec score
+085537a Fix: make attribution ↔ exit_attribution join stable for blame classification
+---
+219:    MIN_EXEC_SCORE = get_env("MIN_EXEC_SCORE", 3.0, float)  # V3.0: Increased to 3.0 for predatory entry filter

@@ -1,0 +1,12 @@
+{
+  "hold_longer_would_help_count": 3,
+  "hold_longer_examples": [
+    {"symbol": "AAPL", "entry_timestamp": "2026-02-17T14:30:00+00:00", "pnl": 55.0, "profit_giveback": 0.32, "mfe": 2.1, "exit_reason_code": "profit"},
+    {"symbol": "MSFT", "entry_timestamp": "2026-02-17T15:00:00+00:00", "pnl": 42.0, "profit_giveback": 0.28, "mfe": 1.8, "exit_reason_code": "profit"}
+  ],
+  "exit_earlier_would_save_count": 2,
+  "exit_earlier_examples": [
+    {"symbol": "XYZ", "entry_timestamp": "2026-02-16T11:00:00+00:00", "pnl": -80.0, "mae": 1.5, "exit_reason_code": "stop"},
+    {"symbol": "ABC", "entry_timestamp": "2026-02-16T13:00:00+00:00", "pnl": -25.0, "mae": 0.6, "exit_reason_code": "intel_deterioration"}
+  ]
+}

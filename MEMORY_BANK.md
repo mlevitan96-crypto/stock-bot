@@ -135,6 +135,12 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - `xai/`  
 - `self_healing/`  
 
+## 2.5 CANONICAL PATHS AND REPO CLEANUP (ADDITIVE - 2026-02-27)
+- Repo canonical layout and report paths: see **`reports/repo_audit/CANONICAL_REPO_STRUCTURE.md`** and **`reports/repo_audit/CANONICAL_PATHS.json`**.
+- Dashboard endpoint → data map: **`reports/DASHBOARD_ENDPOINT_MAP.md`**.
+- Governance, replay, and effectiveness paths: **`reports/repo_audit/CANONICAL_GOVERNANCE_PATHS.md`**, **`reports/repo_audit/CANONICAL_REPLAY_PATHS.md`**.
+- Legacy one-off scripts: **`README_DEPRECATED_SCRIPTS.md`** (production entry points listed there and in section 2.1).
+
 ---
 
 # 3. GLOBAL RULES (MUST / MUST NOT)
@@ -1044,7 +1050,23 @@ Cursor MUST NOT:
 
 **VERIFIED (2026-01-12):** SSH deployment works via `droplet_client.py` with paramiko.
 
-Droplet config (`droplet_config.json`):
+**Preferred (use SSH config alias):** Cursor and scripts should prefer the **alpaca** SSH alias. It uses your `~/.ssh/config` for host, port, and key — one place to manage, and user-confirmed working.
+
+Droplet config (`droplet_config.json`) — **preferred**:
+```json
+{
+  "host": "alpaca",
+  "port": 22,
+  "username": "root",
+  "use_ssh_config": true,
+  "project_dir": "/root/stock-bot",
+  "connect_timeout": 30,
+  "connect_retries": 5
+}
+```
+Ensure `~/.ssh/config` has a `Host alpaca` block that resolves to `104.236.102.57` (and IdentityFile, etc.).
+
+**Alternative (direct IP):** If you don't use an SSH config alias, specify the IP and key explicitly:
 ```json
 {
   "host": "104.236.102.57",
@@ -1052,16 +1074,16 @@ Droplet config (`droplet_config.json`):
   "username": "root",
   "use_ssh_config": false,
   "key_file": "C:/Users/markl/.ssh/id_ed25519",
-  "project_dir": "/root/stock-bot"
+  "project_dir": "/root/stock-bot",
+  "connect_timeout": 30,
+  "connect_retries": 5
 }
 ```
 
-**Alternative:** Can use SSH config alias "alpaca" with `"use_ssh_config": true` and `"host": "alpaca"`.
-
 **CRITICAL:** 
-- All deployments MUST target `104.236.102.57` (stock-bot) — use `droplet_config.json` or DropletClient.
+- All deployments MUST target `104.236.102.57` (stock-bot) — use `droplet_config.json` or DropletClient. Prefer **host "alpaca"** with **use_ssh_config: true** when available.
 - **NEVER use `147.182.255.165`** — that IP is for a different droplet/bot. This repo uses `104.236.102.57` only.
-- SSH alias "alpaca" resolves to this IP
+- SSH alias **alpaca** resolves to this IP (configure in `~/.ssh/config`).
 - **REQUIRED:** `paramiko` library must be installed: `python -m pip install paramiko`
 - SSH key must be authorized on droplet (user fixed key mismatch on 2026-01-12)
 
@@ -1069,7 +1091,7 @@ Droplet config (`droplet_config.json`):
 - **Repository identity:** stock-bot (equities only). Do NOT reference trading-bot paths, IPs, or repos.
 - **Droplet binding:** `droplet_config.json` is the single source for host/key; DropletClient MUST use it.
 - **Forbidden IP:** `147.182.255.165` — never use for stock-bot. That IP is for a different bot.
-- **Canonical droplet:** `104.236.102.57` or SSH alias `alpaca`; project dir `/root/stock-bot` or `/root/trading-bot-current` per deployment.
+- **Canonical droplet:** Prefer SSH alias **alpaca** (use_ssh_config true); else `104.236.102.57`. Project dir `/root/stock-bot` or `/root/trading-bot-current` per deployment.
 
 ---
 

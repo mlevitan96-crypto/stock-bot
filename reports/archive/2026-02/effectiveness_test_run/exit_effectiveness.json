@@ -1,0 +1,11 @@
+{
+  "profit": {
+    "exit_reason_code": "profit",
+    "frequency": 36,
+    "frequency_pct": 100.0,
+    "avg_realized_pnl": 1750.0,
+    "avg_profit_giveback": null,
+    "pct_saved_loss": 0.0,
+    "pct_left_money": 0.0
+  }
+}

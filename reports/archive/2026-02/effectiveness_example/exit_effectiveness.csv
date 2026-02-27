@@ -1,0 +1,4 @@
+exit_reason_code,frequency,frequency_pct,avg_realized_pnl,avg_profit_giveback,pct_saved_loss,pct_left_money
+profit,8,66.67,82.5,0.22,0,25
+intel_deterioration,2,16.67,-45.0,0.35,50,0
+stop,2,16.67,-62.0,,100,0

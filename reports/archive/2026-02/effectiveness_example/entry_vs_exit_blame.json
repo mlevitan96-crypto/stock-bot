@@ -1,0 +1,15 @@
+{
+  "total_losing_trades": 4,
+  "weak_entry_count": 2,
+  "weak_entry_pct": 50.0,
+  "exit_timing_count": 2,
+  "exit_timing_pct": 50.0,
+  "examples_good_entry_bad_exit": [
+    {"symbol": "AAPL", "entry_score": 4.2, "pnl": -30.0, "profit_giveback": 0.42, "exit_reason_code": "intel_deterioration"},
+    {"symbol": "MSFT", "entry_score": 3.8, "pnl": -15.0, "profit_giveback": 0.38, "exit_reason_code": "profit"}
+  ],
+  "examples_bad_entry": [
+    {"symbol": "XYZ", "entry_score": 2.1, "pnl": -80.0, "exit_reason_code": "stop"},
+    {"symbol": "ABC", "entry_score": 2.8, "pnl": -25.0, "exit_reason_code": "intel_deterioration"}
+  ]
+}

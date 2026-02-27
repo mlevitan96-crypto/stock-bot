@@ -1,0 +1,29 @@
+{
+  "profit": {
+    "exit_reason_code": "profit",
+    "frequency": 8,
+    "frequency_pct": 66.67,
+    "avg_realized_pnl": 82.5,
+    "avg_profit_giveback": 0.22,
+    "pct_saved_loss": 0,
+    "pct_left_money": 25.0
+  },
+  "intel_deterioration": {
+    "exit_reason_code": "intel_deterioration",
+    "frequency": 2,
+    "frequency_pct": 16.67,
+    "avg_realized_pnl": -45.0,
+    "avg_profit_giveback": 0.35,
+    "pct_saved_loss": 50.0,
+    "pct_left_money": 0
+  },
+  "stop": {
+    "exit_reason_code": "stop",
+    "frequency": 2,
+    "frequency_pct": 16.67,
+    "avg_realized_pnl": -62.0,
+    "avg_profit_giveback": null,
+    "pct_saved_loss": 100.0,
+    "pct_left_money": 0
+  }
+}
