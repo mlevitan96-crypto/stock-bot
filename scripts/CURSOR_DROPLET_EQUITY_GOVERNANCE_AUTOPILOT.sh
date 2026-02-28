@@ -79,7 +79,7 @@ python3 scripts/analysis/run_expectancy_gate_diagnostic.py \
   | tee -a "${LOG}" || true
 
 # ------------------------------------------------------------
-# A2 — LEVER SELECTION (from recommendation or FORCE_LEVER)
+# A2 — LEVER SELECTION (no-progress/alternation/force, else live vs replay)
 # ------------------------------------------------------------
 log "A2 Generating recommendation (entry vs exit)"
 python3 scripts/governance/generate_recommendation.py \
@@ -87,14 +87,23 @@ python3 scripts/governance/generate_recommendation.py \
   --out "${OUT_DIR}/recommendation.json" \
   | tee -a "${LOG}"
 
-LEVER="$(python3 -c "
-import json, os
-j=json.load(open('${OUT_DIR}/recommendation.json'))
-print(os.environ.get('FORCE_LEVER', j.get('next_lever','')).lower())
-")"
 if [ -n "${FORCE_LEVER:-}" ]; then
   LEVER="$(echo "${FORCE_LEVER}" | tr '[:upper:]' '[:lower:]')"
-  log "FORCE_LEVER=${FORCE_LEVER} -> lever=${LEVER}"
+  log "FORCE_LEVER=${FORCE_LEVER} -> lever=${LEVER} (no-progress or alternation)"
+else
+  # Replay-driven comparison: live recommendation vs top ranked_candidates.json
+  # Writes OUT_DIR/overlay_config.json and prints chosen lever (entry or exit)
+  log "A2 Replay-driven lever selection (live vs top replay candidate)"
+  LEVER="$(python3 scripts/governance/select_lever_with_replay.py \
+    --recommendation "${OUT_DIR}/recommendation.json" \
+    --baseline-dir "${BASELINE_DIR}" \
+    --out-dir "${OUT_DIR}" \
+    --run-tag "${RUN_TAG}" \
+    --base-dir "${REPO}" 2>> "${LOG}" | tail -1)"
+  if [ -z "${LEVER}" ]; then
+    LEVER="$(python3 -c "import json; j=json.load(open('${OUT_DIR}/recommendation.json')); print((j.get('next_lever') or 'exit').lower())")"
+    log "Fallback to live recommendation: lever=${LEVER}"
+  fi
 fi
 log "Lever=${LEVER}"
 if [ "${LEVER}" != "entry" ] && [ "${LEVER}" != "exit" ]; then
@@ -103,14 +112,17 @@ if [ "${LEVER}" != "entry" ] && [ "${LEVER}" != "exit" ]; then
 fi
 
 # ------------------------------------------------------------
-# A3 — APPLY ONE OVERLAY (or use replay-driven overlay if REPLAY_OVERLAY_CONFIG set)
+# A3 — APPLY ONE OVERLAY (replay stagnation, replay-driven choice, or live)
 # ------------------------------------------------------------
 if [ -n "${REPLAY_OVERLAY_CONFIG:-}" ] && [ -f "${REPLAY_OVERLAY_CONFIG}" ]; then
   cp "${REPLAY_OVERLAY_CONFIG}" "${OUT_DIR}/overlay_config.json"
   LEVER="$(python3 -c "import json; j=json.load(open('${OUT_DIR}/overlay_config.json')); print(j.get('lever','')).lower()")"
-  log "A3 Using replay-driven overlay from ${REPLAY_OVERLAY_CONFIG} -> lever=${LEVER}"
+  log "A3 Using replay overlay (stagnation) from ${REPLAY_OVERLAY_CONFIG} -> lever=${LEVER}"
+elif [ -f "${OUT_DIR}/overlay_config.json" ]; then
+  LEVER="$(python3 -c "import json; j=json.load(open('${OUT_DIR}/overlay_config.json')); print(j.get('lever','')).lower()")"
+  log "A3 Using overlay from replay-driven lever selection -> lever=${LEVER}"
 else
-  log "A3 Applying ONE overlay (${LEVER})"
+  log "A3 Applying ONE overlay (${LEVER}) from recommendation"
   python3 - <<PY
 import json, os
 lever = "${LEVER}"
