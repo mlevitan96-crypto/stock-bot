@@ -116,10 +116,10 @@ fi
 # ------------------------------------------------------------
 if [ -n "${REPLAY_OVERLAY_CONFIG:-}" ] && [ -f "${REPLAY_OVERLAY_CONFIG}" ]; then
   cp "${REPLAY_OVERLAY_CONFIG}" "${OUT_DIR}/overlay_config.json"
-  LEVER="$(python3 -c "import json; j=json.load(open('${OUT_DIR}/overlay_config.json')); print(j.get('lever','')).lower()")"
+  LEVER="$(python3 -c "import json; j=json.load(open('${OUT_DIR}/overlay_config.json')); print((j.get('lever') or 'exit').lower())")"
   log "A3 Using replay overlay (stagnation) from ${REPLAY_OVERLAY_CONFIG} -> lever=${LEVER}"
 elif [ -f "${OUT_DIR}/overlay_config.json" ]; then
-  LEVER="$(python3 -c "import json; j=json.load(open('${OUT_DIR}/overlay_config.json')); print(j.get('lever','')).lower()")"
+  LEVER="$(python3 -c "import json; j=json.load(open('${OUT_DIR}/overlay_config.json')); print((j.get('lever') or 'exit').lower())")"
   log "A3 Using overlay from replay-driven lever selection -> lever=${LEVER}"
 else
   log "A3 Applying ONE overlay (${LEVER}) from recommendation"

@@ -136,9 +136,10 @@ def main() -> int:
 
     out_file = args.out_dir / "overlay_config.json"
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    overlay["lever"] = "entry" if chosen_lever == "entry" else "exit"
     out_file.write_text(json.dumps(overlay, indent=2), encoding="utf-8")
     print(f"Lever selection: {source} -> {chosen_lever} (live_expectancy={live_expectancy}, overlay_config written)", file=sys.stderr)
-    print(chosen_lever)
+    print(overlay["lever"])
     return 0
 
 
