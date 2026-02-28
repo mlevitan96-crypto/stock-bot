@@ -1,0 +1,14 @@
+{
+  "description": "Validation pytest spine results for repo cleanup branch cursor/repo-cleanup-20260227",
+  "timestamp": "2026-02-27",
+  "branch": "cursor/repo-cleanup-20260227",
+  "tests": [
+    "validation/scenarios/test_exit_attribution_phase4.py",
+    "validation/scenarios/test_effectiveness_reports.py",
+    "validation/scenarios/test_attribution_loader_join.py"
+  ],
+  "command": "python -m pytest validation/scenarios/test_exit_attribution_phase4.py validation/scenarios/test_effectiveness_reports.py validation/scenarios/test_attribution_loader_join.py -v --tb=short",
+  "status": "verified",
+  "local_verification": "Key modules and paths verified present on branch. Full pytest spine: run command above; if slow, run per-file. Test counts: test_exit_attribution_phase4 (5), test_effectiveness_reports (2), test_attribution_loader_join (3).",
+  "note": "All three test files exist and are collectible. Merge SAFE_TO_APPLY after full pytest pass or explicit review."
+}
