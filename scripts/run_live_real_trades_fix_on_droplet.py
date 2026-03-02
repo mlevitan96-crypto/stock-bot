@@ -31,16 +31,20 @@ def main() -> int:
         root = get_root(c)
         cd = f"cd {root}"
         # 1) Ensure .env has UW_MISSING_INPUT_MODE=passthrough and INJECT_SIGNAL_TEST=0
-        #    Use grep to check; if missing, append. Do not overwrite .env.
+        #    If var exists, sed to set value; else append.
         for var, val in [("UW_MISSING_INPUT_MODE", "passthrough"), ("INJECT_SIGNAL_TEST", "0")]:
             check = f"grep -E '^{var}=' {root}/.env 2>/dev/null || true"
             out, _, _ = c._execute(f"{cd} && {check}", timeout=5)
-            if var not in (out or ""):
-                # Append (safe: no eval)
-                c._execute(f"{cd} && echo '' >> .env && echo '# Real-trades fix (run_live_real_trades_fix_on_droplet)' >> .env && echo '{var}={val}' >> .env", timeout=5)
-                print(f"  Appended {var}={val} to .env")
+            current = (out or "").strip().split("=", 1)[-1].strip() if out and "=" in (out or "") else ""
+            if current == val:
+                print(f"  .env already has {var}={val}")
+            elif out and var in (out or ""):
+                # Replace existing line (sed -i works on Linux droplet)
+                c._execute(f"{cd} && sed -i 's/^{var}=.*/{var}={val}/' .env", timeout=5)
+                print(f"  Set {var}={val} in .env")
             else:
-                print(f"  .env already has {var}")
+                c._execute(f"{cd} && echo '' >> .env && echo '# Real-trades fix' >> .env && echo '{var}={val}' >> .env", timeout=5)
+                print(f"  Appended {var}={val} to .env")
         # 2) Sync code: fetch + reset so deploy is clean
         out, err, rc = c._execute(f"{cd} && git fetch origin && git reset --hard origin/main 2>&1", timeout=90)
         print("\n--- git fetch + reset ---")
