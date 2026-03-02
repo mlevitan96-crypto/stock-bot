@@ -10,10 +10,41 @@ import math
 import time
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict, deque
 
 ENRICHED_LOG = Path("data/uw_flow_enriched.jsonl")
+
+
+def _derive_conviction_from_flow_trades(flow_trades: List[Dict]) -> Tuple[float, str]:
+    """
+    Derive conviction and sentiment from raw flow_trades (same logic as uw_flow_daemon._normalize_flow_data).
+    Used when cache has flow_trades but conviction/sentiment are missing (e.g. old cache, other writer).
+    Returns (conviction, sentiment). Conviction is 0 when no flow; positive magnitude 0.05-1.0 when flow exists.
+    """
+    if not flow_trades:
+        return (0.0, "NEUTRAL")
+    total_premium = sum(float(t.get("total_premium") or t.get("premium") or 0) for t in flow_trades)
+    call_premium = sum(
+        float(t.get("total_premium") or t.get("premium") or 0)
+        for t in flow_trades
+        if str(t.get("type", "")).upper() in ("CALL", "C")
+    )
+    put_premium = total_premium - call_premium
+    net_premium = call_premium - put_premium
+    if net_premium > 10000:
+        sentiment = "BULLISH"
+        conviction = min(1.0, 0.3 + (net_premium / 2_000_000))
+    elif net_premium < -10000:
+        sentiment = "BEARISH"
+        conviction = min(1.0, 0.3 + (abs(net_premium) / 2_000_000))
+    else:
+        sentiment = "NEUTRAL"
+        if total_premium > 0:
+            conviction = min(0.3, 0.1 + (total_premium / 5_000_000))
+        else:
+            conviction = 0.05
+    return (conviction, sentiment)
 MOTIF_STATE = Path("state/uw_motifs.json")
 AUDIT_LOG = Path("data/audit_uw_upgrade.jsonl")
 
@@ -173,10 +204,10 @@ class UWEnricher:
         Positive = front-month IV > back-month (near-term event expected)
         Range: -0.15 to +0.15
         """
-        conviction = data.get("conviction", 0.5)
+        conviction = float(data.get("conviction", 0.0) or 0.0)
         sentiment = data.get("sentiment", "NEUTRAL")
         
-        # Simulate: high conviction + directional = positive skew
+        # Simulate: high conviction + directional = positive skew (0 when no conviction)
         base_skew = (conviction - 0.5) * 0.3  # -0.15 to +0.15
         
         if sentiment in ("BULLISH", "BEARISH"):
@@ -210,7 +241,7 @@ class UWEnricher:
         <1.0 = more call volume (aggressive/bullish)
         """
         sentiment = data.get("sentiment", "NEUTRAL")
-        conviction = data.get("conviction", 0.5)
+        conviction = float(data.get("conviction", 0.0) or 0.0)
         
         # Simulate based on sentiment + conviction
         if sentiment == "BEARISH":
@@ -226,7 +257,7 @@ class UWEnricher:
         High toxicity = smart money, but also means we're late
         Penalize very high toxicity (>0.85) as we may be on wrong side
         """
-        conviction = data.get("conviction", 0.5)
+        conviction = float(data.get("conviction", 0.0) or 0.0)
         dp_premium = data.get("dark_pool", {}).get("total_notional", 0) or data.get("dark_pool", {}).get("total_premium", 0)
         
         # High conviction + large dark pool = potentially toxic
@@ -247,7 +278,7 @@ class UWEnricher:
         Range: 0.0 to 1.0
         """
         # Simulate: if conviction is very high (>0.80), assume event alignment
-        conviction = data.get("conviction", 0.5)
+        conviction = float(data.get("conviction", 0.0) or 0.0)
         
         if conviction >= 0.80:
             return 0.85  # Strong alignment
@@ -260,6 +291,8 @@ class UWEnricher:
         """
         Data freshness score (1.0 = fresh, decays over time).
         Uses FRESHNESS_HALF_LIFE_MINUTES (180): 50% decay after 180min.
+        When flow_trades exist but cache is stale, apply a minimum floor (0.25) so
+        scores are not zeroed out entirely if the daemon stopped updating.
         """
         # CRITICAL FIX: Check both _last_update (from daemon) and last_update (legacy)
         last_update = data.get("_last_update", data.get("last_update", int(time.time())))
@@ -267,8 +300,11 @@ class UWEnricher:
         age_min = age_sec / 60.0
         
         freshness = 0.5 ** (age_min / float(FRESHNESS_HALF_LIFE_MINUTES))
-        # Clamp only to numerical bounds (no forced floor).
-        return max(0.0, min(1.0, freshness))
+        freshness = max(0.0, min(1.0, freshness))
+        # If we have flow data but cache is stale, don't zero out — floor 0.25 so signals can still contribute
+        if freshness < 0.25 and (data.get("flow_trades") or data.get("trade_count")):
+            freshness = 0.25
+        return freshness
     
     def enrich_symbol(self, symbol: str, raw_data: Dict, features: List[str]) -> Dict:
         """
@@ -415,21 +451,30 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     
     enriched_symbol = enricher.enrich_symbol(symbol, data, features)
     
-    # CRITICAL: Include all cache data fields in enriched output for composite scoring
-    # These are needed by compute_composite_score_v2
-    # ROOT CAUSE FIX: When conviction is missing from cache, use 0.5 (neutral) so the primary flow
-    # component contributes; otherwise enrichment passed 0.0 and composite's "None -> 0.5" never ran,
-    # zeroing the flow term and collapsing scores (see MEMORY_BANK 7.1, uw_composite_v2 flow_conv).
-    enriched_symbol["sentiment"] = data.get("sentiment", "NEUTRAL")
-    enriched_symbol["conviction"] = data.get("conviction", 0.5)
-    # Flow metadata used by composite scoring (must distinguish "no flow" vs "low flow").
+    # CRITICAL: Include all cache data fields in enriched output for composite scoring.
+    # Conviction: 0 when no conviction/data; positive when flow supports it. Do not inflate with a neutral constant.
+    # When conviction is missing from cache but we have flow_trades, derive it (same formula as daemon).
     try:
         flow_trades = data.get("flow_trades") or []
         enriched_symbol["trade_count"] = int(data.get("trade_count", len(flow_trades)) or 0)
         enriched_symbol["flow_trades_n"] = int(len(flow_trades))
     except Exception:
+        flow_trades = []
         enriched_symbol["trade_count"] = int(enriched_symbol.get("trade_count", 0) or 0)
         enriched_symbol["flow_trades_n"] = int(enriched_symbol.get("flow_trades_n", 0) or 0)
+    conv_raw = data.get("conviction")
+    if conv_raw is not None and conv_raw != "":
+        try:
+            enriched_symbol["conviction"] = float(conv_raw)
+            enriched_symbol["sentiment"] = data.get("sentiment", "NEUTRAL")
+        except (TypeError, ValueError):
+            derived_conv, derived_sent = _derive_conviction_from_flow_trades(flow_trades)
+            enriched_symbol["conviction"] = derived_conv
+            enriched_symbol["sentiment"] = data.get("sentiment", derived_sent)
+    else:
+        derived_conv, derived_sent = _derive_conviction_from_flow_trades(flow_trades)
+        enriched_symbol["conviction"] = derived_conv
+        enriched_symbol["sentiment"] = data.get("sentiment", derived_sent) or derived_sent
     enriched_symbol["dark_pool"] = data.get("dark_pool", {})
     # Phase 5: Explicit dark-pool wiring (avoid neutral constant)
     try:

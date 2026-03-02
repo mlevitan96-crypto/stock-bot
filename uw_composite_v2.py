@@ -781,10 +781,9 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     # Base flow components (from enriched_data / cache)
     # Contract: missing/None sentiment must behave as NEUTRAL.
     flow_sent = enriched_data.get("sentiment") or "NEUTRAL"
-    # MEMORY_BANK 7.1 Priority 2: When conviction is missing use 0.5 (neutral) so the primary
-    # component (weight 2.4) contributes ~1.2 instead of 0; otherwise scores collapse.
+    # Conviction: 0 when missing (no inflation). Enrichment/daemon must provide value when there is flow.
     conv_raw = enriched_data.get("conviction", None)
-    flow_conv = _to_num(conv_raw) if conv_raw is not None else 0.5
+    flow_conv = _to_num(conv_raw) if conv_raw is not None else 0.0
     flow_sign = _sign_from_sentiment(flow_sent)
     
     # Dark pool (Phase 5: use 1h notional, not neutral constant)

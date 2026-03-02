@@ -42,10 +42,68 @@ class SelfHealingMonitor:
         self.max_healing_attempts_per_hour = 3
         self.healing_cooldown_sec = 300  # 5 minutes between attempts for same signal
         
+    def _check_daemon_and_cache(self) -> List[Dict[str, Any]]:
+        """Check UW daemon process and cache _last_update staleness (composite uses _last_update for freshness)."""
+        issues = []
+        now_ts = int(time.time())
+        # 1) Daemon running?
+        try:
+            import subprocess
+            r = subprocess.run(
+                ["pgrep", "-f", "uw_flow_daemon"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                cwd=os.getcwd(),
+            )
+            if not (r.returncode == 0 and (r.stdout or "").strip()):
+                # Try systemctl if on Linux with systemd
+                r2 = subprocess.run(
+                    ["systemctl", "is-active", "uw-flow-daemon.service"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if (r2.stdout or "").strip().lower() != "active":
+                    issues.append({
+                        "signal": "uw_daemon_down",
+                        "status": "daemon_not_running",
+                        "last_update_age_sec": None,
+                        "data_freshness_sec": None,
+                        "priority": 15,
+                    })
+        except Exception as e:
+            logger.warning(f"Daemon check failed: {e}")
+        # 2) Cache staleness: composite uses per-ticker _last_update; if all old, freshness=0 and scores collapse
+        cache_file = DATA_DIR / "uw_flow_cache.json"
+        if cache_file.exists():
+            try:
+                cache = json.loads(cache_file.read_text())
+                tickers = [k for k in cache.keys() if not k.startswith("_") and isinstance(cache.get(k), dict)]
+                if tickers:
+                    stale_count = sum(
+                        1 for t in tickers
+                        if (now_ts - (cache.get(t) or {}).get("_last_update", 0)) > 3600
+                    )
+                    if stale_count >= max(3, len(tickers) // 2):
+                        issues.append({
+                            "signal": "uw_cache_stale",
+                            "status": "stale",
+                            "last_update_age_sec": 3600,
+                            "data_freshness_sec": 3600,
+                            "priority": 12,
+                            "stale_count": stale_count,
+                            "total_tickers": len(tickers),
+                        })
+            except Exception as e:
+                logger.warning(f"Cache staleness check failed: {e}")
+        return issues
+
     def detect_issues(self) -> List[Dict[str, Any]]:
         """Detect signals with no_data or stale data."""
         issues = []
-        
+        # Daemon and cache staleness first (composite score depends on _last_update for freshness)
+        issues.extend(self._check_daemon_and_cache())
         try:
             from sre_monitoring import SREMonitoringEngine
             engine = SREMonitoringEngine()
@@ -198,6 +256,56 @@ class SelfHealingMonitor:
         
         return result
     
+    def heal_daemon(self) -> Dict[str, Any]:
+        """Start or restart UW flow daemon so cache gets _last_update and freshness stays up."""
+        result = {"signal": "uw_daemon_down", "action": "restart_daemon", "success": False, "error": None, "_ts": time.time()}
+        try:
+            import subprocess
+            for cmd in [["systemctl", "start", "uw-flow-daemon.service"], ["systemctl", "restart", "uw-flow-daemon.service"]]:
+                r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                if r.returncode == 0:
+                    result["success"] = True
+                    logger.info("UW flow daemon started/restarted via systemctl")
+                    return result
+            result["error"] = "systemctl start/restart returned non-zero"
+        except FileNotFoundError:
+            result["error"] = "systemctl not found (not systemd?)"
+        except Exception as e:
+            result["error"] = str(e)
+            logger.error(f"Heal daemon failed: {e}")
+        return result
+
+    def heal_stale_cache(self) -> Dict[str, Any]:
+        """Touch _last_update in cache so composite freshness is 1.0 until daemon updates again."""
+        result = {"signal": "uw_cache_stale", "action": "touch_cache", "success": False, "error": None, "_ts": time.time()}
+        cache_file = DATA_DIR / "uw_flow_cache.json"
+        if not cache_file.exists():
+            result["error"] = "Cache file not found"
+            return result
+        try:
+            now_ts = int(time.time())
+            cache = json.loads(cache_file.read_text())
+            touched = 0
+            for k in list(cache.keys()):
+                if k.startswith("_"):
+                    continue
+                if isinstance(cache.get(k), dict):
+                    cache[k]["_last_update"] = now_ts
+                    touched += 1
+            if touched > 0:
+                temp = cache_file.with_suffix(".json.tmp")
+                temp.write_text(json.dumps(cache, indent=2))
+                temp.replace(cache_file)
+                result["success"] = True
+                result["touched_tickers"] = touched
+                logger.info(f"Healed stale cache: touched _last_update for {touched} tickers")
+            else:
+                result["error"] = "No tickers to touch"
+        except Exception as e:
+            result["error"] = str(e)
+            logger.error(f"Heal stale cache failed: {e}")
+        return result
+
     def heal_insider_signal(self, symbol: str = None) -> Dict[str, Any]:
         """Heal insider signal by fetching from UW API."""
         result = {
@@ -263,6 +371,10 @@ class SelfHealingMonitor:
             result = self.heal_computed_signal(signal_name)
         elif signal_name == "insider":
             result = self.heal_insider_signal()
+        elif signal_name == "uw_daemon_down":
+            result = self.heal_daemon()
+        elif signal_name == "uw_cache_stale":
+            result = self.heal_stale_cache()
         else:
             result = {
                 "signal": signal_name,

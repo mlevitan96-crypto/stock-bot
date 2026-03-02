@@ -69,6 +69,10 @@ def main() -> int:
         if rc2 != 0:
             print("Restart failed", file=sys.stderr)
             return 1
+        # Ensure UW flow daemon is running (scores depend on fresh cache / _last_update)
+        out3, err3, rc3 = c._execute(f"{cd} && sudo systemctl start uw-flow-daemon.service 2>/dev/null; sudo systemctl restart uw-flow-daemon.service 2>&1", timeout=30)
+        print("\n--- uw-flow-daemon (start + restart) ---")
+        print(out3 or err3 or "ok")
         print("\nLive fix applied. Wait ~90s then: tail -1 logs/run.jsonl")
     return 0
 

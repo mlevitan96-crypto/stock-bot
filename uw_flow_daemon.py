@@ -1089,11 +1089,11 @@ class UWFlowDaemon:
             if age_sec < 2 * 3600:  # Less than 2 hours old
                 print(f"[UW-DAEMON] Preserving existing flow_trades for {ticker} ({int(age_sec/60)} min old, {len(existing_flow_trades)} trades)", flush=True)
                 data["flow_trades"] = existing_flow_trades  # Preserve old trades
-                # Also preserve old sentiment/conviction if new normalization failed
-                if not data.get("sentiment") and cache[ticker].get("sentiment"):
-                    data["sentiment"] = cache[ticker]["sentiment"]
-                if not data.get("conviction") and cache[ticker].get("conviction"):
-                    data["conviction"] = cache[ticker]["conviction"]
+                # Always derive conviction/sentiment from flow_trades when we have them (ensures a number is always written)
+                norm = self._normalize_flow_data(existing_flow_trades, ticker)
+                if norm:
+                    data["sentiment"] = norm.get("sentiment", "NEUTRAL")
+                    data["conviction"] = norm.get("conviction", 0.0)
         
         cache[ticker].update(data)
         cache[ticker]["_last_update"] = int(time.time())
@@ -1222,7 +1222,14 @@ class UWFlowDaemon:
                 # Always store dark_pool (even if empty) so we know it was polled
                 # If normalization returned empty dict, create minimal structure
                 if not dp_normalized:
-                    dp_normalized = {"sentiment": "NEUTRAL", "total_premium": 0.0, "print_count": 0, "last_update": int(time.time())}
+                    dp_normalized = {
+                        "sentiment": "NEUTRAL",
+                        "total_premium": 0.0,
+                        "total_notional": 0.0,
+                        "total_notional_1h": 0.0,
+                        "print_count": 0,
+                        "last_update": int(time.time()),
+                    }
                 # Write dark_pool data (nested is fine - main.py reads it as cache_data.get("dark_pool", {}))
                 self._update_cache(ticker, {"dark_pool": dp_normalized})
             
