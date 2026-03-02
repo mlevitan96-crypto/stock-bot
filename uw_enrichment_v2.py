@@ -417,9 +417,11 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     
     # CRITICAL: Include all cache data fields in enriched output for composite scoring
     # These are needed by compute_composite_score_v2
-    # ROOT CAUSE FIX: Must include sentiment and conviction - these are required for flow_component calculation
+    # ROOT CAUSE FIX: When conviction is missing from cache, use 0.5 (neutral) so the primary flow
+    # component contributes; otherwise enrichment passed 0.0 and composite's "None -> 0.5" never ran,
+    # zeroing the flow term and collapsing scores (see MEMORY_BANK 7.1, uw_composite_v2 flow_conv).
     enriched_symbol["sentiment"] = data.get("sentiment", "NEUTRAL")
-    enriched_symbol["conviction"] = data.get("conviction", 0.0)
+    enriched_symbol["conviction"] = data.get("conviction", 0.5)
     # Flow metadata used by composite scoring (must distinguish "no flow" vs "low flow").
     try:
         flow_trades = data.get("flow_trades") or []
