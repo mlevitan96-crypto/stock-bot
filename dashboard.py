@@ -2459,13 +2459,14 @@ DASHBOARD_HTML = """
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
                             const entryScore = pos.entry_score !== undefined && pos.entry_score !== null ? pos.entry_score.toFixed(2) : '0.00';
                             const currentScoreEvaluated = pos.current_signal_evaluated === true;
+                            const currentScoreStale = pos.current_score_likely_stale === true;
                             const currentScore = currentScoreEvaluated && pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : (currentScoreEvaluated ? '0.00' : 'N/A');
                             const scoreClass = pos.entry_score > 0 ? '' : 'warning';
-                            
-                            // Calculate signal decay for visual indicator (only when signal was evaluated)
+                            const currentScoreTitle = currentScoreStale ? ' title="Current score may be stale (low flow data for this symbol). Entry was high; display uses live composite which can be low without recent flow."' : '';
+                            // Calculate signal decay for visual indicator (only when signal was evaluated); don't treat as decay if likely stale
                             let currentScoreClass = '';
                             let currentScoreStyle = '';
-                            if (currentScoreEvaluated && pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
+                            if (!currentScoreStale && currentScoreEvaluated && pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
                                 const decayRatio = pos.current_score / pos.entry_score;
                                 if (decayRatio < 0.6) {
                                     currentScoreClass = 'warning';
@@ -2474,6 +2475,8 @@ DASHBOARD_HTML = """
                                     currentScoreClass = 'warning';
                                     currentScoreStyle = 'color: #f59e0b;';
                                 }
+                            } else if (currentScoreStale) {
+                                currentScoreStyle = 'color: #6b7280;';
                             }
                             
                             html += '<tr data-symbol="' + pos.symbol + '">';
@@ -2487,7 +2490,7 @@ DASHBOARD_HTML = """
                             html += '<td class="' + pnlClass + '">' + formatCurrency(pos.unrealized_pnl) + '</td>';
                             html += '<td class="' + pnlClass + '">' + formatPercent(pos.unrealized_pnl_pct) + '</td>';
                             html += '<td class="' + scoreClass + '" style="' + (pos.entry_score === 0 ? 'color: #ef4444; font-weight: bold;' : '') + '">' + entryScore + '</td>';
-                            html += '<td class="' + currentScoreClass + '" style="' + currentScoreStyle + '">' + currentScore + '</td>';
+                            html += '<td class="' + currentScoreClass + '" style="' + currentScoreStyle + '"' + currentScoreTitle + '>' + currentScore + (currentScoreStale ? ' <span style="font-size:0.75em;color:#6b7280">(stale?)</span>' : '') + '</td>';
                             const prevScore = currentScoreEvaluated && pos.prev_score !== undefined && pos.prev_score !== null ? pos.prev_score.toFixed(2) : 'N/A';
                             const deltaVal = currentScoreEvaluated && pos.signal_delta !== undefined && pos.signal_delta !== null ? (pos.signal_delta >= 0 ? '+' : '') + pos.signal_delta.toFixed(2) : 'N/A';
                             const trendVal = currentScoreEvaluated && pos.signal_trend ? pos.signal_trend : 'N/A';
@@ -2533,9 +2536,14 @@ DASHBOARD_HTML = """
                                     cells[9].style.fontWeight = '';
                                 }
                                 const currentScoreEvaluated = pos.current_signal_evaluated === true;
+                                const currentScoreStale = pos.current_score_likely_stale === true;
                                 const currentScore = currentScoreEvaluated && pos.current_score !== undefined && pos.current_score !== null ? pos.current_score.toFixed(2) : (currentScoreEvaluated ? '0.00' : 'N/A');
-                                cells[10].textContent = currentScore;
-                                if (currentScoreEvaluated && pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
+                                cells[10].textContent = currentScore + (currentScoreStale ? ' (stale?)' : '');
+                                cells[10].title = currentScoreStale ? 'Current score may be stale (low flow data for this symbol).' : '';
+                                if (currentScoreStale) {
+                                    cells[10].style.color = '#6b7280';
+                                    cells[10].style.fontWeight = '';
+                                } else if (currentScoreEvaluated && pos.entry_score > 0 && pos.current_score !== undefined && pos.current_score !== null) {
                                     const decayRatio = pos.current_score / pos.entry_score;
                                     if (decayRatio < 0.6) {
                                         cells[10].style.color = '#ef4444';
@@ -3398,6 +3406,14 @@ def _api_positions_impl():
                 print(f"[Dashboard] Warning: Failed to compute current score for {symbol}: {e}", flush=True)
             if not current_signal_evaluated:
                 print(f"[Dashboard] Warning: No signal evaluation for open position {symbol}; show as N/A (run engine so open_position_refresh runs).", flush=True)
+        # When entry was high but current score is very low, signal data may be stale (e.g. injected test or weak flow).
+        current_score_val = float(current_score) if current_score is not None else None
+        current_score_likely_stale = (
+            current_signal_evaluated
+            and entry_score >= 3.0
+            and current_score_val is not None
+            and current_score_val < 0.5
+        )
         pos_list.append({
             "symbol": symbol,
             "side": "long" if float(p.qty) > 0 else "short",
@@ -3408,8 +3424,9 @@ def _api_positions_impl():
             "unrealized_pnl": float(p.unrealized_pl),
             "unrealized_pnl_pct": float(p.unrealized_plpc) * 100,
             "entry_score": float(entry_score),
-            "current_score": float(current_score) if current_score is not None else None,
+            "current_score": current_score_val,
             "current_signal_evaluated": current_signal_evaluated,
+            "current_score_likely_stale": current_score_likely_stale,
             "prev_score": float(prev_score) if prev_score is not None else None,
             "signal_delta": float(signal_delta) if signal_delta is not None else None,
             "signal_trend": signal_trend,
@@ -3452,12 +3469,29 @@ def _api_positions_impl():
     except Exception as e:
         print(f"[Dashboard] Warning: Failed to load signal_correlation_cache: {e}", flush=True)
 
+    # Day P&L: prefer session baseline (state/daily_start_equity.json) for accuracy.
+    # Broker day_pnl (equity - last_equity) can be misleading if last_equity is from broker's day boundary or stale.
+    day_pnl = float(getattr(account, "equity", 0) or 0) - float(getattr(account, "last_equity", 0) or 0)
+    try:
+        from datetime import datetime as _dt, timezone as _tz
+        _date_str = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+        _p = (Path(_DASHBOARD_ROOT) / "state" / "daily_start_equity.json").resolve()
+        if _p.exists():
+            _data = json.loads(_p.read_text(encoding="utf-8", errors="replace"))
+            if isinstance(_data, dict) and str(_data.get("date", "")) == _date_str:
+                _start = _data.get("equity")
+                if _start is not None:
+                    _start = float(_start)
+                    day_pnl = float(getattr(account, "equity", 0) or 0) - _start
+    except Exception:
+        pass
+
     return {
         "positions": pos_list,
         "signal_correlation": signal_correlation,
         "total_value": float(account.portfolio_value),
         "unrealized_pnl": sum(p["unrealized_pnl"] for p in pos_list),
-        "day_pnl": float(account.equity) - float(account.last_equity),
+        "day_pnl": round(day_pnl, 2),
         "missed_alpha_usd": round(missed_alpha_usd, 2),
     }
 

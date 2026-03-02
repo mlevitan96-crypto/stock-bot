@@ -136,3 +136,24 @@ If **scores are consistently below 2.7** (and/or freshness/toxicity/exhaustion b
 ---
 
 **Summary:** The pipeline from signal to execution is intact; the bottleneck is that **no composite cluster passes `should_enter_v2`** (scores below 2.7 and/or other gate conditions). Fixes should target raising composite scores (data, weights, freshness) or, if desired, revisiting entry thresholds with proper governance.
+
+---
+
+## 7. Signal injection test (2026-03-02)
+
+With **INJECT_SIGNAL_TEST=1** and a synthetic cluster (SPY, score 4.0) with **\_injected_test** (skip UW/survivorship/signal_quality):
+
+- **First cycle:** Blocked by **uw_deferred** (repair_failed_defer) — UW root-cause quality missing.
+- **Later cycles (without bypass):** Blocked by **expectancy_gate: score_floor_breach** — `apply_uw_to_score` returned a penalized score, so `composite_exec_score` dropped below MIN_EXEC_SCORE and the expectancy gate blocked.
+- **With bypass:** **orders=1** — execution path works; one order placed and filled.
+
+So in addition to low composite scores (addressed by freshness 180min + conviction 0.5 default), **two** gates can block real candidates: (1) **UW defer** when UW quality data is missing or repair fails; (2) **Expectancy gate** when the score passed to the gate is the penalized score (after apply_uw_to_score) and is below the floor. For real trades, ensure composite scores are above threshold and/or adjust UW defer/penalty policy so good signals are not over-penalized.
+
+---
+
+## 8. Fixes applied (2026-03-02) — multi-model board
+
+- **UW passthrough (paper):** `board/eod/live_entry_adjustments.py` — when `UW_MISSING_INPUT_MODE=passthrough` and there is no UW root-cause data (or no candidate for the symbol), `apply_uw_to_score` returns the score unchanged so clusters are not deferred or penalized. Set on droplet: `UW_MISSING_INPUT_MODE=passthrough`.
+- **Board diagnostic:** `scripts/run_real_trades_board_diagnostic.py` — Prosecutor / Defender / SRE / Board Verdict; writes `reports/audit/REAL_TRADES_BOARD_VERDICT.md`. Run on droplet (or `scripts/run_real_trades_board_diagnostic_via_droplet.py` from local) to get immediate actions.
+- **Optional base threshold:** `uw_composite_v2.get_threshold()` — env `ENTRY_THRESHOLD_BASE` overrides base entry threshold (e.g. 2.5) so more symbols can pass the composite gate if scores are borderline.
+- **Injection test off:** Ensure `INJECT_SIGNAL_TEST=0` or unset on droplet so only real composite signals produce orders.

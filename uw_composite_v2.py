@@ -1764,6 +1764,11 @@ def compute_composite_score_v2(
 
     return base
 
+
+# Alias for dashboard and scripts that call v3; engine uses v2.
+compute_composite_score_v3 = compute_composite_score_v2
+
+
 def _compute_composite_score_legacy_v2(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL") -> Dict[str, Any]:
     """
     Legacy composite scoring implementation (deprecated).
@@ -1978,17 +1983,24 @@ def _compute_composite_score_legacy_v2(symbol: str, enriched_data: Dict, regime:
 def get_threshold(symbol: str, mode: str = "base") -> float:
     """
     Get hierarchical threshold for symbol
-    Falls back to mode-based threshold if no hierarchical data
+    Falls back to mode-based threshold if no hierarchical data.
+    Env ENTRY_THRESHOLD_BASE overrides base threshold (e.g. 2.5 for paper to allow more signals).
     """
+    default = ENTRY_THRESHOLDS[mode]
+    try:
+        env_base = os.environ.get("ENTRY_THRESHOLD_BASE")
+        if env_base is not None and mode == "base":
+            default = float(env_base)
+    except (TypeError, ValueError):
+        pass
     if THRESHOLD_STATE.exists():
         try:
             with THRESHOLD_STATE.open("r") as f:
                 thresholds = json.load(f)
-                return thresholds.get(symbol, ENTRY_THRESHOLDS[mode])
-        except:
+                return thresholds.get(symbol, default)
+        except Exception:
             pass
-    
-    return ENTRY_THRESHOLDS[mode]
+    return default
 
 @global_failure_wrapper("gate")
 def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) -> bool:

@@ -19,9 +19,9 @@ CONSTRAINT_OVERRIDES_LOG = REPO_ROOT / "logs" / "constraint_overrides.jsonl"
 UW_EXPERIMENT_DIR = REPO_ROOT / "reports" / "uw_experiment"
 UW_PENALTY_EVENTS_JSONL = UW_EXPERIMENT_DIR / "uw_penalty_events.jsonl"
 
-# Paper-only: when UW inputs are missing, "reject" (default) vs "penalize" (bounded penalty, emit score_after)
+# Paper-only: when UW inputs are missing, "reject" (default) vs "penalize" (bounded penalty) vs "passthrough" (no block, preserve score)
 UW_MISSING_INPUT_MODE = os.environ.get("UW_MISSING_INPUT_MODE", "reject").strip().lower()
-if UW_MISSING_INPUT_MODE not in ("reject", "penalize"):
+if UW_MISSING_INPUT_MODE not in ("reject", "penalize", "passthrough"):
     UW_MISSING_INPUT_MODE = "reject"
 UW_MISSING_INPUT_PENALTY = float(os.environ.get("UW_MISSING_INPUT_PENALTY", "0.75"))
 
@@ -185,6 +185,12 @@ def apply_uw_to_score(
                 cand_quality = float(cand_quality)
             break
     use_quality = cand_quality if cand_quality is not None else (float(quality) if quality is not None else None)
+
+    # Paper: when no UW root-cause data (board/eod not run or no candidate), passthrough preserves score so real clusters can trade.
+    if use_quality is None and UW_MISSING_INPUT_MODE == "passthrough":
+        details["uw_passthrough"] = True
+        details["reason"] = "no_uw_root_cause_data"
+        return composite_score, details
 
     # --- Failure path: missing inputs or quality < threshold ---
     # Run diagnostics and emit exactly one failure class.
