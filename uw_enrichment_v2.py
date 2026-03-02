@@ -35,12 +35,12 @@ except Exception:
     StateFiles = None  # type: ignore
     read_json = None  # type: ignore
 
-# SCORING PIPELINE FIX (Priority 1): Increased decay_min from 45 to 180 minutes
-# See SIGNAL_SCORE_PIPELINE_AUDIT.md for details
-# This reduces score decay from 50% after 45min to 50% after 180min
+# SCORING PIPELINE FIX (Priority 1): Increased decay from 45min to 180min half-life
+# See SIGNAL_SCORE_PIPELINE_AUDIT.md and MEMORY_BANK 7.1. Freshness formula uses this;
+# 50% decay after 180min (was incorrectly 15min, which crushed scores within ~30min).
 DECAY_MINUTES = 180
-# Institutional Remediation Phase 3: aggressive half-life freshness to prevent "ghost signal" trading
-FRESHNESS_HALF_LIFE_MINUTES = 15.0
+# Half-life for freshness decay: 0.5^(age_min / HALF_LIFE) => 50% at 180min
+FRESHNESS_HALF_LIFE_MINUTES = 180.0
 
 def audit(event: str, **kwargs):
     """Log enrichment audit events"""
@@ -258,11 +258,8 @@ class UWEnricher:
     
     def compute_freshness(self, data: Dict, decay_min: int = None) -> float:
         """
-        Data freshness score (1.0 = fresh, decays over time)
-        Institutional Remediation Phase 3:
-        freshness = 0.5 ** (age_min / 15)
-
-        Note: decay_min param is retained only for backward compatibility; it is no longer used.
+        Data freshness score (1.0 = fresh, decays over time).
+        Uses FRESHNESS_HALF_LIFE_MINUTES (180): 50% decay after 180min.
         """
         # CRITICAL FIX: Check both _last_update (from daemon) and last_update (legacy)
         last_update = data.get("_last_update", data.get("last_update", int(time.time())))
