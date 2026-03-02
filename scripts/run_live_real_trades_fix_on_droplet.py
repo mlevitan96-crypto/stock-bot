@@ -30,9 +30,9 @@ def main() -> int:
     with DropletClient() as c:
         root = get_root(c)
         cd = f"cd {root}"
-        # 1) Ensure .env has UW_MISSING_INPUT_MODE=passthrough and INJECT_SIGNAL_TEST=0
-        #    If var exists, sed to set value; else append.
-        for var, val in [("UW_MISSING_INPUT_MODE", "passthrough"), ("INJECT_SIGNAL_TEST", "0")]:
+        # 1) Ensure .env has UW_MISSING_INPUT_MODE=passthrough, INJECT_SIGNAL_TEST=0, DISABLE_ADAPTIVE_WEIGHTS=1
+        #    Adaptive weights had crushed all components to 0.25 → scores < 1.0 → 0 clusters. Disable to use base WEIGHTS_V3.
+        for var, val in [("UW_MISSING_INPUT_MODE", "passthrough"), ("INJECT_SIGNAL_TEST", "0"), ("DISABLE_ADAPTIVE_WEIGHTS", "1")]:
             check = f"grep -E '^{var}=' {root}/.env 2>/dev/null || true"
             out, _, _ = c._execute(f"{cd} && {check}", timeout=5)
             current = (out or "").strip().split("=", 1)[-1].strip() if out and "=" in (out or "") else ""

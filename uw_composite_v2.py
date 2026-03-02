@@ -124,12 +124,17 @@ def get_adaptive_weights(regime: str = "neutral") -> Dict[str, float]:
     
     V2.0: Now accepts regime parameter for regime-specific weights.
     
+    When DISABLE_ADAPTIVE_WEIGHTS=1 (env), returns None so composite uses WEIGHTS_V3 base weights.
+    Use when adaptive has crushed weights (e.g. all 0.25) and no symbols pass the entry gate.
+    
     Args:
         regime: Market regime ("RISK_ON", "RISK_OFF", "MIXED", "NEUTRAL")
     
     Returns:
         Dictionary of component -> effective weight, or None if optimizer not available
     """
+    if os.environ.get("DISABLE_ADAPTIVE_WEIGHTS", "").strip().lower() in ("1", "true", "yes"):
+        return None
     optimizer = _get_adaptive_optimizer()
     if optimizer:
         return optimizer.get_weights_for_composite(regime)
