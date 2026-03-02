@@ -30,9 +30,14 @@ def main() -> int:
     with DropletClient() as c:
         root = get_root(c)
         cd = f"cd {root}"
-        # 1) Ensure .env has UW_MISSING_INPUT_MODE=passthrough, INJECT_SIGNAL_TEST=0, DISABLE_ADAPTIVE_WEIGHTS=1
-        #    Adaptive weights had crushed all components to 0.25 → scores < 1.0 → 0 clusters. Disable to use base WEIGHTS_V3.
-        for var, val in [("UW_MISSING_INPUT_MODE", "passthrough"), ("INJECT_SIGNAL_TEST", "0"), ("DISABLE_ADAPTIVE_WEIGHTS", "1")]:
+        # 1) Ensure .env has UW_MISSING_INPUT_MODE=passthrough, INJECT_SIGNAL_TEST=0, DISABLE_ADAPTIVE_WEIGHTS=1,
+        #    ENTRY_THRESHOLD_BASE=0.94 (so best symbols ~0.94 can pass until adaptive is reset).
+        for var, val in [
+            ("UW_MISSING_INPUT_MODE", "passthrough"),
+            ("INJECT_SIGNAL_TEST", "0"),
+            ("DISABLE_ADAPTIVE_WEIGHTS", "1"),
+            ("ENTRY_THRESHOLD_BASE", "0.94"),
+        ]:
             check = f"grep -E '^{var}=' {root}/.env 2>/dev/null || true"
             out, _, _ = c._execute(f"{cd} && {check}", timeout=5)
             current = (out or "").strip().split("=", 1)[-1].strip() if out and "=" in (out or "") else ""
@@ -45,6 +50,11 @@ def main() -> int:
             else:
                 c._execute(f"{cd} && echo '' >> .env && echo '# Real-trades fix' >> .env && echo '{var}={val}' >> .env", timeout=5)
                 print(f"  Appended {var}={val} to .env")
+        # 1b) If adaptive weights file has crushed multipliers (options_flow 0.25), disable by renaming
+        c._execute(
+            f"{cd} && (grep -q '\"current\": 0.25' state/signal_weights.json 2>/dev/null && mv state/signal_weights.json state/signal_weights.json.bak_crushed && echo 'Renamed crushed weights file') || true",
+            timeout=5,
+        )
         # 2) Sync code: fetch + reset so deploy is clean
         out, err, rc = c._execute(f"{cd} && git fetch origin && git reset --hard origin/main 2>&1", timeout=90)
         print("\n--- git fetch + reset ---")
