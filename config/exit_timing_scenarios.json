@@ -1,10 +1,18 @@
 {
-  "version": "2026-02-07",
-  "intent": "Explore exit timing (hours->days) with graduated mode push. LIVE mild, PAPER stronger, SHADOW strongest.",
+  "version": "2026-03-02",
+  "intent": "Explore exit timing (hours->days) with graduated mode push. LIVE mild, PAPER stronger, SHADOW strongest. minhold_5_promoted = exit research recommendation (5 min floor).",
   "scenarios": {
     "baseline_current": {
       "description": "No additional hold floor; preserve existing behavior (control).",
       "params": {}
+    },
+
+    "minhold_5_promoted": {
+      "description": "Exit research recommendation: 5 min minimum hold before signal_decay/pressure exit. Promoted 2026-03-02 from reports/board/EXIT_POLICY_RESEARCH_RECOMMENDATION.md.",
+      "params": {
+        "LIVE": { "min_hold_seconds_floor": 300 },
+        "PAPER": { "min_hold_seconds_floor": 300 }
+      }
     },
 
     "live_50pct_push": {

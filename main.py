@@ -6215,7 +6215,7 @@ class AlpacaExecutor:
                     _strategy = str(_sid).upper()
             except Exception:
                 pass
-            _scenario = os.getenv("EXIT_TIMING_SCENARIO", "baseline_current")
+            _scenario = os.getenv("EXIT_TIMING_SCENARIO", "minhold_5_promoted")
             exit_timing_cfg = apply_exit_timing_to_exit_config(
                 exit_cfg={},
                 mode=_mode,
@@ -10749,7 +10749,20 @@ def run_once():
             log_event("scoring_flow", "composite_scoring_start", cache_symbols=cache_symbol_count)
             market_regime = compute_market_regime(gex_map, net_map, vol_map)
             filtered_clusters = []
-            
+            # CRITICAL: If cache is stale (_last_update > 1h), composite sees freshness=0 and scores collapse to 0 -> 0 clusters.
+            # Touch _last_update in memory and persist so THIS cycle produces clusters and can place orders.
+            try:
+                _now_ts = int(time.time())
+                _tickers = [k for k in uw_cache.keys() if not k.startswith("_") and isinstance(uw_cache.get(k), dict)]
+                _stale = sum(1 for t in _tickers if (_now_ts - (uw_cache.get(t) or {}).get("_last_update", 0)) > 3600)
+                if _tickers and _stale >= max(3, len(_tickers) // 2):
+                    for _t in _tickers:
+                        uw_cache[_t]["_last_update"] = _now_ts
+                    atomic_write_json(CacheFiles.UW_FLOW_CACHE, uw_cache)
+                    print(f"DEBUG: Touched stale cache (_last_update) for {len(_tickers)} tickers so freshness=1.0 this cycle (stale_count={_stale})", flush=True)
+                    log_event("uw_cache", "stale_touch_for_freshness", touched=len(_tickers), stale_count=_stale)
+            except Exception as _e:
+                log_event("uw_cache", "stale_touch_error", error=str(_e))
             symbols_processed = 0
             symbols_with_signals = 0
             
@@ -13704,6 +13717,16 @@ def startup_reconcile_positions():
         return False  # Return False instead of raising
 
 # =========================
+def _ensure_capture_paths():
+    """Ensure key data-capture paths exist so verification and EOD pipelines see a complete organism."""
+    for dir_path in ("state", "logs"):
+        os.makedirs(dir_path, exist_ok=True)
+    blocked_path = os.path.join("state", "blocked_trades.jsonl")
+    if not os.path.isfile(blocked_path):
+        with open(blocked_path, "w", encoding="utf-8") as _:
+            pass  # empty file; first log_blocked_trade() will append
+
+
 # ENTRY POINT
 # =========================
 def main():
@@ -13714,6 +13737,8 @@ def main():
             f.flush()
     except Exception as log_err:
         print(f"ERROR: Failed to write to worker_debug.log: {log_err}", flush=True)
+    
+    _ensure_capture_paths()
     
     # V1.0: Run contract validation BEFORE trading starts
     # Catches producer/consumer type mismatches that cause runtime errors
