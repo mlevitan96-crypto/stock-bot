@@ -11464,6 +11464,37 @@ def run_once():
         global _last_market_regime
         _last_market_regime = market_regime
         
+        # INJECT_SIGNAL_TEST: When set to 1 and we have 0 clusters, inject one synthetic cluster (SPY, score 4.0)
+        # to verify the execution path and find any gate blocking trades. See reports/audit/ALL_GATES_CHECKLIST.md
+        if os.environ.get("INJECT_SIGNAL_TEST") == "1" and len(clusters) == 0:
+            _inj_ts = int(time.time())
+            _inj_symbol = os.environ.get("INJECT_SIGNAL_SYMBOL", "SPY")
+            synthetic = {
+                "ticker": _inj_symbol,
+                "direction": "bullish",
+                "sentiment": "BULLISH",
+                "composite_score": 4.0,
+                "composite_meta": {"score": 4.0, "freshness": 1.0, "toxicity": 0.0},
+                "source": "composite_v3",
+                "count": 1,
+                "total_premium": 0,
+                "start_ts": _inj_ts,
+                "expanded_intel": {},
+                "features_for_learning": {},
+            }
+            clusters = [synthetic]
+            if _inj_symbol not in confirm_map:
+                confirm_map[_inj_symbol] = score_confirmation_layers(
+                    symbol=_inj_symbol,
+                    gex=gex_map.get(_inj_symbol, {}),
+                    dp_levels=dp_map.get(_inj_symbol, []),
+                    net_impact_map=net_map,
+                    vol=vol_map.get(_inj_symbol, {}),
+                    ovl=ovl_map.get(_inj_symbol, []),
+                )
+            print(f"INJECT_SIGNAL_TEST: Injected 1 synthetic cluster ({_inj_symbol}, score=4.0) to test execution path", flush=True)
+            log_event("inject_signal_test", "injected_one_cluster", symbol=_inj_symbol, score=4.0)
+        
         print(f"DEBUG: About to call decide_and_execute with {len(clusters)} clusters, regime={market_regime}", flush=True)
         if len(clusters) == 0:
             print("⚠️  WARNING: No clusters to execute - check composite scoring logs above", flush=True)
