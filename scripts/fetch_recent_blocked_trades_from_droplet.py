@@ -67,7 +67,10 @@ def main() -> int:
         print(f"UW daemon (uw-flow-daemon.service): {daemon_status}")
         if daemon_status != "active":
             out3, _, _ = c._execute("systemctl status uw-flow-daemon.service --no-pager 2>&1 | head -15", timeout=5)
-            print(out3 or "")
+            try:
+                print((out3 or "").encode("utf-8", errors="replace").decode("utf-8"))
+            except Exception:
+                print(out3 or "")
     return 0
 
 
