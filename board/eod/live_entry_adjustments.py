@@ -186,13 +186,20 @@ def apply_uw_to_score(
             break
     use_quality = cand_quality if cand_quality is not None else (float(quality) if quality is not None else None)
 
-    # Paper: when no UW root-cause data (board/eod not run or no candidate), passthrough preserves score so real clusters can trade.
-    if use_quality is None and UW_MISSING_INPUT_MODE == "passthrough":
+    # Paper/live: passthrough preserves composite score so composite-approved clusters can reach expectancy gate and trade.
+    # Read at call time so .env / env is respected even when module was imported before load_dotenv.
+    uw_mode = os.environ.get("UW_MISSING_INPUT_MODE", "reject").strip().lower()
+    if uw_mode not in ("reject", "penalize", "passthrough"):
+        uw_mode = "reject"
+    if uw_mode == "passthrough":
         details["uw_passthrough"] = True
-        details["reason"] = "no_uw_root_cause_data"
+        details["reason"] = "no_uw_root_cause_data" if use_quality is None else "uw_low_quality_passthrough"
+        if use_quality is not None:
+            details["uw_signal_quality_score"] = use_quality
         return composite_score, details
 
-    # --- Failure path: missing inputs or quality < threshold ---
+    # --- Failure path: missing inputs or quality < threshold (only when not passthrough) ---
+    # (UW_MISSING_INPUT_MODE from module top-level is still used elsewhere; uw_mode above is for this branch only.)
     # Run diagnostics and emit exactly one failure class.
     if use_quality is None or (use_quality is not None and use_quality < UW_QUALITY_PRE_FILTER_MIN):
         try:
@@ -332,8 +339,16 @@ def apply_uw_to_score(
         details["uw_signal_quality_score"] = None
         return score_after, details
 
-    # Inputs present but quality below threshold: genuine low signal — reject.
+    # Inputs present but quality below threshold. ROOT-CAUSE FIX: do not kill composite-approved scores.
+    # If the cluster already passed the composite gate (composite_score >= min_exec), preserve it so orders can flow.
     if use_quality is not None and use_quality < UW_QUALITY_PRE_FILTER_MIN:
+        min_exec = _get_min_exec_score()
+        if composite_score >= min_exec:
+            details["uw_low_quality_preserved_strong_composite"] = True
+            details["uw_signal_quality_score"] = use_quality
+            details["reason"] = "uw_low_quality_preserved_strong_composite"
+            _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "preserved": True, "quality": use_quality, "composite_score": composite_score, "min_exec": min_exec})
+            return composite_score, details
         details["uw_rejected_low_quality"] = True
         details["uw_signal_quality_score"] = use_quality
         _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "rejected": True, "quality": use_quality, "threshold": UW_QUALITY_PRE_FILTER_MIN})

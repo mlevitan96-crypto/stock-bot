@@ -567,8 +567,16 @@ class DropletClient:
             # Fallback: restart service (supervisor will start fresh dashboard)
             step2 = self.execute_command("sudo systemctl restart stock-bot", timeout=60)
             results["steps"].append({"name": "restart_service", "result": step2})
-        # Ensure UW flow daemon is running so cache stays fresh (scores use _last_update)
-        step_daemon = self.execute_command("sudo systemctl start uw-flow-daemon.service 2>/dev/null; sudo systemctl restart uw-flow-daemon.service", timeout=30)
+        # Ensure UW flow daemon is running so cache stays fresh. Copy unit if present, enable, start.
+        step_daemon = self.execute_command(
+            "if [ -f deploy/systemd/uw-flow-daemon.service ]; then "
+            "sudo cp deploy/systemd/uw-flow-daemon.service /etc/systemd/system/uw-flow-daemon.service && sudo systemctl daemon-reload; fi; "
+            "sudo systemctl enable uw-flow-daemon.service 2>/dev/null; "
+            "sudo systemctl start uw-flow-daemon.service; "
+            "sudo systemctl restart uw-flow-daemon.service; "
+            "sudo systemctl is-active uw-flow-daemon.service 2>/dev/null || echo 'uw-flow-daemon-not-active'",
+            timeout=30,
+        )
         results["steps"].append({"name": "uw_flow_daemon_restart", "result": step_daemon})
         results["success"] = step2["success"]
         return results
