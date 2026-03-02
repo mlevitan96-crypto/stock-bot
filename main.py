@@ -297,7 +297,9 @@ from monitoring_guards import (
 # =========================
 # ENV & CONFIG
 # =========================
-load_dotenv()
+# Load .env from repo root so env vars (e.g. ENTRY_THRESHOLD_BASE, DISABLE_ADAPTIVE_WEIGHTS) are set even when cwd differs (e.g. systemd).
+_REPO_ROOT = Path(__file__).resolve().parent
+load_dotenv(_REPO_ROOT / ".env")
 
 # Paper-mode intelligence overrides (CONFIG-ONLY, paper-only). Apply before Config.
 try:
