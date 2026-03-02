@@ -38,7 +38,7 @@ def _read_json(path: Path, default=None):
 
 def main() -> int:
     print("=" * 70)
-    print("ALL GATES CHECK (signal → execution)")
+    print("ALL GATES CHECK (signal to execution)")
     print("=" * 70)
     print(f"Time: {datetime.now(timezone.utc).isoformat()}\n")
 

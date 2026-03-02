@@ -13,6 +13,15 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
+
+def _safe_print(s: str, stream=None):
+    stream = stream or sys.stdout
+    try:
+        print(s, end="" if s.endswith("\n") else "\n", file=stream, flush=True)
+    except UnicodeEncodeError:
+        print(s.encode("utf-8", errors="replace").decode("ascii", errors="replace"), end="" if s.endswith("\n") else "\n", file=stream, flush=True)
+
+
 try:
     from droplet_client import DropletClient
 except ImportError:
@@ -76,9 +85,9 @@ def main() -> int:
             timeout=30,
         )
         print("\n--- ALL GATES CHECK (on droplet) ---")
-        print(out or "")
+        _safe_print(out or "")
         if err:
-            print(err, file=sys.stderr)
+            _safe_print(err, stream=sys.stderr)
 
         # 7) Last run + last 20 gate lines
         run_last, _, _ = c._execute(f"{cd} && tail -1 logs/run.jsonl 2>/dev/null || true", timeout=5)
@@ -87,13 +96,13 @@ def main() -> int:
         worker_tail, _, _ = c._execute(f"{cd} && tail -8 logs/worker_debug.log 2>/dev/null || true", timeout=5)
 
         print("\n--- Last run.jsonl ---")
-        print(run_last or "(empty)")
+        _safe_print(run_last or "(empty)")
         print("\n--- Last 20 gate.jsonl ---")
-        print(gate_tail or "(empty)")
+        _safe_print(gate_tail or "(empty)")
         print("\n--- Last 5 submit_entry.jsonl ---")
-        print(submit_tail or "(empty)")
+        _safe_print(submit_tail or "(empty)")
         print("\n--- Last 8 worker_debug.log ---")
-        print(worker_tail or "(empty)")
+        _safe_print(worker_tail or "(empty)")
 
     print("\nDone. If orders=0 with clusters=1, check gate.jsonl above for the blocking gate.")
     return 0

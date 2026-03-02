@@ -7716,39 +7716,44 @@ class StrategyEngine:
             surv_action = ""
             vid = None
             market_ctx = {}  # Block 3E: always init for attribution logging
-            try:
-                from board.eod.live_entry_adjustments import (
-                    apply_signal_quality_to_score,
-                    apply_uw_to_score,
-                    apply_survivorship_to_score,
-                )
-                from policy_variants import get_variant_id
-                market_ctx = {
-                    "raw_signal": c.get("composite_score", score),
-                    "atr": c.get("atr"),
-                    "fast_signal": c.get("fast_signal"),
-                    "slow_signal": c.get("slow_signal"),
-                    "regime_label": market_regime,
-                    "sector_momentum": c.get("sector_momentum", 0),
-                }
+            # INJECT_SIGNAL_TEST: Skip UW/survivorship/signal_quality so injected cluster keeps score and we can test execution path
+            if c.get("_injected_test"):
+                score = float(c.get("composite_score", 0.0))
+                uw_details = {}
+            else:
                 try:
-                    from src.signals.raw_signal_engine import build_raw_signals
-                    price_series = c.get("price_series") or c.get("prices") or []
-                    raw_signals = build_raw_signals(
-                        price_series=price_series,
-                        regime_label=market_regime,
-                        sector_momentum=c.get("sector_momentum", 0),
+                    from board.eod.live_entry_adjustments import (
+                        apply_signal_quality_to_score,
+                        apply_uw_to_score,
+                        apply_survivorship_to_score,
                     )
-                    market_ctx.update(raw_signals)
+                    from policy_variants import get_variant_id
+                    market_ctx = {
+                        "raw_signal": c.get("composite_score", score),
+                        "atr": c.get("atr"),
+                        "fast_signal": c.get("fast_signal"),
+                        "slow_signal": c.get("slow_signal"),
+                        "regime_label": market_regime,
+                        "sector_momentum": c.get("sector_momentum", 0),
+                    }
+                    try:
+                        from src.signals.raw_signal_engine import build_raw_signals
+                        price_series = c.get("price_series") or c.get("prices") or []
+                        raw_signals = build_raw_signals(
+                            price_series=price_series,
+                            regime_label=market_regime,
+                            sector_momentum=c.get("sector_momentum", 0),
+                        )
+                        market_ctx.update(raw_signals)
+                    except Exception:
+                        pass
+                    score = apply_signal_quality_to_score(symbol, float(score), market_ctx)
+                    _eval_ts = int(time.time()) if hasattr(time, "time") else None
+                    score, uw_details = apply_uw_to_score(symbol, float(score), ts=_eval_ts)
+                    score, surv_action = apply_survivorship_to_score(symbol, float(score))
+                    vid = get_variant_id(symbol, "equity")
                 except Exception:
                     pass
-                score = apply_signal_quality_to_score(symbol, float(score), market_ctx)
-                _eval_ts = int(time.time()) if hasattr(time, "time") else None
-                score, uw_details = apply_uw_to_score(symbol, float(score), ts=_eval_ts)
-                score, surv_action = apply_survivorship_to_score(symbol, float(score))
-                vid = get_variant_id(symbol, "equity")
-            except Exception:
-                pass
             # UW DEFERRED: first-class outcome — do not treat as reject; record and skip to next candidate
             if uw_details.get("uw_deferred"):
                 _defer_ts = int(time.time())
@@ -11481,6 +11486,7 @@ def run_once():
                 "start_ts": _inj_ts,
                 "expanded_intel": {},
                 "features_for_learning": {},
+                "_injected_test": True,  # Skip UW/survivorship/signal_quality so execution path can be tested
             }
             clusters = [synthetic]
             if _inj_symbol not in confirm_map:
