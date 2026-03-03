@@ -523,13 +523,13 @@ class DropletClient:
             "steps": []
         }
         
-        # Step 1: Pull latest code
-        step1 = self.git_pull()
-        results["steps"].append({"name": "git_pull", "result": step1})
+        # Step 1: Fetch and reset to origin/main (overwrites local changes so deploy always wins)
+        fetch_reset = self.execute_command("git fetch --all && git reset --hard origin/main")
+        results["steps"].append({"name": "git_fetch_reset", "result": fetch_reset})
         
-        if not step1["success"]:
+        if not fetch_reset["success"]:
             results["success"] = False
-            results["error"] = "Git pull failed"
+            results["error"] = "Git fetch/reset failed"
             return results
 
         # Step 1b: Run minimal pytest spine (exit/attribution/effectiveness). Record result; do not block deploy.

@@ -94,7 +94,7 @@ def verify_droplet_identity():
 # Verify droplet identity on startup
 verify_droplet_identity()
 if SKIP_SUPERVISOR_UW_DAEMON:
-    log("UW daemon will be managed by systemd (uw-flow-daemon.service); supervisor will not start it.")
+    print("[SUPERVISOR] UW daemon will be managed by systemd (uw-flow-daemon.service); supervisor will not start it.", flush=True)
 
 # Use sys.executable to ensure we use the same Python interpreter
 PYTHON_EXEC = sys.executable
