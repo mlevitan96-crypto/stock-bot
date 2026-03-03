@@ -310,10 +310,22 @@ DASHBOARD_HTML = """
         .more-dropdown-content.show { display: block; }
         .more-dropdown-content button { display: block; width: 100%; padding: 10px 16px; text-align: left; border: none; background: none; cursor: pointer; font-size: 0.95em; }
         .more-dropdown-content button:hover { background: #f3f4f6; }
+        /* Direction replay banner - persistent at top, severity colors */
+        .direction-banner {
+            padding: 10px 16px; margin-bottom: 12px; border-radius: 8px; font-size: 0.9em;
+            border: 1px solid transparent; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+        }
+        .direction-banner.info { background: #dbeafe; border-color: #93c5fd; color: #1e40af; }
+        .direction-banner.warning { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+        .direction-banner.success { background: #d1fae5; border-color: #6ee7b7; color: #065f46; }
+        .direction-banner.error { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+        .direction-banner a { color: inherit; font-weight: 600; text-decoration: underline; }
+        .direction-banner a:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
     <div class="container">
+        <div id="direction-banner" class="direction-banner info" style="display:none;" role="status"></div>
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
@@ -502,8 +514,9 @@ DASHBOARD_HTML = """
     h+='</tbody></table></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Closed trades failed: '+(e&&e.message?e.message:'network'));});};
     window.loadWheelAnalytics=function(){var el=document.getElementById('wheel_strategy-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Strategy...</div>';Promise.all([fetch('/api/stockbot/wheel_analytics',creds).then(function(r){return r.ok?r.json():null;}),fetch('/api/wheel/universe_health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var d=arr[0];var univ=arr[1];if(!d)d={};var h='<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> '+(d.total_trades!=null?d.total_trades:0)+'</p><p><strong>Premium collected:</strong> $'+(d.premium_collected!=null?Number(d.premium_collected).toFixed(2):'0.00')+'</p><p><strong>Assignment count:</strong> '+(d.assignment_count!=null?d.assignment_count:0)+' | <strong>Call-away count:</strong> '+(d.call_away_count!=null?d.call_away_count:0)+'</p><p><strong>Assignment rate:</strong> '+(d.assignment_rate_pct!=null?d.assignment_rate_pct.toFixed(1):'—')+'% | <strong>Call-away rate:</strong> '+(d.call_away_rate_pct!=null?d.call_away_rate_pct.toFixed(1):'—')+'%</p><p><strong>Expectancy per trade (USD):</strong> '+(d.expectancy_per_trade_usd!=null?'$'+Number(d.expectancy_per_trade_usd).toFixed(2):'—')+'</p><p><strong>Realized P&L sum:</strong> '+(d.realized_pnl_sum!=null?'$'+Number(d.realized_pnl_sum).toFixed(2):'—')+'</p></div>';var openPos=d.open_wheel_positions||[];h+='<div class="stat-card" style="margin-top:16px;"><h3>Current wheel positions</h3>';if(openPos.length){h+='<table style="width:100%;font-size:12px;"><thead><tr><th>Symbol</th><th>Stage</th><th>Strike</th><th>Expiry</th><th>Premium</th><th>Status</th></tr></thead><tbody>';for(var i=0;i<openPos.length;i++){var p=openPos[i];h+='<tr><td>'+(p.symbol||'—')+'</td><td>'+(p.phase||'—')+'</td><td>'+(p.strike!=null?p.strike:'—')+'</td><td>'+(p.expiry||'—').toString().substring(0,10)+'</td><td>'+(p.premium!=null?'$'+Number(p.premium).toFixed(2):'—')+'</td><td>'+(p.status||'open')+'</td></tr>';}h+='</tbody></table></div>';}else{h+='<p>No open wheel positions. Wheel positions appear here and in Open Positions with Strategy=Wheel.</p></div>';}if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}if(univ){h+='<div class="stat-card" style="margin-top:16px;"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(univ.date||'—')+'</p><p><strong>Universe:</strong> '+(Array.isArray(univ.current_universe)?univ.current_universe.join(', '):(univ.message||'—'))+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(univ.selected_candidates)?univ.selected_candidates.join(', '):'—')+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel analytics failed: '+(e&&e.message?e.message:'network'));});};
     function loadTopStrip(){Promise.all([fetch('/api/sre/health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=24h',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=7d',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var health=arr[0];var d24=arr[1];var d7=arr[2];var hel=document.getElementById('strip-health');if(hel){var h=health&&health.overall_health?health.overall_health:'—';hel.textContent=h;hel.className='strip-health '+(h==='healthy'?'healthy':h==='degraded'?'degraded':'critical');}var todayEl=document.getElementById('strip-pnl-today');if(todayEl){var pm24=d24&&d24.pnl_metrics?d24.pnl_metrics:{};var p24=pm24.pnl!=null?pm24.pnl:(pm24.pnl_2d!=null?pm24.pnl_2d:0);todayEl.textContent='$'+fmt(p24);todayEl.className=Number(p24)>=0?'positive':'negative';}var d7El=document.getElementById('strip-pnl-7d');if(d7El){var pm7=d7&&d7.pnl_metrics?d7.pnl_metrics:{};var p7=pm7.pnl!=null?pm7.pnl:0;d7El.textContent='$'+fmt(p7);d7El.className=Number(p7)>=0?'positive':'negative';}var lu=document.getElementById('last-update');if(lu)lu.textContent=new Date().toLocaleTimeString();});}
+    window.loadDirectionBanner=function(){fetch('/api/direction_banner',{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){var el=document.getElementById('direction-banner');if(!el)return;if(!d){el.style.display='none';return;}var sev=d.severity||'info';el.className='direction-banner '+sev;var msg=d.message||'';var detail=d.detail||'';var link=d.link;var html=msg;if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;el.style.display='block';});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
-    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();},0);
+    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function')loadDirectionBanner();},0);
     })();
     </script>
     <script>
@@ -562,6 +575,7 @@ DASHBOARD_HTML = """
                 updateDashboard();
             }
             loadTopStrip();
+            if (typeof loadDirectionBanner === 'function') loadDirectionBanner();
         }
         
         function loadSREContent() {
@@ -1106,6 +1120,8 @@ DASHBOARD_HTML = """
             container.innerHTML = html;
         }
         
+        // Direction banner: update every 60s so counts and replay status stay current
+        setInterval(() => { if (typeof loadDirectionBanner === 'function') loadDirectionBanner(); }, 60000);
         // Auto-refresh SRE content if on SRE tab (less frequent)
         setInterval(() => {
             if (document.getElementById('sre-tab').classList.contains('active')) {
@@ -3083,6 +3099,32 @@ SRE_DASHBOARD_HTML = """
 def api_ping():
     """Lightweight connectivity check; returns immediately (no heavy deps)."""
     return jsonify({"ok": True, "ts": datetime.now(timezone.utc).isoformat()})
+
+
+@app.route("/api/direction_banner", methods=["GET"])
+def api_direction_banner():
+    """Directional intelligence replay banner state (WAITING | RUNNING | RESULTS | BLOCKED)."""
+    try:
+        from src.dashboard.direction_banner_state import get_direction_banner_state
+        root = Path(_DASHBOARD_ROOT)
+        state = get_direction_banner_state(root)
+        return jsonify(state), 200
+    except Exception as e:
+        return jsonify({"state": "WAITING", "message": "Direction banner unavailable", "detail": str(e), "severity": "info"}), 200
+
+
+@app.route("/reports/board/<path:filename>", methods=["GET"])
+def serve_board_report(filename):
+    """Serve board report files so direction banner 'View report' link works (e.g. DIRECTION_REPLAY_30D_RESULTS.md)."""
+    try:
+        root = Path(_DASHBOARD_ROOT)
+        path = (root / "reports" / "board" / filename).resolve()
+        if not path.is_file() or not str(path).startswith(str(root.resolve())):
+            return Response("Not found", 404)
+        content = path.read_text(encoding="utf-8", errors="replace")
+        return Response(content, mimetype="text/markdown; charset=utf-8", headers={"Content-Disposition": "inline"})
+    except Exception:
+        return Response("Not found", 404)
 
 
 @app.route("/api/governance/status", methods=["GET"])
