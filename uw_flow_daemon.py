@@ -1656,7 +1656,7 @@ class UWFlowDaemon:
             out["squeeze_risk"] = total > 100_000
             return out
         if isinstance(raw, dict):
-            out["ftd_count"] = int(raw.get("ftd_count", raw.get("fail_count", raw.get("total_quantity", 0))) or 0
+            out["ftd_count"] = int(raw.get("ftd_count", raw.get("fail_count", raw.get("total_quantity", 0)))) or 0
             if out["ftd_count"] == 0 and isinstance(raw.get("data"), list):
                 for r in raw["data"]:
                     if isinstance(r, dict):
