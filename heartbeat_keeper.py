@@ -175,48 +175,52 @@ class HealthSupervisor:
             return {"healthy": False, "reason": "cache_read_error", "error": str(e), "daemon_running": True}
     
     def _restart_uw_daemon(self) -> bool:
-        """Attempt to restart UW daemon process."""
+        """Attempt to restart UW daemon only (restart uw-flow-daemon.service, not full trading-bot)."""
         try:
-            # Check if running under systemd
+            # Prefer restarting just the UW daemon unit so we don't nuke the whole stack
+            result = subprocess.run(
+                ["systemctl", "restart", "uw-flow-daemon.service"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if result.returncode == 0:
+                return True
+            # Fallback: if not under systemd or unit missing, try trading-bot (full restart)
             systemd_result = subprocess.run(
                 ["systemctl", "is-active", "trading-bot.service"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
-            
             if systemd_result.returncode == 0:
-                # Running under systemd - restart the service to restart daemon
                 subprocess.run(
                     ["systemctl", "restart", "trading-bot.service"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    timeout=10
+                    timeout=10,
                 )
                 return True
-            else:
-                # Not under systemd - try to restart via deploy_supervisor
-                # Kill existing daemon processes first
-                subprocess.run(["pkill", "-f", "uw_flow_daemon"], 
-                             stdout=subprocess.DEVNULL, 
-                             stderr=subprocess.DEVNULL,
-                             timeout=5)
-                time.sleep(2)
-                
-                # Start daemon directly (fallback if not under systemd)
-                daemon_path = Path(__file__).parent / "uw_flow_daemon.py"
-                if daemon_path.exists():
-                    venv_python = Path(__file__).parent / "venv" / "bin" / "python"
-                    if venv_python.exists():
-                        subprocess.Popen(
-                            [str(venv_python), str(daemon_path)],
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                            cwd=str(Path(__file__).parent)
-                        )
-                        return True
-                
-                return False
+            # Not under systemd - kill stale and start daemon directly
+            subprocess.run(
+                ["pkill", "-f", "uw_flow_daemon"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            time.sleep(2)
+            daemon_path = Path(__file__).parent / "uw_flow_daemon.py"
+            if daemon_path.exists():
+                venv_python = Path(__file__).parent / "venv" / "bin" / "python"
+                if venv_python.exists():
+                    subprocess.Popen(
+                        [str(venv_python), str(daemon_path)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        cwd=str(Path(__file__).parent),
+                    )
+                    return True
+            return False
         except Exception as e:
             # Log error but don't fail completely
             try:

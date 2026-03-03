@@ -71,6 +71,9 @@ HEALTH_FILE = Directories.STATE / "health.json"
 # Chaos mode (for testing)
 CHAOS_MODE = os.getenv("CHAOS_MODE", "off").lower()
 
+# When True, supervisor does NOT start uw-daemon; systemd uw-flow-daemon.service is the single owner (avoids lock contention).
+SKIP_SUPERVISOR_UW_DAEMON = os.path.exists("/etc/systemd/system/uw-flow-daemon.service") or os.environ.get("UW_DAEMON_SYSTEMD") == "1"
+
 # Droplet identity verification
 def verify_droplet_identity():
     """Verify this is running on the correct droplet."""
@@ -90,6 +93,8 @@ def verify_droplet_identity():
 
 # Verify droplet identity on startup
 verify_droplet_identity()
+if SKIP_SUPERVISOR_UW_DAEMON:
+    log("UW daemon will be managed by systemd (uw-flow-daemon.service); supervisor will not start it.")
 
 # Use sys.executable to ensure we use the same Python interpreter
 PYTHON_EXEC = sys.executable
@@ -240,6 +245,20 @@ def compute_overall_health() -> Dict[str, any]:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "details": health_registry.copy()
         }
+
+def _systemd_uw_daemon_active() -> bool:
+    """Return True if systemd reports uw-flow-daemon.service as active."""
+    try:
+        r = subprocess.run(
+            ["systemctl", "is-active", "uw-flow-daemon.service"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return r.returncode == 0 and (r.stdout or "").strip() == "active"
+    except Exception:
+        return False
+
 
 def persist_health():
     """Persist health registry to health.json."""
@@ -743,6 +762,11 @@ def main():
     log("Starting remaining services...")
     
     for service in SERVICES[1:]:
+        # UW daemon: when systemd unit exists, systemd is the single owner (avoid lock contention and duplicate exits)
+        if service["name"] == "uw-daemon" and SKIP_SUPERVISOR_UW_DAEMON:
+            log(f"SKIPPING {service['name']} - managed by systemd (uw-flow-daemon.service)")
+            update_service_health("uw-daemon", "OK" if _systemd_uw_daemon_active() else "DEGRADED", "systemd-owned")
+            continue
         # Skip services that require secrets if secrets aren't available
         if service.get("requires_secrets", False) and not secrets_available:
             log(f"SKIPPING {service['name']} - requires secrets (not configured)")
@@ -783,6 +807,11 @@ def main():
                 continue
             # Skip one-shot services (they exit intentionally)
             if service.get("one_shot", False):
+                continue
+            # UW daemon when managed by systemd: refresh health from systemd (no process in supervisor)
+            if name == "uw-daemon" and SKIP_SUPERVISOR_UW_DAEMON:
+                active = _systemd_uw_daemon_active()
+                update_service_health("uw-daemon", "OK" if active else "FAILED", None if active else "systemd uw-flow-daemon.service not active")
                 continue
             proc = processes.get(name)
             if proc:

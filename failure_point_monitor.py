@@ -87,12 +87,24 @@ class FailurePointMonitor:
             )
     
     def _heal_uw_daemon(self):
-        """Self-heal: Restart UW daemon"""
+        """Self-heal: Restart UW daemon only (do not restart entire trading-bot stack)."""
         try:
-            # Try systemd restart
-            subprocess.run(['systemctl', 'restart', 'trading-bot.service'], 
-                         timeout=10)
-            print("[SELF-HEAL] Attempted to restart UW daemon via systemd")
+            r = subprocess.run(
+                ["systemctl", "restart", "uw-flow-daemon.service"],
+                timeout=15,
+                capture_output=True,
+                text=True,
+            )
+            if r.returncode == 0:
+                print("[SELF-HEAL] Restarted uw-flow-daemon.service")
+                return
+            # Fallback: full stack (e.g. when uw-flow-daemon.service is not installed)
+            subprocess.run(
+                ["systemctl", "restart", "trading-bot.service"],
+                timeout=15,
+                capture_output=True,
+            )
+            print("[SELF-HEAL] Restarted trading-bot.service (uw-flow-daemon unit not available)")
         except Exception as e:
             print(f"[SELF-HEAL] Failed to restart UW daemon: {e}")
     
