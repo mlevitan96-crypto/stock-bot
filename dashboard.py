@@ -447,9 +447,7 @@ DASHBOARD_HTML = """
             </div>
         </div>
         <div id="learning_readiness-tab" class="tab-content">
-            <div id="learning_readiness-content">
-                <div class="loading">Loading Learning & Readiness...</div>
-            </div>
+            <div id="learning_readiness-content">__LEARNING_READINESS_HTML__</div>
         </div>
         
         <div id="signal_review-tab" class="tab-content">
@@ -480,7 +478,7 @@ DASHBOARD_HTML = """
     else if(typeof loadSignalReview==='function'&&tabName==='signal_review')loadSignalReview();
     else if(typeof loadTelemetryContent==='function'&&tabName==='telemetry')loadTelemetryContent();
     else if(typeof loadTelemetryHealth==='function'&&tabName==='telemetry_health')loadTelemetryHealth();
-    else if(typeof loadLearningReadiness==='function'&&tabName==='learning_readiness')loadLearningReadiness();
+    else if(tabName==='learning_readiness'&&typeof loadLearningReadiness==='function')loadLearningReadiness();
     else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
     };
     function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
@@ -3309,6 +3307,176 @@ def _learning_readiness_safe_payload(
     }
 
 
+def _get_learning_readiness_payload(root: Path, run_ts: str, deployed_commit: str) -> dict:
+    """Build full learning-readiness payload. Can raise; used by API and by server-side render."""
+    from datetime import datetime, timezone
+    state_dir = root / "state"
+    logs_dir = root / "logs"
+    readiness = {}
+    replay_status = {}
+    try:
+        rpath = state_dir / "direction_readiness.json"
+        if rpath.exists():
+            readiness = json.loads(rpath.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    try:
+        spath = state_dir / "direction_replay_status.json"
+        if spath.exists():
+            replay_status = json.loads(spath.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    telemetry_trades = int(readiness.get("telemetry_trades") or 0)
+    total_trades = int(readiness.get("total_trades") or 0)
+    pct_telemetry = float(readiness.get("pct_telemetry") or 0)
+    ready = readiness.get("ready") is True
+    updated_ts = readiness.get("updated_ts")
+    last_cron_iso = updated_ts or readiness.get("last_cron_run_iso")
+    if not last_cron_iso and state_dir.joinpath("direction_readiness.json").exists():
+        try:
+            m = (state_dir / "direction_readiness.json").stat().st_mtime
+            last_cron_iso = datetime.fromtimestamp(m, tz=timezone.utc).isoformat()
+        except Exception:
+            pass
+    fresh = False
+    if last_cron_iso:
+        try:
+            s = str(last_cron_iso).replace("Z", "+00:00").strip()[:26]
+            if "+" in s or s.endswith("Z"):
+                dt = datetime.fromisoformat(s)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+            else:
+                dt = datetime.fromisoformat(s[:19]).replace(tzinfo=timezone.utc)
+            age_min = (datetime.now(timezone.utc) - dt).total_seconds() / 60
+            fresh = age_min < 15
+        except Exception:
+            fresh = True
+    promotion_recommendation, promotion_score, promotion_reasons = "WAIT", None, []
+    try:
+        today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
+        comb_path = root / "reports" / f"{today}_stock-bot_combined.json"
+        if comb_path.exists():
+            comb = json.loads(comb_path.read_text(encoding="utf-8", errors="replace"))
+            sc = comb.get("strategy_comparison") or {}
+            if isinstance(sc, dict):
+                promotion_recommendation = sc.get("recommendation", "WAIT")
+                promotion_score = sc.get("promotion_readiness_score")
+                promotion_reasons = (sc.get("reasons") or [])[:5]
+    except Exception:
+        pass
+    exit_path = logs_dir / "exit_attribution.jsonl"
+    visibility_matrix = _compute_visibility_matrix(exit_path, 200)
+    replay_safe = {
+        "status": replay_status.get("status"),
+        "reason": replay_status.get("reason"),
+        "last_run_ts": replay_status.get("last_run_ts"),
+    }
+    return {
+        "ok": True,
+        "run_ts": run_ts,
+        "deployed_commit": deployed_commit,
+        "telemetry_trades": telemetry_trades,
+        "telemetry_total": total_trades,
+        "pct_telemetry": round(pct_telemetry, 2),
+        "ready": ready,
+        "replay_status": replay_safe,
+        "update_schedule": "every 5 min (9–21 UTC, Mon–Fri)",
+        "visibility_matrix": visibility_matrix,
+        "error": None,
+        "error_code": None,
+        "last_cron_run_iso": last_cron_iso,
+        "updated_ts": updated_ts,
+        "fresh": fresh,
+        "total_trades": total_trades,
+        "target_trades": 100,
+        "min_pct_telemetry": 90.0,
+        "features_reviewed": [
+            "Entry intel (premarket, futures, sector, regime at position open)",
+            "Exit intel (same at close)",
+            "Direction, side, position_side",
+            "Sizing (qty or notional)",
+            "Join key: symbol + entry_ts",
+        ],
+        "what_wait_means": (
+            "Replay runs when ≥100 telemetry-backed exits and ≥90% coverage. "
+            "Until then, no direction-replay-based exit/sizing adjustments."
+        ),
+        "still_reviewing": True,
+        "review_continues_after_100": (
+            "Yes. Every exit appends to exit_attribution; cron recomputes every 5 min."
+        ),
+        "promotion_close_missing": (
+            [f"Need {100 - telemetry_trades} more telemetry-backed (have {telemetry_trades})"]
+            if telemetry_trades < 100 else []
+        ) + (
+            [f"Need 90% telemetry coverage (have {pct_telemetry:.1f}%)"]
+            if pct_telemetry < 90 else []
+        ),
+        "promotion_recommendation": promotion_recommendation,
+        "promotion_score": promotion_score,
+        "promotion_reasons": promotion_reasons,
+    }
+
+
+def _render_learning_readiness_html(payload: dict) -> str:
+    """Server-side render Learning & Readiness tab HTML so the tab never shows a blank loading state."""
+    import html as html_module
+    esc = html_module.escape
+    run_ts = esc(str(payload.get("run_ts") or "—"))
+    deployed_commit = esc(str(payload.get("deployed_commit") or "—"))
+    if payload.get("ok") is False and payload.get("error"):
+        err = esc(str(payload.get("error", ""))[:500])
+        code = esc(str(payload.get("error_code") or ""))
+        return (
+            '<div class="stat-card" style="margin-bottom:12px;"><button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Refresh</button></div>'
+            + '<div class="stat-card" style="border-color:#f59e0b"><h3>State: DEGRADED</h3><p>' + err + '</p><p>Code: ' + code + '</p></div>'
+        )
+    x = int(payload.get("telemetry_trades") or 0)
+    tot = int(payload.get("telemetry_total") or payload.get("total_trades") or 0)
+    pct = float(payload.get("pct_telemetry") or 0)
+    tgt = int(payload.get("target_trades") or 100)
+    min_pct = int(payload.get("min_pct_telemetry") or 90)
+    ready = payload.get("ready") is True
+    state_label = "OK" if payload.get("ok") is True else ("DEGRADED" if payload.get("error") else "WAITING")
+    parts = [
+        '<div class="stat-card" style="margin-bottom:12px;"><button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Refresh</button></div>',
+        '<div class="stat-card"><h3>State: ' + esc(state_label) + '</h3><p>run_ts: ' + run_ts + ' · commit: ' + deployed_commit + '</p></div>',
+        '<div class="stat-card"><h3>Trades reviewed</h3><p><strong>' + str(x) + '</strong> / ' + str(tgt) + ' telemetry-backed</p><p>' + str(tot) + ' total exits · ' + f"{pct:.1f}" + '% with full telemetry</p><p><strong>Ready for replay:</strong> ' + ("Yes" if ready else f"No — need ≥{tgt} and ≥{min_pct}%") + '</p></div>',
+        '<div class="stat-card"><h3>Still reviewing?</h3><p><strong>Yes.</strong> ' + esc(str(payload.get("review_continues_after_100") or "Counts updated every 5 min from exit_attribution.")) + '</p></div>',
+    ]
+    mx = payload.get("visibility_matrix") or []
+    parts.append('<div class="stat-card"><h3>Visibility matrix (last 200 exits)</h3>')
+    if not mx:
+        parts.append("<p>No exits yet.</p>")
+    else:
+        parts.append('<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Field</th><th>Present</th><th>Total</th><th>%</th></tr></thead><tbody>')
+        for row in mx:
+            fn = esc(str(row.get("field") or row.get("feature") or "—"))
+            cnt = row.get("present") if row.get("present") is not None else (row.get("count") or 0)
+            tot_row = row.get("total") if row.get("total") is not None else tot
+            pc = float(row.get("pct") or 0)
+            parts.append(f"<tr><td>{fn}</td><td>{cnt}</td><td>{tot_row}</td><td>{pc:.1f}%</td></tr>")
+        parts.append("</tbody></table>")
+    parts.append("</div>")
+    close_missing = payload.get("promotion_close_missing") or []
+    close_str = "; ".join(esc(str(m)) for m in close_missing) if close_missing else "Replay gate: need ≥100 telemetry-backed and ≥90% coverage."
+    parts.append('<div class="stat-card"><h3>Close to promotion?</h3><p>' + close_str + '</p></div>')
+    last_cron = esc(str(payload.get("last_cron_run_iso") or "—"))
+    fresh = payload.get("fresh") is True
+    parts.append('<div class="stat-card"><h3>Update schedule</h3><p><strong>' + esc(str(payload.get("update_schedule") or "—")) + '</strong></p><p>Last cron: ' + last_cron + (" (fresh)" if fresh else "") + '</p></div>')
+    rs = payload.get("replay_status") or {}
+    if rs.get("status") or rs.get("reason"):
+        parts.append('<div class="stat-card"><h3>Replay status</h3><p><strong>Status:</strong> ' + esc(str(rs.get("status") or "—")) + '</p>' + (('<p><strong>Reason:</strong> ' + esc(str(rs.get("reason"))) + '</p>') if rs.get("reason") else "") + (('<p><strong>Last run:</strong> ' + esc(str(rs.get("last_run_ts"))) + '</p>') if rs.get("last_run_ts") else "") + "</div>")
+    rec = (payload.get("promotion_recommendation") or "WAIT").upper()
+    score = payload.get("promotion_score")
+    reasons = payload.get("promotion_reasons") or []
+    rec_html = esc(rec) + (f" {score}/100" if score is not None else "")
+    reasons_str = "; ".join(esc(str(r)) for r in reasons) if reasons else ""
+    parts.append('<div class="stat-card"><h3>Promotion readiness</h3><p><strong>Recommendation:</strong> ' + rec_html + '</p>' + (('<p><strong>Reasons:</strong> ' + reasons_str + '</p>') if reasons_str else "") + "</div>")
+    return "\n".join(parts)
+
+
 @app.route("/api/learning_readiness", methods=["GET"])
 def api_learning_readiness():
     """
@@ -3345,113 +3513,8 @@ def api_learning_readiness():
             pass
 
     try:
-        state_dir = root / "state"
-        logs_dir = root / "logs"
-        readiness = {}
-        replay_status = {}
-        try:
-            rpath = state_dir / "direction_readiness.json"
-            if rpath.exists():
-                readiness = json.loads(rpath.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-        try:
-            spath = state_dir / "direction_replay_status.json"
-            if spath.exists():
-                replay_status = json.loads(spath.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-        telemetry_trades = int(readiness.get("telemetry_trades") or 0)
-        total_trades = int(readiness.get("total_trades") or 0)
-        pct_telemetry = float(readiness.get("pct_telemetry") or 0)
-        ready = readiness.get("ready") is True
-        updated_ts = readiness.get("updated_ts")
-        last_cron_iso = updated_ts or readiness.get("last_cron_run_iso")
-        if not last_cron_iso and state_dir.joinpath("direction_readiness.json").exists():
-            try:
-                m = (state_dir / "direction_readiness.json").stat().st_mtime
-                last_cron_iso = datetime.fromtimestamp(m, tz=timezone.utc).isoformat()
-            except Exception:
-                pass
-        fresh = False
-        if last_cron_iso:
-            try:
-                s = str(last_cron_iso).replace("Z", "+00:00").strip()[:26]
-                if "+" in s or s.endswith("Z"):
-                    dt = datetime.fromisoformat(s)
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                else:
-                    dt = datetime.fromisoformat(s[:19]).replace(tzinfo=timezone.utc)
-                age_min = (datetime.now(timezone.utc) - dt).total_seconds() / 60
-                fresh = age_min < 15
-            except Exception:
-                fresh = True
-        promotion_recommendation, promotion_score, promotion_reasons = "WAIT", None, []
-        try:
-            today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
-            comb_path = root / "reports" / f"{today}_stock-bot_combined.json"
-            if comb_path.exists():
-                comb = json.loads(comb_path.read_text(encoding="utf-8", errors="replace"))
-                sc = comb.get("strategy_comparison") or {}
-                if isinstance(sc, dict):
-                    promotion_recommendation = sc.get("recommendation", "WAIT")
-                    promotion_score = sc.get("promotion_readiness_score")
-                    promotion_reasons = (sc.get("reasons") or [])[:5]
-        except Exception:
-            pass
-        exit_path = logs_dir / "exit_attribution.jsonl"
-        visibility_matrix = _compute_visibility_matrix(exit_path, 200)
-        replay_safe = {
-            "status": replay_status.get("status"),
-            "reason": replay_status.get("reason"),
-            "last_run_ts": replay_status.get("last_run_ts"),
-        }
-        return jsonify({
-            "ok": True,
-            "run_ts": run_ts,
-            "deployed_commit": deployed_commit,
-            "telemetry_trades": telemetry_trades,
-            "telemetry_total": total_trades,
-            "pct_telemetry": round(pct_telemetry, 2),
-            "ready": ready,
-            "replay_status": replay_safe,
-            "update_schedule": "every 5 min (9–21 UTC, Mon–Fri)",
-            "visibility_matrix": visibility_matrix,
-            "error": None,
-            "error_code": None,
-            "last_cron_run_iso": last_cron_iso,
-            "updated_ts": updated_ts,
-            "fresh": fresh,
-            "total_trades": total_trades,
-            "target_trades": 100,
-            "min_pct_telemetry": 90.0,
-            "features_reviewed": [
-                "Entry intel (premarket, futures, sector, regime at position open)",
-                "Exit intel (same at close)",
-                "Direction, side, position_side",
-                "Sizing (qty or notional)",
-                "Join key: symbol + entry_ts",
-            ],
-            "what_wait_means": (
-                "Replay runs when ≥100 telemetry-backed exits and ≥90% coverage. "
-                "Until then, no direction-replay-based exit/sizing adjustments."
-            ),
-            "still_reviewing": True,
-            "review_continues_after_100": (
-                "Yes. Every exit appends to exit_attribution; cron recomputes every 5 min."
-            ),
-            "promotion_close_missing": (
-                [f"Need {100 - telemetry_trades} more telemetry-backed (have {telemetry_trades})"]
-                if telemetry_trades < 100 else []
-            ) + (
-                [f"Need 90% telemetry coverage (have {pct_telemetry:.1f}%)"]
-                if pct_telemetry < 90 else []
-            ),
-            "promotion_recommendation": promotion_recommendation,
-            "promotion_score": promotion_score,
-            "promotion_reasons": promotion_reasons,
-        }), 200
+        payload = _get_learning_readiness_payload(root, run_ts, deployed_commit)
+        return jsonify(payload), 200
     except Exception as e:
         err_msg = str(e)[:500]
         _log_error(err_msg, "API_ERROR")
@@ -3691,7 +3754,7 @@ def _render_initial_situation_html(data):
 
 @app.route("/")
 def index():
-    """Serve dashboard with banner and situation pre-rendered so they never show Loading."""
+    """Serve dashboard with banner, situation, and Learning tab pre-rendered so they never show Loading."""
     try:
         banner_state = _get_banner_state_sync()
         situation_data = _get_situation_data_sync()
@@ -3701,10 +3764,46 @@ def index():
         banner_html = "Direction status unavailable"
         banner_severity = "info"
         situation_html = '<span class="sit-label">Situation</span><span class="sit-value">—</span>'
+
+    learning_html = ""
+    try:
+        root = Path(_DASHBOARD_ROOT)
+        run_ts = datetime.now(timezone.utc).isoformat()
+        deployed_commit = "unknown"
+        try:
+            import subprocess
+            r = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if r.returncode == 0 and r.stdout:
+                deployed_commit = r.stdout.strip()[:12]
+        except Exception:
+            pass
+        try:
+            payload = _get_learning_readiness_payload(root, run_ts, deployed_commit)
+        except Exception:
+            payload = _learning_readiness_safe_payload(
+                error="Server-side render failed",
+                error_code="RENDER",
+                run_ts=run_ts,
+                deployed_commit=deployed_commit,
+            )
+        learning_html = _render_learning_readiness_html(payload)
+    except Exception:
+        learning_html = (
+            '<div class="stat-card"><p>Learning &amp; Readiness could not be pre-loaded.</p>'
+            '<button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Load now</button></div>'
+        )
+
     html = (
         DASHBOARD_HTML.replace("__BANNER_SEV__", banner_severity)
         .replace("__BANNER_HTML__", banner_html)
         .replace("__SITUATION_HTML__", situation_html)
+        .replace("__LEARNING_READINESS_HTML__", learning_html)
     )
     return Response(html, mimetype="text/html; charset=utf-8")
 
