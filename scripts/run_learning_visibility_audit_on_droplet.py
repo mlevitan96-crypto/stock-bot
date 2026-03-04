@@ -37,8 +37,8 @@ def main() -> int:
         # Ensure dashboard is listening (audit Phase 4 needs /api/telemetry_health)
         code, out, _ = c._execute(f"curl -s -o /dev/null -w '%{{http_code}}' http://127.0.0.1:5000/api/telemetry_health 2>/dev/null || echo 000", timeout=10)
         if (out or "").strip() != "200":
-            c._execute(f"pkill -f 'python3 dashboard.py' 2>/dev/null; sleep 2; true", timeout=10)
-            c._execute(f"cd {proj} && nohup python3 dashboard.py >> logs/dashboard.log 2>&1 &", timeout=5)
+            c._execute(f"pkill -f 'dashboard.py' 2>/dev/null; sleep 2; true", timeout=10)
+            c._execute(f"cd {proj} && (nohup venv/bin/python -u dashboard.py >> logs/dashboard.log 2>&1 &) || nohup python3 dashboard.py >> logs/dashboard.log 2>&1 &", timeout=5)
             import time
             time.sleep(12)
         # Run audit on droplet with DROPLET_RUN=1
