@@ -341,8 +341,8 @@ DASHBOARD_HTML = """
 </head>
 <body>
     <div class="container">
-        <div id="direction-banner" class="direction-banner {{ initial_banner_severity }}" role="status" title="Directional intelligence replay status">{{ initial_banner_html|safe }}</div>
-        <div id="situation-strip" class="situation-strip" role="status" title="Trades reviewed, promotion idea, current activity">{{ initial_situation_html|safe }}</div>
+        <div id="direction-banner" class="direction-banner __BANNER_SEV__" role="status" title="Directional intelligence replay status">__BANNER_HTML__</div>
+        <div id="situation-strip" class="situation-strip" role="status" title="Trades reviewed, promotion idea, current activity">__SITUATION_HTML__</div>
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
@@ -3475,12 +3475,12 @@ def index():
         banner_html = "Direction status unavailable"
         banner_severity = "info"
         situation_html = '<span class="sit-label">Situation</span><span class="sit-value">—</span>'
-    return render_template_string(
-        DASHBOARD_HTML,
-        initial_banner_html=banner_html,
-        initial_banner_severity=banner_severity,
-        initial_situation_html=situation_html,
+    html = (
+        DASHBOARD_HTML.replace("__BANNER_SEV__", banner_severity)
+        .replace("__BANNER_HTML__", banner_html)
+        .replace("__SITUATION_HTML__", situation_html)
     )
+    return Response(html, mimetype="text/html; charset=utf-8")
 
 @app.route("/health")
 def health():
