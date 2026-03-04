@@ -123,12 +123,14 @@ def update_and_persist_direction_readiness(base_dir: Path | None = None) -> Dict
     if current_ready and not already_ready:
         ready_ts = datetime.now(timezone.utc).isoformat()
 
+    updated_ts = datetime.now(timezone.utc).isoformat()
     state = {
         "total_trades": total,
         "telemetry_trades": telemetry,
         "pct_telemetry": round(pct, 2),
         "ready": ready,
         "ready_ts": ready_ts,
+        "updated_ts": updated_ts,
     }
     path.write_text(json.dumps(state, indent=2), encoding="utf-8")
     return state
