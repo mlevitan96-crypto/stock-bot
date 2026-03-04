@@ -317,35 +317,10 @@ DASHBOARD_HTML = """
         .more-dropdown-content.show { display: block; }
         .more-dropdown-content button { display: block; width: 100%; padding: 10px 16px; text-align: left; border: none; background: none; cursor: pointer; font-size: 0.95em; }
         .more-dropdown-content button:hover { background: #f3f4f6; }
-        /* Direction replay banner - persistent at top, severity colors */
-        .direction-banner {
-            padding: 10px 16px; margin-bottom: 12px; border-radius: 8px; font-size: 0.9em;
-            border: 1px solid transparent; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-        }
-        .direction-banner.info { background: #dbeafe; border-color: #93c5fd; color: #1e40af; }
-        .direction-banner.warning { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
-        .direction-banner.success { background: #d1fae5; border-color: #6ee7b7; color: #065f46; }
-        .direction-banner.error { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
-        .direction-banner a { color: inherit; font-weight: 600; text-decoration: underline; }
-        .direction-banner a:hover { opacity: 0.9; }
-        /* Situation strip: trades reviewed, promotion, current activity */
-        .situation-strip {
-            display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 10px 16px;
-            background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;
-            font-size: 0.9em;
-        }
-        .situation-strip .sit-label { font-weight: 600; color: #475569; }
-        .situation-strip .sit-value { color: #0f172a; }
-        .situation-strip .promo-badge { padding: 2px 8px; border-radius: 4px; font-weight: 600; }
-        .situation-strip .promo-badge.promote { background: #10b981; color: #fff; }
-        .situation-strip .promo-badge.wait { background: #f59e0b; color: #fff; }
-        .situation-strip .promo-badge.dnp { background: #ef4444; color: #fff; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="direction-banner" class="direction-banner __BANNER_SEV__" role="status" title="Directional intelligence replay status">__BANNER_HTML__</div>
-        <div id="situation-strip" class="situation-strip" role="status" title="Trades reviewed, promotion idea, current activity">__SITUATION_HTML__</div>
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
@@ -378,6 +353,7 @@ DASHBOARD_HTML = """
                     <button type="button" onclick="switchTab('failure_points', event); closeMoreDropdown();">⚠️ Trading Readiness</button>
                     <button type="button" onclick="switchTab('telemetry', event); closeMoreDropdown();">📦 Telemetry</button>
                     <button type="button" onclick="switchTab('telemetry_health', event); closeMoreDropdown();">📋 Telemetry Health</button>
+                    <button type="button" onclick="switchTab('learning_readiness', event); closeMoreDropdown();">📚 Learning & Readiness</button>
                 </div>
             </div>
         </div>
@@ -470,6 +446,11 @@ DASHBOARD_HTML = """
                 <div class="loading">Loading Telemetry Health...</div>
             </div>
         </div>
+        <div id="learning_readiness-tab" class="tab-content">
+            <div id="learning_readiness-content">
+                <div class="loading">Loading Learning & Readiness...</div>
+            </div>
+        </div>
         
         <div id="signal_review-tab" class="tab-content">
             <div class="positions-table">
@@ -499,6 +480,7 @@ DASHBOARD_HTML = """
     else if(typeof loadSignalReview==='function'&&tabName==='signal_review')loadSignalReview();
     else if(typeof loadTelemetryContent==='function'&&tabName==='telemetry')loadTelemetryContent();
     else if(typeof loadTelemetryHealth==='function'&&tabName==='telemetry_health')loadTelemetryHealth();
+    else if(typeof loadLearningReadiness==='function'&&tabName==='learning_readiness')loadLearningReadiness();
     else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
     };
     function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
@@ -531,6 +513,7 @@ DASHBOARD_HTML = """
     window.loadWheelUniverseHealth=function(){var el=document.getElementById('wheel_universe-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Universe Health...</div>';fetch('/api/wheel/universe_health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var h='';if(d.message){h+='<div class="stat-card"><p>'+d.message+'</p><p>Run: <code>python scripts/generate_wheel_universe_health.py</code></p></div>';}else{h+='<div class="stat-card"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Current universe:</strong> '+(Array.isArray(d.current_universe)?d.current_universe.join(', '):'—')+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(d.selected_candidates)?d.selected_candidates.join(', '):'—')+'</p></div>';h+='<div class="stat-card"><h3>Sector distribution</h3><pre>'+JSON.stringify(d.sector_distribution||{},null,2)+'</pre></div>';if(d.assignment_count!=null)h+='<div class="stat-card"><p><strong>Assignments:</strong> '+d.assignment_count+' | <strong>Called away:</strong> '+d.call_away_count+'</p></div>';if(d.ai_recommendations&&d.ai_recommendations.length){h+='<div class="stat-card"><h3>AI recommendations</h3><ul>';for(var i=0;i<d.ai_recommendations.length;i++)h+='<li>'+JSON.stringify(d.ai_recommendations[i])+'</li>';h+='</ul></div>';}}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel Universe Health failed: '+(e&&e.message?e.message:'network'));});};
     window.loadStrategyComparison=function(){var el=document.getElementById('strategy_comparison-content');if(!el)return;el.innerHTML='<div class="loading">Loading Strategy Comparison...</div>';fetch('/api/strategy/comparison',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sc=d.strategy_comparison||{};var rec=d.recommendation||'WAIT';var score=d.promotion_readiness_score;var badge='<span style="padding:4px 12px;border-radius:6px;font-weight:bold;background:'+(rec==='PROMOTE'?'#10b981':rec==='DO NOT PROMOTE'?'#ef4444':'#f59e0b')+';color:#fff">'+rec+'</span>';var h='<div class="stat-card"><h3>Strategy Comparison</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Promotion Readiness Score:</strong> '+(score!=null?score:'—')+' / 100</p><p><strong>Recommendation:</strong> '+badge+'</p></div>';h+='<div class="stat-card"><h3>Equity vs Wheel</h3><p>Equity Realized: $'+(sc.equity_realized_pnl!=null?fmt(sc.equity_realized_pnl):'—')+' | Wheel Realized: $'+(sc.wheel_realized_pnl!=null?fmt(sc.wheel_realized_pnl):'—')+'</p><p>Equity Unrealized: $'+(sc.equity_unrealized_pnl!=null?fmt(sc.equity_unrealized_pnl):'—')+' | Wheel Unrealized: $'+(sc.wheel_unrealized_pnl!=null?fmt(sc.wheel_unrealized_pnl):'—')+'</p><p>Equity Drawdown: '+(sc.equity_drawdown!=null?sc.equity_drawdown:'—')+' | Wheel Drawdown: '+(sc.wheel_drawdown!=null?sc.wheel_drawdown:'—')+'</p><p>Equity Sharpe: '+(sc.equity_sharpe_proxy!=null?sc.equity_sharpe_proxy:'—')+' | Wheel Sharpe: '+(sc.wheel_sharpe_proxy!=null?sc.wheel_sharpe_proxy:'—')+'</p><p>Wheel Yield: '+(sc.wheel_yield_per_period!=null?sc.wheel_yield_per_period:'—')+' | Capital Eff Equity: '+(sc.capital_efficiency_equity!=null?sc.capital_efficiency_equity:'—')+' | Wheel: '+(sc.capital_efficiency_wheel!=null?sc.capital_efficiency_wheel:'—')+'</p></div>';if(d.weekly_report&&d.weekly_report.reasoning){var wr=d.weekly_report.reasoning;h+='<div class="stat-card"><h3>Weekly Reasoning</h3><pre>'+JSON.stringify(wr,null,2)+'</pre></div>';}if(d.historical_comparison&&d.historical_comparison.length){h+='<div class="stat-card"><h3>Historical (last 30 days)</h3><table><thead><tr><th>Date</th><th>Equity</th><th>Wheel</th><th>Score</th></tr></thead><tbody>';for(var i=0;i<Math.min(d.historical_comparison.length,15);i++){var x=d.historical_comparison[i];h+='<tr><td>'+(x.date||'—')+'</td><td>$'+(x.equity_realized!=null?fmt(x.equity_realized):'—')+'</td><td>$'+(x.wheel_realized!=null?fmt(x.wheel_realized):'—')+'</td><td>'+(x.promotion_score!=null?x.promotion_score:'—')+'</td></tr>';}h+='</tbody></table></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Strategy Comparison failed: '+(e&&e.message?e.message:'network'));});};
     window.loadSignalReview=function(){var el=document.getElementById('signal-review-content');if(!el)return;el.innerHTML='<div class="loading">Loading Signal Review...</div>';fetch('/api/signal_history',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sig=Array.isArray(d.signals)?d.signals:[];if(sig.length===0){el.innerHTML='<p class="no-positions">No signal history</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Direction</th><th>Score</th><th>Decision</th></tr></thead><tbody>';for(var i=0;i<Math.min(sig.length,50);i++){var s=sig[i];h+='<tr><td>'+(s.symbol||'—')+'</td><td>'+(s.direction||'—')+'</td><td>'+(s.final_score!=null?fmt(s.final_score):'—')+'</td><td>'+(s.decision||'—')+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Signal review failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadLearningReadiness=function(){var el=document.getElementById('learning_readiness-content');if(!el)return;el.innerHTML='<div class="loading">Loading Learning & Readiness...</div>';fetch('/api/learning_readiness',creds).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!el)return;if(!d){el.innerHTML='<p>Learning readiness unavailable.</p>';return;}var x=d.telemetry_trades!=null?d.telemetry_trades:0;var tot=d.total_trades!=null?d.total_trades:0;var pct=d.pct_telemetry!=null?d.pct_telemetry:0;var tgt=d.target_trades!=null?d.target_trades:100;var minPct=d.min_pct_telemetry!=null?d.min_pct_telemetry:90;var ready=d.ready===true;var h='<div class="stat-card"><h3>Trades reviewed</h3><p><strong>'+x+'</strong> / '+tgt+' telemetry-backed (target for replay)</p><p>'+tot+' total exits · '+pct.toFixed(1)+'% with full telemetry</p><p><strong>Ready for replay:</strong> '+(ready?'Yes':'No — need &ge;'+tgt+' and &ge;'+minPct+'%')+'</p></div>';h+='<div class="stat-card"><h3>What we review (every exit)</h3><ul style="margin:0;padding-left:1.2em;">';var fs=d.features_reviewed||[];for(var i=0;i<fs.length;i++)h+='<li>'+fs[i]+'</li>';h+='</ul></div>';h+='<div class="stat-card"><h3>What &quot;Wait&quot; means</h3><p>'+(d.what_wait_means||'')+'</p></div>';h+='<div class="stat-card"><h3>Update schedule</h3><p><strong>Cron:</strong> '+(d.cron_schedule||'—')+'</p><p><strong>Last cron run:</strong> '+(d.last_cron_run_iso||'—')+'</p></div>';if(d.replay_status){h+='<div class="stat-card"><h3>Replay status</h3><p><strong>Status:</strong> '+d.replay_status+'</p>'+(d.replay_reason?'<p><strong>Reason:</strong> '+d.replay_reason+'</p>':'')+(d.replay_last_run_ts?'<p><strong>Last run:</strong> '+d.replay_last_run_ts+'</p>':'')+'</div>';}var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];h+='<div class="stat-card"><h3>Promotion readiness</h3><p><strong>Recommendation:</strong> '+rec+(score!=null?' '+score+'/100':'')+'</p>'+(reasons.length?'<p><strong>Reasons:</strong> '+reasons.join('; ')+'</p>':'')+'</div>';el.innerHTML=h;}).catch(function(){if(el)el.innerHTML='<p>Failed to load learning readiness.</p>';});};
     window.loadTelemetryHealth=function(){var el=document.getElementById('telemetry_health-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry Health...</div>';fetch('/api/telemetry_health',creds).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!el)return;if(!d){el.innerHTML='<p>Telemetry health unavailable.</p>';return;}var h='<div class="stat-card"><h3>Canonical logs</h3><table style="width:100%"><thead><tr><th>Log</th><th>Exists</th><th>Last write</th></tr></thead><tbody>';var ls=d.log_status||[];for(var i=0;i<ls.length;i++){var x=ls[i];h+='<tr><td>'+ (x.log||'')+'</td><td>'+(x.exists?'Yes':'No')+'</td><td>'+(x.last_write||'—')+'</td></tr>';}h+='</tbody></table></div>';h+='<div class="stat-card"><h3>Coverage</h3><p><strong>Direction telemetry-backed:</strong> '+(d.direction_coverage||'0/100')+'</p><p><strong>Direction ready:</strong> '+(d.direction_ready?'Yes':'No')+'</p></div>';if(d.gate_status){h+='<div class="stat-card"><h3>Contract audit</h3><p><strong>Last run:</strong> '+d.gate_status+'</p><p>Run <code>make telemetry_gate</code> to refresh.</p></div>';}if(!d.last_droplet_analysis){h+='<div class="stat-card" style="border:2px solid #f59e0b;"><h3>Droplet Data Authority</h3><p style="margin:0;color:#92400e;"><strong>No authoritative data review has been run.</strong> Run analysis on the droplet with --droplet-run --deployed-commit.</p></div>';}else{var lda=d.last_droplet_analysis;h+='<div class="stat-card"><h3>Last droplet analysis run</h3><p><strong>Script:</strong> '+(lda.script||'—')+'</p><p><strong>Deployed commit:</strong> '+(lda.deployed_commit||'—')+'</p><p><strong>Run time (UTC):</strong> '+(lda.run_ts||'—')+'</p></div>';}el.innerHTML=h;}).catch(function(){if(el)el.innerHTML='<p>Failed to load telemetry health.</p>';});};
     window.loadTelemetryContent=function(){var el=document.getElementById('telemetry-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry...</div>';fetch('/api/telemetry/latest/index',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var dt=d.latest_date||'—';var list=d.computed||[];var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Telemetry</h3><p><strong>Latest bundle:</strong> '+dt+'</p>';
     if(d.message){h+='<p>'+d.message+'</p>';}
@@ -545,7 +528,7 @@ DASHBOARD_HTML = """
     window.loadDirectionBanner=function(){var el=document.getElementById('direction-banner');if(!el)return;var done=function(d){if(!el)return;var sev=(d&&d.severity)||'info';el.className='direction-banner '+sev;if(!d){el.textContent='Direction status unavailable';return;}var esc=function(s){if(s==null||s===undefined)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};var msg=esc(d.message||'');var detail=esc(d.detail||'');var link=esc(d.link||'');var html=msg;if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;};var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();done(null);},5000);fetch('/api/direction_banner',Object.assign({},creds,{signal:ac&&ac.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid);done(d);});};
     window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;var done=function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var x=d.trades_reviewed!=null?d.trades_reviewed:0;var tot=d.trades_reviewed_total!=null?d.trades_reviewed_total:0;var tgt=d.trades_reviewed_target!=null?d.trades_reviewed_target:100;var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Trades reviewed:</span><span class="sit-value">'+x+'/'+tgt+(tot!==x?' <span style="opacity:0.85;">('+tot+' total)</span>':'')+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;};var ac2=typeof AbortController!=='undefined'?new AbortController():null;var tid2=setTimeout(function(){if(ac2)ac2.abort();done(null);},5000);fetch('/api/situation',Object.assign({},creds,{signal:ac2&&ac2.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid2);done(d);});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
-    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function'){try{loadDirectionBanner();}catch(e){}}if(typeof loadSituationStrip==='function'){try{loadSituationStrip();}catch(e){}}},0);
+    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();},0);
     })();
     </script>
     <script>
@@ -556,7 +539,7 @@ DASHBOARD_HTML = """
         function switchTab(tabName, event) {
             if (tabName === 'more') return;
             closeMoreDropdown();
-            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry', 'telemetry_health'];
+            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry', 'telemetry_health', 'learning_readiness'];
             var isAdvanced = advancedTabs.indexOf(tabName) >= 0;
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
@@ -602,12 +585,12 @@ DASHBOARD_HTML = """
                 loadTelemetryContent();
             } else if (tabName === 'telemetry_health') {
                 if (typeof loadTelemetryHealth === 'function') loadTelemetryHealth();
+            } else if (tabName === 'learning_readiness') {
+                if (typeof loadLearningReadiness === 'function') loadLearningReadiness();
             } else if (tabName === 'positions') {
                 updateDashboard();
             }
             loadTopStrip();
-            if (typeof loadDirectionBanner === 'function') { try { loadDirectionBanner(); } catch (e) {} }
-            if (typeof loadSituationStrip === 'function') { try { loadSituationStrip(); } catch (e) {} }
         }
         
         function loadSREContent() {
@@ -1153,7 +1136,7 @@ DASHBOARD_HTML = """
         }
         
         // Direction banner: update every 60s so counts and replay status stay current
-        setInterval(() => { if (typeof loadDirectionBanner === 'function') { try { loadDirectionBanner(); } catch (e) {} } if (typeof loadSituationStrip === 'function') { try { loadSituationStrip(); } catch (e) {} } }, 60000);
+        setInterval(() => { }, 60000);
         // Auto-refresh SRE content if on SRE tab (less frequent)
         setInterval(() => {
             if (document.getElementById('sre-tab').classList.contains('active')) {
@@ -3239,6 +3222,101 @@ def api_telemetry_health():
         }), 200
     except Exception as e:
         return jsonify({"error": str(e), "log_status": [], "direction_coverage": "0/100"}), 200
+
+
+@app.route("/api/learning_readiness", methods=["GET"])
+def api_learning_readiness():
+    """
+    Full learning & readiness detail for the Learning tab: what is reviewed, what wait means,
+    update schedule, and readiness/replay state. Replaces the former direction banner and situation strip.
+    """
+    try:
+        root = Path(_DASHBOARD_ROOT)
+        state_dir = root / "state"
+        readiness = {}
+        try:
+            rpath = state_dir / "direction_readiness.json"
+            if rpath.exists():
+                readiness = json.loads(rpath.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+        replay_status = {}
+        try:
+            spath = state_dir / "direction_replay_status.json"
+            if spath.exists():
+                replay_status = json.loads(spath.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+        telemetry_trades = int(readiness.get("telemetry_trades") or 0)
+        total_trades = int(readiness.get("total_trades") or 0)
+        pct_telemetry = float(readiness.get("pct_telemetry") or 0)
+        ready = readiness.get("ready") is True
+        target_trades = 100
+        min_pct = 90.0
+        features_reviewed = [
+            "Entry intel (premarket, futures, sector, regime at position open)",
+            "Exit intel (same at close)",
+            "Direction (bullish/bearish), side, position_side",
+            "Sizing (qty, notional, entry/exit price)",
+            "Join key: symbol + entry_ts so exit attribution embeds entry snapshot",
+        ]
+        cron_schedule = "Every 5 min, 9–21 UTC, Mon–Fri (scripts/governance/check_direction_readiness_and_run.py)"
+        last_cron_log_mtime = None
+        try:
+            log_path = root / "logs" / "direction_readiness_cron.log"
+            if log_path.exists():
+                last_cron_log_mtime = log_path.stat().st_mtime
+        except Exception:
+            pass
+        from datetime import datetime, timezone
+        last_cron_iso = datetime.fromtimestamp(last_cron_log_mtime, tz=timezone.utc).isoformat() if last_cron_log_mtime else None
+        promotion_recommendation, promotion_score, promotion_reasons = "WAIT", None, []
+        try:
+            today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
+            comb_path = root / "reports" / f"{today}_stock-bot_combined.json"
+            if comb_path.exists():
+                comb = json.loads(comb_path.read_text(encoding="utf-8", errors="replace"))
+                sc = comb.get("strategy_comparison") or {}
+                if isinstance(sc, dict):
+                    promotion_recommendation = sc.get("recommendation", "WAIT")
+                    promotion_score = sc.get("promotion_readiness_score")
+                    promotion_reasons = (sc.get("reasons") or [])[:5]
+        except Exception:
+            pass
+        what_wait_means = (
+            "Replay runs only when there are ≥100 telemetry-backed exits and ≥90% of exits have full telemetry. "
+            "Until then, the bot does not apply direction-replay-based exit or sizing adjustments. "
+            "Negative PnL that could have been reduced by those adjustments is not separately quantified."
+        )
+        return jsonify({
+            "telemetry_trades": telemetry_trades,
+            "total_trades": total_trades,
+            "pct_telemetry": round(pct_telemetry, 2),
+            "ready": ready,
+            "target_trades": target_trades,
+            "min_pct_telemetry": min_pct,
+            "features_reviewed": features_reviewed,
+            "what_wait_means": what_wait_means,
+            "cron_schedule": cron_schedule,
+            "last_cron_run_iso": last_cron_iso,
+            "replay_status": replay_status.get("status"),
+            "replay_reason": replay_status.get("reason"),
+            "replay_last_run_ts": replay_status.get("last_run_ts"),
+            "promotion_recommendation": promotion_recommendation,
+            "promotion_score": promotion_score,
+            "promotion_reasons": promotion_reasons,
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "error": str(e)[:300],
+            "telemetry_trades": 0,
+            "total_trades": 0,
+            "pct_telemetry": 0,
+            "ready": False,
+            "features_reviewed": [],
+            "what_wait_means": "",
+            "cron_schedule": "",
+        }), 200
 
 
 @app.route("/reports/board/<path:filename>", methods=["GET"])
