@@ -104,8 +104,11 @@ else:
     @app.before_request
     def _enforce_basic_auth():  # type: ignore
         try:
-            # Read-only banner/situation endpoints: allow when no auth so dashboard fetches never stick on Loading (e.g. proxy not forwarding Authorization).
-            if request.path in ("/api/direction_banner", "/api/situation") and request.method == "GET":
+            # Allow unauthenticated GET so the dashboard HTML loads (e.g. proxy not forwarding Authorization on first request).
+            if request.method == "GET" and (
+                request.path == "/"
+                or request.path in ("/api/direction_banner", "/api/situation")
+            ):
                 return None
 
             # Validate env contract at request time too (defensive).
@@ -3455,7 +3458,7 @@ def _render_initial_situation_html(data):
     h = '<span class="sit-label">Trades reviewed:</span><span class="sit-value">' + str(x) + '/' + str(tgt)
     if tot != x:
         h += ' <span style="opacity:0.85;">(' + str(tot) + ' total)</span>'
-    h += "</span> <span class="sit-label">Promotion:</span> " + promo
+    h += '</span> <span class="sit-label">Promotion:</span> ' + promo
     if gov is not None:
         h += ' <span class="sit-label">Governance (joined):</span><span class="sit-value">' + str(gov) + "</span>"
     h += ' <span class="sit-label">Closed (90d):</span><span class="sit-value">' + str(closed) + "</span>"
