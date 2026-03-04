@@ -34,6 +34,12 @@ def main() -> int:
     with DropletClient() as c:
         # Ensure repo is up to date (audit script must be present)
         c._execute(f"cd {proj} && git fetch origin && git reset --hard origin/main 2>/dev/null || true", timeout=30)
+        # Ensure dashboard is listening (audit Phase 4 needs /api/telemetry_health)
+        code, out, _ = c._execute(f"curl -s -o /dev/null -w '%{{http_code}}' http://127.0.0.1:5000/health 2>/dev/null || echo 000", timeout=10)
+        if (out or "").strip() != "200":
+            c._execute(f"cd {proj} && nohup python3 dashboard.py >> logs/dashboard.log 2>&1 &", timeout=5)
+            import time
+            time.sleep(12)
         # Run audit on droplet with DROPLET_RUN=1
         cmd = f"cd {proj} && DROPLET_RUN=1 python3 scripts/audit/run_learning_visibility_audit_on_droplet.py"
         out, err, rc = c._execute(cmd, timeout=180)
@@ -55,6 +61,15 @@ def main() -> int:
                 print("\n--- BLOCKERS ---\n")
                 print(block_out)
             return rc
+
+        print("\nAll phase reports on droplet:")
+        print(f"  {proj}/reports/audit/PHASE1_PRECONDITIONS.md")
+        print(f"  {proj}/reports/audit/LEARNING_TELEMETRY_COVERAGE.md")
+        print(f"  {proj}/reports/audit/LEARNING_PIPELINE_AUDIT.md")
+        print(f"  {proj}/reports/audit/DASHBOARD_VISIBILITY_AUDIT.md")
+        print(f"  {proj}/reports/audit/GOVERNANCE_AUTOMATION_AUDIT.md")
+        print(f"  {proj}/reports/audit/ADVERSARIAL_FINDINGS.md")
+        print(f"  {proj}/reports/board/LEARNING_AND_VISIBILITY_FULL_AUDIT.md")
     return 0
 
 

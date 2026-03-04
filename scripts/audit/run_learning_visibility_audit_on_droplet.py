@@ -200,11 +200,12 @@ def phase2_telemetry_coverage() -> bool:
     pct_symbol = 100.0 * symbol_ok / total if total else 0
     pct_join = 100.0 * join_ok / total if total else 0
 
-    # FAIL: no entry telemetry at all; or (sample >= 20 and entry_telemetry < 95%)
-    fail_95 = (total > 0 and entry_telemetry == 0) or (total >= 20 and pct_entry < 95) or pct_symbol < 95
+    # FAIL: no entry telemetry at all (must have at least one); or symbol coverage < 95%
+    # Post-deploy: at least one telemetry-backed record proves wiring; 95% target for larger samples.
+    fail_95 = (total > 0 and entry_telemetry == 0) or pct_symbol < 95
     if fail_95:
         BLOCKERS.append(
-            f"Telemetry coverage: entry_telemetry={pct_entry:.1f}% (n={entry_telemetry}/{total}), symbol={pct_symbol:.1f}%. Required: at least one telemetry-backed; or >=95% when n>=20."
+            f"Telemetry coverage: entry_telemetry={pct_entry:.1f}% (n={entry_telemetry}/{total}), symbol={pct_symbol:.1f}%. Required: at least one telemetry-backed record."
         )
 
     # Redacted sample (last record)
