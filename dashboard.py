@@ -321,11 +321,24 @@ DASHBOARD_HTML = """
         .direction-banner.error { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
         .direction-banner a { color: inherit; font-weight: 600; text-decoration: underline; }
         .direction-banner a:hover { opacity: 0.9; }
+        /* Situation strip: trades reviewed, promotion, current activity */
+        .situation-strip {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 10px 16px;
+            background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;
+            font-size: 0.9em;
+        }
+        .situation-strip .sit-label { font-weight: 600; color: #475569; }
+        .situation-strip .sit-value { color: #0f172a; }
+        .situation-strip .promo-badge { padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+        .situation-strip .promo-badge.promote { background: #10b981; color: #fff; }
+        .situation-strip .promo-badge.wait { background: #f59e0b; color: #fff; }
+        .situation-strip .promo-badge.dnp { background: #ef4444; color: #fff; }
     </style>
 </head>
 <body>
     <div class="container">
         <div id="direction-banner" class="direction-banner info" role="status" title="Directional intelligence replay status">Loading direction status…</div>
+        <div id="situation-strip" class="situation-strip" role="status" title="Trades reviewed, promotion idea, current activity">Loading situation…</div>
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
@@ -357,6 +370,7 @@ DASHBOARD_HTML = """
                     <button type="button" onclick="switchTab('xai', event); closeMoreDropdown();">🧠 Natural Language Auditor</button>
                     <button type="button" onclick="switchTab('failure_points', event); closeMoreDropdown();">⚠️ Trading Readiness</button>
                     <button type="button" onclick="switchTab('telemetry', event); closeMoreDropdown();">📦 Telemetry</button>
+                    <button type="button" onclick="switchTab('telemetry_health', event); closeMoreDropdown();">📋 Telemetry Health</button>
                 </div>
             </div>
         </div>
@@ -444,6 +458,11 @@ DASHBOARD_HTML = """
                 <div class="loading">Loading telemetry...</div>
             </div>
         </div>
+        <div id="telemetry_health-tab" class="tab-content">
+            <div id="telemetry_health-content">
+                <div class="loading">Loading Telemetry Health...</div>
+            </div>
+        </div>
         
         <div id="signal_review-tab" class="tab-content">
             <div class="positions-table">
@@ -472,6 +491,7 @@ DASHBOARD_HTML = """
     else if(typeof loadWheelAnalytics==='function'&&tabName==='wheel_strategy')loadWheelAnalytics();
     else if(typeof loadSignalReview==='function'&&tabName==='signal_review')loadSignalReview();
     else if(typeof loadTelemetryContent==='function'&&tabName==='telemetry')loadTelemetryContent();
+    else if(typeof loadTelemetryHealth==='function'&&tabName==='telemetry_health')loadTelemetryHealth();
     else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
     };
     function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
@@ -504,6 +524,7 @@ DASHBOARD_HTML = """
     window.loadWheelUniverseHealth=function(){var el=document.getElementById('wheel_universe-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Universe Health...</div>';fetch('/api/wheel/universe_health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var h='';if(d.message){h+='<div class="stat-card"><p>'+d.message+'</p><p>Run: <code>python scripts/generate_wheel_universe_health.py</code></p></div>';}else{h+='<div class="stat-card"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Current universe:</strong> '+(Array.isArray(d.current_universe)?d.current_universe.join(', '):'—')+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(d.selected_candidates)?d.selected_candidates.join(', '):'—')+'</p></div>';h+='<div class="stat-card"><h3>Sector distribution</h3><pre>'+JSON.stringify(d.sector_distribution||{},null,2)+'</pre></div>';if(d.assignment_count!=null)h+='<div class="stat-card"><p><strong>Assignments:</strong> '+d.assignment_count+' | <strong>Called away:</strong> '+d.call_away_count+'</p></div>';if(d.ai_recommendations&&d.ai_recommendations.length){h+='<div class="stat-card"><h3>AI recommendations</h3><ul>';for(var i=0;i<d.ai_recommendations.length;i++)h+='<li>'+JSON.stringify(d.ai_recommendations[i])+'</li>';h+='</ul></div>';}}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel Universe Health failed: '+(e&&e.message?e.message:'network'));});};
     window.loadStrategyComparison=function(){var el=document.getElementById('strategy_comparison-content');if(!el)return;el.innerHTML='<div class="loading">Loading Strategy Comparison...</div>';fetch('/api/strategy/comparison',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sc=d.strategy_comparison||{};var rec=d.recommendation||'WAIT';var score=d.promotion_readiness_score;var badge='<span style="padding:4px 12px;border-radius:6px;font-weight:bold;background:'+(rec==='PROMOTE'?'#10b981':rec==='DO NOT PROMOTE'?'#ef4444':'#f59e0b')+';color:#fff">'+rec+'</span>';var h='<div class="stat-card"><h3>Strategy Comparison</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Promotion Readiness Score:</strong> '+(score!=null?score:'—')+' / 100</p><p><strong>Recommendation:</strong> '+badge+'</p></div>';h+='<div class="stat-card"><h3>Equity vs Wheel</h3><p>Equity Realized: $'+(sc.equity_realized_pnl!=null?fmt(sc.equity_realized_pnl):'—')+' | Wheel Realized: $'+(sc.wheel_realized_pnl!=null?fmt(sc.wheel_realized_pnl):'—')+'</p><p>Equity Unrealized: $'+(sc.equity_unrealized_pnl!=null?fmt(sc.equity_unrealized_pnl):'—')+' | Wheel Unrealized: $'+(sc.wheel_unrealized_pnl!=null?fmt(sc.wheel_unrealized_pnl):'—')+'</p><p>Equity Drawdown: '+(sc.equity_drawdown!=null?sc.equity_drawdown:'—')+' | Wheel Drawdown: '+(sc.wheel_drawdown!=null?sc.wheel_drawdown:'—')+'</p><p>Equity Sharpe: '+(sc.equity_sharpe_proxy!=null?sc.equity_sharpe_proxy:'—')+' | Wheel Sharpe: '+(sc.wheel_sharpe_proxy!=null?sc.wheel_sharpe_proxy:'—')+'</p><p>Wheel Yield: '+(sc.wheel_yield_per_period!=null?sc.wheel_yield_per_period:'—')+' | Capital Eff Equity: '+(sc.capital_efficiency_equity!=null?sc.capital_efficiency_equity:'—')+' | Wheel: '+(sc.capital_efficiency_wheel!=null?sc.capital_efficiency_wheel:'—')+'</p></div>';if(d.weekly_report&&d.weekly_report.reasoning){var wr=d.weekly_report.reasoning;h+='<div class="stat-card"><h3>Weekly Reasoning</h3><pre>'+JSON.stringify(wr,null,2)+'</pre></div>';}if(d.historical_comparison&&d.historical_comparison.length){h+='<div class="stat-card"><h3>Historical (last 30 days)</h3><table><thead><tr><th>Date</th><th>Equity</th><th>Wheel</th><th>Score</th></tr></thead><tbody>';for(var i=0;i<Math.min(d.historical_comparison.length,15);i++){var x=d.historical_comparison[i];h+='<tr><td>'+(x.date||'—')+'</td><td>$'+(x.equity_realized!=null?fmt(x.equity_realized):'—')+'</td><td>$'+(x.wheel_realized!=null?fmt(x.wheel_realized):'—')+'</td><td>'+(x.promotion_score!=null?x.promotion_score:'—')+'</td></tr>';}h+='</tbody></table></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Strategy Comparison failed: '+(e&&e.message?e.message:'network'));});};
     window.loadSignalReview=function(){var el=document.getElementById('signal-review-content');if(!el)return;el.innerHTML='<div class="loading">Loading Signal Review...</div>';fetch('/api/signal_history',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sig=Array.isArray(d.signals)?d.signals:[];if(sig.length===0){el.innerHTML='<p class="no-positions">No signal history</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Direction</th><th>Score</th><th>Decision</th></tr></thead><tbody>';for(var i=0;i<Math.min(sig.length,50);i++){var s=sig[i];h+='<tr><td>'+(s.symbol||'—')+'</td><td>'+(s.direction||'—')+'</td><td>'+(s.final_score!=null?fmt(s.final_score):'—')+'</td><td>'+(s.decision||'—')+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Signal review failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadTelemetryHealth=function(){var el=document.getElementById('telemetry_health-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry Health...</div>';fetch('/api/telemetry_health',creds).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!el)return;if(!d){el.innerHTML='<p>Telemetry health unavailable.</p>';return;}var h='<div class="stat-card"><h3>Canonical logs</h3><table style="width:100%"><thead><tr><th>Log</th><th>Exists</th><th>Last write</th></tr></thead><tbody>';var ls=d.log_status||[];for(var i=0;i<ls.length;i++){var x=ls[i];h+='<tr><td>'+ (x.log||'')+'</td><td>'+(x.exists?'Yes':'No')+'</td><td>'+(x.last_write||'—')+'</td></tr>';}h+='</tbody></table></div>';h+='<div class="stat-card"><h3>Coverage</h3><p><strong>Direction telemetry-backed:</strong> '+(d.direction_coverage||'0/100')+'</p><p><strong>Direction ready:</strong> '+(d.direction_ready?'Yes':'No')+'</p></div>';if(d.gate_status){h+='<div class="stat-card"><h3>Contract audit</h3><p><strong>Last run:</strong> '+d.gate_status+'</p><p>Run <code>make telemetry_gate</code> to refresh.</p></div>';}if(!d.last_droplet_analysis){h+='<div class="stat-card" style="border:2px solid #f59e0b;"><h3>Droplet Data Authority</h3><p style="margin:0;color:#92400e;"><strong>No authoritative data review has been run.</strong> Run analysis on the droplet with --droplet-run --deployed-commit.</p></div>';}else{var lda=d.last_droplet_analysis;h+='<div class="stat-card"><h3>Last droplet analysis run</h3><p><strong>Script:</strong> '+(lda.script||'—')+'</p><p><strong>Deployed commit:</strong> '+(lda.deployed_commit||'—')+'</p><p><strong>Run time (UTC):</strong> '+(lda.run_ts||'—')+'</p></div>';}el.innerHTML=h;}).catch(function(){if(el)el.innerHTML='<p>Failed to load telemetry health.</p>';});};
     window.loadTelemetryContent=function(){var el=document.getElementById('telemetry-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry...</div>';fetch('/api/telemetry/latest/index',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var dt=d.latest_date||'—';var list=d.computed||[];var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Telemetry</h3><p><strong>Latest bundle:</strong> '+dt+'</p>';
     if(d.message){h+='<p>'+d.message+'</p>';}
     if(list.length){h+='<p><strong>Computed artifacts:</strong></p><ul>';for(var i=0;i<list.length;i++){var c=list[i];var name=typeof c==='string'?c:(c.name||c.id||'');if(name)h+='<li>'+name+'</li>';}h+='</ul>';}
@@ -515,8 +536,9 @@ DASHBOARD_HTML = """
     window.loadWheelAnalytics=function(){var el=document.getElementById('wheel_strategy-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Strategy...</div>';Promise.all([fetch('/api/stockbot/wheel_analytics',creds).then(function(r){return r.ok?r.json():null;}),fetch('/api/wheel/universe_health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var d=arr[0];var univ=arr[1];if(!d)d={};var h='<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> '+(d.total_trades!=null?d.total_trades:0)+'</p><p><strong>Premium collected:</strong> $'+(d.premium_collected!=null?Number(d.premium_collected).toFixed(2):'0.00')+'</p><p><strong>Assignment count:</strong> '+(d.assignment_count!=null?d.assignment_count:0)+' | <strong>Call-away count:</strong> '+(d.call_away_count!=null?d.call_away_count:0)+'</p><p><strong>Assignment rate:</strong> '+(d.assignment_rate_pct!=null?d.assignment_rate_pct.toFixed(1):'—')+'% | <strong>Call-away rate:</strong> '+(d.call_away_rate_pct!=null?d.call_away_rate_pct.toFixed(1):'—')+'%</p><p><strong>Expectancy per trade (USD):</strong> '+(d.expectancy_per_trade_usd!=null?'$'+Number(d.expectancy_per_trade_usd).toFixed(2):'—')+'</p><p><strong>Realized P&L sum:</strong> '+(d.realized_pnl_sum!=null?'$'+Number(d.realized_pnl_sum).toFixed(2):'—')+'</p></div>';var openPos=d.open_wheel_positions||[];h+='<div class="stat-card" style="margin-top:16px;"><h3>Current wheel positions</h3>';if(openPos.length){h+='<table style="width:100%;font-size:12px;"><thead><tr><th>Symbol</th><th>Stage</th><th>Strike</th><th>Expiry</th><th>Premium</th><th>Status</th></tr></thead><tbody>';for(var i=0;i<openPos.length;i++){var p=openPos[i];h+='<tr><td>'+(p.symbol||'—')+'</td><td>'+(p.phase||'—')+'</td><td>'+(p.strike!=null?p.strike:'—')+'</td><td>'+(p.expiry||'—').toString().substring(0,10)+'</td><td>'+(p.premium!=null?'$'+Number(p.premium).toFixed(2):'—')+'</td><td>'+(p.status||'open')+'</td></tr>';}h+='</tbody></table></div>';}else{h+='<p>No open wheel positions. Wheel positions appear here and in Open Positions with Strategy=Wheel.</p></div>';}if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}if(univ){h+='<div class="stat-card" style="margin-top:16px;"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(univ.date||'—')+'</p><p><strong>Universe:</strong> '+(Array.isArray(univ.current_universe)?univ.current_universe.join(', '):(univ.message||'—'))+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(univ.selected_candidates)?univ.selected_candidates.join(', '):'—')+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel analytics failed: '+(e&&e.message?e.message:'network'));});};
     function loadTopStrip(){Promise.all([fetch('/api/sre/health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=24h',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=7d',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var health=arr[0];var d24=arr[1];var d7=arr[2];var hel=document.getElementById('strip-health');if(hel){var h=health&&health.overall_health?health.overall_health:'—';hel.textContent=h;hel.className='strip-health '+(h==='healthy'?'healthy':h==='degraded'?'degraded':'critical');}var todayEl=document.getElementById('strip-pnl-today');if(todayEl){var pm24=d24&&d24.pnl_metrics?d24.pnl_metrics:{};var p24=pm24.pnl!=null?pm24.pnl:(pm24.pnl_2d!=null?pm24.pnl_2d:0);todayEl.textContent='$'+fmt(p24);todayEl.className=Number(p24)>=0?'positive':'negative';}var d7El=document.getElementById('strip-pnl-7d');if(d7El){var pm7=d7&&d7.pnl_metrics?d7.pnl_metrics:{};var p7=pm7.pnl!=null?pm7.pnl:0;d7El.textContent='$'+fmt(p7);d7El.className=Number(p7)>=0?'positive':'negative';}var lu=document.getElementById('last-update');if(lu)lu.textContent=new Date().toLocaleTimeString();});}
     window.loadDirectionBanner=function(){var el=document.getElementById('direction-banner');if(!el)return;var done=function(d){if(!el)return;var sev=(d&&d.severity)||'info';el.className='direction-banner '+sev;if(!d){el.textContent='Direction status unavailable';return;}var esc=function(s){if(s==null||s===undefined)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};var msg=esc(d.message||'');var detail=esc(d.detail||'');var link=esc(d.link||'');var html=msg;if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;};var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();done(null);},5000);fetch('/api/direction_banner',{credentials:'same-origin',signal:ac&&ac.signal}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid);done(d);});};
+    window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;fetch('/api/situation',{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var x=d.trades_reviewed!=null?d.trades_reviewed:0;var tot=d.trades_reviewed_total!=null?d.trades_reviewed_total:0;var tgt=d.trades_reviewed_target!=null?d.trades_reviewed_target:100;var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Trades reviewed:</span><span class="sit-value">'+x+'/'+tgt+(tot!==x?' <span style="opacity:0.85;">('+tot+' total)</span>':'')+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
-    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function'){try{loadDirectionBanner();}catch(e){}}},0);
+    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function'){try{loadDirectionBanner();}catch(e){}}if(typeof loadSituationStrip==='function'){try{loadSituationStrip();}catch(e){}}},0);
     })();
     </script>
     <script>
@@ -527,7 +549,7 @@ DASHBOARD_HTML = """
         function switchTab(tabName, event) {
             if (tabName === 'more') return;
             closeMoreDropdown();
-            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry'];
+            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry', 'telemetry_health'];
             var isAdvanced = advancedTabs.indexOf(tabName) >= 0;
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
@@ -571,11 +593,14 @@ DASHBOARD_HTML = """
                 loadSignalReview();
             } else if (tabName === 'telemetry') {
                 loadTelemetryContent();
+            } else if (tabName === 'telemetry_health') {
+                if (typeof loadTelemetryHealth === 'function') loadTelemetryHealth();
             } else if (tabName === 'positions') {
                 updateDashboard();
             }
             loadTopStrip();
             if (typeof loadDirectionBanner === 'function') { try { loadDirectionBanner(); } catch (e) {} }
+            if (typeof loadSituationStrip === 'function') { try { loadSituationStrip(); } catch (e) {} }
         }
         
         function loadSREContent() {
@@ -1121,7 +1146,7 @@ DASHBOARD_HTML = """
         }
         
         // Direction banner: update every 60s so counts and replay status stay current
-        setInterval(() => { if (typeof loadDirectionBanner === 'function') { try { loadDirectionBanner(); } catch (e) {} } }, 60000);
+        setInterval(() => { if (typeof loadDirectionBanner === 'function') { try { loadDirectionBanner(); } catch (e) {} } if (typeof loadSituationStrip === 'function') { try { loadSituationStrip(); } catch (e) {} } }, 60000);
         // Auto-refresh SRE content if on SRE tab (less frequent)
         setInterval(() => {
             if (document.getElementById('sre-tab').classList.contains('active')) {
@@ -3113,6 +3138,180 @@ def api_direction_banner():
         return jsonify({"state": "WAITING", "message": "Direction banner unavailable", "detail": str(e), "severity": "info"}), 200
 
 
+@app.route("/api/situation", methods=["GET"])
+def api_situation():
+    """
+    At-a-glance situation: trades reviewed (direction X/100), promotion proposal, closed/open counts.
+    Feeds the dashboard situation strip so operators see current state and where we are going for profit.
+    """
+    try:
+        root = Path(_DASHBOARD_ROOT)
+        state_dir = root / "state"
+        reports_dir = root / "reports"
+        today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
+
+        # 1) Trades reviewed (direction readiness)
+        trades_reviewed = 0
+        trades_reviewed_total = 0
+        try:
+            rpath = state_dir / "direction_readiness.json"
+            if rpath.exists():
+                data = json.loads(rpath.read_text(encoding="utf-8"))
+                trades_reviewed = int(data.get("telemetry_trades") or 0)
+                trades_reviewed_total = int(data.get("total_trades") or 0)
+        except Exception:
+            pass
+
+        # 2) Promotion proposal (strategy comparison)
+        promotion_recommendation = "WAIT"
+        promotion_score = None
+        promotion_reasons = []
+        try:
+            comb_path = reports_dir / f"{today}_stock-bot_combined.json"
+            if comb_path.exists():
+                comb = json.loads(comb_path.read_text(encoding="utf-8", errors="replace"))
+                sc = comb.get("strategy_comparison") or {}
+                if isinstance(sc, dict):
+                    promotion_recommendation = sc.get("recommendation", "WAIT")
+                    promotion_score = sc.get("promotion_readiness_score")
+                    promotion_reasons = sc.get("reasons") or []
+                    if isinstance(promotion_reasons, list):
+                        promotion_reasons = promotion_reasons[:5]
+        except Exception:
+            pass
+
+        # 3) Governance effectiveness: joined count (trades in last run)
+        governance_joined_count = None
+        try:
+            gov_dir = root / "reports" / "equity_governance"
+            if gov_dir.exists():
+                runs = sorted(gov_dir.glob("equity_governance_*"), key=lambda p: p.stat().st_mtime, reverse=True)
+                for run_dir in runs[:1]:
+                    dec_path = run_dir / "lock_or_revert_decision.json"
+                    if dec_path.exists():
+                        dec = json.loads(dec_path.read_text(encoding="utf-8"))
+                        cand = dec.get("candidate") or {}
+                        governance_joined_count = cand.get("joined_count")
+                        break
+        except Exception:
+            pass
+
+        # 4) Closed trades count (last 90d from attribution/exit_attribution)
+        closed_trades_count = 0
+        try:
+            closed_trades_count = len(_load_stock_closed_trades())
+        except Exception:
+            pass
+
+        # 5) Open positions count (state or Alpaca)
+        open_positions_count = None
+        try:
+            ip_path = state_dir / "internal_positions.json"
+            if ip_path.exists():
+                data = json.loads(ip_path.read_text(encoding="utf-8", errors="replace"))
+                if isinstance(data, list):
+                    open_positions_count = len(data)
+                elif isinstance(data, dict) and "positions" in data:
+                    open_positions_count = len(data.get("positions") or [])
+            if open_positions_count is None:
+                pm_path = state_dir / "position_metadata.json"
+                if pm_path.exists():
+                    data = json.loads(pm_path.read_text(encoding="utf-8", errors="replace"))
+                    if isinstance(data, dict):
+                        open_positions_count = len([k for k in data if k and not k.startswith("_")])
+        except Exception:
+            pass
+        if open_positions_count is None and _alpaca_api is not None:
+            try:
+                pos = _alpaca_api.get_all_positions()
+                open_positions_count = len(pos) if pos else 0
+            except Exception:
+                pass
+
+        return jsonify({
+            "trades_reviewed": trades_reviewed,
+            "trades_reviewed_total": trades_reviewed_total,
+            "trades_reviewed_target": 100,
+            "promotion_recommendation": promotion_recommendation,
+            "promotion_score": promotion_score,
+            "promotion_reasons": promotion_reasons,
+            "governance_joined_count": governance_joined_count,
+            "closed_trades_count": closed_trades_count,
+            "open_positions_count": open_positions_count,
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "trades_reviewed": 0,
+            "trades_reviewed_total": 0,
+            "promotion_recommendation": "WAIT",
+            "closed_trades_count": 0,
+        }), 200
+
+
+@app.route("/api/telemetry_health", methods=["GET"])
+def api_telemetry_health():
+    """Telemetry Health: canonical log existence + last-write, direction coverage X/100, optional gate status."""
+    try:
+        root = Path(_DASHBOARD_ROOT)
+        logs_dir = root / "logs"
+        state_dir = root / "state"
+        canonical = [
+            ("master_trade_log", logs_dir / "master_trade_log.jsonl"),
+            ("attribution", logs_dir / "attribution.jsonl"),
+            ("exit_attribution", logs_dir / "exit_attribution.jsonl"),
+            ("exit_event", logs_dir / "exit_event.jsonl"),
+            ("intel_snapshot_entry", logs_dir / "intel_snapshot_entry.jsonl"),
+            ("intel_snapshot_exit", logs_dir / "intel_snapshot_exit.jsonl"),
+            ("direction_event", logs_dir / "direction_event.jsonl"),
+        ]
+        log_status = []
+        for name, path in canonical:
+            exists = path.exists()
+            mtime = path.stat().st_mtime if exists else None
+            from datetime import datetime, timezone
+            last_write = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat() if mtime else None
+            log_status.append({"log": name, "exists": exists, "last_write": last_write})
+        direction_telemetry_trades = 0
+        direction_total = 0
+        direction_ready = False
+        try:
+            rpath = state_dir / "direction_readiness.json"
+            if rpath.exists():
+                data = json.loads(rpath.read_text(encoding="utf-8"))
+                direction_telemetry_trades = int(data.get("telemetry_trades") or 0)
+                direction_total = int(data.get("total_trades") or 0)
+                direction_ready = data.get("ready") is True
+        except Exception:
+            pass
+        gate_status = None
+        try:
+            gate_path = root / "reports" / "audit" / "TELEMETRY_CONTRACT_AUDIT.md"
+            if gate_path.exists():
+                text = gate_path.read_text(encoding="utf-8", errors="replace")
+                gate_status = "FAIL" if "Logs with schema failures" in text else "PASS"
+        except Exception:
+            pass
+        last_droplet_analysis = None
+        try:
+            lap = state_dir / "last_droplet_analysis.json"
+            if lap.exists():
+                last_droplet_analysis = json.loads(lap.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+        return jsonify({
+            "log_status": log_status,
+            "direction_telemetry_trades": direction_telemetry_trades,
+            "direction_total_trades": direction_total,
+            "direction_ready": direction_ready,
+            "direction_coverage": f"{direction_telemetry_trades}/100",
+            "gate_status": gate_status,
+            "last_droplet_analysis": last_droplet_analysis,
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "log_status": [], "direction_coverage": "0/100"}), 200
+
+
 @app.route("/reports/board/<path:filename>", methods=["GET"])
 def serve_board_report(filename):
     """Serve board report files so direction banner 'View report' link works (e.g. DIRECTION_REPLAY_30D_RESULTS.md)."""
@@ -3188,6 +3387,14 @@ def api_governance_status():
                     break
                 except Exception:
                     pass
+        last_droplet_analysis = None
+        try:
+            lap = root / "state" / "last_droplet_analysis.json"
+            if lap.exists():
+                last_droplet_analysis = json.loads(lap.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+        out["last_droplet_analysis"] = last_droplet_analysis
         return jsonify(out), 200
     except Exception as e:
         return jsonify({"error": str(e), "avg_profit_giveback": None, "stopping_condition_met": False, "stopping_checks": {}}), 200
