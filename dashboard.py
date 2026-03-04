@@ -341,8 +341,8 @@ DASHBOARD_HTML = """
 </head>
 <body>
     <div class="container">
-        <div id="direction-banner" class="direction-banner info" role="status" title="Directional intelligence replay status">Loading direction status…</div>
-        <div id="situation-strip" class="situation-strip" role="status" title="Trades reviewed, promotion idea, current activity">Loading situation…</div>
+        <div id="direction-banner" class="direction-banner {{ initial_banner_severity }}" role="status" title="Directional intelligence replay status">{{ initial_banner_html|safe }}</div>
+        <div id="situation-strip" class="situation-strip" role="status" title="Trades reviewed, promotion idea, current activity">{{ initial_situation_html|safe }}</div>
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
@@ -3152,100 +3152,14 @@ def api_situation():
     Feeds the dashboard situation strip so operators see current state and where we are going for profit.
     """
     try:
-        root = Path(_DASHBOARD_ROOT)
-        state_dir = root / "state"
-        reports_dir = root / "reports"
-        today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
-
-        # 1) Trades reviewed (direction readiness)
-        trades_reviewed = 0
-        trades_reviewed_total = 0
-        try:
-            rpath = state_dir / "direction_readiness.json"
-            if rpath.exists():
-                data = json.loads(rpath.read_text(encoding="utf-8"))
-                trades_reviewed = int(data.get("telemetry_trades") or 0)
-                trades_reviewed_total = int(data.get("total_trades") or 0)
-        except Exception:
-            pass
-
-        # 2) Promotion proposal (strategy comparison)
-        promotion_recommendation = "WAIT"
-        promotion_score = None
-        promotion_reasons = []
-        try:
-            comb_path = reports_dir / f"{today}_stock-bot_combined.json"
-            if comb_path.exists():
-                comb = json.loads(comb_path.read_text(encoding="utf-8", errors="replace"))
-                sc = comb.get("strategy_comparison") or {}
-                if isinstance(sc, dict):
-                    promotion_recommendation = sc.get("recommendation", "WAIT")
-                    promotion_score = sc.get("promotion_readiness_score")
-                    promotion_reasons = sc.get("reasons") or []
-                    if isinstance(promotion_reasons, list):
-                        promotion_reasons = promotion_reasons[:5]
-        except Exception:
-            pass
-
-        # 3) Governance effectiveness: joined count (trades in last run)
-        governance_joined_count = None
-        try:
-            gov_dir = root / "reports" / "equity_governance"
-            if gov_dir.exists():
-                runs = sorted(gov_dir.glob("equity_governance_*"), key=lambda p: p.stat().st_mtime, reverse=True)
-                for run_dir in runs[:1]:
-                    dec_path = run_dir / "lock_or_revert_decision.json"
-                    if dec_path.exists():
-                        dec = json.loads(dec_path.read_text(encoding="utf-8"))
-                        cand = dec.get("candidate") or {}
-                        governance_joined_count = cand.get("joined_count")
-                        break
-        except Exception:
-            pass
-
-        # 4) Closed trades count (last 90d from attribution/exit_attribution)
-        closed_trades_count = 0
-        try:
-            closed_trades_count = len(_load_stock_closed_trades())
-        except Exception:
-            pass
-
-        # 5) Open positions count (state or Alpaca)
-        open_positions_count = None
-        try:
-            ip_path = state_dir / "internal_positions.json"
-            if ip_path.exists():
-                data = json.loads(ip_path.read_text(encoding="utf-8", errors="replace"))
-                if isinstance(data, list):
-                    open_positions_count = len(data)
-                elif isinstance(data, dict) and "positions" in data:
-                    open_positions_count = len(data.get("positions") or [])
-            if open_positions_count is None:
-                pm_path = state_dir / "position_metadata.json"
-                if pm_path.exists():
-                    data = json.loads(pm_path.read_text(encoding="utf-8", errors="replace"))
-                    if isinstance(data, dict):
-                        open_positions_count = len([k for k in data if k and not k.startswith("_")])
-        except Exception:
-            pass
-        if open_positions_count is None and _alpaca_api is not None:
+        data = _get_situation_data_sync()
+        if data.get("open_positions_count") is None and _alpaca_api is not None:
             try:
                 pos = _alpaca_api.get_all_positions()
-                open_positions_count = len(pos) if pos else 0
+                data["open_positions_count"] = len(pos) if pos else 0
             except Exception:
                 pass
-
-        return jsonify({
-            "trades_reviewed": trades_reviewed,
-            "trades_reviewed_total": trades_reviewed_total,
-            "trades_reviewed_target": 100,
-            "promotion_recommendation": promotion_recommendation,
-            "promotion_score": promotion_score,
-            "promotion_reasons": promotion_reasons,
-            "governance_joined_count": governance_joined_count,
-            "closed_trades_count": closed_trades_count,
-            "open_positions_count": open_positions_count,
-        }), 200
+        return jsonify(data), 200
     except Exception as e:
         return jsonify({
             "error": str(e)[:200],
@@ -3412,9 +3326,161 @@ def api_governance_status():
         return jsonify({"error": str(e), "avg_profit_giveback": None, "stopping_condition_met": False, "stopping_checks": {}}), 200
 
 
+def _get_banner_state_sync():
+    """Same data as /api/direction_banner; used for server-side initial render."""
+    try:
+        root = Path(_DASHBOARD_ROOT)
+        from src.dashboard.direction_banner_state import get_direction_banner_state
+        return get_direction_banner_state(root)
+    except Exception:
+        return {"state": "WAITING", "message": "Direction status unavailable", "detail": "", "severity": "info"}
+
+
+def _get_situation_data_sync():
+    """Same data as /api/situation; used for server-side initial render. Avoids _load_stock_closed_trades on page load for speed; closed/open may be 0/None until JS refresh."""
+    try:
+        root = Path(_DASHBOARD_ROOT)
+        state_dir = root / "state"
+        reports_dir = root / "reports"
+        today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
+        trades_reviewed = trades_reviewed_total = 0
+        try:
+            rpath = state_dir / "direction_readiness.json"
+            if rpath.exists():
+                data = json.loads(rpath.read_text(encoding="utf-8"))
+                trades_reviewed = int(data.get("telemetry_trades") or 0)
+                trades_reviewed_total = int(data.get("total_trades") or 0)
+        except Exception:
+            pass
+        promotion_recommendation, promotion_score, promotion_reasons = "WAIT", None, []
+        try:
+            comb_path = reports_dir / f"{today}_stock-bot_combined.json"
+            if comb_path.exists():
+                comb = json.loads(comb_path.read_text(encoding="utf-8", errors="replace"))
+                sc = comb.get("strategy_comparison") or {}
+                if isinstance(sc, dict):
+                    promotion_recommendation = sc.get("recommendation", "WAIT")
+                    promotion_score = sc.get("promotion_readiness_score")
+                    promotion_reasons = (sc.get("reasons") or [])[:5]
+        except Exception:
+            pass
+        governance_joined_count = None
+        try:
+            gov_dir = root / "reports" / "equity_governance"
+            if gov_dir.exists():
+                runs = sorted(gov_dir.glob("equity_governance_*"), key=lambda p: p.stat().st_mtime, reverse=True)
+                for run_dir in runs[:1]:
+                    dec_path = run_dir / "lock_or_revert_decision.json"
+                    if dec_path.exists():
+                        dec = json.loads(dec_path.read_text(encoding="utf-8"))
+                        governance_joined_count = (dec.get("candidate") or {}).get("joined_count")
+                        break
+        except Exception:
+            pass
+        closed_trades_count = 0
+        open_positions_count = None
+        try:
+            closed_trades_count = len(_load_stock_closed_trades())
+        except Exception:
+            pass
+        try:
+            ip_path = state_dir / "internal_positions.json"
+            if ip_path.exists():
+                data = json.loads(ip_path.read_text(encoding="utf-8", errors="replace"))
+                if isinstance(data, list):
+                    open_positions_count = len(data)
+                elif isinstance(data, dict) and "positions" in data:
+                    open_positions_count = len(data.get("positions") or [])
+            if open_positions_count is None and state_dir.joinpath("position_metadata.json").exists():
+                data = json.loads((state_dir / "position_metadata.json").read_text(encoding="utf-8", errors="replace"))
+                if isinstance(data, dict):
+                    open_positions_count = len([k for k in data if k and not str(k).startswith("_")])
+        except Exception:
+            pass
+        return {
+            "trades_reviewed": trades_reviewed,
+            "trades_reviewed_total": trades_reviewed_total,
+            "trades_reviewed_target": 100,
+            "promotion_recommendation": promotion_recommendation,
+            "promotion_score": promotion_score,
+            "promotion_reasons": promotion_reasons,
+            "governance_joined_count": governance_joined_count,
+            "closed_trades_count": closed_trades_count,
+            "open_positions_count": open_positions_count,
+        }
+    except Exception:
+        return {"trades_reviewed": 0, "trades_reviewed_total": 0, "promotion_recommendation": "WAIT", "closed_trades_count": 0, "open_positions_count": None}
+
+
+def _escape_html(s):
+    if s is None:
+        return ""
+    s = str(s)
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
+
+
+def _render_initial_banner_html(state):
+    """Render direction banner HTML for server-side first paint. Never returns 'Loading...'."""
+    if not state:
+        return _escape_html("Direction status unavailable"), "info"
+    msg = _escape_html(state.get("message") or "")
+    detail = _escape_html(state.get("detail") or "")
+    link = _escape_html(state.get("link") or "")
+    severity = (state.get("severity") or "info").strip()
+    out = msg
+    if detail:
+        out += ' <span style="opacity:0.9;">' + detail + "</span>"
+    if link:
+        out += ' <a href="' + link + '" target="_blank" rel="noopener">View report</a>'
+    return out, severity
+
+
+def _render_initial_situation_html(data):
+    """Render situation strip HTML for server-side first paint. Never returns 'Loading...'."""
+    if not data or data.get("error"):
+        return '<span class="sit-label">Situation</span><span class="sit-value">—</span>'
+    x = data.get("trades_reviewed", 0) or 0
+    tot = data.get("trades_reviewed_total", 0) or 0
+    tgt = data.get("trades_reviewed_target", 100) or 100
+    rec = ((data.get("promotion_recommendation") or "WAIT") or "WAIT").upper()
+    score = data.get("promotion_score")
+    reasons = data.get("promotion_reasons") or []
+    gov = data.get("governance_joined_count")
+    closed = data.get("closed_trades_count", 0) or 0
+    open_ = data.get("open_positions_count")
+    rec_cls = "promote" if rec == "PROMOTE" else ("dnp" if rec == "DO NOT PROMOTE" else "wait")
+    promo = '<span class="promo-badge ' + rec_cls + '">' + rec + ((' ' + str(score) + '/100') if score is not None else '') + "</span>"
+    if reasons:
+        promo += ' <span style="opacity:0.85;">(' + _escape_html("; ".join(reasons[:2])) + ")</span>"
+    h = '<span class="sit-label">Trades reviewed:</span><span class="sit-value">' + str(x) + '/' + str(tgt)
+    if tot != x:
+        h += ' <span style="opacity:0.85;">(' + str(tot) + ' total)</span>'
+    h += "</span> <span class="sit-label">Promotion:</span> " + promo
+    if gov is not None:
+        h += ' <span class="sit-label">Governance (joined):</span><span class="sit-value">' + str(gov) + "</span>"
+    h += ' <span class="sit-label">Closed (90d):</span><span class="sit-value">' + str(closed) + "</span>"
+    h += ' <span class="sit-label">Open:</span><span class="sit-value">' + (str(open_) if open_ is not None else "—") + "</span>"
+    return h
+
+
 @app.route("/")
 def index():
-    return render_template_string(DASHBOARD_HTML)
+    """Serve dashboard with banner and situation pre-rendered so they never show Loading."""
+    try:
+        banner_state = _get_banner_state_sync()
+        situation_data = _get_situation_data_sync()
+        banner_html, banner_severity = _render_initial_banner_html(banner_state)
+        situation_html = _render_initial_situation_html(situation_data)
+    except Exception:
+        banner_html = "Direction status unavailable"
+        banner_severity = "info"
+        situation_html = '<span class="sit-label">Situation</span><span class="sit-value">—</span>'
+    return render_template_string(
+        DASHBOARD_HTML,
+        initial_banner_html=banner_html,
+        initial_banner_severity=banner_severity,
+        initial_situation_html=situation_html,
+    )
 
 @app.route("/health")
 def health():
