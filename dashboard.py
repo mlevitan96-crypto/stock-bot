@@ -513,7 +513,7 @@ DASHBOARD_HTML = """
     window.loadWheelUniverseHealth=function(){var el=document.getElementById('wheel_universe-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Universe Health...</div>';fetch('/api/wheel/universe_health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var h='';if(d.message){h+='<div class="stat-card"><p>'+d.message+'</p><p>Run: <code>python scripts/generate_wheel_universe_health.py</code></p></div>';}else{h+='<div class="stat-card"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Current universe:</strong> '+(Array.isArray(d.current_universe)?d.current_universe.join(', '):'—')+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(d.selected_candidates)?d.selected_candidates.join(', '):'—')+'</p></div>';h+='<div class="stat-card"><h3>Sector distribution</h3><pre>'+JSON.stringify(d.sector_distribution||{},null,2)+'</pre></div>';if(d.assignment_count!=null)h+='<div class="stat-card"><p><strong>Assignments:</strong> '+d.assignment_count+' | <strong>Called away:</strong> '+d.call_away_count+'</p></div>';if(d.ai_recommendations&&d.ai_recommendations.length){h+='<div class="stat-card"><h3>AI recommendations</h3><ul>';for(var i=0;i<d.ai_recommendations.length;i++)h+='<li>'+JSON.stringify(d.ai_recommendations[i])+'</li>';h+='</ul></div>';}}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel Universe Health failed: '+(e&&e.message?e.message:'network'));});};
     window.loadStrategyComparison=function(){var el=document.getElementById('strategy_comparison-content');if(!el)return;el.innerHTML='<div class="loading">Loading Strategy Comparison...</div>';fetch('/api/strategy/comparison',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sc=d.strategy_comparison||{};var rec=d.recommendation||'WAIT';var score=d.promotion_readiness_score;var badge='<span style="padding:4px 12px;border-radius:6px;font-weight:bold;background:'+(rec==='PROMOTE'?'#10b981':rec==='DO NOT PROMOTE'?'#ef4444':'#f59e0b')+';color:#fff">'+rec+'</span>';var h='<div class="stat-card"><h3>Strategy Comparison</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Promotion Readiness Score:</strong> '+(score!=null?score:'—')+' / 100</p><p><strong>Recommendation:</strong> '+badge+'</p></div>';h+='<div class="stat-card"><h3>Equity vs Wheel</h3><p>Equity Realized: $'+(sc.equity_realized_pnl!=null?fmt(sc.equity_realized_pnl):'—')+' | Wheel Realized: $'+(sc.wheel_realized_pnl!=null?fmt(sc.wheel_realized_pnl):'—')+'</p><p>Equity Unrealized: $'+(sc.equity_unrealized_pnl!=null?fmt(sc.equity_unrealized_pnl):'—')+' | Wheel Unrealized: $'+(sc.wheel_unrealized_pnl!=null?fmt(sc.wheel_unrealized_pnl):'—')+'</p><p>Equity Drawdown: '+(sc.equity_drawdown!=null?sc.equity_drawdown:'—')+' | Wheel Drawdown: '+(sc.wheel_drawdown!=null?sc.wheel_drawdown:'—')+'</p><p>Equity Sharpe: '+(sc.equity_sharpe_proxy!=null?sc.equity_sharpe_proxy:'—')+' | Wheel Sharpe: '+(sc.wheel_sharpe_proxy!=null?sc.wheel_sharpe_proxy:'—')+'</p><p>Wheel Yield: '+(sc.wheel_yield_per_period!=null?sc.wheel_yield_per_period:'—')+' | Capital Eff Equity: '+(sc.capital_efficiency_equity!=null?sc.capital_efficiency_equity:'—')+' | Wheel: '+(sc.capital_efficiency_wheel!=null?sc.capital_efficiency_wheel:'—')+'</p></div>';if(d.weekly_report&&d.weekly_report.reasoning){var wr=d.weekly_report.reasoning;h+='<div class="stat-card"><h3>Weekly Reasoning</h3><pre>'+JSON.stringify(wr,null,2)+'</pre></div>';}if(d.historical_comparison&&d.historical_comparison.length){h+='<div class="stat-card"><h3>Historical (last 30 days)</h3><table><thead><tr><th>Date</th><th>Equity</th><th>Wheel</th><th>Score</th></tr></thead><tbody>';for(var i=0;i<Math.min(d.historical_comparison.length,15);i++){var x=d.historical_comparison[i];h+='<tr><td>'+(x.date||'—')+'</td><td>$'+(x.equity_realized!=null?fmt(x.equity_realized):'—')+'</td><td>$'+(x.wheel_realized!=null?fmt(x.wheel_realized):'—')+'</td><td>'+(x.promotion_score!=null?x.promotion_score:'—')+'</td></tr>';}h+='</tbody></table></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Strategy Comparison failed: '+(e&&e.message?e.message:'network'));});};
     window.loadSignalReview=function(){var el=document.getElementById('signal-review-content');if(!el)return;el.innerHTML='<div class="loading">Loading Signal Review...</div>';fetch('/api/signal_history',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sig=Array.isArray(d.signals)?d.signals:[];if(sig.length===0){el.innerHTML='<p class="no-positions">No signal history</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Direction</th><th>Score</th><th>Decision</th></tr></thead><tbody>';for(var i=0;i<Math.min(sig.length,50);i++){var s=sig[i];h+='<tr><td>'+(s.symbol||'—')+'</td><td>'+(s.direction||'—')+'</td><td>'+(s.final_score!=null?fmt(s.final_score):'—')+'</td><td>'+(s.decision||'—')+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Signal review failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadLearningReadiness=function(){var el=document.getElementById('learning_readiness-content');if(!el)return;el.innerHTML='<div class="loading">Loading Learning & Readiness...</div>';fetch('/api/learning_readiness',creds).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!el)return;if(!d){el.innerHTML='<p>Learning readiness unavailable.</p>';return;}var x=d.telemetry_trades!=null?d.telemetry_trades:0;var tot=d.total_trades!=null?d.total_trades:0;var pct=d.pct_telemetry!=null?d.pct_telemetry:0;var tgt=d.target_trades!=null?d.target_trades:100;var minPct=d.min_pct_telemetry!=null?d.min_pct_telemetry:90;var ready=d.ready===true;var h='<div class="stat-card"><h3>Trades reviewed</h3><p><strong>'+x+'</strong> / '+tgt+' telemetry-backed (target for replay)</p><p>'+tot+' total exits · '+pct.toFixed(1)+'% with full telemetry</p><p><strong>Ready for replay:</strong> '+(ready?'Yes':'No — need &ge;'+tgt+' and &ge;'+minPct+'%')+'</p></div>';h+='<div class="stat-card"><h3>What we review (every exit)</h3><ul style="margin:0;padding-left:1.2em;">';var fs=d.features_reviewed||[];for(var i=0;i<fs.length;i++)h+='<li>'+fs[i]+'</li>';h+='</ul></div>';h+='<div class="stat-card"><h3>What &quot;Wait&quot; means</h3><p>'+(d.what_wait_means||'')+'</p></div>';h+='<div class="stat-card"><h3>Update schedule</h3><p><strong>Cron:</strong> '+(d.cron_schedule||'—')+'</p><p><strong>Last cron run:</strong> '+(d.last_cron_run_iso||'—')+'</p></div>';if(d.replay_status){h+='<div class="stat-card"><h3>Replay status</h3><p><strong>Status:</strong> '+d.replay_status+'</p>'+(d.replay_reason?'<p><strong>Reason:</strong> '+d.replay_reason+'</p>':'')+(d.replay_last_run_ts?'<p><strong>Last run:</strong> '+d.replay_last_run_ts+'</p>':'')+'</div>';}var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];h+='<div class="stat-card"><h3>Promotion readiness</h3><p><strong>Recommendation:</strong> '+rec+(score!=null?' '+score+'/100':'')+'</p>'+(reasons.length?'<p><strong>Reasons:</strong> '+reasons.join('; ')+'</p>':'')+'</div>';el.innerHTML=h;}).catch(function(){if(el)el.innerHTML='<p>Failed to load learning readiness.</p>';});};
+    window.loadLearningReadiness=function(){var el=document.getElementById('learning_readiness-content');if(!el)return;el.innerHTML='<div class="loading">Loading Learning & Readiness...</div>';fetch('/api/learning_readiness',creds).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!el)return;try{if(!d){el.innerHTML='<p>Learning readiness unavailable.</p>';return;}var x=Number(d.telemetry_trades);if(!isFinite(x))x=0;var tot=Number(d.total_trades);if(!isFinite(tot))tot=0;var pct=Number(d.pct_telemetry);if(!isFinite(pct))pct=0;var tgt=Number(d.target_trades)||100;var minPct=Number(d.min_pct_telemetry)||90;var ready=d.ready===true;var h='<div class="stat-card"><h3>Trades reviewed</h3><p><strong>'+x+'</strong> / '+tgt+' telemetry-backed (target for replay)</p><p>'+tot+' total exits · '+pct.toFixed(1)+'% with full telemetry</p><p><strong>Ready for replay:</strong> '+(ready?'Yes':'No — need &ge;'+tgt+' and &ge;'+minPct+'%')+'</p></div>';h+='<div class="stat-card"><h3>Still reviewing?</h3><p><strong>Yes.</strong> '+(d.review_continues_after_100||'Counts updated every 5 min from exit_attribution.')+'</p></div>';h+='<div class="stat-card"><h3>Visibility matrix (last 200 exits)</h3><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Feature</th><th>Count</th><th>%</th></tr></thead><tbody>';var mx=d.visibility_matrix||[];for(var j=0;j<mx.length;j++){var row=mx[j];var fn=row.feature||'—';var cnt=row.count!=null?row.count:0;var pc=row.pct!=null?row.pct:0;h+='<tr><td>'+fn+'</td><td>'+cnt+'</td><td>'+Number(pc).toFixed(1)+'%</td></tr>';}h+='</tbody></table></div>';h+='<div class="stat-card"><h3>What we review (every exit)</h3><ul style="margin:0;padding-left:1.2em;">';var fs=d.features_reviewed||[];for(var i=0;i<fs.length;i++)h+='<li>'+fs[i]+'</li>';h+='</ul></div>';h+='<div class="stat-card"><h3>What &quot;Wait&quot; means</h3><p>'+(d.what_wait_means||'')+'</p></div>';h+='<div class="stat-card"><h3>Close to promotion?</h3><p>'+(d.promotion_close_missing&&d.promotion_close_missing.length?d.promotion_close_missing.join('; '):'Replay gate: need &ge;100 telemetry-backed and &ge;90% coverage.')+'</p></div>';h+='<div class="stat-card"><h3>Update schedule</h3><p><strong>Cron:</strong> '+(d.cron_schedule||'—')+'</p><p><strong>Last cron run:</strong> '+(d.last_cron_run_iso||'—')+'</p></div>';if(d.replay_status){h+='<div class="stat-card"><h3>Replay status</h3><p><strong>Status:</strong> '+d.replay_status+'</p>'+(d.replay_reason?'<p><strong>Reason:</strong> '+d.replay_reason+'</p>':'')+(d.replay_last_run_ts?'<p><strong>Last run:</strong> '+d.replay_last_run_ts+'</p>':'')+'</div>';}var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];h+='<div class="stat-card"><h3>Promotion readiness</h3><p><strong>Recommendation:</strong> '+rec+(score!=null?' '+score+'/100':'')+'</p>'+(reasons.length?'<p><strong>Reasons:</strong> '+reasons.join('; ')+'</p>':'')+'</div>';if(d.error){h='<div class="stat-card" style="border-color:#f59e0b"><p>API warning: '+d.error+'</p></div>'+h;}el.innerHTML=h;}catch(e){el.innerHTML='<p>Error rendering: '+(e&&e.message?e.message:'unknown')+'. Retry or check console.</p>';}}).catch(function(e){if(el)el.innerHTML='<p>Failed to load learning readiness. Check network and login. '+(e&&e.message?e.message:'')+'</p>';});};
     window.loadTelemetryHealth=function(){var el=document.getElementById('telemetry_health-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry Health...</div>';fetch('/api/telemetry_health',creds).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!el)return;if(!d){el.innerHTML='<p>Telemetry health unavailable.</p>';return;}var h='<div class="stat-card"><h3>Canonical logs</h3><table style="width:100%"><thead><tr><th>Log</th><th>Exists</th><th>Last write</th></tr></thead><tbody>';var ls=d.log_status||[];for(var i=0;i<ls.length;i++){var x=ls[i];h+='<tr><td>'+ (x.log||'')+'</td><td>'+(x.exists?'Yes':'No')+'</td><td>'+(x.last_write||'—')+'</td></tr>';}h+='</tbody></table></div>';h+='<div class="stat-card"><h3>Coverage</h3><p><strong>Direction telemetry-backed:</strong> '+(d.direction_coverage||'0/100')+'</p><p><strong>Direction ready:</strong> '+(d.direction_ready?'Yes':'No')+'</p></div>';if(d.gate_status){h+='<div class="stat-card"><h3>Contract audit</h3><p><strong>Last run:</strong> '+d.gate_status+'</p><p>Run <code>make telemetry_gate</code> to refresh.</p></div>';}if(!d.last_droplet_analysis){h+='<div class="stat-card" style="border:2px solid #f59e0b;"><h3>Droplet Data Authority</h3><p style="margin:0;color:#92400e;"><strong>No authoritative data review has been run.</strong> Run analysis on the droplet with --droplet-run --deployed-commit.</p></div>';}else{var lda=d.last_droplet_analysis;h+='<div class="stat-card"><h3>Last droplet analysis run</h3><p><strong>Script:</strong> '+(lda.script||'—')+'</p><p><strong>Deployed commit:</strong> '+(lda.deployed_commit||'—')+'</p><p><strong>Run time (UTC):</strong> '+(lda.run_ts||'—')+'</p></div>';}el.innerHTML=h;}).catch(function(){if(el)el.innerHTML='<p>Failed to load telemetry health.</p>';});};
     window.loadTelemetryContent=function(){var el=document.getElementById('telemetry-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry...</div>';fetch('/api/telemetry/latest/index',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var dt=d.latest_date||'—';var list=d.computed||[];var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Telemetry</h3><p><strong>Latest bundle:</strong> '+dt+'</p>';
     if(d.message){h+='<p>'+d.message+'</p>';}
@@ -3224,99 +3224,185 @@ def api_telemetry_health():
         return jsonify({"error": str(e), "log_status": [], "direction_coverage": "0/100"}), 200
 
 
+def _compute_visibility_matrix(exit_path: Path, sample_size: int = 200) -> list:
+    """Compute per-feature coverage over last N exit_attribution records. Returns list of {feature, count, pct, total}."""
+    matrix = []
+    if not exit_path.exists():
+        return matrix
+    lines = exit_path.read_text(encoding="utf-8", errors="replace").strip().splitlines()
+    recent = [l for l in lines if l.strip()][-sample_size:]
+    total = len(recent)
+    if total == 0:
+        return matrix
+    counts = {
+        "intel_snapshot_entry": 0,
+        "intel_snapshot_exit": 0,
+        "direction": 0,
+        "side": 0,
+        "position_side": 0,
+        "symbol": 0,
+        "sizing": 0,
+    }
+    for line in recent:
+        try:
+            rec = json.loads(line)
+            if not isinstance(rec, dict):
+                continue
+            embed = rec.get("direction_intel_embed") if isinstance(rec.get("direction_intel_embed"), dict) else {}
+            snap_e = embed.get("intel_snapshot_entry")
+            snap_x = embed.get("intel_snapshot_exit")
+            if isinstance(snap_e, dict) and snap_e:
+                counts["intel_snapshot_entry"] += 1
+            if isinstance(snap_x, dict) and snap_x:
+                counts["intel_snapshot_exit"] += 1
+            if rec.get("direction") not in (None, ""):
+                counts["direction"] += 1
+            if rec.get("side") not in (None, ""):
+                counts["side"] += 1
+            if rec.get("position_side") not in (None, ""):
+                counts["position_side"] += 1
+            if rec.get("symbol"):
+                counts["symbol"] += 1
+            if any(rec.get(k) is not None for k in ("qty", "entry_price", "exit_price", "notional")):
+                counts["sizing"] += 1
+        except Exception:
+            continue
+    for name, count in counts.items():
+        pct = round(100.0 * count / total, 1) if total else 0
+        matrix.append({"feature": name, "count": count, "pct": pct, "total": total})
+    return matrix
+
+
 @app.route("/api/learning_readiness", methods=["GET"])
 def api_learning_readiness():
     """
     Full learning & readiness detail for the Learning tab: what is reviewed, what wait means,
-    update schedule, and readiness/replay state. Replaces the former direction banner and situation strip.
+    update schedule, visibility matrix, and promotion/readiness state. Always returns 200.
     """
-    try:
-        root = Path(_DASHBOARD_ROOT)
-        state_dir = root / "state"
-        readiness = {}
-        try:
-            rpath = state_dir / "direction_readiness.json"
-            if rpath.exists():
-                readiness = json.loads(rpath.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-        replay_status = {}
-        try:
-            spath = state_dir / "direction_replay_status.json"
-            if spath.exists():
-                replay_status = json.loads(spath.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-        telemetry_trades = int(readiness.get("telemetry_trades") or 0)
-        total_trades = int(readiness.get("total_trades") or 0)
-        pct_telemetry = float(readiness.get("pct_telemetry") or 0)
-        ready = readiness.get("ready") is True
-        target_trades = 100
-        min_pct = 90.0
-        features_reviewed = [
-            "Entry intel (premarket, futures, sector, regime at position open)",
-            "Exit intel (same at close)",
-            "Direction (bullish/bearish), side, position_side",
-            "Sizing (qty, notional, entry/exit price)",
-            "Join key: symbol + entry_ts so exit attribution embeds entry snapshot",
-        ]
-        cron_schedule = "Every 5 min, 9–21 UTC, Mon–Fri (scripts/governance/check_direction_readiness_and_run.py)"
-        last_cron_log_mtime = None
-        try:
-            log_path = root / "logs" / "direction_readiness_cron.log"
-            if log_path.exists():
-                last_cron_log_mtime = log_path.stat().st_mtime
-        except Exception:
-            pass
-        from datetime import datetime, timezone
-        last_cron_iso = datetime.fromtimestamp(last_cron_log_mtime, tz=timezone.utc).isoformat() if last_cron_log_mtime else None
-        promotion_recommendation, promotion_score, promotion_reasons = "WAIT", None, []
-        try:
-            today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
-            comb_path = root / "reports" / f"{today}_stock-bot_combined.json"
-            if comb_path.exists():
-                comb = json.loads(comb_path.read_text(encoding="utf-8", errors="replace"))
-                sc = comb.get("strategy_comparison") or {}
-                if isinstance(sc, dict):
-                    promotion_recommendation = sc.get("recommendation", "WAIT")
-                    promotion_score = sc.get("promotion_readiness_score")
-                    promotion_reasons = (sc.get("reasons") or [])[:5]
-        except Exception:
-            pass
-        what_wait_means = (
-            "Replay runs only when there are ≥100 telemetry-backed exits and ≥90% of exits have full telemetry. "
-            "Until then, the bot does not apply direction-replay-based exit or sizing adjustments. "
-            "Negative PnL that could have been reduced by those adjustments is not separately quantified."
-        )
-        return jsonify({
-            "telemetry_trades": telemetry_trades,
-            "total_trades": total_trades,
-            "pct_telemetry": round(pct_telemetry, 2),
-            "ready": ready,
-            "target_trades": target_trades,
-            "min_pct_telemetry": min_pct,
-            "features_reviewed": features_reviewed,
-            "what_wait_means": what_wait_means,
-            "cron_schedule": cron_schedule,
-            "last_cron_run_iso": last_cron_iso,
-            "replay_status": replay_status.get("status"),
-            "replay_reason": replay_status.get("reason"),
-            "replay_last_run_ts": replay_status.get("last_run_ts"),
-            "promotion_recommendation": promotion_recommendation,
-            "promotion_score": promotion_score,
-            "promotion_reasons": promotion_reasons,
-        }), 200
-    except Exception as e:
-        return jsonify({
-            "error": str(e)[:300],
+    from datetime import datetime, timezone
+    def _safe_payload(err: str = ""):
+        return {
+            "error": err[:300] if err else None,
             "telemetry_trades": 0,
             "total_trades": 0,
             "pct_telemetry": 0,
             "ready": False,
+            "target_trades": 100,
+            "min_pct_telemetry": 90,
             "features_reviewed": [],
             "what_wait_means": "",
             "cron_schedule": "",
-        }), 200
+            "last_cron_run_iso": None,
+            "replay_status": None,
+            "replay_reason": None,
+            "replay_last_run_ts": None,
+            "promotion_recommendation": "WAIT",
+            "promotion_score": None,
+            "promotion_reasons": [],
+            "still_reviewing": True,
+            "review_continues_after_100": "Yes. Counts and matrix are updated every 5 min from exit_attribution.",
+            "promotion_close_missing": [],
+            "visibility_matrix": [],
+        }
+    try:
+        root = Path(_DASHBOARD_ROOT)
+    state_dir = root / "state"
+    logs_dir = root / "logs"
+    readiness = {}
+    replay_status = {}
+    try:
+        rpath = state_dir / "direction_readiness.json"
+        if rpath.exists():
+            readiness = json.loads(rpath.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    try:
+        spath = state_dir / "direction_replay_status.json"
+        if spath.exists():
+            replay_status = json.loads(spath.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    telemetry_trades = int(readiness.get("telemetry_trades") or 0)
+    total_trades = int(readiness.get("total_trades") or 0)
+    pct_telemetry = float(readiness.get("pct_telemetry") or 0)
+    ready = readiness.get("ready") is True
+    target_trades = 100
+    min_pct = 90.0
+    features_reviewed = [
+        "Entry intel (premarket, futures, sector, regime at position open)",
+        "Exit intel (same at close)",
+        "Direction (bullish/bearish), side, position_side",
+        "Sizing (qty, notional, entry/exit price)",
+        "Join key: symbol + entry_ts so exit attribution embeds entry snapshot",
+    ]
+    cron_schedule = "Every 5 min, 9–21 UTC, Mon–Fri (scripts/governance/check_direction_readiness_and_run.py)"
+    last_cron_log_mtime = None
+    try:
+        log_path = root / "logs" / "direction_readiness_cron.log"
+        if log_path.exists():
+            last_cron_log_mtime = log_path.stat().st_mtime
+    except Exception:
+        pass
+    last_cron_iso = datetime.fromtimestamp(last_cron_log_mtime, tz=timezone.utc).isoformat() if last_cron_log_mtime else None
+    promotion_recommendation, promotion_score, promotion_reasons = "WAIT", None, []
+    try:
+        today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
+        comb_path = root / "reports" / f"{today}_stock-bot_combined.json"
+        if comb_path.exists():
+            comb = json.loads(comb_path.read_text(encoding="utf-8", errors="replace"))
+            sc = comb.get("strategy_comparison") or {}
+            if isinstance(sc, dict):
+                promotion_recommendation = sc.get("recommendation", "WAIT")
+                promotion_score = sc.get("promotion_readiness_score")
+                promotion_reasons = (sc.get("reasons") or [])[:5]
+    except Exception:
+        pass
+    what_wait_means = (
+        "Replay runs only when there are ≥100 telemetry-backed exits and ≥90% of exits have full telemetry. "
+        "Until then, the bot does not apply direction-replay-based exit or sizing adjustments. "
+        "Negative PnL that could have been reduced by those adjustments is not separately quantified."
+    )
+    still_reviewing = True
+    review_continues_after_100 = (
+        "Yes. Every exit appends to exit_attribution; cron recomputes counts every 5 min. "
+        "We keep reviewing all new trades regardless of whether we have passed 100."
+    )
+    promotion_close_missing = []
+    if not ready:
+        if telemetry_trades < target_trades:
+            promotion_close_missing.append(f"Need {target_trades - telemetry_trades} more telemetry-backed exits (have {telemetry_trades})")
+        if pct_telemetry < min_pct:
+            promotion_close_missing.append(f"Need {min_pct}% telemetry coverage (have {pct_telemetry:.1f}%)")
+    visibility_matrix = []
+    try:
+        exit_path = logs_dir / "exit_attribution.jsonl"
+        visibility_matrix = _compute_visibility_matrix(exit_path, 200)
+    except Exception:
+        pass
+    return jsonify({
+        "telemetry_trades": telemetry_trades,
+        "total_trades": total_trades,
+        "pct_telemetry": round(pct_telemetry, 2),
+        "ready": ready,
+        "target_trades": target_trades,
+        "min_pct_telemetry": min_pct,
+        "features_reviewed": features_reviewed,
+        "what_wait_means": what_wait_means,
+        "cron_schedule": cron_schedule,
+        "last_cron_run_iso": last_cron_iso,
+        "replay_status": replay_status.get("status"),
+        "replay_reason": replay_status.get("reason"),
+        "replay_last_run_ts": replay_status.get("last_run_ts"),
+        "promotion_recommendation": promotion_recommendation,
+        "promotion_score": promotion_score,
+        "promotion_reasons": promotion_reasons,
+        "still_reviewing": still_reviewing,
+        "review_continues_after_100": review_continues_after_100,
+        "promotion_close_missing": promotion_close_missing,
+        "visibility_matrix": visibility_matrix,
+    }), 200
+    except Exception as e:
+        return jsonify(_safe_payload(str(e))), 200
 
 
 @app.route("/reports/board/<path:filename>", methods=["GET"])
