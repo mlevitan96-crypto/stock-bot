@@ -107,7 +107,7 @@ else:
             # Allow unauthenticated GET so the dashboard HTML loads (e.g. proxy not forwarding Authorization on first request).
             if request.method == "GET" and (
                 request.path == "/"
-                or request.path in ("/api/direction_banner", "/api/situation", "/api/telemetry_health")
+                or request.path in ("/api/direction_banner", "/api/situation", "/api/telemetry_health", "/api/learning_readiness")
             ):
                 return None
 
