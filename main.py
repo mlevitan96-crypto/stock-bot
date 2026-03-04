@@ -2149,8 +2149,10 @@ def log_exit_attribution(
         stable_trade_id = f"live:{str(symbol).upper()}:{entry_ts_iso}" if entry_ts_iso else str(attribution_record.get("trade_id") or "")
         comps2 = context.get("components") if isinstance(context.get("components"), dict) else {}
         signals2 = sorted([str(k) for k in comps2.keys()]) if isinstance(comps2, dict) else []
-        append_master_trade(
-            {
+        # When v2_exit exists, append from v2 block below with exit_components_granular to avoid double-append.
+        if not (metadata and isinstance(metadata.get("v2_exit"), dict)):
+            append_master_trade(
+                {
                 "trade_id": stable_trade_id,
                 "symbol": str(symbol).upper(),
                 "side": str(context.get("position_side") or _normalize_position_side(str(context.get("side") or ""))),
@@ -2185,8 +2187,8 @@ def log_exit_attribution(
                 },
                 "exit_reason": str(close_reason or ""),
                 "source": "live",
-            }
-        )
+                }
+            )
     except Exception:
         pass
 
@@ -2253,6 +2255,20 @@ def log_exit_attribution(
         # Join key: exit record must carry entry trade_id so attribution_loader can match by trade_id (primary) or symbol|entry_ts_bucket (fallback).
         entry_ts_iso_attr = str(context.get("entry_ts") or "")
         open_trade_id = f"open_{str(symbol).upper()}_{entry_ts_iso_attr}" if entry_ts_iso_attr else None
+        # Directional intelligence telemetry (exit snapshot + deltas; no behavior change). Computed once for rec and evt.
+        _direction_intel_embed = None
+        try:
+            from src.intelligence.direction_intel import capture_exit_intel_telemetry
+            _direction_intel_embed = capture_exit_intel_telemetry(symbol=symbol, entry_ts=entry_ts_iso_attr)
+        except Exception as _e:
+            log_event("data_integrity", "direction_intel_capture_exit_exception", symbol=symbol, error=str(_e)[:200])
+        if not _direction_intel_embed or not isinstance(_direction_intel_embed.get("intel_snapshot_entry"), dict) or not _direction_intel_embed.get("intel_snapshot_entry"):
+            log_event("data_integrity", "direction_intel_embed_empty_at_exit", symbol=symbol, entry_ts=entry_ts_iso_attr[:19] if entry_ts_iso_attr else "")
+            if not _direction_intel_embed or not _direction_intel_embed.get("intel_snapshot_entry"):
+                _direction_intel_embed = {
+                    "intel_snapshot_entry": {"timestamp": entry_ts_iso_attr or "", "premarket_intel": {}},
+                    "intel_snapshot_exit": {"timestamp": exit_ts_iso, "premarket_intel": {}},
+                }
         from src.exit.exit_attribution import ATTRIBUTION_SCHEMA_VERSION
         rec = build_exit_attribution_record(
             symbol=str(symbol).upper(),
@@ -2288,6 +2304,138 @@ def log_exit_attribution(
             exit_quality_metrics=exit_quality_metrics,
             trade_id=open_trade_id,
         )
+        # Exit telemetry: canonical components, deltas, signal snapshot, EXIT_EVENT (observational only).
+        try:
+            from src.exit.exit_telemetry import (
+                build_exit_components_granular,
+                build_entry_exit_deltas,
+                build_exit_signal_snapshot,
+                build_exit_event_record,
+            )
+            from src.exit.exit_attribution import append_exit_signal_snapshot, append_exit_event
+
+            composite_at_entry = float(info.get("entry_score") or v2_entry.get("score") or 0.0)
+            now_v2 = (v2_exit.get("now_v2") or {}) if isinstance(v2_exit.get("now_v2"), dict) else {}
+            composite_at_exit = float(v2_exit.get("now_v2_score") or now_v2.get("score") or 0.0)
+            composite_components_entry = dict(v2_entry.get("components") or v2_entry.get("feature_snapshot") or {})
+            composite_components_exit = dict(now_v2.get("components") or now_v2.get("feature_snapshot") or {})
+
+            exit_components_granular = build_exit_components_granular(
+                v2_exit_components, float(v2_exit_score), v2_exit_attribution_components
+            )
+            entry_sec_str = (entry_sec_prof.get("sector") or "") if isinstance(entry_sec_prof, dict) else ""
+            exit_sec_str = (exit_sec_prof.get("sector") or "") if isinstance(exit_sec_prof, dict) else ""
+            deltas = build_entry_exit_deltas(
+                entry_uw, exit_uw, composite_at_entry, composite_at_exit,
+                entry_regime, exit_regime, entry_sec_str, exit_sec_str,
+            )
+            rec["exit_components_granular"] = exit_components_granular
+            rec["entry_exit_deltas"] = deltas
+            rec["composite_at_exit"] = composite_at_exit
+            rec["composite_components_at_exit"] = composite_components_exit
+            rec["composite_at_entry"] = composite_at_entry
+            rec["composite_components_at_entry"] = composite_components_entry
+
+            exit_snapshot = build_exit_signal_snapshot(
+                symbol=symbol,
+                exit_ts=exit_ts_iso,
+                entry_ts=entry_ts_iso_attr,
+                composite_at_exit=composite_at_exit,
+                composite_components_at_exit=composite_components_exit,
+                exit_uw=exit_uw,
+                exit_regime=exit_regime,
+                exit_sector=exit_sec_str,
+                entry_composite=composite_at_entry,
+                entry_uw=entry_uw,
+                entry_regime=entry_regime,
+                entry_sector=entry_sec_str,
+                deltas=deltas,
+            )
+            append_exit_signal_snapshot(exit_snapshot)
+
+            entry_signal_snapshot = {
+                "composite_at_entry": composite_at_entry,
+                "composite_components_at_entry": composite_components_entry,
+                "regime_at_entry": entry_regime,
+                "uw_conviction_at_entry": float(entry_uw.get("flow_strength") or entry_uw.get("conviction") or 0.0),
+                "sector_at_entry": entry_sec_str,
+                "entry_uw": dict(entry_uw or {}),
+            }
+            uw_conv_entry = float(entry_uw.get("flow_strength") or entry_uw.get("conviction") or 0.0)
+            uw_conv_exit = float(exit_uw.get("flow_strength") or exit_uw.get("conviction") or 0.0)
+            evt = build_exit_event_record(
+                trade_id=open_trade_id or "",
+                symbol=symbol,
+                entry_ts=entry_ts_iso_attr,
+                exit_ts=exit_ts_iso,
+                entry_price=float(entry_price) if entry_price else None,
+                exit_price=float(exit_price) if exit_price else None,
+                exit_reason_code=v2_exit_reason_code or "unknown",
+                exit_components=exit_components_granular,
+                entry_signal_snapshot=entry_signal_snapshot,
+                exit_signal_snapshot=exit_snapshot,
+                deltas=deltas,
+                exit_quality_metrics=exit_quality_metrics,
+                regime_at_entry=entry_regime,
+                regime_at_exit=exit_regime,
+                uw_conviction_entry=uw_conv_entry,
+                uw_conviction_exit=uw_conv_exit,
+                composite_at_entry=composite_at_entry,
+                composite_at_exit=composite_at_exit,
+                composite_components_entry=composite_components_entry,
+                composite_components_exit=composite_components_exit,
+            )
+            evt["direction_intel_embed"] = _direction_intel_embed if _direction_intel_embed else {}
+            append_exit_event(evt)
+            # Master trade log with exit_components_granular (when v2_exit exists we skip first-block append).
+            try:
+                from utils.master_trade_log import append_master_trade
+                entry_ts_mtl = str(context.get("entry_ts") or "")
+                stable_trade_id_mtl = f"live:{str(symbol).upper()}:{entry_ts_mtl}" if entry_ts_mtl else (open_trade_id or "")
+                comps_mtl = context.get("components") if isinstance(context.get("components"), dict) else {}
+                signals_mtl = sorted([str(k) for k in comps_mtl.keys()]) if isinstance(comps_mtl, dict) else []
+                append_master_trade({
+                    "trade_id": stable_trade_id_mtl,
+                    "symbol": str(symbol).upper(),
+                    "side": str(context.get("position_side") or context.get("side") or "long"),
+                    "is_live": True,
+                    "is_shadow": False,
+                    "composite_version": "v2",
+                    "entry_ts": entry_ts_mtl,
+                    "exit_ts": exit_ts_iso,
+                    "entry_price": float(context.get("entry_price") or entry_price or 0.0),
+                    "exit_price": float(exit_price or 0.0),
+                    "size": float(context.get("qty") or 0.0),
+                    "realized_pnl_usd": float(pnl_usd or 0.0),
+                    "entry_v2_score": float(info.get("entry_score") or composite_at_entry or 0.0),
+                    "exit_v2_score": float(composite_at_exit or 0.0),
+                    "v2_exit_score": float(v2_exit_score),
+                    "v2_exit_reason": str(v2_exit.get("v2_exit_reason") or ""),
+                    "exit_components_granular": exit_components_granular,
+                    "entry_exit_deltas": deltas,
+                    "composite_at_entry": composite_at_entry,
+                    "composite_at_exit": composite_at_exit,
+                    "signals": signals_mtl,
+                    "feature_snapshot": dict(comps_mtl or {}),
+                    "regime_snapshot": {"regime": str(exit_regime or "")},
+                    "exit_reason": str(close_reason or ""),
+                    "source": "live",
+                })
+            except Exception:
+                pass
+        except Exception:
+            pass
+        rec["direction_intel_embed"] = _direction_intel_embed if _direction_intel_embed else {}
+        # Canonical top-level fields for replay and readiness
+        _side = str(context.get("side") or "buy").lower()
+        _pos_side = str(context.get("position_side") or ("long" if _side == "buy" else "short")).lower()
+        _dir = str(info.get("direction") or _pos_side or "unknown").lower()
+        if _dir in ("long", "short") and _dir != "unknown":
+            rec["direction"] = "bullish" if _dir == "long" else "bearish"
+        else:
+            rec["direction"] = _dir if _dir in ("bullish", "bearish", "flat", "unknown") else "unknown"
+        rec["side"] = _side
+        rec["position_side"] = _pos_side
         append_exit_attribution(rec)
         # Signal context capture (read-only): full signal state at exit for profitability learning.
         try:
@@ -5678,7 +5826,7 @@ class AlpacaExecutor:
             log_event("displacement", "failed", symbol=symbol, error=str(e))
             return False
 
-    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", alpha_signature: dict = None, v2_context: dict = None):
+    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", alpha_signature: dict = None, v2_context: dict = None, market_context: dict = None, regime_posture: dict = None):
         # VALIDATION: Warn if entry_score is 0.0 (should not happen in normal flow)
         if entry_score <= 0.0:
             print(f"WARNING {symbol}: mark_open called with entry_score={entry_score:.2f} - this may indicate a bug", flush=True)
@@ -5759,7 +5907,18 @@ class AlpacaExecutor:
             v2_context=v2_context,
             variant_id=variant_id,
         )
-        
+        # Direction intel: capture entry snapshot with SAME entry_ts as metadata so exit can load it.
+        try:
+            from src.intelligence.direction_intel import capture_entry_intel_telemetry
+            capture_entry_intel_telemetry(
+                api=getattr(self, "api", None),
+                symbol=symbol,
+                entry_ts=now.isoformat(),
+                market_context=market_context if isinstance(market_context, dict) else None,
+                regime_posture=regime_posture if isinstance(regime_posture, dict) else None,
+            )
+        except Exception:
+            pass
         # Update state manager (Risk #6 - State Persistence)
         try:
             state_manager = getattr(self, '_state_manager', None)
@@ -9701,6 +9860,8 @@ class StrategyEngine:
                     except Exception:
                         v2_context_for_metadata = {}
 
+                    _mc = getattr(self, "market_context_v2", None) or {}
+                    _rp = getattr(self, "regime_posture_v2", None) or {}
                     self.executor.mark_open(
                         symbol,
                         exec_price,
@@ -9714,6 +9875,8 @@ class StrategyEngine:
                         regime_modifier=regime_modifier,
                         ignition_status=ignition_status,
                         v2_context=v2_context_for_metadata,
+                        market_context=_mc if isinstance(_mc, dict) else None,
+                        regime_posture=_rp if isinstance(_rp, dict) else None,
                     )
                     # Update metadata with correlation_id after mark_open
                     if correlation_id_for_metadata:

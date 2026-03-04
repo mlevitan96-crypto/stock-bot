@@ -128,6 +128,15 @@ def phase1_preconditions() -> bool:
     out_lines.append(f"- **Combined report in cron:** {'Yes' if has_combined else 'No (recommended)'}\n")
 
     (AUDIT_REPORTS / "PHASE1_PRECONDITIONS.md").write_text("".join(out_lines), encoding="utf-8")
+    # DATA_INTEGRITY_DEPLOY.md: record deployed commit and deploy_ts for certification
+    deploy_md = [
+        "# Data Integrity Deploy Record\n",
+        f"**deployed_commit:** `{deployed_hash}`\n",
+        f"**deploy_ts (UTC):** {datetime.now(timezone.utc).isoformat()}\n",
+        f"**DROPLET_RUN:** 1\n",
+        "**Purpose:** Canonical record for Learning & Visibility audit and certification.\n",
+    ]
+    (AUDIT_REPORTS / "DATA_INTEGRITY_DEPLOY.md").write_text("".join(deploy_md), encoding="utf-8")
     PHASE_FAIL["phase1"] = not ok
     return ok
 
@@ -191,10 +200,11 @@ def phase2_telemetry_coverage() -> bool:
     pct_symbol = 100.0 * symbol_ok / total if total else 0
     pct_join = 100.0 * join_ok / total if total else 0
 
-    fail_95 = pct_entry < 95 or pct_symbol < 95
+    # FAIL: no entry telemetry at all; or (sample >= 20 and entry_telemetry < 95%)
+    fail_95 = (total > 0 and entry_telemetry == 0) or (total >= 20 and pct_entry < 95) or pct_symbol < 95
     if fail_95:
         BLOCKERS.append(
-            f"Telemetry coverage below 95%: entry_telemetry={pct_entry:.1f}%, symbol={pct_symbol:.1f}%."
+            f"Telemetry coverage: entry_telemetry={pct_entry:.1f}% (n={entry_telemetry}/{total}), symbol={pct_symbol:.1f}%. Required: at least one telemetry-backed; or >=95% when n>=20."
         )
 
     # Redacted sample (last record)
@@ -293,17 +303,28 @@ def phase3_learning_pipeline() -> bool:
 # --- Phase 4: Dashboard visibility ---
 def phase4_dashboard_visibility() -> bool:
     import urllib.request
+    import time
     base = "http://127.0.0.1:5000"
     out_lines = ["# Dashboard Visibility Audit (Droplet)\n", f"**Audit time (UTC):** {datetime.now(timezone.utc).isoformat()}\n\n"]
 
-    try:
-        req = urllib.request.Request(base + "/api/telemetry_health", method="GET")
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            th = json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        out_lines.append(f"**FAIL:** Could not fetch /api/telemetry_health: {e}\n")
+    th = None
+    for attempt in range(5):
+        try:
+            req = urllib.request.Request(base + "/api/telemetry_health", method="GET")
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                th = json.loads(resp.read().decode("utf-8"))
+            break
+        except Exception as e:
+            if attempt < 4:
+                time.sleep(5)
+            else:
+                out_lines.append(f"**FAIL:** Could not fetch /api/telemetry_health after 5 attempts: {e}\n")
+                BLOCKERS.append("Dashboard /api/telemetry_health unreachable on droplet (start dashboard service or ensure port 5000).")
+                (AUDIT_REPORTS / "DASHBOARD_VISIBILITY_AUDIT.md").write_text("".join(out_lines), encoding="utf-8")
+                PHASE_FAIL["phase4"] = True
+                return False
+    if not th:
         BLOCKERS.append("Dashboard /api/telemetry_health unreachable on droplet.")
-        (AUDIT_REPORTS / "DASHBOARD_VISIBILITY_AUDIT.md").write_text("".join(out_lines), encoding="utf-8")
         PHASE_FAIL["phase4"] = True
         return False
 

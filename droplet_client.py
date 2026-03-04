@@ -578,6 +578,17 @@ class DropletClient:
             timeout=30,
         )
         results["steps"].append({"name": "uw_flow_daemon_restart", "result": step_daemon})
+        # Step 2c: Wait for dashboard to be listening (audit and operators need /api/telemetry_health)
+        wait_out, _, wait_rc = self._execute_with_cd(
+            "for i in 1 2 3 4 5 6 7 8 9 10; do "
+            "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5000/health 2>/dev/null | grep -q 200 && echo 'dashboard_ok' && exit 0; "
+            "sleep 3; done; echo 'dashboard_not_ready'; exit 1",
+            timeout=45,
+        )
+        results["steps"].append({
+            "name": "dashboard_listening",
+            "result": {"success": wait_rc == 0 and "dashboard_ok" in (wait_out or ""), "note": "curl 127.0.0.1:5000/health"},
+        })
         results["success"] = step2["success"]
         return results
     
