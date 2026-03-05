@@ -1,4 +1,5 @@
 # Stock Bot - Production Deployment Guide
+# automation test — safe to delete
 
 ## Overview
 The stock-bot is a trading bot that processes Unusual Whales (UW) API signals and executes trades via Alpaca API.
