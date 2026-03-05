@@ -41,6 +41,23 @@ def _load_json(path: Path) -> dict | None:
         return None
 
 
+def _load_sre_events(path: Path, max_events: int = 100) -> list[dict]:
+    """Load recent SRE events from JSONL (tail)."""
+    if not path or not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8", errors="replace").strip().splitlines()
+    events = []
+    for line in reversed(lines[-max_events:]):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return list(reversed(events))
+
+
 def _gather_context(base: Path, args: argparse.Namespace) -> dict:
     """Gather mission context from args and available artifacts."""
     ctx = {
@@ -49,6 +66,8 @@ def _gather_context(base: Path, args: argparse.Namespace) -> dict:
         "board_review": None,
         "shadow_comparison": None,
         "baseline_snapshot": None,
+        "sre_status": None,
+        "sre_events": [],
         "board_files": [],
         "audit_files": [],
         "shadow_files": [],
@@ -65,6 +84,20 @@ def _gather_context(base: Path, args: argparse.Namespace) -> dict:
     if getattr(args, "baseline_snapshot", None):
         p = base / args.baseline_snapshot if not Path(args.baseline_snapshot).is_absolute() else Path(args.baseline_snapshot)
         ctx["baseline_snapshot"] = _load_json(p)
+
+    sre_status_path = getattr(args, "sre_status_json", None)
+    if sre_status_path:
+        p = base / sre_status_path if not Path(sre_status_path).is_absolute() else Path(sre_status_path)
+        ctx["sre_status"] = _load_json(p)
+    else:
+        ctx["sre_status"] = _load_json(base / "reports" / "audit" / "SRE_STATUS.json")
+
+    sre_events_path = getattr(args, "sre_events_jsonl", None)
+    if sre_events_path:
+        p = base / sre_events_path if not Path(sre_events_path).is_absolute() else Path(sre_events_path)
+        ctx["sre_events"] = _load_sre_events(p)
+    else:
+        ctx["sre_events"] = _load_sre_events(base / "reports" / "audit" / "SRE_EVENTS.jsonl")
 
     board_dir = base / "reports" / "board"
     if board_dir.exists():
@@ -148,12 +181,61 @@ def _risk_asymmetry(ctx: dict) -> str:
 
 def _escalation_triggers(ctx: dict) -> list[str]:
     """When to escalate to human."""
-    return [
+    triggers = [
         "Verdict is HOLD, ESCALATE, or ROLLBACK and no CSA_RISK_ACCEPTANCE artifact exists.",
         "Confidence is LOW on a PROCEED verdict.",
         "Missing data list is non-empty and mission changes runtime behavior.",
         "Risk asymmetry note indicates unbounded downside.",
     ]
+    if ctx.get("sre_events") and (ctx.get("sre_status") or {}).get("overall_status") == "ANOMALIES_DETECTED":
+        triggers.append("SRE reported anomalies; HIGH-confidence economic-impact events block PROCEED.")
+    return triggers
+
+
+def _sre_interpretation(ctx: dict) -> dict:
+    """
+    Interpret SRE events for CSA: benign, silent failure, PnL/risk/learning threat,
+    breaking assumption, experiment or rollback. Returns dict with list IDs and text.
+    """
+    events = ctx.get("sre_events") or []
+    benign_ids = []
+    silent_failure_ids = []
+    pnl_risk_threat_ids = []
+    breaking_assumption = ""
+    experiment_or_rollback = []
+
+    for ev in events:
+        eid = ev.get("event_id", "")
+        etype = (ev.get("event_type") or "").upper()
+        conf = (ev.get("confidence") or "").upper()
+        economic = ev.get("economic_impact") is True
+
+        if etype == "SILENCE_ANOMALY":
+            silent_failure_ids.append(eid)
+            breaking_assumption = breaking_assumption or "Pipeline or logging may be stalled; no activity in observed window."
+            experiment_or_rollback.append("Verify exit_attribution and blocked_trades writers; check service health.")
+        elif etype == "EXPECTATION_VIOLATION":
+            pnl_risk_threat_ids.append(eid)
+            breaking_assumption = breaking_assumption or "Feature flag or code path (e.g. B2) may not match expectation."
+            experiment_or_rollback.append("Confirm B2/feature flags and log paths; rollback if mismatch.")
+        elif etype in ("RATE_ANOMALY", "ASYMMETRY_FLAG") and conf == "HIGH":
+            pnl_risk_threat_ids.append(eid)
+            if not breaking_assumption:
+                breaking_assumption = "Rate or loss concentration suggests regime change or execution anomaly."
+            experiment_or_rollback.append("Correlate with market hours and recent deploys; consider HOLD until explained.")
+        elif etype == "DISTRIBUTION_DRIFT" and conf in ("MED", "HIGH"):
+            pnl_risk_threat_ids.append(eid)
+            experiment_or_rollback.append("Compare exit-reason mix to baseline; run shadow or paper before promotion.")
+        else:
+            benign_ids.append(eid)
+
+    return {
+        "benign_ids": benign_ids,
+        "silent_failure_ids": silent_failure_ids,
+        "pnl_risk_threat_ids": pnl_risk_threat_ids,
+        "breaking_assumption": breaking_assumption or "(none inferred)",
+        "experiment_or_rollback": experiment_or_rollback if experiment_or_rollback else ["No SRE events or all benign."],
+    }
 
 
 def _required_next_experiments(ctx: dict) -> list[str]:
@@ -180,8 +262,24 @@ def _recommendation(verdict: str, confidence: str, missing: list[str]) -> str:
     return "Unknown verdict; treat as HOLD."
 
 
+def _sre_high_impact_anomalies(ctx: dict) -> bool:
+    """True if SRE reported HIGH-confidence anomalies with economic impact (blocks PROCEED)."""
+    events = ctx.get("sre_events") or []
+    for ev in events:
+        conf = (ev.get("confidence") or "").upper()
+        economic = ev.get("economic_impact") is True
+        etype = (ev.get("event_type") or "").upper()
+        if conf == "HIGH" and (economic or etype in ("RATE_ANOMALY", "ASYMMETRY_FLAG", "SILENCE_ANOMALY", "EXPECTATION_VIOLATION")):
+            return True
+    return False
+
+
 def _choose_verdict(ctx: dict, missing: list[str]) -> tuple[str, str]:
     """Choose verdict and confidence from context and findings."""
+    # Phase 4: SRE HIGH-confidence economic-impact anomalies block PROCEED
+    if _sre_high_impact_anomalies(ctx):
+        return "HOLD", "MED"
+
     has_board = bool(ctx.get("board_review"))
     has_shadow = bool(ctx.get("shadow_comparison"))
     shadow_ok = False
@@ -209,6 +307,8 @@ def main() -> int:
     ap.add_argument("--baseline-snapshot", default="", help="Optional baseline snapshot path")
     ap.add_argument("--board-review-json", default="", help="Optional board review JSON path")
     ap.add_argument("--shadow-comparison-json", default="", help="Optional shadow comparison JSON path")
+    ap.add_argument("--sre-status-json", default="", help="Optional SRE_STATUS.json path (default: reports/audit/SRE_STATUS.json)")
+    ap.add_argument("--sre-events-jsonl", default="", help="Optional SRE_EVENTS.jsonl path (default: reports/audit/SRE_EVENTS.jsonl)")
     ap.add_argument("--base-dir", default="", help="Repo base dir (default: cwd)")
     args = ap.parse_args()
 
@@ -227,6 +327,7 @@ def main() -> int:
     escalation_triggers = _escalation_triggers(ctx)
     required_next_experiments = _required_next_experiments(ctx)
 
+    sre_interp = _sre_interpretation(ctx)
     verdict, confidence = _choose_verdict(ctx, missing_data)
     recommendation = _recommendation(verdict, confidence, missing_data)
 
@@ -246,6 +347,8 @@ def main() -> int:
         mission_id=mission_id,
     )
     payload["generated_ts"] = datetime.now(timezone.utc).isoformat()
+    payload["sre_interpretation"] = sre_interp
+    payload["sre_high_impact_block"] = _sre_high_impact_anomalies(ctx)
 
     ok, issues = validate_csa_verdict(payload)
     if not ok:
@@ -273,6 +376,24 @@ def main() -> int:
     ]
     for a in assumptions:
         md_lines.append(f"- {a}")
+    md_lines.extend([
+        "",
+        "## SRE anomaly interpretation",
+        "",
+        f"SRE status: {(ctx.get('sre_status') or {}).get('overall_status', 'unknown')}",
+        f"Events in window: {len(ctx.get('sre_events') or [])}",
+        "",
+        "- **Benign (no action):** " + (", ".join(sre_interp["benign_ids"]) if sre_interp["benign_ids"] else "(none)"),
+        "- **Silent failure (investigate):** " + (", ".join(sre_interp["silent_failure_ids"]) if sre_interp["silent_failure_ids"] else "(none)"),
+        "- **PnL / risk / learning threat:** " + (", ".join(sre_interp["pnl_risk_threat_ids"]) if sre_interp["pnl_risk_threat_ids"] else "(none)"),
+        "",
+        "**Assumption that may be breaking:** " + sre_interp["breaking_assumption"],
+        "",
+        "**Experiment or rollback to resolve:**",
+        "",
+    ])
+    for item in sre_interp["experiment_or_rollback"]:
+        md_lines.append(f"- {item}")
     md_lines.extend([
         "",
         "## Missing data",
