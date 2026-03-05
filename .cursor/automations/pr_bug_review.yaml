@@ -1,0 +1,24 @@
+# PR Bug Review (Bugbot-style) — Cursor Automation Spec
+# Create at cursor.com/automations/new
+
+name: PR Bug Review
+description: Deep diff analysis for logic errors, regressions, edge cases, naming, dead code, missing tests; inline PR comments.
+
+trigger:
+  type: github
+  events:
+    - pull_request_opened
+    - pull_request_pushed
+
+tools:
+  - comment_on_pull_request  # Supports inline/code comments
+
+environment:
+  variables: []
+
+prompt_source: .cursor/automations/pr_bug_review.ts
+
+output:
+  - Inline comments on the PR with findings (file + line where applicable)
+  - Suggestions for fixes where possible
+  - No code changes; review only

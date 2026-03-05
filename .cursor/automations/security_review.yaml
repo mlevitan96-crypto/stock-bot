@@ -1,0 +1,27 @@
+# Security Review — Cursor Automation Spec
+# Runs on push to main.
+
+name: Security Review
+description: Scan repo for secrets, credential leaks, unsafe patterns, dependency vulns, insecure network calls; GitHub Security + optional Slack.
+
+trigger:
+  type: github
+  events:
+    - push_to_branch
+  branch: main
+  # In Cursor UI: "Push to branch" → branch: main
+
+tools:
+  - open_pull_request   # Optional: if you want fixes via PR
+  # Use "Comment on pull request" only when triggered by PR; for push use issue + Slack
+  - Send to Slack       # If SLACK_WEBHOOK_URL set
+
+environment:
+  variables:
+    # SLACK_WEBHOOK_URL — optional; HIGH severity triggers Slack
+
+prompt_source: .cursor/automations/security_review.ts
+
+output:
+  - Summary suitable for GitHub Security tab / PR comment (when applicable)
+  - If HIGH severity: open GitHub issue + notify Slack

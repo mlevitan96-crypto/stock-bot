@@ -1,0 +1,30 @@
+# PR Risk Classifier — Cursor Automation Spec
+# Create this automation at cursor.com/automations/new and use this as the config source.
+
+name: PR Risk Classifier
+description: Classify pull requests by blast radius, infra/trading/governance impact; post comment, tag, optional Slack.
+
+trigger:
+  type: github
+  events:
+    - pull_request_opened
+    - pull_request_pushed
+  # In Cursor UI: choose "Pull request opened" and "Pull request pushed"
+
+tools:
+  - comment_on_pull_request
+  - request_reviewers
+  # Optional: enable "Approve pull request" for LOW risk auto-approve (configurable in prompt)
+  # Optional: Send to Slack (if Slack webhook configured in environment)
+
+environment:
+  # Optional: SLACK_WEBHOOK_URL — if set, HIGH risk posts to Slack
+  # Optional: AUTO_APPROVE_LOW_RISK=true — if set, LOW risk gets auto-approve
+  variables: []
+
+prompt_source: .cursor/automations/pr_risk_classifier.ts
+
+output:
+  - PR comment with risk level, reasoning, recommended reviewers
+  - Label "requires-governance-review" applied if risk is HIGH
+  - Slack notification to configured channel if HIGH and webhook set

@@ -1,0 +1,25 @@
+# Governance Integrity — Cursor Automation Spec
+# Scheduled every 10 minutes.
+
+name: Governance Integrity
+description: Validate repo structure, config drift, governance contracts, required artifacts; no deprecated/Clawdbot/Moltbot reintroduction.
+
+trigger:
+  type: schedule
+  cron: "*/10 * * * *"   # Every 10 minutes
+  # In Cursor UI: Scheduled trigger → cron "*/10 * * * *"
+  repository: <this repo>
+  branch: main
+
+tools:
+  - open_pull_request   # Optional: to propose fixes
+  - Send to Slack        # If SLACK_WEBHOOK_URL set
+
+environment:
+  variables: []
+
+prompt_source: .cursor/automations/governance_integrity.ts
+
+output:
+  - Write report to: reports/audit/GOVERNANCE_AUTOMATION_STATUS.json
+  - If anomalies: open GitHub issue + notify Slack

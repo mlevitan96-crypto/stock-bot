@@ -11,8 +11,10 @@ __pycache__/
 venv/
 .venv/
 
-# Cursor
+# Cursor (except automations governance suite)
 .cursor/
+!.cursor/automations/
+!.cursor/automations/**
 
 # Logs
 *.log

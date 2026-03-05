@@ -1,0 +1,24 @@
+# Weekly Governance Summary — Cursor Automation Spec
+# Runs weekly Sunday 00:00 UTC.
+
+name: Weekly Governance Summary
+description: Summarize commits to main, PRs merged, CSA verdicts, SRE, deploys, shadow/paper/live; write report to reports/board/. Optional Slack.
+
+trigger:
+  type: schedule
+  cron: "0 0 * * 0"   # Sunday 00:00 UTC
+  # In Cursor UI: Scheduled trigger → cron "0 0 * * 0"
+  repository: <this repo>
+  branch: main
+
+tools:
+  - Send to Slack   # Optional; if SLACK_WEBHOOK_URL set
+
+environment:
+  variables: []
+
+prompt_source: .cursor/automations/weekly_governance_summary.ts
+
+output:
+  - Write: reports/board/WEEKLY_GOVERNANCE_SUMMARY_<YYYY-MM-DD>.md
+  - Optional: post summary to Slack channel
