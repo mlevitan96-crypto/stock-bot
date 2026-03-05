@@ -281,6 +281,75 @@ def run_scan(base: Path, observed_minutes: int = 10, baseline_hours: float = 24.
     return events, overall
 
 
+def _ingest_automation_anomalies(base: Path, audit_dir: Path, now_iso: str) -> bool:
+    """
+    Read GOVERNANCE_AUTOMATION_STATUS.json. If status is anomalies, write
+    SRE_AUTOMATION_ANOMALY_<date>.md and return True (soft alert for behavioral correlation).
+    SRE does not depend on automations to run; this is additive.
+    """
+    status_path = audit_dir / "GOVERNANCE_AUTOMATION_STATUS.json"
+    if not status_path.exists():
+        return False
+    try:
+        data = json.loads(status_path.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    status = data.get("status") or ("anomalies" if data.get("anomalies_detected") else "ok")
+    if status != "anomalies":
+        return False
+    checks = data.get("checks") or {}
+    details = data.get("details") or data.get("anomalies") or []
+    ts = data.get("run_ts_utc") or data.get("timestamp") or now_iso
+    date_str = ts[:10] if len(ts) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    failed = [k for k, v in checks.items() if v == "fail"]
+    tags = []
+    if "repo_structure" in failed or "no_deprecated_dirs" in failed:
+        tags.append("REPO_DRIFT")
+    if "governance_contracts_present" in failed or "config_drift" in failed:
+        tags.append("GOVERNANCE_DRIFT")
+    if "no_clawdbot_moltbot" in failed:
+        tags.append("GOVERNANCE_DRIFT")
+    if not tags:
+        tags.append("AUTOMATION_ANOMALY")
+    md_lines = [
+        "# SRE Automation Anomaly Report",
+        "",
+        f"**Date:** {date_str}",
+        f"**Governance status run (UTC):** {ts}",
+        "",
+        "Cursor Automations (Governance Integrity) reported anomalies. SRE ingests these as behavioral/repo signals.",
+        "",
+        "## Failed checks",
+        "",
+    ]
+    for k in failed:
+        md_lines.append(f"- {k}")
+    md_lines.extend([
+        "",
+        "## Details",
+        "",
+    ])
+    for d in details:
+        md_lines.append(f"- {d}")
+    md_lines.extend([
+        "",
+        "## Tags",
+        "",
+        " ".join(tags),
+        "",
+        "## Recommended follow-ups",
+        "",
+        "- Resolve failed checks (run `python scripts/automations/run_governance_integrity_once.py` to re-check).",
+        "- Check for open GitHub issues created by Security Review or Governance Integrity automations.",
+        "- Do not deploy on automation anomalies alone; correlate with runtime and CSA.",
+        "",
+    ])
+    out_path = audit_dir / f"SRE_AUTOMATION_ANOMALY_{date_str}.md"
+    out_path.write_text("\n".join(md_lines), encoding="utf-8")
+    print(f"Wrote {out_path} (automation anomalies ingested)")
+    return True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="SRE anomaly scan (read-only)")
     ap.add_argument("--base-dir", default="", help="Repo root")
@@ -317,6 +386,7 @@ def main() -> int:
             continue
         events_valid.append(ev)
 
+    automation_anomalies = _ingest_automation_anomalies(base, audit_dir, now)
     status = {
         "overall_status": overall_status,
         "scan_ts": now,
@@ -324,6 +394,7 @@ def main() -> int:
         "observed_minutes": args.observed_minutes,
         "baseline_hours": args.baseline_hours,
         "event_count": len(events_valid),
+        "automation_anomalies_present": automation_anomalies,
     }
 
     (audit_dir / "SRE_STATUS.json").write_text(

@@ -42,6 +42,11 @@ AI Governance:
 - Multi-model review required for promotion decisions
 - Counterfactual analysis assigned to Gemini 2.5 Pro
 
+Cursor Automations (pre-merge/pre-deploy; Cursor Cloud):
+- Specs: .cursor/automations/ (README, pr_risk_classifier, pr_bug_review, security_review, governance_integrity, weekly_governance_summary). Activation: reports/audit/CURSOR_AUTOMATIONS_ACTIVATION.md (Slack disabled).
+- Artifacts: reports/audit/GOVERNANCE_AUTOMATION_STATUS.json; reports/board/WEEKLY_GOVERNANCE_SUMMARY_<date>.md; Security/Governance Integrity open GitHub issues.
+- Integration: CSA ingests automation evidence (scripts/audit/csa_automation_evidence.py); SRE ingests governance status and writes reports/audit/SRE_AUTOMATION_ANOMALY_<date>.md when anomalies. See docs/ALPACA_GOVERNANCE_CONTEXT.md, docs/governance/CHIEF_STRATEGY_AUDITOR.md, docs/SRE_SCANNER_CONTEXT.md.
+
 Cursor audits MUST consult:
 1. Memory Bank
 2. This index

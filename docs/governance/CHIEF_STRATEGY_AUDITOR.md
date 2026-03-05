@@ -38,11 +38,23 @@ CSA **does not execute** tasks; CSA **reviews and escalates**. CSA has **soft ve
 
 4. **Enforcement:** `scripts/audit/enforce_csa_gate.py` checks for the verdict and, when verdict is not PROCEED, requires the risk acceptance file. If missing, it writes `reports/audit/CSA_GATE_BLOCKER_<mission-id>.md` and exits non-zero.
 
+## Automation Evidence (Cursor Automations)
+
+CSA treats Cursor Automations outputs as **first-class evidence**. It does not depend on automations to run (CSA still functions if automations are unavailable).
+
+- **Ingestion:** `scripts/audit/csa_automation_evidence.py` loads:
+  - `reports/audit/GOVERNANCE_AUTOMATION_STATUS.json` (governance integrity status, timestamp, anomalies)
+  - Recent `reports/board/WEEKLY_GOVERNANCE_SUMMARY_*.md` (optional context)
+- **Where it appears:**
+  - **CSA_FINDINGS_<mission-id>.md** — Section **"Automation Evidence"**: governance integrity status, last run timestamp, anomalies list, note on open automation-related GitHub issues, recent weekly summaries.
+  - **CSA_VERDICT_<mission-id>.json** — Field **`automation_evidence`**: `governance_status`, `governance_timestamp`, `anomalies`, `unavailable_reason`.
+- CSA does not override or silence automation findings; it surfaces them. Existing checks and gates are unchanged.
+
 ## Required artifacts (per run)
 
 - **Outputs (always):**
-  - `reports/audit/CSA_FINDINGS_<mission-id>.md` — Full findings (assumptions, missing data, counterfactuals, value leaks, risk asymmetry, escalation triggers, next experiments).
-  - `reports/audit/CSA_VERDICT_<mission-id>.json` — Contract-compliant verdict payload.
+  - `reports/audit/CSA_FINDINGS_<mission-id>.md` — Full findings (assumptions, missing data, counterfactuals, value leaks, risk asymmetry, escalation triggers, **Automation Evidence**, next experiments).
+  - `reports/audit/CSA_VERDICT_<mission-id>.json` — Contract-compliant verdict payload (includes `automation_evidence`).
 - **Always-on (Cursor block):**
   - `reports/audit/CSA_SUMMARY_LATEST.md` — Copy of latest CSA findings.
   - `reports/audit/CSA_VERDICT_LATEST.json` — Copy of latest verdict.

@@ -224,6 +224,7 @@ Cursor must treat this section as ground truth and update it only when changes a
 | Infra fallback contract | `docs/ALPACA_INFRA_FALLBACK_CONTRACT.md` (market data, order failures, rate limits; code refs only) |
 | Shadow starvation policy | `docs/ALPACA_SHADOW_STARVATION_POLICY.md`; optional diagnostic: `scripts/diagnose_shadow_starvation.py` |
 | Daily run integrity contract | `docs/ALPACA_DAILY_RUN_INTEGRITY_CONTRACT.md`; validator: `scripts/validate_daily_governance_artifacts.py`; canonical entry: `scripts/run_daily_governance.sh` |
+| **Cursor Automations** | Pre-merge/pre-deploy governance layer; runs in Cursor Cloud. Specs: `.cursor/automations/` (README, pr_risk_classifier, pr_bug_review, security_review, governance_integrity, weekly_governance_summary). Artifacts: `reports/audit/GOVERNANCE_AUTOMATION_STATUS.json`, `reports/board/WEEKLY_GOVERNANCE_SUMMARY_<date>.md`. Activation: `reports/audit/CURSOR_AUTOMATIONS_ACTIVATION.md`. **CSA** ingests automation evidence via `scripts/audit/csa_automation_evidence.py`; **SRE** ingests governance status and writes `SRE_AUTOMATION_ANOMALY_<date>.md` when anomalies are detected. Slack is not used unless explicitly enabled later. |
 
 If any of the above paths/files differ in the Alpaca repo, Cursor must discover the correct locations, update this section, and keep all Alpaca governance self-contained.
 

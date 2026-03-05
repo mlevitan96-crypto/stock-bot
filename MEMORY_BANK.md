@@ -983,6 +983,13 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 - **Automation:** `scripts/run_molt_workflow.py` — runs full learning workflow. `scripts/run_molt_on_droplet.sh` — droplet runner. Cron: 21:35 UTC weekdays (post-market) via `scripts/install_molt_cron_on_droplet.py`
 - **Promotion:** Human approval required. The workflow proposes; Cursor/human approves and applies.
 
+### Cursor Automations (pre-merge/pre-deploy governance layer)
+- **Role:** Cursor Cloud automations run as the **front line** of governance: PR risk classification, PR bug review, security review on push to main, governance integrity (every 10 min), weekly governance summary. They do **not** modify droplet code or runtime; they produce artifacts and GitHub comments/issues.
+- **Architecture:** Cursor Automations → Cursor → GitHub → Droplet → CSA/SRE → Deploy Gates → Artifacts. Automations are first-class evidence; CSA is the strategic layer; SRE is the behavioral layer.
+- **CSA consumption:** CSA ingests `reports/audit/GOVERNANCE_AUTOMATION_STATUS.json` and optional weekly summaries via `scripts/audit/csa_automation_evidence.py`. CSA findings and verdict JSON include an **Automation Evidence** section; CSA does not depend on automations to run.
+- **SRE consumption:** SRE reads `GOVERNANCE_AUTOMATION_STATUS.json`; when status is anomalies, SRE writes `reports/audit/SRE_AUTOMATION_ANOMALY_<date>.md` and records `automation_anomalies_present` in SRE_STATUS.json. SRE still operates on runtime signals alone if automations are unavailable.
+- **Specs and activation:** `.cursor/automations/` (README, YAML/TS per automation); activation guide: `reports/audit/CURSOR_AUTOMATIONS_ACTIVATION.md`. Slack is disabled unless explicitly enabled later.
+
 ### UW canonical rules
 - **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.
 - **No hallucinated endpoints:** all must exist in `unusual_whales_api/api_spec.yaml`; static audit `scripts/audit_uw_endpoints.py` fails CI if unknown endpoints referenced.

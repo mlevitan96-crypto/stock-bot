@@ -109,6 +109,8 @@ def check_no_clawdbot_moltbot() -> tuple[str, list[str]]:
                 line = text[max(0, m.start() - 80) : m.end() + 80]
                 if "removal" in line or "removed" in line or "no " in line.lower() or "without " in line.lower():
                     continue
+                if "no_clawdbot_moltbot" in line or "no_clawdbot" in line:
+                    continue
                 details.append(f"Reference in {path}: ...{m.group(0)}...")
                 break
     if details:
@@ -137,11 +139,14 @@ def main() -> None:
     anomalies = any(c == "fail" for c in checks.values())
     payload = {
         "schema_version": "1.0",
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
         "run_ts_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
         "branch": "main",
+        "status": "anomalies" if anomalies else "ok",
         "anomalies_detected": anomalies,
         "checks": checks,
         "details": all_details,
+        "anomalies": all_details,
         "slack_sent": False,
     }
     OUTPUT_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")

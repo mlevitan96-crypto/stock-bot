@@ -31,6 +31,25 @@ except ImportError:
         validate_csa_verdict,
     )
 
+_csa_automation_evidence = None
+_evidence_module_path = REPO / "scripts" / "audit" / "csa_automation_evidence.py"
+if _evidence_module_path.exists():
+    import importlib.util
+    _spec = importlib.util.spec_from_file_location("csa_automation_evidence", _evidence_module_path)
+    if _spec and _spec.loader:
+        _csa_automation_evidence = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_csa_automation_evidence)
+
+def _load_automation_evidence(base: Path):
+    if _csa_automation_evidence is None:
+        return {"governance_status": "unavailable", "governance_timestamp": None, "anomalies": [], "unavailable_reason": "csa_automation_evidence module not found", "recent_weekly_summaries": []}
+    return _csa_automation_evidence.load_automation_evidence(base)
+
+def _format_automation_evidence_section(evidence: dict):
+    if _csa_automation_evidence is None:
+        return ["## Automation Evidence", "", "- Unavailable (module not loaded).", ""]
+    return _csa_automation_evidence.format_automation_evidence_section(evidence)
+
 
 def _load_json(path: Path) -> dict | None:
     if not path or not path.exists():
@@ -350,6 +369,14 @@ def main() -> int:
     payload["sre_interpretation"] = sre_interp
     payload["sre_high_impact_block"] = _sre_high_impact_anomalies(ctx)
 
+    automation_evidence = _load_automation_evidence(base)
+    payload["automation_evidence"] = {
+        "governance_status": automation_evidence.get("governance_status"),
+        "governance_timestamp": automation_evidence.get("governance_timestamp"),
+        "anomalies": automation_evidence.get("anomalies", []),
+        "unavailable_reason": automation_evidence.get("unavailable_reason"),
+    }
+
     ok, issues = validate_csa_verdict(payload)
     if not ok:
         blocker_path = audit_dir / "CSA_IMPLEMENTATION_BLOCKERS.md"
@@ -428,6 +455,7 @@ def main() -> int:
     ])
     for e in escalation_triggers:
         md_lines.append(f"- {e}")
+    md_lines.extend(_format_automation_evidence_section(automation_evidence))
     md_lines.extend([
         "",
         "## Required next experiments (ranked)",
