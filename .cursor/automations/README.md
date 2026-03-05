@@ -33,6 +33,14 @@ Cursor Automations → Cursor (Cloud Agents) → GitHub (PRs, main pushes)
 3. **Slack**: Set `SLACK_WEBHOOK_URL` (or equivalent) in Cloud Agents environment; automations will post when configured. If unset, they skip Slack silently.
 4. **Repository/branch**: For scheduled and push-to-main automations, select this repo and `main` in the trigger settings.
 
+### Setup checklist (after push to main)
+
+- [ ] At [cursor.com/automations](https://cursor.com/automations), create 5 automations (one per YAML/TS pair above).
+- [ ] For each: set trigger per the `.yaml`, paste or reference the `.ts` instructions in the prompt, enable tools (Comment on PR, Send to Slack, etc.).
+- [ ] Verify in the dashboard that PR-triggered and scheduled automations appear and are enabled.
+- [ ] Open a small test PR to confirm PR Risk Classifier and PR Bug Review fire and post comments.
+- [ ] Confirm Governance Integrity runs (scheduled or manually): check `reports/audit/GOVERNANCE_AUTOMATION_STATUS.json` or automation logs.
+
 ## How to Disable
 
 - **Single automation**: Disable it in [cursor.com/automations](https://cursor.com/automations).
@@ -53,3 +61,9 @@ Cursor Automations → Cursor (Cloud Agents) → GitHub (PRs, main pushes)
 | `security_review.yaml` / `.ts` | Push to main | Security summary; GitHub issue + Slack if HIGH |
 | `governance_integrity.yaml` / `.ts` | Every 10 min | `reports/audit/GOVERNANCE_AUTOMATION_STATUS.json`; issue + Slack if anomalies |
 | `weekly_governance_summary.yaml` / `.ts` | Sunday 00:00 UTC | `reports/board/WEEKLY_GOVERNANCE_SUMMARY_<date>.md`; optional Slack |
+
+## Local / CI verification
+
+- **Governance integrity (one-off):**  
+  `python scripts/automations/run_governance_integrity_once.py`  
+  Writes `reports/audit/GOVERNANCE_AUTOMATION_STATUS.json` and prints whether anomalies were detected. Use to verify checks or run in CI; Slack and GitHub issues are only sent by the Cursor Cloud automation.
