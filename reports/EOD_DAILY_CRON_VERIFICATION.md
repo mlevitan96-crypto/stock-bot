@@ -19,7 +19,7 @@ So the EOD report fires **daily on weekdays when the market was open**, after th
 
 1. **21:30 UTC — EOD runner** (`board/eod/run_stock_quant_officer_eod.py`)
    - Loads the canonical 8-file bundle from `logs/` and `state/` (attribution, exit_attribution, master_trade_log, blocked_trades, daily_start_equity, peak_equity, signal_weights, daily_universe_v2).
-   - Builds a memo via the Quant Officer contract and Clawdbot (or stub with `--dry-run`).
+   - Builds a memo via the Quant Officer contract (EOD board generated locally from bundle).
    - **Outputs:** `board/eod/out/stock_quant_officer_eod_<DATE>.json`, `.md`, and `board/eod/out/<DATE>/` (daily bundle from `bundle_writer`).
 
 2. **21:32 UTC — Sync** (either script)
@@ -68,7 +68,6 @@ So the data provided is: EOD memo (JSON + MD), daily bundle under `board/eod/out
 | **Only EOD cron installed, no sync** | EOD runs but nothing is pushed to GitHub. | Install both jobs: run `python3 scripts/diagnose_cron_and_git.py` on the droplet, or use `board/eod/install_eod_cron_on_droplet.py` (which now installs EOD + sync). |
 | **Wrong repo path in cron** | Jobs run in wrong directory and may fail or push wrong repo. | Re-run diagnostic/installer so cron uses the detected root (e.g. `/root/stock-bot` or `/root/stock-bot-current`). |
 | **Missing 8-file bundle** | EOD runner logs missing/empty files and continues with partial data; memo may be thin. | Ensure the trading pipeline has written to `logs/` and `state/` during the day. On droplet, the live/paper run produces these. |
-| **Clawdbot not installed / not in PATH** | EOD script can fail when calling the agent. | Use `--dry-run` for testing (writes stub JSON/MD). For production, install clawdbot on the droplet and set `CLAWDBOT_SESSION_ID` (cron sets it automatically). |
 | **Git push failures (auth, conflicts)** | Sync cron runs but push fails; no new commits on GitHub. | Check SSH/key and `origin` URL; run `scripts/diagnose_cron_and_git.py` (it can repair SSH/key). Resolve conflicts by aligning droplet with `origin/main` before the next sync. |
 | **run_droplet_audit_and_sync.sh missing** | Diagnose/installer falls back to `droplet_sync_to_github.sh` (push only, no audit or daily reports). | Either add `run_droplet_audit_and_sync.sh` to the repo and re-run diagnostic, or accept sync-only behavior. |
 

@@ -29,7 +29,6 @@ def main() -> int:
     # EOD: 21:30 UTC weekdays (Memory Bank §5.5)
     eod_line = (
         f"30 21 * * 1-5 cd {root} && "
-        "CLAWDBOT_SESSION_ID=\"stock_quant_eod_$(date -u +\\%Y-\\%m-\\%d)\" "
         f"/usr/bin/python3 board/eod/run_stock_quant_officer_eod.py >> {root}/logs/cron_eod.log 2>&1"
     )
     # Sync: 21:32 UTC weekdays — prefer run_droplet_audit_and_sync.sh, else droplet_sync_to_github.sh

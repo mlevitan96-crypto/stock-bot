@@ -11,7 +11,7 @@
 |---------|-------|----------------|
 | Cron not firing | Service down, crontab wrong | cron_health_check at 20:21; repair_cron in cron_diagnose_and_fix |
 | **Wrong order** | EOD at 21:30 runs *before* exit_join at 21:31 | Move exit_join to 21:28 so data is ready |
-| Python/clawdbot not found | PATH, venv | Use /usr/bin/python3; cron sets minimal env |
+| Python not found | PATH, venv | Use /usr/bin/python3; cron sets minimal env |
 | Disk full, permission denied | Infra | Monitoring; ensure logs dir writable |
 
 ### B. run_stock_quant_officer_eod.py hard exits
@@ -22,8 +22,7 @@
 | Wheel action closure | Prior actions not closed | eod_confirmation uses --skip-wheel-closure |
 | Watchlist validation | Non-empty watchlist, no board response | --skip-wheel-closure path; relax in recovery |
 | Governance check | Unclosed actions >3 days | --allow-missing-missed-money recovery path |
-| Clawdbot not found / timeout | subprocess | Ensure clawdbot in PATH on droplet; timeout 300s |
-| JSON parse failure | Clawdbot malformed output | Save raw, retry with --dry-run fallback not feasible |
+| JSON parse failure | Malformed local output | Save raw to board/eod/out/<DATE>_raw_response.txt; exit 1 |
 
 ### C. eod_confirmation.py
 | Failure | Cause | Preventive fix |

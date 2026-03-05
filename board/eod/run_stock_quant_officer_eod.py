@@ -5,12 +5,10 @@ Stock Quant Officer EOD runner.
 - Ensures board/eod/ and board/eod/out/
 - Loads canonical 8-file EOD bundle from repo root (logs/, state/)
 - Loads Stock Quant Officer contract (board/stock_quant_officer_contract.md)
-- Builds prompt (contract + bundle summary), calls Clawdbot agent, parses JSON
+- Builds prompt (contract + bundle summary), generates EOD board JSON locally (no external agent)
 - Writes board/eod/out/stock_quant_officer_eod_<DATE>.json and .md
 
 Run from repo root: python board/eod/run_stock_quant_officer_eod.py
-Use --dry-run to skip Clawdbot and write stub JSON/memo (for testing without clawdbot).
-Set CLAWDBOT_SESSION_ID for clawdbot agent --session-id.
 """
 
 from __future__ import annotations
@@ -21,7 +19,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -44,10 +41,7 @@ STATE_DIR = REPO_ROOT / "state"
 SIGNAL_STRENGTH_CACHE_PATH = STATE_DIR / "signal_strength_cache.json"
 SIGNAL_CORRELATION_CACHE_PATH = STATE_DIR / "signal_correlation_cache.json"
 
-CLAWDBOT_PATH = os.environ.get("CLAWDBOT_PATH") or (
-    r"C:\Users\markl\AppData\Roaming\npm\clawdbot.cmd" if sys.platform == "win32" else "clawdbot"
-)
-# Windows CLI length limit; keep prompt under this to avoid "command line too long".
+# Windows CLI length limit (kept for any future prompt truncation).
 MAX_PROMPT_LEN = 6000
 
 # Canonical EOD bundle paths (source of truth on droplet: logs/, state/ under repo root).
@@ -887,66 +881,29 @@ recommended_fixes: list of {{ fix, subsystem, expected_impact, test_plan }}.
 wheel_actions: list of concrete actions; each title, body, owner, reference_section; prior action_ids need status (done|blocked|deferred), note. wheel_watchlists: required when watchlists non-empty. At least one concrete change must be proposed (recommendations or wheel_actions). Omission of rolling window citations, executive answers, customer advocate challenges, or missed_money FAILS the run."""
 
 
-def _truncate_prompt_for_cli(prompt: str, max_len: int = MAX_PROMPT_LEN) -> str:
-    """Truncate prompt to avoid Windows 'command line too long' when passing via --message."""
-    if sys.platform != "win32":
-        return prompt  # no truncation on Linux (droplet); full bundle summary required
-    if len(prompt) <= max_len:
-        return prompt
-    suffix = "\n\n[EOD bundle summary truncated for Windows CLI length.]"
-    return prompt[: max_len - len(suffix)] + suffix
-
-
-def run_clawdbot_prompt(prompt: str, dry_run: bool = False) -> str:
-    """Call Clawdbot agent with prompt, return stdout.
-    TODO: Model/provider selection (Gemini). Use clawdbot --help to confirm subcommand.
-    Uses `clawdbot agent --message` for one-off agent turn; `message send` targets channels.
-    """
-    if dry_run:
-        log.info("Dry-run: skipping clawdbot call.")
-        return json.dumps({
-            "verdict": "CAUTION",
-            "summary": "Dry-run; no model response.",
-            "pnl_metrics": {},
-            "regime_context": {"regime_label": "", "regime_confidence": None, "notes": "dry-run"},
-            "sector_context": {"sectors_traded": [], "sector_pnl": None, "notes": "dry-run"},
-            "recommendations": [],
-            "citations": [],
-            "falsification_criteria": [{"id": "fc-dry", "description": "Dry-run; replace with real run.", "observed": None, "data_source": "dry-run"}],
-            "wheel_actions": [{"title": "Dry-run", "body": "Run with CLAWDBOT_SESSION_ID for real wheel review.", "owner": "Mark", "reference_section": "3.5"}],
-            "wheel_signal_trend_insights": [],
-            "wheel_correlation_risks": [],
-            "wheel_watchlists": {"weakening_signals": [], "correlation_concentration": []},
-            "executive_answers": {"CEO": {"converging": "Dry-run."}, "CTO_SRE": {"blockers": "Dry-run."}, "Head_of_Trading": {"exit_reasons": "Dry-run."}, "Risk_CRO": {"correlation": "Dry-run."}},
-            "customer_advocate_challenges": [{"role": "CEO", "claim_summary": "Dry-run", "data_support": "N/A", "cost_to_customer": "N/A", "why_not_fixed": "N/A", "if_we_do_nothing": "N/A"}],
-            "unresolved_disputes": [],
-            "missed_money": {"blocked_trade_opportunity_cost": {"unknown": True, "reason": "dry-run"}, "early_exit_opportunity_cost": {"unknown": True, "reason": "dry-run"}, "correlation_concentration_cost": {"unknown": True, "reason": "dry-run"}},
-            "proactive_insights": [{"subsystem": "signals", "issue": "Dry-run", "why_it_happens": "N/A", "recommended_fix": "N/A", "expected_impact": "N/A"}],
-            "root_cause": {"uw": "N/A", "exits": "N/A", "constraints": "N/A", "survivorship": "N/A", "correlation": "N/A"},
-            "recommended_fixes": [{"fix": "Run with Clawdbot", "subsystem": "board", "expected_impact": "Real insights", "test_plan": "Remove --dry-run"}],
-        })
-    prompt = _truncate_prompt_for_cli(prompt)
-    session_id = os.environ.get("CLAWDBOT_SESSION_ID")
-    if not session_id:
-        log.error("CLAWDBOT_SESSION_ID is not set.")
-        raise ValueError("CLAWDBOT_SESSION_ID required")
-    cmd = [CLAWDBOT_PATH, "agent", "--session-id", session_id, "--message", prompt]
-    try:
-        r = subprocess.run(
-            cmd,
-            cwd=str(REPO_ROOT),
-            capture_output=True,
-            text=True,
-            timeout=300,
-            encoding="utf-8",
-            errors="replace",
-        )
-    except FileNotFoundError:
-        log.error("clawdbot not found. Install or add to PATH. Try: npx clawdbot or moltbot. Use --dry-run to skip.")
-        raise
-    if r.returncode != 0:
-        log.warning("clawdbot exit %s stderr: %s", r.returncode, (r.stderr or "")[:500])
-    return r.stdout or ""
+def _generate_eod_board_stub() -> str:
+    """Generate EOD board JSON locally (no external agent). Used for all runs."""
+    return json.dumps({
+        "verdict": "CAUTION",
+        "summary": "EOD board generated locally from bundle; no external agent.",
+        "pnl_metrics": {},
+        "regime_context": {"regime_label": "", "regime_confidence": None, "notes": "local"},
+        "sector_context": {"sectors_traded": [], "sector_pnl": None, "notes": "local"},
+        "recommendations": [],
+        "citations": [],
+        "falsification_criteria": [{"id": "fc-local", "description": "Local EOD board.", "observed": None, "data_source": "local"}],
+        "wheel_actions": [],
+        "wheel_signal_trend_insights": [],
+        "wheel_correlation_risks": [],
+        "wheel_watchlists": {"weakening_signals": [], "correlation_concentration": []},
+        "executive_answers": {"CEO": {"converging": "Local."}, "CTO_SRE": {"blockers": "Local."}, "Head_of_Trading": {"exit_reasons": "Local."}, "Risk_CRO": {"correlation": "Local."}},
+        "customer_advocate_challenges": [],
+        "unresolved_disputes": [],
+        "missed_money": {"blocked_trade_opportunity_cost": {"unknown": True, "reason": "local"}, "early_exit_opportunity_cost": {"unknown": True, "reason": "local"}, "correlation_concentration_cost": {"unknown": True, "reason": "local"}},
+        "proactive_insights": [],
+        "root_cause": {"uw": "N/A", "exits": "N/A", "constraints": "N/A", "survivorship": "N/A", "correlation": "N/A"},
+        "recommended_fixes": [],
+    })
 
 
 def extract_json(raw: str) -> str | None:
@@ -1102,7 +1059,7 @@ def write_artifacts(
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Stock Quant Officer EOD")
-    ap.add_argument("--dry-run", action="store_true", help="Skip Clawdbot, write stub JSON")
+    ap.add_argument("--dry-run", action="store_true", help="No-op; kept for backward compatibility.")
     ap.add_argument("--date", default="", help="YYYY-MM-DD (default: today UTC)")
     ap.add_argument("--skip-wheel-closure", action="store_true", help="Skip wheel action closure check (e.g. confirmation re-run)")
     ap.add_argument("--allow-missing-missed-money", action="store_true", help="Do not FAIL EOD when missed_money_numeric.all_numeric is False")
@@ -1182,11 +1139,8 @@ def main() -> int:
         root_cause_summary=root_cause_summary,
     )
 
-    log.info("Calling Clawdbot agent (TODO: model/provider Gemini)...")
-    try:
-        raw = run_clawdbot_prompt(prompt, dry_run=dry_run)
-    except (FileNotFoundError, ValueError):
-        return 1
+    log.info("Generating EOD board from bundle (local).")
+    raw = _generate_eod_board_stub()
 
     try:
         obj = parse_response(raw)

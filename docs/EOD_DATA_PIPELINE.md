@@ -40,8 +40,7 @@ These paths are **optional** and do not replace the 8-file canonical list. When 
   - Missing file → `log.error("Bundle file missing: %s", path)`, `data[name] = None`, skip load.
   - Empty file → `log.warning("Bundle file empty: %s", path)`, set `[]` or `None`, skip load.
   - Prepends prompt with: *"Ignore any prior context. Use ONLY the EOD bundle summary below."*
-  - Linux: no prompt truncation. Windows: `MAX_PROMPT_LEN` truncation for CLI.
-  - Session: `CLAWDBOT_SESSION_ID="stock_quant_eod_$(date -u +%Y-%m-%d)"` (date-scoped).
+  - EOD board JSON is generated locally from the bundle (no external agent).
 - **Outputs (on success):**
   - `board/eod/out/quant_officer_eod_<DATE>.json`
   - `board/eod/out/quant_officer_eod_<DATE>.md`
@@ -66,7 +65,6 @@ The generated memo must include:
 ## 4. Cron
 
 - **EOD cron:** 21:30 UTC, weekdays (Mon–Fri).
-- **Session:** Date-scoped `stock_quant_eod_$(date -u +%Y-%m-%d)`.
 - **Installed by:** `board/eod/install_eod_cron_on_droplet.py` (or `scripts/` equivalent if present).
 - **Sync cron:** 21:32 UTC weekdays via `scripts/droplet_sync_to_github.sh` (push EOD outputs to GitHub).
 - **Symbol risk snapshot (optional):** Run `python3 scripts/generate_symbol_risk_snapshot.py` before EOD (e.g. 21:28 UTC) so `state/symbol_risk_snapshot.json` is present for the EOD bundle. Manual run or future cron hook.
@@ -136,14 +134,7 @@ The generated memo must include:
 
 ```bash
 cd /root/stock-bot
-export CLAWDBOT_SESSION_ID="stock_quant_eod_$(date -u +%Y-%m-%d)"
 python3 board/eod/run_stock_quant_officer_eod.py
-```
-
-Dry-run (no Clawdbot call):
-
-```bash
-python3 board/eod/run_stock_quant_officer_eod.py --dry-run
 ```
 
 ---

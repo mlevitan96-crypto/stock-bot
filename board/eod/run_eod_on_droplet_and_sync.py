@@ -2,7 +2,6 @@
 """
 Full EOD on droplet with real data, then sync to GitHub.
 1. On droplet: detect repo root, git pull, run EOD confirmation (verify → re-run if needed → push).
-2. Uses CLAWDBOT_SESSION_ID=stock_quant_eod_<date> for the run.
 Run from repo root. Requires droplet_config.json / DROPLET_* env and GitHub push access from droplet.
 """
 from __future__ import annotations
@@ -22,7 +21,6 @@ def main() -> int:
     cmd = (
         "REPO=$( [ -d /root/stock-bot-current/scripts ] && echo /root/stock-bot-current || echo /root/stock-bot ); "
         "cd $REPO && git fetch origin && git pull --rebase --autostash origin main && "
-        "export CLAWDBOT_SESSION_ID=stock_quant_eod_$(date -u +%Y-%m-%d) && "
         "python3 board/eod/eod_confirmation.py"
     )
 

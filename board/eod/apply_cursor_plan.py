@@ -76,8 +76,7 @@ def run_on_droplet(date_str: str) -> int:
     if rc != 0:
         errors.append(f"Cron/EOD failed (exit {rc}); trying eod_confirmation with --allow-missing-missed-money")
         out2, err2, rc2 = _run(
-            f"cd {root} && CLAWDBOT_SESSION_ID=stock_quant_eod_{date_str} "
-            f"python3 board/eod/eod_confirmation.py --date {date_str} --allow-missing-missed-money",
+            f"cd {root} && python3 board/eod/eod_confirmation.py --date {date_str} --allow-missing-missed-money",
             timeout=600,
         )
         if rc2 == 0:

@@ -90,8 +90,7 @@ def main() -> int:
         # 6) Run EOD then push
         print("=== Running EOD and push ===\n")
         eod_cmd = (
-            f"cd {root} && CLAWDBOT_SESSION_ID=stock_quant_eod_{date_str} "
-            f"python3 board/eod/eod_confirmation.py --date {date_str} --allow-missing-missed-money"
+            f"cd {root} && python3 board/eod/eod_confirmation.py --date {date_str} --allow-missing-missed-money"
         )
         out, err, rc = c._execute(eod_cmd, timeout=600)
         print(out or "")

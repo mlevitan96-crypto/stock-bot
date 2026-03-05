@@ -105,7 +105,6 @@ def repair_cron(root: str) -> tuple[bool, str]:
     """Reinstall EOD cron entry."""
     cron_line = (
         f"30 21 * * 1-5 cd {root} && "
-        "CLAWDBOT_SESSION_ID=\"stock_quant_eod_$(date -u +%Y-%m-%d)\" "
         f"/usr/bin/python3 {root}/board/eod/eod_confirmation.py >> {root}/logs/cron_eod.log 2>&1"
     )
     install = (

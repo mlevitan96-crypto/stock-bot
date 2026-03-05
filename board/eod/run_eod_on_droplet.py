@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run EOD script on droplet: deploy board/eod + contract via SFTP, cd /root/stock-bot, export CLAWDBOT_SESSION_ID, run EOD."""
+"""Run EOD script on droplet: deploy board/eod + contract via SFTP, cd /root/stock-bot, run EOD."""
 from __future__ import annotations
 
 import sys
@@ -37,7 +37,7 @@ def main() -> int:
         sftp.put(str(local_contract), f"{REMOTE_ROOT}/board/stock_quant_officer_contract.md")
         sftp.close()
 
-        cmd = "export CLAWDBOT_SESSION_ID=\"stock_quant_eod_$(date -u +%Y-%m-%d)\" && python3 board/eod/run_stock_quant_officer_eod.py"
+        cmd = "python3 board/eod/run_stock_quant_officer_eod.py"
         out, err, rc = c._execute_with_cd(cmd, timeout=300)
         print("=== stdout ===")
         print(out)

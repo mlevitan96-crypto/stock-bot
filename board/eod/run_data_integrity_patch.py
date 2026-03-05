@@ -62,8 +62,7 @@ def run_on_droplet(date_str: str) -> int:
     # 3) Force EOD (may fail if artifacts missing - hard-fail enforced)
     print("3) Forcing EOD...", flush=True)
     out, err, rc = _run(
-        f"cd {root} && CLAWDBOT_SESSION_ID=stock_quant_eod_{date_str} "
-        f"python3 board/eod/eod_confirmation.py --date {date_str} --allow-missing-missed-money",
+        f"cd {root} && python3 board/eod/eod_confirmation.py --date {date_str} --allow-missing-missed-money",
         timeout=600,
     )
     print(out[-3000:] if len(out) > 3000 else out, flush=True)

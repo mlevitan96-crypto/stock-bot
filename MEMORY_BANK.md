@@ -904,7 +904,7 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 - `logs/attribution.jsonl`, `logs/exit_attribution.jsonl`, `logs/master_trade_log.jsonl`
 - `state/blocked_trades.jsonl`, `state/daily_start_equity.json`, `state/peak_equity.json`, `state/signal_weights.json`, `state/daily_universe_v2.json`
 
-**Runner:** `board/eod/run_stock_quant_officer_eod.py` — uses `REPO_ROOT` + canonical paths with `(REPO_ROOT / rel).resolve()`; defensive checks (missing → log.error, data[name]=None; empty → log.warning, [] or None); prompt prepended with "Ignore any prior context. Use ONLY the EOD bundle summary below."; Linux: no truncation; Windows: MAX_PROMPT_LEN truncation; date-scoped session `CLAWDBOT_SESSION_ID="stock_quant_eod_$(date -u +%Y-%m-%d)"`.
+**Runner:** `board/eod/run_stock_quant_officer_eod.py` — uses `REPO_ROOT` + canonical paths with `(REPO_ROOT / rel).resolve()`; defensive checks (missing → log.error, data[name]=None; empty → log.warning, [] or None); EOD board JSON generated locally from bundle (no external agent).
 
 **Contract:** `board/quant_officer_contract.md` (fallback: `board/stock_quant_officer_contract.md`).
 
@@ -952,10 +952,8 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 - **Report:** `reports/BLOCKED_TRADE_INTEL_<DATE>.md` — blocked counts by reason, intelligence at block time, shadow profile deltas (hypothetical; NO-APPLY).
 - **Runner:** `scripts/run_exit_join_and_blocked_attribution_on_droplet.py` — intel producers → UW audit → harness (if needed) → exit join health → blocked intel report → commit + push.
 
-### OpenClaw (Clawdbot / Moltbot) — same product
-- **Naming:** OpenClaw, Clawdbot, and Moltbot are different names for the same AI product. The CLI is invoked as `clawdbot` (or `moltbot`); e.g. `clawdbot agent --session-id ... --message <prompt>`. Code uses `CLAWDBOT_SESSION_ID` and `clawdbot` in PATH.
-- **EOD:** `board/eod/run_stock_quant_officer_eod.py` calls OpenClaw once per EOD (bundle summary → wheel_actions, recommended_fixes, memo). Requires `clawdbot` (or `moltbot`) in PATH and `CLAWDBOT_SESSION_ID`; on droplet, if missing, use `--dry-run` for stub output. See `docs/EOD_DATA_PIPELINE.md`.
-- **Leverage:** OpenClaw is currently used only in EOD. For more impact: pre-market brief, weekly P&L post-mortem, Molt-workflow synthesis (see `reports/AI_LEVERAGE_OPENCLAW_CURSOR_2026-02-17.md`).
+### OpenClaw (Clawdbot) — REMOVED
+- **Status:** Clawdbot/OpenClaw integration was fully removed (2026-03). EOD board is generated locally from the bundle; no external agent. See `reports/audit/CLAWDBOT_REMOVAL_CHANGELOG.md`.
 - **Cursor daily checklist:** See **Daily AI Review Checklist** below.
 
 #### Daily AI Review Checklist

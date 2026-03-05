@@ -10,7 +10,6 @@ REPO_DIR="${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$REPO_DIR" || exit 1
 
 DATE="${1:-$(date -u +%Y-%m-%d)}"
-export CLAWDBOT_SESSION_ID="${CLAWDBOT_SESSION_ID:-stock_quant_eod_${DATE}}"
 
 echo "EOD integrity: REPO_DIR=$REPO_DIR DATE=$DATE"
 

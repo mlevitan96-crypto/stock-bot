@@ -25,7 +25,7 @@ Choose the option that includes **Disk, CPU, and RAM**. Disk is your immediate b
 |----------|--------------------|--------------------|------------|
 | **Disk** | 48G (full)         | **80–100 GB**      | Headroom for logs, backtests, reports, cache, and future runs without constant cleanup. |
 | **CPU**  | ~1 vCPU (load 3+)   | **2–4 vCPUs**      | Load ~3 on 1 vCPU is saturated; bursty jobs (uw_flow_daemon, full_signal_review, cron) need headroom so the main loop isn’t starved. |
-| **RAM**  | ~2–4 GB (from %MEM)| **4–8 GB**         | main + dashboard + supervisor + cache_enrichment + clawdbot-gateway already use a large share; backtests and signal reviews use more. More RAM reduces swap and OOM risk. |
+| **RAM**  | ~2–4 GB (from %MEM)| **4–8 GB**         | main + dashboard + supervisor + cache_enrichment already use a large share; backtests and signal reviews use more. More RAM reduces swap and OOM risk. |
 
 - If the resize options are fixed tiers (e.g. “2 vCPU / 4 GB / 80 GB” vs “4 vCPU / 8 GB / 160 GB”), prefer at least **80 GB disk** and **2 vCPU / 4 GB RAM** as a minimum; **4 vCPU / 8 GB / 100+ GB** is better for “massive data sets” and concurrent cron/backtests.
 - If you can choose disk separately: **80–100 GB** is a good target; **128 GB** is safer long term.

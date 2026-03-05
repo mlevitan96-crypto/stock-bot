@@ -446,7 +446,7 @@ def check_eod_review_integration(date: str) -> str:
         capture_output=True,
         text=True,
         timeout=120,
-        env={**dict(__import__("os").environ), "CLAWDBOT_SESSION_ID": "audit_dryrun"},
+        env=dict(__import__("os").environ),
     )
 
     # --dry-run should always succeed
@@ -999,7 +999,7 @@ def check_eod_prompt_integration(date: str) -> str:
         capture_output=True,
         text=True,
         timeout=120,
-        env={**dict(__import__("os").environ), "CLAWDBOT_SESSION_ID": "audit_dryrun"},
+        env=dict(__import__("os").environ),
     )
 
     if result.returncode != 0:

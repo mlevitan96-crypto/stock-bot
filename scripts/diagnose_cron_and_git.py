@@ -166,8 +166,6 @@ def run_eod_dry_run(root: Path, venv_python: Optional[Path], python_fallback: st
     script = root / "board" / "eod" / "run_stock_quant_officer_eod.py"
     if not script.exists():
         return 1, "", f"Script not found: {script}"
-    env = os.environ.copy()
-    env["CLAWDBOT_SESSION_ID"] = "diagnostic_dry_run"
     try:
         r = subprocess.run(
             [py, str(script), "--dry-run"],
@@ -175,7 +173,6 @@ def run_eod_dry_run(root: Path, venv_python: Optional[Path], python_fallback: st
             capture_output=True,
             text=True,
             timeout=60,
-            env=env,
         )
         return (r.returncode, r.stdout or "", r.stderr or "")
     except subprocess.TimeoutExpired:
@@ -282,7 +279,6 @@ def build_cron_lines(root: Path, venv_python: Optional[Path], use_venv: bool) ->
     eod_log = root / "logs" / "cron_eod.log"
     eod = (
         f"30 21 * * 1-5 cd {root_s} && "
-        f"CLAWDBOT_SESSION_ID=\"stock_quant_eod_$(date -u +\\%Y-\\%m-\\%d)\" "
         f"{py} board/eod/run_stock_quant_officer_eod.py >> {eod_log} 2>&1"
     )
 

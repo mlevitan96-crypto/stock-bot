@@ -244,7 +244,6 @@ def repair_cron(client: Any | None = None) -> tuple[bool, str]:
     )
     eod_line = (
         f"30 21 * * 1-5 cd {root} && "
-        "CLAWDBOT_SESSION_ID=\"stock_quant_eod_$(date -u +%Y-%m-%d)\" "
         f"/usr/bin/python3 {root}/board/eod/eod_confirmation.py >> /var/log/eod_confirmation.log 2>&1"
     )
     corr_line = (
@@ -302,7 +301,7 @@ def force_run_eod(date_str: str, client: Any | None = None, allow_missing_missed
     root = _detect_stockbot_root()
     mm_flag = " --allow-missing-missed-money" if allow_missing_missed_money else ""
     cmd = (
-        f"cd {root} && CLAWDBOT_SESSION_ID=stock_quant_eod_{date_str} "
+        f"cd {root} && "
         f"/usr/bin/python3 board/eod/eod_confirmation.py --date {date_str}{mm_flag}"
     )
 
