@@ -49,16 +49,16 @@ def main() -> int:
             data["proxy_pnl_delta_label"] = data.get("estimated_pnl_delta_label", "proxy")
         shadows[sid] = data
 
-    # Rank by expected improvement (less negative proxy_pnl_delta = better)
+    # Rank by expected improvement (higher proxy_pnl_delta = better)
     def rank_key(sid):
         s = shadows.get(sid) or {}
         if s.get("error"):
-            return (999, 0)
+            return -1e9
         delta = s.get("proxy_pnl_delta")
         if delta is None:
-            return (1, 0)
-        return (0, delta)
-    ranked = sorted(SHADOW_IDS, key=rank_key)
+            return -1e8
+        return delta
+    ranked = sorted(SHADOW_IDS, key=rank_key, reverse=True)
 
     risk_flags = {
         "A1_shadow": "Displacement relaxation increases exposure.",
@@ -69,19 +69,19 @@ def main() -> int:
         "C2_shadow": "Full C2 requires per-block outcome; proxy only.",
     }
 
-    # Nomination: best proxy delta that is least negative, or Hold/Discard
+    # Nomination: best shadow by proxy delta; positive delta -> Advance, else Hold or Discard
     nomination = "Hold and accumulate more shadow data"
     best = ranked[0] if ranked else None
+    advance_candidate = None
     if best and not (shadows.get(best) or {}).get("error"):
         delta = (shadows.get(best) or {}).get("proxy_pnl_delta")
-        if delta is not None and delta > -5:
+        if delta is not None and delta > 0:
             nomination = "Advance to live paper test"
+            advance_candidate = best
         elif delta is not None and delta < -50:
             nomination = "Discard"
         else:
             nomination = "Hold and accumulate more shadow data"
-
-    advance_candidate = best if nomination == "Advance to live paper test" else None
 
     persona_verdicts = {
         "adversarial": f"SHADOW_COMPARISON_LAST387 ranks shadows by proxy delta. Recommend advancing {advance_candidate or 'none'} only if shadow is least negative and tail-risk acceptable. Others: wait or discard.",
