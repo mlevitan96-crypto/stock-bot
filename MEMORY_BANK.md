@@ -918,7 +918,7 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 
 **EOD data hardening (observability):** `scripts/eod_bundle_manifest.py` — validates canonical 8-file bundle (exists, non-empty, sha256); outputs `reports/eod_manifests/EOD_MANIFEST_<DATE>.json|.md`; exits non-zero if any required file missing/empty. `scripts/generate_signal_weight_exit_inventory.py` — signal/weight/exit inventory (COMPOSITE_WEIGHTS_V2, adaptive state/signal_weights.json, exit usage); output `reports/STOCK_SIGNAL_WEIGHT_EXIT_INVENTORY_<DATE>.md`. Droplet runner: `scripts/run_stock_eod_integrity_on_droplet.sh` (path-agnostic: REPO_DIR defaults to script's parent directory); manifest → EOD quant officer → inventory → commit + push. §3.2 (reports use droplet production data).
 
-**Unified daily intelligence pack:** `scripts/run_stockbot_daily_reports.py` — creates `reports/stockbot/YYYY-MM-DD/` with 9 files: STOCK_EOD_SUMMARY.md/.json, STOCK_EQUITY_ATTRIBUTION.jsonl, STOCK_WHEEL_ATTRIBUTION.jsonl, STOCK_BLOCKED_TRADES.jsonl, STOCK_PROFITABILITY_DIAGNOSTICS.md/.json, STOCK_REGIME_AND_UNIVERSE.json, MEMORY_BANK_SNAPSHOT.md. Canonical wheel fields: strategy_id, phase, option_type, strike, expiry, dte, delta_at_entry, premium, assigned, called_away. Moltbot expansion: `scripts/run_molt_intelligence_expansion.py` loads pack via load_equity_attribution(), load_wheel_attribution(), load_profitability_diagnostics(), load_blocked_trades(), load_regime_universe(). Pack integrated into EOD flow via run_stock_eod_integrity_on_droplet.sh.
+**Unified daily intelligence pack:** `scripts/run_stockbot_daily_reports.py` — creates `reports/stockbot/YYYY-MM-DD/` with 9 files: STOCK_EOD_SUMMARY.md/.json, STOCK_EQUITY_ATTRIBUTION.jsonl, STOCK_WHEEL_ATTRIBUTION.jsonl, STOCK_BLOCKED_TRADES.jsonl, STOCK_PROFITABILITY_DIAGNOSTICS.md/.json, STOCK_REGIME_AND_UNIVERSE.json, MEMORY_BANK_SNAPSHOT.md. Canonical wheel fields: strategy_id, phase, option_type, strike, expiry, dte, delta_at_entry, premium, assigned, called_away. Intelligence expansion: `scripts/run_molt_intelligence_expansion.py` loads pack via load_equity_attribution(), load_wheel_attribution(), load_profitability_diagnostics(), load_blocked_trades(), load_regime_universe(). Pack integrated into EOD flow via run_stock_eod_integrity_on_droplet.sh.
 
 **Cron + Git diagnostic:** `scripts/diagnose_cron_and_git.py` — full Cron + Git + execution diagnostic and repair (path-agnostic). Auto-detects stock-bot root (/root/stock-bot-current, /root/stock-bot); diagnoses cron, verifies scripts, EOD dry-run, git push; repairs cron if needed; updates Memory Bank; outputs `reports/STOCKBOT_CRON_AND_GIT_DIAGNOSTIC_<DATE>.md`. Usage: `python3 scripts/diagnose_cron_and_git.py` on droplet; `--local` for Windows; `--remote` to run via DropletClient; `--dry-run` for report only. **Remote runner:** `python scripts/run_diagnose_on_droplet_via_ssh.py` — pulls latest on droplet, runs diagnostic, from local machine. **Verified 2026-02-01:** EOD 21:30 UTC, sync 21:32 UTC Mon–Fri; droplet push OK.
 
@@ -952,17 +952,12 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 - **Report:** `reports/BLOCKED_TRADE_INTEL_<DATE>.md` — blocked counts by reason, intelligence at block time, shadow profile deltas (hypothetical; NO-APPLY).
 - **Runner:** `scripts/run_exit_join_and_blocked_attribution_on_droplet.py` — intel producers → UW audit → harness (if needed) → exit join health → blocked intel report → commit + push.
 
-### OpenClaw (Clawdbot) — REMOVED
-- **Status:** Clawdbot/OpenClaw integration was fully removed (2026-03). EOD board is generated locally from the bundle; no external agent. See `reports/audit/CLAWDBOT_REMOVAL_CHANGELOG.md`.
-- **Cursor daily checklist:** See **Daily AI Review Checklist** below.
-
 #### Daily AI Review Checklist
-After EOD and Molt workflow runs, Cursor should consider:
+After EOD and learning workflow runs, Cursor should consider:
 - `reports/LEARNING_STATUS_<today>.md`
 - `reports/ENGINEERING_HEALTH_<today>.md`
 - `reports/PROMOTION_PROPOSAL_<today>.md` or `reports/REJECTION_WITH_REASON_<today>.md`
 - `reports/MEMORY_BANK_CHANGE_PROPOSAL_<today>.md`
-- `reports/MOLT_OPENCLAW_SYNTHESIS_<today>.md` (if present)
 
 If the user asks:
 - "what should I do next?"
@@ -976,17 +971,17 @@ Cursor should summarize these artifacts and suggest:
 
 Cursor MUST NOT apply changes unless explicitly instructed.
 
-### In-repo Molt workflow (moltbot/ package) — not the OpenClaw product
-- **Role:** The `moltbot/` directory is the "Learning & Engineering Governor" *workflow* — in-repo Python code that produces reports. It is separate from the OpenClaw product; it does not call OpenClaw. It is rule-based (no LLM). Cursor implements all code; this workflow produces artifacts ONLY; never applies changes.
-- **NO-APPLY guarantee:** The Molt workflow MUST NEVER change weights, gates, or decisions. Artifact-only consumption. No live UW calls. No orders.
+### Learning & Engineering Governor (in-repo workflow)
+- **Role:** In-repo Python code that produces reports. Rule-based (no LLM). Cursor implements all code; this workflow produces artifacts ONLY; never applies changes.
+- **NO-APPLY guarantee:** This workflow MUST NEVER change weights, gates, or decisions. Artifact-only consumption. No live UW calls. No orders.
 - **Workflows:**
   - **Learning Orchestrator** (`moltbot/orchestrator.py`): Verifies Memory Bank version, learning pipeline artifacts, NO-APPLY compliance. Output: `reports/LEARNING_STATUS_<DATE>.md`
   - **Engineering Sentinel** (`moltbot/sentinel.py`): Reads cron logs, EXIT_JOIN_HEALTH, BLOCKED_TRADE_INTEL, SNAPSHOT_OUTCOME_ATTRIBUTION. Output: `reports/ENGINEERING_HEALTH_<DATE>.md`. No code changes.
   - **Multi-Agent Learning Board** (`moltbot/board.py`): signal_advocate, risk_auditor, counterfactual_analyst, governance_chair. Output: `reports/PROMOTION_PROPOSAL_<DATE>.md` or `reports/REJECTION_WITH_REASON_<DATE>.md`
   - **Promotion Discipline** (`moltbot/promotion_discipline.py`): Multi-day stability, regime consistency, blocked-trade impact, shadow persistence. No automatic promotion. Output: `reports/PROMOTION_DISCIPLINE_<DATE>.md`
   - **Memory Bank Evolution** (`moltbot/memory_evolution.py`): Detects patterns, proposes Memory Bank updates. Output: `reports/MEMORY_BANK_CHANGE_PROPOSAL_<DATE>.md`. Never writes MEMORY_BANK directly.
-- **Automation:** `scripts/run_molt_workflow.py` — runs full Molt workflow. `scripts/run_molt_on_droplet.sh` — droplet runner. Cron: 21:35 UTC weekdays (post-market) via `scripts/install_molt_cron_on_droplet.py`
-- **Promotion:** Human approval required. The Molt workflow proposes; Cursor/human approves and applies.
+- **Automation:** `scripts/run_molt_workflow.py` — runs full learning workflow. `scripts/run_molt_on_droplet.sh` — droplet runner. Cron: 21:35 UTC weekdays (post-market) via `scripts/install_molt_cron_on_droplet.py`
+- **Promotion:** Human approval required. The workflow proposes; Cursor/human approves and applies.
 
 ### UW canonical rules
 - **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.

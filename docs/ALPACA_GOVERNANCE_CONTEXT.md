@@ -215,7 +215,7 @@ Cursor must treat this section as ground truth and update it only when changes a
 | Strategy | Multi-signal scoring + gating (as implemented in `main.py`) |
 | Shadow learning | Per repo config; audit via `reports/_daily_review_tools/generate_shadow_audit.py` (event types: `shadow_candidate`, `shadow_executed`, `shadow_exit`, `shadow_pnl_update`, `score_compare`, `divergence`) |
 | Capacity | `MAX_OPEN_POSITIONS` and per-symbol/per-sector caps in `main.py` |
-| Governance runner | **No** `scripts/run_governance_full.py`. Canonical processes: **EOD** `board/eod/run_stock_quant_officer_eod.py`; **Molt** `scripts/run_molt_on_droplet.sh`; **comparison** `scripts/governance/compare_backtest_runs.py`; **AI governance chair** `moltbot/agents/governance_chair.py` (`run_governance_chair`) |
+| Governance runner | **No** `scripts/run_governance_full.py`. Canonical processes: **EOD** `board/eod/run_stock_quant_officer_eod.py`; **Learning workflow** `scripts/run_molt_on_droplet.sh`; **comparison** `scripts/governance/compare_backtest_runs.py`; **AI governance chair** `moltbot/agents/governance_chair.py` (`run_governance_chair`) |
 | Daily report / governance index | `reports/GOVERNANCE_DISCOVERY_INDEX.md`; governance comparison outputs: `reports/governance_comparison/` |
 | Memory Bank | `MEMORY_BANK.md` (root) |
 | Attribution truth contract | `docs/ATTRIBUTION_TRUTH_CONTRACT.md`; canonical schema `docs/ATTRIBUTION_SCHEMA_CANONICAL_V1.md`; code: `src/exit/exit_attribution.py` (`ATTRIBUTION_SCHEMA_VERSION`), `schema/attribution_v1.py`, `schema/contract_validation.py` |
@@ -275,10 +275,10 @@ Cursor must focus adversarial review here and propose/implement concrete fixes.
 **Daily run integrity (fail-closed)**
 
 - **Status:** **Implemented.** Daily run is explicit and fail-closed; execution integrity FAIL when required artifacts or phases are missing.
-  - **Contract:** `docs/ALPACA_DAILY_RUN_INTEGRITY_CONTRACT.md` — required phases (Molt orchestration, governance chair, discovery index, daily board output, attribution summary, diagnostics summaries), required artifacts and locations, run window for timestamp alignment, FAIL conditions (Molt exit != 0, chair no output, missing/empty artifact, timestamp misalignment). Analytical issues remain WARN-only.
+  - **Contract:** `docs/ALPACA_DAILY_RUN_INTEGRITY_CONTRACT.md` — required phases (learning orchestration, governance chair, discovery index, daily board output, attribution summary, diagnostics summaries), required artifacts and locations, run window for timestamp alignment, FAIL conditions (learning workflow exit != 0, chair no output, missing/empty artifact, timestamp misalignment). Analytical issues remain WARN-only.
   - **Validator:** `scripts/validate_daily_governance_artifacts.py` — verifies required files exist, non-empty, optional timestamp in run window; exit non-zero on any FAIL; `--date`, `--base-dir`, `--skip-timestamps`.
-  - **Canonical entry point:** `scripts/run_daily_governance.sh` — runs Molt (`scripts/run_molt_on_droplet.sh`), then artifact validation; single PASS/FAIL verdict; exit 1 if Molt or validation fails.
-- **Failure modes now prevented:** Molt exits early (validator sees missing molt_last_run.json or exit_code != 0); governance chair emits no output (validator requires PROMOTION_PROPOSAL or REJECTION_WITH_REASON); missing/empty discovery index or diagnostics; silent board breakage (explicit FAIL instead of silent skip).
+  - **Canonical entry point:** `scripts/run_daily_governance.sh` — runs learning workflow (`scripts/run_molt_on_droplet.sh`), then artifact validation; single PASS/FAIL verdict; exit 1 if learning workflow or validation fails.
+- **Failure modes now prevented:** Learning workflow exits early (validator sees missing molt_last_run.json or exit_code != 0); governance chair emits no output (validator requires PROMOTION_PROPOSAL or REJECTION_WITH_REASON); missing/empty discovery index or diagnostics; silent board breakage (explicit FAIL instead of silent skip).
 
 ---
 

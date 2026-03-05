@@ -11,7 +11,7 @@ This contract defines **required phases**, **required artifacts**, **expected lo
 
 | Phase | Description | Validator check |
 |-------|-------------|-----------------|
-| Molt orchestration executed | `run_learning_orchestrator` ran and produced learning status | `reports/LEARNING_STATUS_<DATE>.md` exists, non-empty, timestamp in window |
+| Learning orchestration executed | `run_learning_orchestrator` ran and produced learning status | `reports/LEARNING_STATUS_<DATE>.md` exists, non-empty, timestamp in window |
 | Engineering sentinel executed | `run_engineering_sentinel` ran | `reports/ENGINEERING_HEALTH_<DATE>.md` exists, non-empty, timestamp in window |
 | Governance chair executed | `run_learning_board` ran (signal_advocate, risk_auditor, counterfactual_analyst, governance_chair) | One of `reports/PROMOTION_PROPOSAL_<DATE>.md` or `reports/REJECTION_WITH_REASON_<DATE>.md` exists, non-empty, timestamp in window |
 | Promotion discipline executed | `run_promotion_discipline` ran | `reports/PROMOTION_DISCIPLINE_<DATE>.md` exists, non-empty, timestamp in window |
@@ -29,7 +29,7 @@ All paths relative to repo root (or `REPO_DIR` on droplet).
 
 | Artifact | Location | Required |
 |----------|----------|----------|
-| Molt last run state | `state/molt_last_run.json` | Yes (proves Molt script ran; must contain `date`, `exit_code`, `timestamp_utc`) |
+| Learning workflow last run state | `state/molt_last_run.json` | Yes (proves learning workflow ran; must contain `date`, `exit_code`, `timestamp_utc`) |
 | Learning status | `reports/LEARNING_STATUS_<DATE>.md` | Yes |
 | Engineering health | `reports/ENGINEERING_HEALTH_<DATE>.md` | Yes |
 | Board output (proposal or rejection) | `reports/PROMOTION_PROPOSAL_<DATE>.md` or `reports/REJECTION_WITH_REASON_<DATE>.md` | Yes (exactly one) |
@@ -57,7 +57,7 @@ Validator implementation: **mtime >= run_window_start** and **mtime <= run_windo
 
 The daily run is **INVALID** (fail-closed) when **any** of the following is true:
 
-1. **Molt exited early:** `state/molt_last_run.json` has `exit_code` != 0 or is missing.
+1. **Learning workflow exited early:** `state/molt_last_run.json` has `exit_code` != 0 or is missing.
 2. **Governance chair did not emit output:** Neither `reports/PROMOTION_PROPOSAL_<DATE>.md` nor `reports/REJECTION_WITH_REASON_<DATE>.md` exists, or both exist but are empty.
 3. **Any required artifact is missing:** A file from §2 is absent.
 4. **Any required artifact is empty:** A required file has size 0.
@@ -72,7 +72,7 @@ Analytical issues (e.g. learning verdict FAILED, promotion rejected) remain **WA
 ## 5. Canonical daily entry point
 
 - **Script:** `scripts/run_daily_governance.sh` (or equivalent). Single command that:
-  1. Runs Molt workflow (`scripts/run_molt_on_droplet.sh` or `scripts/run_molt_workflow.py` with --date and --base-dir).
+  1. Runs learning workflow (`scripts/run_molt_on_droplet.sh` or `scripts/run_molt_workflow.py` with --date and --base-dir).
   2. Ensures discovery index exists (no-op if already present; optional refresh if a refresh script exists).
   3. Runs artifact completeness validator (`scripts/validate_daily_governance_artifacts.py`).
   4. Emits a single **PASS** or **FAIL** verdict; exit 0 only on PASS.
@@ -85,10 +85,10 @@ Analytical issues (e.g. learning verdict FAILED, promotion rejected) remain **WA
 
 | Failure mode | Detection | Result |
 |--------------|-----------|--------|
-| Molt exits early (exception, crash) | `state/molt_last_run.json` missing or `exit_code` != 0 | FAIL; run INVALID |
+| Learning workflow exits early (exception, crash) | `state/molt_last_run.json` missing or `exit_code` != 0 | FAIL; run INVALID |
 | Governance chair does not emit output | Neither PROMOTION_PROPOSAL nor REJECTION_WITH_REASON present/non-empty | FAIL; run INVALID |
 | Discovery index missing or empty | `reports/GOVERNANCE_DISCOVERY_INDEX.md` missing or zero-length | FAIL; run INVALID |
-| Any required Molt artifact missing | Validator checks each path | FAIL; run INVALID |
+| Any required learning workflow artifact missing | Validator checks each path | FAIL; run INVALID |
 | Any required artifact empty | Validator checks st_size > 0 | FAIL; run INVALID |
 | Stale or misaligned artifacts | mtime outside run window (optional; use `--skip-timestamps` to relax) | FAIL when not skipped |
 | No diagnostics (exit join / blocked intel) | Neither EXIT_JOIN_HEALTH nor BLOCKED_TRADE_INTEL present/non-empty | FAIL; run INVALID |
@@ -100,7 +100,7 @@ Analytical outcomes (e.g. LEARNING_FAILED, REJECT) do **not** by themselves caus
 
 ## 7. References
 
-- Molt workflow: `scripts/run_molt_workflow.py`, `scripts/run_molt_on_droplet.sh`
+- Learning workflow: `scripts/run_molt_workflow.py`, `scripts/run_molt_on_droplet.sh`
 - Board (governance chair): `moltbot/board.py`, `moltbot/agents/governance_chair.py`
 - Discovery index: `reports/GOVERNANCE_DISCOVERY_INDEX.md`
 - Governance context: `docs/ALPACA_GOVERNANCE_CONTEXT.md`
