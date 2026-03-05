@@ -341,8 +341,10 @@ class Config:
     ALPACA_BASE_URL = get_env("ALPACA_BASE_URL", APIConfig.ALPACA_BASE_URL)
 
     # Runtime
-    # v2-only engine is paper-only (hard invariant).
-    TRADING_MODE = "PAPER"
+    # v2-only engine is paper-only (hard invariant). Canonical: TRADING_MODE=PAPER or ALPACA_BASE_URL contains "paper".
+    TRADING_MODE = get_env("TRADING_MODE", "PAPER")
+    # B2 live paper: remove early signal_decay exits (hold < 30 min). Default OFF; enable only for live paper test.
+    FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT = get_env("FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT", "false").lower() == "true"
     # Optional safety mode: block opening short positions (bearish entries).
     LONG_ONLY = get_env("LONG_ONLY", "false").lower() == "true"
     RUN_INTERVAL_SEC = get_env("RUN_INTERVAL_SEC", 60, int)
@@ -731,6 +733,42 @@ def _infer_system_severity(kind: str, msg: str, kw: dict) -> str:
     if str(kind or "").lower() == "gate":
         return "INFO"
     return "INFO"
+
+def _check_paper_safety_no_live(symbol: str, action: str = "order"):
+    """If PAPER_MODE is true but ALPACA_BASE_URL is not paper, increment paper_safety_violation and raise."""
+    try:
+        from risk_management import is_paper_mode
+        base_url = (getattr(Config, "ALPACA_BASE_URL", None) or "") or ""
+        if not is_paper_mode() or "paper" in (base_url or "").lower():
+            return
+        state_dir = _REPO_ROOT / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        violation_path = state_dir / "paper_safety_violation.json"
+        data = {"count": 0, "last_ts": ""}
+        if violation_path.exists():
+            try:
+                data = json.loads(violation_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        data["count"] = data.get("count", 0) + 1
+        data["last_ts"] = datetime.now(timezone.utc).isoformat()
+        data["last_symbol"] = symbol
+        data["last_action"] = action
+        try:
+            violation_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        log_event("paper_safety", "paper_safety_violation", symbol=symbol, severity="CRITICAL",
+                  paper_safety_violation=data["count"], message=f"Live {action} path blocked: PAPER_MODE=true but ALPACA_BASE_URL is not paper")
+        try:
+            log_system_event("paper_safety", "paper_safety_violation", "CRITICAL", symbol=symbol, count=data["count"], action=action)
+        except Exception:
+            pass
+        raise RuntimeError(f"PAPER_MODE: live {action} path blocked (paper_safety_violation); abort.")
+    except RuntimeError:
+        raise
+    except Exception as e:
+        log_event("paper_safety", "paper_safety_check_error", symbol=symbol, action=action, error=str(e))
 
 def log_event(kind, msg, **kw):
     jsonl_write(kind, {"msg": msg, **kw})
@@ -4023,6 +4061,41 @@ class AlpacaExecutor:
                 
                 return self._create_mock_order(fake_id, symbol, qty, side, order_type, limit_price)
         
+        # Paper-only enforcement: hard assertion — no live order when PAPER_MODE=true
+        try:
+            from risk_management import is_paper_mode
+            base_url = (getattr(Config, "ALPACA_BASE_URL", None) or "") or ""
+            if is_paper_mode() and ("paper" not in (base_url or "").lower()):
+                # Misconfiguration: TRADING_MODE=PAPER but API URL is live — abort and count
+                state_dir = _REPO_ROOT / "state"
+                state_dir.mkdir(parents=True, exist_ok=True)
+                violation_path = state_dir / "paper_safety_violation.json"
+                data = {"count": 0, "last_ts": ""}
+                if violation_path.exists():
+                    try:
+                        data = json.loads(violation_path.read_text(encoding="utf-8"))
+                    except Exception:
+                        pass
+                data["count"] = data.get("count", 0) + 1
+                data["last_ts"] = datetime.now(timezone.utc).isoformat()
+                data["last_symbol"] = symbol
+                data["last_side"] = side
+                try:
+                    violation_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                except Exception:
+                    pass
+                log_event("paper_safety", "paper_safety_violation", symbol=symbol, side=side, severity="CRITICAL",
+                          paper_safety_violation=data["count"], message="Live order path blocked: PAPER_MODE=true but ALPACA_BASE_URL is not paper")
+                try:
+                    log_system_event("paper_safety", "paper_safety_violation", "CRITICAL", symbol=symbol, count=data["count"])
+                except Exception:
+                    pass
+                raise RuntimeError("PAPER_MODE: live order path blocked (paper_safety_violation); abort.")
+        except RuntimeError:
+            raise
+        except Exception as e:
+            log_event("paper_safety", "paper_safety_check_error", symbol=symbol, error=str(e))
+        
         # Real order submission
         try:
             from src.audit_guard import is_audit_mode
@@ -7193,6 +7266,31 @@ class AlpacaExecutor:
             should_exit = stop_loss_hit or signal_decay_exit or profit_target_hit or stop_hit
             
             if should_exit:
+                # B2: suppress early signal_decay exit (hold < 30 min) when feature flag is ON
+                if signal_decay_exit and position_age_min < 30 and getattr(Config, "FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT", False):
+                    trade_id = f"b2_supp_{symbol}_{now_iso()}"
+                    try:
+                        b2_log = _REPO_ROOT / "logs" / "b2_suppressed_signal_decay.jsonl"
+                        b2_log.parent.mkdir(parents=True, exist_ok=True)
+                        rec = {
+                            "event_type": "b2_suppressed_signal_decay_exit",
+                            "trade_id": trade_id,
+                            "symbol": symbol,
+                            "side": info.get("side", "buy"),
+                            "timestamp": now_iso(),
+                            "reason": "signal_decay",
+                            "hold_minutes": round(position_age_min, 2),
+                            "decay_ratio": round(decay_ratio, 4) if decay_ratio is not None else None,
+                            "entry_score": entry_score,
+                            "current_composite": current_signals.get("composite_score"),
+                        }
+                        with open(b2_log, "a", encoding="utf-8") as f:
+                            f.write(json.dumps({"ts": now_iso(), **rec}) + "\n")
+                    except Exception as e:
+                        log_event("exit", "b2_suppressed_emit_failed", symbol=symbol, error=str(e))
+                    log_event("exit", "b2_suppressed_signal_decay_exit", symbol=symbol, trade_id=trade_id,
+                              reason="signal_decay", hold_minutes=round(position_age_min, 2))
+                    continue  # do not add to to_close; exit suppressed
                 # Build composite close reason before adding to close list
                 # CRITICAL: Always set exit_reason when adding to close list
                 if symbol not in exit_reasons:
