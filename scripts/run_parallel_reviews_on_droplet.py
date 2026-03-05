@@ -91,6 +91,17 @@ def main() -> int:
                 encoding="utf-8",
             )
 
+    # CSA: run after producing artifacts (always-on)
+    mission_id = "parallel_reviews_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+    last387_json = board / "last387_comprehensive_review.json"
+    csa_args = [
+        sys.executable, str(base / "scripts" / "audit" / "run_chief_strategy_auditor.py"),
+        "--mission-id", mission_id, "--base-dir", str(base),
+    ]
+    if last387_json.exists():
+        csa_args += ["--board-review-json", str(last387_json)]
+    run_cmd(csa_args)
+
     return 0
 
 

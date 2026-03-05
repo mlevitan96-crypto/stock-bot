@@ -58,6 +58,19 @@ def main() -> int:
                 data["proxy_pnl_delta_label"] = data.get("estimated_pnl_delta_label", "proxy")
                 data["tail_risk_notes"] = data.get("tail_risk_notes", [])
                 dst.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+
+    # CSA: run after shadows (always-on)
+    mission_id = "shadows_last387_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+    subprocess.call(
+        [
+            sys.executable,
+            str(base / "scripts" / "audit" / "run_chief_strategy_auditor.py"),
+            "--mission-id", mission_id,
+            "--base-dir", str(base),
+        ],
+        cwd=base,
+        timeout=60,
+    )
     return 0
 
 

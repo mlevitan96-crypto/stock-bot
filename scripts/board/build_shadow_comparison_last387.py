@@ -150,6 +150,22 @@ def main() -> int:
     with open(out_md, "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines))
     print(f"Wrote {out_md}")
+
+    # CSA: run after building comparison (always-on)
+    import subprocess
+    mission_id = "shadow_comparison_last387_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+    subprocess.call(
+        [
+            sys.executable,
+            str(base / "scripts" / "audit" / "run_chief_strategy_auditor.py"),
+            "--mission-id", mission_id,
+            "--board-review-json", str(review_path),
+            "--shadow-comparison-json", str(out_json),
+            "--base-dir", str(base),
+        ],
+        cwd=base,
+        timeout=60,
+    )
     return 0
 
 
