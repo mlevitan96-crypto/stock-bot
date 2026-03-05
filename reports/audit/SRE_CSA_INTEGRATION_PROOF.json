@@ -1,0 +1,65 @@
+{
+  "deployed_commit": "f1bf02b64996",
+  "telemetry_health_200": true,
+  "learning_readiness_200": true,
+  "sre_scan_ran": true,
+  "sre_status": {
+    "overall_status": "ANOMALIES_DETECTED",
+    "scan_ts": "2026-03-05T18:01:41.237647+00:00",
+    "schema_version": "1.0",
+    "observed_minutes": 10,
+    "baseline_hours": 24.0,
+    "event_count": 3
+  },
+  "sample_sre_events": [
+    {
+      "schema_version": "1.0",
+      "event_id": "sre_0d5949758bde",
+      "event_type": "RATE_ANOMALY",
+      "metric_name": "exit_rate_per_min",
+      "baseline_window": "last_24.0h",
+      "observed_window": "last_10m",
+      "baseline_value": 0.3201,
+      "observed_value": 0.0,
+      "delta": -0.3201,
+      "confidence": "MED",
+      "timestamp": "2026-03-05T18:01:40.459290+00:00",
+      "notes": "Exit rate changed -100.0% vs baseline.",
+      "economic_impact": true
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "sre_234f68a292d5",
+      "event_type": "RATE_ANOMALY",
+      "metric_name": "blocked_trades_per_min",
+      "baseline_window": "last_24.0h",
+      "observed_window": "last_10m",
+      "baseline_value": 1.5194,
+      "observed_value": 16.7,
+      "delta": 15.1806,
+      "confidence": "HIGH",
+      "timestamp": "2026-03-05T18:01:40.459290+00:00",
+      "notes": "Block rate changed 999.1% vs baseline.",
+      "economic_impact": true
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "sre_c3018e538d7d",
+      "event_type": "SILENCE_ANOMALY",
+      "metric_name": "exit_count",
+      "baseline_window": "last_24.0h",
+      "observed_window": "last_10m",
+      "baseline_value": 461,
+      "observed_value": 0,
+      "delta": -461,
+      "confidence": "MED",
+      "timestamp": "2026-03-05T18:01:40.459290+00:00",
+      "notes": "No exits in observed window; baseline had activity. Possible pipeline stall or market closed.",
+      "economic_impact": true
+    }
+  ],
+  "csa_ran": true,
+  "csa_verdict_ref": "verdict=HOLD confidence=MED sre_high_impact_block=True",
+  "scheduler_active": true,
+  "generated_ts": "2026-03-05T18:01:36.828170+00:00"
+}
