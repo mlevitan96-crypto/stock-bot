@@ -20,7 +20,8 @@
     {
       "id": "tail_risk_breach",
       "condition": "worst_5pct_pnl worse than baseline worst 5% by > 20% relative",
-      "action": "rollback"
+      "action": "rollback",
+      "baseline_worst_5pct_pnl_usd": -15.0
     },
     {
       "id": "sustained_negative_delta",
