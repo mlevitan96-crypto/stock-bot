@@ -13,6 +13,7 @@ Scheduling (choose one or both):
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -57,11 +58,39 @@ def main() -> int:
         status_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     write_status("RUNNING", "100 telemetry-backed trades reached; replay triggered")
-    cmd = [sys.executable, str(REPO / "scripts" / "replay" / "run_direction_replay_30d_on_droplet.py")]
+    on_droplet_script = REPO / "scripts" / "replay" / "run_direction_replay_30d_on_droplet.py"
+    # On droplet the on_droplet script is not present (it's for local→SSH). Run local pipeline instead.
+    from datetime import timedelta
+    end_date = (datetime.now(timezone.utc).date() - timedelta(days=1)).strftime("%Y-%m-%d")
+    days = 30
+    base_dir = str(REPO)
+    env = {**dict(os.environ), "DROPLET_RUN": "1"}
+    if on_droplet_script.exists():
+        cmd = [sys.executable, str(on_droplet_script)]
+    else:
+        # Run local pipeline (we are on the droplet)
+        cmd = None
     try:
-        result = subprocess.run(cmd, cwd=str(REPO), timeout=600, capture_output=True, text=True)
+        if cmd is not None:
+            result = subprocess.run(cmd, cwd=str(REPO), timeout=600, capture_output=True, text=True)
+        else:
+            # Run load -> reconstruct -> run_direction_replay_30d locally (we are on the droplet)
+            for script, args in [
+                ("scripts/replay/load_30d_backtest_cohort.py", ["--base-dir", base_dir, "--end-date", end_date, "--days", str(days)]),
+                ("scripts/replay/reconstruct_direction_30d.py", ["--base-dir", base_dir, "--end-date", end_date, "--days", str(days)]),
+                ("scripts/replay/run_direction_replay_30d.py", ["--base-dir", base_dir, "--end-date", end_date, "--days", str(days), "--droplet-run", "--deployed-commit", "cron"]),
+            ]:
+                path = REPO / script.replace("/", os.sep)
+                if not path.exists():
+                    write_status("FAILED", f"Script not found: {script}")
+                    return 1
+                result = subprocess.run([sys.executable, str(path)] + args, cwd=str(REPO), timeout=300, capture_output=True, text=True, env=env)
+                if result.returncode != 0:
+                    write_status("FAILED", result.stderr or f"{script} exit {result.returncode}")
+                    return result.returncode
+            result = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
         if result.returncode == 0:
-            write_status("SUCCESS", "Replay completed; artifacts fetched")
+            write_status("SUCCESS", "Replay completed")
             return 0
         # Check for BLOCKED (synthetic > 10%)
         blocked_md = REPO / "reports" / "board" / "DIRECTION_REPLAY_BLOCKED_SYNTHETIC.md"
