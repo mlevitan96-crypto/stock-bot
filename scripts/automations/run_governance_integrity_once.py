@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,7 +17,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AUDIT_DIR = REPO_ROOT / "reports" / "audit"
 OUTPUT_FILE = AUDIT_DIR / "GOVERNANCE_AUTOMATION_STATUS.json"
 
-EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "memory_bank", "docs", "validation", ".cursor"}
+EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "docs", ".cursor"}
+EXPECTED_TOP_LEVEL_ALT_FILES = {"MEMORY_BANK.md"}
 FORBIDDEN_PATTERNS = re.compile(
     r"clawdbot|moltbot|CLAWDBOT_|MOLTBOT_",
     re.IGNORECASE,
@@ -28,11 +30,20 @@ ALLOWED_MENTION_PATHS = ("reports/audit", "docs/", "MEMORY_BANK", "README", ".md
 def check_repo_structure() -> tuple[str, list[str]]:
     """pass/fail and details."""
     details = []
-    top = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
-    missing = EXPECTED_TOP_LEVEL - top
-    if missing:
-        return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
-    return "pass", details
+    top_dirs = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
+    top_files = set(p.name for p in REPO_ROOT.iterdir() if p.is_file())
+    missing_dirs = EXPECTED_TOP_LEVEL - top_dirs
+    if missing_dirs:
+        details.append(f"Missing expected top-level dirs: {sorted(missing_dirs)}")
+    missing_files = EXPECTED_TOP_LEVEL_ALT_FILES - top_files
+    if missing_files:
+        details.append(f"Missing expected top-level files: {sorted(missing_files)}")
+    for sub in ["reports/audit", "reports/board"]:
+        if not (REPO_ROOT / sub.replace("/", os.sep)).is_dir():
+            details.append(f"Missing expected subdir: {sub}")
+    if details:
+        return "fail", details
+    return "pass", []
 
 
 def check_config_drift() -> tuple[str, list[str]]:
@@ -45,14 +56,25 @@ def check_config_drift() -> tuple[str, list[str]]:
 
 
 def check_governance_contracts() -> tuple[str, list[str]]:
-    """memory_bank, .cursor/automations, reports/audit and reports/board."""
+    """MEMORY_BANK.md, .cursor/automations (with README), reports/audit and reports/board."""
     details = []
-    for path in ["memory_bank", ".cursor/automations", "reports/audit", "reports/board"]:
-        if not (REPO_ROOT / path.replace("/", os.sep)).exists():
-            details.append(f"Missing: {path}")
+    if not (REPO_ROOT / "MEMORY_BANK.md").is_file():
+        details.append("Missing: MEMORY_BANK.md")
+    automations_dir = REPO_ROOT / ".cursor" / "automations"
+    if not automations_dir.is_dir():
+        details.append("Missing: .cursor/automations/")
+    else:
+        if not (automations_dir / "README.md").is_file():
+            details.append("Missing: .cursor/automations/README.md")
+        specs = list(automations_dir.glob("*.yaml")) + list(automations_dir.glob("*.ts"))
+        if not specs:
+            details.append("No automation specs in .cursor/automations/")
+    for sub in ["reports/audit", "reports/board"]:
+        if not (REPO_ROOT / sub.replace("/", os.sep)).is_dir():
+            details.append(f"Missing: {sub}")
     if details:
         return "fail", details
-    return "pass", details
+    return "pass", []
 
 
 def check_required_artifacts() -> tuple[str, list[str]]:
@@ -137,16 +159,21 @@ def main() -> None:
         all_details.extend(details)
 
     anomalies = any(c == "fail" for c in checks.values())
+    try:
+        branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(REPO_ROOT), text=True, stderr=subprocess.DEVNULL
+        ).strip()
+    except Exception:
+        branch = "unknown"
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
     payload = {
         "schema_version": "1.0",
-        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
-        "run_ts_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
-        "branch": "main",
-        "status": "anomalies" if anomalies else "ok",
+        "run_ts_utc": now,
+        "branch": branch,
         "anomalies_detected": anomalies,
         "checks": checks,
         "details": all_details,
-        "anomalies": all_details,
         "slack_sent": False,
     }
     OUTPUT_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
