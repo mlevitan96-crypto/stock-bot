@@ -16,7 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AUDIT_DIR = REPO_ROOT / "reports" / "audit"
 OUTPUT_FILE = AUDIT_DIR / "GOVERNANCE_AUTOMATION_STATUS.json"
 
-EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "memory_bank", "docs", "validation", ".cursor"}
+EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "docs", "validation", ".cursor"}
 FORBIDDEN_PATTERNS = re.compile(
     r"clawdbot|moltbot|CLAWDBOT_|MOLTBOT_",
     re.IGNORECASE,
@@ -32,6 +32,9 @@ def check_repo_structure() -> tuple[str, list[str]]:
     missing = EXPECTED_TOP_LEVEL - top
     if missing:
         return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
+    # MEMORY_BANK.md at root is the canonical memory bank (no memory_bank/ dir)
+    if not (REPO_ROOT / "MEMORY_BANK.md").is_file():
+        return "fail", ["MEMORY_BANK.md missing at repo root"]
     return "pass", details
 
 
@@ -45,11 +48,13 @@ def check_config_drift() -> tuple[str, list[str]]:
 
 
 def check_governance_contracts() -> tuple[str, list[str]]:
-    """memory_bank, .cursor/automations, reports/audit and reports/board."""
+    """.cursor/automations, reports/audit, reports/board, and MEMORY_BANK.md."""
     details = []
-    for path in ["memory_bank", ".cursor/automations", "reports/audit", "reports/board"]:
+    for path in [".cursor/automations", "reports/audit", "reports/board"]:
         if not (REPO_ROOT / path.replace("/", os.sep)).exists():
             details.append(f"Missing: {path}")
+    if not (REPO_ROOT / "MEMORY_BANK.md").is_file():
+        details.append("Missing: MEMORY_BANK.md (canonical memory bank)")
     if details:
         return "fail", details
     return "pass", details
