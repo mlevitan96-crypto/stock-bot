@@ -451,9 +451,7 @@ DASHBOARD_HTML = """
             <div id="learning_readiness-content">__LEARNING_READINESS_HTML__</div>
         </div>
         <div id="profitability_learning-tab" class="tab-content">
-            <div id="profitability_learning-content">
-                <p class="loading">Loading Profitability &amp; Learning...</p>
-            </div>
+            <div id="profitability_learning-content">__PROFITABILITY_LEARNING_HTML__</div>
         </div>
         
         <div id="signal_review-tab" class="tab-content">
@@ -3575,14 +3573,8 @@ def api_learning_readiness():
         return jsonify(payload), 200
 
 
-@app.route("/api/profitability_learning", methods=["GET"])
-def api_profitability_learning():
-    """
-    Profitability & Learning tab: cockpit markdown, CSA verdict, trade state.
-    Reads from droplet: reports/board/PROFITABILITY_COCKPIT.md, reports/audit/CSA_VERDICT_LATEST.json,
-    reports/state/TRADE_CSA_STATE.json. Never 500; returns ok=False and empty payload on error.
-    """
-    root = Path(_DASHBOARD_ROOT)
+def _get_profitability_learning_payload(root: Path) -> dict:
+    """Load cockpit, CSA verdict, trade state. Same data as API. Never raises; returns empty dicts on error."""
     out = {"ok": False, "cockpit_md": "", "csa_verdict": {}, "trade_state": {}, "error": None}
     try:
         cockpit_path = root / "reports" / "board" / "PROFITABILITY_COCKPIT.md"
@@ -3605,6 +3597,48 @@ def api_profitability_learning():
         out["ok"] = True
     except Exception as e:
         out["error"] = str(e)[:300]
+    return out
+
+
+def _render_profitability_learning_html(payload: dict) -> str:
+    """Server-side render for Profitability & Learning tab so it never sticks on Loading."""
+    import html as html_module
+    esc = html_module.escape
+    if not payload.get("ok"):
+        err = esc(str(payload.get("error") or "Could not load data")[:200])
+        return (
+            f'<div class="stat-card" style="border-color:#f59e0b"><p>{err}</p>'
+            '<p><button type="button" onclick="if(typeof loadProfitabilityLearning===\'function\')loadProfitabilityLearning();">Retry</button></p></div>'
+        )
+    ts = payload.get("trade_state") or {}
+    total = int(ts.get("total_trade_events") or 0)
+    until = 100 - (total % 100) if total > 0 else 100
+    v = payload.get("csa_verdict") or {}
+    mission = esc(str(v.get("mission_id") or "—"))
+    verdict = esc(str(v.get("verdict") or "—"))
+    parts = [
+        '<div class="stat-card"><h3>CSA &amp; Trade Count</h3>',
+        f'<p><strong>Last mission:</strong> {mission}</p>',
+        f'<p><strong>Verdict:</strong> {verdict}</p>',
+        f'<p><strong>Total trade events:</strong> {total}</p>',
+        f'<p><strong>Trades until next CSA:</strong> {until}</p>',
+        '<p><button type="button" onclick="if(typeof loadProfitabilityLearning===\'function\')loadProfitabilityLearning();">Refresh</button></p>',
+        "</div>",
+    ]
+    md = payload.get("cockpit_md") or ""
+    md_esc = esc(md).replace("\n", "<br>\n")
+    parts.append('<div class="stat-card"><h3>Profitability Cockpit</h3><div style="white-space:pre-wrap;font-size:0.9em;">' + md_esc + "</div></div>")
+    return "\n".join(parts)
+
+
+@app.route("/api/profitability_learning", methods=["GET"])
+def api_profitability_learning():
+    """
+    Profitability & Learning tab: cockpit markdown, CSA verdict, trade state.
+    Never 500; returns ok=False and empty payload on error.
+    """
+    root = Path(_DASHBOARD_ROOT)
+    out = _get_profitability_learning_payload(root)
     return jsonify(out), 200
 
 
@@ -3846,9 +3880,9 @@ def index():
         banner_severity = "info"
         situation_html = '<span class="sit-label">Situation</span><span class="sit-value">—</span>'
 
+    root = Path(_DASHBOARD_ROOT)
     learning_html = ""
     try:
-        root = Path(_DASHBOARD_ROOT)
         run_ts = datetime.now(timezone.utc).isoformat()
         deployed_commit = "unknown"
         try:
@@ -3880,11 +3914,22 @@ def index():
             '<button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Load now</button></div>'
         )
 
+    profitability_html = ""
+    try:
+        pl_payload = _get_profitability_learning_payload(root)
+        profitability_html = _render_profitability_learning_html(pl_payload)
+    except Exception:
+        profitability_html = (
+            '<div class="stat-card"><p>Profitability &amp; Learning could not be pre-loaded.</p>'
+            '<button type="button" onclick="if(typeof loadProfitabilityLearning===\'function\')loadProfitabilityLearning();">Load now</button></div>'
+        )
+
     html = (
         DASHBOARD_HTML.replace("__BANNER_SEV__", banner_severity)
         .replace("__BANNER_HTML__", banner_html)
         .replace("__SITUATION_HTML__", situation_html)
         .replace("__LEARNING_READINESS_HTML__", learning_html)
+        .replace("__PROFITABILITY_LEARNING_HTML__", profitability_html)
     )
     return Response(html, mimetype="text/html; charset=utf-8")
 
