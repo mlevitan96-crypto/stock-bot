@@ -1,0 +1,43 @@
+{
+  "date": "2026-03-06",
+  "window_days": 7,
+  "by_reason": [
+    {
+      "block_reason": "displacement_blocked",
+      "count": 1545,
+      "avg_candidate_score": 4.3831,
+      "avg_expected_value_usd": 67719.49,
+      "avg_rank": 28.76
+    },
+    {
+      "block_reason": "order_validation_failed",
+      "count": 3,
+      "avg_candidate_score": 5.4208,
+      "avg_expected_value_usd": 162.62,
+      "avg_rank": null
+    },
+    {
+      "block_reason": "max_positions_reached",
+      "count": 385,
+      "avg_candidate_score": 3.4346,
+      "avg_expected_value_usd": 13223.11,
+      "avg_rank": 40.34
+    },
+    {
+      "block_reason": "expectancy_blocked:score_floor_breach",
+      "count": 47,
+      "avg_candidate_score": 2.5137,
+      "avg_expected_value_usd": 1181.47,
+      "avg_rank": null
+    },
+    {
+      "block_reason": "max_new_positions_per_cycle",
+      "count": 20,
+      "avg_candidate_score": 4.6156,
+      "avg_expected_value_usd": 923.13,
+      "avg_rank": null
+    }
+  ],
+  "constraint_suppression_cost_usd": 83209.82,
+  "constraint_false_positive_rate": null
+}
