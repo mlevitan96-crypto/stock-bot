@@ -16,7 +16,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AUDIT_DIR = REPO_ROOT / "reports" / "audit"
 OUTPUT_FILE = AUDIT_DIR / "GOVERNANCE_AUTOMATION_STATUS.json"
 
-EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "memory_bank", "docs", "validation", ".cursor"}
+EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "docs", "validation", ".cursor"}
+MEMORY_BANK_ALTERNATIVES = ("memory_bank", "MEMORY_BANK.md")
 FORBIDDEN_PATTERNS = re.compile(
     r"clawdbot|moltbot|CLAWDBOT_|MOLTBOT_",
     re.IGNORECASE,
@@ -32,6 +33,8 @@ def check_repo_structure() -> tuple[str, list[str]]:
     missing = EXPECTED_TOP_LEVEL - top
     if missing:
         return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
+    if not any((REPO_ROOT / alt).exists() for alt in MEMORY_BANK_ALTERNATIVES):
+        return "fail", ["Missing memory_bank/ directory or MEMORY_BANK.md file"]
     return "pass", details
 
 
@@ -45,9 +48,11 @@ def check_config_drift() -> tuple[str, list[str]]:
 
 
 def check_governance_contracts() -> tuple[str, list[str]]:
-    """memory_bank, .cursor/automations, reports/audit and reports/board."""
+    """memory_bank (or MEMORY_BANK.md), .cursor/automations, reports/audit and reports/board."""
     details = []
-    for path in ["memory_bank", ".cursor/automations", "reports/audit", "reports/board"]:
+    if not any((REPO_ROOT / alt).exists() for alt in MEMORY_BANK_ALTERNATIVES):
+        details.append("Missing: memory_bank/ or MEMORY_BANK.md")
+    for path in [".cursor/automations", "reports/audit", "reports/board"]:
         if not (REPO_ROOT / path.replace("/", os.sep)).exists():
             details.append(f"Missing: {path}")
     if details:
@@ -118,6 +123,17 @@ def check_no_clawdbot_moltbot() -> tuple[str, list[str]]:
     return "pass", []
 
 
+def _detect_branch() -> str:
+    import subprocess
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(REPO_ROOT), text=True
+        ).strip()
+    except Exception:
+        return "unknown"
+
+
 def main() -> None:
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -141,7 +157,7 @@ def main() -> None:
         "schema_version": "1.0",
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
         "run_ts_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
-        "branch": "main",
+        "branch": _detect_branch(),
         "status": "anomalies" if anomalies else "ok",
         "anomalies_detected": anomalies,
         "checks": checks,
