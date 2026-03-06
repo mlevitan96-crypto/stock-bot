@@ -1,19 +1,21 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
-  "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "run_ts_utc": "2026-03-06T02:02:13+00:00",
+  "branch": "cursor/governance-integrity-validation-5670",
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
-  "slack_sent": false
+  "details": [
+    "repo_structure: Missing expected top-level directory 'memory_bank/' — repo uses MEMORY_BANK.md (root file) instead. memory_bank/ has never existed as a directory on main.",
+    "governance_contracts_present: memory_bank/ directory absent; MEMORY_BANK.md file exists at root but governance contract check expects a directory."
+  ],
+  "slack_sent": false,
+  "github_issue_opened": false,
+  "github_issue_note": "Anomalies detected but GitHub issue could not be opened (gh CLI is read-only, no issue-creation tool available). Anomalies are documented here and in commit log."
 }
