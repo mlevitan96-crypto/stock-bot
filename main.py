@@ -343,8 +343,21 @@ class Config:
     # Runtime
     # v2-only engine is paper-only (hard invariant). Canonical: TRADING_MODE=PAPER or ALPACA_BASE_URL contains "paper".
     TRADING_MODE = get_env("TRADING_MODE", "PAPER")
-    # B2 live paper: remove early signal_decay exits (hold < 30 min). Default OFF; enable only for live paper test.
-    FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT = get_env("FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT", "false").lower() == "true"
+    # B2 live paper: remove early signal_decay exits (hold < 30 min). Config-driven; env overrides for rollback.
+    # Source: config/b2_governance.json (b2_live_paper_enabled / b2_live_enabled) or FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT.
+    _b2_env = get_env("FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT", "").strip().lower()
+    if _b2_env in ("true", "false"):
+        FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT = _b2_env == "true"
+    else:
+        try:
+            _b2_cfg = (Path(__file__).resolve().parent / "config" / "b2_governance.json")
+            if _b2_cfg.exists():
+                _j = json.loads(_b2_cfg.read_text(encoding="utf-8"))
+                FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT = bool(_j.get("b2_live_paper_enabled", False) or _j.get("b2_live_enabled", False))
+            else:
+                FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT = False
+        except Exception:
+            FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT = False
     # Optional safety mode: block opening short positions (bearish entries).
     LONG_ONLY = get_env("LONG_ONLY", "false").lower() == "true"
     RUN_INTERVAL_SEC = get_env("RUN_INTERVAL_SEC", 60, int)
@@ -2296,6 +2309,9 @@ def log_exit_attribution(
             pass
 
         variant_id = (metadata or {}).get("variant_id") or (info or {}).get("variant_id") if isinstance(metadata, dict) or isinstance(info, dict) else None
+        # B2_live_paper: tag exits when B2 is active in PAPER mode for attribution (CSA_TRADE_100_20260306-002808).
+        if variant_id is None and getattr(Config, "FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT", False) and (getattr(Config, "TRADING_MODE", "PAPER") or "").upper() == "PAPER":
+            variant_id = "B2_live_paper"
         # Join key: exit record must carry entry trade_id so attribution_loader can match by trade_id (primary) or symbol|entry_ts_bucket (fallback).
         entry_ts_iso_attr = str(context.get("entry_ts") or "")
         open_trade_id = f"open_{str(symbol).upper()}_{entry_ts_iso_attr}" if entry_ts_iso_attr else None
@@ -7278,7 +7294,8 @@ class AlpacaExecutor:
             should_exit = stop_loss_hit or signal_decay_exit or profit_target_hit or stop_hit
             
             if should_exit:
-                # B2: suppress early signal_decay exit (hold < 30 min) when feature flag is ON
+                # B2: suppress early signal_decay exit (hold < 30 min) when B2 live paper is ON (config or env).
+                # B2_shadow promoted to LIVE PAPER per CSA_TRADE_100_20260306-002808 (PROCEED). No real capital.
                 if signal_decay_exit and position_age_min < 30 and getattr(Config, "FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT", False):
                     trade_id = f"b2_supp_{symbol}_{now_iso()}"
                     try:
