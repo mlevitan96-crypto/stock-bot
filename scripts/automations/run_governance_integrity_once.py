@@ -16,7 +16,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AUDIT_DIR = REPO_ROOT / "reports" / "audit"
 OUTPUT_FILE = AUDIT_DIR / "GOVERNANCE_AUTOMATION_STATUS.json"
 
-EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "memory_bank", "docs", "validation", ".cursor"}
+EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "docs", "validation", ".cursor"}
+# memory_bank/ dir OR MEMORY_BANK.md at root satisfies the governance memory requirement
+MEMORY_BANK_ALTERNATIVES = ("memory_bank", "MEMORY_BANK.md")
 FORBIDDEN_PATTERNS = re.compile(
     r"clawdbot|moltbot|CLAWDBOT_|MOLTBOT_",
     re.IGNORECASE,
@@ -28,11 +30,16 @@ ALLOWED_MENTION_PATHS = ("reports/audit", "docs/", "MEMORY_BANK", "README", ".md
 def check_repo_structure() -> tuple[str, list[str]]:
     """pass/fail and details."""
     details = []
-    top = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
-    missing = EXPECTED_TOP_LEVEL - top
+    top_dirs = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
+    missing = EXPECTED_TOP_LEVEL - top_dirs
     if missing:
-        return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
-    return "pass", details
+        details.append(f"Missing expected top-level dirs: {sorted(missing)}")
+    has_memory_bank = any((REPO_ROOT / alt).exists() for alt in MEMORY_BANK_ALTERNATIVES)
+    if not has_memory_bank:
+        details.append("Missing memory_bank/ dir or MEMORY_BANK.md at root")
+    if details:
+        return "fail", details
+    return "pass", []
 
 
 def check_config_drift() -> tuple[str, list[str]]:
@@ -45,11 +52,14 @@ def check_config_drift() -> tuple[str, list[str]]:
 
 
 def check_governance_contracts() -> tuple[str, list[str]]:
-    """memory_bank, .cursor/automations, reports/audit and reports/board."""
+    """.cursor/automations, reports/audit, reports/board, and memory bank (dir or file)."""
     details = []
-    for path in ["memory_bank", ".cursor/automations", "reports/audit", "reports/board"]:
+    for path in [".cursor/automations", "reports/audit", "reports/board"]:
         if not (REPO_ROOT / path.replace("/", os.sep)).exists():
             details.append(f"Missing: {path}")
+    has_memory_bank = any((REPO_ROOT / alt).exists() for alt in MEMORY_BANK_ALTERNATIVES)
+    if not has_memory_bank:
+        details.append("Missing: memory_bank/ dir or MEMORY_BANK.md")
     if details:
         return "fail", details
     return "pass", details
