@@ -354,6 +354,7 @@ DASHBOARD_HTML = """
                     <button type="button" onclick="switchTab('telemetry', event); closeMoreDropdown();">📦 Telemetry</button>
                     <button type="button" onclick="switchTab('telemetry_health', event); closeMoreDropdown();">📋 Telemetry Health</button>
                     <button type="button" onclick="switchTab('learning_readiness', event); closeMoreDropdown();">📚 Learning & Readiness</button>
+                    <button type="button" onclick="switchTab('profitability_learning', event); closeMoreDropdown();">📊 Profitability & Learning</button>
                 </div>
             </div>
         </div>
@@ -449,6 +450,11 @@ DASHBOARD_HTML = """
         <div id="learning_readiness-tab" class="tab-content">
             <div id="learning_readiness-content">__LEARNING_READINESS_HTML__</div>
         </div>
+        <div id="profitability_learning-tab" class="tab-content">
+            <div id="profitability_learning-content">
+                <p class="loading">Loading Profitability &amp; Learning...</p>
+            </div>
+        </div>
         
         <div id="signal_review-tab" class="tab-content">
             <div class="positions-table">
@@ -479,6 +485,7 @@ DASHBOARD_HTML = """
     else if(typeof loadTelemetryContent==='function'&&tabName==='telemetry')loadTelemetryContent();
     else if(typeof loadTelemetryHealth==='function'&&tabName==='telemetry_health')loadTelemetryHealth();
     else if(tabName==='learning_readiness'&&typeof loadLearningReadiness==='function')loadLearningReadiness();
+    else if(tabName==='profitability_learning'&&typeof loadProfitabilityLearning==='function')loadProfitabilityLearning();
     else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
     };
     function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
@@ -511,12 +518,13 @@ DASHBOARD_HTML = """
     window.loadWheelUniverseHealth=function(){var el=document.getElementById('wheel_universe-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Universe Health...</div>';fetch('/api/wheel/universe_health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var h='';if(d.message){h+='<div class="stat-card"><p>'+d.message+'</p><p>Run: <code>python scripts/generate_wheel_universe_health.py</code></p></div>';}else{h+='<div class="stat-card"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Current universe:</strong> '+(Array.isArray(d.current_universe)?d.current_universe.join(', '):'—')+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(d.selected_candidates)?d.selected_candidates.join(', '):'—')+'</p></div>';h+='<div class="stat-card"><h3>Sector distribution</h3><pre>'+JSON.stringify(d.sector_distribution||{},null,2)+'</pre></div>';if(d.assignment_count!=null)h+='<div class="stat-card"><p><strong>Assignments:</strong> '+d.assignment_count+' | <strong>Called away:</strong> '+d.call_away_count+'</p></div>';if(d.ai_recommendations&&d.ai_recommendations.length){h+='<div class="stat-card"><h3>AI recommendations</h3><ul>';for(var i=0;i<d.ai_recommendations.length;i++)h+='<li>'+JSON.stringify(d.ai_recommendations[i])+'</li>';h+='</ul></div>';}}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel Universe Health failed: '+(e&&e.message?e.message:'network'));});};
     window.loadStrategyComparison=function(){var el=document.getElementById('strategy_comparison-content');if(!el)return;el.innerHTML='<div class="loading">Loading Strategy Comparison...</div>';fetch('/api/strategy/comparison',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sc=d.strategy_comparison||{};var rec=d.recommendation||'WAIT';var score=d.promotion_readiness_score;var badge='<span style="padding:4px 12px;border-radius:6px;font-weight:bold;background:'+(rec==='PROMOTE'?'#10b981':rec==='DO NOT PROMOTE'?'#ef4444':'#f59e0b')+';color:#fff">'+rec+'</span>';var h='<div class="stat-card"><h3>Strategy Comparison</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Promotion Readiness Score:</strong> '+(score!=null?score:'—')+' / 100</p><p><strong>Recommendation:</strong> '+badge+'</p></div>';h+='<div class="stat-card"><h3>Equity vs Wheel</h3><p>Equity Realized: $'+(sc.equity_realized_pnl!=null?fmt(sc.equity_realized_pnl):'—')+' | Wheel Realized: $'+(sc.wheel_realized_pnl!=null?fmt(sc.wheel_realized_pnl):'—')+'</p><p>Equity Unrealized: $'+(sc.equity_unrealized_pnl!=null?fmt(sc.equity_unrealized_pnl):'—')+' | Wheel Unrealized: $'+(sc.wheel_unrealized_pnl!=null?fmt(sc.wheel_unrealized_pnl):'—')+'</p><p>Equity Drawdown: '+(sc.equity_drawdown!=null?sc.equity_drawdown:'—')+' | Wheel Drawdown: '+(sc.wheel_drawdown!=null?sc.wheel_drawdown:'—')+'</p><p>Equity Sharpe: '+(sc.equity_sharpe_proxy!=null?sc.equity_sharpe_proxy:'—')+' | Wheel Sharpe: '+(sc.wheel_sharpe_proxy!=null?sc.wheel_sharpe_proxy:'—')+'</p><p>Wheel Yield: '+(sc.wheel_yield_per_period!=null?sc.wheel_yield_per_period:'—')+' | Capital Eff Equity: '+(sc.capital_efficiency_equity!=null?sc.capital_efficiency_equity:'—')+' | Wheel: '+(sc.capital_efficiency_wheel!=null?sc.capital_efficiency_wheel:'—')+'</p></div>';if(d.weekly_report&&d.weekly_report.reasoning){var wr=d.weekly_report.reasoning;h+='<div class="stat-card"><h3>Weekly Reasoning</h3><pre>'+JSON.stringify(wr,null,2)+'</pre></div>';}if(d.historical_comparison&&d.historical_comparison.length){h+='<div class="stat-card"><h3>Historical (last 30 days)</h3><table><thead><tr><th>Date</th><th>Equity</th><th>Wheel</th><th>Score</th></tr></thead><tbody>';for(var i=0;i<Math.min(d.historical_comparison.length,15);i++){var x=d.historical_comparison[i];h+='<tr><td>'+(x.date||'—')+'</td><td>$'+(x.equity_realized!=null?fmt(x.equity_realized):'—')+'</td><td>$'+(x.wheel_realized!=null?fmt(x.wheel_realized):'—')+'</td><td>'+(x.promotion_score!=null?x.promotion_score:'—')+'</td></tr>';}h+='</tbody></table></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Strategy Comparison failed: '+(e&&e.message?e.message:'network'));});};
     window.loadSignalReview=function(){var el=document.getElementById('signal-review-content');if(!el)return;el.innerHTML='<div class="loading">Loading Signal Review...</div>';fetch('/api/signal_history',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sig=Array.isArray(d.signals)?d.signals:[];if(sig.length===0){el.innerHTML='<p class="no-positions">No signal history</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Direction</th><th>Score</th><th>Decision</th></tr></thead><tbody>';for(var i=0;i<Math.min(sig.length,50);i++){var s=sig[i];h+='<tr><td>'+(s.symbol||'—')+'</td><td>'+(s.direction||'—')+'</td><td>'+(s.final_score!=null?fmt(s.final_score):'—')+'</td><td>'+(s.decision||'—')+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Signal review failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadLearningReadiness=function(){var el=document.getElementById('learning_readiness-content');if(!el)return;var lastAttempt=new Date().toISOString();el.innerHTML='<div class="loading">Loading Learning & Readiness...</div>';function errState(msg){el.innerHTML='<div class="stat-card" style="border-color:#ef4444"><h3>State: ERROR</h3><p>'+msg+'</p><p>Last attempt: '+lastAttempt+'</p><p>Check <code>/api/learning_readiness</code> and browser console.</p></div>';}function degState(msg,code){el.innerHTML='<div class="stat-card" style="border-color:#f59e0b"><h3>State: DEGRADED</h3><p>'+msg+'</p><p>Code: '+(code||'')+'</p></div>';}fetch('/api/learning_readiness',creds).then(function(r){if(!r.ok){errState('Learning & Readiness unavailable (HTTP '+r.status+').');return null;}return r.json();}).then(function(d){if(!el)return;lastAttempt=new Date().toISOString();try{if(!d){errState('No response body.');return;}if(d.ok===false){degState((d.error||'Backend error')+'',d.error_code||'');return;}var x=Number(d.telemetry_trades);if(!isFinite(x))x=0;var tot=Number(d.telemetry_total||d.total_trades);if(!isFinite(tot))tot=0;var pct=Number(d.pct_telemetry);if(!isFinite(pct))pct=0;var tgt=Number(d.target_trades)||100;var minPct=Number(d.min_pct_telemetry)||90;var ready=d.ready===true;var stateLabel=d.ok===true?'OK':(d.error?'DEGRADED':'WAITING');var h='<div class="stat-card"><h3>State: '+stateLabel+'</h3><p>run_ts: '+(d.run_ts||'—')+' · commit: '+(d.deployed_commit||'—')+'</p></div>';h+='<div class="stat-card"><h3>Trades reviewed</h3><p><strong>'+x+'</strong> / '+tgt+' telemetry-backed</p><p>'+tot+' total exits · '+pct.toFixed(1)+'% with full telemetry</p><p><strong>Ready for replay:</strong> '+(ready?'Yes':'No — need &ge;'+tgt+' and &ge;'+minPct+'%')+'</p></div>';h+='<div class="stat-card"><h3>Still reviewing?</h3><p><strong>Yes.</strong> '+(d.review_continues_after_100||'Counts updated every 5 min from exit_attribution.')+'</p></div>';h+='<div class="stat-card"><h3>Visibility matrix (last 100 exits)</h3>';var mx=d.visibility_matrix||[];if(mx.length===0){h+='<p>No exits yet.</p>';}else{h+='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Field</th><th>Present</th><th>Total</th><th>%</th></tr></thead><tbody>';for(var j=0;j<mx.length;j++){var row=mx[j];var fn=row.field||row.feature||'—';var cnt=row.present!=null?row.present:(row.count!=null?row.count:0);var totRow=row.total!=null?row.total:tot;var pc=row.pct!=null?row.pct:0;h+='<tr><td>'+fn+'</td><td>'+cnt+'</td><td>'+totRow+'</td><td>'+Number(pc).toFixed(1)+'%</td></tr>';}h+='</tbody></table>';}h+='</div>';h+='<div class="stat-card"><h3>Close to promotion?</h3><p>'+(d.promotion_close_missing&&d.promotion_close_missing.length?d.promotion_close_missing.join('; '):'Replay gate: need &ge;100 telemetry-backed and &ge;90% coverage.')+'</p></div>';h+='<div class="stat-card"><h3>Update schedule</h3><p><strong>'+((d.update_schedule||d.cron_schedule)||'—')+'</strong></p><p>Last cron: '+(d.last_cron_run_iso||'—')+' '+(d.fresh===true?'(fresh)':'')+'</p></div>';var rs=d.replay_status;if(rs&&(rs.status||rs.reason)){h+='<div class="stat-card"><h3>Replay status</h3><p><strong>Status:</strong> '+(rs.status||'—')+'</p>'+(rs.reason?'<p><strong>Reason:</strong> '+rs.reason+'</p>':'')+(rs.last_run_ts?'<p><strong>Last run:</strong> '+rs.last_run_ts+'</p>':'')+'</div>';}var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];h+='<div class="stat-card"><h3>Promotion readiness</h3><p><strong>Recommendation:</strong> '+rec+(score!=null?' '+score+'/100':'')+'</p>'+(reasons.length?'<p><strong>Reasons:</strong> '+reasons.join('; ')+'</p>':'')+'</div>';el.innerHTML=h;}catch(e){errState('Error rendering: '+(e&&e.message?e.message:'unknown'));}}).catch(function(e){if(el)errState('Failed to load. '+(e&&e.message?e.message:''));});};
+    window.loadLearningReadiness=function(){var el=document.getElementById('learning_readiness-content');if(!el)return;var lastAttempt=new Date().toISOString();el.innerHTML='<div class="loading">Loading Learning & Readiness...</div>';function errState(msg){el.innerHTML='<div class="stat-card" style="border-color:#ef4444"><h3>State: ERROR</h3><p>'+msg+'</p><p>Last attempt: '+lastAttempt+'</p><p>Check <code>/api/learning_readiness</code> and browser console.</p></div>';}function degState(msg,code){el.innerHTML='<div class="stat-card" style="border-color:#f59e0b"><h3>State: DEGRADED</h3><p>'+msg+'</p><p>Code: '+(code||'')+'</p></div>';}fetch('/api/learning_readiness',creds).then(function(r){if(!r.ok){errState('Learning & Readiness unavailable (HTTP '+r.status+').');return null;}return r.json();}).then(function(d){if(!el)return;lastAttempt=new Date().toISOString();try{if(!d){errState('No response body.');return;}if(d.ok===false){degState((d.error||'Backend error')+'',d.error_code||'');return;}var x=Number(d.telemetry_trades);if(!isFinite(x))x=0;var tot=Number(d.telemetry_total||d.total_trades);if(!isFinite(tot))tot=0;var pct=Number(d.pct_telemetry);if(!isFinite(pct))pct=0;var tgt=Number(d.target_trades)||100;var minPct=Number(d.min_pct_telemetry)||90;var ready=d.ready===true;var stateLabel=d.ok===true?'OK':(d.error?'DEGRADED':'WAITING');var allTime=d.all_time_exits!=null?d.all_time_exits:0;var lastCsa=d.last_csa_mission_id;var untilCsa=d.trades_until_next_csa;var h='<div class="stat-card" style="margin-bottom:12px;"><button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Refresh</button> <button type="button" onclick="switchTab(\'profitability_learning\', event);">See Profitability &amp; Learning</button></div>';h+='<div class="stat-card"><h3>State: '+stateLabel+'</h3><p>run_ts: '+(d.run_ts||'—')+' · commit: '+(d.deployed_commit||'—')+'</p></div>';h+='<div class="stat-card"><h3>Trades reviewed</h3>'+(allTime?'<p><strong>Total exits (all-time):</strong> '+allTime+'</p>':'')+(lastCsa!=null||untilCsa!=null?'<p><strong>Last CSA mission:</strong> '+(lastCsa||'—')+' · <strong>Trades until next CSA:</strong> '+(untilCsa!=null?untilCsa:'—')+'</p>':'')+'<p><strong>'+x+'</strong> / '+tgt+' telemetry-backed</p><p>'+tot+' total exits · '+pct.toFixed(1)+'% with full telemetry</p><p><strong>Ready for replay:</strong> '+(ready?'Yes':'No — need &ge;'+tgt+' and &ge;'+minPct+'%')+'</p></div>';h+='<div class="stat-card"><h3>Still reviewing?</h3><p><strong>Yes.</strong> '+(d.review_continues_after_100||'Counts updated every 5 min from exit_attribution.')+'</p></div>';h+='<div class="stat-card"><h3>Visibility matrix (last 100 exits)</h3>';var mx=d.visibility_matrix||[];if(mx.length===0){h+='<p>No exits yet.</p>';}else{h+='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Field</th><th>Present</th><th>Total</th><th>%</th></tr></thead><tbody>';for(var j=0;j<mx.length;j++){var row=mx[j];var fn=row.field||row.feature||'—';var cnt=row.present!=null?row.present:(row.count!=null?row.count:0);var totRow=row.total!=null?row.total:tot;var pc=row.pct!=null?row.pct:0;h+='<tr><td>'+fn+'</td><td>'+cnt+'</td><td>'+totRow+'</td><td>'+Number(pc).toFixed(1)+'%</td></tr>';}h+='</tbody></table>';}h+='</div>';h+='<div class="stat-card"><h3>Close to promotion?</h3><p>'+(d.promotion_close_missing&&d.promotion_close_missing.length?d.promotion_close_missing.join('; '):'Replay gate: need &ge;100 telemetry-backed and &ge;90% coverage.')+'</p></div>';h+='<div class="stat-card"><h3>Update schedule</h3><p><strong>'+((d.update_schedule||d.cron_schedule)||'—')+'</strong></p><p>Last cron: '+(d.last_cron_run_iso||'—')+' '+(d.fresh===true?'(fresh)':'')+'</p></div>';var rs=d.replay_status;if(rs&&(rs.status||rs.reason)){h+='<div class="stat-card"><h3>Replay status</h3><p><strong>Status:</strong> '+(rs.status||'—')+'</p>'+(rs.reason?'<p><strong>Reason:</strong> '+rs.reason+'</p>':'')+(rs.last_run_ts?'<p><strong>Last run:</strong> '+rs.last_run_ts+'</p>':'')+'</div>';}var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];h+='<div class="stat-card"><h3>Promotion readiness</h3><p><strong>Recommendation:</strong> '+rec+(score!=null?' '+score+'/100':'')+'</p>'+(reasons.length?'<p><strong>Reasons:</strong> '+reasons.join('; ')+'</p>':'')+'</div>';el.innerHTML=h;}catch(e){errState('Error rendering: '+(e&&e.message?e.message:'unknown'));}}).catch(function(e){if(el)errState('Failed to load. '+(e&&e.message?e.message:''));});};
     window.loadTelemetryHealth=function(){var el=document.getElementById('telemetry_health-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry Health...</div>';fetch('/api/telemetry_health',creds).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!el)return;if(!d){el.innerHTML='<p>Telemetry health unavailable.</p>';return;}var h='<div class="stat-card"><h3>Canonical logs</h3><table style="width:100%"><thead><tr><th>Log</th><th>Exists</th><th>Last write</th></tr></thead><tbody>';var ls=d.log_status||[];for(var i=0;i<ls.length;i++){var x=ls[i];h+='<tr><td>'+ (x.log||'')+'</td><td>'+(x.exists?'Yes':'No')+'</td><td>'+(x.last_write||'—')+'</td></tr>';}h+='</tbody></table></div>';h+='<div class="stat-card"><h3>Coverage</h3><p><strong>Direction telemetry-backed:</strong> '+(d.direction_coverage||'0/100')+'</p><p><strong>Direction ready:</strong> '+(d.direction_ready?'Yes':'No')+'</p></div>';if(d.gate_status){h+='<div class="stat-card"><h3>Contract audit</h3><p><strong>Last run:</strong> '+d.gate_status+'</p><p>Run <code>make telemetry_gate</code> to refresh.</p></div>';}if(!d.last_droplet_analysis){h+='<div class="stat-card" style="border:2px solid #f59e0b;"><h3>Droplet Data Authority</h3><p style="margin:0;color:#92400e;"><strong>No authoritative data review has been run.</strong> Run analysis on the droplet with --droplet-run --deployed-commit.</p></div>';}else{var lda=d.last_droplet_analysis;h+='<div class="stat-card"><h3>Last droplet analysis run</h3><p><strong>Script:</strong> '+(lda.script||'—')+'</p><p><strong>Deployed commit:</strong> '+(lda.deployed_commit||'—')+'</p><p><strong>Run time (UTC):</strong> '+(lda.run_ts||'—')+'</p></div>';}el.innerHTML=h;}).catch(function(){if(el)el.innerHTML='<p>Failed to load telemetry health.</p>';});};
     window.loadTelemetryContent=function(){var el=document.getElementById('telemetry-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry...</div>';fetch('/api/telemetry/latest/index',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var dt=d.latest_date||'—';var list=d.computed||[];var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Telemetry</h3><p><strong>Latest bundle:</strong> '+dt+'</p>';
     if(d.message){h+='<p>'+d.message+'</p>';}
     if(list.length){h+='<p><strong>Computed artifacts:</strong></p><ul>';for(var i=0;i<list.length;i++){var c=list[i];var name=typeof c==='string'?c:(c.name||c.id||'');if(name)h+='<li>'+name+'</li>';}h+='</ul>';}
     h+='</div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Telemetry failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadProfitabilityLearning=function(){var el=document.getElementById('profitability_learning-content');if(!el)return;el.innerHTML='<div class="loading">Loading Profitability &amp; Learning...</div>';fetch('/api/profitability_learning',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status);return null;}return r.json();}).then(function(d){if(!el)return;if(!d){el.innerHTML='<div class="stat-card"><p>No data. Run scripts/update_profitability_cockpit.py on the droplet.</p></div>';return;}var ts=d.trade_state||{};var total=ts.total_trade_events!=null?ts.total_trade_events:0;var until=total>0?100-(total%100):100;var v=d.csa_verdict||{};var h='<div class="stat-card"><h3>CSA &amp; Trade Count</h3><p><strong>Last mission:</strong> '+(v.mission_id||'—')+'</p><p><strong>Verdict:</strong> '+(v.verdict||'—')+'</p><p><strong>Total trade events:</strong> '+total+'</p><p><strong>Trades until next CSA:</strong> '+until+'</p></div>';var md=String(d.cockpit_md||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');h+='<div class="stat-card"><h3>Profitability Cockpit</h3><pre style="white-space:pre-wrap;font-size:0.9em;">'+md+'</pre></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){if(el)err(el,'Profitability failed: '+(e&&e.message?e.message:''));});};
     window.loadClosedTrades=function(){var el=document.getElementById('closed_trades-content');if(!el)return;el.innerHTML='<div class="loading">Loading closed trades...</div>';fetch('/api/stockbot/closed_trades',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var filter=document.getElementById('closed_trades_filter');var raw=Array.isArray(d.closed_trades)?d.closed_trades:[];var strategyFilter=(filter&&filter.value)||'all';var list=raw;if(strategyFilter==='equity')list=raw.filter(function(t){return (t.strategy_id||'equity')==='equity';});if(strategyFilter==='wheel')list=raw.filter(function(t){return (t.strategy_id||'')==='wheel';});var h='<div class="stat-card" style="margin-bottom:12px;"><label>Filter: </label><select id="closed_trades_filter" onchange="if(typeof loadClosedTrades===\'function\')loadClosedTrades();"><option value="all"'+(strategyFilter==='all'?' selected':'')+'>All trades</option><option value="equity"'+(strategyFilter==='equity'?' selected':'')+'>Equity only</option><option value="wheel"'+(strategyFilter==='wheel'?' selected':'')+'>Wheel only</option></select></div>';
     h+='<div class="stat-card"><h3>Closed Trades ('+list.length+')</h3><table style="width:100%;font-size:12px;"><thead><tr><th>Strategy</th><th>Symbol</th><th>Time</th><th>P&L</th><th>Close</th><th>Phase</th><th>Type</th><th>Strike</th><th>Expiry</th><th>DTE</th><th>Premium</th><th>Assigned</th><th>Called</th></tr></thead><tbody>';
     for(var i=0;i<list.length;i++){var t=list[i];var sid=t.strategy_id||'equity';var stratLabel=sid==='wheel'?'Wheel':'Equity';var ts=t.timestamp?new Date(t.timestamp).toLocaleString():'—';var pnl=t.pnl_usd!=null?'$'+Number(t.pnl_usd).toFixed(2):'—';var close=t.close_reason||'—';var ph=t.wheel_phase||'—';var ot=t.option_type||'—';var st=t.strike!=null?t.strike:'—';var ex=t.expiry||'—';var dte=t.dte!=null?t.dte:'—';var pr=t.premium!=null?'$'+Number(t.premium).toFixed(2):'—';var asn=t.assigned===true?'Y':(t.assigned===false?'N':'—');var ca=t.called_away===true?'Y':(t.called_away===false?'N':'—');h+='<tr><td>'+stratLabel+'</td><td>'+(t.symbol||'—')+'</td><td>'+ts+'</td><td>'+pnl+'</td><td>'+close+'</td><td>'+ph+'</td><td>'+ot+'</td><td>'+st+'</td><td>'+ex+'</td><td>'+dte+'</td><td>'+pr+'</td><td>'+asn+'</td><td>'+ca+'</td></tr>';}
@@ -537,7 +545,7 @@ DASHBOARD_HTML = """
         function switchTab(tabName, event) {
             if (tabName === 'more') return;
             closeMoreDropdown();
-            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry', 'telemetry_health', 'learning_readiness'];
+            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry', 'telemetry_health', 'learning_readiness', 'profitability_learning'];
             var isAdvanced = advancedTabs.indexOf(tabName) >= 0;
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
@@ -585,6 +593,8 @@ DASHBOARD_HTML = """
                 if (typeof loadTelemetryHealth === 'function') loadTelemetryHealth();
             } else if (tabName === 'learning_readiness') {
                 if (typeof loadLearningReadiness === 'function') loadLearningReadiness();
+            } else if (tabName === 'profitability_learning') {
+                if (typeof loadProfitabilityLearning === 'function') loadProfitabilityLearning();
             } else if (tabName === 'positions') {
                 updateDashboard();
             }
@@ -3380,6 +3390,22 @@ def _get_learning_readiness_payload(root: Path, run_ts: str, deployed_commit: st
         "reason": replay_status.get("reason"),
         "last_run_ts": replay_status.get("last_run_ts"),
     }
+    last_csa_mission_id = None
+    trades_until_next_csa = None
+    try:
+        state_path = root / "reports" / "state" / "TRADE_CSA_STATE.json"
+        if not state_path.exists():
+            state_path = root / "reports" / "state" / "test_csa_100" / "TRADE_CSA_STATE.json"
+        if state_path.exists():
+            csa_state = json.loads(state_path.read_text(encoding="utf-8"))
+            total_events = int(csa_state.get("total_trade_events") or 0)
+            last_csa_mission_id = csa_state.get("last_csa_mission_id") or csa_state.get("mission_id")
+            if total_events > 0:
+                trades_until_next_csa = 100 - (total_events % 100)
+            else:
+                trades_until_next_csa = 100
+    except Exception:
+        pass
     return {
         "ok": True,
         "run_ts": run_ts,
@@ -3400,6 +3426,8 @@ def _get_learning_readiness_payload(root: Path, run_ts: str, deployed_commit: st
         "target_trades": 100,
         "min_pct_telemetry": 90.0,
         "all_time_exits": all_time_exits,
+        "last_csa_mission_id": last_csa_mission_id,
+        "trades_until_next_csa": trades_until_next_csa,
         "features_reviewed": [
             "Entry intel (premarket, futures, sector, regime at position open)",
             "Exit intel (same at close)",
@@ -3453,10 +3481,16 @@ def _render_learning_readiness_html(payload: dict) -> str:
     ready = payload.get("ready") is True
     state_label = "OK" if payload.get("ok") is True else ("DEGRADED" if payload.get("error") else "WAITING")
     all_time_line = ("<p><strong>Total exits (all-time):</strong> " + str(all_time) + "</p>") if all_time else ""
+    last_csa = payload.get("last_csa_mission_id")
+    until_csa = payload.get("trades_until_next_csa")
+    csa_line = ""
+    if last_csa is not None or until_csa is not None:
+        csa_line = "<p><strong>Last CSA mission:</strong> " + esc(str(last_csa) if last_csa is not None else "—") + " · <strong>Trades until next CSA:</strong> " + (str(until_csa) if until_csa is not None else "—") + "</p>"
+    link_pl = '<p><button type="button" onclick="switchTab(\'profitability_learning\', event);">See Profitability &amp; Learning</button></p>'
     parts = [
-        '<div class="stat-card" style="margin-bottom:12px;"><button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Refresh</button></div>',
+        '<div class="stat-card" style="margin-bottom:12px;"><button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Refresh</button>' + link_pl + '</div>',
         '<div class="stat-card"><h3>State: ' + esc(state_label) + '</h3><p>run_ts: ' + run_ts + ' · commit: ' + deployed_commit + '</p></div>',
-        '<div class="stat-card"><h3>Trades reviewed</h3>' + all_time_line + '<p><strong>Last ' + str(tgt) + ' exits:</strong> ' + str(x) + ' telemetry-backed · ' + f"{pct:.1f}" + '% with full telemetry</p><p><strong>Ready for replay:</strong> ' + ("Yes" if ready else f"No — need ≥{tgt} and ≥{min_pct}%") + '</p></div>',
+        '<div class="stat-card"><h3>Trades reviewed</h3>' + all_time_line + csa_line + '<p><strong>Last ' + str(tgt) + ' exits:</strong> ' + str(x) + ' telemetry-backed · ' + f"{pct:.1f}" + '% with full telemetry</p><p><strong>Ready for replay:</strong> ' + ("Yes" if ready else f"No — need ≥{tgt} and ≥{min_pct}%") + '</p></div>',
         '<div class="stat-card"><h3>Still reviewing?</h3><p><strong>Yes.</strong> ' + esc(str(payload.get("review_continues_after_100") or "Counts updated every 5 min from exit_attribution.")) + '</p></div>',
     ]
     mx = payload.get("visibility_matrix") or []
@@ -3539,6 +3573,39 @@ def api_learning_readiness():
             deployed_commit=deployed_commit,
         )
         return jsonify(payload), 200
+
+
+@app.route("/api/profitability_learning", methods=["GET"])
+def api_profitability_learning():
+    """
+    Profitability & Learning tab: cockpit markdown, CSA verdict, trade state.
+    Reads from droplet: reports/board/PROFITABILITY_COCKPIT.md, reports/audit/CSA_VERDICT_LATEST.json,
+    reports/state/TRADE_CSA_STATE.json. Never 500; returns ok=False and empty payload on error.
+    """
+    root = Path(_DASHBOARD_ROOT)
+    out = {"ok": False, "cockpit_md": "", "csa_verdict": {}, "trade_state": {}, "error": None}
+    try:
+        cockpit_path = root / "reports" / "board" / "PROFITABILITY_COCKPIT.md"
+        if cockpit_path.exists():
+            out["cockpit_md"] = cockpit_path.read_text(encoding="utf-8", errors="replace")
+        verdict_path = root / "reports" / "audit" / "CSA_VERDICT_LATEST.json"
+        if verdict_path.exists():
+            try:
+                out["csa_verdict"] = json.loads(verdict_path.read_text(encoding="utf-8"))
+            except Exception:
+                out["csa_verdict"] = {}
+        state_path = root / "reports" / "state" / "TRADE_CSA_STATE.json"
+        if not state_path.exists():
+            state_path = root / "reports" / "state" / "test_csa_100" / "TRADE_CSA_STATE.json"
+        if state_path.exists():
+            try:
+                out["trade_state"] = json.loads(state_path.read_text(encoding="utf-8"))
+            except Exception:
+                out["trade_state"] = {}
+        out["ok"] = True
+    except Exception as e:
+        out["error"] = str(e)[:300]
+    return jsonify(out), 200
 
 
 @app.route("/reports/board/<path:filename>", methods=["GET"])
