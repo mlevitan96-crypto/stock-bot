@@ -16,7 +16,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AUDIT_DIR = REPO_ROOT / "reports" / "audit"
 OUTPUT_FILE = AUDIT_DIR / "GOVERNANCE_AUTOMATION_STATUS.json"
 
-EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "memory_bank", "docs", "validation", ".cursor"}
+EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "docs", "validation", ".cursor"}
+MEMORY_BANK_FILE = "MEMORY_BANK.md"
 FORBIDDEN_PATTERNS = re.compile(
     r"clawdbot|moltbot|CLAWDBOT_|MOLTBOT_",
     re.IGNORECASE,
@@ -31,8 +32,15 @@ def check_repo_structure() -> tuple[str, list[str]]:
     top = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
     missing = EXPECTED_TOP_LEVEL - top
     if missing:
-        return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
-    return "pass", details
+        details.append(f"Missing expected top-level dirs: {sorted(missing)}")
+    if not (REPO_ROOT / MEMORY_BANK_FILE).is_file():
+        details.append(f"Missing {MEMORY_BANK_FILE} at repo root")
+    for sub in ["reports/audit", "reports/board"]:
+        if not (REPO_ROOT / sub).is_dir():
+            details.append(f"Missing expected subdir: {sub}")
+    if details:
+        return "fail", details
+    return "pass", []
 
 
 def check_config_drift() -> tuple[str, list[str]]:
@@ -45,9 +53,11 @@ def check_config_drift() -> tuple[str, list[str]]:
 
 
 def check_governance_contracts() -> tuple[str, list[str]]:
-    """memory_bank, .cursor/automations, reports/audit and reports/board."""
+    """MEMORY_BANK.md, .cursor/automations, reports/audit and reports/board."""
     details = []
-    for path in ["memory_bank", ".cursor/automations", "reports/audit", "reports/board"]:
+    if not (REPO_ROOT / MEMORY_BANK_FILE).is_file():
+        details.append(f"Missing: {MEMORY_BANK_FILE}")
+    for path in [".cursor/automations", "reports/audit", "reports/board"]:
         if not (REPO_ROOT / path.replace("/", os.sep)).exists():
             details.append(f"Missing: {path}")
     if details:
