@@ -1,0 +1,16 @@
+{
+  "date": "2026-03-06",
+  "window_start": "2026-02-27T00:00:00+00:00",
+  "window_end": "2026-03-06T00:00:00+00:00",
+  "window_days": 7,
+  "total_events": 0,
+  "executed_count": 0,
+  "blocked_count": 0,
+  "counter_intel_blocked_count": 0,
+  "validation_failed_count": 0,
+  "other_count": 0,
+  "validation_failure_rate_pct": 0,
+  "top_blocked_reasons": {},
+  "top_ci_reasons": {},
+  "opportunity_cost_proxy_note": "Blocked-when-shadow-would-profit requires shadow comparison; not computed here."
+}
