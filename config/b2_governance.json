@@ -1,0 +1,12 @@
+{
+  "_comment": "B2_shadow promoted to LIVE PAPER based on CSA_TRADE_100_20260306-002808 (PROCEED). Explicit config; no hidden behavior.",
+  "b2_mode": "live_paper",
+  "b2_shadow_enabled": false,
+  "b2_live_paper_enabled": true,
+  "b2_live_enabled": false,
+  "notes": {
+    "shadow": "Offline analysis only (scripts/shadow/run_b2_shadow.py). When true, no runtime suppression.",
+    "live_paper": "Runtime: suppress early signal_decay exits (hold < 30 min). FEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT=true + TRADING_MODE=PAPER. No real capital.",
+    "live": "Future: real capital. Must remain false until governance approves."
+  }
+}
