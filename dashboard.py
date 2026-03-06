@@ -3329,6 +3329,14 @@ def _get_learning_readiness_payload(root: Path, run_ts: str, deployed_commit: st
     telemetry_trades = int(readiness.get("telemetry_trades") or 0)
     total_trades = int(readiness.get("total_trades") or 0)
     pct_telemetry = float(readiness.get("pct_telemetry") or 0)
+    all_time_exits = int(readiness.get("all_time_exits") or 0)
+    if not all_time_exits:
+        try:
+            ep = logs_dir / "exit_attribution.jsonl"
+            if ep.exists():
+                all_time_exits = sum(1 for ln in ep.read_text(encoding="utf-8", errors="replace").splitlines() if ln.strip())
+        except Exception:
+            pass
     ready = readiness.get("ready") is True
     updated_ts = readiness.get("updated_ts")
     last_cron_iso = updated_ts or readiness.get("last_cron_run_iso")
@@ -3391,6 +3399,7 @@ def _get_learning_readiness_payload(root: Path, run_ts: str, deployed_commit: st
         "total_trades": total_trades,
         "target_trades": 100,
         "min_pct_telemetry": 90.0,
+        "all_time_exits": all_time_exits,
         "features_reviewed": [
             "Entry intel (premarket, futures, sector, regime at position open)",
             "Exit intel (same at close)",
@@ -3440,12 +3449,14 @@ def _render_learning_readiness_html(payload: dict) -> str:
     pct = float(payload.get("pct_telemetry") or 0)
     tgt = int(payload.get("target_trades") or 100)
     min_pct = int(payload.get("min_pct_telemetry") or 90)
+    all_time = int(payload.get("all_time_exits") or 0)
     ready = payload.get("ready") is True
     state_label = "OK" if payload.get("ok") is True else ("DEGRADED" if payload.get("error") else "WAITING")
+    all_time_line = ("<p><strong>Total exits (all-time):</strong> " + str(all_time) + "</p>") if all_time else ""
     parts = [
         '<div class="stat-card" style="margin-bottom:12px;"><button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Refresh</button></div>',
         '<div class="stat-card"><h3>State: ' + esc(state_label) + '</h3><p>run_ts: ' + run_ts + ' · commit: ' + deployed_commit + '</p></div>',
-        '<div class="stat-card"><h3>Trades reviewed</h3><p><strong>' + str(x) + '</strong> / ' + str(tgt) + ' telemetry-backed</p><p>' + str(tot) + ' total exits · ' + f"{pct:.1f}" + '% with full telemetry</p><p><strong>Ready for replay:</strong> ' + ("Yes" if ready else f"No — need ≥{tgt} and ≥{min_pct}%") + '</p></div>',
+        '<div class="stat-card"><h3>Trades reviewed</h3>' + all_time_line + '<p><strong>Last ' + str(tgt) + ' exits:</strong> ' + str(x) + ' telemetry-backed · ' + f"{pct:.1f}" + '% with full telemetry</p><p><strong>Ready for replay:</strong> ' + ("Yes" if ready else f"No — need ≥{tgt} and ≥{min_pct}%") + '</p></div>',
         '<div class="stat-card"><h3>Still reviewing?</h3><p><strong>Yes.</strong> ' + esc(str(payload.get("review_continues_after_100") or "Counts updated every 5 min from exit_attribution.")) + '</p></div>',
     ]
     mx = payload.get("visibility_matrix") or []
