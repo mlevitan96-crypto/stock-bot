@@ -1099,6 +1099,12 @@ def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = No
                 append_jsonl(_ledger_path, _ev)
         except Exception:
             pass
+    # CSA every-100-trades: count blocked trade event (primary trigger)
+    try:
+        from src.infra.csa_trade_state import record_trade_event
+        record_trade_event("blocked")
+    except Exception:
+        pass
 
 
 def log_exit_hold_longer(symbol: str, side: str, exit_reason: str, exit_price: float, exit_ts: str = None,
@@ -2475,6 +2481,12 @@ def log_exit_attribution(
         rec["side"] = _side
         rec["position_side"] = _pos_side
         append_exit_attribution(rec)
+        # CSA every-100-trades: count exit as one trade event (primary trigger)
+        try:
+            from src.infra.csa_trade_state import record_trade_event
+            record_trade_event("executed")
+        except Exception:
+            pass
         # Signal context capture (read-only): full signal state at exit for profitability learning.
         try:
             from telemetry.signal_context_logger import log_signal_context, default_threshold, confidence_bucket_from_score
@@ -10021,6 +10033,12 @@ class StrategyEngine:
                         order_type=order_type,
                         score=score
                     )
+                    # CSA every-100-trades: count filled entry as one trade event (primary trigger)
+                    try:
+                        from src.infra.csa_trade_state import record_trade_event
+                        record_trade_event("executed")
+                    except Exception:
+                        pass
                 else:
                     # Log order submission for unfilled orders
                     telemetry.log_order_event(
