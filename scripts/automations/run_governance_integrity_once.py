@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,7 +17,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AUDIT_DIR = REPO_ROOT / "reports" / "audit"
 OUTPUT_FILE = AUDIT_DIR / "GOVERNANCE_AUTOMATION_STATUS.json"
 
-EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "memory_bank", "docs", "validation", ".cursor"}
+EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "docs", "validation", ".cursor"}
+# MEMORY_BANK.md at root satisfies the memory_bank governance requirement (no directory ever existed)
+MEMORY_BANK_FILE = "MEMORY_BANK.md"
 FORBIDDEN_PATTERNS = re.compile(
     r"clawdbot|moltbot|CLAWDBOT_|MOLTBOT_",
     re.IGNORECASE,
@@ -31,8 +34,14 @@ def check_repo_structure() -> tuple[str, list[str]]:
     top = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
     missing = EXPECTED_TOP_LEVEL - top
     if missing:
-        return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
-    return "pass", details
+        details.append(f"Missing expected top-level dirs: {sorted(missing)}")
+    if not (REPO_ROOT / MEMORY_BANK_FILE).is_file():
+        details.append(f"Missing {MEMORY_BANK_FILE} at repo root")
+    if not (REPO_ROOT / "reports" / "audit").is_dir():
+        details.append("Missing reports/audit/")
+    if not (REPO_ROOT / "reports" / "board").is_dir():
+        details.append("Missing reports/board/")
+    return ("fail" if details else "pass"), details
 
 
 def check_config_drift() -> tuple[str, list[str]]:
@@ -45,14 +54,17 @@ def check_config_drift() -> tuple[str, list[str]]:
 
 
 def check_governance_contracts() -> tuple[str, list[str]]:
-    """memory_bank, .cursor/automations, reports/audit and reports/board."""
+    """MEMORY_BANK.md, .cursor/automations, reports/audit and reports/board."""
     details = []
-    for path in ["memory_bank", ".cursor/automations", "reports/audit", "reports/board"]:
+    if not (REPO_ROOT / MEMORY_BANK_FILE).is_file():
+        details.append(f"Missing: {MEMORY_BANK_FILE}")
+    for path in [".cursor/automations", "reports/audit", "reports/board"]:
         if not (REPO_ROOT / path.replace("/", os.sep)).exists():
             details.append(f"Missing: {path}")
-    if details:
-        return "fail", details
-    return "pass", details
+    automations_readme = REPO_ROOT / ".cursor" / "automations" / "README.md"
+    if not automations_readme.is_file():
+        details.append("Missing: .cursor/automations/README.md")
+    return ("fail" if details else "pass"), details
 
 
 def check_required_artifacts() -> tuple[str, list[str]]:
@@ -137,11 +149,18 @@ def main() -> None:
         all_details.extend(details)
 
     anomalies = any(c == "fail" for c in checks.values())
+    try:
+        branch = subprocess.check_output(
+            ["git", "branch", "--show-current"], cwd=str(REPO_ROOT), text=True
+        ).strip() or "unknown"
+    except Exception:
+        branch = "unknown"
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
     payload = {
         "schema_version": "1.0",
-        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
-        "run_ts_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
-        "branch": "main",
+        "timestamp": now,
+        "run_ts_utc": now,
+        "branch": branch,
         "status": "anomalies" if anomalies else "ok",
         "anomalies_detected": anomalies,
         "checks": checks,
