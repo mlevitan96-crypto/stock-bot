@@ -1,19 +1,23 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-07T12:03:53.842Z",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
-  "slack_sent": false
+  "details": [
+    "repo_structure: Missing expected top-level directory 'memory_bank/' — only MEMORY_BANK.md exists at root. Expected dirs: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/. All present except memory_bank/.",
+    "governance_contracts_present: memory_bank/ directory not found. .cursor/automations/ exists with README + specs. reports/audit/ and reports/board/ exist.",
+    "note: moltbot/ directory and scripts/run_molt_*.py retained as documented file-system identifiers per MEMORYBANK_CLEANUP_CHANGELOG.md (2026-03-05). Not flagged as reintroduction.",
+    "note: No clawdbot/moltbot references found in src/. Scripts references are documented legacy retained code.",
+    "note: Recent CSA and board artifacts found within last 7 days in reports/audit/ and reports/board/."
+  ],
+  "slack_sent": false,
+  "github_issue": "Existing open issue #133 tracks this anomaly. Unable to comment via read-only gh CLI."
 }
