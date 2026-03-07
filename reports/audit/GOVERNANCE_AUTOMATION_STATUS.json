@@ -1,7 +1,6 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-07T14:30:00.994000+00:00",
   "branch": "main",
   "status": "ok",
   "anomalies_detected": false,
@@ -14,6 +13,5 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [],
-  "anomalies": [],
   "slack_sent": false
 }
