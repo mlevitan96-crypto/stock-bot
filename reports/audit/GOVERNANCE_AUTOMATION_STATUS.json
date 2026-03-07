@@ -1,19 +1,37 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
-  "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "run_ts_utc": "2026-03-07T16:30:00Z",
+  "branch": "cursor/governance-integrity-validation-a80f",
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
-    "no_deprecated_dirs": "pass",
-    "no_clawdbot_moltbot": "pass"
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "high",
+      "message": "Expected top-level directory memory_bank/ not found. Present: src/, scripts/, reports/, docs/, validation/, .cursor/, reports/audit/, reports/board/. Missing: memory_bank/."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "high",
+      "message": "memory_bank/ directory is missing — governance contract documents that should reside there are inaccessible. .cursor/automations/ exists with README.md and specs (pass). reports/audit/ and reports/board/ exist (pass)."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "medium",
+      "message": "Deprecated directory moltbot/ exists at repo root with active Python modules: __init__.py, board.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, sentinel.py. Per CLAWDBOT_REMOVAL_CHANGELOG.md, this should have been removed."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot/Clawdbot references found in active code/config (excluding reports/audit, docs, and governance automation specs): (1) moltbot/ directory with 5 Python modules, (2) scripts/run_molt_workflow.py imports from moltbot, (3) scripts/run_molt_intelligence_expansion.py references Moltbot, (4) board/eod/out/2026-02-12/cron_diagnosis.json and 2026-02-13 show CLAWDBOT_SESSION_ID still present in droplet crontab."
+    }
+  ],
   "slack_sent": false
 }
