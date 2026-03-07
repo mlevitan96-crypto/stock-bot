@@ -1,19 +1,21 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-07T05:16:32.000Z",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
-    "no_deprecated_dirs": "pass",
-    "no_clawdbot_moltbot": "pass"
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: memory_bank/ directory is missing from top-level (expected: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/). Only MEMORY_BANK.md file exists at root.",
+    "governance_contracts_present: memory_bank/ directory not found; cannot verify key governance docs reside there. .cursor/automations/ and reports/audit/ and reports/board/ are present.",
+    "no_deprecated_dirs: moltbot/ directory exists at top-level with active Python modules (sentinel.py, board.py, orchestrator.py, promotion_discipline.py, memory_evolution.py, agents/). Per audit records (CLAWDBOT_REMOVAL_CHANGELOG.md, CSA_RISK_ACCEPTANCE_clawdbot_removal.md), this should have been removed.",
+    "no_clawdbot_moltbot: Moltbot code found in non-excluded paths: moltbot/ (6 files), moltbot/agents/ (5 files), scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py. These are active code files, not audit/docs documenting removal."
+  ],
   "slack_sent": false
 }
