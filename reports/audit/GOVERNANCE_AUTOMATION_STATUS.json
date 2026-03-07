@@ -1,19 +1,21 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-07T13:33:26.840014+00:00",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
-    "no_deprecated_dirs": "pass",
-    "no_clawdbot_moltbot": "pass"
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: Missing expected top-level directory memory_bank/ (only MEMORY_BANK.md file exists at repo root)",
+    "governance_contracts_present: memory_bank/ directory missing — .cursor/automations/, reports/audit/, reports/board/ all present",
+    "no_deprecated_dirs: moltbot/ directory exists and is flagged as unreferenced/review candidate in reports/repo_audit/UNREFERENCED_DIRECTORIES.json and DEAD_CODE_MAP.json",
+    "no_clawdbot_moltbot: moltbot/ directory contains active Python code (sentinel.py, board.py, orchestrator.py, promotion_discipline.py, memory_evolution.py); scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py reference moltbot in code"
+  ],
   "slack_sent": false
 }
