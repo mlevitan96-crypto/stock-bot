@@ -25,11 +25,25 @@ FORBIDDEN_PATTERNS = re.compile(
 ALLOWED_MENTION_PATHS = ("reports/audit", "docs/", "MEMORY_BANK", "README", ".md")
 
 
+def _get_branch() -> str:
+    """Detect current git branch; fall back to 'main'."""
+    import subprocess
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(REPO_ROOT), text=True, stderr=subprocess.DEVNULL
+        ).strip() or "main"
+    except Exception:
+        return "main"
+
+
 def check_repo_structure() -> tuple[str, list[str]]:
     """pass/fail and details."""
     details = []
     top = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
     missing = EXPECTED_TOP_LEVEL - top
+    if "memory_bank" in missing and (REPO_ROOT / "MEMORY_BANK.md").is_file():
+        missing.discard("memory_bank")
     if missing:
         return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
     return "pass", details
@@ -45,10 +59,13 @@ def check_config_drift() -> tuple[str, list[str]]:
 
 
 def check_governance_contracts() -> tuple[str, list[str]]:
-    """memory_bank, .cursor/automations, reports/audit and reports/board."""
+    """memory_bank (or MEMORY_BANK.md), .cursor/automations, reports/audit and reports/board."""
     details = []
     for path in ["memory_bank", ".cursor/automations", "reports/audit", "reports/board"]:
-        if not (REPO_ROOT / path.replace("/", os.sep)).exists():
+        target = REPO_ROOT / path.replace("/", os.sep)
+        if not target.exists():
+            if path == "memory_bank" and (REPO_ROOT / "MEMORY_BANK.md").is_file():
+                continue
             details.append(f"Missing: {path}")
     if details:
         return "fail", details
@@ -141,7 +158,7 @@ def main() -> None:
         "schema_version": "1.0",
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
         "run_ts_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"),
-        "branch": "main",
+        "branch": _get_branch(),
         "status": "anomalies" if anomalies else "ok",
         "anomalies_detected": anomalies,
         "checks": checks,
