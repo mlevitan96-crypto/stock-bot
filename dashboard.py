@@ -2178,7 +2178,13 @@ DASHBOARD_HTML = """
             const tradesCount = pm.trades != null ? pm.trades : (pm.trades_2d != null ? pm.trades_2d : (pm.trades_5d != null ? pm.trades_5d : 0));
             const winRate = pm.win_rate != null ? pm.win_rate : (pm.win_rate_2d != null ? pm.win_rate_2d : (pm.win_rate_5d != null ? pm.win_rate_5d : 0));
             const pnlClass = pnl >= 0 ? 'positive' : 'negative';
-            const timeframeOptions = ['24h', '48h', '7d', '2d', '5d'];
+            const timeframeOptions = [
+                { value: '24h', label: '24h' },
+                { value: '48h', label: '48h' },
+                { value: '7d', label: '7d' },
+                { value: '2d', label: '2d' },
+                { value: '5d', label: '5D (rolling)' }
+            ];
             const healthStatus = healthData.overall_health || '—';
             const healthClass = healthStatus === 'healthy' ? 'healthy' : (healthStatus === 'degraded' ? 'degraded' : 'critical');
             let html = `
@@ -2192,7 +2198,7 @@ DASHBOARD_HTML = """
                     <div style="margin-bottom: 12px;">
                         <label style="margin-right: 8px;">Timeframe:</label>
                         <select id="executive-timeframe" onchange="loadExecutiveSummary(this.value)" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc;">
-                            ${timeframeOptions.map(t => `<option value="${t}" ${t === tf ? 'selected' : ''}>${t}</option>`).join('')}
+                            ${timeframeOptions.map(o => `<option value="${o.value}" ${o.value === tf ? 'selected' : ''}>${o.label}</option>`).join('')}
                         </select>
                         <span style="margin-left: 8px; color: #666; font-size: 0.9em;">Data from canonical logs (MEMORY_BANK 5.5)</span>
                     </div>
@@ -2210,6 +2216,22 @@ DASHBOARD_HTML = """
                         </div>
                     </div>
                 </div>
+                ${tf === '5d' ? (() => {
+                    const pts = Array.isArray(data.rolling_5d_points) ? data.rolling_5d_points : [];
+                    let chartInner = '<p style="padding: 20px; color: #666;">No rolling 5d data yet. Run <code>python scripts/performance/update_rolling_pnl_5d.py</code> or wait for cron.</p>';
+                    if (pts.length > 0) {
+                        const w = 800; const h = 200; const pad = { left: 50, right: 20, top: 15, bottom: 25 };
+                        const ys = pts.map(p => Number(p.equity) != null ? Number(p.equity) : Number(p.pnl) || 0);
+                        const minY = Math.min(...ys, 0); const maxY = Math.max(...ys, 0);
+                        const rangeY = maxY - minY || 1;
+                        const scaleY = (v) => h - pad.bottom - ((v - minY) / rangeY) * (h - pad.top - pad.bottom);
+                        const scaleX = (i) => pad.left + (i / Math.max(pts.length - 1, 1)) * (w - pad.left - pad.right);
+                        const pathD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + scaleX(i) + ',' + scaleY(Number(p.equity) != null ? Number(p.equity) : Number(p.pnl) || 0)).join(' ');
+                        const yTicks = [minY, minY + rangeY * 0.5, maxY].map(v => Math.round(v * 100) / 100);
+                        chartInner = '<svg width="100%" height="200" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid meet"><line x1="' + pad.left + '" y1="' + (h - pad.bottom) + '" x2="' + (w - pad.right) + '" y2="' + (h - pad.bottom) + '" stroke="#ccc" stroke-width="1"/><line x1="' + pad.left + '" y1="' + pad.top + '" x2="' + pad.left + '" y2="' + (h - pad.bottom) + '" stroke="#ccc" stroke-width="1"/>' + yTicks.map((v) => '<text x="' + (pad.left - 5) + '" y="' + scaleY(v) + '" text-anchor="end" font-size="10" fill="#666">' + v + '</text>').join('') + '<path d="' + pathD + '" fill="none" stroke="#667eea" stroke-width="2" stroke-linejoin="round"/></svg>';
+                    }
+                    return '<div class="stat-card" style="margin-bottom: 20px; border: 2px solid #667eea;"><h3 style="margin-bottom: 10px;">📈 5D (rolling) Performance Line</h3><p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">X = time (UTC), Y = equity. No smoothing; gaps shown when data missing.</p><div style="width:100%; min-height: 200px;">' + chartInner + '</div></div>';
+                })() : ''}
                 
                 <div class="positions-table" style="margin-bottom: 20px;">
                     <h2 style="margin-bottom: 15px;">📋 Recent Trades</h2>
@@ -5967,6 +5989,28 @@ def api_executive_summary():
             "learning_insights": {},
             "written_summary": f"Error generating summary: {str(e)}"
         }), 200  # Return 200 so frontend can display error
+
+
+@app.route("/api/rolling_pnl_5d", methods=["GET"])
+def api_rolling_pnl_5d():
+    """Return 5-day rolling PnL series from reports/state/rolling_pnl_5d.jsonl. No smoothing; gaps visible."""
+    try:
+        path = (_DASHBOARD_ROOT / "reports" / "state" / "rolling_pnl_5d.jsonl").resolve()
+        if not path.exists():
+            return jsonify({"points": [], "window": "5d", "source": "unified_exits"}), 200
+        points = []
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                points.append(json.loads(line))
+            except Exception:
+                continue
+        return jsonify({"points": points, "window": "5d", "source": "unified_exits"}), 200
+    except Exception as e:
+        return jsonify({"points": [], "window": "5d", "error": str(e)}), 200
+
 
 @app.route("/api/health_status", methods=["GET"])
 def api_health_status():
