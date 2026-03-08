@@ -1,19 +1,37 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
-  "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "run_ts_utc": "2026-03-08T10:02:13.000Z",
+  "branch": "cursor/governance-integrity-validation-5ae6",
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
-    "no_deprecated_dirs": "pass",
-    "no_clawdbot_moltbot": "pass"
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "high",
+      "message": "Expected top-level directory memory_bank/ is missing. All other expected directories (src/, scripts/, reports/, docs/, validation/, .cursor/) are present. reports/audit/ and reports/board/ exist."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "high",
+      "message": "memory_bank/ directory does not exist so key governance docs cannot be verified in it. MEMORY_BANK.md exists at repo root but not as a directory. .cursor/automations/ exists with README + specs. reports/audit/ and reports/board/ exist."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "critical",
+      "message": "Deprecated directory moltbot/ exists at repo top level with active Python code files: __init__.py, board.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, sentinel.py, agents/. Per audit docs (CLAWDBOT_REMOVAL_CHANGELOG.md), moltbot should have been removed."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "critical",
+      "message": "Moltbot references found in code/config (excluding reports/audit and docs): moltbot/sentinel.py, moltbot/board.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py"
+    }
+  ],
   "slack_sent": false
 }
