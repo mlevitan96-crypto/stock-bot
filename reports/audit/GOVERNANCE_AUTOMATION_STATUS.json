@@ -1,19 +1,25 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "timestamp": "2026-03-08T00:02:02.918046+00:00",
+  "run_ts_utc": "2026-03-08T00:02:02.918080+00:00",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "status": "anomalies",
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "Missing expected top-level dirs: ['memory_bank']",
+    "Missing: memory_bank"
+  ],
+  "anomalies": [
+    "Missing expected top-level dirs: ['memory_bank']",
+    "Missing: memory_bank"
+  ],
   "slack_sent": false
 }
