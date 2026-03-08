@@ -26,10 +26,17 @@ ALLOWED_MENTION_PATHS = ("reports/audit", "docs/", "MEMORY_BANK", "README", ".md
 
 
 def check_repo_structure() -> tuple[str, list[str]]:
-    """pass/fail and details."""
+    """pass/fail and details.
+
+    memory_bank is accepted as either a directory or the canonical
+    MEMORY_BANK.md file at repo root (the repo has always used the
+    file, never a directory).
+    """
     details = []
     top = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
     missing = EXPECTED_TOP_LEVEL - top
+    if "memory_bank" in missing and (REPO_ROOT / "MEMORY_BANK.md").is_file():
+        missing.discard("memory_bank")
     if missing:
         return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
     return "pass", details
@@ -45,11 +52,15 @@ def check_config_drift() -> tuple[str, list[str]]:
 
 
 def check_governance_contracts() -> tuple[str, list[str]]:
-    """memory_bank, .cursor/automations, reports/audit and reports/board."""
+    """memory_bank (dir or MEMORY_BANK.md), .cursor/automations, reports/audit, reports/board."""
     details = []
-    for path in ["memory_bank", ".cursor/automations", "reports/audit", "reports/board"]:
+    for path in [".cursor/automations", "reports/audit", "reports/board"]:
         if not (REPO_ROOT / path.replace("/", os.sep)).exists():
             details.append(f"Missing: {path}")
+    mb_dir = REPO_ROOT / "memory_bank"
+    mb_file = REPO_ROOT / "MEMORY_BANK.md"
+    if not mb_dir.exists() and not mb_file.is_file():
+        details.append("Missing: memory_bank (no directory or MEMORY_BANK.md)")
     if details:
         return "fail", details
     return "pass", details
