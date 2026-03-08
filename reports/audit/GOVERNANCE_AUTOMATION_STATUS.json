@@ -1,19 +1,21 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
-  "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "run_ts_utc": "2026-03-08T06:50:00Z",
+  "branch": "cursor/governance-integrity-validation-39fc",
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
-    "no_deprecated_dirs": "pass",
-    "no_clawdbot_moltbot": "pass"
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: Missing expected top-level directory: memory_bank/",
+    "governance_contracts_present: memory_bank/ directory does not exist (MEMORY_BANK.md exists at root as a file, but the expected directory is absent)",
+    "no_deprecated_dirs: moltbot/ directory exists with active code files (sentinel.py, board.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, __init__.py)",
+    "no_clawdbot_moltbot: Moltbot references found in code — moltbot/ directory (5 .py files), scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py (Clawdbot stub comments)"
+  ],
   "slack_sent": false
 }
