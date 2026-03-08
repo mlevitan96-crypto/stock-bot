@@ -27,7 +27,8 @@ All paths resolved against `_DASHBOARD_ROOT` (dashboard.py directory). No engine
 | `/api/xai/auditor` | `data/explainable_logs.jsonl`, `logs/attribution.jsonl` | Max 10k lines attr |
 | `/api/xai/health` | `data/explainable_logs.jsonl` | Tail 500 |
 | `/api/xai/export` | `data/explainable_logs.jsonl` | Full file |
-| `/api/executive_summary` | `executive_summary_generator` → `logs/attribution.jsonl`, `logs/master_trade_log.jsonl` | Timeframe query |
+| `/api/executive_summary` | `executive_summary_generator` → `logs/attribution.jsonl`, `logs/master_trade_log.jsonl` | Timeframe query; when 5d: includes `rolling_5d_points` from `reports/state/rolling_pnl_5d.jsonl` |
+| `/api/rolling_pnl_5d` | `reports/state/rolling_pnl_5d.jsonl` | 5-day rolling PnL series (no smoothing) |
 | `/api/health_status` | Alpaca API, `data/live_orders.jsonl`, `logs/orders.jsonl`, `logs/trading.jsonl`, `state/bot_heartbeat.json` | Last order + heartbeat |
 | `/api/scores/distribution` | `telemetry.score_telemetry` | Lookback param |
 | `/api/scores/components` | `telemetry.score_telemetry` | Lookback param |

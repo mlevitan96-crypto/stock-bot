@@ -37,6 +37,9 @@ WEIGHTS_STATE_FILE = STATE_DIR / "signal_weights.json"
 SUPPORTED_TIMEFRAMES = {"24h", "48h", "7d", "2d", "5d"}
 DEFAULT_TIMEFRAME = "24h"
 
+# Rolling 5d state (append-only; used when window == "5d")
+ROLLING_PNL_5D_PATH = (_REPO_ROOT / "reports" / "state" / "rolling_pnl_5d.jsonl").resolve()
+
 
 def get_all_trades(lookback_days: int = 30) -> List[Dict[str, Any]]:
     """Get all trades from canonical attribution log (config.registry LogFiles.ATTRIBUTION)."""
@@ -474,12 +477,32 @@ def generate_written_summary(trades: List[Dict[str, Any]], pnl_metrics: Dict[str
     return "\n".join(summary_parts)
 
 
+def load_rolling_pnl_5d_points() -> List[Dict[str, Any]]:
+    """Load 5-day rolling line points from canonical state file. Empty if missing (fallback to recompute)."""
+    points = []
+    if not ROLLING_PNL_5D_PATH.exists():
+        return points
+    try:
+        for line in ROLLING_PNL_5D_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            points.append(json.loads(line))
+    except Exception:
+        return []
+    return points
+
+
 def generate_executive_summary(timeframe: str = DEFAULT_TIMEFRAME) -> Dict[str, Any]:
     """Generate complete executive summary. timeframe: 24h, 48h, 7d, 2d, or 5d (Performance window)."""
     if timeframe not in SUPPORTED_TIMEFRAMES:
         timeframe = DEFAULT_TIMEFRAME
     trades = get_all_trades(lookback_days=30)
     pnl_metrics = calculate_pnl_metrics(trades, timeframe=timeframe)
+    # When 5d: prefer rolling state for line; include points for dashboard chart (fallback: empty)
+    rolling_5d_points: List[Dict[str, Any]] = []
+    if timeframe == "5d":
+        rolling_5d_points = load_rolling_pnl_5d_points()
     
     # Analyze signal performance
     signal_analysis = analyze_signal_performance(trades)
@@ -529,7 +552,7 @@ def generate_executive_summary(timeframe: str = DEFAULT_TIMEFRAME) -> Dict[str, 
                             if exit_time.tzinfo is None:
                                 exit_time = exit_time.replace(tzinfo=timezone.utc)
                         
-                        entry_ts_str = context.get("entry_ts") or metadata.get("entry_ts", "")
+                        entry_ts_str = context.get("entry_ts") or (context.get("metadata") or {}).get("entry_ts", "") or ""
                         if entry_ts_str:
                             if isinstance(entry_ts_str, (int, float)):
                                 entry_time = datetime.fromtimestamp(entry_ts_str, tz=timezone.utc)
@@ -566,15 +589,19 @@ def generate_executive_summary(timeframe: str = DEFAULT_TIMEFRAME) -> Dict[str, 
         except Exception:
             continue  # Skip malformed trades
     
-    return {
+    out = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "trades": formatted_trades,
         "total_trades": len(closed_trades_for_display),
         "pnl_metrics": pnl_metrics,
         "signal_analysis": signal_analysis,
         "learning_insights": learning_insights,
-        "written_summary": written_summary
+        "written_summary": written_summary,
     }
+    if timeframe == "5d":
+        out["rolling_5d_points"] = rolling_5d_points
+        out["window"] = "5d"
+    return out
 
 
 if __name__ == "__main__":
