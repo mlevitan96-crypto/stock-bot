@@ -1,19 +1,21 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-08T02:53:38.473Z",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
-    "no_deprecated_dirs": "pass",
+    "no_deprecated_dirs": "fail",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
-  "slack_sent": false
+  "details": [
+    "repo_structure: Missing expected top-level directory: memory_bank/ (expected by EXPECTED_TOP_LEVEL set in governance spec)",
+    "governance_contracts_present: memory_bank/ directory does not exist; required by governance contract check",
+    "no_deprecated_dirs: moltbot/ directory still present (deprecated naming per reports/audit/MEMORYBANK_CLEANUP_CHANGELOG.md — product names Moltbot/Clawdbot/OpenClaw deprecated; file paths retained as legacy identifiers)"
+  ],
+  "slack_sent": false,
+  "github_issue_update": "skipped — gh CLI lacks write permission; existing open issue #194 covers these anomalies"
 }
