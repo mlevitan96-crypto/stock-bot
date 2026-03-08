@@ -16,7 +16,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AUDIT_DIR = REPO_ROOT / "reports" / "audit"
 OUTPUT_FILE = AUDIT_DIR / "GOVERNANCE_AUTOMATION_STATUS.json"
 
-EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "memory_bank", "docs", "validation", ".cursor"}
+EXPECTED_TOP_LEVEL = {"src", "scripts", "reports", "docs", "validation", ".cursor"}
+# memory_bank/ is not a directory in this repo; MEMORY_BANK.md at root is the canonical form
+MEMORY_BANK_FILE = "MEMORY_BANK.md"
 FORBIDDEN_PATTERNS = re.compile(
     r"clawdbot|moltbot|CLAWDBOT_|MOLTBOT_",
     re.IGNORECASE,
@@ -32,6 +34,13 @@ def check_repo_structure() -> tuple[str, list[str]]:
     missing = EXPECTED_TOP_LEVEL - top
     if missing:
         return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
+    if not (REPO_ROOT / MEMORY_BANK_FILE).is_file():
+        return "fail", [f"{MEMORY_BANK_FILE} missing at repo root"]
+    for sub in ["reports/audit", "reports/board"]:
+        if not (REPO_ROOT / sub.replace("/", os.sep)).is_dir():
+            details.append(f"Missing subdir: {sub}")
+    if details:
+        return "fail", details
     return "pass", details
 
 
@@ -45,11 +54,20 @@ def check_config_drift() -> tuple[str, list[str]]:
 
 
 def check_governance_contracts() -> tuple[str, list[str]]:
-    """memory_bank, .cursor/automations, reports/audit and reports/board."""
+    """MEMORY_BANK.md, .cursor/automations, reports/audit, and reports/board."""
     details = []
-    for path in ["memory_bank", ".cursor/automations", "reports/audit", "reports/board"]:
-        if not (REPO_ROOT / path.replace("/", os.sep)).exists():
+    if not (REPO_ROOT / MEMORY_BANK_FILE).is_file():
+        details.append(f"Missing: {MEMORY_BANK_FILE}")
+    for path in [".cursor/automations", "reports/audit", "reports/board"]:
+        if not (REPO_ROOT / path.replace("/", os.sep)).is_dir():
             details.append(f"Missing: {path}")
+    automations_dir = REPO_ROOT / ".cursor" / "automations"
+    if automations_dir.is_dir():
+        if not (automations_dir / "README.md").is_file():
+            details.append("Missing: .cursor/automations/README.md")
+        specs = [f for f in automations_dir.iterdir() if f.suffix in (".yaml", ".yml", ".ts")]
+        if not specs:
+            details.append("No automation specs found in .cursor/automations/")
     if details:
         return "fail", details
     return "pass", details
@@ -63,7 +81,14 @@ def check_required_artifacts() -> tuple[str, list[str]]:
 
 
 def check_no_deprecated_dirs() -> tuple[str, list[str]]:
-    """No reintroduced deprecated roots; no strict list in repo, pass by default."""
+    """Check for known deprecated top-level directories that should not be reintroduced."""
+    details = []
+    deprecated_dirs = ["clawdbot", ".clawdbot", "openclaw"]
+    for d in deprecated_dirs:
+        if (REPO_ROOT / d).is_dir():
+            details.append(f"Deprecated directory reintroduced: {d}/")
+    if details:
+        return "fail", details
     return "pass", []
 
 
