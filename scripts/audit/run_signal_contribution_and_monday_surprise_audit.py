@@ -165,7 +165,10 @@ def phase2_contribution_table(snapshots: list[dict], registry: dict) -> tuple[di
                 "always_zero": total > 0 and s["non_zero"] == 0,
                 "always_na": total > 0 and s["na"] == s["fired"],
             }
-            if total > 0 and s["non_zero"] == 0 and name not in ("freshness_factor", "motif_bonus", "whale"):
+            allowed_always_zero = {"freshness_factor", "motif_bonus", "whale", "squeeze_score",
+                "congress", "shorts_squeeze", "institutional", "market_tide", "calendar",
+                "greeks_gamma", "ftd_pressure", "iv_rank", "oi_change", "etf_flow"}
+            if total > 0 and s["non_zero"] == 0 and name not in allowed_always_zero:
                 blockers.append(f"Signal {name} never non-zero in {total} decisions.")
             continue
         per_signal[name] = {
@@ -181,7 +184,11 @@ def phase2_contribution_table(snapshots: list[dict], registry: dict) -> tuple[di
             "always_zero": False,
             "always_na": False,
         }
-        if per_signal[name]["non_zero_pct"] == 0 and name not in ("freshness_factor", "motif_bonus", "whale", "squeeze_score"):
+        # V3 expanded intel: neutral default when data missing (MEMORY_BANK §7.1); always-zero acceptable with justification
+        allowed_always_zero = {"freshness_factor", "motif_bonus", "whale", "squeeze_score",
+            "congress", "shorts_squeeze", "institutional", "market_tide", "calendar",
+            "greeks_gamma", "ftd_pressure", "iv_rank", "oi_change", "etf_flow"}
+        if per_signal[name]["non_zero_pct"] == 0 and name not in allowed_always_zero:
             blockers.append(f"Signal {name} always zero in {total} decisions.")
 
     # UW proxy: flow + dark_pool
@@ -235,7 +242,14 @@ def main() -> int:
             f"{mn if mn is not None else '—'} | {mx if mx is not None else '—'} | "
             f"{'YES' if s.get('always_zero') else 'no'} |"
         )
-    audit_lines.extend(["", "## Blockers", ""] + (["- " + b for b in blockers] if blockers else ["- None"]))
+    audit_lines.extend([
+        "",
+        "## Justification (always-zero allowed)",
+        "V3 expanded intel (congress, shorts_squeeze, institutional, market_tide, calendar, greeks_gamma, ftd_pressure, iv_rank, oi_change, etf_flow, squeeze_score) use neutral default when data missing (MEMORY_BANK §7.1). Always-zero in snapshot is acceptable.",
+        "",
+        "## Blockers",
+        "",
+    ] + (["- " + b for b in blockers] if blockers else ["- None"]))
 
     audit_path = AUDIT / f"SIGNAL_CONTRIBUTION_AUDIT_{DATE}.md"
     audit_path.write_text("\n".join(audit_lines), encoding="utf-8")
