@@ -1,19 +1,19 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
-  "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "run_ts_utc": "2026-03-09T18:54:20.000000+00:00",
+  "branch": "cursor/governance-integrity-validation-384a",
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: memory_bank/ directory missing from expected top-level directories (MEMORY_BANK.md exists at root as a file, but no memory_bank/ directory)",
+    "governance_contracts_present: memory_bank/ directory does not exist; cannot verify key docs within it. MEMORY_BANK.md is present at repo root as an alternative."
+  ],
   "slack_sent": false
 }
