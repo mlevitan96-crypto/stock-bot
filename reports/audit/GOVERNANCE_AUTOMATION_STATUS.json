@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "run_ts_utc": "2026-03-09T03:30:01+00:00",
+  "run_ts_utc": "2026-03-09T21:55:40.658470+00:00",
   "branch": "main",
   "anomalies_detected": true,
   "checks": {
@@ -12,7 +12,7 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [
-    "repo_structure: Missing expected top-level directory 'memory_bank/' — MEMORY_BANK.md exists at root but no memory_bank/ directory. This has been the case since repo inception; the governance check expectation should be updated.",
+    "repo_structure: Missing expected top-level directory 'memory_bank/' — MEMORY_BANK.md exists at root but no memory_bank/ directory.",
     "governance_contracts_present: memory_bank/ directory not found. MEMORY_BANK.md at root serves this role. .cursor/automations/ (with README + specs), reports/audit/, and reports/board/ all present."
   ],
   "slack_sent": false
