@@ -1,25 +1,16 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-09T15:23:31.217184+00:00",
-  "run_ts_utc": "2026-03-09T15:23:31.217221+00:00",
-  "branch": "main",
-  "status": "anomalies",
-  "anomalies_detected": true,
+  "run_ts_utc": "2026-03-09T15:25:44.542641+00:00",
+  "branch": "cursor/governance-integrity-validation-54df",
+  "anomalies_detected": false,
   "checks": {
-    "repo_structure": "fail",
+    "repo_structure": "pass",
     "config_drift": "pass",
-    "governance_contracts_present": "fail",
+    "governance_contracts_present": "pass",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [
-    "Missing expected top-level dirs: ['memory_bank']",
-    "Missing: memory_bank"
-  ],
-  "anomalies": [
-    "Missing expected top-level dirs: ['memory_bank']",
-    "Missing: memory_bank"
-  ],
+  "details": [],
   "slack_sent": false
 }
