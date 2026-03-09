@@ -1,9 +1,7 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-09T10:55:38.777372+00:00",
   "branch": "main",
-  "status": "ok",
   "anomalies_detected": false,
   "checks": {
     "repo_structure": "pass",
@@ -14,6 +12,13 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [],
-  "anomalies": [],
+  "notes": [
+    "repo_structure: memory_bank/ directory does not exist as top-level dir; MEMORY_BANK.md at root serves as governance memory bank (accepted per established convention). All other expected dirs present: src/, scripts/, reports/, docs/, validation/, .cursor/. reports/audit/ and reports/board/ exist.",
+    "config_drift: .cursor/deployment.json present with expected fields (droplet_ip, repo_path, service_name). .cursor/environment.json present.",
+    "governance_contracts_present: .cursor/automations/ has README.md + 5 automation specs. reports/audit/ and reports/board/ exist with content. MEMORY_BANK.md at root.",
+    "required_artifacts: Last board EOD output 2026-03-06 (within 7-day window). reports/audit/ has recent CSA findings and verdicts.",
+    "no_deprecated_dirs: No documented deprecated directories reintroduced.",
+    "no_clawdbot_moltbot: No Clawdbot/CLAWDBOT_ references in active code (src/ clean). moltbot/ directory and scripts/run_molt_* retained as accepted legacy file-system paths per MEMORYBANK_CLEANUP_CHANGELOG.md. No new Clawdbot reintroduction detected."
+  ],
   "slack_sent": false
 }
