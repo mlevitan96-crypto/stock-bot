@@ -1,9 +1,7 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-09T14:23:24Z",
   "branch": "main",
-  "status": "ok",
   "anomalies_detected": false,
   "checks": {
     "repo_structure": "pass",
@@ -13,7 +11,13 @@
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: src/, scripts/, reports/, docs/, validation/, .cursor/ present. reports/audit/ and reports/board/ present. memory_bank/ directory absent; MEMORY_BANK.md at root serves governance role (documented, consistent with prior runs).",
+    "config_drift: .cursor/deployment.json and .cursor/environment.json present with expected content.",
+    "governance_contracts_present: .cursor/automations/ exists with README.md and specs. reports/audit/ and reports/board/ exist.",
+    "required_artifacts: board/eod/out/2026-03-06/ and reports/board/WEEKLY_REVIEW_2026-03-06_*.md present within 7-day window.",
+    "no_deprecated_dirs: clawdbot/ and openclaw/ directories do not exist.",
+    "no_clawdbot_moltbot: No CLAWDBOT_/MOLTBOT_ env vars in code. moltbot/ dir and molt scripts are documented retained file-system identifiers per MEMORYBANK_CLEANUP_CHANGELOG (not reintroduced)."
+  ],
   "slack_sent": false
 }
