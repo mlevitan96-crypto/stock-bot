@@ -137,6 +137,18 @@ def phase1_portfolio_curve(base: Path, date_str: str) -> dict:
     }
 
 
+def _normalize_trade_id(tid: str) -> str:
+    """Canonical form for join: open_SYM_ISO with Z suffix."""
+    if not tid or not tid.startswith("open_"):
+        return tid or ""
+    parts = tid.split("_", 2)
+    if len(parts) < 3:
+        return tid
+    sym, iso = parts[1], parts[2]
+    iso = str(iso).replace("+00:00", "Z").replace(" ", "T")[:26].rstrip("Z") + "Z"
+    return f"open_{sym}_{iso}"
+
+
 def _trade_id_from_attribution(r: dict) -> str | None:
     tid = r.get("trade_id")
     if tid:
@@ -171,7 +183,8 @@ def phase2_exit_lag(base: Path, date_str: str) -> dict:
             if not trade_id:
                 continue
             rec["_ts"] = t
-            trade_samples[trade_id].append(rec)
+            key = _normalize_trade_id(trade_id)
+            trade_samples[key].append(rec)
         except Exception:
             continue
     for tid in trade_samples:
@@ -186,7 +199,8 @@ def phase2_exit_lag(base: Path, date_str: str) -> dict:
         trade_id = _trade_id_from_attribution(ex)
         if not trade_id:
             continue
-        samples = trade_samples.get(trade_id, [])
+        lookup_key = _normalize_trade_id(trade_id)
+        samples = trade_samples.get(lookup_key, [])
         ts_exit = _parse_ts(ex.get("timestamp") or ex.get("exit_timestamp"))
         realized_pnl = float(ex.get("pnl_usd") or ex.get("pnl") or 0)
         if not samples:
