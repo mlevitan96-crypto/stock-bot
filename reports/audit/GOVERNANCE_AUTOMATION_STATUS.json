@@ -1,19 +1,19 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-09T08:00:01Z",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: missing expected top-level directory 'memory_bank/' — MEMORY_BANK.md exists at root per documented cleanup (CSA_RISK_ACCEPTANCE_memorybank_cleanup.md, 2026-03-05). All other expected dirs present: src/, scripts/, reports/, docs/, validation/, .cursor/. reports/audit/ and reports/board/ exist.",
+    "governance_contracts_present: 'memory_bank/' directory not found; governance content lives in root-level MEMORY_BANK.md (1847 lines). .cursor/automations/ exists with README + 5 spec pairs. reports/audit/ and reports/board/ both present with content."
+  ],
   "slack_sent": false
 }
