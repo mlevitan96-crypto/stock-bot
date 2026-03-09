@@ -32,6 +32,20 @@ def main() -> int:
             names.append(line.split("PROOF written:")[-1].strip())
         elif "VERDICT written:" in line:
             names.append(line.split("VERDICT written:")[-1].strip())
+    # Fallback: if stdout wasn't captured, discover latest proof and verdict on droplet
+    if not names:
+        proof_out, _, _ = client._execute_with_cd(
+            "ls reports/audit/EXIT_TRACE_WRITE_PROOF_*.md 2>/dev/null | tail -1",
+            timeout=10,
+        )
+        verdict_out, _, _ = client._execute_with_cd(
+            "ls reports/audit/CSA_EXIT_TRACE_WRITE_VERDICT_*.json 2>/dev/null | tail -1",
+            timeout=10,
+        )
+        for raw in (proof_out, verdict_out):
+            line = (raw or "").strip().splitlines()[-1].strip() if raw else ""
+            if line:
+                names.append(Path(line).name)
     for remote in names:
         if not remote:
             continue
