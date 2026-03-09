@@ -1,0 +1,127 @@
+{
+  "date": "2026-03-09",
+  "pairs": [
+    {
+      "a": "HOOD",
+      "b": "INTC",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "SOFI",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "AMD",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "TSLA",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "NVDA",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "XLV",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "PLTR",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "BAC",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "LCID",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "F",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "HOOD",
+      "b": "CAT",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "SOFI",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "AMD",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "TSLA",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "NVDA",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "XLV",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "PLTR",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "BAC",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "LCID",
+      "corr": 1.0,
+      "n": 9
+    },
+    {
+      "a": "INTC",
+      "b": "F",
+      "corr": 1.0,
+      "n": 9
+    }
+  ],
+  "concentration_risk_score": 10.0,
+  "message": ""
+}
