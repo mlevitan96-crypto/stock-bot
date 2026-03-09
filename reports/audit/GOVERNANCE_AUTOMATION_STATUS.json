@@ -1,19 +1,20 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
-  "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "run_ts_utc": "2026-03-09T17:13:56+00:00",
+  "branch": "cursor/governance-integrity-validation-76d9",
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: memory_bank/ directory does not exist. MEMORY_BANK.md exists as a top-level file but not as a directory. Expected top-level dirs: src, scripts, reports, memory_bank, docs, validation, .cursor.",
+    "governance_contracts_present: memory_bank/ path missing. MEMORY_BANK.md file exists and serves the memory bank function, but the directory expected by the governance contract does not exist.",
+    "advisory: moltbot/ directory and scripts/run_molt_*.py still present in repo. MEMORYBANK_CLEANUP_DEPLOY_PROOF.md claims all Moltbot references removed, but moltbot/ code files persist. The no_clawdbot_moltbot check passes because existing legacy paths are excluded from reintroduction scanning."
+  ],
   "slack_sent": false
 }
