@@ -23,7 +23,7 @@ STAMP = f"{DATE}_{TIME}"
 PROOF_MD = AUDIT / f"EXIT_TRACE_WRITE_PROOF_{STAMP}.md"
 VERDICT_JSON = AUDIT / f"CSA_EXIT_TRACE_WRITE_VERDICT_{STAMP}.json"
 MAX_AGE_SEC = 300  # 5 min
-WAIT_SEC = 70  # allow one sample interval + buffer
+WAIT_SEC = 130  # allow two sample intervals so trace buffer can flush (10+ samples)
 
 
 def _read_jsonl(path: Path, tail_n: int = 0) -> list:
@@ -84,6 +84,9 @@ def main() -> int:
         verdict["required_fixes"] = ["write_health file missing; deploy trace writer with write-health instrumentation"]
         PROOF_MD.write_text("\n".join(proof_lines), encoding="utf-8")
         VERDICT_JSON.write_text(json.dumps(verdict, indent=2), encoding="utf-8")
+        print("PROOF written:", PROOF_MD.name)
+        print("VERDICT written:", VERDICT_JSON.name)
+        print("VERDICT:", verdict["verdict"])
         return 1
 
     verdict["health_exists"] = True
@@ -139,7 +142,7 @@ def main() -> int:
         verdict["required_fixes"] = verdict.get("required_fixes", []) + ["At least one write failed; inspect exit_trace_write_health.jsonl for error_type/error_msg"]
     if recent == 0 and trace_exists and trace_size > 0:
         proof_lines.append("**WARN:** No health records in last 5 min but trace exists; health may not be updating (e.g. no open positions or sampling skipped).")
-    if health_exists and written_true > 0 and written_false == 0:
+    if verdict["health_exists"] and written_true > 0 and written_false == 0:
         verdict["verdict"] = "EXIT_TRACE_WRITE_HEALTH_PROVEN"
         verdict["confidence"] = 0.9
         proof_lines.append("## CSA verdict")
