@@ -1,19 +1,20 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-09T13:04:07.946+00:00",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
-    "no_deprecated_dirs": "pass",
+    "no_deprecated_dirs": "fail",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: memory_bank/ directory missing at top-level (MEMORY_BANK.md exists as file at root, but no memory_bank/ directory found; never existed in git history)",
+    "governance_contracts_present: memory_bank path does not exist (same root cause as repo_structure check)",
+    "no_deprecated_dirs: moltbot/ directory still present at root with active Python files (sentinel.py, board.py, orchestrator.py, etc.)"
+  ],
   "slack_sent": false
 }
