@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "generated_ts": "2026-03-09T00:00:00Z",
+  "description": "Canonical registry of all signals with sub-fields, units, and entry/exit usage. FAIL CLOSED: any enabled signal contributing to exits must be logged.",
+  "signals": [
+    {
+      "signal_name": "UW",
+      "sub_fields": ["flow", "dark_pool", "imbalance", "velocity", "confidence"],
+      "units": "flow/confidence 0-1; dark_pool -1 to 1; imbalance/velocity numeric",
+      "expected_range": "flow [0,1], dark_pool [-1,1], confidence [0,1]",
+      "used_in_entry": true,
+      "used_in_exit": true,
+      "source": "uw_enrichment_v2 + uw_composite_v2 v2_uw_inputs",
+      "exit_decision_trace_key": "signals.UW"
+    },
+    {
+      "signal_name": "UW_flow",
+      "sub_fields": ["flow_strength", "conviction", "sentiment", "flow_component"],
+      "units": "flow_strength 0-1; sentiment BULLISH|BEARISH|NEUTRAL",
+      "expected_range": "[0,1]; used for flow_reversal exit",
+      "used_in_entry": true,
+      "used_in_exit": true,
+      "source": "enriched conviction/sentiment; v2_uw_inputs.flow_strength",
+      "exit_decision_trace_key": "signals.UW.flow"
+    },
+    {
+      "signal_name": "UW_dark_pool",
+      "sub_fields": ["darkpool_bias", "total_notional", "total_premium", "sentiment"],
+      "units": "bias -1 to 1; notional USD",
+      "expected_range": "darkpool_bias [-1,1]",
+      "used_in_entry": true,
+      "used_in_exit": true,
+      "source": "uw_composite_v2 uw_adj.darkpool_bias; enriched dark_pool",
+      "exit_decision_trace_key": "signals.UW.dark_pool"
+    },
+    {
+      "signal_name": "UW_imbalance",
+      "sub_fields": ["put_call_skew", "net_premium"],
+      "units": "skew ratio; premium USD",
+      "expected_range": "numeric",
+      "used_in_entry": false,
+      "used_in_exit": false,
+      "source": "enriched; optional in composite",
+      "exit_decision_trace_key": "signals.UW.imbalance"
+    },
+    {
+      "signal_name": "UW_velocity",
+      "sub_fields": ["flow_velocity", "change_rate"],
+      "units": "rate of change (best-effort)",
+      "expected_range": "numeric",
+      "used_in_entry": false,
+      "used_in_exit": false,
+      "source": "optional / derived",
+      "exit_decision_trace_key": "signals.UW.velocity"
+    },
+    {
+      "signal_name": "UW_confidence",
+      "sub_fields": ["conviction", "flow_strength"],
+      "units": "0-1",
+      "expected_range": "[0,1]",
+      "used_in_entry": true,
+      "used_in_exit": true,
+      "source": "enriched conviction; v2_uw_inputs.flow_strength",
+      "exit_decision_trace_key": "signals.UW.confidence"
+    },
+    {
+      "signal_name": "momentum",
+      "sub_fields": ["momentum_reversal", "momentum_magnitude"],
+      "units": "numeric; reversal bool",
+      "expected_range": "e.g. [-1,1] for magnitude",
+      "used_in_entry": false,
+      "used_in_exit": true,
+      "source": "adaptive_signal_optimizer ExitSignalModel; exit urgency",
+      "exit_decision_trace_key": "signals.momentum"
+    },
+    {
+      "signal_name": "volatility",
+      "sub_fields": ["realized_vol_20d", "realized_vol_5d", "beta_vs_spy"],
+      "units": "annualized vol; beta dimensionless",
+      "expected_range": "vol > 0; beta typically [-2,2]",
+      "used_in_entry": false,
+      "used_in_exit": true,
+      "source": "symbol_risk_features; v2_inputs; stops_v2/profit_targets_v2",
+      "exit_decision_trace_key": "signals.volatility"
+    },
+    {
+      "signal_name": "trend",
+      "sub_fields": ["regime_label", "sector", "market_regime"],
+      "units": "categorical",
+      "expected_range": "NEUTRAL, RISK_ON, RISK_OFF, etc.",
+      "used_in_entry": true,
+      "used_in_exit": true,
+      "source": "regime_detector; v2_uw_regime_profile; exit_score_v2",
+      "exit_decision_trace_key": "signals.trend"
+    },
+    {
+      "signal_name": "composite_score",
+      "sub_fields": ["score", "score_deterioration"],
+      "units": "normalized score (clamped)",
+      "expected_range": "typically [0, 8] or clamped",
+      "used_in_entry": true,
+      "used_in_exit": true,
+      "source": "uw_composite_v2 compute_composite_score_v2/v3",
+      "exit_decision_trace_key": "composite_score, signal_decay"
+    },
+    {
+      "signal_name": "signal_decay",
+      "sub_fields": ["ratio_current_entry"],
+      "units": "ratio",
+      "expected_range": "[0,1]",
+      "used_in_entry": false,
+      "used_in_exit": true,
+      "source": "current_composite_score / entry_score",
+      "exit_decision_trace_key": "signal_decay, exit_conditions.signal_decay"
+    },
+    {
+      "signal_name": "flow_reversal",
+      "sub_fields": ["sentiment_vs_direction"],
+      "units": "boolean",
+      "expected_range": "true/false",
+      "used_in_entry": false,
+      "used_in_exit": true,
+      "source": "LONG+BEARISH or SHORT+BULLISH",
+      "exit_decision_trace_key": "exit_conditions.flow_reversal"
+    },
+    {
+      "signal_name": "stale_alpha",
+      "sub_fields": ["hold_minutes", "TIME_EXIT_MINUTES"],
+      "units": "minutes",
+      "expected_range": "age >= threshold",
+      "used_in_entry": false,
+      "used_in_exit": true,
+      "source": "time-based exit; age_min >= TIME_EXIT_MINUTES",
+      "exit_decision_trace_key": "exit_conditions.stale_alpha"
+    },
+    {
+      "signal_name": "risk_stop",
+      "sub_fields": ["stop_price", "drawdown_pct", "trailing_stop"],
+      "units": "price; pct",
+      "expected_range": "numeric",
+      "used_in_entry": false,
+      "used_in_exit": true,
+      "source": "stops_v2 compute_stop_price; drawdown from high_water",
+      "exit_decision_trace_key": "exit_conditions.risk_stop"
+    }
+  ],
+  "fail_closed_rules": [
+    "Any enabled signal used in exit MUST appear in exit_decision_trace or exit_conditions.",
+    "UW must be fully exploded: flow, dark_pool, imbalance, velocity, confidence.",
+    "Signals contributing to exits without being logged MUST be added to trace or registry."
+  ]
+}
