@@ -140,7 +140,7 @@ def main() -> int:
     TRACE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     proof_lines = [f"# Exit Trace LIVE PROOF — {STAMP}", "", f"**Generated:** {NOW.isoformat()}", ""]
-    verdict = {"verdict": "EXIT_TRACE_BLOCKED", "confidence": 0.0, "required_fixes": [], "exit_learning_allowed": False,
+    verdict = {"verdict": "EXIT_TRACE_INCOMPLETE", "confidence": 0.0, "required_fixes": [], "exit_learning_allowed": False,
                "stamp": STAMP, "phase0": {}, "phase1": {}, "phase2": {}, "phase3": [], "phase4": {}}
 
     # Phase 0
@@ -277,13 +277,14 @@ def main() -> int:
         verdict["phase4"]["values_vary_across_samples"] = varying
         proof_lines.append(f"- Values vary across samples: {'yes' if varying else 'no (single sample or static)'}")
         proof_lines.append("")
-        if not varying and sum(len(v) for v in by_trade.values()) < 2:
-            pass  # single sample is acceptable for proof
-        elif not varying and sum(len(v) for v in by_trade.values()) >= 2:
-            verdict["required_fixes"].append("Trace may be static; confirm sampling interval in production")
+        # Fail closed only when we have 2+ samples for same trade and they are identical (static)
+        multi_sample_trades = [tid for tid, arr in by_trade.items() if len(arr) >= 2]
+        if multi_sample_trades and not varying:
+            verdict["required_fixes"].append("Trace may be static (same trade_id has multiple identical samples); confirm sampling interval")
+        # else: single sample per trade in window is acceptable; trace is emitting and complete
 
-    # Phase 5 — verdict
-    if verdict["verdict"] != "EXIT_TRACE_INCOMPLETE" and verdict["verdict"] != "EXIT_TRACE_BLOCKED":
+    # Phase 5 — verdict: PROVEN if trace exists, recent, and all samples valid
+    if verdict["verdict"] != "EXIT_TRACE_BLOCKED" and all_valid and recent > 0:
         verdict["verdict"] = "EXIT_TRACE_PROVEN"
         verdict["confidence"] = 0.9
         verdict["exit_learning_allowed"] = True
