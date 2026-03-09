@@ -1,0 +1,244 @@
+{
+  "date": "2026-03-09",
+  "chronic_losers": [
+    {
+      "symbol": "AMD",
+      "pnl_contribution_usd": -16.86,
+      "trade_count": 110,
+      "win_rate": 0.4273,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "F",
+      "pnl_contribution_usd": -36.02,
+      "trade_count": 85,
+      "win_rate": 0.1059,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "HOOD",
+      "pnl_contribution_usd": -22.05,
+      "trade_count": 97,
+      "win_rate": 0.3196,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "LCID",
+      "pnl_contribution_usd": -42.4,
+      "trade_count": 90,
+      "win_rate": 0.3111,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "RIVN",
+      "pnl_contribution_usd": -11.59,
+      "trade_count": 97,
+      "win_rate": 0.3093,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "SOFI",
+      "pnl_contribution_usd": -18.85,
+      "trade_count": 76,
+      "win_rate": 0.3816,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "GOOGL",
+      "pnl_contribution_usd": -12.03,
+      "trade_count": 82,
+      "win_rate": 0.3049,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "UNH",
+      "pnl_contribution_usd": -26.58,
+      "trade_count": 81,
+      "win_rate": 0.2469,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "QQQ",
+      "pnl_contribution_usd": -27.76,
+      "trade_count": 25,
+      "win_rate": 0.12,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "SLB",
+      "pnl_contribution_usd": -21.96,
+      "trade_count": 88,
+      "win_rate": 0.2386,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "MRNA",
+      "pnl_contribution_usd": -53.36,
+      "trade_count": 114,
+      "win_rate": 0.3333,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "MS",
+      "pnl_contribution_usd": -16.61,
+      "trade_count": 68,
+      "win_rate": 0.3971,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "TSLA",
+      "pnl_contribution_usd": -19.92,
+      "trade_count": 93,
+      "win_rate": 0.3656,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "COP",
+      "pnl_contribution_usd": -11.49,
+      "trade_count": 95,
+      "win_rate": 0.2737,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "BA",
+      "pnl_contribution_usd": -26.06,
+      "trade_count": 40,
+      "win_rate": 0.25,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "NIO",
+      "pnl_contribution_usd": -46.41,
+      "trade_count": 82,
+      "win_rate": 0.2073,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "INTC",
+      "pnl_contribution_usd": -48.4,
+      "trade_count": 108,
+      "win_rate": 0.3148,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    }
+  ],
+  "consistent_winners": [
+    {
+      "symbol": "PLTR",
+      "pnl_contribution_usd": 11.9,
+      "trade_count": 84,
+      "win_rate": 0.4643,
+      "action": "boost_strong",
+      "score_boost": 0.5
+    }
+  ],
+  "decay_penalties": [],
+  "adjustments": [
+    {
+      "symbol": "AMD",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "F",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "HOOD",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "LCID",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "RIVN",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "SOFI",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "GOOGL",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "UNH",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "QQQ",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "SLB",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "MRNA",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "MS",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "TSLA",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "COP",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "BA",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "NIO",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "INTC",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "PLTR",
+      "action": "boost_strong",
+      "score_boost": 0.5
+    }
+  ]
+}
