@@ -75,3 +75,11 @@ Regime/sector or trend label (string) or numeric proxy.
 - **Sampling:** At most one record per `trade_id` per `EXIT_TRACE_SAMPLE_INTERVAL_SEC` seconds (default 60).
 - **Pruning:** On append, optionally prune lines with `ts` older than 7 days (configurable).
 - **Fail-open:** If write fails, trading continues; no exception propagates.
+
+---
+
+## Write-health telemetry (fail-detection)
+
+**Path:** `reports/state/exit_trace_write_health.jsonl`
+
+One record per trace write attempt (per flush): `ts`, `trade_id` (first in batch), `attempted`, `written` (true/false), `error_type`, `error_msg` (truncated). Append-only; 7-day retention. Ensures no silent trace write failures: every attempt is recorded; `written=false` is immediately observable and CSA-auditable.
