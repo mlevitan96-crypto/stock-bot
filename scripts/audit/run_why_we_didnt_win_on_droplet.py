@@ -34,7 +34,7 @@ def main() -> int:
     out_pull, err_pull, rc_pull = client._execute_with_cd("git pull origin main", timeout=30)
     print("git pull:", out_pull or err_pull or "ok")
 
-    cmd = f"python3 scripts/audit/run_why_we_didnt_win_forensic.py --date {date_str}"
+    cmd = f"python3 scripts/audit/run_why_we_didnt_win_forensic.py --date {date_str} --fail-if-no-trace-above 0.20"
     out, err, rc = client._execute_with_cd(cmd, timeout=300)
     print("--- Why we didn't win forensic ---")
     print(out or "")
@@ -51,6 +51,7 @@ def main() -> int:
         (AUDIT, f"INTRADAY_PORTFOLIO_UNREALIZED_CURVE_{date_str}.json"),
         (AUDIT, f"INTRADAY_EXIT_LAG_AND_GIVEBACK_{date_str}.json"),
         (AUDIT, f"INTRADAY_BLOCKED_COUNTERFACTUALS_{date_str}.json"),
+        (AUDIT, f"INTRADAY_JOIN_DIAGNOSTICS_{date_str}.json"),
         (AUDIT, f"INTRADAY_FORENSIC_FULL_{date_str}.md"),
         (BOARD, f"INTRADAY_BOARD_PACKET_{date_str}.md"),
         (AUDIT, f"CSA_INTRADAY_VERDICT_{date_str}.json"),
