@@ -21,7 +21,7 @@ def main() -> int:
         return 1
     client = DropletClient()
     cmd = "python3 scripts/audit/run_exit_trace_write_proof_on_droplet.py"
-    out, err, rc = client._execute_with_cd(cmd, timeout=120)
+    out, err, rc = client._execute_with_cd(cmd, timeout=180)
     print(out or "")
     if err:
         print(err, file=sys.stderr)
