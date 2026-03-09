@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
-  "branch": "main",
+  "timestamp": "2026-03-09T19:22:20.149753+00:00",
+  "run_ts_utc": "2026-03-09T19:22:20.149786+00:00",
+  "branch": "cursor/governance-integrity-validation-25ae",
   "status": "ok",
   "anomalies_detected": false,
   "checks": {
