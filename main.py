@@ -6783,6 +6783,68 @@ class AlpacaExecutor:
                     "now_sector": now_sector,
                 }
 
+                # --- Exit decision trace (append-only, sampled, fail-open) ---
+                try:
+                    from src.exit.exit_decision_trace import append_exit_decision_trace
+                    entry_score_val = float(info.get("entry_score", 0.0) or 0.0)
+                    signal_decay_ratio = (float(current_composite_score or 0.0) / entry_score_val) if entry_score_val > 0 else 1.0
+                    signal_decay_ratio = max(0.0, min(1.0, signal_decay_ratio))
+                    exit_cond_signal_decay = signal_decay_ratio < 0.70
+                    time_exit_min = float(os.environ.get("TIME_EXIT_MINUTES", "240"))
+                    exit_cond_stale_alpha = age_min >= time_exit_min
+                    exit_cond_risk_stop = bool(stop_px and current_price <= float(stop_px)) or (float(high_water_pct or 0) - float(pnl_pct or 0) >= 3.5)
+                    exit_eligible_trace = float(v2_exit_score) >= 0.80
+                    entry_ts_obj = info.get("ts") or now
+                    entry_ts_iso = entry_ts_obj.strftime("%Y-%m-%dT%H:%M:%S.%f")[:23] + "Z" if hasattr(entry_ts_obj, "strftime") else str(entry_ts_obj)[:26]
+                    trade_id_trace = f"open_{str(symbol).upper()}_{entry_ts_iso}"
+                    unrealized_usd = 0.0
+                    if symbol in positions_index:
+                        try:
+                            unrealized_usd = float(getattr(positions_index[symbol], "unrealized_pl", 0))
+                        except Exception:
+                            pass
+                    if unrealized_usd == 0.0 and current_price and entry_price and symbol in positions_index:
+                        try:
+                            pos_t = positions_index[symbol]
+                            qty = float(getattr(pos_t, "qty", 0))
+                            unrealized_usd = (float(pnl_pct or 0) / 100.0) * abs(qty) * float(current_price)
+                        except Exception:
+                            pass
+                    uw_in = now_uw_inputs or {}
+                    v2_in = (current_v2_intel_snapshot or {}).get("v2_inputs") or {}
+                    signals_payload = {
+                        "UW": {
+                            "flow": float(uw_in.get("flow_strength", 0) or 0),
+                            "dark_pool": float(uw_in.get("darkpool_bias", 0) or 0),
+                            "imbalance": 0.0,
+                            "velocity": 0.0,
+                            "confidence": float(uw_in.get("flow_strength", 0) or 0),
+                        },
+                        "momentum": {},
+                        "volatility": {"realized_vol_20d": v2_in.get("realized_vol_20d"), "realized_vol_5d": v2_in.get("realized_vol_5d")},
+                        "trend": {"regime": now_reg_label, "sector": now_sector},
+                    }
+                    append_exit_decision_trace(
+                        trade_id=trade_id_trace,
+                        symbol=symbol,
+                        side=info.get("side", "buy"),
+                        unrealized_pnl=unrealized_usd,
+                        price=current_price,
+                        hold_minutes=age_min,
+                        composite_score=float(current_composite_score or 0.0),
+                        signal_decay=signal_decay_ratio,
+                        exit_eligible=exit_eligible_trace,
+                        exit_conditions={
+                            "signal_decay": exit_cond_signal_decay,
+                            "flow_reversal": bool(flow_reversal),
+                            "stale_alpha": exit_cond_stale_alpha,
+                            "risk_stop": exit_cond_risk_stop,
+                        },
+                        signals=signals_payload,
+                    )
+                except Exception as _trace_err:
+                    log_event("exit", "exit_decision_trace_failed", symbol=symbol, error=str(_trace_err))
+
                 # --- Exit pressure v3 (multi-factor primary trigger; config-gated) ---
                 if os.environ.get("EXIT_PRESSURE_ENABLED", "").strip().lower() in ("1", "true", "yes"):
                     try:
