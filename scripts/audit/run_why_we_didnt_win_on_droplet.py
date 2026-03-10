@@ -24,6 +24,8 @@ def main() -> int:
     ap.add_argument("--date", default="2026-03-09", help="YYYY-MM-DD")
     ap.add_argument("--skip-surgical", action="store_true", help="Skip shadow exit surgical (only run forensic)")
     ap.add_argument("--run-exit-lag-experiment", action="store_true", help="Run exit-lag compression shadow replay and fetch experiment artifacts")
+    ap.add_argument("--run-exit-lag-multi-day", action="store_true", help="Run exit-lag multi-day validation and fetch multi-day artifacts (uses existing EXIT_LAG_SHADOW_RESULTS_*.json)")
+    ap.add_argument("--exit-lag-days", type=int, default=10, help="Max days for multi-day validation (default 10)")
     args = ap.parse_args()
     date_str = args.date
 
@@ -71,6 +73,16 @@ def main() -> int:
         if rc_replay != 0:
             print("Exit-lag replay exited", rc_replay, file=sys.stderr)
 
+    if args.run_exit_lag_multi_day:
+        cmd_multi = f"python3 scripts/experiments/run_exit_lag_multi_day_validation.py --days {args.exit_lag_days}"
+        out_multi, err_multi, rc_multi = client._execute_with_cd(cmd_multi, timeout=60)
+        print("--- Exit-lag multi-day validation ---")
+        print(out_multi or "")
+        if err_multi:
+            print(err_multi, file=sys.stderr)
+        if rc_multi != 0:
+            print("Multi-day validation exited", rc_multi, file=sys.stderr)
+
     artifacts = [
         (AUDIT, f"INTRADAY_PORTFOLIO_UNREALIZED_CURVE_{date_str}.json"),
         (AUDIT, f"INTRADAY_EXIT_LAG_AND_GIVEBACK_{date_str}.json"),
@@ -90,6 +102,14 @@ def main() -> int:
             (EXPERIMENTS, f"EXIT_LAG_RISK_IMPACT_{date_str}.md"),
             (BOARD, f"EXIT_LAG_BOARD_PACKET_{date_str}.md"),
             (AUDIT, f"CSA_EXIT_LAG_VERDICT_{date_str}.json"),
+        ])
+    if args.run_exit_lag_multi_day:
+        artifacts.extend([
+            (EXPERIMENTS, "EXIT_LAG_MULTI_DAY_RESULTS.json"),
+            (EXPERIMENTS, "EXIT_LAG_ROBUSTNESS_SCORECARD.md"),
+            (EXPERIMENTS, "EXIT_LAG_REGIME_BREAKDOWN.md"),
+            (BOARD, "EXIT_LAG_MULTI_DAY_BOARD_PACKET.md"),
+            (AUDIT, "CSA_EXIT_LAG_MULTI_DAY_VERDICT.json"),
         ])
     remote_audit = "reports/audit"
     remote_board = "reports/board"
