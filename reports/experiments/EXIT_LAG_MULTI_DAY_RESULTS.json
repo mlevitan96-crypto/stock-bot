@@ -1,0 +1,69 @@
+{
+  "date_range": {
+    "first": "2026-03-09",
+    "last": "2026-03-09",
+    "n_days": 1
+  },
+  "variants": {
+    "A_first_eligibility": {
+      "cumulative_pnl_usd": -83.7887,
+      "cumulative_delta_vs_current_usd": 16.2165,
+      "mean_daily_improvement_usd": 16.2165,
+      "median_daily_improvement_usd": 16.2165,
+      "pct_days_improved": 100.0,
+      "worst_day_delta_usd": 16.2165,
+      "max_drawdown_delta_avg_usd": 0.4614,
+      "tail_loss_delta_avg_usd": 0.0
+    },
+    "B_persist_2m": {
+      "cumulative_pnl_usd": -100.0052,
+      "cumulative_delta_vs_current_usd": 0.0,
+      "mean_daily_improvement_usd": 0.0,
+      "median_daily_improvement_usd": 0.0,
+      "pct_days_improved": 0.0,
+      "worst_day_delta_usd": 0.0,
+      "max_drawdown_delta_avg_usd": 0.0,
+      "tail_loss_delta_avg_usd": 0.0
+    },
+    "B_persist_5m": {
+      "cumulative_pnl_usd": -100.0052,
+      "cumulative_delta_vs_current_usd": 0.0,
+      "mean_daily_improvement_usd": 0.0,
+      "median_daily_improvement_usd": 0.0,
+      "pct_days_improved": 0.0,
+      "worst_day_delta_usd": 0.0,
+      "max_drawdown_delta_avg_usd": 0.0,
+      "tail_loss_delta_avg_usd": 0.0
+    },
+    "B_persist_10m": {
+      "cumulative_pnl_usd": -100.0052,
+      "cumulative_delta_vs_current_usd": 0.0,
+      "mean_daily_improvement_usd": 0.0,
+      "median_daily_improvement_usd": 0.0,
+      "pct_days_improved": 0.0,
+      "worst_day_delta_usd": 0.0,
+      "max_drawdown_delta_avg_usd": 0.0,
+      "tail_loss_delta_avg_usd": 0.0
+    },
+    "C_partial_50": {
+      "cumulative_pnl_usd": -91.8967,
+      "cumulative_delta_vs_current_usd": 8.1085,
+      "mean_daily_improvement_usd": 8.1085,
+      "median_daily_improvement_usd": 8.1085,
+      "pct_days_improved": 100.0,
+      "worst_day_delta_usd": 8.1085,
+      "max_drawdown_delta_avg_usd": 0.0,
+      "tail_loss_delta_avg_usd": 0.0
+    },
+    "D_flow_reversal_only": {
+      "cumulative_pnl_usd": -92.4026,
+      "cumulative_delta_vs_current_usd": 7.6026,
+      "mean_daily_improvement_usd": 7.6026,
+      "median_daily_improvement_usd": 7.6026,
+      "pct_days_improved": 100.0,
+      "worst_day_delta_usd": 7.6026,
+      "max_drawdown_delta_avg_usd": 0.0,
+      "tail_loss_delta_avg_usd": 0.0
+    }
+  }
+}
