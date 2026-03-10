@@ -16,12 +16,14 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 AUDIT = REPO / "reports" / "audit"
 BOARD = REPO / "reports" / "board"
+EXPERIMENTS = REPO / "reports" / "experiments"
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Run why-we-didnt-win forensic on droplet and fetch 6 artifacts")
     ap.add_argument("--date", default="2026-03-09", help="YYYY-MM-DD")
     ap.add_argument("--skip-surgical", action="store_true", help="Skip shadow exit surgical (only run forensic)")
+    ap.add_argument("--run-exit-lag-experiment", action="store_true", help="Run exit-lag compression shadow replay and fetch experiment artifacts")
     args = ap.parse_args()
     date_str = args.date
 
@@ -59,6 +61,16 @@ def main() -> int:
         if rc_surg != 0:
             print("Surgical script exited", rc_surg, file=sys.stderr)
 
+    if args.run_exit_lag_experiment:
+        cmd_replay = f"python3 scripts/experiments/run_exit_lag_shadow_replay.py --date {date_str}"
+        out_replay, err_replay, rc_replay = client._execute_with_cd(cmd_replay, timeout=120)
+        print("--- Exit-lag shadow replay ---")
+        print(out_replay or "")
+        if err_replay:
+            print(err_replay, file=sys.stderr)
+        if rc_replay != 0:
+            print("Exit-lag replay exited", rc_replay, file=sys.stderr)
+
     artifacts = [
         (AUDIT, f"INTRADAY_PORTFOLIO_UNREALIZED_CURVE_{date_str}.json"),
         (AUDIT, f"INTRADAY_EXIT_LAG_AND_GIVEBACK_{date_str}.json"),
@@ -72,10 +84,21 @@ def main() -> int:
         (AUDIT, f"INTRADAY_SHADOW_EXIT_ON_FIRST_ELIGIBILITY_{date_str}.json"),
         (AUDIT, f"INTRADAY_SHADOW_EXIT_SURGICAL_SUMMARY_{date_str}.md"),
     ]
+    if args.run_exit_lag_experiment:
+        artifacts.extend([
+            (EXPERIMENTS, f"EXIT_LAG_SHADOW_RESULTS_{date_str}.json"),
+            (EXPERIMENTS, f"EXIT_LAG_RISK_IMPACT_{date_str}.md"),
+            (BOARD, f"EXIT_LAG_BOARD_PACKET_{date_str}.md"),
+            (AUDIT, f"CSA_EXIT_LAG_VERDICT_{date_str}.json"),
+        ])
     remote_audit = "reports/audit"
     remote_board = "reports/board"
+    remote_experiments = "reports/experiments"
     for dir_path, name in artifacts:
-        remote = f"{remote_audit}/{name}" if dir_path == AUDIT else f"{remote_board}/{name}"
+        if dir_path == EXPERIMENTS:
+            remote = f"{remote_experiments}/{name}"
+        else:
+            remote = f"{remote_audit}/{name}" if dir_path == AUDIT else f"{remote_board}/{name}"
         cat_out, _, _ = client._execute_with_cd(f"cat {remote} 2>/dev/null || true", timeout=15)
         if not (cat_out or "").strip():
             print("Missing on droplet:", remote, file=sys.stderr)
