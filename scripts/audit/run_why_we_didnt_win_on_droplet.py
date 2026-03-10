@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Run WHY WE DIDN'T WIN forensic ON DROPLET, then fetch all 6 artifacts locally.
-Uses droplet reports/state, logs, state for trace + attribution + blocked_trades.
+Run WHY WE DIDN'T WIN forensic + shadow exit surgical ON DROPLET, then fetch all artifacts locally.
+1) Forensic: trace/attribution join, lag, board packet, CSA verdict.
+2) Surgical: lag distribution, first-firing condition, shadow exit-on-first-eligibility PnL.
 Execute from repo root. Requires: droplet_client.
 """
 from __future__ import annotations
@@ -20,6 +21,7 @@ BOARD = REPO / "reports" / "board"
 def main() -> int:
     ap = argparse.ArgumentParser(description="Run why-we-didnt-win forensic on droplet and fetch 6 artifacts")
     ap.add_argument("--date", default="2026-03-09", help="YYYY-MM-DD")
+    ap.add_argument("--skip-surgical", action="store_true", help="Skip shadow exit surgical (only run forensic)")
     args = ap.parse_args()
     date_str = args.date
 
@@ -47,6 +49,16 @@ def main() -> int:
             print("Blockers file written; check", blocker_path, file=sys.stderr)
         return rc
 
+    if not args.skip_surgical:
+        cmd_surg = f"python3 scripts/audit/run_intraday_shadow_exit_surgical.py --date {date_str}"
+        out_surg, err_surg, rc_surg = client._execute_with_cd(cmd_surg, timeout=60)
+        print("--- Shadow exit surgical ---")
+        print(out_surg or "")
+        if err_surg:
+            print(err_surg, file=sys.stderr)
+        if rc_surg != 0:
+            print("Surgical script exited", rc_surg, file=sys.stderr)
+
     artifacts = [
         (AUDIT, f"INTRADAY_PORTFOLIO_UNREALIZED_CURVE_{date_str}.json"),
         (AUDIT, f"INTRADAY_EXIT_LAG_AND_GIVEBACK_{date_str}.json"),
@@ -55,6 +67,10 @@ def main() -> int:
         (AUDIT, f"INTRADAY_FORENSIC_FULL_{date_str}.md"),
         (BOARD, f"INTRADAY_BOARD_PACKET_{date_str}.md"),
         (AUDIT, f"CSA_INTRADAY_VERDICT_{date_str}.json"),
+        (AUDIT, f"INTRADAY_ELIGIBILITY_EXIT_LAG_DISTRIBUTION_{date_str}.json"),
+        (AUDIT, f"INTRADAY_EXIT_CONDITION_FIRST_FIRE_{date_str}.json"),
+        (AUDIT, f"INTRADAY_SHADOW_EXIT_ON_FIRST_ELIGIBILITY_{date_str}.json"),
+        (AUDIT, f"INTRADAY_SHADOW_EXIT_SURGICAL_SUMMARY_{date_str}.md"),
     ]
     remote_audit = "reports/audit"
     remote_board = "reports/board"
