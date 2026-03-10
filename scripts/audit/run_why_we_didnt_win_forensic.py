@@ -306,6 +306,8 @@ def phase2_exit_lag(base: Path, date_str: str) -> tuple[dict, dict]:
                 "ts_peak_unrealized": None,
                 "unrealized_at_peak": None,
                 "first_eligibility_ts": None,
+                "unrealized_pnl_at_first_eligibility": None,
+                "first_firing_condition": None,
                 "lag_minutes": None,
                 "missed_capture_usd": None,
             })
@@ -314,6 +316,7 @@ def phase2_exit_lag(base: Path, date_str: str) -> tuple[dict, dict]:
         unrealized_at_peak = float(peak_sample.get("unrealized_pnl") or 0)
         ts_peak = peak_sample["_ts"]
         first_eligibility_ts = None
+        first_eligibility_sample = None
         for s in samples:
             if s["_ts"] > ts_exit:
                 break
@@ -321,7 +324,18 @@ def phase2_exit_lag(base: Path, date_str: str) -> tuple[dict, dict]:
             cond = s.get("exit_conditions") or {}
             if exit_eligible is True or any(cond.get(k) for k in ("signal_decay", "flow_reversal", "stale_alpha", "risk_stop")):
                 first_eligibility_ts = s["_ts"]
+                first_eligibility_sample = s
                 break
+        unrealized_pnl_at_first_eligibility = float(first_eligibility_sample.get("unrealized_pnl") or 0) if first_eligibility_sample else None
+        first_firing_condition = None
+        if first_eligibility_sample:
+            c = first_eligibility_sample.get("exit_conditions") or {}
+            for k in ("signal_decay", "flow_reversal", "stale_alpha", "risk_stop"):
+                if c.get(k):
+                    first_firing_condition = k
+                    break
+            if first_firing_condition is None and first_eligibility_sample.get("exit_eligible"):
+                first_firing_condition = "exit_eligible_no_condition"
         lag_sec = None
         missed = None
         if unrealized_at_peak <= 0:
@@ -350,6 +364,8 @@ def phase2_exit_lag(base: Path, date_str: str) -> tuple[dict, dict]:
             "ts_peak_unrealized": ts_peak,
             "unrealized_at_peak": round(unrealized_at_peak, 4),
             "first_eligibility_ts": first_eligibility_ts,
+            "unrealized_pnl_at_first_eligibility": round(unrealized_pnl_at_first_eligibility, 4) if unrealized_pnl_at_first_eligibility is not None else None,
+            "first_firing_condition": first_firing_condition,
             "lag_minutes": round(lag_sec / 60.0, 2) if lag_sec is not None else None,
             "missed_capture_usd": round(missed, 4) if missed is not None else None,
         })
