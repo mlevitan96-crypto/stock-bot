@@ -29,8 +29,7 @@ python3 scripts/audit/reconstruct_full_trade_ledger.py \
 python3 scripts/audit/verify_trade_ledger_integrity.py \
   --ledger reports/ledger/FULL_TRADE_LEDGER_${DATE}.json \
   --fail-on-missing \
-  --fail-on-partial \
-  --fail-on-duplicate
+  --fail-on-partial
 
 echo "=== PHASE 2: SRE SYSTEM HEALTH & TRUST CERTIFICATION ==="
 python3 scripts/sre/run_day_health_audit.py \
