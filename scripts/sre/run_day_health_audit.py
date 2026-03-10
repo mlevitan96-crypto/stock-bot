@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import argparse, json, os, sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 REQUIRED_TOP_LEVEL_KEYS = ["date", "executed", "blocked", "counter_intel"]
 
@@ -59,7 +59,7 @@ def main():
     verdict = "FAIL" if any(i["severity"] == "FAIL" for i in issues) else "PASS"
     out = {
         "date": args.date,
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "verdict": verdict,
         "counts": {
             "executed": len(executed) if isinstance(executed, list) else None,
