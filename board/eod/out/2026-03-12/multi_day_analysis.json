@@ -1,0 +1,347 @@
+{
+  "date": "2026-03-12",
+  "multi_day_analysis": {
+    "1_day": {
+      "window_size": 1,
+      "window_days": [
+        "2026-03-12"
+      ],
+      "regime": {
+        "dominant_regime": "UNKNOWN",
+        "regime_stability_score": 0,
+        "regime_transition_probability": 0,
+        "regime_distribution": {}
+      },
+      "volatility_trend": "stable",
+      "sector_rotation_trend": {},
+      "attribution_vs_exit": {
+        "attribution_pnl": -22.85,
+        "exit_attribution_pnl": -22.84,
+        "delta": -0.01,
+        "trend": "aligned"
+      },
+      "churn_trend": "stable",
+      "hold_time_trend": "falling",
+      "avg_hold_time_seconds": 13308.62,
+      "exit_reason_distribution": {
+        "unknown": 188,
+        "signal_decay(0.88)+flow_reversal": 6,
+        "signal_decay(0.87)+flow_reversal": 5,
+        "signal_decay(0.73)+flow_reversal": 4,
+        "signal_decay(0.84)": 4,
+        "signal_decay(0.91)": 3,
+        "signal_decay(0.81)": 3,
+        "signal_decay(0.74)": 2,
+        "signal_decay(0.67)": 2,
+        "signal_decay(0.61)": 2
+      },
+      "blocked_trades": {
+        "displacement_count": 1758,
+        "max_positions_count": 238,
+        "capacity_count": 0,
+        "displacement_trend": "unknown",
+        "capacity_trend": "unknown"
+      },
+      "displacement_sensitivity_trend": "unknown",
+      "capacity_utilization_trend": "unknown",
+      "expectancy_trend": "unknown",
+      "rolling_expectancy_usd": -0.12,
+      "mae_mfe_trend": "unknown",
+      "total_trades": 188,
+      "total_exits": 76,
+      "total_blocked": 2000
+    },
+    "3_day": {
+      "window_size": 3,
+      "window_days": [
+        "2026-03-10",
+        "2026-03-11",
+        "2026-03-12"
+      ],
+      "regime": {
+        "dominant_regime": "UNKNOWN",
+        "regime_stability_score": 0,
+        "regime_transition_probability": 0,
+        "regime_distribution": {}
+      },
+      "volatility_trend": "stable",
+      "sector_rotation_trend": {},
+      "attribution_vs_exit": {
+        "attribution_pnl": -92.89,
+        "exit_attribution_pnl": -92.89,
+        "delta": 0.0,
+        "trend": "aligned"
+      },
+      "churn_trend": "falling",
+      "hold_time_trend": "rising",
+      "avg_hold_time_seconds": 6160.27,
+      "exit_reason_distribution": {
+        "unknown": 1024,
+        "signal_decay(0.82)": 25,
+        "signal_decay(0.84)": 22,
+        "signal_decay(0.75)": 21,
+        "signal_decay(0.76)": 17,
+        "signal_decay(0.74)": 16,
+        "signal_decay(0.81)": 16,
+        "signal_decay(0.83)": 16,
+        "signal_decay(0.70)": 13,
+        "signal_decay(0.71)": 10
+      },
+      "blocked_trades": {
+        "displacement_count": 1758,
+        "max_positions_count": 238,
+        "capacity_count": 0,
+        "displacement_trend": "rising",
+        "capacity_trend": "rising"
+      },
+      "displacement_sensitivity_trend": "rising",
+      "capacity_utilization_trend": "rising",
+      "expectancy_trend": "unknown",
+      "rolling_expectancy_usd": -0.09,
+      "mae_mfe_trend": "unknown",
+      "total_trades": 1024,
+      "total_exits": 453,
+      "total_blocked": 2000
+    },
+    "5_day": {
+      "window_size": 5,
+      "window_days": [
+        "2026-03-08",
+        "2026-03-09",
+        "2026-03-10",
+        "2026-03-11",
+        "2026-03-12"
+      ],
+      "regime": {
+        "dominant_regime": "UNKNOWN",
+        "regime_stability_score": 0,
+        "regime_transition_probability": 0,
+        "regime_distribution": {}
+      },
+      "volatility_trend": "stable",
+      "sector_rotation_trend": {},
+      "attribution_vs_exit": {
+        "attribution_pnl": -192.9,
+        "exit_attribution_pnl": -192.9,
+        "delta": -0.0,
+        "trend": "aligned"
+      },
+      "churn_trend": "falling",
+      "hold_time_trend": "rising",
+      "avg_hold_time_seconds": 6200.15,
+      "exit_reason_distribution": {
+        "unknown": 1402,
+        "signal_decay(0.82)": 42,
+        "signal_decay(0.84)": 34,
+        "signal_decay(0.83)": 26,
+        "signal_decay(0.81)": 24,
+        "signal_decay(0.75)": 23,
+        "signal_decay(0.74)": 21,
+        "signal_decay(0.76)": 19,
+        "signal_decay(0.73)": 15,
+        "signal_decay(0.71)": 13
+      },
+      "blocked_trades": {
+        "displacement_count": 1758,
+        "max_positions_count": 238,
+        "capacity_count": 0,
+        "displacement_trend": "rising",
+        "capacity_trend": "rising"
+      },
+      "displacement_sensitivity_trend": "rising",
+      "capacity_utilization_trend": "rising",
+      "expectancy_trend": "unknown",
+      "rolling_expectancy_usd": -0.14,
+      "mae_mfe_trend": "unknown",
+      "total_trades": 1402,
+      "total_exits": 627,
+      "total_blocked": 2000
+    },
+    "7_day": {
+      "window_size": 7,
+      "window_days": [
+        "2026-03-06",
+        "2026-03-07",
+        "2026-03-08",
+        "2026-03-09",
+        "2026-03-10",
+        "2026-03-11",
+        "2026-03-12"
+      ],
+      "regime": {
+        "dominant_regime": "UNKNOWN",
+        "regime_stability_score": 0,
+        "regime_transition_probability": 0,
+        "regime_distribution": {}
+      },
+      "volatility_trend": "stable",
+      "sector_rotation_trend": {},
+      "attribution_vs_exit": {
+        "attribution_pnl": -253.45,
+        "exit_attribution_pnl": -253.45,
+        "delta": 0.0,
+        "trend": "aligned"
+      },
+      "churn_trend": "falling",
+      "hold_time_trend": "rising",
+      "avg_hold_time_seconds": 5727.59,
+      "exit_reason_distribution": {
+        "unknown": 1912,
+        "signal_decay(0.82)": 50,
+        "signal_decay(0.84)": 43,
+        "signal_decay(0.83)": 34,
+        "signal_decay(0.81)": 28,
+        "signal_decay(0.70)": 25,
+        "signal_decay(0.75)": 24,
+        "signal_decay(0.71)": 23,
+        "signal_decay(0.74)": 22,
+        "signal_decay(0.77)": 20
+      },
+      "blocked_trades": {
+        "displacement_count": 1758,
+        "max_positions_count": 238,
+        "capacity_count": 0,
+        "displacement_trend": "rising",
+        "capacity_trend": "rising"
+      },
+      "displacement_sensitivity_trend": "rising",
+      "capacity_utilization_trend": "rising",
+      "expectancy_trend": "unknown",
+      "rolling_expectancy_usd": -0.13,
+      "mae_mfe_trend": "unknown",
+      "total_trades": 1912,
+      "total_exits": 870,
+      "total_blocked": 2000
+    }
+  },
+  "win_rate_by_window": {
+    "1_day": 0.2287,
+    "3_day": 0.1826,
+    "5_day": 0.184,
+    "7_day": 0.1846
+  },
+  "pnl_by_window": {
+    "1_day": -22.85,
+    "3_day": -92.89,
+    "5_day": -192.9,
+    "7_day": -253.45
+  },
+  "exit_reason_counts_by_window": {
+    "1_day": {
+      "unknown": 188,
+      "signal_decay(0.88)+flow_reversal": 6,
+      "signal_decay(0.87)+flow_reversal": 5,
+      "signal_decay(0.73)+flow_reversal": 4,
+      "signal_decay(0.84)": 4,
+      "signal_decay(0.91)": 3,
+      "signal_decay(0.81)": 3,
+      "signal_decay(0.74)": 2,
+      "signal_decay(0.67)": 2,
+      "signal_decay(0.61)": 2,
+      "signal_decay(0.88)": 2,
+      "signal_decay(0.73)": 1,
+      "signal_decay(0.94)+stale_alpha_cutoff(1163min,-0.01%)": 1,
+      "stale_alpha_cutoff(1156min,0.00%)": 1,
+      "stale_alpha_cutoff(1124min,0.00%)": 1,
+      "stale_alpha_cutoff(1162min,0.00%)": 1,
+      "stale_alpha_cutoff(1158min,0.01%)": 1,
+      "signal_decay(0.80)+stale_alpha_cutoff(1121min,0.00%)": 1,
+      "signal_decay(0.75)+stale_alpha_cutoff(1156min,-0.00%)": 1,
+      "signal_decay(0.80)": 1
+    },
+    "3_day": {
+      "unknown": 1024,
+      "signal_decay(0.82)": 25,
+      "signal_decay(0.84)": 22,
+      "signal_decay(0.75)": 21,
+      "signal_decay(0.76)": 17,
+      "signal_decay(0.74)": 16,
+      "signal_decay(0.81)": 16,
+      "signal_decay(0.83)": 16,
+      "signal_decay(0.70)": 13,
+      "signal_decay(0.71)": 10,
+      "signal_decay(0.67)": 9,
+      "signal_decay(0.73)": 9,
+      "signal_decay(0.88)+flow_reversal": 8,
+      "signal_decay(0.90)": 7,
+      "signal_decay(0.77)": 7,
+      "signal_decay(0.91)": 7,
+      "signal_decay(0.87)+flow_reversal": 7,
+      "signal_decay(0.63)": 7,
+      "signal_decay(0.58)": 7,
+      "signal_decay(0.88)": 6
+    },
+    "5_day": {
+      "unknown": 1402,
+      "signal_decay(0.82)": 42,
+      "signal_decay(0.84)": 34,
+      "signal_decay(0.83)": 26,
+      "signal_decay(0.81)": 24,
+      "signal_decay(0.75)": 23,
+      "signal_decay(0.74)": 21,
+      "signal_decay(0.76)": 19,
+      "signal_decay(0.73)": 15,
+      "signal_decay(0.71)": 13,
+      "signal_decay(0.70)": 13,
+      "signal_decay(0.79)": 12,
+      "signal_decay(0.77)": 10,
+      "signal_decay(0.88)": 10,
+      "signal_decay(0.79)+flow_reversal": 10,
+      "signal_decay(0.78)+flow_reversal": 10,
+      "signal_decay(0.67)": 10,
+      "signal_decay(0.85)": 9,
+      "signal_decay(0.73)+flow_reversal": 9,
+      "signal_decay(0.90)": 9
+    },
+    "7_day": {
+      "unknown": 1912,
+      "signal_decay(0.82)": 50,
+      "signal_decay(0.84)": 43,
+      "signal_decay(0.83)": 34,
+      "signal_decay(0.81)": 28,
+      "signal_decay(0.70)": 25,
+      "signal_decay(0.75)": 24,
+      "signal_decay(0.71)": 23,
+      "signal_decay(0.74)": 22,
+      "signal_decay(0.77)": 20,
+      "signal_decay(0.76)": 20,
+      "signal_decay(0.69)": 18,
+      "signal_decay(0.73)": 15,
+      "signal_decay(0.79)": 14,
+      "signal_decay(0.85)": 13,
+      "signal_decay(0.78)+flow_reversal": 13,
+      "signal_decay(0.88)": 12,
+      "signal_decay(0.79)+flow_reversal": 12,
+      "signal_decay(0.61)": 11,
+      "signal_decay(0.86)": 11
+    }
+  },
+  "blocked_trade_counts_by_window": {
+    "1_day": {
+      "displacement_blocked": 1758,
+      "max_positions_reached": 238,
+      "order_validation_failed": 4
+    },
+    "3_day": {
+      "displacement_blocked": 1758,
+      "max_positions_reached": 238,
+      "order_validation_failed": 4
+    },
+    "5_day": {
+      "displacement_blocked": 1758,
+      "max_positions_reached": 238,
+      "order_validation_failed": 4
+    },
+    "7_day": {
+      "displacement_blocked": 1758,
+      "max_positions_reached": 238,
+      "order_validation_failed": 4
+    }
+  },
+  "signal_decay_exit_rate_by_window": {
+    "1_day": 0.8421,
+    "3_day": 0.9051,
+    "5_day": 0.9187,
+    "7_day": 0.9276
+  }
+}
