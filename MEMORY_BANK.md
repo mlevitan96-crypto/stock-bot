@@ -1006,6 +1006,16 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 - **Governance activation:** Framework doc: `docs/QUANTIFIED_GOVERNANCE_EXPERIMENT_FRAMEWORK_ALPACA.md`. Ledger: `state/governance_experiment_1_hypothesis_ledger_alpaca.json`. Tag: `scripts/tag_profit_hypothesis_alpaca.py [YES|NO]`. Validate: `scripts/validate_hypothesis_ledger_alpaca.py` (exit 0 = valid). Health: run validate; break alert when invalid/stale: `scripts/notify_governance_experiment_alpaca_break.py`; completion alert when validation window satisfied and ledger healthy: `scripts/notify_governance_experiment_alpaca_complete.py` (uses TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID; at most one completion message per phase). CSA + SRE oversight: review-only; reports support CSA_REVIEW and SRE_REVIEW sections per framework doc. Parallel analysis workers (safe to scale): historical expectancy recomputation, slippage distribution analysis, session-based PnL attribution, counterfactual would-have-traded analysis—all read-only, no orders, no API writes.
 - **Status:** Alpaca system is governance-ready; no profit experiments active yet.
 
+### Governance Experiments
+- **Experiment #1 — ALPACA_BASELINE_VALIDATION_AND_METRICS_TRUTH**
+  - **Mode:** Analysis-only.
+  - **Purpose:** Prove data integrity and metric truth-chain for Alpaca; establish baseline expectancy and PnL per session/day; validate that slippage and drawdown metrics are computable and stable.
+  - **Validation window:** 7 trading sessions OR 500 closed trades (whichever comes first).
+  - **Success criteria:** Metrics computed without gaps for the full window; ledger health PASS (validator exit 0); no silent failures (break alerts = 0).
+  - **Default action on expiry:** ITERATE if any metric gaps or integrity issues; READY if all success criteria met.
+- **Tagging discipline (Alpaca experiments):** change_id = Git commit SHA (canonical). Tag every relevant change with `python scripts/tag_profit_hypothesis_alpaca.py YES|NO`. For Experiment #1, default to NO unless a profit hypothesis is explicitly stated. Do not gate execution on ledger or tags.
+- **Daily health command:** `python scripts/run_alpaca_experiment_1_daily_checks.py` (runs validate + break alert; exits non-zero if break sent). No cron installation unless explicitly authorized.
+
 ---
 
 ## 5.2 PROHIBITED PRACTICES
