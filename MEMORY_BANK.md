@@ -904,6 +904,8 @@ Canonical 8-file bundle paths (relative to repo root; **do not move/rename**):
 - `logs/attribution.jsonl`, `logs/exit_attribution.jsonl`, `logs/master_trade_log.jsonl`
 - `state/blocked_trades.jsonl`, `state/daily_start_equity.json`, `state/peak_equity.json`, `state/signal_weights.json`, `state/daily_universe_v2.json`
 
+**Retention — do not truncate or rotate (why past data can disappear):** These files are append-only. If any process **truncates** or **rotates** them (e.g. keeps only last N lines or last N MB), past dates are lost and backfill/forensic will report `no_data_for_date` for those dates. **deploy_supervisor.py** runs `startup_cleanup()` and `rotate_logs()` to prevent disk fill; those routines **MUST** skip the retention-protected paths: `logs/exit_attribution.jsonl`, `logs/attribution.jsonl`, `logs/master_trade_log.jsonl`, `state/blocked_trades.jsonl`, `reports/state/exit_decision_trace.jsonl`. See **`docs/DATA_RETENTION_POLICY.md`**. Any new cleanup or rotation logic MUST NOT touch these paths so today's (and past days') data remain available for scenario and multi-day runs.
+
 **Runner:** `board/eod/run_stock_quant_officer_eod.py` — uses `REPO_ROOT` + canonical paths with `(REPO_ROOT / rel).resolve()`; defensive checks (missing → log.error, data[name]=None; empty → log.warning, [] or None); EOD board JSON generated locally from bundle (no external agent).
 
 **Contract:** `board/quant_officer_contract.md` (fallback: `board/stock_quant_officer_contract.md`).
@@ -994,6 +996,15 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 - **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.
 - **No hallucinated endpoints:** all must exist in `unusual_whales_api/api_spec.yaml`; static audit `scripts/audit_uw_endpoints.py` fails CI if unknown endpoints referenced.
 - **Single-instance ingestion:** uw_flow_daemon only; file lock + systemd; scoring reads only from cached artifacts (uw_flow_cache, premarket_intel, postmarket_intel, uw_expanded_intel).
+
+### Alpaca quantified governance (experiment pipeline)
+- **Governance principles:** Quantified governance framework for the Alpaca stock bot: hypothesis-led experiments, review-only CSA + SRE, no execution gating from governance artifacts. All governance outputs are analysis-only; they do not gate live execution, scale risk, or use deploy authorization.
+- **Experiment lifecycle:** (1) Hypothesis documented and tagged in the hypothesis ledger; (2) Validation window defined (trade-count and/or session-based); (3) CSA + SRE review artifacts produced; (4) Completion/break alerts via Telegram when appropriate; (5) No automatic promotion or deploy blocking.
+- **CSA + SRE roles (review-only):** CSA reviews profit logic, assumptions, and opportunity cost; SRE reviews observability, failure modes, and rollback. Both produce reports and verdicts only. They do not modify trading config, place orders, or block deploys.
+- **Analysis-only constraints:** Governance scripts and ledger are append-only and safe when missing or empty. No code path in the trading engine or deploy pipeline reads the hypothesis ledger for gating. `state/deploy_authorization.json` is not used; deploy authorization is out of scope for this pipeline.
+- **Alpaca-specific context:** Market type: US equities (session-based). Validation windows: trade-count and session-based. Metrics: expectancy, PnL/day, capital efficiency, slippage, drawdown. Ledger path: `state/governance_experiment_1_hypothesis_ledger_alpaca.json`.
+- **Governance activation:** Framework doc: `docs/QUANTIFIED_GOVERNANCE_EXPERIMENT_FRAMEWORK_ALPACA.md`. Ledger: `state/governance_experiment_1_hypothesis_ledger_alpaca.json`. Tag: `scripts/tag_profit_hypothesis_alpaca.py [YES|NO]`. Validate: `scripts/validate_hypothesis_ledger_alpaca.py` (exit 0 = valid). Health: run validate; break alert when invalid/stale: `scripts/notify_governance_experiment_alpaca_break.py`; completion alert when validation window satisfied and ledger healthy: `scripts/notify_governance_experiment_alpaca_complete.py` (uses TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID; at most one completion message per phase). CSA + SRE oversight: review-only; reports support CSA_REVIEW and SRE_REVIEW sections per framework doc. Parallel analysis workers (safe to scale): historical expectancy recomputation, slippage distribution analysis, session-based PnL attribution, counterfactual would-have-traded analysis—all read-only, no orders, no API writes.
+- **Status:** Alpaca system is governance-ready; no profit experiments active yet.
 
 ---
 
@@ -1668,6 +1679,7 @@ Replace opaque `blocked_reason` strings with:
 - **Strategy comparison:** `reports/{date}_stock-bot_combined.json` from `scripts/generate_daily_strategy_reports.py`.
 - **Regime/posture:** `state/market_context_v2.json`, `state/regime_posture_state.json`; paths resolved via _DASHBOARD_ROOT.
 - **Rule:** Dashboard connects to logs/state/config only; NEVER modifies trading engine. See `reports/DASHBOARD_ENDPOINT_MAP.md`.
+- **Profitability & Learning tab:** `/api/profitability_learning` serves live CSA verdict + trade state and pre-rendered `reports/board/PROFITABILITY_COCKPIT.md`. Cockpit is regenerated automatically after each CSA 100-trade run (`run_csa_every_100_trades.py`), on day reset (`reset_csa_trade_count_for_today.py`), and optionally via cron; see `reports/audit/DROPLET_CSA_AND_COCKPIT.md`.
 
 ### Dashboard Rationalization Pass (2026-02-09)
 - **Canonical layout:** See `docs/TRADING_DASHBOARD.md` for tab layout, data sources, and where to find Health, P&L, Wheel, and scoring.
