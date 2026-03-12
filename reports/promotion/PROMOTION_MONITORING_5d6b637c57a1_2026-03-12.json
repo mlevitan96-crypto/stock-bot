@@ -1,0 +1,18 @@
+{
+  "config_id": "5d6b637c57a1",
+  "mode": "paper",
+  "armed_at": "2026-03-12T18:35:56.693384+00:00",
+  "watch_metrics": [
+    "pnl",
+    "drawdown",
+    "trade_rate",
+    "signal_contribution",
+    "cluster_exposure"
+  ],
+  "rollback_on": [
+    "drawdown_breach",
+    "pnl_regression"
+  ],
+  "scope": "paper_only",
+  "instruction": "Human or automation: evaluate watch_metrics; on rollback_on trigger, consider reverting GOVERNED_TUNING_CONFIG and restart."
+}

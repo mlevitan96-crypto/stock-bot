@@ -1,0 +1,9 @@
+{
+  "config_id": "5d6b637c57a1",
+  "date": "2026-03-12",
+  "intent_path": "reports/promotion/PROMOTION_INTENT_5d6b637c57a1_2026-03-12.json",
+  "overlay_path": "config\\tuning\\overlays\\learning_promotion_5d6b637c57a1.json",
+  "applied_at": "2026-03-12T18:36:23.257106+00:00",
+  "mode": "paper",
+  "instruction": "Set GOVERNED_TUNING_CONFIG=config\\tuning\\overlays\\learning_promotion_5d6b637c57a1.json and restart paper engine to activate."
+}
