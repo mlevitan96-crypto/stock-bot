@@ -1016,6 +1016,14 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 - **Tagging discipline (Alpaca experiments):** change_id = Git commit SHA (canonical). Tag every relevant change with `python scripts/tag_profit_hypothesis_alpaca.py YES|NO`. For Experiment #1, default to NO unless a profit hypothesis is explicitly stated. Do not gate execution on ledger or tags.
 - **Daily health command:** `python scripts/run_alpaca_experiment_1_daily_checks.py` (runs validate + break alert; exits non-zero if break sent). No cron installation unless explicitly authorized.
 
+### Scenario Lab (Parallel Analysis)
+- **Concept:** Scenario experiments (#2–N) are parallel, analysis-only runs that replay and explore alternative strategies using historical or shadow trade data. They do **not** replace or write to Experiment #1.
+- **Rules:** Scenario experiments are NOT truth experiments. They do NOT gate execution. They do NOT write to canonical ledgers (e.g. `state/governance_experiment_1_hypothesis_ledger_alpaca.json`). They exist to generate ranked hypotheses for future experiment selection.
+- **Registry:** `docs/SCENARIO_EXPERIMENT_REGISTRY_ALPACA.md` — scenario_id, description, parameters varied, data source, output path, status.
+- **Runner:** `scripts/scenario_lab/run_scenario_batch.py` — load historical/shadow logs; apply alternative entry/exit/sizing/session logic; run in parallel (--workers N); write only to `reports/scenario_lab/<scenario_id>_<DATE>.json`. No broker writes; no execution hooks; no ledger writes.
+- **CPU utilization:** Scenario lab is SAFE TO SCALE. May use up to (cpu_count - 1) workers. Must remain read-only.
+- **Summary reports:** `reports/scenario_lab/SCENARIO_SUMMARY_<DATE>.md` — scenario ranking, CSA_REVIEW (why misleading, fragile assumptions), SRE_REVIEW (data completeness, replay fidelity, failure modes). Scenario outputs feed future experiment selection; Experiment #1 remains the single canonical truth source.
+
 ---
 
 ## 5.2 PROHIBITED PRACTICES
