@@ -1,0 +1,89 @@
+{
+  "stability_path": "reports/rolling/STABILITY_ANALYSIS_2026-03-12.json",
+  "cluster_risk_path": "reports/rolling/CLUSTER_RISK_OVER_TIME_2026-03-12.json",
+  "blocking_cluster_risk": true,
+  "scope": "shadow_only",
+  "ranked_configs": [
+    {
+      "config_id": "5d6b637c57a1",
+      "presence_days": 1,
+      "rank_persistence": 1.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 9.5
+    },
+    {
+      "config_id": "97e36ec6a8d1",
+      "presence_days": 1,
+      "rank_persistence": 2.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 9.0
+    },
+    {
+      "config_id": "da8b1a23c424",
+      "presence_days": 1,
+      "rank_persistence": 3.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 8.5
+    },
+    {
+      "config_id": "eb2489fb356f",
+      "presence_days": 1,
+      "rank_persistence": 4.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 8.0
+    },
+    {
+      "config_id": "14a189efdbdf",
+      "presence_days": 1,
+      "rank_persistence": 5.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 7.5
+    },
+    {
+      "config_id": "6b7324d22da9",
+      "presence_days": 1,
+      "rank_persistence": 6.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 7.0
+    },
+    {
+      "config_id": "e3414546a123",
+      "presence_days": 1,
+      "rank_persistence": 7.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 6.5
+    },
+    {
+      "config_id": "fd7d92ced1e4",
+      "presence_days": 1,
+      "rank_persistence": 8.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 6.0
+    },
+    {
+      "config_id": "c2d4fc9f7768",
+      "presence_days": 1,
+      "rank_persistence": 9.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 5.5
+    },
+    {
+      "config_id": "3b0530d831cf",
+      "presence_days": 1,
+      "rank_persistence": 10.0,
+      "rank_volatility": 0.0,
+      "volatility": 0.0,
+      "csa_board_score": 5.0
+    }
+  ],
+  "summary": "10 configs reviewed; cluster scope shadow-only, no gating."
+}
