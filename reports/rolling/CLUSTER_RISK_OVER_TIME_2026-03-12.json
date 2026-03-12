@@ -1,0 +1,49 @@
+{
+  "history_path": "reports/rolling/PROMOTABLE_HISTORY_2026-03-12.json",
+  "cluster_dir": "reports\\shadow\\clusters",
+  "days_with_clusters": 1,
+  "by_date": [
+    {
+      "date": "2026-03-10",
+      "recommendations": [
+        {
+          "cluster_id": 0,
+          "signals": [
+            "ns_pnl_norm",
+            "ns_raw_pnl"
+          ],
+          "top_signals_by_importance": [
+            "ns_raw_pnl",
+            "ns_pnl_norm"
+          ],
+          "recommendation": "Review weight sweep for these signals; cluster may be redundant or complementary."
+        },
+        {
+          "cluster_id": 1,
+          "signals": [
+            "sv_signal_decay"
+          ],
+          "top_signals_by_importance": [
+            "sv_signal_decay"
+          ],
+          "recommendation": "Review weight sweep for these signals; cluster may be redundant or complementary."
+        },
+        {
+          "cluster_id": 2,
+          "signals": [
+            "sv_unknown"
+          ],
+          "top_signals_by_importance": [
+            "sv_unknown"
+          ],
+          "recommendation": "Review weight sweep for these signals; cluster may be redundant or complementary."
+        },
+        {
+          "cluster_id": "global",
+          "recommendation": "Shadow-only. No gating, no promotion, no weight changes. Use for diagnostics and sweep design."
+        }
+      ],
+      "scope": "shadow_only"
+    }
+  ]
+}
