@@ -6,6 +6,9 @@ Counts trades, checks ledger health (valid/invalid/stale), break/completion
 alert readiness, days elapsed, and prints a summary. No execution changes,
 no risk scaling, no deploy authorization use.
 
+This script MUST use the same trade log path(s) the live bot writes to.
+If those paths change, update here and in MEMORY_BANK.md "Alpaca Data Sources".
+
 Optional: --droplet runs the same checks using live data from the droplet
 (via SSH). Requires droplet_config.json or DROPLET_* env vars.
 """
@@ -22,10 +25,13 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 LEDGER_PATH = REPO / "state" / "governance_experiment_1_hypothesis_ledger_alpaca.json"
 VALIDATE_SCRIPT = REPO / "scripts" / "validate_hypothesis_ledger_alpaca.py"
-TRADE_LOG_PATHS = [
-    REPO / "logs" / "exit_attribution.jsonl",
-    REPO / "logs" / "attribution.jsonl",
-]
+# Canonical closed-trade log paths (must match live bot — see MEMORY_BANK "Alpaca Data Sources")
+def _logs_dir(repo_root: Path) -> Path:
+    try:
+        from config.registry import Directories
+        return (repo_root / Directories.LOGS).resolve()
+    except ImportError:
+        return repo_root / "logs"
 EXPERIMENT_START_FLAG = REPO / "state" / "experiment_1_start.flag"
 STALE_DAYS = int(os.environ.get("GOVERNANCE_LEDGER_STALE_DAYS", "7"))
 
@@ -53,40 +59,64 @@ def _iter_jsonl(path: Path, since_ts: str | None):
 def _count_closed_trades_since(repo_root: Path, since_ts: str | None) -> tuple[int, str | None, str | None]:
     """
     Count closed trades since given ISO8601 timestamp.
-    Uses exit_attribution.jsonl then attribution (closed only). Returns
-    (count, earliest_trade_timestamp, latest_trade_timestamp).
+    Uses canonical paths: exit_attribution.jsonl, attribution.jsonl (closed only),
+    then master_trade_log.jsonl (records with exit_ts) as fallback. Dedupes by (symbol, date).
+    Returns (count, earliest_trade_timestamp, latest_trade_timestamp).
     """
-    seen = set()
-    count = 0
+    logs = _logs_dir(repo_root)
+    seen: set[tuple[str, str]] = set()
     earliest: str | None = None
     latest: str | None = None
 
-    for log_path in (repo_root / "logs" / "exit_attribution.jsonl", repo_root / "logs" / "attribution.jsonl"):
-        for rec in _iter_jsonl(log_path, since_ts):
-            ts = rec.get("timestamp") or rec.get("ts") or rec.get("exit_timestamp") or ""
-            if not ts:
-                continue
-            # Dedupe by (symbol, date)
-            key = (str(rec.get("symbol", "")).upper(), ts[:10])
-            if key in seen:
-                continue
+    # 1) exit_attribution.jsonl — one line per v2 equity exit (canonical)
+    for rec in _iter_jsonl(logs / "exit_attribution.jsonl", since_ts):
+        ts = rec.get("timestamp") or rec.get("exit_timestamp") or ""
+        if not ts:
+            continue
+        key = (str(rec.get("symbol", "")).upper(), ts[:10])
+        if key not in seen:
             seen.add(key)
-            # attribution: only closed (has pnl or close_reason)
-            if "attribution.jsonl" in str(log_path):
-                if str(rec.get("trade_id", "")).startswith("open_"):
-                    continue
-                ctx = rec.get("context") or {}
-                close_reason = ctx.get("close_reason") or rec.get("close_reason") or ""
-                pnl = float(rec.get("pnl_usd", 0) or 0)
-                if pnl == 0 and not (close_reason and close_reason not in ("unknown", "N/A", "")):
-                    continue
-            count += 1
             if not earliest or ts < earliest:
                 earliest = ts
             if not latest or ts > latest:
                 latest = ts
 
-    return count, earliest, latest
+    # 2) attribution.jsonl — closed only (non-open_ trade_id, pnl or close_reason)
+    for rec in _iter_jsonl(logs / "attribution.jsonl", since_ts):
+        if str(rec.get("trade_id", "")).startswith("open_"):
+            continue
+        ctx = rec.get("context") or {}
+        close_reason = ctx.get("close_reason") or rec.get("close_reason") or ""
+        pnl = float(rec.get("pnl_usd", 0) or 0)
+        if pnl == 0 and not (close_reason and close_reason not in ("unknown", "N/A", "")):
+            continue
+        ts = rec.get("timestamp") or rec.get("ts") or ""
+        if not ts:
+            continue
+        key = (str(rec.get("symbol", "")).upper(), ts[:10])
+        if key not in seen:
+            seen.add(key)
+            if not earliest or ts < earliest:
+                earliest = ts
+            if not latest or ts > latest:
+                latest = ts
+
+    # 3) master_trade_log.jsonl — records with exit_ts = closed trade (fallback)
+    for rec in _iter_jsonl(logs / "master_trade_log.jsonl", since_ts):
+        if not rec.get("exit_ts"):
+            continue
+        ts = (rec.get("exit_ts") or rec.get("timestamp") or "")[:19]
+        if not ts:
+            continue
+        key = (str(rec.get("symbol", "")).upper(), ts[:10])
+        if key not in seen:
+            seen.add(key)
+            if not earliest or ts < earliest:
+                earliest = ts
+            if not latest or ts > latest:
+                latest = ts
+
+    return len(seen), earliest, latest
 
 
 def _get_experiment_start_ts(repo_root: Path) -> str | None:
@@ -172,7 +202,11 @@ def _next_action(
     if completion_ready:
         return "Send completion alert (window satisfied, ledger healthy); or already sent."
     if health == "EMPTY":
+        if trades > 0:
+            return "Tag baseline: run 'python scripts/tag_profit_hypothesis_alpaca.py NO' (or YES if hypothesis stated); then re-run status and daily governance."
         return "Add at least one ledger entry (tag_profit_hypothesis_alpaca.py); then re-run status."
+    if health == "STALE" and trades > 0:
+        return "Append fresh ledger entry (tag_profit_hypothesis_alpaca.py); run daily governance; then re-validate."
     if health in ("INVALID", "STALE"):
         return "Fix ledger (valid + fresh) before completion can be considered."
     sessions = days if days is not None else 0
