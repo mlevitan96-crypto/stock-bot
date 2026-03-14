@@ -1,0 +1,11 @@
+{
+  "panels": [
+    {
+      "id": "fast_lane_pnl",
+      "title": "Alpaca Fast-Lane 25-Trade PnL",
+      "endpoint": "/api/stockbot/fast_lane_ledger",
+      "tab_id": "fast_lane",
+      "description": "PnL per 25-trade cycle, cumulative PnL, cycle table. Shadow-only; no execution impact."
+    }
+  ]
+}

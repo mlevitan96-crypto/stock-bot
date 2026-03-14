@@ -1,0 +1,7 @@
+{
+  "fast_lane_ledger": {
+    "path": "/api/stockbot/fast_lane_ledger",
+    "method": "GET",
+    "description": "Alpaca fast-lane 25-trade cycle ledger: PnL per cycle and cumulative. Shadow-only."
+  }
+}
