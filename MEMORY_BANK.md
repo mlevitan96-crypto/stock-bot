@@ -1026,6 +1026,19 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 - **CPU utilization:** Scenario lab is SAFE TO SCALE. May use up to (cpu_count - 1) workers. Must remain read-only.
 - **Summary reports:** `reports/scenario_lab/SCENARIO_SUMMARY_<DATE>.md` — scenario ranking, CSA_REVIEW (why misleading, fragile assumptions), SRE_REVIEW (data completeness, replay fidelity, failure modes). Scenario outputs feed future experiment selection; Experiment #1 remains the single canonical truth source.
 
+### Alpaca Fast-Lane Shadow Experiment Concept
+- **Goals:** Fast-iteration, shadow-only experiment lane for Alpaca: 25-trade micro-windows (fast-lane cycles), PnL per cycle + cumulative, candidate ranking and best-candidate selection, 500-trade supervisor with board-grade Telegram summary, dashboard panel for 25-trade PnL.
+- **Constraints:** NO changes to live trading logic. NO writes to main experiment ledger (`state/governance_experiment_1_hypothesis_ledger_alpaca.json`). Fast-lane must remain fully isolated (writes only to `state/fast_lane_experiment/` and `logs/fast_lane_shadow.log`).
+- **Isolation rules:** Scripts read-only from `logs/exit_attribution.jsonl` (or `logs/alpaca_unified_events.jsonl` if present). No writes to main config, no live orders, no execution gating.
+- **CSA/SRE requirements:** CSA approves ledger schema and cycle scoring; SRE approves directory layout and disk safety. Both review-only; activation and cron installation are opt-in and documented in verification doc.
+
+### Alpaca Fast-Lane Live Activation
+- **Cron:** Installed via `scripts/install_fast_lane_cron_on_droplet.py`: cycle every 15 min, supervisor every 4h. Uses `/root/.alpaca_env` and `/root/stock-bot`.
+- **Scripts:** `run_fast_lane_shadow_cycle.py`, `run_fast_lane_supervisor.py`, `notify_fast_lane_summary.py` (--kind cycle | board).
+- **Manual tests:** Run cycle and supervisor --force; confirm ledger/state and Telegram. See `docs/ALPACA_FAST_LANE_LIVE_ACTIVATION_VERIFICATION.md`.
+- **Dashboard:** Tab "Alpaca Fast-Lane 25-Trade PnL" (More dropdown); API `/api/stockbot/fast_lane_ledger`.
+- **CSA/SRE:** Schema and directory layout approved; isolation confirmed (no main ledger or config writes).
+
 ---
 
 ## 5.2 PROHIBITED PRACTICES
