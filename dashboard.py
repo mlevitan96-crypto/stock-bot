@@ -355,6 +355,7 @@ DASHBOARD_HTML = """
                     <button type="button" onclick="switchTab('telemetry_health', event); closeMoreDropdown();">📋 Telemetry Health</button>
                     <button type="button" onclick="switchTab('learning_readiness', event); closeMoreDropdown();">📚 Learning & Readiness</button>
                     <button type="button" onclick="switchTab('profitability_learning', event); closeMoreDropdown();">📊 Profitability & Learning</button>
+                    <button type="button" onclick="switchTab('fast_lane', event); closeMoreDropdown();">🔬 Alpaca Fast-Lane 25-Trade PnL</button>
                 </div>
             </div>
         </div>
@@ -453,6 +454,11 @@ DASHBOARD_HTML = """
         <div id="profitability_learning-tab" class="tab-content">
             <div id="profitability_learning-content">__PROFITABILITY_LEARNING_HTML__</div>
         </div>
+        <div id="fast_lane-tab" class="tab-content">
+            <div id="fast_lane-content">
+                <div class="loading">Loading Alpaca Fast-Lane 25-Trade PnL...</div>
+            </div>
+        </div>
         
         <div id="signal_review-tab" class="tab-content">
             <div class="positions-table">
@@ -484,6 +490,7 @@ DASHBOARD_HTML = """
     else if(typeof loadTelemetryHealth==='function'&&tabName==='telemetry_health')loadTelemetryHealth();
     else if(tabName==='learning_readiness'&&typeof loadLearningReadiness==='function')loadLearningReadiness();
     else if(tabName==='profitability_learning'&&typeof loadProfitabilityLearning==='function')loadProfitabilityLearning();
+    else if(tabName==='fast_lane'&&typeof loadFastLanePnl==='function')loadFastLanePnl();
     else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
     };
     function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
@@ -523,6 +530,7 @@ DASHBOARD_HTML = """
     if(list.length){h+='<p><strong>Computed artifacts:</strong></p><ul>';for(var i=0;i<list.length;i++){var c=list[i];var name=typeof c==='string'?c:(c.name||c.id||'');if(name)h+='<li>'+name+'</li>';}h+='</ul>';}
     h+='</div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Telemetry failed: '+(e&&e.message?e.message:'network'));});};
     window.loadProfitabilityLearning=function(){var el=document.getElementById('profitability_learning-content');if(!el)return;el.innerHTML='<div class="loading">Loading Profitability &amp; Learning...</div>';fetch('/api/profitability_learning',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and try again.');return null;}return r.json();}).then(function(d){if(!el)return;if(!d){el.innerHTML='<div class="stat-card"><p>No data. Run scripts/update_profitability_cockpit.py on the droplet.</p></div>';return;}var ts=d.trade_state||{};var total=ts.total_trade_events!=null?ts.total_trade_events:0;var until=total>0?100-(total%100):100;var v=d.csa_verdict||{};var h='<div class="stat-card"><h3>CSA &amp; Trade Count</h3><p><strong>Last mission:</strong> '+(v.mission_id||'—')+'</p><p><strong>Verdict:</strong> '+(v.verdict||'—')+'</p><p><strong>Total trade events:</strong> '+total+'</p><p><strong>Trades until next CSA:</strong> '+until+'</p></div>';var md=String(d.cockpit_md||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');h+='<div class="stat-card"><h3>Profitability Cockpit</h3><pre style="white-space:pre-wrap;font-size:0.9em;">'+md+'</pre></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){if(el)err(el,'Profitability failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadFastLanePnl=function(){var el=document.getElementById('fast_lane-content');if(!el)return;el.innerHTML='<div class="loading">Loading Alpaca Fast-Lane 25-Trade PnL...</div>';fetch('/api/stockbot/fast_lane_ledger',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!el)return;var cycles=Array.isArray(d.cycles)?d.cycles:[];var totalTrades=d.total_trades!=null?d.total_trades:0;var cum=d.cumulative_pnl!=null?d.cumulative_pnl:0;var h='<div class="stat-card"><h3>Alpaca Fast-Lane (25-trade cycles)</h3><p><strong>Total trades:</strong> '+totalTrades+'</p><p><strong>Cumulative PnL:</strong> <span class="'+(cum>=0?'positive':'negative')+'">$'+Number(cum).toFixed(2)+'</span></p><p style="font-size:0.9em;color:#6b7280;">Shadow-only; no execution impact.</p></div>';if(cycles.length){var run=0;h+='<div class="stat-card"><h3>PnL per cycle (25 trades)</h3><table style="width:100%;font-size:12px;"><thead><tr><th>Cycle</th><th>PnL (USD)</th><th>Cumulative</th><th>Best candidate</th><th>Completed</th></tr></thead><tbody>';for(var i=0;i<cycles.length;i++){var c=cycles[i];run+=Number(c.pnl_usd)||0;var pnlCls=(c.pnl_usd>=0?'positive':'negative');h+='<tr><td>'+(c.cycle_id||'—')+'</td><td class="'+pnlCls+'">$'+(Number(c.pnl_usd).toFixed(2))+'</td><td>$'+Number(run).toFixed(2)+'</td><td>'+(c.best_candidate_id||'—')+'</td><td>'+(c.timestamp_completed||'—').toString().substring(0,19)+'</td></tr>';}h+='</tbody></table></div>';}else{h+='<div class="stat-card"><p>No cycles yet. Run <code>python scripts/run_fast_lane_shadow_cycle.py</code> (cron every 15 min on droplet).</p></div>';}if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Fast-lane failed: '+(e&&e.message?e.message:'network'));});};
     window.loadClosedTrades=function(){var el=document.getElementById('closed_trades-content');if(!el)return;el.innerHTML='<div class="loading">Loading closed trades...</div>';fetch('/api/stockbot/closed_trades',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var filter=document.getElementById('closed_trades_filter');var raw=Array.isArray(d.closed_trades)?d.closed_trades:[];var strategyFilter=(filter&&filter.value)||'all';var list=raw;if(strategyFilter==='equity')list=raw.filter(function(t){return (t.strategy_id||'equity')==='equity';});if(strategyFilter==='wheel')list=raw.filter(function(t){return (t.strategy_id||'')==='wheel';});var h='<div class="stat-card" style="margin-bottom:12px;"><label>Filter: </label><select id="closed_trades_filter" onchange="if(typeof loadClosedTrades===\'function\')loadClosedTrades();"><option value="all"'+(strategyFilter==='all'?' selected':'')+'>All trades</option><option value="equity"'+(strategyFilter==='equity'?' selected':'')+'>Equity only</option><option value="wheel"'+(strategyFilter==='wheel'?' selected':'')+'>Wheel only</option></select></div>';
     h+='<div class="stat-card"><h3>Closed Trades ('+list.length+')</h3><table style="width:100%;font-size:12px;"><thead><tr><th>Strategy</th><th>Symbol</th><th>Time</th><th>P&L</th><th>Close</th><th>Phase</th><th>Type</th><th>Strike</th><th>Expiry</th><th>DTE</th><th>Premium</th><th>Assigned</th><th>Called</th></tr></thead><tbody>';
     for(var i=0;i<list.length;i++){var t=list[i];var sid=t.strategy_id||'equity';var stratLabel=sid==='wheel'?'Wheel':'Equity';var ts=t.timestamp?new Date(t.timestamp).toLocaleString():'—';var pnl=t.pnl_usd!=null?'$'+Number(t.pnl_usd).toFixed(2):'—';var close=t.close_reason||'—';var ph=t.wheel_phase||'—';var ot=t.option_type||'—';var st=t.strike!=null?t.strike:'—';var ex=t.expiry||'—';var dte=t.dte!=null?t.dte:'—';var pr=t.premium!=null?'$'+Number(t.premium).toFixed(2):'—';var asn=t.assigned===true?'Y':(t.assigned===false?'N':'—');var ca=t.called_away===true?'Y':(t.called_away===false?'N':'—');h+='<tr><td>'+stratLabel+'</td><td>'+(t.symbol||'—')+'</td><td>'+ts+'</td><td>'+pnl+'</td><td>'+close+'</td><td>'+ph+'</td><td>'+ot+'</td><td>'+st+'</td><td>'+ex+'</td><td>'+dte+'</td><td>'+pr+'</td><td>'+asn+'</td><td>'+ca+'</td></tr>';}
@@ -543,7 +551,7 @@ DASHBOARD_HTML = """
         function switchTab(tabName, event) {
             if (tabName === 'more') return;
             closeMoreDropdown();
-            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry', 'telemetry_health', 'learning_readiness', 'profitability_learning'];
+            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry', 'telemetry_health', 'learning_readiness', 'profitability_learning', 'fast_lane'];
             var isAdvanced = advancedTabs.indexOf(tabName) >= 0;
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
@@ -593,6 +601,8 @@ DASHBOARD_HTML = """
                 if (typeof loadLearningReadiness === 'function') loadLearningReadiness();
             } else if (tabName === 'profitability_learning') {
                 if (typeof loadProfitabilityLearning === 'function') loadProfitabilityLearning();
+            } else if (tabName === 'fast_lane') {
+                if (typeof loadFastLanePnl === 'function') loadFastLanePnl();
             } else if (tabName === 'positions') {
                 updateDashboard();
             }
@@ -4767,6 +4777,31 @@ def api_stockbot_wheel_analytics():
         }), 200
     except Exception as e:
         return jsonify({"strategy_id": "wheel", "total_trades": 0, "open_wheel_positions": [], "error": str(e)}), 200
+
+
+def _load_fast_lane_ledger():
+    """Load Alpaca fast-lane shadow ledger (25-trade cycles). Read-only from state/fast_lane_experiment/."""
+    try:
+        ledger_path = Path(_DASHBOARD_ROOT) / "state" / "fast_lane_experiment" / "fast_lane_ledger.json"
+        if not ledger_path.exists():
+            return {"cycles": [], "total_trades": 0, "cumulative_pnl": 0.0}
+        data = json.loads(ledger_path.read_text(encoding="utf-8", errors="replace"))
+        cycles = data if isinstance(data, list) else []
+        total_trades = sum(c.get("trade_count", 0) for c in cycles)
+        cumulative_pnl = sum(c.get("pnl_usd", 0) for c in cycles)
+        return {"cycles": cycles, "total_trades": total_trades, "cumulative_pnl": cumulative_pnl}
+    except Exception as e:
+        return {"cycles": [], "total_trades": 0, "cumulative_pnl": 0.0, "error": str(e)}
+
+
+@app.route("/api/stockbot/fast_lane_ledger", methods=["GET"])
+def api_stockbot_fast_lane_ledger():
+    """Alpaca fast-lane 25-trade cycle ledger: PnL per cycle and cumulative. Shadow-only; no execution impact."""
+    try:
+        data = _load_fast_lane_ledger()
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({"cycles": [], "total_trades": 0, "cumulative_pnl": 0.0, "error": str(e)}), 200
 
 
 @app.route("/api/closed_positions")
