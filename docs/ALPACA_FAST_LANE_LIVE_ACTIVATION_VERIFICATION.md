@@ -57,6 +57,12 @@ Install with: `python scripts/install_fast_lane_cron_on_droplet.py` (after code 
 - No writes to main config or live order path.
 - Reads: `logs/exit_attribution.jsonl` (or `logs/alpaca_unified_events.jsonl` if present).
 
+## Promotion Logic (Go-Forward, Robust Angles)
+
+- Each 25-trade window: aggregate PnL by **14 angles** (strategy, exit_reason, exit_regime, entry_regime, regime_transition, sector, hold_bucket, exit_score_band, time_of_day, day_of_week, exit_regime_decision, score_deterioration_bucket, replacement, symbol). The (dimension, value) with **highest total PnL** in that window is **Promoted**.
+- Telegram sends “Promoted: &lt;dimension&gt;:&lt;value&gt;” and optional runner-ups. Dashboard table shows “Promoted” per cycle.
+- Full design: `docs/SHADOW_25_TRADE_PROMOTION_EXPERIMENT_DESIGN.md`.
+
 ## Next Steps
 
 - After 500 trades in the fast-lane ledger, supervisor (or `--force`) sends board summary; optionally run with `--reset-epoch` to start a new epoch.

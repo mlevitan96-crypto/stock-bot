@@ -52,21 +52,26 @@ def main() -> int:
     parser.add_argument("--kind", choices=("cycle", "board"), required=True, help="cycle = last cycle; board = 500-trade summary")
     parser.add_argument("--cycle-id", type=str, default=None, help="For kind=cycle: cycle_id to report")
     parser.add_argument("--pnl-usd", type=float, default=None, help="For kind=cycle: cycle PnL USD")
-    parser.add_argument("--best-candidate-id", type=str, default=None, help="For kind=cycle: best candidate id")
+    parser.add_argument("--best-candidate-id", type=str, default=None, help="Legacy: best candidate id")
+    parser.add_argument("--promoted", type=str, default=None, help="Promoted angle (dimension:value) for this cycle")
+    parser.add_argument("--runner-ups", type=str, default="", help="Optional runner-up angles for cycle")
     parser.add_argument("--notes", type=str, default="", help="Optional CSA notes for cycle")
     args = parser.parse_args()
 
     if args.kind == "cycle":
-        msg_parts = ["🔬 Alpaca Fast-Lane (25-trade cycle)"]
+        msg_parts = ["🔬 Alpaca Fast-Lane (25-trade promotion)"]
         if args.cycle_id:
             msg_parts.append(f"Cycle: {args.cycle_id}")
         if args.pnl_usd is not None:
             sign = "+" if args.pnl_usd >= 0 else ""
-            msg_parts.append(f"PnL: {sign}${args.pnl_usd:.2f}")
-        if args.best_candidate_id:
-            msg_parts.append(f"Best candidate: {args.best_candidate_id}")
+            msg_parts.append(f"Window PnL: {sign}${args.pnl_usd:.2f}")
+        promoted = args.promoted or args.best_candidate_id
+        if promoted:
+            msg_parts.append(f"Promoted: {promoted}")
+        if args.runner_ups:
+            msg_parts.append(f"Runner-ups: {args.runner_ups}")
         if args.notes:
-            msg_parts.append(f"Notes: {args.notes}")
+            msg_parts.append(args.notes)
         text = "\n".join(msg_parts)
         ok = _send_telegram(text)
         return 0 if ok else 1
@@ -77,17 +82,17 @@ def main() -> int:
     cumulative_pnl = sum(entry.get("pnl_usd", 0) for entry in ledger)
     best_by_cycle = {}
     for entry in ledger:
-        cid = entry.get("best_candidate_id") or "baseline"
+        cid = entry.get("promoted_angle") or entry.get("best_candidate_id") or "baseline"
         best_by_cycle[cid] = best_by_cycle.get(cid, 0) + 1
-    top_candidates = sorted(best_by_cycle.items(), key=lambda x: -x[1])[:5]
+    top_candidates = sorted(best_by_cycle.items(), key=lambda x: -x[1])[:8]
 
     msg_parts = [
         "📊 Alpaca Fast-Lane — Board Summary (500-trade supervisor)",
         f"Total cycles: {len(ledger)}",
         f"Total trades: {total_trades}",
         f"Cumulative PnL: ${cumulative_pnl:.2f}",
-        "Top candidates (by cycle wins): " + ", ".join(f"{c}({n})" for c, n in top_candidates) or "—",
-        "CSA/SRE: Review-only; no execution impact.",
+        "Top promoted angles (by cycle wins): " + ", ".join(f"{c}({n})" for c, n in top_candidates) or "—",
+        "Shadow only; no live impact.",
     ]
     text = "\n".join(msg_parts)
     ok = _send_telegram(text)
