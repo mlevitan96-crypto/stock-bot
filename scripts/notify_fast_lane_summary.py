@@ -86,8 +86,9 @@ def main() -> int:
         best_by_cycle[cid] = best_by_cycle.get(cid, 0) + 1
     top_candidates = sorted(best_by_cycle.items(), key=lambda x: -x[1])[:8]
 
+    milestone = " — 500-trade milestone reached." if total_trades >= 500 else ""
     msg_parts = [
-        "📊 Alpaca Fast-Lane — Board Summary (500-trade supervisor)",
+        "📊 Alpaca Fast-Lane — Board Summary (500-trade supervisor)" + milestone,
         f"Total cycles: {len(ledger)}",
         f"Total trades: {total_trades}",
         f"Cumulative PnL: ${cumulative_pnl:.2f}",
