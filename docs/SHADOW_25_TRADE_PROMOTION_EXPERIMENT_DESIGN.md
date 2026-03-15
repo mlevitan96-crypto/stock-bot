@@ -79,6 +79,15 @@ For each 25-trade window we:
 
 ---
 
+## 4b. Run-Time Flow and Notifications (Verification)
+
+- **Cron:** Cycle script runs every 15 minutes; supervisor runs every 4 hours (see `scripts/install_fast_lane_cron_on_droplet.py`).
+- **Strict 25-trade windows:** Each cycle uses exactly the next 25 post-epoch trades. The script only appends a ledger entry when `len(window) == 25`; it never creates a 24- or 26-trade cycle. Windows are consecutive: 1–25, 26–50, …, 476–500.
+- **Telegram every 25 trades:** After each completed cycle the cycle script calls `notify_fast_lane_summary.py --kind cycle` with `--promoted` and `--runner-ups`. You get one Telegram per cycle (e.g. “🔬 Alpaca Fast-Lane (25-trade promotion)”, Cycle: cycle_0001, Promoted: …, Window PnL: …).
+- **At 500 total trades:** The supervisor reads the ledger; when `total_trades >= 500` it sends **one** board summary via `notify_fast_lane_summary.py --kind board` (e.g. “📊 Alpaca Fast-Lane — Board Summary (500-trade supervisor)”, Total cycles: 20, Total trades: 500, Cumulative PnL, Top promoted angles). So you get a final Telegram at the 500-trade milestone. After that, no further cycles are created (no 21st window) until you optionally reset the epoch.
+
+---
+
 ## 5. Cycle Logic (Per 25-Trade Window)
 
 1. **Load experiment config** (epoch start, paths).
