@@ -35,14 +35,6 @@ def main() -> int:
     client = DropletClient()
     project_dir = client.project_dir  # e.g. /root/stock-bot
 
-    # Step 0 (on droplet): verify Telegram env present (script loads .env)
-    print("Droplet: Verifying Telegram env (Step 0)...")
-    r0 = client.execute_command("python3 scripts/verify_telegram_env.py", timeout=30)
-    if r0["exit_code"] != 0:
-        print("Step 0 FAILED on droplet: Telegram env missing.", r0["stdout"], r0["stderr"], file=sys.stderr)
-        return 1
-    print(r0["stdout"].strip())
-
     if not args.no_pull:
         print("Droplet: git pull origin main...")
         rp = client.git_pull()
@@ -50,6 +42,14 @@ def main() -> int:
             print("Git pull failed:", rp["stderr"], file=sys.stderr)
             return 1
         print(rp["stdout"].strip()[:500])
+
+    # Step 0 (on droplet): verify Telegram env present (script loads .env)
+    print("Droplet: Verifying Telegram env (Step 0)...")
+    r0 = client.execute_command("python3 scripts/verify_telegram_env.py", timeout=30)
+    if r0["exit_code"] != 0:
+        print("Step 0 FAILED on droplet: Telegram env missing.", r0["stdout"], r0["stderr"], file=sys.stderr)
+        return 1
+    print(r0["stdout"].strip())
 
     # Step 1+2+3: run full E2E audit on droplet (trigger, chain with --telegram, direct Telegram test)
     print("Droplet: Running full E2E audit (trigger + chain + Telegram test)...")
