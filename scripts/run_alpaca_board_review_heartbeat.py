@@ -109,6 +109,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Alpaca board review heartbeat (advisory).")
     ap.add_argument("--base-dir", type=Path, default=DEFAULT_BASE, help="Repo root")
     ap.add_argument("--stale-hours", type=float, default=24.0, help="Hours after which a tier is considered stale")
+    ap.add_argument("--force", action="store_true", help="Allow run (no-op; for E2E CLI compatibility)")
     ap.add_argument("--dry-run", action="store_true", help="Print summary only; do not write state")
     ap.add_argument("--telegram", action="store_true", help="Send one-line summary to Telegram (best-effort; failures logged)")
     args = ap.parse_args()
