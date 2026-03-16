@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """
-Run Alpaca E2E governance audit ON THE DROPLET (real data, droplet .env with Telegram).
+Run Alpaca E2E governance audit ON THE DROPLET (real data, Telegram from venv/.alpaca_env).
 
-Per MEMORY_BANK: reports use production data from the droplet. This script:
-1) Pulls latest code on droplet (git pull origin main)
-2) Runs the full governance chain on droplet with --force --telegram (loads .env there)
-3) Runs direct Telegram send test on droplet
-4) Fetches audit artifacts back to local reports/audit/
-5) Writes CSA and SRE post-run reviews from the fetched results
+Per MEMORY_BANK and ARCHITECTURE_AND_OPERATIONS: Telegram on droplet lives in (1) .env,
+(2) /root/.alpaca_env for cron/manual, (3) venv activate. We source .alpaca_env and venv
+before running so Python sees TELEGRAM_*; we also run sync_telegram_to_dotenv.py to write
+them into .env for systemd and future runs.
 
-Usage:
-  python scripts/run_alpaca_e2e_audit_on_droplet.py [--no-pull]
-
-Requires: DropletClient config (droplet_config.json or DROPLET_* env). Telegram vars must be in droplet .env.
+1) git pull
+2) Sync Telegram from venv/.alpaca_env into .env (source both, then run sync script)
+3) Verify Telegram env (with sourcing so vars present)
+4) Run full governance chain + direct Telegram test (with sourcing)
+5) Fetch artifacts and write CSA/SRE reviews
 """
 from __future__ import annotations
 
@@ -35,6 +34,10 @@ def main() -> int:
     client = DropletClient()
     project_dir = client.project_dir  # e.g. /root/stock-bot
 
+    # Shell prefix so Telegram vars from venv and .alpaca_env are present (per MEMORY_BANK / ARCHITECTURE)
+    # Order: .alpaca_env (cron/manual), then venv activate (Telegram may live in either)
+    env_prefix = "source /root/.alpaca_env 2>/dev/null; source venv/bin/activate 2>/dev/null; "
+
     if not args.no_pull:
         print("Droplet: git pull origin main...")
         rp = client.git_pull()
@@ -43,9 +46,17 @@ def main() -> int:
             return 1
         print(rp["stdout"].strip()[:500])
 
-    # Step 0 (on droplet): verify Telegram env present (script loads .env)
+    # Sync Telegram from current env (venv/.alpaca_env) into .env so systemd and load_dotenv see them
+    print("Droplet: Syncing Telegram from venv/.alpaca_env to .env...")
+    r_sync = client.execute_command(env_prefix + "python3 scripts/sync_telegram_to_dotenv.py", timeout=30)
+    if r_sync["exit_code"] != 0:
+        print("Sync warning (continuing):", r_sync["stdout"], r_sync["stderr"], file=sys.stderr)
+    else:
+        print(r_sync["stdout"].strip() or "Synced.")
+
+    # Step 0 (on droplet): verify Telegram env (with venv/.alpaca_env sourced so vars present)
     print("Droplet: Verifying Telegram env (Step 0)...")
-    r0 = client.execute_command("python3 scripts/verify_telegram_env.py", timeout=30)
+    r0 = client.execute_command(env_prefix + "python3 scripts/verify_telegram_env.py", timeout=30)
     if r0["exit_code"] != 0:
         print("Step 0 FAILED on droplet: Telegram env missing.", r0["stdout"], r0["stderr"], file=sys.stderr)
         return 1
@@ -53,7 +64,7 @@ def main() -> int:
 
     # Step 1+2+3: run full E2E audit on droplet (trigger, chain with --telegram, direct Telegram test)
     print("Droplet: Running full E2E audit (trigger + chain + Telegram test)...")
-    cmd = "python3 scripts/run_alpaca_e2e_governance_audit.py"
+    cmd = env_prefix + "python3 scripts/run_alpaca_e2e_governance_audit.py"
     r = client.execute_command(cmd, timeout=600)  # 10 min for all 6 scripts
     print(r["stdout"] or "")
     if r["stderr"]:
