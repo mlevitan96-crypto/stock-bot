@@ -16,12 +16,12 @@ def main() -> int:
     from droplet_client import DropletClient
 
     client = DropletClient()
-    # Ensure droplet has latest code
-    rp = client.git_pull()
-    if not rp.get("success"):
-        print("Git pull failed:", rp.get("stderr", ""), file=sys.stderr)
+    # Ensure droplet matches GitHub (avoid merge conflicts from local untracked/divergent files)
+    rp = client.execute_command("git fetch origin main && git reset --hard origin/main", timeout=30)
+    if rp.get("exit_code", 1) != 0:
+        print("Git fetch/reset failed:", rp.get("stderr", ""), rp.get("stdout", ""), file=sys.stderr)
         return 1
-    print("Droplet: git pull OK")
+    print("Droplet: synced to origin/main")
 
     # Per MEMORY_BANK: Telegram vars on droplet are in /root/.alpaca_env; source before running
     env_prefix = "source /root/.alpaca_env 2>/dev/null; "
