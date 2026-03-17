@@ -1,0 +1,204 @@
+"""
+Alpaca attribution emitter — entry and exit.
+Additive only; MUST NOT affect execution. Never raise in hot paths.
+"""
+from __future__ import annotations
+
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from src.telemetry.alpaca_attribution_schema import (
+    SCHEMA_VERSION,
+    entry_attribution_shape,
+    exit_attribution_shape,
+    validate_entry_attribution,
+    validate_exit_attribution,
+)
+from src.telemetry.alpaca_trade_key import build_trade_key
+
+REPO = Path(__file__).resolve().parents[2]
+LOG_DIR = REPO / "logs"
+
+
+def _entry_log_path() -> Path:
+    return Path(os.environ.get("ALPACA_ENTRY_ATTRIBUTION_PATH", str(LOG_DIR / "alpaca_entry_attribution.jsonl")))
+
+
+def _exit_log_path() -> Path:
+    return Path(os.environ.get("ALPACA_EXIT_ATTRIBUTION_PATH", str(LOG_DIR / "alpaca_exit_attribution.jsonl")))
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _append_jsonl(path: Path, rec: Dict[str, Any]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, default=str) + "\n")
+    except Exception:
+        pass
+
+
+def _to_float(x: Any) -> float:
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _entry_dominant_and_margin(
+    contributions: Dict[str, float],
+    composite_score: Optional[float],
+    entry_threshold: Optional[float],
+) -> tuple[Optional[str], Optional[float], Optional[float]]:
+    """Return (dominant_component_name, dominant_value, margin_to_threshold)."""
+    dominant_name, dominant_value = None, None
+    if contributions:
+        by_abs = sorted(contributions.items(), key=lambda kv: abs(_to_float(kv[1])), reverse=True)
+        if by_abs:
+            dominant_name = by_abs[0][0]
+            dominant_value = _to_float(by_abs[0][1])
+    margin = None
+    if composite_score is not None and entry_threshold is not None:
+        margin = round(_to_float(composite_score) - _to_float(entry_threshold), 6)
+    return dominant_name, dominant_value, margin
+
+
+def emit_entry_attribution(
+    trade_id: str,
+    symbol: str,
+    side: str,
+    decision: str,
+    decision_reason: str = "",
+    *,
+    trade_key: Optional[str] = None,
+    raw_signals: Optional[Dict[str, Any]] = None,
+    weights: Optional[Dict[str, float]] = None,
+    contributions: Optional[Dict[str, float]] = None,
+    composite_score: Optional[float] = None,
+    entry_threshold: Optional[float] = None,
+    gates: Optional[Dict[str, Any]] = None,
+    timestamp: Optional[str] = None,
+) -> None:
+    """Emit one entry_attribution event. Truth: contributions = weight*raw_signal; composite_score asserted; trade_key for join. Never raises."""
+    ts = timestamp or _now_iso()
+    key = trade_key if trade_key else build_trade_key(symbol, side, ts)
+    raw = dict(raw_signals or {})
+    w = dict(weights or {})
+    contrib = dict(contributions or {})
+    if not contrib and raw and w:
+        for k in raw:
+            if k in w:
+                contrib[k] = round(_to_float(w[k]) * _to_float(raw[k]), 6)
+            else:
+                contrib[k] = round(_to_float(raw[k]), 6)
+    elif not contrib and raw:
+        for k, v in raw.items():
+            contrib[k] = round(_to_float(v), 6)
+    comp_score = composite_score
+    if comp_score is None and contrib:
+        comp_score = round(sum(contrib.values()), 6)
+    dom_name, dom_val, margin = _entry_dominant_and_margin(contrib, comp_score, entry_threshold)
+    base = entry_attribution_shape()
+    base["trade_id"] = str(trade_id)
+    base["trade_key"] = str(key)
+    base["symbol"] = str(symbol).upper()
+    base["side"] = str(side).upper() if side else "LONG"
+    base["decision"] = str(decision)
+    base["decision_reason"] = str(decision_reason or "")
+    base["timestamp"] = ts
+    base["raw_signals"] = raw
+    base["weights"] = w
+    base["contributions"] = contrib
+    base["composite_score"] = comp_score
+    base["entry_dominant_component"] = dom_name
+    base["entry_dominant_component_value"] = dom_val
+    base["entry_margin_to_threshold"] = margin
+    if gates is not None:
+        base["gates"] = {k: {"pass": v.get("pass"), "reason": str(v.get("reason", ""))} for k, v in (gates or {}).items()}
+    base["schema_version"] = SCHEMA_VERSION
+    if validate_entry_attribution(base):
+        return
+    _append_jsonl(_entry_log_path(), base)
+    if LOG_DIR.exists():
+        unified_rec = {"event_type": "alpaca_entry_attribution", **base}
+        _append_jsonl(LOG_DIR / "alpaca_unified_events.jsonl", unified_rec)
+
+
+def _exit_dominant_and_margins(
+    exit_contributions: Dict[str, float],
+    pressure: Optional[float],
+    threshold_normal: Optional[float],
+    threshold_urgent: Optional[float],
+) -> tuple[Optional[str], Optional[float], Optional[float], Optional[float]]:
+    """Return (dominant_name, dominant_value, margin_exit_now, margin_exit_soon)."""
+    dom_name, dom_val = None, None
+    if exit_contributions:
+        by_abs = sorted(exit_contributions.items(), key=lambda kv: abs(_to_float(kv[1])), reverse=True)
+        if by_abs:
+            dom_name = by_abs[0][0]
+            dom_val = _to_float(by_abs[0][1])
+    margin_now = (round(_to_float(pressure) - _to_float(threshold_normal), 6) if pressure is not None and threshold_normal is not None else None)
+    margin_soon = (round(_to_float(pressure) - _to_float(threshold_urgent), 6) if pressure is not None and threshold_urgent is not None else None)
+    return dom_name, dom_val, margin_now, margin_soon
+
+
+def emit_exit_attribution(
+    trade_id: str,
+    symbol: str,
+    winner: str,
+    winner_explanation: str = "",
+    *,
+    trade_key: Optional[str] = None,
+    exit_components_raw: Optional[Dict[str, Any]] = None,
+    exit_weights: Optional[Dict[str, float]] = None,
+    exit_contributions: Optional[Dict[str, float]] = None,
+    exit_pressure_total: Optional[float] = None,
+    thresholds_used: Optional[Dict[str, float]] = None,
+    eligible_mechanisms: Optional[Dict[str, bool]] = None,
+    snapshot: Optional[Dict[str, Any]] = None,
+    timestamp: Optional[str] = None,
+    entry_time_iso: Optional[str] = None,
+    side: Optional[str] = None,
+) -> None:
+    """Emit one exit_attribution event. Sets dominant component and pressure margins; trade_key for join. Never raises."""
+    thr = dict(thresholds_used or {})
+    snap = dict(snapshot or exit_attribution_shape()["snapshot"])
+    snap.setdefault("pnl_unrealized", None)
+    snap.setdefault("mfe_pct_so_far", None)
+    snap.setdefault("mae_pct_so_far", None)
+    contrib = dict(exit_contributions or {})
+    dom_name, dom_val, margin_now, margin_soon = _exit_dominant_and_margins(
+        contrib, exit_pressure_total, thr.get("normal"), thr.get("urgent")
+    )
+    key = trade_key if trade_key else build_trade_key(symbol, side or "LONG", entry_time_iso or "")
+    base = exit_attribution_shape()
+    base["trade_id"] = str(trade_id)
+    base["trade_key"] = str(key)
+    base["symbol"] = str(symbol).upper()
+    base["winner"] = str(winner)
+    base["winner_explanation"] = str(winner_explanation or "")
+    base["timestamp"] = timestamp or _now_iso()
+    base["exit_components_raw"] = dict(exit_components_raw or base["exit_components_raw"])
+    base["exit_weights"] = dict(exit_weights or {})
+    base["exit_contributions"] = contrib
+    base["exit_pressure_total"] = exit_pressure_total
+    base["exit_dominant_component"] = dom_name
+    base["exit_dominant_component_value"] = dom_val
+    base["exit_pressure_margin_exit_now"] = margin_now
+    base["exit_pressure_margin_exit_soon"] = margin_soon
+    base["thresholds_used"] = thr
+    base["eligible_mechanisms"] = dict(eligible_mechanisms or base["eligible_mechanisms"])
+    base["snapshot"] = snap
+    base["schema_version"] = SCHEMA_VERSION
+    if validate_exit_attribution(base):
+        return
+    _append_jsonl(_exit_log_path(), base)
+    if LOG_DIR.exists():
+        unified_rec = {"event_type": "alpaca_exit_attribution", **base}
+        _append_jsonl(LOG_DIR / "alpaca_unified_events.jsonl", unified_rec)
