@@ -9882,7 +9882,8 @@ class StrategyEngine:
                     print(f"DEBUG {symbol}: submit_entry completed - res={res is not None}, order_type={order_type}, entry_status={entry_status}, filled_qty={filled_qty}", flush=True)
                     
                     # XAI: Log explainable trade entry
-                    if res is not None and entry_status == "FILLED":
+                    if res is not None and str(entry_status).lower() == "filled":
+                        why_sentence = ""
                         try:
                             explainable = get_explainable_logger()
                             # Get regime
@@ -9939,8 +9940,9 @@ class StrategyEngine:
                                 entry_price=fill_price or ref_price_check
                             )
                             log_event("xai", "trade_entry_logged", symbol=symbol, why=why_sentence)
-                        except Exception as xai_ex:
-                            log_event("xai", "trade_entry_log_failed", symbol=symbol, error=str(xai_ex))
+                        except Exception:
+                            pass
+                        # Entry attribution emit moved to immediately after mark_open (canonical trade_id = metadata entry_ts).
                 except Exception as submit_ex:
                     print(f"DEBUG {symbol}: EXCEPTION in submit_entry: {str(submit_ex)}", flush=True)
                     print(f"DEBUG {symbol}: Traceback: {traceback.format_exc()}", flush=True)
@@ -10067,6 +10069,67 @@ class StrategyEngine:
                         market_context=_mc if isinstance(_mc, dict) else None,
                         regime_posture=_rp if isinstance(_rp, dict) else None,
                     )
+                    # Canonical entry attribution + unified events (trade_id matches position_metadata.entry_ts for exit join)
+                    try:
+                        from src.telemetry.alpaca_attribution_emitter import emit_entry_attribution
+                        from src.telemetry.alpaca_trade_key import build_trade_key
+                        _mp = StateFiles.POSITION_METADATA
+                        _entry_ts_iso = ""
+                        if _mp.exists():
+                            _md = load_metadata_with_lock(_mp)
+                            _entry_ts_iso = str((_md.get(symbol) or {}).get("entry_ts") or "")
+                        if not _entry_ts_iso:
+                            _entry_ts_iso = datetime.utcnow().isoformat()
+                        _sym_u = str(symbol).upper()
+                        _tid = f"open_{_sym_u}_{_entry_ts_iso}"
+                        _side_e = "LONG" if str(side).lower() == "buy" else "SHORT"
+                        _meta_e = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else {}
+                        _comps_src_e = _meta_e.get("components") or comps
+                        _raw_e = dict(_comps_src_e) if isinstance(_comps_src_e, dict) else (dict(comps) if isinstance(comps, dict) else {})
+                        _contrib_src_e = _meta_e.get("component_contributions")
+                        if isinstance(_contrib_src_e, dict) and _contrib_src_e:
+                            _contrib_e = {k: float(v) if isinstance(v, (int, float)) else 0.0 for k, v in _contrib_src_e.items()}
+                            _w_e = {}
+                            for k, v in _raw_e.items():
+                                try:
+                                    val = float(v) if isinstance(v, (int, float)) else 0.0
+                                    _w_e[k] = (_contrib_e.get(k, 0) / val) if val != 0 else 1.0
+                                except (TypeError, ZeroDivisionError):
+                                    _w_e[k] = 1.0
+                        else:
+                            _w_e = {k: 1.0 for k in _raw_e}
+                            _contrib_e = {k: float(v) if isinstance(v, (int, float)) else 0.0 for k, v in _raw_e.items()}
+                        _entry_threshold_e = None
+                        try:
+                            from signals.uw_composite import ENTRY_THRESHOLD as _et_e
+                            _entry_threshold_e = float(_et_e)
+                        except Exception:
+                            pass
+                        _tk_e = build_trade_key(symbol, _side_e, _entry_ts_iso)
+                        emit_entry_attribution(
+                            trade_id=_tid,
+                            symbol=_sym_u,
+                            side=_side_e,
+                            decision="OPEN_LONG" if _side_e == "LONG" else "OPEN_SHORT",
+                            decision_reason="mark_open_filled",
+                            trade_key=_tk_e,
+                            raw_signals=_raw_e,
+                            weights=_w_e,
+                            contributions=_contrib_e,
+                            composite_score=float(score) if score is not None else None,
+                            entry_threshold=_entry_threshold_e,
+                            timestamp=_entry_ts_iso,
+                        )
+                    except Exception as _emit_ent_ex:
+                        try:
+                            log_event(
+                                "telemetry",
+                                "emit_entry_attribution_failed",
+                                symbol=symbol,
+                                error=str(_emit_ent_ex)[:400],
+                            )
+                        except Exception:
+                            pass
                     # Update metadata with correlation_id after mark_open
                     if correlation_id_for_metadata:
                         try:
