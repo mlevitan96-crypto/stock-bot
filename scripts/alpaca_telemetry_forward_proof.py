@@ -105,7 +105,23 @@ def main() -> int:
                 post_exits.append(r)
 
     n = len(post_exits)
+    AUDIT = REPO / "reports" / "audit"
+    AUDIT.mkdir(parents=True, exist_ok=True)
     if n < args.min_trades:
+        pending_body = [
+            "# Forward Proof Result",
+            "",
+            "**PENDING** — insufficient post-epoch exits to run join proof.",
+            "",
+            f"- **Repair epoch:** {t0s}",
+            f"- **Post-epoch exits counted:** {n}",
+            f"- **Min required:** {args.min_trades}",
+            "",
+            "Do not certify DATA_READY. Re-run after ≥ min closed exits.",
+        ]
+        (AUDIT / "ALPACA_TELEMETRY_FORWARD_PROOF_RESULT.md").write_text(
+            "\n".join(pending_body), encoding="utf-8"
+        )
         print(f"PENDING: only {n} exits since repair (need {args.min_trades}). Do not certify DATA_READY.")
         return 3
 
@@ -122,8 +138,6 @@ def main() -> int:
             if alt not in entry_ids:
                 missing.append({"trade_id": tid, "symbol": sym, "alt_checked": alt})
 
-    AUDIT = REPO / "reports" / "audit"
-    AUDIT.mkdir(parents=True, exist_ok=True)
     proof_path = AUDIT / "ALPACA_TELEMETRY_FORWARD_PROOF.md"
     pct = 100.0 * (n - len(missing)) / n if n else 0
     body = [
