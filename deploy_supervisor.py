@@ -63,6 +63,20 @@ start_time = time.time()
 
 REQUIRED_DIRS = ["logs", "state", "data", "config", "state/heartbeats"]
 
+# Data retention: do NOT truncate these (forensic, backfill, EOD). See docs/DATA_RETENTION_POLICY.md.
+RETENTION_PROTECTED = {
+    "logs/exit_attribution.jsonl",
+    "logs/attribution.jsonl",
+    "logs/master_trade_log.jsonl",
+    "logs/alpaca_entry_attribution.jsonl",
+    "logs/alpaca_unified_events.jsonl",
+    "logs/alpaca_exit_attribution.jsonl",
+    "state/blocked_trades.jsonl",
+    "reports/state/exit_decision_trace.jsonl",
+}
+# Basenames must never be truncated by startup_cleanup (path variants / cwd).
+RETENTION_PROTECTED_BASENAMES = frozenset(Path(p).name for p in RETENTION_PROTECTED)
+
 # Health registry
 health_registry = {}
 health_lock = threading.Lock()
@@ -586,12 +600,15 @@ def rotate_logs():
                 return ""
 
         patterns = [
-            "logs/*.jsonl", "logs/*.log", 
+            "logs/*.jsonl", "logs/*.log",
             "data/*.jsonl", "state/*.jsonl",
-            "feature_store/*.jsonl"
+            "feature_store/*.jsonl",
+            "reports/state/*.jsonl",
         ]
         for pattern in patterns:
             for filepath in Path(".").glob(pattern):
+                if filepath.name in RETENTION_PROTECTED_BASENAMES or filepath.as_posix() in RETENTION_PROTECTED:
+                    continue
                 try:
                     size_mb = filepath.stat().st_size / (1024 * 1024)
                     if size_mb > max_size_mb:
@@ -631,10 +648,13 @@ def startup_cleanup():
     patterns = [
         "logs/*.jsonl", "logs/*.log",
         "data/*.jsonl", "state/*.jsonl",
-        "feature_store/*.jsonl"
+        "feature_store/*.jsonl",
+        "reports/state/*.jsonl",
     ]
     for pattern in patterns:
         for filepath in Path(".").glob(pattern):
+            if filepath.name in RETENTION_PROTECTED_BASENAMES or filepath.as_posix() in RETENTION_PROTECTED:
+                continue
             try:
                 size_mb = filepath.stat().st_size / (1024 * 1024)
                 if size_mb > max_size_mb:
