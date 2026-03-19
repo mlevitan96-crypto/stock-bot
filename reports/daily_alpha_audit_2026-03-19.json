@@ -1,0 +1,87 @@
+{
+  "report_date": "2026-03-19",
+  "report_timestamp": "2026-03-19T20:30:02.638032+00:00",
+  "report_type": "daily_alpha_audit",
+  "authoritative_source": "MEMORY_BANK.md",
+  "today_summary": {
+    "total_trades": 465,
+    "total_wins": 73,
+    "total_losses": 131,
+    "win_rate": 0.157,
+    "total_pnl_usd": -89.6,
+    "total_pnl_pct": -57.9374,
+    "avg_pnl_pct": -0.1246
+  },
+  "regime_performance": {
+    "today": {
+      "MIXED": {
+        "trades": 453,
+        "wins": 71,
+        "losses": 121,
+        "win_rate": 0.1567,
+        "total_pnl_usd": -77.15,
+        "total_pnl_pct": -51.4362,
+        "avg_pnl_pct": -0.1135,
+        "avg_pnl_usd": -0.17,
+        "avg_hold_minutes": 21.0
+      },
+      "UNKNOWN": {
+        "trades": 12,
+        "wins": 2,
+        "losses": 10,
+        "win_rate": 0.1667,
+        "total_pnl_usd": -12.45,
+        "total_pnl_pct": -6.5012,
+        "avg_pnl_pct": -0.5418,
+        "avg_pnl_usd": -1.04,
+        "avg_hold_minutes": 50.2
+      }
+    },
+    "weekly_average": {
+      "MIXED": 0.183,
+      "UNKNOWN": 0.3429
+    },
+    "comparison": {
+      "MIXED": {
+        "today_win_rate": 0.1567,
+        "weekly_avg_win_rate": 0.183,
+        "divergence_pct": -2.63,
+        "today_trades": 453,
+        "today_avg_pnl_pct": -0.1135
+      },
+      "UNKNOWN": {
+        "today_win_rate": 0.1667,
+        "weekly_avg_win_rate": 0.3429,
+        "divergence_pct": -17.62,
+        "today_trades": 12,
+        "today_avg_pnl_pct": -0.5418
+      }
+    }
+  },
+  "vwap_deviation": {
+    "avg_deviation_pct": -0.0,
+    "median_deviation_pct": 0.0,
+    "positive_deviations": 104,
+    "negative_deviations": 104,
+    "sample_count": 442,
+    "std_deviation_pct": 0.1479
+  },
+  "momentum_lead_time": {
+    "avg_lead_time_seconds": 78.0,
+    "median_lead_time_seconds": 0.0,
+    "min_lead_time_seconds": 0.0,
+    "max_lead_time_seconds": 7837.03,
+    "sample_count": 465
+  },
+  "liquidity_metrics": {
+    "avg_spread_bps": 0.0,
+    "avg_hour_spread_bps": 0.0,
+    "avg_deviation_from_hour_avg": 0.0,
+    "sample_count": 0
+  },
+  "data_quality": {
+    "today_trades_analyzed": 465,
+    "weekly_trades_analyzed": 2453,
+    "orders_analyzed": 11142
+  }
+}
