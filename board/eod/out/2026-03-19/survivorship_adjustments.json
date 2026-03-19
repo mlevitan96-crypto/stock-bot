@@ -1,0 +1,269 @@
+{
+  "date": "2026-03-19",
+  "chronic_losers": [
+    {
+      "symbol": "AAPL",
+      "pnl_contribution_usd": -16.48,
+      "trade_count": 52,
+      "win_rate": 0.1538,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "UNH",
+      "pnl_contribution_usd": -15.34,
+      "trade_count": 62,
+      "win_rate": 0.1935,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "LOW",
+      "pnl_contribution_usd": -13.18,
+      "trade_count": 80,
+      "win_rate": 0.3,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "COIN",
+      "pnl_contribution_usd": -20.04,
+      "trade_count": 93,
+      "win_rate": 0.3226,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "PLTR",
+      "pnl_contribution_usd": -23.36,
+      "trade_count": 84,
+      "win_rate": 0.2381,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "CVX",
+      "pnl_contribution_usd": -16.24,
+      "trade_count": 72,
+      "win_rate": 0.1389,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "F",
+      "pnl_contribution_usd": -25.74,
+      "trade_count": 61,
+      "win_rate": 0.2295,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "HOOD",
+      "pnl_contribution_usd": -25.66,
+      "trade_count": 87,
+      "win_rate": 0.3218,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "META",
+      "pnl_contribution_usd": -14.63,
+      "trade_count": 23,
+      "win_rate": 0,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "TGT",
+      "pnl_contribution_usd": -15.4,
+      "trade_count": 76,
+      "win_rate": 0.2368,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "XOM",
+      "pnl_contribution_usd": -14.64,
+      "trade_count": 63,
+      "win_rate": 0.1905,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "INTC",
+      "pnl_contribution_usd": -53.12,
+      "trade_count": 83,
+      "win_rate": 0.2169,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "NVDA",
+      "pnl_contribution_usd": -15.48,
+      "trade_count": 89,
+      "win_rate": 0.2247,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "AMD",
+      "pnl_contribution_usd": -30.51,
+      "trade_count": 77,
+      "win_rate": 0.2338,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "SOFI",
+      "pnl_contribution_usd": -46.4,
+      "trade_count": 83,
+      "win_rate": 0.1928,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "MRNA",
+      "pnl_contribution_usd": -41.46,
+      "trade_count": 83,
+      "win_rate": 0.241,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "SLB",
+      "pnl_contribution_usd": -13.81,
+      "trade_count": 80,
+      "win_rate": 0.25,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "LCID",
+      "pnl_contribution_usd": -22.05,
+      "trade_count": 63,
+      "win_rate": 0.3175,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "NIO",
+      "pnl_contribution_usd": -17.64,
+      "trade_count": 68,
+      "win_rate": 0.1765,
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "RIVN",
+      "pnl_contribution_usd": -29.36,
+      "trade_count": 74,
+      "win_rate": 0.3514,
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    }
+  ],
+  "consistent_winners": [],
+  "decay_penalties": [],
+  "adjustments": [
+    {
+      "symbol": "AAPL",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "UNH",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "LOW",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "COIN",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "PLTR",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "CVX",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "F",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "HOOD",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "META",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "TGT",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "XOM",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "INTC",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "NVDA",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "AMD",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "SOFI",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "MRNA",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "SLB",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "LCID",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    },
+    {
+      "symbol": "NIO",
+      "action": "penalize_strong",
+      "score_penalty": -0.65
+    },
+    {
+      "symbol": "RIVN",
+      "action": "penalize_strong",
+      "score_penalty": -0.5
+    }
+  ]
+}
