@@ -1,19 +1,20 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-25T04:43:58.841992+00:00",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: Missing expected top-level dirs: ['memory_bank'] — NOTE: repo uses MEMORY_BANK.md (file) not memory_bank/ (directory). Governance script expectation may need updating.",
+    "governance_contracts_present: Missing: memory_bank — same root cause as above."
+  ],
+  "github_issue": "anomalies_detected=true; GitHub issue creation not available in read-only automation mode. Manual review recommended.",
   "slack_sent": false
 }
