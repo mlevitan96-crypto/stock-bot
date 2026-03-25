@@ -1547,6 +1547,19 @@ def log_order(event: dict):
         )
 
         sym = ev.get("symbol")
+        if sym and not ev.get("canonical_trade_id"):
+            try:
+                from config.registry import StateFiles, load_metadata_with_lock
+
+                _mp = StateFiles.POSITION_METADATA
+                if _mp.exists():
+                    _md = load_metadata_with_lock(_mp)
+                    _sk = str(sym).strip().upper()
+                    _row = _md.get(_sk) if isinstance(_md.get(_sk), dict) else _md.get(sym)
+                    if isinstance(_row, dict) and _row.get("canonical_trade_id"):
+                        ev["canonical_trade_id"] = _row["canonical_trade_id"]
+            except Exception:
+                pass
         if sym:
             merge_attribution_keys_into_record(sym, ev, overwrite=False)
         ev = attach_paper_economics_defaults(ev)
