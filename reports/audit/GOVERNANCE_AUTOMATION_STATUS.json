@@ -1,19 +1,37 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-25T23:20:01Z",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
-    "no_deprecated_dirs": "pass",
-    "no_clawdbot_moltbot": "pass"
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warning",
+      "message": "memory_bank/ directory missing. Expected top-level directories: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/. All present except memory_bank/ (MEMORY_BANK.md file exists at root but not the directory)."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warning",
+      "message": "memory_bank/ directory does not exist so key governance docs cannot be verified inside it. .cursor/automations/ exists with README and specs. reports/audit/ and reports/board/ exist."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "critical",
+      "message": "moltbot/ directory still exists at repo root with active Python code (sentinel.py, board.py, promotion_discipline.py, orchestrator.py, memory_evolution.py). Per audit docs (CLAWDBOT_REMOVAL_DEPLOY_PROOF.md, CLAWDBOT_REMOVAL_CHANGELOG.md), this should have been removed."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "critical",
+      "message": "Moltbot/molt references found in code/config (excluding reports/audit and docs): moltbot/ directory (5 .py files), scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py."
+    }
+  ],
   "slack_sent": false
 }
