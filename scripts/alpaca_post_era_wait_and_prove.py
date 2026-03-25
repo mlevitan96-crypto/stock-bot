@@ -227,7 +227,7 @@ def main() -> int:
     else:
         matrices_for_doc = (inc_m + comp_m)[:3]
 
-    summary_body = f"""# ALPACA strict completeness arming — proof summary ({ts})
+    summary_body = f"""# ALPACA strict completeness arming - proof summary ({ts})
 
 ## 1) STRICT_EPOCH_START and why
 
@@ -279,7 +279,7 @@ def main() -> int:
 - **NEXT_TRIGGER:** Re-run after first terminal close (exit_attribution or orders `close_position`) **and** unified `alpaca_exit_attribution` with timestamp ≥ STRICT_EPOCH_START.
 """
 
-    full_body = f"""# ALPACA strict completeness arming — full proof ({ts})
+    full_body = f"""# ALPACA strict completeness arming - full proof ({ts})
 
 ## Constants
 
