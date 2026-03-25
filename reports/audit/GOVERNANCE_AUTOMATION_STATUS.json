@@ -1,19 +1,19 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-25T19:04:03+00:00",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: memory_bank/ directory missing from top-level (MEMORY_BANK.md exists as file but expected directory is absent). All other expected dirs present: src/, scripts/, reports/, docs/, validation/, .cursor/, reports/audit/, reports/board/.",
+    "governance_contracts_present: memory_bank/ directory not found. .cursor/automations/ present with README + 5 spec files. reports/audit/ and reports/board/ both present."
+  ],
   "slack_sent": false
 }
