@@ -19,6 +19,10 @@ from typing import Any, Dict, List, Optional, Set
 
 from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
 
+# Forward-only strict learning era (UTC epoch). Used when ``open_ts_epoch`` is set: cohort
+# membership requires position **open** time parsed from ``trade_id`` (open_<SYM>_<ISO>) >= this floor.
+STRICT_EPOCH_START = 1774458080.0  # 2026-03-25T17:01:20Z
+
 AUTHORITATIVE_JOIN_KEY_RULE = (
     "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from "
     "open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected "
@@ -70,6 +74,14 @@ def market_open_epoch_today_et() -> Optional[float]:
     d = now_et.date()
     open_et = datetime(d.year, d.month, d.day, 9, 30, tzinfo=_ET)
     return open_et.timestamp()
+
+
+def _open_epoch_from_trade_id(tid: str, tid_re: Any) -> Optional[float]:
+    """Parse open instant from trade_id ``open_<SYM>_<ISO8601>`` suffix."""
+    m = tid_re.match(str(tid).strip())
+    if not m:
+        return None
+    return _parse_iso_ts(m.group(2))
 
 
 def _expand_canonical_aliases(seed_ids: Set[str], intent_to_fill: Dict[str, str]) -> Set[str]:
@@ -173,6 +185,33 @@ def evaluate_completeness(
         if not tid or not sym:
             continue
         closed.append((str(tid), str(sym).upper(), str(ent or ""), rec))
+
+    # Entry-based strict cohort: when exit-window floor is set, exclude pre-era opens (close can be post-era).
+    strict_cohort_exclusion_reasons: Counter = Counter()
+    excluded_trade_ids_capped: List[str] = []
+    strict_cohort_excluded_preera_open_count = 0
+    closed_cohort: List[tuple] = []
+    entry_era_floor: Optional[float] = open_ts if open_ts is not None else None
+    for row in closed:
+        tid, sym, ent_iso, rec = row[0], row[1], row[2], row[3]
+        if entry_era_floor is None:
+            closed_cohort.append(row)
+            continue
+        oep = _open_epoch_from_trade_id(tid, TID_RE)
+        if oep is None:
+            strict_cohort_exclusion_reasons["OPEN_TIME_UNPARSABLE_FROM_TRADE_ID"] += 1
+            if len(excluded_trade_ids_capped) < 20:
+                excluded_trade_ids_capped.append(str(tid))
+            continue
+        if oep < entry_era_floor:
+            strict_cohort_exclusion_reasons["PREERA_OPEN"] += 1
+            strict_cohort_excluded_preera_open_count += 1
+            if len(excluded_trade_ids_capped) < 20:
+                excluded_trade_ids_capped.append(str(tid))
+            continue
+        closed_cohort.append(row)
+
+    closed = closed_cohort
 
     reason_hist: Counter = Counter()
     incomplete_ex: List[dict] = []
@@ -322,6 +361,11 @@ def evaluate_completeness(
     out: Dict[str, Any] = {
         "ROOT": str(root),
         "OPEN_TS_UTC_EPOCH": open_ts,
+        "STRICT_EPOCH_START": STRICT_EPOCH_START,
+        "strict_cohort_entry_era_floor_applied": entry_era_floor is not None,
+        "strict_cohort_excluded_preera_open_count": strict_cohort_excluded_preera_open_count,
+        "strict_cohort_exclusion_reasons": dict(strict_cohort_exclusion_reasons),
+        "excluded_trade_ids_capped": list(excluded_trade_ids_capped),
         "precheck": precheck,
         "trades_seen": len(closed),
         "trades_complete": complete,

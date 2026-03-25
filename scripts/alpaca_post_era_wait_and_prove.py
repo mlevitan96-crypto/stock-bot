@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-STRICT_EPOCH_START = 1774458080.0  # 2026-03-25T17:01:20Z
+from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START  # noqa: E402
+
 STRICT_EPOCH_ISO = "2026-03-25T17:01:20+00:00"
 SLEEP_SEC = 60
 MAX_ITERATIONS = 180  # 180 minutes
