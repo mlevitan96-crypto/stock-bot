@@ -189,7 +189,22 @@ def evaluate_completeness(root: Path, open_ts_epoch: Optional[float] = None) -> 
             complete += 1
 
     structural = code_structural or any("STRUCTURAL" in str(x) for x in precheck)
-    blocked = bool(precheck) or (len(closed) - complete) > 0 or structural
+    vacuous_zero_trades = len(closed) == 0
+    blocked = bool(precheck) or vacuous_zero_trades or (len(closed) - complete) > 0 or structural
+
+    if not blocked:
+        learning_fail_closed_reason = None
+        learning_status = "ARMED"
+    else:
+        learning_status = "BLOCKED"
+        if precheck:
+            learning_fail_closed_reason = "precheck:" + ",".join(precheck)
+        elif structural:
+            learning_fail_closed_reason = "structural_trade_intent_path"
+        elif vacuous_zero_trades:
+            learning_fail_closed_reason = "NO_POST_DEPLOY_PROOF_YET"
+        else:
+            learning_fail_closed_reason = "incomplete_trade_chain"
 
     return {
         "ROOT": str(root),
@@ -201,7 +216,8 @@ def evaluate_completeness(root: Path, open_ts_epoch: Optional[float] = None) -> 
         "reason_histogram": dict(reason_hist),
         "incomplete_examples": incomplete_ex,
         "code_structural_trade_intent_no_canonical_on_entered": code_structural,
-        "LEARNING_STATUS": "BLOCKED" if blocked else "ARMED",
+        "LEARNING_STATUS": learning_status,
+        "learning_fail_closed_reason": learning_fail_closed_reason,
     }
 
 
@@ -210,8 +226,14 @@ def main() -> int:
 
     ap = argparse.ArgumentParser(description="Alpaca strict completeness gate (local root)")
     ap.add_argument("--root", type=Path, default=Path("."))
+    ap.add_argument(
+        "--open-ts-epoch",
+        type=float,
+        default=None,
+        help="UTC epoch floor for exit_attribution rows (post-deploy windows)",
+    )
     args = ap.parse_args()
-    r = evaluate_completeness(args.root)
+    r = evaluate_completeness(args.root, open_ts_epoch=args.open_ts_epoch)
     print(json.dumps(r, indent=2))
     return 0 if r["LEARNING_STATUS"] == "ARMED" else 1
 

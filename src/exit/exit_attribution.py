@@ -102,8 +102,22 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
                 snapshot=snap,
                 timestamp=rec.get("timestamp"),
             )
-        except Exception:
-            pass
+        except Exception as ex:
+            import traceback
+
+            sym_fb = str(rec.get("symbol") or "")
+            tb_tail = traceback.format_exc()[-1200:]
+            try:
+                from telemetry.learning_blocker_emit import emit_learning_blocker
+
+                emit_learning_blocker(
+                    "unified_exit_emit_exception",
+                    sym_fb,
+                    error=str(ex)[:500],
+                    traceback_tail=tb_tail,
+                )
+            except Exception:
+                pass
         # CTR mirror (Phase 1: when TRUTH_ROUTER_ENABLED=1)
         try:
             from src.infra.truth_router import append_jsonl as ctr_append

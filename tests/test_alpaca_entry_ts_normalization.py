@@ -92,6 +92,26 @@ class TestStrictCompletenessGate(unittest.TestCase):
             self.assertIn("LEARNING_STATUS", r)
             self.assertEqual(r["LEARNING_STATUS"], "BLOCKED")
 
+    def test_gate_blocks_vacuous_zero_trades(self):
+        import tempfile
+        from pathlib import Path
+
+        from telemetry.alpaca_strict_completeness_gate import evaluate_completeness
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "logs").mkdir(parents=True)
+            (root / "logs" / "alpaca_unified_events.jsonl").write_text("", encoding="utf-8")
+            (root / "logs" / "run.jsonl").write_text("", encoding="utf-8")
+            (root / "logs" / "orders.jsonl").write_text("", encoding="utf-8")
+            (root / "logs" / "exit_attribution.jsonl").write_text("", encoding="utf-8")
+            (root / "main.py").write_text("# production-shaped main\n", encoding="utf-8")
+
+            r = evaluate_completeness(root, open_ts_epoch=None)
+            self.assertEqual(r["trades_seen"], 0)
+            self.assertEqual(r["LEARNING_STATUS"], "BLOCKED")
+            self.assertEqual(r.get("learning_fail_closed_reason"), "NO_POST_DEPLOY_PROOF_YET")
+
 
 if __name__ == "__main__":
     unittest.main()

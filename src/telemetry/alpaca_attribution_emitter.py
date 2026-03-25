@@ -35,11 +35,49 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _append_jsonl(path: Path, rec: Dict[str, Any]) -> None:
+def _append_jsonl(
+    path: Path,
+    rec: Dict[str, Any],
+    *,
+    symbol: str = "",
+    purpose: str = "",
+) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
+    except Exception as ex:
+        try:
+            from telemetry.learning_blocker_emit import emit_learning_blocker
+
+            emit_learning_blocker(
+                "alpaca_jsonl_append_failed",
+                str(symbol or ""),
+                path=str(path),
+                purpose=str(purpose or ""),
+                error=str(ex)[:500],
+            )
+        except Exception:
+            pass
+
+
+def _maybe_diag_unified_exit_emit(trade_id: str, unified_path: Path, ok: bool, detail: str = "") -> None:
+    """Optional run.jsonl line when ALPACA_UNIFIED_EXIT_EMIT_DIAG=1 (additive diagnostics)."""
+    if os.environ.get("ALPACA_UNIFIED_EXIT_EMIT_DIAG", "").strip() != "1":
+        return
+    try:
+        runp = REPO / "logs" / "run.jsonl"
+        runp.parent.mkdir(parents=True, exist_ok=True)
+        line = {
+            "event_type": "alpaca_unified_exit_emit_attempt",
+            "trade_id": str(trade_id),
+            "unified_path": str(unified_path),
+            "ok": bool(ok),
+            "detail": (detail or "")[:800],
+            "ts": _now_iso(),
+        }
+        with runp.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(line, default=str) + "\n")
     except Exception:
         pass
 
@@ -130,12 +168,28 @@ def emit_entry_attribution(
     if gates is not None:
         base["gates"] = {k: {"pass": v.get("pass"), "reason": str(v.get("reason", ""))} for k, v in (gates or {}).items()}
     base["schema_version"] = SCHEMA_VERSION
-    if validate_entry_attribution(base):
+    entry_issues = validate_entry_attribution(base)
+    if entry_issues:
+        try:
+            from telemetry.learning_blocker_emit import emit_learning_blocker
+
+            emit_learning_blocker(
+                "alpaca_entry_validation_blocked",
+                str(symbol),
+                issues=entry_issues[:12],
+            )
+        except Exception:
+            pass
         return
-    _append_jsonl(_entry_log_path(), base)
+    _append_jsonl(_entry_log_path(), base, symbol=str(symbol), purpose="dedicated_entry_attribution")
     if LOG_DIR.exists():
         unified_rec = {"event_type": "alpaca_entry_attribution", **base}
-        _append_jsonl(LOG_DIR / "alpaca_unified_events.jsonl", unified_rec)
+        _append_jsonl(
+            LOG_DIR / "alpaca_unified_events.jsonl",
+            unified_rec,
+            symbol=str(symbol),
+            purpose="alpaca_unified_entry",
+        )
 
 
 def _exit_dominant_and_margins(
@@ -220,9 +274,23 @@ def emit_exit_attribution(
     if realized_pnl_usd is not None:
         base["realized_pnl_usd"] = float(realized_pnl_usd)
     base["fees_usd"] = float(fees_usd)
-    if validate_exit_attribution(base):
+    exit_issues = validate_exit_attribution(base)
+    unified_p = LOG_DIR / "alpaca_unified_events.jsonl"
+    if exit_issues:
+        try:
+            from telemetry.learning_blocker_emit import emit_learning_blocker
+
+            emit_learning_blocker(
+                "alpaca_exit_validation_blocked",
+                str(symbol),
+                issues=exit_issues[:12],
+            )
+        except Exception:
+            pass
+        _maybe_diag_unified_exit_emit(str(trade_id), unified_p, False, "validation:" + ";".join(exit_issues[:5]))
         return
-    _append_jsonl(_exit_log_path(), base)
+    _append_jsonl(_exit_log_path(), base, symbol=str(symbol), purpose="dedicated_exit_attribution")
     if LOG_DIR.exists():
         unified_rec = {"event_type": "alpaca_exit_attribution", **base}
-        _append_jsonl(LOG_DIR / "alpaca_unified_events.jsonl", unified_rec)
+        _append_jsonl(unified_p, unified_rec, symbol=str(symbol), purpose="alpaca_unified_exit")
+        _maybe_diag_unified_exit_emit(str(trade_id), unified_p, True, "written")
