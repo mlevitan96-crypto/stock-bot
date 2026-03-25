@@ -47,6 +47,63 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
             pass
         with OUT.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
+        # Canonical exit attribution (dominant + margins + snapshot)
+        try:
+            from src.telemetry.alpaca_attribution_emitter import emit_exit_attribution
+            trade_id = rec.get("trade_id") or f"open_{rec.get('symbol', '?')}_{rec.get('entry_timestamp', '')}"
+            v2_comp = rec.get("v2_exit_components") or {}
+            eq = rec.get("exit_quality_metrics") or {}
+            snap = {
+                "pnl": rec.get("pnl"),
+                "pnl_pct": rec.get("pnl_pct"),
+                "pnl_unrealized": None,
+                "mfe": eq.get("mfe_pct"),
+                "mae": eq.get("mae_pct"),
+                "mfe_pct_so_far": eq.get("mfe_pct"),
+                "mae_pct_so_far": eq.get("mae_pct"),
+                "hold_minutes": rec.get("time_in_trade_minutes"),
+            }
+            exit_weights = rec.get("exit_weights") or {}
+            exit_contributions = rec.get("exit_contributions")
+            if exit_contributions is None and isinstance(rec.get("attribution_components"), list):
+                exit_contributions = {c.get("signal_id", ""): c.get("contribution_to_score", 0) for c in rec.get("attribution_components") if isinstance(c, dict) and c.get("signal_id")}
+            if not exit_contributions and v2_comp:
+                exit_contributions = {k: float(v) if isinstance(v, (int, float)) else 0.0 for k, v in v2_comp.items()}
+            thresholds_used = rec.get("thresholds_used")
+            if not isinstance(thresholds_used, dict):
+                thresholds_used = {"normal": rec.get("exit_pressure_threshold_normal"), "urgent": rec.get("exit_pressure_threshold_urgent")}
+            _sym = rec.get("symbol", "")
+            _side = rec.get("side") or rec.get("direction") or "long"
+            _entry_ts = rec.get("entry_timestamp") or ""
+            from src.telemetry.alpaca_trade_key import build_trade_key
+            from telemetry.attribution_emit_keys import get_symbol_attribution_keys
+
+            _trade_key = build_trade_key(_sym, _side, _entry_ts)
+            _ak = get_symbol_attribution_keys(_sym)
+            _canon = _ak.get("canonical_trade_id") or _trade_key
+            _pnl = rec.get("pnl")
+            emit_exit_attribution(
+                trade_id=trade_id,
+                symbol=_sym,
+                winner=rec.get("exit_reason", ""),
+                winner_explanation=rec.get("exit_regime_reason") or "",
+                trade_key=_trade_key,
+                canonical_trade_id=str(_canon) if _canon is not None else None,
+                terminal_close=True,
+                realized_pnl_usd=float(_pnl) if _pnl is not None else None,
+                fees_usd=0.0,
+                entry_time_iso=_entry_ts,
+                side=_side,
+                exit_components_raw=dict(v2_comp),
+                exit_weights=dict(exit_weights) if exit_weights else None,
+                exit_contributions=dict(exit_contributions) if exit_contributions else None,
+                exit_pressure_total=rec.get("exit_pressure_total") or rec.get("v2_exit_score"),
+                thresholds_used=thresholds_used if thresholds_used else None,
+                snapshot=snap,
+                timestamp=rec.get("timestamp"),
+            )
+        except Exception:
+            pass
         # CTR mirror (Phase 1: when TRUTH_ROUTER_ENABLED=1)
         try:
             from src.infra.truth_router import append_jsonl as ctr_append
