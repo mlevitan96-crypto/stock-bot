@@ -86,6 +86,11 @@ This document defines:
 
 Cursor MUST treat this document as the **authoritative rule set** for all actions.
 
+## 1.1 Alpaca strict learning era (CSA)
+
+- **STRICT_EPOCH_START (UTC epoch seconds):** `1774458080` (`2026-03-25T17:01:20Z`). Canonical: `telemetry/alpaca_strict_completeness_gate.py` (`STRICT_EPOCH_START`).
+- **Strict cohort (entry-based):** When `evaluate_completeness` is called with `open_ts_epoch` set, terminal closes are kept only if exit time `>= open_ts_epoch`. Among those, a trade is in the strict cohort only if the open instant parsed from `trade_id` (`open_<SYM>_<ISO8601>`) is also `>= open_ts_epoch`. Earlier opens are excluded (`PREERA_OPEN`) and do not count as `trades_seen` or incomplete.
+
 ---
 
 # 2. PROJECT ARCHITECTURE OVERVIEW
