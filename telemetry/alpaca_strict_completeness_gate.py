@@ -1,16 +1,27 @@
 """
 Strict completeness (A) evaluation for Alpaca logs (read-only). Used by audits and pytest.
+
+AUTHORITATIVE_JOIN_KEY (Alpaca strict joins):
+  Prefer ``canonical_trade_id_fill`` from the latest ``canonical_trade_id_resolved`` row
+  for that symbol; otherwise use ``trade_key`` from unified exit (or derived from
+  ``open_{SYM}_{entry_ts}`` trade_id). Intent-time vs fill-time IDs are linked via
+  ``canonical_trade_id_resolved`` and expanded as an alias set for all joins.
 """
 from __future__ import annotations
 
 import json
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
-from src.telemetry.alpaca_trade_key import build_trade_key
+from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+
+AUTHORITATIVE_JOIN_KEY_RULE = (
+    "canonical_trade_id_fill (per symbol, latest canonical_trade_id_resolved) "
+    "if present; else trade_key from unified exit / exit row derivation"
+)
 
 try:
     from zoneinfo import ZoneInfo
@@ -56,7 +67,30 @@ def market_open_epoch_today_et() -> Optional[float]:
     return open_et.timestamp()
 
 
-def evaluate_completeness(root: Path, open_ts_epoch: Optional[float] = None) -> Dict[str, Any]:
+def _expand_canonical_aliases(seed_ids: Set[str], intent_to_fill: Dict[str, str]) -> Set[str]:
+    """Closure of seed IDs with undirected intent<->fill edges from canonical_trade_id_resolved."""
+    s = {x for x in seed_ids if x}
+    if not intent_to_fill:
+        return s
+    changed = True
+    while changed:
+        changed = False
+        for intent_id, fill_id in intent_to_fill.items():
+            if intent_id in s and fill_id not in s:
+                s.add(fill_id)
+                changed = True
+            elif fill_id in s and intent_id not in s:
+                s.add(intent_id)
+                changed = True
+    return s
+
+
+def evaluate_completeness(
+    root: Path,
+    open_ts_epoch: Optional[float] = None,
+    *,
+    audit: bool = False,
+) -> Dict[str, Any]:
     """Evaluate strict completeness since market open (ET today) or custom open_ts_epoch (UTC)."""
     root = root.resolve()
     logs = root / "logs"
@@ -83,9 +117,9 @@ def evaluate_completeness(root: Path, open_ts_epoch: Optional[float] = None) -> 
     for rec in _stream_jsonl(unified_path):
         et = rec.get("event_type") or rec.get("type")
         if et == "alpaca_entry_attribution":
-            tk = rec.get("trade_key") or rec.get("canonical_trade_id")
-            if tk:
-                unified_entry[str(tk)] = rec
+            for k in (rec.get("trade_key"), rec.get("canonical_trade_id")):
+                if k:
+                    unified_entry[str(k)] = rec
         elif et == "alpaca_exit_attribution":
             tid = rec.get("trade_id")
             if tid and rec.get("terminal_close"):
@@ -97,19 +131,24 @@ def evaluate_completeness(root: Path, open_ts_epoch: Optional[float] = None) -> 
         if ct:
             orders_by_ct.setdefault(str(ct), []).append(rec)
 
-    exit_intents_by_ct: Dict[str, List[dict]] = {}
+    exit_intents_by_ct: Dict[str, List[dict]] = defaultdict(list)
     trade_intents_entered: List[dict] = []
     resolved_final: Dict[str, str] = {}
+    intent_to_fill: Dict[str, str] = {}
     for rec in _stream_jsonl(run_path):
         et = rec.get("event_type")
         if et == "exit_intent" and rec.get("canonical_trade_id"):
-            exit_intents_by_ct.setdefault(str(rec["canonical_trade_id"]), []).append(rec)
+            exit_intents_by_ct[str(rec["canonical_trade_id"])].append(rec)
         if et == "trade_intent" and str(rec.get("decision_outcome", "")).lower() == "entered":
             trade_intents_entered.append(rec)
         if et == "canonical_trade_id_resolved" and rec.get("canonical_trade_id_fill"):
+            cf = str(rec["canonical_trade_id_fill"])
+            ci = rec.get("canonical_trade_id_intent")
+            if ci:
+                intent_to_fill[str(ci)] = cf
             sym = str(rec.get("symbol") or "").upper()
             if sym:
-                resolved_final[sym] = str(rec["canonical_trade_id_fill"])
+                resolved_final[sym] = cf
 
     code_structural = False
     if main_py.is_file():
@@ -136,36 +175,59 @@ def evaluate_completeness(root: Path, open_ts_epoch: Optional[float] = None) -> 
 
     reason_hist: Counter = Counter()
     incomplete_ex: List[dict] = []
+    incomplete_ids_by_reason: Dict[str, List[str]] = defaultdict(list)
+    chain_matrices_sample: List[dict] = []
     complete = 0
 
     for tid, sym, ent_iso, rec in closed:
         reasons: List[str] = []
         uexit = unified_exit_by_tid.get(tid)
         uexit = uexit if (uexit and uexit.get("terminal_close")) else None
-        tk = None
+        tk: Optional[str] = None
         if uexit:
             tk = uexit.get("trade_key") or uexit.get("canonical_trade_id")
+            if tk:
+                tk = str(tk)
         if not tk:
             m = TID_RE.match(tid)
             if m:
                 gsym, grest = m.group(1), m.group(2)
-                tk = build_trade_key(gsym, "LONG", grest)
-        if not tk:
+                _sk = normalize_side(rec.get("side") or rec.get("direction") or "LONG")
+                try:
+                    tk = build_trade_key(gsym, _sk, grest)
+                except Exception:
+                    tk = None
+        fill_for_sym = str(resolved_final.get(sym) or "").strip()
+        join_key = fill_for_sym if fill_for_sym else str(tk or "")
+        seed_ids: Set[str] = set()
+        if join_key:
+            seed_ids.add(join_key)
+        if tk:
+            seed_ids.add(str(tk))
+        aliases = _expand_canonical_aliases(seed_ids, intent_to_fill)
+
+        entry_decision_ok = any(
+            str(r.get("symbol") or "").upper() == sym
+            and str(r.get("canonical_trade_id") or "") in aliases
+            for r in trade_intents_entered
+        )
+        unified_ok = bool(aliases) and any(k in unified_entry for k in aliases)
+        orders_ok = bool(aliases) and any(k in orders_by_ct for k in aliases)
+        exit_int_ok = bool(aliases) and any(k in exit_intents_by_ct for k in aliases)
+
+        if not tk and not fill_for_sym:
             reasons.append("cannot_derive_trade_key")
-
-        effective_ct = str(resolved_final.get(sym) or "")
-        entry_decision_ok = any(str(r.get("canonical_trade_id")) == str(tk) for r in trade_intents_entered)
-        if not entry_decision_ok and effective_ct and tk and str(tk) == effective_ct:
-            entry_decision_ok = True
-        if not entry_decision_ok:
-            reasons.append("entry_decision_not_joinable_by_canonical_trade_id")
-
-        if tk and tk not in unified_entry:
-            reasons.append("missing_unified_entry_attribution")
-        if tk and tk not in orders_by_ct:
-            reasons.append("no_orders_rows_with_canonical_trade_id")
-        if tk and tk not in exit_intents_by_ct:
-            reasons.append("missing_exit_intent_for_canonical_trade_id")
+        else:
+            if not aliases:
+                reasons.append("cannot_resolve_join_aliases")
+            if not entry_decision_ok:
+                reasons.append("entry_decision_not_joinable_by_canonical_trade_id")
+            if not unified_ok:
+                reasons.append("missing_unified_entry_attribution")
+            if not orders_ok:
+                reasons.append("no_orders_rows_with_canonical_trade_id")
+            if not exit_int_ok:
+                reasons.append("missing_exit_intent_for_canonical_trade_id")
         if not uexit:
             reasons.append("missing_unified_exit_attribution_terminal")
         ep = rec.get("exit_price")
@@ -183,8 +245,39 @@ def evaluate_completeness(root: Path, open_ts_epoch: Optional[float] = None) -> 
         if reasons:
             for r in reasons:
                 reason_hist[r] += 1
+                ids_l = incomplete_ids_by_reason[r]
+                if len(ids_l) < 10:
+                    ids_l.append(tid)
             if len(incomplete_ex) < 8:
-                incomplete_ex.append({"trade_id": tid, "trade_key": tk, "reasons": reasons})
+                incomplete_ex.append(
+                    {
+                        "trade_id": tid,
+                        "trade_key": tk,
+                        "authoritative_join_key": join_key,
+                        "reasons": reasons,
+                    }
+                )
+            if audit and len(chain_matrices_sample) < 5:
+                chain_matrices_sample.append(
+                    {
+                        "trade_id": tid,
+                        "symbol": sym,
+                        "authoritative_join_key": join_key,
+                        "trade_key_from_exit": tk,
+                        "alias_sample": sorted(aliases)[:16],
+                        "matrix": {
+                            "trade_intent_entered_present": entry_decision_ok,
+                            "unified_entry_attribution_present": unified_ok,
+                            "orders_rows_canonical_trade_id_present": orders_ok,
+                            "exit_intent_keyed_present": exit_int_ok,
+                            "unified_exit_attribution_terminal_close": bool(
+                                uexit and uexit.get("terminal_close")
+                            ),
+                            "exit_attribution_jsonl_row": True,
+                        },
+                        "reasons": list(reasons),
+                    }
+                )
         else:
             complete += 1
 
@@ -206,7 +299,7 @@ def evaluate_completeness(root: Path, open_ts_epoch: Optional[float] = None) -> 
         else:
             learning_fail_closed_reason = "incomplete_trade_chain"
 
-    return {
+    out: Dict[str, Any] = {
         "ROOT": str(root),
         "OPEN_TS_UTC_EPOCH": open_ts,
         "precheck": precheck,
@@ -218,7 +311,12 @@ def evaluate_completeness(root: Path, open_ts_epoch: Optional[float] = None) -> 
         "code_structural_trade_intent_no_canonical_on_entered": code_structural,
         "LEARNING_STATUS": learning_status,
         "learning_fail_closed_reason": learning_fail_closed_reason,
+        "AUTHORITATIVE_JOIN_KEY_RULE": AUTHORITATIVE_JOIN_KEY_RULE,
     }
+    if audit:
+        out["incomplete_trade_ids_by_reason"] = {k: list(v) for k, v in incomplete_ids_by_reason.items()}
+        out["chain_matrices_sample"] = chain_matrices_sample
+    return out
 
 
 def main() -> int:
@@ -232,8 +330,13 @@ def main() -> int:
         default=None,
         help="UTC epoch floor for exit_attribution rows (post-deploy windows)",
     )
+    ap.add_argument(
+        "--audit",
+        action="store_true",
+        help="Include incomplete_trade_ids_by_reason and chain_matrices_sample",
+    )
     args = ap.parse_args()
-    r = evaluate_completeness(args.root, open_ts_epoch=args.open_ts_epoch)
+    r = evaluate_completeness(args.root, open_ts_epoch=args.open_ts_epoch, audit=args.audit)
     print(json.dumps(r, indent=2))
     return 0 if r["LEARNING_STATUS"] == "ARMED" else 1
 

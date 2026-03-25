@@ -1767,6 +1767,15 @@ def _emit_exit_intent(
                     rec[_k] = meta[_k]
         except Exception:
             pass
+        try:
+            from telemetry.attribution_emit_keys import get_symbol_attribution_keys
+
+            _ak_ex = get_symbol_attribution_keys(symbol)
+            for _k in ("canonical_trade_id", "decision_event_id", "symbol_normalized", "time_bucket_id"):
+                if rec.get(_k) is None and _ak_ex.get(_k) is not None:
+                    rec[_k] = _ak_ex[_k]
+        except Exception:
+            pass
         jsonl_write("run", rec)
         try:
             _PHASE2_CYCLE_COUNTS["exit_intent"] += 1
