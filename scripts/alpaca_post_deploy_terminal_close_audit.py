@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-DEPLOY_START = 1774456240  # 2026-03-25T16:30:40Z service start (update if redeployed)
+DEPLOY_START = 1774458080  # 2026-03-25T17:01:20Z stock-bot restart / strict chain validation epoch
 
 
 def _ts(s: str | None) -> float | None:
