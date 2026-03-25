@@ -190,11 +190,12 @@ class TestStrictCompletenessGate(unittest.TestCase):
             (root / "logs" / "exit_attribution.jsonl").write_text(json.dumps(ex) + "\n", encoding="utf-8")
             (root / "main.py").write_text("# production-shaped main\n", encoding="utf-8")
 
-            r = evaluate_completeness(root, open_ts_epoch=None)
+            r = evaluate_completeness(root, open_ts_epoch=None, audit=True)
             self.assertEqual(r["trades_seen"], 1)
             self.assertEqual(r["trades_complete"], 1)
             self.assertEqual(r["trades_incomplete"], 0)
             self.assertEqual(r["LEARNING_STATUS"], "ARMED")
+            self.assertTrue(len(r.get("chain_matrices_complete_sample") or []) >= 1)
 
     def test_strict_gate_orders_entry_and_exit_share_canonical(self):
         import json

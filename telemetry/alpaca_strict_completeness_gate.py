@@ -178,6 +178,7 @@ def evaluate_completeness(
     incomplete_ex: List[dict] = []
     incomplete_ids_by_reason: Dict[str, List[str]] = defaultdict(list)
     chain_matrices_sample: List[dict] = []
+    chain_matrices_complete_sample: List[dict] = []
     complete = 0
 
     for tid, sym, ent_iso, rec in closed:
@@ -278,6 +279,27 @@ def evaluate_completeness(
                 )
         else:
             complete += 1
+            if audit and len(chain_matrices_complete_sample) < 3:
+                chain_matrices_complete_sample.append(
+                    {
+                        "trade_id": tid,
+                        "symbol": sym,
+                        "authoritative_join_key": join_key,
+                        "trade_key_from_exit": tk,
+                        "alias_sample": sorted(aliases)[:16],
+                        "matrix": {
+                            "trade_intent_entered_present": entry_decision_ok,
+                            "unified_entry_attribution_present": unified_ok,
+                            "orders_rows_canonical_trade_id_present": orders_ok,
+                            "exit_intent_keyed_present": exit_int_ok,
+                            "unified_exit_attribution_terminal_close": bool(
+                                uexit and uexit.get("terminal_close")
+                            ),
+                            "exit_attribution_jsonl_row": True,
+                        },
+                        "reasons": [],
+                    }
+                )
 
     structural = code_structural or any("STRUCTURAL" in str(x) for x in precheck)
     vacuous_zero_trades = len(closed) == 0
@@ -314,6 +336,7 @@ def evaluate_completeness(
     if audit:
         out["incomplete_trade_ids_by_reason"] = {k: list(v) for k, v in incomplete_ids_by_reason.items()}
         out["chain_matrices_sample"] = chain_matrices_sample
+        out["chain_matrices_complete_sample"] = chain_matrices_complete_sample
     return out
 
 
