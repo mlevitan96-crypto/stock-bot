@@ -1,9 +1,7 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-06T09:02:51.582122+00:00",
-  "run_ts_utc": "2026-03-06T09:02:51.582165+00:00",
+  "run_ts_utc": "2026-03-25T06:45:01.152862+00:00",
   "branch": "main",
-  "status": "anomalies",
   "anomalies_detected": true,
   "checks": {
     "repo_structure": "fail",
@@ -14,12 +12,8 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [
-    "Missing expected top-level dirs: ['memory_bank']",
-    "Missing: memory_bank"
-  ],
-  "anomalies": [
-    "Missing expected top-level dirs: ['memory_bank']",
-    "Missing: memory_bank"
+    "repo_structure: Missing expected top-level directory memory_bank/ (MEMORY_BANK.md exists at root but no memory_bank/ directory)",
+    "governance_contracts_present: memory_bank/ directory does not exist; governance docs may need consolidation into a memory_bank/ directory or the expected-structure spec should be updated to reflect MEMORY_BANK.md at root"
   ],
   "slack_sent": false
 }
