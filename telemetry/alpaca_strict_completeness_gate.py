@@ -2,10 +2,11 @@
 Strict completeness (A) evaluation for Alpaca logs (read-only). Used by audits and pytest.
 
 AUTHORITATIVE_JOIN_KEY (Alpaca strict joins):
-  Prefer ``canonical_trade_id_fill`` from the latest ``canonical_trade_id_resolved`` row
-  for that symbol; otherwise use ``trade_key`` from unified exit (or derived from
-  ``open_{SYM}_{entry_ts}`` trade_id). Intent-time vs fill-time IDs are linked via
-  ``canonical_trade_id_resolved`` and expanded as an alias set for all joins.
+  Per closed trade, use ``trade_key`` from unified exit (or derived from
+  ``open_{SYM}_{entry_ts}`` + exit side). Intent-time vs fill-time IDs are linked via
+  ``canonical_trade_id_resolved`` (intent <-> fill) and expanded as an undirected alias
+  set for all joins. Per-symbol ``latest fill`` is not used as the key (multi-trade
+  collision on the same ticker).
 """
 from __future__ import annotations
 
@@ -19,8 +20,12 @@ from typing import Any, Dict, List, Optional, Set
 from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
 
 AUTHORITATIVE_JOIN_KEY_RULE = (
-    "canonical_trade_id_fill (per symbol, latest canonical_trade_id_resolved) "
-    "if present; else trade_key from unified exit / exit row derivation"
+    "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from "
+    "open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected "
+    "canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so "
+    "trade_intent(entered) keyed at intent-time still joins to fill-time keys. "
+    "Do not use a single per-symbol 'latest fill' as the join key (multiple positions "
+    "per symbol would collide)."
 )
 
 try:
@@ -133,7 +138,6 @@ def evaluate_completeness(
 
     exit_intents_by_ct: Dict[str, List[dict]] = defaultdict(list)
     trade_intents_entered: List[dict] = []
-    resolved_final: Dict[str, str] = {}
     intent_to_fill: Dict[str, str] = {}
     for rec in _stream_jsonl(run_path):
         et = rec.get("event_type")
@@ -146,9 +150,6 @@ def evaluate_completeness(
             ci = rec.get("canonical_trade_id_intent")
             if ci:
                 intent_to_fill[str(ci)] = cf
-            sym = str(rec.get("symbol") or "").upper()
-            if sym:
-                resolved_final[sym] = cf
 
     code_structural = False
     if main_py.is_file():
@@ -197,13 +198,10 @@ def evaluate_completeness(
                     tk = build_trade_key(gsym, _sk, grest)
                 except Exception:
                     tk = None
-        fill_for_sym = str(resolved_final.get(sym) or "").strip()
-        join_key = fill_for_sym if fill_for_sym else str(tk or "")
+        join_key = str(tk or "")
         seed_ids: Set[str] = set()
         if join_key:
             seed_ids.add(join_key)
-        if tk:
-            seed_ids.add(str(tk))
         aliases = _expand_canonical_aliases(seed_ids, intent_to_fill)
 
         entry_decision_ok = any(
@@ -215,7 +213,7 @@ def evaluate_completeness(
         orders_ok = bool(aliases) and any(k in orders_by_ct for k in aliases)
         exit_int_ok = bool(aliases) and any(k in exit_intents_by_ct for k in aliases)
 
-        if not tk and not fill_for_sym:
+        if not tk:
             reasons.append("cannot_derive_trade_key")
         else:
             if not aliases:
