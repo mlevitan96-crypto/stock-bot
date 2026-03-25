@@ -58,6 +58,15 @@ def main() -> None:
     if any("LCID" in str(x) for x in capped):
         lcid_note = "Sample excluded list includes an LCID trade_id (pre-era open).\n"
 
+    vacuous_note = ""
+    if ts_seen == 0 and int(audit.get("strict_cohort_excluded_preera_open_count") or 0) > 0:
+        vacuous_note = (
+            "\n**Note:** `trades_seen == 0` with positive `PREERA_OPEN` exclusions means every terminal close "
+            "in the exit-time window came from a position **opened before** STRICT_EPOCH_START. "
+            "Learning stays fail-closed until at least one close whose `trade_id` embeds an open time "
+            "`>=` STRICT_EPOCH_START.\n\n"
+        )
+
     summary = f"""# ALPACA strict era entry filter - proof summary ({ts})
 
 ## 1) STRICT_EPOCH_START and why
@@ -75,7 +84,7 @@ def main() -> None:
 - **strict_cohort_excluded_preera_open_count:** {audit.get("strict_cohort_excluded_preera_open_count")}
 - **strict_cohort_exclusion_reasons:** `{json.dumps(audit.get("strict_cohort_exclusion_reasons") or {})}`
 - **excluded_trade_ids_capped (20):** `{json.dumps(capped)}`
-{lcid_note}
+{lcid_note}{vacuous_note}
 ## 4) Strict audit (post filter)
 
 - **trades_seen:** {audit.get("trades_seen")}
@@ -84,6 +93,8 @@ def main() -> None:
 - **reason_histogram:** `{json.dumps(audit.get("reason_histogram") or {})}`
 
 ## 5) Chain matrices (up to 3)
+
+Vacuous cohort: matrices may be empty. When `trades_incomplete > 0`, incomplete samples populate; when `ARMED`, complete samples populate.
 
 ```json
 {json.dumps(matrices, indent=2)}
