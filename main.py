@@ -1030,6 +1030,29 @@ def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = No
     Appends: block_reason, candidate_rank, candidate_score, expected_value_usd, would_have_entered_price.
     Block 3E: market_context adds raw signals (trend_signal, momentum_signal, etc.) for edge analysis.
     """
+    try:
+        from src.telemetry.alpaca_trade_key import normalize_symbol
+        from telemetry.attribution_emit_keys import (
+            get_symbol_attribution_keys,
+            new_decision_event_id,
+            set_symbol_attribution_keys,
+            time_bucket_id_utc,
+        )
+
+        _prior = get_symbol_attribution_keys(symbol)
+        if not _prior.get("decision_event_id"):
+            _de = new_decision_event_id()
+            _sn = normalize_symbol(symbol)
+            _tb = time_bucket_id_utc()
+            set_symbol_attribution_keys(
+                symbol,
+                decision_event_id=_de,
+                symbol_normalized=_sn,
+                time_bucket_id=_tb,
+                canonical_trade_id=f"BLOCKED|{_sn}|{_de}",
+            )
+    except Exception:
+        pass
     side = "long" if (direction or "").lower() == "bullish" else "short"
     expected_ev = kw.pop("expected_value_usd", None)
     if expected_ev is None and score is not None:
@@ -1055,6 +1078,15 @@ def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = No
         "outcome_tracked": False,
         **kw
     }
+    try:
+        from telemetry.attribution_emit_keys import get_symbol_attribution_keys
+
+        _bk = get_symbol_attribution_keys(symbol)
+        for _k in ("canonical_trade_id", "decision_event_id", "symbol_normalized", "time_bucket_id"):
+            if _bk.get(_k) is not None:
+                record[_k] = _bk[_k]
+    except Exception:
+        pass
     # Block 3E: add raw signal fields for edge analysis
     if isinstance(market_context, dict):
         try:
@@ -1507,7 +1539,20 @@ def log_signal(cluster: dict):
 
 def log_order(event: dict):
     # strategy_id injected by jsonl_write from context
-    jsonl_write("orders", {"type": "order", **event})
+    ev = dict(event)
+    try:
+        from telemetry.attribution_emit_keys import (
+            attach_paper_economics_defaults,
+            merge_attribution_keys_into_record,
+        )
+
+        sym = ev.get("symbol")
+        if sym:
+            merge_attribution_keys_into_record(sym, ev, overwrite=False)
+        ev = attach_paper_economics_defaults(ev)
+    except Exception:
+        pass
+    jsonl_write("orders", {"type": "order", **ev})
 
 
 def _emit_trade_intent(
@@ -1532,8 +1577,24 @@ def _emit_trade_intent(
     if not getattr(Config, "PHASE2_TELEMETRY_ENABLED", True):
         return
     try:
-        from telemetry.feature_snapshot import build_feature_snapshot
+        from src.telemetry.alpaca_trade_key import normalize_symbol
+        from telemetry.attribution_emit_keys import (
+            new_decision_event_id,
+            set_symbol_attribution_keys,
+            time_bucket_id_utc,
+        )
+        from telemetry.attribution_feature_snapshot import build_shared_feature_snapshot
         from telemetry.thesis_tags import derive_thesis_tags
+
+        _de = new_decision_event_id()
+        _sn = normalize_symbol(symbol)
+        _tb = time_bucket_id_utc()
+        set_symbol_attribution_keys(
+            symbol,
+            decision_event_id=_de,
+            symbol_normalized=_sn,
+            time_bucket_id=_tb,
+        )
         enriched = {"symbol": symbol, "score": score, "composite_score": score}
         if isinstance(comps, dict):
             enriched.update(comps)
@@ -1542,8 +1603,35 @@ def _emit_trade_intent(
         enriched.setdefault("dark_pool_bias", comps.get("dark_pool_bias") if isinstance(comps, dict) else None)
         mc = getattr(engine, "market_context_v2", None) or {}
         rs = getattr(engine, "regime_posture_v2", None) or {}
-        snap = build_feature_snapshot(enriched, mc if isinstance(mc, dict) else {}, rs if isinstance(rs, dict) else {})
+        _stage = "blocked" if (decision_outcome or "").lower() == "blocked" else "entry"
+        snap = build_shared_feature_snapshot(
+            enriched,
+            mc if isinstance(mc, dict) else {},
+            rs if isinstance(rs, dict) else {},
+            snapshot_stage=_stage,
+            comps_fallback=comps if isinstance(comps, dict) else None,
+        )
         tags = derive_thesis_tags(snap)
+        _ctid = None
+        if (decision_outcome or "").lower() == "blocked":
+            _ctid = f"BLOCKED|{_sn}|{_de}"
+            set_symbol_attribution_keys(symbol, canonical_trade_id=_ctid)
+        elif (decision_outcome or "").lower() == "entered":
+            try:
+                from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _ns_intent
+
+                _anchor = datetime.now(timezone.utc)
+                _side_norm = _ns_intent(side)
+                _ctid = build_trade_key(symbol, _side_norm, _anchor)
+                set_symbol_attribution_keys(symbol, canonical_trade_id=_ctid)
+            except Exception as _e_ctid:
+                try:
+                    from telemetry.learning_blocker_emit import emit_learning_blocker
+
+                    emit_learning_blocker("unresolved_canonical_id", str(symbol), error=str(_e_ctid)[:400])
+                except Exception:
+                    pass
+                _ctid = None
         rec = {
             "event_type": "trade_intent",
             "symbol": symbol,
@@ -1554,6 +1642,10 @@ def _emit_trade_intent(
             "displacement_context": displacement_context,
             "decision_outcome": decision_outcome,
             "blocked_reason": blocked_reason,
+            "decision_event_id": _de,
+            "symbol_normalized": _sn,
+            "time_bucket_id": _tb,
+            "canonical_trade_id": _ctid,
         }
         if (decision_outcome or "").lower() in ("entered", "blocked") and not intelligence_trace:
             try:
@@ -1631,16 +1723,11 @@ def _emit_exit_intent(
         return
     try:
         if feature_snapshot_at_exit is None or thesis_tags_at_exit is None:
-            from telemetry.feature_snapshot import build_feature_snapshot
-            from telemetry.thesis_tags import derive_thesis_tags
-            enriched = {"symbol": symbol, "score": info.get("entry_score")}
-            if isinstance(metadata, dict) and isinstance(metadata.get("v2_exit"), dict):
-                v2 = metadata["v2_exit"]
-                now_v2 = v2.get("now_v2") or {}
-                v2_in = (now_v2.get("v2_inputs") or {}) if isinstance(now_v2.get("v2_inputs"), dict) else {}
-                enriched["realized_vol_20d"] = v2_in.get("realized_vol_20d")
-            snap = build_feature_snapshot(enriched, None, None)
-            tags = derive_thesis_tags(snap)
+            from telemetry.attribution_feature_snapshot import build_exit_snapshot_from_metadata
+
+            snap, tags = build_exit_snapshot_from_metadata(
+                symbol, info if isinstance(info, dict) else {}, metadata if isinstance(metadata, dict) else {}
+            )
             feature_snapshot_at_exit = feature_snapshot_at_exit or snap
             thesis_tags_at_exit = thesis_tags_at_exit or tags
         br = thesis_break_reason
@@ -1672,6 +1759,14 @@ def _emit_exit_intent(
         }
         if unknown_why:
             rec["thesis_break_unknown_reason"] = unknown_why
+        rec["exit_reason_code"] = br
+        try:
+            meta = metadata if isinstance(metadata, dict) else {}
+            for _k in ("canonical_trade_id", "decision_event_id", "symbol_normalized", "time_bucket_id"):
+                if meta.get(_k) is not None:
+                    rec[_k] = meta[_k]
+        except Exception:
+            pass
         jsonl_write("run", rec)
         try:
             _PHASE2_CYCLE_COUNTS["exit_intent"] += 1
@@ -5934,7 +6029,7 @@ class AlpacaExecutor:
             log_event("position", "mark_open_zero_score_warning", symbol=symbol, entry_score=entry_score,
                      side=side, qty=qty, market_regime=market_regime, direction=direction)
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         targets_state = [
             {"pct": t, "hit": False, "fraction": Config.SCALE_OUT_FRACTIONS[i] if i < len(Config.SCALE_OUT_FRACTIONS) else 0.0}
             for i, t in enumerate(Config.PROFIT_TARGETS)
@@ -5991,6 +6086,34 @@ class AlpacaExecutor:
             except Exception as e:
                 alpha_signature = {"status": "error", "error": str(e), "timestamp": time.time()}
         
+        try:
+            from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+            from telemetry.attribution_emit_keys import get_symbol_attribution_keys, set_symbol_attribution_keys
+
+            _sk2 = normalize_side("buy" if str(side).lower() == "buy" else "sell")
+            _ct2 = build_trade_key(symbol, _sk2, now)
+            _prev_ak = get_symbol_attribution_keys(symbol)
+            _prev_ct = _prev_ak.get("canonical_trade_id")
+            if _prev_ct and str(_prev_ct) != str(_ct2):
+                try:
+                    jsonl_write(
+                        "run",
+                        {
+                            "event_type": "canonical_trade_id_resolved",
+                            "symbol": str(symbol).upper(),
+                            "canonical_trade_id_intent": str(_prev_ct),
+                            "canonical_trade_id_fill": str(_ct2),
+                            "decision_event_id": _prev_ak.get("decision_event_id"),
+                            "symbol_normalized": _prev_ak.get("symbol_normalized"),
+                            "time_bucket_id": _prev_ak.get("time_bucket_id"),
+                            "ts": now.isoformat(),
+                        },
+                    )
+                except Exception:
+                    pass
+            set_symbol_attribution_keys(symbol, canonical_trade_id=_ct2)
+        except Exception:
+            pass
         self._persist_position_metadata(
             symbol,
             entry_ts=now,
@@ -6007,6 +6130,8 @@ class AlpacaExecutor:
             alpha_signature=alpha_signature,
             v2_context=v2_context,
             variant_id=variant_id,
+            entry_market_context=market_context if isinstance(market_context, dict) else {},
+            entry_regime_posture=regime_posture if isinstance(regime_posture, dict) else {},
         )
         # Direction intel: capture entry snapshot with SAME entry_ts as metadata so exit can load it.
         try:
@@ -6040,7 +6165,7 @@ class AlpacaExecutor:
         except Exception as e:
             log_event("state_manager", "update_position_failed", symbol=symbol, error=str(e))
     
-    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None, alpha_signature: dict = None, v2_context: dict = None, variant_id: str = None):
+    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None, alpha_signature: dict = None, v2_context: dict = None, variant_id: str = None, entry_market_context: dict = None, entry_regime_posture: dict = None):
         """Persist position metadata to durable file for restart recovery with atomic write.
         
         V2.0: Now stores all 21 signal components for ML learning when trade closes.
@@ -6063,6 +6188,32 @@ class AlpacaExecutor:
                 strat_id = get_strategy_id()
             except ImportError:
                 strat_id = "equity"
+            _prev = metadata.get(symbol) if isinstance(metadata.get(symbol), dict) else {}
+            _emc = entry_market_context if isinstance(entry_market_context, dict) else {}
+            if not _emc and isinstance(_prev.get("entry_market_context"), dict):
+                _emc = dict(_prev["entry_market_context"])
+            _erp = entry_regime_posture if isinstance(entry_regime_posture, dict) else {}
+            if not _erp and isinstance(_prev.get("entry_regime_posture"), dict):
+                _erp = dict(_prev["entry_regime_posture"])
+            _ak_md: dict = {}
+            try:
+                from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+                from telemetry.attribution_emit_keys import get_symbol_attribution_keys
+
+                _ak = get_symbol_attribution_keys(symbol)
+                _sk = normalize_side("buy" if str(side).lower() == "buy" else "sell")
+                _ct = build_trade_key(symbol, _sk, entry_ts.isoformat())
+                _de = _ak.get("decision_event_id") or _prev.get("decision_event_id")
+                _sn = _ak.get("symbol_normalized") or _prev.get("symbol_normalized")
+                _tb = _ak.get("time_bucket_id") or _prev.get("time_bucket_id")
+                _ak_md = {
+                    "canonical_trade_id": _ct,
+                    "decision_event_id": _de,
+                    "symbol_normalized": _sn,
+                    "time_bucket_id": _tb,
+                }
+            except Exception:
+                pass
             metadata[symbol] = {
                 "strategy_id": strat_id,
                 "entry_ts": entry_ts.isoformat(),
@@ -6080,7 +6231,10 @@ class AlpacaExecutor:
                 "correlation_id": correlation_id,  # V4.0: Store UW-to-Alpaca correlation ID for tracking
                 "alpha_signature": alpha_signature,  # Phase 5: RVOL/RSI/PCR observability for forensics
                 "variant_id": variant_id,  # Root-cause: baseline | live_canary | paper_aggressive
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.utcnow().isoformat(),
+                "entry_market_context": _emc,
+                "entry_regime_posture": _erp,
+                **_ak_md,
             }
             
             # V3.0: Persist targets if position is already open
@@ -7683,17 +7837,13 @@ class AlpacaExecutor:
                     else:
                         _ex_break = "other"
                 try:
-                    from telemetry.feature_snapshot import build_feature_snapshot
-                    from telemetry.thesis_tags import derive_thesis_tags
-                    enriched = {"symbol": symbol, "score": info.get("entry_score")}
-                    v2e = (symbol_metadata or {}).get("v2_exit") or {}
-                    now_v2 = v2e.get("now_v2") or {}
-                    v2_in = (now_v2.get("v2_inputs") or {}) if isinstance(now_v2.get("v2_inputs"), dict) else {}
-                    enriched["realized_vol_20d"] = v2_in.get("realized_vol_20d")
-                    _ex_snap = build_feature_snapshot(enriched, None, None)
-                    _ex_tags = derive_thesis_tags(_ex_snap)
+                    from telemetry.attribution_feature_snapshot import build_exit_snapshot_from_metadata
+
+                    _ex_snap, _ex_tags = build_exit_snapshot_from_metadata(
+                        symbol, info if isinstance(info, dict) else {}, symbol_metadata if isinstance(symbol_metadata, dict) else {}
+                    )
                 except Exception:
-                    pass
+                    _ex_snap = _ex_tags = None
                 # Only log exit attribution when we have executed fill fields.
                 if exit_fill_price > 0 and exit_fill_qty > 0:
                     # Data integrity: ensure high_water available for exit_quality_metrics (giveback)
@@ -9865,6 +10015,19 @@ class StrategyEngine:
                         regime_label=market_regime,
                         notes=["pre_submit"],
                     )
+                except Exception:
+                    pass
+                try:
+                    from telemetry.attribution_emit_keys import set_symbol_attribution_keys
+
+                    if bid > 0 and ask > 0:
+                        set_symbol_attribution_keys(
+                            symbol, decision_slippage_ref_mid=(float(bid) + float(ask)) / 2.0
+                        )
+                    elif ref_price_check and float(ref_price_check) > 0:
+                        set_symbol_attribution_keys(
+                            symbol, decision_slippage_ref_mid=float(ref_price_check)
+                        )
                 except Exception:
                     pass
                 # CRITICAL: Add exception handling and logging around submit_entry

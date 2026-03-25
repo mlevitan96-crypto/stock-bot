@@ -17,7 +17,7 @@ from src.telemetry.alpaca_attribution_schema import (
     validate_entry_attribution,
     validate_exit_attribution,
 )
-from src.telemetry.alpaca_trade_key import build_trade_key
+from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side, normalize_symbol
 
 REPO = Path(__file__).resolve().parents[2]
 LOG_DIR = REPO / "logs"
@@ -87,7 +87,13 @@ def emit_entry_attribution(
 ) -> None:
     """Emit one entry_attribution event. Truth: contributions = weight*raw_signal; composite_score asserted; trade_key for join. Never raises."""
     ts = timestamp or _now_iso()
-    key = trade_key if trade_key else build_trade_key(symbol, side, ts)
+    if trade_key:
+        key = trade_key
+    else:
+        try:
+            key = build_trade_key(symbol, side, ts)
+        except Exception:
+            key = f"{normalize_symbol(symbol)}|{normalize_side(side or 'LONG')}|0"
     raw = dict(raw_signals or {})
     w = dict(weights or {})
     contrib = dict(contributions or {})
@@ -112,6 +118,8 @@ def emit_entry_attribution(
     base["decision"] = str(decision)
     base["decision_reason"] = str(decision_reason or "")
     base["timestamp"] = ts
+    base["canonical_trade_id"] = str(key)
+    base["fees_usd"] = 0.0
     base["raw_signals"] = raw
     base["weights"] = w
     base["contributions"] = contrib
@@ -155,6 +163,10 @@ def emit_exit_attribution(
     winner_explanation: str = "",
     *,
     trade_key: Optional[str] = None,
+    canonical_trade_id: Optional[str] = None,
+    terminal_close: bool = False,
+    realized_pnl_usd: Optional[float] = None,
+    fees_usd: float = 0.0,
     exit_components_raw: Optional[Dict[str, Any]] = None,
     exit_weights: Optional[Dict[str, float]] = None,
     exit_contributions: Optional[Dict[str, float]] = None,
@@ -176,7 +188,14 @@ def emit_exit_attribution(
     dom_name, dom_val, margin_now, margin_soon = _exit_dominant_and_margins(
         contrib, exit_pressure_total, thr.get("normal"), thr.get("urgent")
     )
-    key = trade_key if trade_key else build_trade_key(symbol, side or "LONG", entry_time_iso or "")
+    if trade_key:
+        key = trade_key
+    else:
+        et_src = entry_time_iso or timestamp or _now_iso()
+        try:
+            key = build_trade_key(symbol, side or "LONG", et_src)
+        except Exception:
+            key = f"{normalize_symbol(symbol)}|{normalize_side(side or 'LONG')}|0"
     base = exit_attribution_shape()
     base["trade_id"] = str(trade_id)
     base["trade_key"] = str(key)
@@ -196,6 +215,11 @@ def emit_exit_attribution(
     base["eligible_mechanisms"] = dict(eligible_mechanisms or base["eligible_mechanisms"])
     base["snapshot"] = snap
     base["schema_version"] = SCHEMA_VERSION
+    base["canonical_trade_id"] = str(canonical_trade_id or key)
+    base["terminal_close"] = bool(terminal_close)
+    if realized_pnl_usd is not None:
+        base["realized_pnl_usd"] = float(realized_pnl_usd)
+    base["fees_usd"] = float(fees_usd)
     if validate_exit_attribution(base):
         return
     _append_jsonl(_exit_log_path(), base)
