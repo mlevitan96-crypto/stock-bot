@@ -278,5 +278,216 @@ class TestStrictCompletenessGate(unittest.TestCase):
             self.assertEqual(r["LEARNING_STATUS"], "ARMED")
 
 
+class TestStrictEraEntryCohort(unittest.TestCase):
+    ERA = 1774458080.0  # 2026-03-25T17:01:20Z
+
+    def test_preera_open_postera_exit_excluded_not_incomplete(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from src.telemetry.alpaca_trade_key import build_trade_key
+        from telemetry.alpaca_strict_completeness_gate import evaluate_completeness
+
+        lcid_tid = "open_LCID_2026-03-25T16:20:57.882391+00:00"
+        post_entry = "2026-03-25T17:05:00+00:00"
+        tk_q = build_trade_key("QQ", "LONG", post_entry)
+        q_tid = f"open_QQ_{post_entry}"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "logs").mkdir(parents=True)
+            lcid_ex = {
+                "trade_id": lcid_tid,
+                "symbol": "LCID",
+                "side": "long",
+                "timestamp": "2026-03-25T17:31:00+00:00",
+                "entry_timestamp": "2026-03-25T16:20:57+00:00",
+                "exit_reason": "test",
+                "pnl": -1.0,
+                "exit_price": 3.0,
+            }
+            q_ex = {
+                "trade_id": q_tid,
+                "symbol": "QQ",
+                "side": "long",
+                "timestamp": "2026-03-25T17:40:00+00:00",
+                "entry_timestamp": post_entry,
+                "exit_reason": "test",
+                "pnl": 1.0,
+                "exit_price": 100.0,
+            }
+            (root / "logs" / "exit_attribution.jsonl").write_text(
+                json.dumps(lcid_ex) + "\n" + json.dumps(q_ex) + "\n", encoding="utf-8"
+            )
+            uni = [
+                {
+                    "event_type": "alpaca_entry_attribution",
+                    "trade_key": tk_q,
+                    "canonical_trade_id": tk_q,
+                    "symbol": "QQ",
+                },
+                {
+                    "event_type": "alpaca_exit_attribution",
+                    "trade_id": q_tid,
+                    "terminal_close": True,
+                    "trade_key": tk_q,
+                    "symbol": "QQ",
+                },
+            ]
+            (root / "logs" / "alpaca_unified_events.jsonl").write_text(
+                "\n".join(json.dumps(x) for x in uni) + "\n", encoding="utf-8"
+            )
+            (root / "logs" / "orders.jsonl").write_text(
+                "\n".join(
+                    json.dumps(x)
+                    for x in (
+                        {"type": "order", "symbol": "QQ", "canonical_trade_id": tk_q},
+                        {"type": "order", "symbol": "QQ", "canonical_trade_id": tk_q},
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (root / "logs" / "run.jsonl").write_text(
+                "\n".join(
+                    json.dumps(x)
+                    for x in (
+                        {
+                            "event_type": "trade_intent",
+                            "symbol": "QQ",
+                            "decision_outcome": "entered",
+                            "canonical_trade_id": tk_q,
+                        },
+                        {"event_type": "exit_intent", "symbol": "QQ", "canonical_trade_id": tk_q},
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (root / "main.py").write_text("# production-shaped main\n", encoding="utf-8")
+
+            r = evaluate_completeness(root, open_ts_epoch=self.ERA, audit=True)
+            self.assertEqual(r["trades_seen"], 1)
+            self.assertEqual(r["trades_complete"], 1)
+            self.assertEqual(r["trades_incomplete"], 0)
+            self.assertEqual(r["strict_cohort_excluded_preera_open_count"], 1)
+            self.assertIn("PREERA_OPEN", r["strict_cohort_exclusion_reasons"])
+            self.assertIn(lcid_tid, r["excluded_trade_ids_capped"])
+            self.assertEqual(r["LEARNING_STATUS"], "ARMED")
+
+    def test_postera_open_included_can_arm(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from src.telemetry.alpaca_trade_key import build_trade_key
+        from telemetry.alpaca_strict_completeness_gate import evaluate_completeness
+
+        post_entry = "2026-03-25T17:10:00+00:00"
+        tk = build_trade_key("RR", "LONG", post_entry)
+        trade_id = f"open_RR_{post_entry}"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "logs").mkdir(parents=True)
+            (root / "logs" / "alpaca_unified_events.jsonl").write_text(
+                "\n".join(
+                    json.dumps(x)
+                    for x in (
+                        {
+                            "event_type": "alpaca_entry_attribution",
+                            "trade_key": tk,
+                            "canonical_trade_id": tk,
+                            "symbol": "RR",
+                        },
+                        {
+                            "event_type": "alpaca_exit_attribution",
+                            "trade_id": trade_id,
+                            "terminal_close": True,
+                            "trade_key": tk,
+                            "symbol": "RR",
+                        },
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (root / "logs" / "orders.jsonl").write_text(
+                "\n".join(
+                    json.dumps(x)
+                    for x in (
+                        {"type": "order", "symbol": "RR", "canonical_trade_id": tk},
+                        {"type": "order", "symbol": "RR", "canonical_trade_id": tk},
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (root / "logs" / "run.jsonl").write_text(
+                "\n".join(
+                    json.dumps(x)
+                    for x in (
+                        {
+                            "event_type": "trade_intent",
+                            "symbol": "RR",
+                            "decision_outcome": "entered",
+                            "canonical_trade_id": tk,
+                        },
+                        {"event_type": "exit_intent", "symbol": "RR", "canonical_trade_id": tk},
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            ex = {
+                "trade_id": trade_id,
+                "symbol": "RR",
+                "side": "long",
+                "timestamp": "2026-03-25T18:00:00+00:00",
+                "entry_timestamp": post_entry,
+                "exit_reason": "test",
+                "pnl": 0.5,
+                "exit_price": 50.0,
+            }
+            (root / "logs" / "exit_attribution.jsonl").write_text(json.dumps(ex) + "\n", encoding="utf-8")
+            (root / "main.py").write_text("# production-shaped main\n", encoding="utf-8")
+
+            r = evaluate_completeness(root, open_ts_epoch=self.ERA)
+            self.assertEqual(r["trades_seen"], 1)
+            self.assertEqual(r["LEARNING_STATUS"], "ARMED")
+
+    def test_cohort_empty_after_exclusion_trades_seen_zero_blocked(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from telemetry.alpaca_strict_completeness_gate import evaluate_completeness
+
+        lcid_tid = "open_LCID_2026-03-25T16:20:57.882391+00:00"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "logs").mkdir(parents=True)
+            lcid_ex = {
+                "trade_id": lcid_tid,
+                "symbol": "LCID",
+                "side": "long",
+                "timestamp": "2026-03-25T17:31:00+00:00",
+                "entry_timestamp": "2026-03-25T16:20:57+00:00",
+                "exit_reason": "test",
+                "pnl": -1.0,
+                "exit_price": 3.0,
+            }
+            (root / "logs" / "exit_attribution.jsonl").write_text(json.dumps(lcid_ex) + "\n", encoding="utf-8")
+            for name in ("alpaca_unified_events.jsonl", "orders.jsonl", "run.jsonl"):
+                (root / "logs" / name).write_text("", encoding="utf-8")
+            (root / "main.py").write_text("# production-shaped main\n", encoding="utf-8")
+
+            r = evaluate_completeness(root, open_ts_epoch=self.ERA)
+            self.assertEqual(r["trades_seen"], 0)
+            self.assertEqual(r["learning_fail_closed_reason"], "NO_POST_DEPLOY_PROOF_YET")
+            self.assertEqual(r["LEARNING_STATUS"], "BLOCKED")
+
+
 if __name__ == "__main__":
     unittest.main()
