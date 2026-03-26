@@ -64,6 +64,9 @@ Thumbs.db
 backtests/30d_*/
 reports/backtests/
 
+# Local Alpaca strict replay lab snapshots (copied jsonl; regeneratable)
+artifacts/alpaca_replay_lab_smoke/
+
 # Bars / droplet run artifacts
 reports/bars/
 reports/bars_droplet_*/
