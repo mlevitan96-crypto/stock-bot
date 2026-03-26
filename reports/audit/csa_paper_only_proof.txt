@@ -1,0 +1,3 @@
+ALPACA_BASE_URL=https://paper-api.alpaca.markets
+TRADING_MODE=PAPER
+---

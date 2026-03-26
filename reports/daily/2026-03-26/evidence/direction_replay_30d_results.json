@@ -1,0 +1,97 @@
+{
+  "window_start": "2026-02-01",
+  "window_end": "2026-03-02",
+  "n_cohort": 1,
+  "results": [
+    {
+      "scenario": "A_baseline",
+      "total_pnl": 0.0,
+      "expectancy_per_trade": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown": 0.0,
+      "tail_loss": 0.0,
+      "n_trades": 1,
+      "n_blocked": 0,
+      "by_regime": {
+        "NEUTRAL": {
+          "total_pnl": 0.0,
+          "count": 1,
+          "win_rate": 0.0
+        }
+      },
+      "pnl_delta_vs_baseline": 0.0
+    },
+    {
+      "scenario": "B_suppress_longs_crash",
+      "total_pnl": 0.0,
+      "expectancy_per_trade": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown": 0.0,
+      "tail_loss": 0.0,
+      "n_trades": 1,
+      "n_blocked": 0,
+      "by_regime": {
+        "NEUTRAL": {
+          "total_pnl": 0.0,
+          "count": 1,
+          "win_rate": 0.0
+        }
+      },
+      "pnl_delta_vs_baseline": 0.0
+    },
+    {
+      "scenario": "C_favor_shorts_crash",
+      "total_pnl": 0.0,
+      "expectancy_per_trade": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown": 0.0,
+      "tail_loss": 0.0,
+      "n_trades": 1,
+      "n_blocked": 0,
+      "by_regime": {
+        "NEUTRAL": {
+          "total_pnl": 0.0,
+          "count": 1,
+          "win_rate": 0.0
+        }
+      },
+      "pnl_delta_vs_baseline": 0.0
+    },
+    {
+      "scenario": "D_regime_conditioned",
+      "total_pnl": 0.0,
+      "expectancy_per_trade": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown": 0.0,
+      "tail_loss": 0.0,
+      "n_trades": 1,
+      "n_blocked": 0,
+      "by_regime": {
+        "NEUTRAL": {
+          "total_pnl": 0.0,
+          "count": 1,
+          "win_rate": 0.0
+        }
+      },
+      "pnl_delta_vs_baseline": 0.0
+    },
+    {
+      "scenario": "E_multi_signal_vote",
+      "total_pnl": 0.0,
+      "expectancy_per_trade": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown": 0.0,
+      "tail_loss": 0.0,
+      "n_trades": 1,
+      "n_blocked": 0,
+      "by_regime": {
+        "NEUTRAL": {
+          "total_pnl": 0.0,
+          "count": 1,
+          "win_rate": 0.0
+        }
+      },
+      "pnl_delta_vs_baseline": 0.0
+    }
+  ]
+}

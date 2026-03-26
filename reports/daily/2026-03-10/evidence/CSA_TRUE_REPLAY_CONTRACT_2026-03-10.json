@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "required_artifacts": [
+    "signal_vectors",
+    "normalized_scores",
+    "decision_timestamps",
+    "entry_exit_reasons"
+  ],
+  "timestamp_requirements": [
+    "entry_ts",
+    "exit_ts"
+  ],
+  "contract": "Ledger trade records must include these artifacts for TRUE_REPLAY_POSSIBLE. Paper emission may add logging only; shadow backfill may synthesize where missing."
+}

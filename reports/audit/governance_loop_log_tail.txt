@@ -1,0 +1,60 @@
+[2026-02-28T00:17:46Z] A2 Generating recommendation (entry vs exit)
+[2026-02-28T00:17:46Z] A2 Generating recommendation (entry vs exit)
+Wrote /root/stock-bot/reports/equity_governance/equity_governance_20260228T001746Z/profitability_recommendation.md
+Wrote reports/equity_governance/equity_governance_20260228T001746Z/recommendation.json (next_lever=entry)
+Wrote /root/stock-bot/reports/equity_governance/equity_governance_20260228T001746Z/profitability_recommendation.md
+Wrote reports/equity_governance/equity_governance_20260228T001746Z/recommendation.json (next_lever=entry)
+[2026-02-28T00:17:46Z] A2 Replay-driven lever selection (live vs top replay candidate)
+[2026-02-28T00:17:46Z] A2 Replay-driven lever selection (live vs top replay candidate)
+Lever selection: live -> entry (live_expectancy=-0.087621, overlay_config written)
+[2026-02-28T00:17:46Z] Lever=entry
+[2026-02-28T00:17:46Z] Lever=entry
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+AttributeError: 'NoneType' object has no attribute 'lower'
+[2026-02-28T00:17:47Z] Autopilot script failed. Exiting loop.
+[2026-02-28T00:21:49Z] === GOVERNANCE CYCLE 1 ===
+[2026-02-28T00:21:49Z] === GOVERNANCE CYCLE 1 ===
+[2026-02-28T00:21:49Z] Lever variety: cycle=1 ENTRY_THRESHOLD=2.7 EXIT_STRENGTH=0.02
+[2026-02-28T00:21:49Z] Lever variety: cycle=1 ENTRY_THRESHOLD=2.7 EXIT_STRENGTH=0.02
+[2026-02-28T00:21:49Z] === EQUITY GOVERNANCE AUTOPILOT (100-trade gate) ===
+[2026-02-28T00:21:49Z] === EQUITY GOVERNANCE AUTOPILOT (100-trade gate) ===
+[2026-02-28T00:21:49Z] OUT_DIR=reports/equity_governance/equity_governance_20260228T002149Z BASELINE_DIR=reports/effectiveness_baseline_blame
+[2026-02-28T00:21:49Z] OUT_DIR=reports/equity_governance/equity_governance_20260228T002149Z BASELINE_DIR=reports/effectiveness_baseline_blame
+[2026-02-28T00:21:49Z] MIN_CLOSED_TRADES=100
+[2026-02-28T00:21:49Z] MIN_CLOSED_TRADES=100
+[2026-02-28T00:21:49Z] A1 Baseline effectiveness (equity from logs) -> reports/effectiveness_baseline_blame
+[2026-02-28T00:21:49Z] A1 Baseline effectiveness (equity from logs) -> reports/effectiveness_baseline_blame
+Wrote reports to /root/stock-bot/reports/effectiveness_baseline_blame
+Wrote reports to /root/stock-bot/reports/effectiveness_baseline_blame
+[2026-02-28T00:21:49Z] Baseline joined_count=2320 total_losing_trades=1431
+[2026-02-28T00:21:49Z] Baseline joined_count=2320 total_losing_trades=1431
+Wrote /root/stock-bot/reports/effectiveness_baseline_blame/expectancy_gate_diagnostic.json (n=771, p50_score=3.657, pct_marginal=2.08)
+Wrote /root/stock-bot/reports/effectiveness_baseline_blame/expectancy_gate_diagnostic.json (n=771, p50_score=3.657, pct_marginal=2.08)
+[2026-02-28T00:21:50Z] A2 Generating recommendation (entry vs exit)
+[2026-02-28T00:21:50Z] A2 Generating recommendation (entry vs exit)
+Wrote /root/stock-bot/reports/equity_governance/equity_governance_20260228T002149Z/profitability_recommendation.md
+Wrote reports/equity_governance/equity_governance_20260228T002149Z/recommendation.json (next_lever=entry)
+Wrote /root/stock-bot/reports/equity_governance/equity_governance_20260228T002149Z/profitability_recommendation.md
+Wrote reports/equity_governance/equity_governance_20260228T002149Z/recommendation.json (next_lever=entry)
+[2026-02-28T00:21:50Z] A2 Replay-driven lever selection (live vs top replay candidate)
+[2026-02-28T00:21:50Z] A2 Replay-driven lever selection (live vs top replay candidate)
+Lever selection: live -> entry (live_expectancy=-0.087621, overlay_config written)
+[2026-02-28T00:21:50Z] Lever=entry
+[2026-02-28T00:21:50Z] Lever=entry
+[2026-02-28T00:21:50Z] A3 Using overlay from replay-driven lever selection -> lever=entry
+[2026-02-28T00:21:50Z] A3 Using overlay from replay-driven lever selection -> lever=entry
+Wrote /root/stock-bot/state/paper_overlay.env (MIN_EXEC_SCORE=2.7)
+To activate: source state/paper_overlay.env and restart paper bot.
+Done.
+Wrote /root/stock-bot/state/paper_overlay.env (MIN_EXEC_SCORE=2.7)
+To activate: source state/paper_overlay.env and restart paper bot.
+Done.
+[Service]
+Environment=MIN_EXEC_SCORE=2.7
+[2026-02-28T00:21:52Z] A3 Restarted stock-bot with overlay active
+[2026-02-28T00:21:52Z] A3 Restarted stock-bot with overlay active
+[2026-02-28T00:21:52Z] A4 Waiting for >=100 closed trades (since 2026-02-28)
+[2026-02-28T00:21:52Z] A4 Waiting for >=100 closed trades (since 2026-02-28)
+[2026-02-28T00:21:53Z] Overlay joined_count=0
+[2026-02-28T00:21:53Z] Overlay joined_count=0

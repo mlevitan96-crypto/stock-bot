@@ -1,0 +1,12 @@
+{
+  "analysis": "B",
+  "name": "signal_attribution",
+  "cohort": "MARKET_SESSION_ET",
+  "n_trades": 2,
+  "blocked": false,
+  "blockers": [],
+  "profit_implication": "see slices",
+  "slices": {
+    "note": "uw_attribution.jsonl not sliced in this bundle"
+  }
+}

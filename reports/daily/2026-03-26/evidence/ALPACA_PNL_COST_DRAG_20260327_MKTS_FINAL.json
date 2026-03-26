@@ -1,0 +1,13 @@
+{
+  "analysis": "D",
+  "name": "cost_drag",
+  "cohort": "MARKET_SESSION_ET",
+  "n_trades": 2,
+  "blocked": false,
+  "blockers": [],
+  "profit_implication": "see slices",
+  "slices": {
+    "fees_total": 0.0,
+    "fee_source": "stub"
+  }
+}

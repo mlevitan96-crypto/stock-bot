@@ -1,0 +1,12 @@
+{
+  "date": "2026-03-10",
+  "promotion_type": "EXIT_AGGRESSION",
+  "selected_parameter": "exit_weight:+0.15",
+  "realized_pnl": -21.9457,
+  "would_have_pnl": null,
+  "exit_latency": null,
+  "tail_risk": null,
+  "executed_count": 163,
+  "blocked_count": 2000,
+  "metrics_source": "ledger_executed"
+}

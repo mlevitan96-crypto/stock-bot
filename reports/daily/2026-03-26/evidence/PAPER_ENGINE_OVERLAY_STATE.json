@@ -1,0 +1,9 @@
+{
+  "exit_overlay_path": "C:\\Dev\\stock-bot\\config\\overlays\\exit_aggression_paper.json",
+  "entries_unchanged": true,
+  "ci_unchanged": true,
+  "reason": "Activate exit aggression promotion 2026-03-10",
+  "mode": "paper",
+  "restart_requested_at": "2026-03-11T01:02:30.375222+00:00",
+  "instruction": "Paper engine should use config/tuning/active.json or GOVERNED_TUNING_CONFIG; restart process to pick up overlay."
+}

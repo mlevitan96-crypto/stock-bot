@@ -1,0 +1,12 @@
+{
+  "ts": "20260327_MKTS_FINAL",
+  "session_date_et": "2026-03-26",
+  "window_start_epoch_utc": 1774531800.0,
+  "window_end_epoch_utc": 1774555200.0,
+  "droplet_command": "python scripts/audit/alpaca_forward_truth_contract_runner.py --root /root/stock-bot --window-start-epoch 1774531800.0 --window-end-epoch 1774555200.0 --json-out reports/ALPACA_MARKET_SESSION_TRUTH_20260327_MKTS_FINAL.json --md-out reports/audit/ALPACA_MARKET_SESSION_TRUTH_20260327_MKTS_FINAL.md --incident-md reports/audit/_incident_ms.md --incident-json reports/audit/_incident_ms.json",
+  "workspace_demo_fixture_root": "C:\\Dev\\stock-bot\\artifacts\\alpaca_pnl_session_et_20260326",
+  "note": "Droplet must scp the same logs slice to workspace for production parity; demo uses synthetic MKT1/MKT2.",
+  "trades_seen": 2,
+  "trades_complete": 2,
+  "trades_incomplete": 0
+}

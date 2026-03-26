@@ -1,0 +1,51 @@
+{
+  "ledger_dir": "C:\\Dev\\stock-bot\\reports\\shadow\\backfill",
+  "ledger_count": 1,
+  "expected_artifacts": [
+    "signal_vectors",
+    "normalized_scores",
+    "decision_timestamps",
+    "entry_exit_reasons"
+  ],
+  "artifact_status": {
+    "signal_vectors": {
+      "present": true,
+      "source": "reports\\shadow\\backfill\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "sample_count": 20
+    },
+    "normalized_scores": {
+      "present": true,
+      "source": "reports\\shadow\\backfill\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "sample_count": 20
+    },
+    "decision_timestamps": {
+      "present": true,
+      "source": "reports\\shadow\\backfill\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "sample_count": 20
+    },
+    "entry_exit_reasons": {
+      "present": true,
+      "source": "reports\\shadow\\backfill\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "sample_count": 20
+    }
+  },
+  "sample_trade_keys": [
+    "ts",
+    "ts_iso",
+    "symbol",
+    "direction",
+    "strategy_variant_id",
+    "decision",
+    "exit_reason",
+    "hold_time_minutes",
+    "realized_pnl",
+    "realized_pnl_pct",
+    "sizing",
+    "entry_ts",
+    "exit_ts",
+    "entry_reason",
+    "signal_vectors",
+    "normalized_scores"
+  ],
+  "true_replay_ready": true
+}

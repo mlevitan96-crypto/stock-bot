@@ -1,0 +1,22 @@
+{
+  "promotion_type": "EXIT_AGGRESSION",
+  "selected_parameter": "exit_weight:+0.15",
+  "mode": "paper",
+  "max_loss_usd": 25.0,
+  "duration_hours": 48.0,
+  "active_from": "2026-03-11T00:46:54.450011+00:00",
+  "active_until": "2026-03-13T00:46:54.450011+00:00",
+  "constraints": [
+    "entries_unchanged",
+    "ci_unchanged",
+    "paper_only",
+    "reversible"
+  ],
+  "date": "2026-03-10",
+  "notes": [
+    "First profit-seeking promotion; daily quota. Activate in paper immediately."
+  ],
+  "loaded_at": "2026-03-11T00:58:31.940814+00:00",
+  "active": true,
+  "not_expired": true
+}

@@ -1,0 +1,31 @@
+{
+  "date": "2026-03-08",
+  "verdict": "SIGNAL_TRUTH_OK",
+  "blockers": [],
+  "healthy_signals": [
+    "flow",
+    "dark_pool",
+    "insider",
+    "iv_skew",
+    "smile",
+    "whale",
+    "event",
+    "motif_bonus",
+    "toxicity_penalty",
+    "regime",
+    "congress",
+    "shorts_squeeze",
+    "institutional",
+    "market_tide",
+    "calendar",
+    "greeks_gamma",
+    "ftd_pressure",
+    "iv_rank",
+    "oi_change",
+    "etf_flow",
+    "squeeze_score",
+    "freshness_factor"
+  ],
+  "suspect_signals": [],
+  "tuning_allowed": true
+}

@@ -1,0 +1,12 @@
+{
+  "analysis": "C",
+  "name": "exit_forensics",
+  "cohort": "MARKET_SESSION_ET",
+  "n_trades": 2,
+  "blocked": false,
+  "blockers": [],
+  "profit_implication": "see slices",
+  "slices": {
+    "demo_session_fixture": 2
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "analysis": "H",
+  "name": "latency_path",
+  "cohort": "MARKET_SESSION_ET",
+  "n_trades": 2,
+  "blocked": false,
+  "blockers": [],
+  "profit_implication": "see slices",
+  "slices": {
+    "note": "order fill timestamps in orders.jsonl not normalized here"
+  }
+}

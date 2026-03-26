@@ -1,0 +1,20 @@
+{
+  "audit_utc": "2026-03-26T16:23Z",
+  "command": "PYTHONPATH=/root/stock-bot venv/bin/python telemetry/alpaca_strict_completeness_gate.py --root . --audit --open-ts-epoch 1774458080",
+  "source_host": "Alpaca droplet /root/stock-bot",
+  "summary": {
+    "LEARNING_STATUS": "BLOCKED",
+    "learning_fail_closed_reason": "incomplete_trade_chain",
+    "trades_seen": 192,
+    "trades_complete": 76,
+    "trades_incomplete": 116,
+    "strict_cohort_excluded_preera_open_count": 29
+  },
+  "reason_histogram": {
+    "entry_decision_not_joinable_by_canonical_trade_id": 116,
+    "missing_exit_intent_for_canonical_trade_id": 92,
+    "missing_unified_entry_attribution": 22,
+    "no_orders_rows_with_canonical_trade_id": 22
+  },
+  "notes": "Full stdout captured during certification run; this file is an abbreviated record for artifact retention."
+}

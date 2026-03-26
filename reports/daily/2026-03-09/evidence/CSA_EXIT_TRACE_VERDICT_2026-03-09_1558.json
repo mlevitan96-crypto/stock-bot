@@ -1,0 +1,101 @@
+{
+  "verdict": "EXIT_TRACE_PROVEN",
+  "confidence": 0.9,
+  "required_fixes": [],
+  "exit_learning_allowed": true,
+  "stamp": "2026-03-09_1558",
+  "phase0": {
+    "hostname": "ubuntu-s-1vcpu-2gb-nyc3-01-alpaca",
+    "git_commit": "1da3913e3dc8",
+    "system_time_utc": "2026-03-09T15:58:18Z",
+    "python_version": "Python 3.12.3",
+    "stock_bot_status": "active"
+  },
+  "phase1": {
+    "open_positions_count": 11
+  },
+  "phase2": {
+    "trace_exists": true,
+    "trace_size": 76790,
+    "lines_read": 10
+  },
+  "phase3": [
+    {
+      "index": 0,
+      "trade_id": "open_GM_2026-03-09T14:17:07.451Z",
+      "errors": []
+    },
+    {
+      "index": 1,
+      "trade_id": "open_LOW_2026-03-09T14:17:32.392Z",
+      "errors": []
+    },
+    {
+      "index": 2,
+      "trade_id": "open_HD_2026-03-09T14:17:50.342Z",
+      "errors": []
+    },
+    {
+      "index": 3,
+      "trade_id": "open_GOOGL_2026-03-09T14:18:07.226Z",
+      "errors": []
+    },
+    {
+      "index": 4,
+      "trade_id": "open_XLP_2026-03-09T14:18:15.399Z",
+      "errors": []
+    },
+    {
+      "index": 5,
+      "trade_id": "open_XLV_2026-03-09T14:18:23.920Z",
+      "errors": []
+    },
+    {
+      "index": 6,
+      "trade_id": "open_XLF_2026-03-09T14:18:31.400Z",
+      "errors": []
+    },
+    {
+      "index": 7,
+      "trade_id": "open_DIA_2026-03-09T14:18:39.105Z",
+      "errors": []
+    },
+    {
+      "index": 8,
+      "trade_id": "open_BA_2026-03-09T14:19:12.392Z",
+      "errors": []
+    },
+    {
+      "index": 9,
+      "trade_id": "open_AAPL_2026-03-09T14:19:47.246Z",
+      "errors": []
+    }
+  ],
+  "phase4": {
+    "trade_ids": [
+      "open_GM_2026-03-09T14:17:07.451Z",
+      "open_LOW_2026-03-09T14:17:32.392Z",
+      "open_HD_2026-03-09T14:17:50.342Z",
+      "open_GOOGL_2026-03-09T14:18:07.226Z",
+      "open_XLP_2026-03-09T14:18:15.399Z",
+      "open_XLV_2026-03-09T14:18:23.920Z",
+      "open_XLF_2026-03-09T14:18:31.400Z",
+      "open_DIA_2026-03-09T14:18:39.105Z",
+      "open_BA_2026-03-09T14:19:12.392Z",
+      "open_AAPL_2026-03-09T14:19:47.246Z"
+    ],
+    "samples_per_trade": {
+      "open_GM_2026-03-09T14:17:07.451Z": 1,
+      "open_LOW_2026-03-09T14:17:32.392Z": 1,
+      "open_HD_2026-03-09T14:17:50.342Z": 1,
+      "open_GOOGL_2026-03-09T14:18:07.226Z": 1,
+      "open_XLP_2026-03-09T14:18:15.399Z": 1,
+      "open_XLV_2026-03-09T14:18:23.920Z": 1,
+      "open_XLF_2026-03-09T14:18:31.400Z": 1,
+      "open_DIA_2026-03-09T14:18:39.105Z": 1,
+      "open_BA_2026-03-09T14:19:12.392Z": 1,
+      "open_AAPL_2026-03-09T14:19:47.246Z": 1
+    },
+    "values_vary_across_samples": false
+  }
+}

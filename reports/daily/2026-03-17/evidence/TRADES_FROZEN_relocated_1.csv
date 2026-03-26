@@ -1,0 +1,4 @@
+trade_id,trade_key,symbol,side,entry_time,exit_time,entry_price,exit_price,realized_pnl_usd,exit_reason,entry_regime,exit_regime,v2_exit_score,time_in_trade_minutes
+exit_attr_33,AAPL|LONG|2026-01-23T15:54:43+00:00,AAPL,long,2026-01-23T15:54:43,2026-01-23T15:54:43,100.0,1000.0,4500.0,profit,NEUTRAL,NEUTRAL,0.0031250000000000028,0.0004959833333333333
+exit_attr_34,AAPL|LONG|2026-01-01T00:00:00+00:00,AAPL,long,2026-01-01T00:00:00,2026-01-23T15:54:44,,,0.0,profit,NEUTRAL,NEUTRAL,0.5,
+exit_attr_35,AAPL|LONG|2026-01-01T00:00:00+00:00,AAPL,long,2026-01-01T00:00:00,2026-02-17T23:30:51,,,0.0,profit,NEUTRAL,NEUTRAL,0.5,

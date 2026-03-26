@@ -1,0 +1,248 @@
+{
+  "signals": [
+    {
+      "signal_name": "flow",
+      "weight_key": "options_flow",
+      "base_weight": 2.4,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "dark_pool",
+      "weight_key": "dark_pool",
+      "base_weight": 1.3,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "insider",
+      "weight_key": "insider",
+      "base_weight": 0.5,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "iv_skew",
+      "weight_key": "iv_term_skew",
+      "base_weight": 0.6,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "smile",
+      "weight_key": "smile_slope",
+      "base_weight": 0.35,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "whale",
+      "weight_key": "whale_persistence",
+      "base_weight": 0.7,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "event",
+      "weight_key": "event_alignment",
+      "base_weight": 0.4,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "motif_bonus",
+      "weight_key": "temporal_motif",
+      "base_weight": 0.6,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "toxicity_penalty",
+      "weight_key": "toxicity_penalty",
+      "base_weight": -0.9,
+      "category": "filter",
+      "expected_score_range": [
+        -1.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "regime",
+      "weight_key": "regime_modifier",
+      "base_weight": 0.3,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "congress",
+      "weight_key": "congress",
+      "base_weight": 0.9,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "shorts_squeeze",
+      "weight_key": "shorts_squeeze",
+      "base_weight": 0.7,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "institutional",
+      "weight_key": "institutional",
+      "base_weight": 0.5,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "market_tide",
+      "weight_key": "market_tide",
+      "base_weight": 0.4,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "calendar",
+      "weight_key": "calendar_catalyst",
+      "base_weight": 0.45,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "greeks_gamma",
+      "weight_key": "greeks_gamma",
+      "base_weight": 0.4,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "ftd_pressure",
+      "weight_key": "ftd_pressure",
+      "base_weight": 0.3,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "iv_rank",
+      "weight_key": "iv_rank",
+      "base_weight": 0.2,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "oi_change",
+      "weight_key": "oi_change",
+      "base_weight": 0.35,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "etf_flow",
+      "weight_key": "etf_flow",
+      "base_weight": 0.3,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "squeeze_score",
+      "weight_key": "squeeze_score",
+      "base_weight": 0.2,
+      "category": "entry",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    },
+    {
+      "signal_name": "freshness_factor",
+      "weight_key": "freshness_factor",
+      "base_weight": 0.0,
+      "category": "meta",
+      "expected_score_range": [
+        0.0,
+        2.5
+      ],
+      "enabled": true
+    }
+  ],
+  "source": "uw_composite_v2.WEIGHTS_V3",
+  "date": "2026-03-08"
+}

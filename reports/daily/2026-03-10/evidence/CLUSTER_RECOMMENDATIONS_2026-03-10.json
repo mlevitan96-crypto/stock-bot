@@ -1,0 +1,44 @@
+{
+  "clusters_path": "C:\\Dev\\stock-bot\\reports\\shadow\\clusters\\SIGNAL_CLUSTERS_2026-03-10.json",
+  "importance_path": "C:\\Dev\\stock-bot\\reports\\shadow\\clusters\\CONDITIONAL_IMPORTANCE_2026-03-10.json",
+  "recommendations": [
+    {
+      "cluster_id": 0,
+      "signals": [
+        "ns_pnl_norm",
+        "ns_raw_pnl"
+      ],
+      "top_signals_by_importance": [
+        "ns_raw_pnl",
+        "ns_pnl_norm"
+      ],
+      "recommendation": "Review weight sweep for these signals; cluster may be redundant or complementary."
+    },
+    {
+      "cluster_id": 1,
+      "signals": [
+        "sv_signal_decay"
+      ],
+      "top_signals_by_importance": [
+        "sv_signal_decay"
+      ],
+      "recommendation": "Review weight sweep for these signals; cluster may be redundant or complementary."
+    },
+    {
+      "cluster_id": 2,
+      "signals": [
+        "sv_unknown"
+      ],
+      "top_signals_by_importance": [
+        "sv_unknown"
+      ],
+      "recommendation": "Review weight sweep for these signals; cluster may be redundant or complementary."
+    },
+    {
+      "cluster_id": "global",
+      "recommendation": "Shadow-only. No gating, no promotion, no weight changes. Use for diagnostics and sweep design."
+    }
+  ],
+  "scope": "shadow_only",
+  "contract": "No automatic actions; board and daily promotion loop retain control."
+}

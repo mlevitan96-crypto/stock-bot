@@ -1,0 +1,125 @@
+{
+  "mode": "proposal",
+  "input_path": "reports\\board\\CONTINUOUS_SIGNAL_WEIGHTING_SHADOW_PROPOSAL.md",
+  "personas": [
+    "CSA",
+    "SRE",
+    "QUANT",
+    "RISK",
+    "ADVERSARIAL"
+  ],
+  "reviews": {
+    "CSA": {
+      "verdict": "PASS",
+      "summary": "Proposal review for CSA; 5 questions.",
+      "questions": [
+        "Do you agree that alpha signals should be weighted, not gated?",
+        "Do you approve creation of a shadow replay lab as read-only?",
+        "Do you authorize bulk weight sweeps in shadow only?",
+        "Do you confirm live promotions remain single-step, guarded, and reversible?",
+        "Do you direct Cursor to proceed with implementation in the shadow review area?"
+      ],
+      "answers": [
+        "[CSA] Stub critique: Do you agree that alpha signals should be weighted...",
+        "[CSA] Stub critique: Do you approve creation of a shadow replay lab as ...",
+        "[CSA] Stub critique: Do you authorize bulk weight sweeps in shadow only...",
+        "[CSA] Stub critique: Do you confirm live promotions remain single-step,...",
+        "[CSA] Stub critique: Do you direct Cursor to proceed with implementatio..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[CSA] Stub critique: Do you confirm live promotions remain single-step,..."
+    },
+    "SRE": {
+      "verdict": "PASS",
+      "summary": "Proposal review for SRE; 5 questions.",
+      "questions": [
+        "Do you agree that alpha signals should be weighted, not gated?",
+        "Do you approve creation of a shadow replay lab as read-only?",
+        "Do you authorize bulk weight sweeps in shadow only?",
+        "Do you confirm live promotions remain single-step, guarded, and reversible?",
+        "Do you direct Cursor to proceed with implementation in the shadow review area?"
+      ],
+      "answers": [
+        "[SRE] Stub critique: Do you agree that alpha signals should be weighted...",
+        "[SRE] Stub critique: Do you approve creation of a shadow replay lab as ...",
+        "[SRE] Stub critique: Do you authorize bulk weight sweeps in shadow only...",
+        "[SRE] Stub critique: Do you confirm live promotions remain single-step,...",
+        "[SRE] Stub critique: Do you direct Cursor to proceed with implementatio..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[SRE] Stub critique: Do you confirm live promotions remain single-step,..."
+    },
+    "QUANT": {
+      "verdict": "PASS",
+      "summary": "Proposal review for QUANT; 5 questions.",
+      "questions": [
+        "Do you agree that alpha signals should be weighted, not gated?",
+        "Do you approve creation of a shadow replay lab as read-only?",
+        "Do you authorize bulk weight sweeps in shadow only?",
+        "Do you confirm live promotions remain single-step, guarded, and reversible?",
+        "Do you direct Cursor to proceed with implementation in the shadow review area?"
+      ],
+      "answers": [
+        "[QUANT] Stub critique: Do you agree that alpha signals should be weighted...",
+        "[QUANT] Stub critique: Do you approve creation of a shadow replay lab as ...",
+        "[QUANT] Stub critique: Do you authorize bulk weight sweeps in shadow only...",
+        "[QUANT] Stub critique: Do you confirm live promotions remain single-step,...",
+        "[QUANT] Stub critique: Do you direct Cursor to proceed with implementatio..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[QUANT] Stub critique: Do you confirm live promotions remain single-step,..."
+    },
+    "RISK": {
+      "verdict": "PASS",
+      "summary": "Proposal review for RISK; 5 questions.",
+      "questions": [
+        "Do you agree that alpha signals should be weighted, not gated?",
+        "Do you approve creation of a shadow replay lab as read-only?",
+        "Do you authorize bulk weight sweeps in shadow only?",
+        "Do you confirm live promotions remain single-step, guarded, and reversible?",
+        "Do you direct Cursor to proceed with implementation in the shadow review area?"
+      ],
+      "answers": [
+        "[RISK] Stub critique: Do you agree that alpha signals should be weighted...",
+        "[RISK] Stub critique: Do you approve creation of a shadow replay lab as ...",
+        "[RISK] Stub critique: Do you authorize bulk weight sweeps in shadow only...",
+        "[RISK] Stub critique: Do you confirm live promotions remain single-step,...",
+        "[RISK] Stub critique: Do you direct Cursor to proceed with implementatio..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[RISK] Stub critique: Do you confirm live promotions remain single-step,..."
+    },
+    "ADVERSARIAL": {
+      "verdict": "PASS",
+      "summary": "Proposal review for ADVERSARIAL; 5 questions.",
+      "questions": [
+        "Do you agree that alpha signals should be weighted, not gated?",
+        "Do you approve creation of a shadow replay lab as read-only?",
+        "Do you authorize bulk weight sweeps in shadow only?",
+        "Do you confirm live promotions remain single-step, guarded, and reversible?",
+        "Do you direct Cursor to proceed with implementation in the shadow review area?"
+      ],
+      "answers": [
+        "[ADVERSARIAL] Stub critique: Do you agree that alpha signals should be weighted...",
+        "[ADVERSARIAL] Stub critique: Do you approve creation of a shadow replay lab as ...",
+        "[ADVERSARIAL] Stub critique: Do you authorize bulk weight sweeps in shadow only...",
+        "[ADVERSARIAL] Stub critique: Do you confirm live promotions remain single-step,...",
+        "[ADVERSARIAL] Stub critique: Do you direct Cursor to proceed with implementatio..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[ADVERSARIAL] Stub critique: Do you confirm live promotions remain single-step,..."
+    }
+  },
+  "review_questions": [
+    "Do you agree that alpha signals should be weighted, not gated?",
+    "Do you approve creation of a shadow replay lab as read-only?",
+    "Do you authorize bulk weight sweeps in shadow only?",
+    "Do you confirm live promotions remain single-step, guarded, and reversible?",
+    "Do you direct Cursor to proceed with implementation in the shadow review area?"
+  ]
+}

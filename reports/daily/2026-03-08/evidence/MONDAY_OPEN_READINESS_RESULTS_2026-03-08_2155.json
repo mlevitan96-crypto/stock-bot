@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-03-08_2155",
+  "verdict": "PASS",
+  "phases": {
+    "0_authority": {
+      "hostname": "ubuntu-s-1vcpu-2gb-nyc3-01-alpaca",
+      "commit": "25f5df1ae6fe",
+      "raw": "ubuntu-s-1vcpu-2gb-nyc3-01-alpaca\n25f5df1ae6fed9090f755a54f8b51a52ffc6eca0\n2026-03-08T21:55:25Z\nPython 3.12.3\n"
+    },
+    "1_sre": {
+      "disk_ok": true,
+      "services_raw": "active\n789863 /root/stock-bot/venv/bin/python -u dashboard.py\n790063 bash -c cd /root/stock-bot && systemctl is-active stock-bot 2>/dev/null || echo 'inactive'; pgrep -af 'dashboard.py' | head -3 || true; crontab -l 2>/dev/null | head -5 || echo 'no-cron'\n0 * * * * cd ~/stock-bot && ./report_status_to_git.sh >> /tmp/git_sync.log 2>&1\n30 20 * * 1-5 cd /root/stock-bot && venv/bin/python specialist_tier_monitoring_orchestrator.py >> logs/orchestrator.log 2>&1\n30 20 * * * cd /root/stock-bot && /root/stock-bot/venv/bin/python3 scripts/run_full_telemetry_extract.py >> logs/telemetry_extract.log 2>&1\n31 21 * * 1-5 cd /root/stock-bot && /usr/bin/python3 scripts/run_exit_join_and_blocked_attribution_on_droplet.py --date $(date -u +\\%Y-\\%m-\\%d) >> logs/learning_pipeline.log 2>&1\n32 21 * * 1-5 cd /ro"
+    },
+    "2_paper": {
+      "paper_only_verified": true,
+      "snippet_redacted": "TRADING_MODE and ALPACA_BASE_URL checked (values not logged)."
+    },
+    "3_config": {
+      "b2_mode": "live_paper",
+      "b2_live_paper_enabled": true,
+      "b2_live_enabled": false
+    },
+    "4_data": {
+      "append_ok": true
+    },
+    "5_alpaca": {
+      "account_ok": true,
+      "clock_ok": true
+    },
+    "6_smoke": {
+      "exit_code": 0,
+      "output_tail": "MONDAY_SMOKE_TEST wrote /root/stock-bot/reports/audit/MONDAY_SMOKE_TEST_2026-03-08_2155.json (2 symbols, 0.0s)\n"
+    },
+    "7_dashboard": {
+      "key_endpoints_ok": true
+    },
+    "8_csa": {
+      "parse_warning": true,
+      "cockpit_updated": true
+    },
+    "9_cron": {
+      "cron_listed": true
+    }
+  },
+  "blockers": [],
+  "warnings": [],
+  "proof_dir": "C:\\Dev\\stock-bot\\reports\\audit\\MONDAY_OPEN_READINESS_PROOF_2026-03-08_2155"
+}

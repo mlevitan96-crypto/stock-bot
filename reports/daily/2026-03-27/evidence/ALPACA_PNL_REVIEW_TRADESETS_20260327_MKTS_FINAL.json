@@ -1,0 +1,13 @@
+{
+  "ts": "20260327_MKTS_FINAL",
+  "EXECUTED_QUALIFIED_SESSION": {
+    "trade_ids": [
+      "open_MKT1_2026-03-26T14:00:00+00:00",
+      "open_MKT2_2026-03-26T15:30:00+00:00"
+    ],
+    "count": 2
+  },
+  "sample_trade_ids_only": [],
+  "sample_note": "cohort_mode",
+  "blockers": []
+}

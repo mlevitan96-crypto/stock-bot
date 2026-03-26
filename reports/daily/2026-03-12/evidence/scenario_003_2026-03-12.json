@@ -1,0 +1,11 @@
+{
+  "scenario_id": "scenario_003",
+  "status": "complete",
+  "trades": 36,
+  "total_pnl": 63000.0,
+  "expectancy": 1750.0,
+  "params": {
+    "exit_min_hold_minutes": 60
+  },
+  "data_source": "logs/exit_attribution.jsonl or logs/attribution.jsonl"
+}

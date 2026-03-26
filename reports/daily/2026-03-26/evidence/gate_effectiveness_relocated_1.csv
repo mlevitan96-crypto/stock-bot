@@ -1,0 +1,9 @@
+gate,pass_n,pass_total_pnl,fail_n,fail_total_pnl
+cooldown,0,0,0,0
+exhaustion_gate,0,0,0,0
+funding_veto,0,0,0,0
+lead_gate,0,0,0,0
+position_exists,0,0,0,0
+regime_gate,0,0,0,0
+score_threshold,0,0,0,0
+whitelist,0,0,0,0

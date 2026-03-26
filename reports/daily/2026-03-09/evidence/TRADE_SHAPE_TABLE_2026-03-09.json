@@ -1,0 +1,1484 @@
+{
+  "date": "2026-03-09",
+  "n_trades": 300,
+  "trades_per_day": 79.7,
+  "trades_per_symbol": {
+    "BA": 5,
+    "INTC": 12,
+    "AMD": 10,
+    "COIN": 7,
+    "TSLA": 11,
+    "XLK": 8,
+    "XLV": 6,
+    "XLE": 6,
+    "NVDA": 10,
+    "SLB": 7,
+    "DIA": 8,
+    "XLF": 5,
+    "IWM": 8,
+    "COP": 10,
+    "GOOGL": 6,
+    "NFLX": 7,
+    "AAPL": 5,
+    "MSFT": 4,
+    "MRNA": 9,
+    "PFE": 4,
+    "TGT": 7,
+    "WMT": 4,
+    "HD": 7,
+    "JNJ": 5,
+    "UNH": 6,
+    "NIO": 5,
+    "F": 8,
+    "BAC": 4,
+    "C": 7,
+    "GM": 6,
+    "JPM": 7,
+    "LCID": 7,
+    "WFC": 7,
+    "META": 1,
+    "MS": 6,
+    "CVX": 7,
+    "XLI": 5,
+    "XLP": 4,
+    "LOW": 6,
+    "XOM": 5,
+    "PLTR": 7,
+    "HOOD": 7,
+    "SOFI": 6,
+    "RIVN": 7,
+    "AMZN": 5,
+    "SPY": 2,
+    "QQQ": 1,
+    "unknown": 2,
+    "CAT": 1
+  },
+  "shapes": [
+    {
+      "symbol": "HOOD",
+      "pnl_usd": -0.3,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 36.743699633333335,
+      "exit_reason": "signal_decay(0.87)+flow_reversal"
+    },
+    {
+      "symbol": "F",
+      "pnl_usd": -0.16,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.48515808333333,
+      "exit_reason": "signal_decay(0.61)"
+    },
+    {
+      "symbol": "MRNA",
+      "pnl_usd": -0.6933,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 36.40161633333333,
+      "exit_reason": "signal_decay(0.80)+flow_reversal"
+    },
+    {
+      "symbol": "GM",
+      "pnl_usd": 0.005,
+      "mfe": 0.055,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 31.090060033333334,
+      "exit_reason": "signal_decay(0.69)"
+    },
+    {
+      "symbol": "RIVN",
+      "pnl_usd": -0.11,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 36.401730150000006,
+      "exit_reason": "signal_decay(0.86)+flow_reversal"
+    },
+    {
+      "symbol": "GOOGL",
+      "pnl_usd": 0.96,
+      "mfe": 0.92,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 33.356825199999996,
+      "exit_reason": "signal_decay(0.58)"
+    },
+    {
+      "symbol": "SOFI",
+      "pnl_usd": -2.8,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 36.43573598333333,
+      "exit_reason": "signal_decay(0.86)+flow_reversal"
+    },
+    {
+      "symbol": "HD",
+      "pnl_usd": -0.5,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.555934466666667,
+      "exit_reason": "signal_decay(0.76)"
+    },
+    {
+      "symbol": "INTC",
+      "pnl_usd": 0.92,
+      "mfe": 0.245,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 36.25395925,
+      "exit_reason": "signal_decay(0.78)+flow_reversal"
+    },
+    {
+      "symbol": "SLB",
+      "pnl_usd": -0.57,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 36.095381800000006,
+      "exit_reason": "signal_decay(0.85)+flow_reversal"
+    },
+    {
+      "symbol": "NIO",
+      "pnl_usd": -0.82,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 35.89099435,
+      "exit_reason": "signal_decay(0.71)"
+    },
+    {
+      "symbol": "NVDA",
+      "pnl_usd": 0.58,
+      "mfe": 0.635,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 35.68194395,
+      "exit_reason": "signal_decay(0.52)+flow_reversal"
+    },
+    {
+      "symbol": "XLK",
+      "pnl_usd": -0.07,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 35.599413899999995,
+      "exit_reason": "signal_decay(0.86)+flow_reversal"
+    },
+    {
+      "symbol": "IWM",
+      "pnl_usd": -0.52,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.75826386666667,
+      "exit_reason": "signal_decay(0.83)"
+    },
+    {
+      "symbol": "JPM",
+      "pnl_usd": -1.73,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.83453503333333,
+      "exit_reason": "signal_decay(0.86)"
+    },
+    {
+      "symbol": "MS",
+      "pnl_usd": -1.21,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 35.3419921,
+      "exit_reason": "signal_decay(0.83)+flow_reversal"
+    },
+    {
+      "symbol": "UNH",
+      "pnl_usd": -0.8,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.935844816666666,
+      "exit_reason": "signal_decay(0.79)+flow_reversal"
+    },
+    {
+      "symbol": "PFE",
+      "pnl_usd": -0.17,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.585255266666664,
+      "exit_reason": "signal_decay(0.78)+flow_reversal"
+    },
+    {
+      "symbol": "XLI",
+      "pnl_usd": -0.25,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.772170816666666,
+      "exit_reason": "signal_decay(0.84)+flow_reversal"
+    },
+    {
+      "symbol": "XLE",
+      "pnl_usd": -0.27,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.460546,
+      "exit_reason": "signal_decay(0.85)+flow_reversal"
+    },
+    {
+      "symbol": "XOM",
+      "pnl_usd": -0.72,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.35064175,
+      "exit_reason": "signal_decay(0.52)+flow_reversal"
+    },
+    {
+      "symbol": "TGT",
+      "pnl_usd": -0.08,
+      "mfe": 0.005,
+      "mae": null,
+      "profit_giveback": 0.0,
+      "hold_minutes": 33.332382466666665,
+      "exit_reason": "signal_decay(0.79)+flow_reversal"
+    },
+    {
+      "symbol": "LOW",
+      "pnl_usd": -0.75,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 114.65130651666666,
+      "exit_reason": "signal_decay(0.93)+flow_reversal"
+    },
+    {
+      "symbol": "HOOD",
+      "pnl_usd": -1.74,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 39.34150601666667,
+      "exit_reason": "signal_decay(0.70)"
+    },
+    {
+      "symbol": "LCID",
+      "pnl_usd": -2.31,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 39.1971548,
+      "exit_reason": "signal_decay(0.71)"
+    },
+    {
+      "symbol": "RIVN",
+      "pnl_usd": -0.45,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 39.04475093333333,
+      "exit_reason": "signal_decay(0.71)"
+    },
+    {
+      "symbol": "NIO",
+      "pnl_usd": 0.0,
+      "mfe": 0.005,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 38.29953758333333,
+      "exit_reason": "signal_decay(0.63)+flow_reversal"
+    },
+    {
+      "symbol": "MRNA",
+      "pnl_usd": -1.29,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 37.47135778333333,
+      "exit_reason": "signal_decay(0.47)+flow_reversal"
+    },
+    {
+      "symbol": "AMD",
+      "pnl_usd": -2.96,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 37.36936096666667,
+      "exit_reason": "signal_decay(0.78)"
+    },
+    {
+      "symbol": "INTC",
+      "pnl_usd": -1.56,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 37.20006758333333,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "SLB",
+      "pnl_usd": -0.9,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 36.991313383333335,
+      "exit_reason": "signal_decay(0.67)+flow_reversal"
+    },
+    {
+      "symbol": "NVDA",
+      "pnl_usd": -2.08,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 36.799691,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "COP",
+      "pnl_usd": -0.61,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 36.68742076666667,
+      "exit_reason": "signal_decay(0.66)+flow_reversal"
+    },
+    {
+      "symbol": "C",
+      "pnl_usd": 0.02,
+      "mfe": 0.0699,
+      "mae": null,
+      "profit_giveback": 0.713877,
+      "hold_minutes": 36.563008833333335,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "XLK",
+      "pnl_usd": -0.99,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 36.413562299999995,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "MS",
+      "pnl_usd": 0.07,
+      "mfe": 0.16,
+      "mae": null,
+      "profit_giveback": 0.5625,
+      "hold_minutes": 35.85691258333333,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "XLE",
+      "pnl_usd": -0.32,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 35.765784716666666,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "JPM",
+      "pnl_usd": -0.05,
+      "mfe": 0.03,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 35.57908846666667,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "CVX",
+      "pnl_usd": 0.0,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 35.38259798333333,
+      "exit_reason": "signal_decay(0.67)+flow_reversal"
+    },
+    {
+      "symbol": "XOM",
+      "pnl_usd": -0.15,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 35.10854925,
+      "exit_reason": "signal_decay(0.66)+flow_reversal"
+    },
+    {
+      "symbol": "XLI",
+      "pnl_usd": -0.35,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.844637533333334,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "F",
+      "pnl_usd": -0.48,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.67361036666667,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "UNH",
+      "pnl_usd": 0.42,
+      "mfe": 0.38,
+      "mae": null,
+      "profit_giveback": 0.0,
+      "hold_minutes": 33.88258783333333,
+      "exit_reason": "signal_decay(0.42)+flow_reversal"
+    },
+    {
+      "symbol": "LOW",
+      "pnl_usd": 0.17,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.665365066666666,
+      "exit_reason": "signal_decay(0.38)+flow_reversal"
+    },
+    {
+      "symbol": "AAPL",
+      "pnl_usd": 0.71,
+      "mfe": 0.72,
+      "mae": null,
+      "profit_giveback": 0.013889,
+      "hold_minutes": 34.415264900000004,
+      "exit_reason": "signal_decay(0.61)"
+    },
+    {
+      "symbol": "AMZN",
+      "pnl_usd": -0.32,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.816202600000004,
+      "exit_reason": "signal_decay(0.68)"
+    },
+    {
+      "symbol": "C",
+      "pnl_usd": 0.73,
+      "mfe": 0.735,
+      "mae": null,
+      "profit_giveback": 0.006803,
+      "hold_minutes": 31.9304183,
+      "exit_reason": "signal_decay(0.69)"
+    },
+    {
+      "symbol": "COIN",
+      "pnl_usd": -0.35,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 73.86742926666668,
+      "exit_reason": "signal_decay(0.92)"
+    },
+    {
+      "symbol": "COP",
+      "pnl_usd": -0.22,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 32.6509206,
+      "exit_reason": "signal_decay(0.69)"
+    },
+    {
+      "symbol": "CVX",
+      "pnl_usd": -0.13,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.123134766666666,
+      "exit_reason": "signal_decay(0.70)"
+    },
+    {
+      "symbol": "DIA",
+      "pnl_usd": 0.37,
+      "mfe": 0.18,
+      "mae": null,
+      "profit_giveback": 0.0,
+      "hold_minutes": 35.48636878333333,
+      "exit_reason": "signal_decay(0.64)"
+    },
+    {
+      "symbol": "HD",
+      "pnl_usd": 0.14,
+      "mfe": 0.02,
+      "mae": null,
+      "profit_giveback": 0.0,
+      "hold_minutes": 67.37979021666666,
+      "exit_reason": "signal_decay(0.70)"
+    },
+    {
+      "symbol": "HOOD",
+      "pnl_usd": -0.38,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.253746033333336,
+      "exit_reason": "signal_decay(0.71)"
+    },
+    {
+      "symbol": "INTC",
+      "pnl_usd": -0.54,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.069030966666666,
+      "exit_reason": "signal_decay(0.69)"
+    },
+    {
+      "symbol": "PLTR",
+      "pnl_usd": 2.45,
+      "mfe": 2.43,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 74.5743979,
+      "exit_reason": "signal_decay(0.93)"
+    },
+    {
+      "symbol": "IWM",
+      "pnl_usd": -0.47,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 67.86706668333333,
+      "exit_reason": "signal_decay(0.70)"
+    },
+    {
+      "symbol": "JPM",
+      "pnl_usd": 1.9,
+      "mfe": 1.695,
+      "mae": null,
+      "profit_giveback": 0.0,
+      "hold_minutes": 31.69974965,
+      "exit_reason": "signal_decay(0.70)"
+    },
+    {
+      "symbol": "TSLA",
+      "pnl_usd": 1.91,
+      "mfe": 1.85,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 74.49449335,
+      "exit_reason": "signal_decay(0.93)"
+    },
+    {
+      "symbol": "SOFI",
+      "pnl_usd": 0.44,
+      "mfe": 0.215,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 74.35664476666668,
+      "exit_reason": "signal_decay(0.92)"
+    },
+    {
+      "symbol": "LCID",
+      "pnl_usd": -0.11,
+      "mfe": 0.01,
+      "mae": null,
+      "profit_giveback": 1.0,
+      "hold_minutes": 33.71676346666666,
+      "exit_reason": "signal_decay(0.70)"
+    },
+    {
+      "symbol": "MRNA",
+      "pnl_usd": 0.94,
+      "mfe": 0.38,
+      "mae": null,
+      "profit_giveback": 0.0,
+      "hold_minutes": 33.42125421666667,
+      "exit_reason": "signal_decay(0.69)"
+    },
+    {
+      "symbol": "MS",
+      "pnl_usd": 0.77,
+      "mfe": 0.8,
+      "mae": null,
+      "profit_giveback": 0.0375,
+      "hold_minutes": 32.583458900000004,
+      "exit_reason": "signal_decay(0.70)"
+    },
+    {
+      "symbol": "MSFT",
+      "pnl_usd": -1.02,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 35.38529845,
+      "exit_reason": "signal_decay(0.61)"
+    },
+    {
+      "symbol": "WFC",
+      "pnl_usd": 0.17,
+      "mfe": 0.235,
+      "mae": null,
+      "profit_giveback": 0.276596,
+      "hold_minutes": 67.37225536666666,
+      "exit_reason": "signal_decay(0.69)+flow_reversal"
+    },
+    {
+      "symbol": "QQQ",
+      "pnl_usd": -2.9655,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 66.74606693333334,
+      "exit_reason": "signal_decay(0.70)"
+    },
+    {
+      "symbol": "TGT",
+      "pnl_usd": 0.6,
+      "mfe": 0.765,
+      "mae": null,
+      "profit_giveback": 0.215686,
+      "hold_minutes": 66.79339861666666,
+      "exit_reason": "signal_decay(0.69)"
+    },
+    {
+      "symbol": "RIVN",
+      "pnl_usd": -2.28,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.410992566666664,
+      "exit_reason": "signal_decay(0.70)"
+    },
+    {
+      "symbol": "SLB",
+      "pnl_usd": -0.06,
+      "mfe": 0.015,
+      "mae": null,
+      "profit_giveback": 0.0,
+      "hold_minutes": 35.74033216666667,
+      "exit_reason": "signal_decay(0.94)"
+    },
+    {
+      "symbol": null,
+      "pnl_usd": 0.0,
+      "mfe": null,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": null,
+      "exit_reason": "unknown"
+    },
+    {
+      "symbol": null,
+      "pnl_usd": 0.0,
+      "mfe": null,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": null,
+      "exit_reason": "unknown"
+    },
+    {
+      "symbol": "XOM",
+      "pnl_usd": 0.81,
+      "mfe": 0.5,
+      "mae": null,
+      "profit_giveback": 0.0,
+      "hold_minutes": 3908.5563466666667,
+      "exit_reason": "signal_decay(0.80)+stale_alpha_cutoff(3908min,0.00%)"
+    },
+    {
+      "symbol": "XLI",
+      "pnl_usd": -0.26,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 3909.5152129,
+      "exit_reason": "signal_decay(0.71)+flow_reversal+stale_alpha_cutoff(3909min,-0.0"
+    },
+    {
+      "symbol": "HD",
+      "pnl_usd": -2.97,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.38670246666666,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "IWM",
+      "pnl_usd": -2.29,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.20410906666667,
+      "exit_reason": "signal_decay(0.75)"
+    },
+    {
+      "symbol": "JNJ",
+      "pnl_usd": -0.78,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.36900193333334,
+      "exit_reason": "signal_decay(0.82)+flow_reversal"
+    },
+    {
+      "symbol": "XLF",
+      "pnl_usd": -0.96,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.111253366666666,
+      "exit_reason": "signal_decay(0.78)"
+    },
+    {
+      "symbol": "AMZN",
+      "pnl_usd": -1.61,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 32.366673033333335,
+      "exit_reason": "signal_decay(0.83)"
+    },
+    {
+      "symbol": "MS",
+      "pnl_usd": -2.7,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.9072891,
+      "exit_reason": "signal_decay(0.84)"
+    },
+    {
+      "symbol": "BA",
+      "pnl_usd": -3.21,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.16145603333333,
+      "exit_reason": "signal_decay(0.88)"
+    },
+    {
+      "symbol": "C",
+      "pnl_usd": -1.46,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.207274966666667,
+      "exit_reason": "signal_decay(0.78)"
+    },
+    {
+      "symbol": "CAT",
+      "pnl_usd": -5.894,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.262529833333335,
+      "exit_reason": "signal_decay(0.84)"
+    },
+    {
+      "symbol": "COIN",
+      "pnl_usd": -17.3,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.311220083333335,
+      "exit_reason": "signal_decay(0.79)"
+    },
+    {
+      "symbol": "COP",
+      "pnl_usd": 0.28,
+      "mfe": 0.63,
+      "mae": null,
+      "profit_giveback": 0.555556,
+      "hold_minutes": 31.36483335,
+      "exit_reason": "signal_decay(0.81)"
+    },
+    {
+      "symbol": "DIA",
+      "pnl_usd": -2.59,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.420889016666667,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "F",
+      "pnl_usd": -0.0867,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.515736783333335,
+      "exit_reason": "signal_decay(0.83)"
+    },
+    {
+      "symbol": "HOOD",
+      "pnl_usd": -0.92,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.5923348,
+      "exit_reason": "signal_decay(0.82)"
+    },
+    {
+      "symbol": "INTC",
+      "pnl_usd": -0.0917,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.693563349999998,
+      "exit_reason": "signal_decay(0.79)"
+    },
+    {
+      "symbol": "JPM",
+      "pnl_usd": -4.8,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.7446542,
+      "exit_reason": "signal_decay(0.78)"
+    },
+    {
+      "symbol": "LCID",
+      "pnl_usd": 0.165,
+      "mfe": 0.03,
+      "mae": null,
+      "profit_giveback": 0.0,
+      "hold_minutes": 31.852572866666666,
+      "exit_reason": "signal_decay(0.86)"
+    },
+    {
+      "symbol": "LOW",
+      "pnl_usd": -1.69,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 31.961503,
+      "exit_reason": "signal_decay(0.77)"
+    },
+    {
+      "symbol": "MRNA",
+      "pnl_usd": -9.984,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.01232866666667,
+      "exit_reason": "signal_decay(0.78)"
+    },
+    {
+      "symbol": "NFLX",
+      "pnl_usd": -2.03,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.1141862,
+      "exit_reason": "signal_decay(0.75)"
+    },
+    {
+      "symbol": "NVDA",
+      "pnl_usd": -1.02,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.17887725,
+      "exit_reason": "signal_decay(0.76)"
+    },
+    {
+      "symbol": "PLTR",
+      "pnl_usd": -6.64,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.22680955,
+      "exit_reason": "signal_decay(0.88)"
+    },
+    {
+      "symbol": "RIVN",
+      "pnl_usd": -9.69,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.85989885,
+      "exit_reason": "signal_decay(0.81)"
+    },
+    {
+      "symbol": "SLB",
+      "pnl_usd": -5.29,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 33.947374950000004,
+      "exit_reason": "signal_decay(0.87)"
+    },
+    {
+      "symbol": "SOFI",
+      "pnl_usd": -2.856,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.10617946666667,
+      "exit_reason": "signal_decay(0.82)"
+    },
+    {
+      "symbol": "TGT",
+      "pnl_usd": -1.62,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.741544033333334,
+      "exit_reason": "signal_decay(0.81)"
+    },
+    {
+      "symbol": "TSLA",
+      "pnl_usd": -9.68,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.83002881666666,
+      "exit_reason": "signal_decay(0.80)"
+    },
+    {
+      "symbol": "WFC",
+      "pnl_usd": -3.69,
+      "mfe": 0.0,
+      "mae": null,
+      "profit_giveback": null,
+      "hold_minutes": 34.93250703333333,
+      "exit_reason": "signal_decay(0.66)"
+    }
+  ],
+  "by_exit_reason": {
+    "signal_decay(0.70)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.23
+    },
+    "signal_decay(0.89)": {
+      "count": 5,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -2.19
+    },
+    "signal_decay(0.90)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 5.73
+    },
+    "signal_decay(0.85)": {
+      "count": 6,
+      "win_rate_pct": 16.7,
+      "avg_pnl": -0.9333
+    },
+    "signal_decay(0.83)": {
+      "count": 12,
+      "win_rate_pct": 16.7,
+      "avg_pnl": -0.5214
+    },
+    "signal_decay(0.86)": {
+      "count": 10,
+      "win_rate_pct": 20.0,
+      "avg_pnl": -1.1395
+    },
+    "signal_decay(0.94)": {
+      "count": 5,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -1.1207
+    },
+    "signal_decay(0.94)+flow_reversal": {
+      "count": 3,
+      "win_rate_pct": 33.3,
+      "avg_pnl": 0.2992
+    },
+    "signal_decay(0.87)": {
+      "count": 4,
+      "win_rate_pct": 25.0,
+      "avg_pnl": -1.6975
+    },
+    "signal_decay(0.84)": {
+      "count": 16,
+      "win_rate_pct": 18.8,
+      "avg_pnl": -1.2515
+    },
+    "flow_reversal+stale_alpha_cutoff(1114min,0.00%)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.24
+    },
+    "signal_decay(0.67)+stale_alpha_cutoff(1079min,0.01%)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 1.3433
+    },
+    "signal_decay(0.84)+flow_reversal+stale_alpha_cutoff(1077min,-0.0": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.41
+    },
+    "signal_decay(0.85)+stale_alpha_cutoff(1077min,-0.00%)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.63
+    },
+    "signal_decay(0.87)+stale_alpha_cutoff(1074min,0.00%)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.4
+    },
+    "signal_decay(0.50)+stale_alpha_cutoff(1111min,-0.00%)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.0
+    },
+    "signal_decay(0.57)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -1.06
+    },
+    "signal_decay(0.81)+stale_alpha_cutoff(1114min,0.01%)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 1.59
+    },
+    "signal_decay(0.78)": {
+      "count": 6,
+      "win_rate_pct": 16.7,
+      "avg_pnl": -3.1394
+    },
+    "signal_decay(0.82)": {
+      "count": 10,
+      "win_rate_pct": 50.0,
+      "avg_pnl": -0.2656
+    },
+    "signal_decay(0.88)": {
+      "count": 4,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -3.9925
+    },
+    "signal_decay(0.61)": {
+      "count": 6,
+      "win_rate_pct": 16.7,
+      "avg_pnl": -0.3683
+    },
+    "signal_decay(0.90)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.38
+    },
+    "signal_decay(0.81)": {
+      "count": 7,
+      "win_rate_pct": 28.6,
+      "avg_pnl": -1.4886
+    },
+    "signal_decay(0.45)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 2.79
+    },
+    "signal_decay(0.55)": {
+      "count": 2,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.15
+    },
+    "signal_decay(0.43)": {
+      "count": 3,
+      "win_rate_pct": 66.7,
+      "avg_pnl": 1.0982
+    },
+    "signal_decay(0.46)": {
+      "count": 2,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.695
+    },
+    "signal_decay(0.79)": {
+      "count": 4,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -4.9267
+    },
+    "signal_decay(0.53)": {
+      "count": 2,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.72
+    },
+    "signal_decay(0.85)+flow_reversal": {
+      "count": 3,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.3333
+    },
+    "signal_decay(0.63)+flow_reversal": {
+      "count": 2,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 1.09
+    },
+    "signal_decay(0.61)+flow_reversal": {
+      "count": 8,
+      "win_rate_pct": 37.5,
+      "avg_pnl": -0.175
+    },
+    "signal_decay(0.50)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.28
+    },
+    "signal_decay(0.44)+flow_reversal": {
+      "count": 3,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.13
+    },
+    "signal_decay(0.44)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.62
+    },
+    "signal_decay(0.72)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 1.7133
+    },
+    "signal_decay(0.42)": {
+      "count": 3,
+      "win_rate_pct": 66.7,
+      "avg_pnl": 0.0267
+    },
+    "signal_decay(0.48)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.05
+    },
+    "signal_decay(0.40)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.42
+    },
+    "signal_decay(0.64)+flow_reversal": {
+      "count": 2,
+      "win_rate_pct": 50.0,
+      "avg_pnl": -2.415
+    },
+    "signal_decay(0.86)+flow_reversal": {
+      "count": 5,
+      "win_rate_pct": 20.0,
+      "avg_pnl": -0.414
+    },
+    "signal_decay(0.91)+flow_reversal": {
+      "count": 6,
+      "win_rate_pct": 50.0,
+      "avg_pnl": 0.2233
+    },
+    "signal_decay(0.75)+flow_reversal": {
+      "count": 3,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -1.8
+    },
+    "signal_decay(0.92)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.8
+    },
+    "flow_reversal+drawdown(3.5%)+stale_alpha_cutoff(145min,-0.03%)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -5.34
+    },
+    "flow_reversal+stale_alpha_cutoff(145min,-0.02%)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -1.895
+    },
+    "flow_reversal+stale_alpha_cutoff(145min,0.02%)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 3.3
+    },
+    "flow_reversal+stale_alpha_cutoff(144min,-0.03%)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -5.04
+    },
+    "flow_reversal+stale_alpha_cutoff(144min,-0.01%)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -1.11
+    },
+    "signal_decay(0.72)+flow_reversal+stale_alpha_cutoff(145min,0.00%": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.33
+    },
+    "stale_alpha_cutoff(146min,0.00%)": {
+      "count": 2,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.585
+    },
+    "signal_decay(0.80)+flow_reversal+stale_alpha_cutoff(144min,-0.01": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -2.52
+    },
+    "signal_decay(0.71)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.13
+    },
+    "signal_decay(0.93)+flow_reversal": {
+      "count": 7,
+      "win_rate_pct": 14.3,
+      "avg_pnl": -0.5729
+    },
+    "signal_decay(0.56)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.28
+    },
+    "signal_decay(0.91)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.24
+    },
+    "signal_decay(0.93)": {
+      "count": 3,
+      "win_rate_pct": 66.7,
+      "avg_pnl": 0.8667
+    },
+    "signal_decay(0.82)+flow_reversal": {
+      "count": 2,
+      "win_rate_pct": 50.0,
+      "avg_pnl": -0.26
+    },
+    "signal_decay(0.54)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.87
+    },
+    "signal_decay(0.60)+flow_reversal": {
+      "count": 2,
+      "win_rate_pct": 50.0,
+      "avg_pnl": 0.06
+    },
+    "signal_decay(0.78)+flow_reversal": {
+      "count": 3,
+      "win_rate_pct": 33.3,
+      "avg_pnl": -0.0233
+    },
+    "signal_decay(0.76)+flow_reversal": {
+      "count": 3,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.7233
+    },
+    "signal_decay(0.51)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.38
+    },
+    "signal_decay(0.54)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.59
+    },
+    "flow_reversal+stale_alpha_cutoff(148min,-0.01%)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -1.56
+    },
+    "stale_alpha_cutoff(147min,0.01%)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 1.5
+    },
+    "stale_alpha_cutoff(146min,0.01%)": {
+      "count": 2,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.885
+    },
+    "signal_decay(0.71)": {
+      "count": 10,
+      "win_rate_pct": 60.0,
+      "avg_pnl": 0.767
+    },
+    "signal_decay(0.70)": {
+      "count": 12,
+      "win_rate_pct": 50.0,
+      "avg_pnl": -0.2613
+    },
+    "signal_decay(0.69)": {
+      "count": 15,
+      "win_rate_pct": 86.7,
+      "avg_pnl": 0.4963
+    },
+    "signal_decay(0.68)": {
+      "count": 3,
+      "win_rate_pct": 33.3,
+      "avg_pnl": 0.0933
+    },
+    "signal_decay(0.74)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.61
+    },
+    "signal_decay(0.62)": {
+      "count": 2,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -1.1003
+    },
+    "signal_decay(0.63)": {
+      "count": 3,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -1.1633
+    },
+    "signal_decay(0.67)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.28
+    },
+    "signal_decay(0.66)": {
+      "count": 2,
+      "win_rate_pct": 50.0,
+      "avg_pnl": -1.805
+    },
+    "signal_decay(0.77)": {
+      "count": 13,
+      "win_rate_pct": 15.4,
+      "avg_pnl": -1.03
+    },
+    "signal_decay(0.64)": {
+      "count": 5,
+      "win_rate_pct": 40.0,
+      "avg_pnl": -0.692
+    },
+    "signal_decay(0.43)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.85
+    },
+    "signal_decay(0.62)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.06
+    },
+    "signal_decay(0.59)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.12
+    },
+    "signal_decay(0.47)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 1.04
+    },
+    "signal_decay(0.75)": {
+      "count": 3,
+      "win_rate_pct": 33.3,
+      "avg_pnl": -1.2467
+    },
+    "signal_decay(0.83)+flow_reversal": {
+      "count": 2,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.77
+    },
+    "signal_decay(0.87)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.3
+    },
+    "signal_decay(0.80)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.6933
+    },
+    "signal_decay(0.58)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.96
+    },
+    "signal_decay(0.76)": {
+      "count": 2,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.76
+    },
+    "signal_decay(0.52)+flow_reversal": {
+      "count": 2,
+      "win_rate_pct": 50.0,
+      "avg_pnl": -0.07
+    },
+    "signal_decay(0.79)+flow_reversal": {
+      "count": 2,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.44
+    },
+    "signal_decay(0.84)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.25
+    },
+    "signal_decay(0.47)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -1.29
+    },
+    "signal_decay(0.67)+flow_reversal": {
+      "count": 2,
+      "win_rate_pct": 50.0,
+      "avg_pnl": -0.45
+    },
+    "signal_decay(0.66)+flow_reversal": {
+      "count": 2,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.38
+    },
+    "signal_decay(0.42)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.42
+    },
+    "signal_decay(0.38)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.17
+    },
+    "signal_decay(0.92)": {
+      "count": 2,
+      "win_rate_pct": 50.0,
+      "avg_pnl": 0.045
+    },
+    "signal_decay(0.69)+flow_reversal": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.17
+    },
+    "unknown": {
+      "count": 2,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.0
+    },
+    "signal_decay(0.80)+stale_alpha_cutoff(3908min,0.00%)": {
+      "count": 1,
+      "win_rate_pct": 100.0,
+      "avg_pnl": 0.81
+    },
+    "signal_decay(0.71)+flow_reversal+stale_alpha_cutoff(3909min,-0.0": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -0.26
+    },
+    "signal_decay(0.80)": {
+      "count": 1,
+      "win_rate_pct": 0.0,
+      "avg_pnl": -9.68
+    }
+  },
+  "median_hold_winners_min": 35.967837616666664,
+  "median_hold_losers_min": 34.850591900000005,
+  "pct_green_then_red": 3.3,
+  "winners_cut_earlier_than_losers": false,
+  "majority_green_then_red": false,
+  "summary": {
+    "total_realized_pnl": -182.56,
+    "win_rate": 35.7
+  }
+}

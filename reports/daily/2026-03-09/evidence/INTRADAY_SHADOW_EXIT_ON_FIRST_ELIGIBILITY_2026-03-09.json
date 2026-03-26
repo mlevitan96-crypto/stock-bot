@@ -1,0 +1,151 @@
+{
+  "date": "2026-03-09",
+  "policy": "exit_on_first_eligibility_shadow",
+  "current_realized_pnl_usd": -100.0052,
+  "shadow_captured_pnl_usd": 15.77,
+  "delta_usd": 115.7752,
+  "trades_with_shadow_pnl": 106,
+  "total_trades": 174,
+  "per_trade_sample": [
+    {
+      "trade_id": "open_AAPL_2026-03-09T14:19:47.246811+00:00",
+      "symbol": "AAPL",
+      "realized_pnl_usd": 1.78,
+      "unrealized_pnl_at_first_eligibility": 1.98,
+      "first_firing_condition": "risk_stop"
+    },
+    {
+      "trade_id": "open_WMT_2026-03-09T14:12:11.293247+00:00",
+      "symbol": "WMT",
+      "realized_pnl_usd": 0.41,
+      "unrealized_pnl_at_first_eligibility": 0.53,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_AMD_2026-03-09T15:07:51.957346+00:00",
+      "symbol": "AMD",
+      "realized_pnl_usd": -1.79,
+      "unrealized_pnl_at_first_eligibility": -1.3964,
+      "first_firing_condition": "risk_stop"
+    },
+    {
+      "trade_id": "open_PFE_2026-03-09T14:12:15.734914+00:00",
+      "symbol": "PFE",
+      "realized_pnl_usd": 0.36,
+      "unrealized_pnl_at_first_eligibility": 0.405,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_BA_2026-03-09T14:19:12.392625+00:00",
+      "symbol": "BA",
+      "realized_pnl_usd": 1.28,
+      "unrealized_pnl_at_first_eligibility": 1.87,
+      "first_firing_condition": "risk_stop"
+    },
+    {
+      "trade_id": "open_BAC_2026-03-09T14:14:55.205890+00:00",
+      "symbol": "BAC",
+      "realized_pnl_usd": 1.25,
+      "unrealized_pnl_at_first_eligibility": 1.35,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_C_2026-03-09T14:14:12.044684+00:00",
+      "symbol": "C",
+      "realized_pnl_usd": 1.285,
+      "unrealized_pnl_at_first_eligibility": 4.66,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_DIA_2026-03-09T14:18:39.105429+00:00",
+      "symbol": "DIA",
+      "realized_pnl_usd": 3.93,
+      "unrealized_pnl_at_first_eligibility": 3.83,
+      "first_firing_condition": "risk_stop"
+    },
+    {
+      "trade_id": "open_F_2026-03-09T14:16:08.019916+00:00",
+      "symbol": "F",
+      "realized_pnl_usd": 2.56,
+      "unrealized_pnl_at_first_eligibility": 3.2262,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_GM_2026-03-09T14:17:07.451501+00:00",
+      "symbol": "GM",
+      "realized_pnl_usd": 3.18,
+      "unrealized_pnl_at_first_eligibility": 2.97,
+      "first_firing_condition": "risk_stop"
+    },
+    {
+      "trade_id": "open_GOOGL_2026-03-09T14:18:07.226524+00:00",
+      "symbol": "GOOGL",
+      "realized_pnl_usd": 3.04,
+      "unrealized_pnl_at_first_eligibility": 2.98,
+      "first_firing_condition": "signal_decay"
+    },
+    {
+      "trade_id": "open_NIO_2026-03-09T14:13:49.925679+00:00",
+      "symbol": "NIO",
+      "realized_pnl_usd": 0.08,
+      "unrealized_pnl_at_first_eligibility": 4.27,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_HD_2026-03-09T14:17:50.342213+00:00",
+      "symbol": "HD",
+      "realized_pnl_usd": 1.15,
+      "unrealized_pnl_at_first_eligibility": 1.47,
+      "first_firing_condition": "risk_stop"
+    },
+    {
+      "trade_id": "open_JNJ_2026-03-09T15:27:17.539563+00:00",
+      "symbol": "JNJ",
+      "realized_pnl_usd": -0.12,
+      "unrealized_pnl_at_first_eligibility": -0.18,
+      "first_firing_condition": "risk_stop"
+    },
+    {
+      "trade_id": "open_JPM_2026-03-09T14:15:55.475575+00:00",
+      "symbol": "JPM",
+      "realized_pnl_usd": 2.91,
+      "unrealized_pnl_at_first_eligibility": 2.615,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_LCID_2026-03-09T14:20:56.611004+00:00",
+      "symbol": "LCID",
+      "realized_pnl_usd": 5.2313,
+      "unrealized_pnl_at_first_eligibility": 4.102,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_LOW_2026-03-09T14:17:32.392545+00:00",
+      "symbol": "LOW",
+      "realized_pnl_usd": 0.69,
+      "unrealized_pnl_at_first_eligibility": 0.84,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_MS_2026-03-09T14:15:22.102853+00:00",
+      "symbol": "MS",
+      "realized_pnl_usd": 1.98,
+      "unrealized_pnl_at_first_eligibility": 1.915,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_MRNA_2026-03-09T14:21:20.677650+00:00",
+      "symbol": "MRNA",
+      "realized_pnl_usd": -2.35,
+      "unrealized_pnl_at_first_eligibility": -3.701,
+      "first_firing_condition": "flow_reversal"
+    },
+    {
+      "trade_id": "open_XLE_2026-03-09T14:15:35.906281+00:00",
+      "symbol": "XLE",
+      "realized_pnl_usd": 0.36,
+      "unrealized_pnl_at_first_eligibility": 1.3,
+      "first_firing_condition": "flow_reversal"
+    }
+  ]
+}

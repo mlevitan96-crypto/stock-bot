@@ -1,0 +1,58 @@
+{
+  "scenario_name": "minhold_60",
+  "scenario_params": {
+    "min_hold_minutes": 60,
+    "take_profit_pct": null,
+    "stop_loss_pct": null,
+    "signal_decay_threshold": 0.0,
+    "trail_pct": null,
+    "remove_components": [],
+    "regime_overrides": {}
+  },
+  "window_start": "2026-02-01",
+  "window_end": "2026-03-02",
+  "total_trades_in_window": 2678,
+  "total_trades_in_scenario": 23,
+  "total_pnl": -7.31,
+  "expectancy_per_trade": -0.318,
+  "win_rate": 0.3913,
+  "avg_hold_minutes": 177.43,
+  "tail_loss_5pct": -2.24,
+  "tail_loss_1pct": -2.98,
+  "exit_reason_distribution": {
+    "signal_decay(0.80)": 4,
+    "stale_alpha_cutoff(120min,-0.01%)": 3,
+    "signal_decay(0.89)+flow_reversal": 2,
+    "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2,
+    "trail_stop": 1,
+    "signal_decay(0.74)": 1,
+    "signal_decay(0.70)": 1,
+    "signal_decay(0.34)": 1,
+    "signal_decay(0.29)": 1,
+    "signal_decay(0.76)": 1,
+    "signal_decay(0.81)": 1,
+    "signal_decay(0.90)": 1,
+    "signal_decay(0.56)": 1,
+    "signal_decay(0.91)+stale_alpha_cutoff(1128min,-0.01%)": 1,
+    "signal_decay(0.68)+flow_reversal+stale_alpha_cutoff(1056min,0.00%)": 1,
+    "signal_decay(0.59)": 1
+  },
+  "per_regime": {
+    "NEUTRAL": {
+      "trades": 14,
+      "total_pnl": -6.24,
+      "expectancy": -0.4459
+    },
+    "unknown": {
+      "trades": 4,
+      "total_pnl": -0.48,
+      "expectancy": -0.1195
+    },
+    "mixed": {
+      "trades": 5,
+      "total_pnl": -0.59,
+      "expectancy": -0.1188
+    }
+  },
+  "giveback_stats": null
+}
