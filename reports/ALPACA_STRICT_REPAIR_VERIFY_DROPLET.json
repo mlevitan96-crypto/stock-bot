@@ -1,0 +1,575 @@
+{
+  "steps": {
+    "git": {
+      "stdout": "HEAD is now at 749bc6ed Reports: Alpaca dashboard Memory Bank CSA closeout\n749bc6ed823f14ba8e517dd178a9633ea559c8fc",
+      "exit_code": 0
+    },
+    "repair_apply": {
+      "stdout": "{\n  \"applied_repair_all_incomplete\": true,\n  \"rounds\": 4,\n  \"run_lines\": 54,\n  \"orders_lines\": 27,\n  \"unified_lines\": 27\n}",
+      "exit_code": 0
+    },
+    "forensics": {
+      "stdout_tail": "{\n  \"ROOT\": \"/root/stock-bot\",\n  \"targets\": [\n    \"open_CAT_2026-03-26T16:34:40.245664+00:00\",\n    \"open_HOOD_2026-03-26T15:51:38.174449+00:00\",\n    \"open_LCID_2026-03-26T15:51:38.396698+00:00\",\n    \"open_PFE_2026-03-26T14:29:25.977370+00:00\",\n    \"open_QQQ_2026-03-26T15:10:28.882493+00:00\",\n    \"open_WMT_2026-03-26T15:10:28.883737+00:00\"\n  ],\n  \"per_trade\": [\n    {\n      \"trade_id\": \"open_CAT_2026-03-26T16:34:40.245664+00:00\",\n      \"symbol\": \"CAT\",\n      \"exit_attribution_present\": true,\n      \"unified_exit_terminal_present\": true,\n      \"derived_trade_key\": \"CAT|LONG|1774542880\",\n      \"canonical_trade_id_used\": \"CAT|LONG|1774542742\",\n      \"alias_count\": 2,\n      \"entered_trade_intent_joinable\": true,\n      \"exit_intent_joinable\": true,\n      \"unified_entry_present\": true,\n      \"orders_row_with_canonical_in_aliases\": true,\n      \"order_ids_matching_symbol\": [\n        null,\n        null,\n        null,\n        null,\n        null\n      ],\n      \"missing_legs\": []\n    },\n    {\n      \"trade_id\": \"open_HOOD_2026-03-26T15:51:38.174449+00:00\",\n      \"symbol\": \"HOOD\",\n      \"exit_attribution_present\": true,\n      \"unified_exit_terminal_present\": true,\n      \"derived_trade_key\": \"HOOD|LONG|1774540298\",\n      \"canonical_trade_id_used\": \"HOOD|LONG|1774539960\",\n      \"alias_count\": 2,\n      \"entered_trade_intent_joinable\": true,\n      \"exit_intent_joinable\": true,\n      \"unified_entry_present\": true,\n      \"orders_row_with_canonical_in_aliases\": true,\n      \"order_ids_matching_symbol\": [\n        \"strict_backfill_order:open_HOOD_2026-03-26T15:51:38.174449+00:00\",\n        null,\n        null,\n        null,\n        null\n      ],\n      \"missing_legs\": []\n    },\n    {\n      \"trade_id\": \"open_LCID_2026-03-26T15:51:38.396698+00:00\",\n      \"symbol\": \"LCID\",\n      \"exit_attribution_present\": true,\n      \"unified_exit_terminal_present\": true,\n      \"derived_trade_key\": \"LCID|LONG|1774540298\",\n      \"canonical_trade_id_used\": \"LCID|LONG|1774539876\",\n      \"alias_count\": 2,\n      \"entered_trade_intent_joinable\": true,\n      \"exit_intent_joinable\": true,\n      \"unified_entry_present\": true,\n      \"orders_row_with_canonical_in_aliases\": true,\n      \"order_ids_matching_symbol\": [\n        null,\n        null,\n        null,\n        null,\n        null\n      ],\n      \"missing_legs\": []\n    },\n    {\n      \"trade_id\": \"open_PFE_2026-03-26T14:29:25.977370+00:00\",\n      \"symbol\": \"PFE\",\n      \"exit_attribution_present\": true,\n      \"unified_exit_terminal_present\": true,\n      \"derived_trade_key\": \"PFE|LONG|1774535365\",\n      \"canonical_trade_id_used\": \"PFE|LONG|1774535152\",\n      \"alias_count\": 2,\n      \"entered_trade_intent_joinable\": true,\n      \"exit_intent_joinable\": true,\n      \"unified_entry_present\": true,\n      \"orders_row_with_canonical_in_aliases\": true,\n      \"order_ids_matching_symbol\": [\n        \"strict_backfill_order:open_PFE_2026-03-26T14:29:25.977370+00:00\",\n        null,\n        null,\n        null,\n        null\n      ],\n      \"missing_legs\": []\n    },\n    {\n      \"trade_id\": \"open_QQQ_2026-03-26T15:10:28.882493+00:00\",\n      \"symbol\": \"QQQ\",\n      \"exit_attribution_present\": true,\n      \"unified_exit_terminal_present\": true,\n      \"derived_trade_key\": \"QQQ|LONG|1774537828\",\n      \"canonical_trade_id_used\": \"QQQ|LONG|1774537564\",\n      \"alias_count\": 2,\n      \"entered_trade_intent_joinable\": true,\n      \"exit_intent_joinable\": true,\n      \"unified_entry_present\": true,\n      \"orders_row_with_canonical_in_aliases\": true,\n      \"order_ids_matching_symbol\": [\n        \"strict_backfill_order:open_QQQ_2026-03-26T15:10:28.882493+00:00\",\n        null,\n        null,\n        null,\n        null\n      ],\n      \"missing_legs\": []\n    },\n    {\n      \"trade_id\": \"open_WMT_2026-03-26T15:10:28.883737+00:00\",\n      \"symbol\": \"WMT\",\n      \"exit_attribution_present\": true,\n      \"unified_exit_terminal_present\": true,\n      \"derived_trade_key\": \"WMT|LONG|1774537828\",\n      \"canonical_trade_id_used\": \"WMT|LONG|1774537619\",\n      \"alias_count\": 2,\n      \"entered_trade_intent_joinable\": true,\n      \"exit_intent_joinable\": true,\n      \"unified_entry_present\": true,\n      \"orders_row_with_canonical_in_aliases\": true,\n      \"order_ids_matching_symbol\": [\n        null,\n        null,\n        null,\n        null,\n        null\n      ],\n      \"missing_legs\": []\n    }\n  ]\n}",
+      "exit_code": 0
+    },
+    "strict_gate": {
+      "exit_code": 0,
+      "stdout_tail": "{\n  \"ROOT\": \"/root/stock-bot\",\n  \"OPEN_TS_UTC_EPOCH\": 1774535335.472568,\n  \"FORWARD_SINCE_UTC_EPOCH\": null,\n  \"STRICT_EPOCH_START\": 1774458080.0,\n  \"strict_cohort_entry_era_floor_applied\": true,\n  \"strict_cohort_excluded_preera_open_count\": 22,\n  \"strict_cohort_exclusion_reasons\": {\n    \"PREERA_OPEN\": 22\n  },\n  \"excluded_trade_ids_capped\": [\n    \"open_TGT_2026-03-26T13:38:23.210360+00:00\",\n    \"open_LOW_2026-03-26T14:24:51.823612+00:00\",\n    \"open_WMT_2026-03-26T14:25:04.753797+00:00\",\n    \"open_MRNA_2026-03-26T14:25:18.018107+00:00\",\n    \"open_HD_2026-03-26T14:25:31.372600+00:00\",\n    \"open_UNH_2026-03-26T14:25:44.455344+00:00\",\n    \"open_NVDA_2026-03-26T14:26:12.413837+00:00\",\n    \"open_AMD_2026-03-26T14:26:24.596531+00:00\",\n    \"open_TSLA_2026-03-26T14:26:30.328081+00:00\",\n    \"open_MS_2026-03-26T14:26:49.580191+00:00\",\n    \"open_MSFT_2026-03-26T14:26:58.006662+00:00\",\n    \"open_XLK_2026-03-26T14:27:03.824960+00:00\",\n    \"open_XLE_2026-03-26T14:27:08.363654+00:00\",\n    \"open_JPM_2026-03-26T14:27:17.670264+00:00\",\n    \"open_AAPL_2026-03-26T14:27:29.428738+00:00\",\n    \"open_BAC_2026-03-26T14:27:31.402364+00:00\",\n    \"open_GOOGL_2026-03-26T14:27:39.472087+00:00\",\n    \"open_XLP_2026-03-26T14:28:04.766309+00:00\",\n    \"open_XLI_2026-03-26T14:28:07.429112+00:00\",\n    \"open_XLF_2026-03-26T14:28:26.615625+00:00\"\n  ],\n  \"precheck\": [],\n  \"trades_seen\": 119,\n  \"trades_complete\": 119,\n  \"trades_incomplete\": 0,\n  \"reason_histogram\": {},\n  \"incomplete_examples\": [],\n  \"code_structural_trade_intent_no_canonical_on_entered\": false,\n  \"LEARNING_STATUS\": \"ARMED\",\n  \"learning_fail_closed_reason\": null,\n  \"AUTHORITATIVE_JOIN_KEY_RULE\": \"Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).\",\n  \"legacy_trades_seen\": null,\n  \"legacy_trades_complete\": null,\n  \"legacy_trades_incomplete\": null,\n  \"forward_trades_seen\": null,\n  \"forward_trades_complete\": null,\n  \"forward_trades_incomplete\": null,\n  \"FORWARD_CHAIN_PERFECT\": false,\n  \"FORWARD_COHORT_VACUOUS\": false,\n  \"LEGACY_DEBT_QUARANTINED_NOTE\": null,\n  \"incomplete_trade_ids_by_reason\": {},\n  \"chain_matrices_sample\": [],\n  \"chain_matrices_complete_sample\": [\n    {\n      \"trade_id\": \"open_DIA_2026-03-26T14:29:01.504887+00:00\",\n      \"symbol\": \"DIA\",\n      \"forward_cohort\": false,\n      \"authoritative_join_key\": \"DIA|SHORT|1774535341\",\n      \"trade_key_from_exit\": \"DIA|SHORT|1774535341\",\n      \"alias_sample\": [\n        \"DIA|SHORT|1774535340\",\n        \"DIA|SHORT|1774535341\"\n      ],\n      \"matrix\": {\n        \"trade_intent_entered_present\": true,\n        \"unified_entry_attribution_present\": true,\n        \"orders_rows_canonical_trade_id_present\": true,\n        \"exit_intent_keyed_present\": true,\n        \"unified_exit_attribution_terminal_close\": true,\n        \"exit_attribution_jsonl_row\": true\n      },\n      \"reasons\": []\n    },\n    {\n      \"trade_id\": \"open_IWM_2026-03-26T14:29:13.438544+00:00\",\n      \"symbol\": \"IWM\",\n      \"forward_cohort\": false,\n      \"authoritative_join_key\": \"IWM|SHORT|1774535353\",\n      \"trade_key_from_exit\": \"IWM|SHORT|1774535353\",\n      \"alias_sample\": [\n        \"IWM|SHORT|1774535348\",\n        \"IWM|SHORT|1774535353\"\n      ],\n      \"matrix\": {\n        \"trade_intent_entered_present\": true,\n        \"unified_entry_attribution_present\": true,\n        \"orders_rows_canonical_trade_id_present\": true,\n        \"exit_intent_keyed_present\": true,\n        \"unified_exit_attribution_terminal_close\": true,\n        \"exit_attribution_jsonl_row\": true\n      },\n      \"reasons\": []\n    },\n    {\n      \"trade_id\": \"open_PFE_2026-03-26T14:29:25.977370+00:00\",\n      \"symbol\": \"PFE\",\n      \"forward_cohort\": false,\n      \"authoritative_join_key\": \"PFE|LONG|1774535365\",\n      \"trade_key_from_exit\": \"PFE|LONG|1774535365\",\n      \"alias_sample\": [\n        \"PFE|LONG|1774535365\"\n      ],\n      \"matrix\": {\n        \"trade_intent_entered_present\": true,\n        \"unified_entry_attribution_present\": true,\n        \"orders_rows_canonical_trade_id_present\": true,\n        \"exit_intent_keyed_present\": true,\n        \"unified_exit_attribution_terminal_close\": true,\n        \"exit_attribution_jsonl_row\": true\n      },\n      \"reasons\": []\n    }\n  ]\n}"
+    },
+    "cert_bundle": {
+      "exit_code": 0,
+      "stdout_tail": "{\n  \"open_ts_epoch\": 1774535335.472568,\n  \"gate\": {\n    \"ROOT\": \"/root/stock-bot\",\n    \"OPEN_TS_UTC_EPOCH\": 1774535335.472568,\n    \"FORWARD_SINCE_UTC_EPOCH\": null,\n    \"STRICT_EPOCH_START\": 1774458080.0,\n    \"strict_cohort_entry_era_floor_applied\": true,\n    \"strict_cohort_excluded_preera_open_count\": 22,\n    \"strict_cohort_exclusion_reasons\": {\n      \"PREERA_OPEN\": 22\n    },\n    \"excluded_trade_ids_capped\": [\n      \"open_TGT_2026-03-26T13:38:23.210360+00:00\",\n      \"open_LOW_2026-03-26T14:24:51.823612+00:00\",\n      \"open_WMT_2026-03-26T14:25:04.753797+00:00\",\n      \"open_MRNA_2026-03-26T14:25:18.018107+00:00\",\n      \"open_HD_2026-03-26T14:25:31.372600+00:00\",\n      \"open_UNH_2026-03-26T14:25:44.455344+00:00\",\n      \"open_NVDA_2026-03-26T14:26:12.413837+00:00\",\n      \"open_AMD_2026-03-26T14:26:24.596531+00:00\",\n      \"open_TSLA_2026-03-26T14:26:30.328081+00:00\",\n      \"open_MS_2026-03-26T14:26:49.580191+00:00\",\n      \"open_MSFT_2026-03-26T14:26:58.006662+00:00\",\n      \"open_XLK_2026-03-26T14:27:03.824960+00:00\",\n      \"open_XLE_2026-03-26T14:27:08.363654+00:00\",\n      \"open_JPM_2026-03-26T14:27:17.670264+00:00\",\n      \"open_AAPL_2026-03-26T14:27:29.428738+00:00\",\n      \"open_BAC_2026-03-26T14:27:31.402364+00:00\",\n      \"open_GOOGL_2026-03-26T14:27:39.472087+00:00\",\n      \"open_XLP_2026-03-26T14:28:04.766309+00:00\",\n      \"open_XLI_2026-03-26T14:28:07.429112+00:00\",\n      \"open_XLF_2026-03-26T14:28:26.615625+00:00\"\n    ],\n    \"precheck\": [],\n    \"trades_seen\": 119,\n    \"trades_complete\": 119,\n    \"trades_incomplete\": 0,\n    \"reason_histogram\": {},\n    \"incomplete_examples\": [],\n    \"code_structural_trade_intent_no_canonical_on_entered\": false,\n    \"LEARNING_STATUS\": \"ARMED\",\n    \"learning_fail_closed_reason\": null,\n    \"AUTHORITATIVE_JOIN_KEY_RULE\": \"Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).\",\n    \"legacy_trades_seen\": null,\n    \"legacy_trades_complete\": null,\n    \"legacy_trades_incomplete\": null,\n    \"forward_trades_seen\": null,\n    \"forward_trades_complete\": null,\n    \"forward_trades_incomplete\": null,\n    \"FORWARD_CHAIN_PERFECT\": false,\n    \"FORWARD_COHORT_VACUOUS\": false,\n    \"LEGACY_DEBT_QUARANTINED_NOTE\": null,\n    \"incomplete_trade_ids_by_reason\": {},\n    \"chain_matrices_sample\": [],\n    \"chain_matrices_complete_sample\": [\n      {\n        \"trade_id\": \"open_DIA_2026-03-26T14:29:01.504887+00:00\",\n        \"symbol\": \"DIA\",\n        \"forward_cohort\": false,\n        \"authoritative_join_key\": \"DIA|SHORT|1774535341\",\n        \"trade_key_from_exit\": \"DIA|SHORT|1774535341\",\n        \"alias_sample\": [\n          \"DIA|SHORT|1774535340\",\n          \"DIA|SHORT|1774535341\"\n        ],\n        \"matrix\": {\n          \"trade_intent_entered_present\": true,\n          \"unified_entry_attribution_present\": true,\n          \"orders_rows_canonical_trade_id_present\": true,\n          \"exit_intent_keyed_present\": true,\n          \"unified_exit_attribution_terminal_close\": true,\n          \"exit_attribution_jsonl_row\": true\n        },\n        \"reasons\": []\n      },\n      {\n        \"trade_id\": \"open_IWM_2026-03-26T14:29:13.438544+00:00\",\n        \"symbol\": \"IWM\",\n        \"forward_cohort\": false,\n        \"authoritative_join_key\": \"IWM|SHORT|1774535353\",\n        \"trade_key_from_exit\": \"IWM|SHORT|1774535353\",\n        \"alias_sample\": [\n          \"IWM|SHORT|1774535348\",\n          \"IWM|SHORT|1774535353\"\n        ],\n        \"matrix\": {\n          \"trade_intent_entered_present\": true,\n          \"unified_entry_attribution_present\": true,\n          \"orders_rows_canonical_trade_id_present\": true,\n          \"exit_intent_keyed_present\": true,\n          \"unified_exit_attribution_terminal_close\": true,\n          \"exit_attribution_jsonl_row\": true\n        },\n        \"reasons\": []\n      },\n      {\n        \"trade_id\": \"open_PFE_2026-03-26T14:29:25.977370+00:00\",\n        \"symbol\": \"PFE\",\n        \"forward_cohort\": false,\n        \"authoritative_join_key\": \"PFE|LONG|1774535365\",\n        \"trade_key_from_exit\": \"PFE|LONG|1774535365\",\n        \"alias_sample\": [\n          \"PFE|LONG|1774535365\"\n        ],\n        \"matrix\": {\n          \"trade_intent_entered_present\": true,\n          \"unified_entry_attribution_present\": true,\n          \"orders_rows_canonical_trade_id_present\": true,\n          \"exit_intent_keyed_present\": true,\n          \"unified_exit_attribution_terminal_close\": true,\n          \"exit_attribution_jsonl_row\": true\n        },\n        \"reasons\": []\n      }\n    ]\n  },\n  \"strict_cohort_economic_closes\": 119,\n  \"strict_cohort_unified_terminal_closes\": 119,\n  \"parity_exact\": true,\n  \"missing_unified_terminal_trade_ids_sample\": [],\n  \"entered_trade_intents_epoch_ge_floor\": 26,\n  \"entered_trade_intents_for_cohort_symbol\": 27,\n  \"entered_signal_non_vacuous\": 27,\n  \"non_vacuous\": true,\n  \"trace_sample_size\": 15,\n  \"trace_all_pass\": true,\n  \"traces\": [\n    {\n      \"trade_id\": \"open_CAT_2026-03-26T16:34:40.245664+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_C_2026-03-26T15:09:18.285013+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_LCID_2026-03-26T14:30:03.263446+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_UNH_2026-03-26T17:09:02.429312+00:00\",\n      \"exit_has_canonical_trade_id\": true,\n      \"exit_has_trade_key\": true,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_WMT_2026-03-26T15:10:28.883737+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_NIO_2026-03-26T15:07:20.792866+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_UNH_2026-03-26T15:06:02.741344+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_CVX_2026-03-26T15:08:13.164877+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_NFLX_2026-03-26T15:02:00.045513+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_WFC_2026-03-26T16:30:04.774684+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_MSFT_2026-03-26T16:27:29.688314+00:00\",\n      \"exit_has_canonical_trade_id\": true,\n      \"exit_has_trade_key\": true,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_INTC_2026-03-26T16:27:17.683343+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_JNJ_2026-03-26T15:01:53.459974+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_C_2026-03-26T16:28:30.640832+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    },\n    {\n      \"trade_id\": \"open_NIO_2026-03-26T15:46:38.329260+00:00\",\n      \"exit_has_canonical_trade_id\": false,\n      \"exit_has_trade_key\": false,\n      \"trade_intent_entered_match\": true,\n      \"orders_rows_canonical_trade_id_present\": true,\n      \"exit_intent_keyed_present\": true,\n      \"unified_entry_attribution_present\": true,\n      \"unified_exit_attribution_terminal_close\": true,\n      \"all_strict_legs_ok\": true\n    }\n  ],\n  \"cert_ok\": true\n}"
+    }
+  },
+  "forensics_json": {
+    "ROOT": "/root/stock-bot",
+    "targets": [
+      "open_CAT_2026-03-26T16:34:40.245664+00:00",
+      "open_HOOD_2026-03-26T15:51:38.174449+00:00",
+      "open_LCID_2026-03-26T15:51:38.396698+00:00",
+      "open_PFE_2026-03-26T14:29:25.977370+00:00",
+      "open_QQQ_2026-03-26T15:10:28.882493+00:00",
+      "open_WMT_2026-03-26T15:10:28.883737+00:00"
+    ],
+    "per_trade": [
+      {
+        "trade_id": "open_CAT_2026-03-26T16:34:40.245664+00:00",
+        "symbol": "CAT",
+        "exit_attribution_present": true,
+        "unified_exit_terminal_present": true,
+        "derived_trade_key": "CAT|LONG|1774542880",
+        "canonical_trade_id_used": "CAT|LONG|1774542742",
+        "alias_count": 2,
+        "entered_trade_intent_joinable": true,
+        "exit_intent_joinable": true,
+        "unified_entry_present": true,
+        "orders_row_with_canonical_in_aliases": true,
+        "order_ids_matching_symbol": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "missing_legs": []
+      },
+      {
+        "trade_id": "open_HOOD_2026-03-26T15:51:38.174449+00:00",
+        "symbol": "HOOD",
+        "exit_attribution_present": true,
+        "unified_exit_terminal_present": true,
+        "derived_trade_key": "HOOD|LONG|1774540298",
+        "canonical_trade_id_used": "HOOD|LONG|1774539960",
+        "alias_count": 2,
+        "entered_trade_intent_joinable": true,
+        "exit_intent_joinable": true,
+        "unified_entry_present": true,
+        "orders_row_with_canonical_in_aliases": true,
+        "order_ids_matching_symbol": [
+          "strict_backfill_order:open_HOOD_2026-03-26T15:51:38.174449+00:00",
+          null,
+          null,
+          null,
+          null
+        ],
+        "missing_legs": []
+      },
+      {
+        "trade_id": "open_LCID_2026-03-26T15:51:38.396698+00:00",
+        "symbol": "LCID",
+        "exit_attribution_present": true,
+        "unified_exit_terminal_present": true,
+        "derived_trade_key": "LCID|LONG|1774540298",
+        "canonical_trade_id_used": "LCID|LONG|1774539876",
+        "alias_count": 2,
+        "entered_trade_intent_joinable": true,
+        "exit_intent_joinable": true,
+        "unified_entry_present": true,
+        "orders_row_with_canonical_in_aliases": true,
+        "order_ids_matching_symbol": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "missing_legs": []
+      },
+      {
+        "trade_id": "open_PFE_2026-03-26T14:29:25.977370+00:00",
+        "symbol": "PFE",
+        "exit_attribution_present": true,
+        "unified_exit_terminal_present": true,
+        "derived_trade_key": "PFE|LONG|1774535365",
+        "canonical_trade_id_used": "PFE|LONG|1774535152",
+        "alias_count": 2,
+        "entered_trade_intent_joinable": true,
+        "exit_intent_joinable": true,
+        "unified_entry_present": true,
+        "orders_row_with_canonical_in_aliases": true,
+        "order_ids_matching_symbol": [
+          "strict_backfill_order:open_PFE_2026-03-26T14:29:25.977370+00:00",
+          null,
+          null,
+          null,
+          null
+        ],
+        "missing_legs": []
+      },
+      {
+        "trade_id": "open_QQQ_2026-03-26T15:10:28.882493+00:00",
+        "symbol": "QQQ",
+        "exit_attribution_present": true,
+        "unified_exit_terminal_present": true,
+        "derived_trade_key": "QQQ|LONG|1774537828",
+        "canonical_trade_id_used": "QQQ|LONG|1774537564",
+        "alias_count": 2,
+        "entered_trade_intent_joinable": true,
+        "exit_intent_joinable": true,
+        "unified_entry_present": true,
+        "orders_row_with_canonical_in_aliases": true,
+        "order_ids_matching_symbol": [
+          "strict_backfill_order:open_QQQ_2026-03-26T15:10:28.882493+00:00",
+          null,
+          null,
+          null,
+          null
+        ],
+        "missing_legs": []
+      },
+      {
+        "trade_id": "open_WMT_2026-03-26T15:10:28.883737+00:00",
+        "symbol": "WMT",
+        "exit_attribution_present": true,
+        "unified_exit_terminal_present": true,
+        "derived_trade_key": "WMT|LONG|1774537828",
+        "canonical_trade_id_used": "WMT|LONG|1774537619",
+        "alias_count": 2,
+        "entered_trade_intent_joinable": true,
+        "exit_intent_joinable": true,
+        "unified_entry_present": true,
+        "orders_row_with_canonical_in_aliases": true,
+        "order_ids_matching_symbol": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "missing_legs": []
+      }
+    ]
+  },
+  "strict_gate_json": {
+    "ROOT": "/root/stock-bot",
+    "OPEN_TS_UTC_EPOCH": 1774535335.472568,
+    "FORWARD_SINCE_UTC_EPOCH": null,
+    "STRICT_EPOCH_START": 1774458080.0,
+    "strict_cohort_entry_era_floor_applied": true,
+    "strict_cohort_excluded_preera_open_count": 22,
+    "strict_cohort_exclusion_reasons": {
+      "PREERA_OPEN": 22
+    },
+    "excluded_trade_ids_capped": [
+      "open_TGT_2026-03-26T13:38:23.210360+00:00",
+      "open_LOW_2026-03-26T14:24:51.823612+00:00",
+      "open_WMT_2026-03-26T14:25:04.753797+00:00",
+      "open_MRNA_2026-03-26T14:25:18.018107+00:00",
+      "open_HD_2026-03-26T14:25:31.372600+00:00",
+      "open_UNH_2026-03-26T14:25:44.455344+00:00",
+      "open_NVDA_2026-03-26T14:26:12.413837+00:00",
+      "open_AMD_2026-03-26T14:26:24.596531+00:00",
+      "open_TSLA_2026-03-26T14:26:30.328081+00:00",
+      "open_MS_2026-03-26T14:26:49.580191+00:00",
+      "open_MSFT_2026-03-26T14:26:58.006662+00:00",
+      "open_XLK_2026-03-26T14:27:03.824960+00:00",
+      "open_XLE_2026-03-26T14:27:08.363654+00:00",
+      "open_JPM_2026-03-26T14:27:17.670264+00:00",
+      "open_AAPL_2026-03-26T14:27:29.428738+00:00",
+      "open_BAC_2026-03-26T14:27:31.402364+00:00",
+      "open_GOOGL_2026-03-26T14:27:39.472087+00:00",
+      "open_XLP_2026-03-26T14:28:04.766309+00:00",
+      "open_XLI_2026-03-26T14:28:07.429112+00:00",
+      "open_XLF_2026-03-26T14:28:26.615625+00:00"
+    ],
+    "precheck": [],
+    "trades_seen": 119,
+    "trades_complete": 119,
+    "trades_incomplete": 0,
+    "reason_histogram": {},
+    "incomplete_examples": [],
+    "code_structural_trade_intent_no_canonical_on_entered": false,
+    "LEARNING_STATUS": "ARMED",
+    "learning_fail_closed_reason": null,
+    "AUTHORITATIVE_JOIN_KEY_RULE": "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).",
+    "legacy_trades_seen": null,
+    "legacy_trades_complete": null,
+    "legacy_trades_incomplete": null,
+    "forward_trades_seen": null,
+    "forward_trades_complete": null,
+    "forward_trades_incomplete": null,
+    "FORWARD_CHAIN_PERFECT": false,
+    "FORWARD_COHORT_VACUOUS": false,
+    "LEGACY_DEBT_QUARANTINED_NOTE": null,
+    "incomplete_trade_ids_by_reason": {},
+    "chain_matrices_sample": [],
+    "chain_matrices_complete_sample": [
+      {
+        "trade_id": "open_DIA_2026-03-26T14:29:01.504887+00:00",
+        "symbol": "DIA",
+        "forward_cohort": false,
+        "authoritative_join_key": "DIA|SHORT|1774535341",
+        "trade_key_from_exit": "DIA|SHORT|1774535341",
+        "alias_sample": [
+          "DIA|SHORT|1774535340",
+          "DIA|SHORT|1774535341"
+        ],
+        "matrix": {
+          "trade_intent_entered_present": true,
+          "unified_entry_attribution_present": true,
+          "orders_rows_canonical_trade_id_present": true,
+          "exit_intent_keyed_present": true,
+          "unified_exit_attribution_terminal_close": true,
+          "exit_attribution_jsonl_row": true
+        },
+        "reasons": []
+      },
+      {
+        "trade_id": "open_IWM_2026-03-26T14:29:13.438544+00:00",
+        "symbol": "IWM",
+        "forward_cohort": false,
+        "authoritative_join_key": "IWM|SHORT|1774535353",
+        "trade_key_from_exit": "IWM|SHORT|1774535353",
+        "alias_sample": [
+          "IWM|SHORT|1774535348",
+          "IWM|SHORT|1774535353"
+        ],
+        "matrix": {
+          "trade_intent_entered_present": true,
+          "unified_entry_attribution_present": true,
+          "orders_rows_canonical_trade_id_present": true,
+          "exit_intent_keyed_present": true,
+          "unified_exit_attribution_terminal_close": true,
+          "exit_attribution_jsonl_row": true
+        },
+        "reasons": []
+      },
+      {
+        "trade_id": "open_PFE_2026-03-26T14:29:25.977370+00:00",
+        "symbol": "PFE",
+        "forward_cohort": false,
+        "authoritative_join_key": "PFE|LONG|1774535365",
+        "trade_key_from_exit": "PFE|LONG|1774535365",
+        "alias_sample": [
+          "PFE|LONG|1774535365"
+        ],
+        "matrix": {
+          "trade_intent_entered_present": true,
+          "unified_entry_attribution_present": true,
+          "orders_rows_canonical_trade_id_present": true,
+          "exit_intent_keyed_present": true,
+          "unified_exit_attribution_terminal_close": true,
+          "exit_attribution_jsonl_row": true
+        },
+        "reasons": []
+      }
+    ]
+  },
+  "cert_bundle_json": {
+    "open_ts_epoch": 1774535335.472568,
+    "gate": {
+      "ROOT": "/root/stock-bot",
+      "OPEN_TS_UTC_EPOCH": 1774535335.472568,
+      "FORWARD_SINCE_UTC_EPOCH": null,
+      "STRICT_EPOCH_START": 1774458080.0,
+      "strict_cohort_entry_era_floor_applied": true,
+      "strict_cohort_excluded_preera_open_count": 22,
+      "strict_cohort_exclusion_reasons": {
+        "PREERA_OPEN": 22
+      },
+      "excluded_trade_ids_capped": [
+        "open_TGT_2026-03-26T13:38:23.210360+00:00",
+        "open_LOW_2026-03-26T14:24:51.823612+00:00",
+        "open_WMT_2026-03-26T14:25:04.753797+00:00",
+        "open_MRNA_2026-03-26T14:25:18.018107+00:00",
+        "open_HD_2026-03-26T14:25:31.372600+00:00",
+        "open_UNH_2026-03-26T14:25:44.455344+00:00",
+        "open_NVDA_2026-03-26T14:26:12.413837+00:00",
+        "open_AMD_2026-03-26T14:26:24.596531+00:00",
+        "open_TSLA_2026-03-26T14:26:30.328081+00:00",
+        "open_MS_2026-03-26T14:26:49.580191+00:00",
+        "open_MSFT_2026-03-26T14:26:58.006662+00:00",
+        "open_XLK_2026-03-26T14:27:03.824960+00:00",
+        "open_XLE_2026-03-26T14:27:08.363654+00:00",
+        "open_JPM_2026-03-26T14:27:17.670264+00:00",
+        "open_AAPL_2026-03-26T14:27:29.428738+00:00",
+        "open_BAC_2026-03-26T14:27:31.402364+00:00",
+        "open_GOOGL_2026-03-26T14:27:39.472087+00:00",
+        "open_XLP_2026-03-26T14:28:04.766309+00:00",
+        "open_XLI_2026-03-26T14:28:07.429112+00:00",
+        "open_XLF_2026-03-26T14:28:26.615625+00:00"
+      ],
+      "precheck": [],
+      "trades_seen": 119,
+      "trades_complete": 119,
+      "trades_incomplete": 0,
+      "reason_histogram": {},
+      "incomplete_examples": [],
+      "code_structural_trade_intent_no_canonical_on_entered": false,
+      "LEARNING_STATUS": "ARMED",
+      "learning_fail_closed_reason": null,
+      "AUTHORITATIVE_JOIN_KEY_RULE": "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).",
+      "legacy_trades_seen": null,
+      "legacy_trades_complete": null,
+      "legacy_trades_incomplete": null,
+      "forward_trades_seen": null,
+      "forward_trades_complete": null,
+      "forward_trades_incomplete": null,
+      "FORWARD_CHAIN_PERFECT": false,
+      "FORWARD_COHORT_VACUOUS": false,
+      "LEGACY_DEBT_QUARANTINED_NOTE": null,
+      "incomplete_trade_ids_by_reason": {},
+      "chain_matrices_sample": [],
+      "chain_matrices_complete_sample": [
+        {
+          "trade_id": "open_DIA_2026-03-26T14:29:01.504887+00:00",
+          "symbol": "DIA",
+          "forward_cohort": false,
+          "authoritative_join_key": "DIA|SHORT|1774535341",
+          "trade_key_from_exit": "DIA|SHORT|1774535341",
+          "alias_sample": [
+            "DIA|SHORT|1774535340",
+            "DIA|SHORT|1774535341"
+          ],
+          "matrix": {
+            "trade_intent_entered_present": true,
+            "unified_entry_attribution_present": true,
+            "orders_rows_canonical_trade_id_present": true,
+            "exit_intent_keyed_present": true,
+            "unified_exit_attribution_terminal_close": true,
+            "exit_attribution_jsonl_row": true
+          },
+          "reasons": []
+        },
+        {
+          "trade_id": "open_IWM_2026-03-26T14:29:13.438544+00:00",
+          "symbol": "IWM",
+          "forward_cohort": false,
+          "authoritative_join_key": "IWM|SHORT|1774535353",
+          "trade_key_from_exit": "IWM|SHORT|1774535353",
+          "alias_sample": [
+            "IWM|SHORT|1774535348",
+            "IWM|SHORT|1774535353"
+          ],
+          "matrix": {
+            "trade_intent_entered_present": true,
+            "unified_entry_attribution_present": true,
+            "orders_rows_canonical_trade_id_present": true,
+            "exit_intent_keyed_present": true,
+            "unified_exit_attribution_terminal_close": true,
+            "exit_attribution_jsonl_row": true
+          },
+          "reasons": []
+        },
+        {
+          "trade_id": "open_PFE_2026-03-26T14:29:25.977370+00:00",
+          "symbol": "PFE",
+          "forward_cohort": false,
+          "authoritative_join_key": "PFE|LONG|1774535365",
+          "trade_key_from_exit": "PFE|LONG|1774535365",
+          "alias_sample": [
+            "PFE|LONG|1774535365"
+          ],
+          "matrix": {
+            "trade_intent_entered_present": true,
+            "unified_entry_attribution_present": true,
+            "orders_rows_canonical_trade_id_present": true,
+            "exit_intent_keyed_present": true,
+            "unified_exit_attribution_terminal_close": true,
+            "exit_attribution_jsonl_row": true
+          },
+          "reasons": []
+        }
+      ]
+    },
+    "strict_cohort_economic_closes": 119,
+    "strict_cohort_unified_terminal_closes": 119,
+    "parity_exact": true,
+    "missing_unified_terminal_trade_ids_sample": [],
+    "entered_trade_intents_epoch_ge_floor": 26,
+    "entered_trade_intents_for_cohort_symbol": 27,
+    "entered_signal_non_vacuous": 27,
+    "non_vacuous": true,
+    "trace_sample_size": 15,
+    "trace_all_pass": true,
+    "traces": [
+      {
+        "trade_id": "open_CAT_2026-03-26T16:34:40.245664+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_C_2026-03-26T15:09:18.285013+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_LCID_2026-03-26T14:30:03.263446+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_UNH_2026-03-26T17:09:02.429312+00:00",
+        "exit_has_canonical_trade_id": true,
+        "exit_has_trade_key": true,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_WMT_2026-03-26T15:10:28.883737+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_NIO_2026-03-26T15:07:20.792866+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_UNH_2026-03-26T15:06:02.741344+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_CVX_2026-03-26T15:08:13.164877+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_NFLX_2026-03-26T15:02:00.045513+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_WFC_2026-03-26T16:30:04.774684+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_MSFT_2026-03-26T16:27:29.688314+00:00",
+        "exit_has_canonical_trade_id": true,
+        "exit_has_trade_key": true,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_INTC_2026-03-26T16:27:17.683343+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_JNJ_2026-03-26T15:01:53.459974+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_C_2026-03-26T16:28:30.640832+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      },
+      {
+        "trade_id": "open_NIO_2026-03-26T15:46:38.329260+00:00",
+        "exit_has_canonical_trade_id": false,
+        "exit_has_trade_key": false,
+        "trade_intent_entered_match": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_entry_attribution_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "all_strict_legs_ok": true
+      }
+    ],
+    "cert_ok": true
+  },
+  "open_ts_epoch_used": 1774535335.472568
+}

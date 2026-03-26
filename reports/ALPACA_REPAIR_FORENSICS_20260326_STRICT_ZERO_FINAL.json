@@ -1,0 +1,139 @@
+{
+  "ROOT": "/root/stock-bot",
+  "targets": [
+    "open_CAT_2026-03-26T16:34:40.245664+00:00",
+    "open_HOOD_2026-03-26T15:51:38.174449+00:00",
+    "open_LCID_2026-03-26T15:51:38.396698+00:00",
+    "open_PFE_2026-03-26T14:29:25.977370+00:00",
+    "open_QQQ_2026-03-26T15:10:28.882493+00:00",
+    "open_WMT_2026-03-26T15:10:28.883737+00:00"
+  ],
+  "per_trade": [
+    {
+      "trade_id": "open_CAT_2026-03-26T16:34:40.245664+00:00",
+      "symbol": "CAT",
+      "exit_attribution_present": true,
+      "unified_exit_terminal_present": true,
+      "derived_trade_key": "CAT|LONG|1774542880",
+      "canonical_trade_id_used": "CAT|LONG|1774542742",
+      "alias_count": 2,
+      "entered_trade_intent_joinable": true,
+      "exit_intent_joinable": true,
+      "unified_entry_present": true,
+      "orders_row_with_canonical_in_aliases": true,
+      "order_ids_matching_symbol": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "missing_legs": []
+    },
+    {
+      "trade_id": "open_HOOD_2026-03-26T15:51:38.174449+00:00",
+      "symbol": "HOOD",
+      "exit_attribution_present": true,
+      "unified_exit_terminal_present": true,
+      "derived_trade_key": "HOOD|LONG|1774540298",
+      "canonical_trade_id_used": "HOOD|LONG|1774539960",
+      "alias_count": 2,
+      "entered_trade_intent_joinable": true,
+      "exit_intent_joinable": true,
+      "unified_entry_present": true,
+      "orders_row_with_canonical_in_aliases": true,
+      "order_ids_matching_symbol": [
+        "strict_backfill_order:open_HOOD_2026-03-26T15:51:38.174449+00:00",
+        null,
+        null,
+        null,
+        null
+      ],
+      "missing_legs": []
+    },
+    {
+      "trade_id": "open_LCID_2026-03-26T15:51:38.396698+00:00",
+      "symbol": "LCID",
+      "exit_attribution_present": true,
+      "unified_exit_terminal_present": true,
+      "derived_trade_key": "LCID|LONG|1774540298",
+      "canonical_trade_id_used": "LCID|LONG|1774539876",
+      "alias_count": 2,
+      "entered_trade_intent_joinable": true,
+      "exit_intent_joinable": true,
+      "unified_entry_present": true,
+      "orders_row_with_canonical_in_aliases": true,
+      "order_ids_matching_symbol": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "missing_legs": []
+    },
+    {
+      "trade_id": "open_PFE_2026-03-26T14:29:25.977370+00:00",
+      "symbol": "PFE",
+      "exit_attribution_present": true,
+      "unified_exit_terminal_present": true,
+      "derived_trade_key": "PFE|LONG|1774535365",
+      "canonical_trade_id_used": "PFE|LONG|1774535152",
+      "alias_count": 2,
+      "entered_trade_intent_joinable": true,
+      "exit_intent_joinable": true,
+      "unified_entry_present": true,
+      "orders_row_with_canonical_in_aliases": true,
+      "order_ids_matching_symbol": [
+        "strict_backfill_order:open_PFE_2026-03-26T14:29:25.977370+00:00",
+        null,
+        null,
+        null,
+        null
+      ],
+      "missing_legs": []
+    },
+    {
+      "trade_id": "open_QQQ_2026-03-26T15:10:28.882493+00:00",
+      "symbol": "QQQ",
+      "exit_attribution_present": true,
+      "unified_exit_terminal_present": true,
+      "derived_trade_key": "QQQ|LONG|1774537828",
+      "canonical_trade_id_used": "QQQ|LONG|1774537564",
+      "alias_count": 2,
+      "entered_trade_intent_joinable": true,
+      "exit_intent_joinable": true,
+      "unified_entry_present": true,
+      "orders_row_with_canonical_in_aliases": true,
+      "order_ids_matching_symbol": [
+        "strict_backfill_order:open_QQQ_2026-03-26T15:10:28.882493+00:00",
+        null,
+        null,
+        null,
+        null
+      ],
+      "missing_legs": []
+    },
+    {
+      "trade_id": "open_WMT_2026-03-26T15:10:28.883737+00:00",
+      "symbol": "WMT",
+      "exit_attribution_present": true,
+      "unified_exit_terminal_present": true,
+      "derived_trade_key": "WMT|LONG|1774537828",
+      "canonical_trade_id_used": "WMT|LONG|1774537619",
+      "alias_count": 2,
+      "entered_trade_intent_joinable": true,
+      "exit_intent_joinable": true,
+      "unified_entry_present": true,
+      "orders_row_with_canonical_in_aliases": true,
+      "order_ids_matching_symbol": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "missing_legs": []
+    }
+  ]
+}

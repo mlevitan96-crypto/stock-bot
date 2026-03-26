@@ -72,7 +72,11 @@ def main() -> int:
         "scripts/audit/forward_parity_audit.py",
         "scripts/audit/alpaca_replay_lab_strict_gate.py",
         "scripts/audit/alpaca_strict_cohort_cert_bundle.py",
+        "scripts/audit/alpaca_strict_six_trade_additive_repair.py",
+        "scripts/audit/alpaca_strict_repair_forensics.py",
         "telemetry/alpaca_strict_completeness_gate.py",
+        "src/telemetry/strict_chain_guard.py",
+        "src/exit/exit_attribution.py",
     ):
         rel = rel.replace("\\", "/")
         lp = REPO / rel
@@ -108,6 +112,19 @@ def main() -> int:
 
     # Strict gate + cert bundle on full root with same epoch
     if strict_epoch is not None:
+        # Idempotent additive backfill for incomplete strict chains (sidecar logs only).
+        rpair = _run(
+            c,
+            f"cd {PROJ} && PYTHONPATH={PROJ} {PROJ}/venv/bin/python "
+            f"{PROJ}/scripts/audit/alpaca_strict_six_trade_additive_repair.py --root {PROJ} --apply "
+            f"--repair-all-incomplete-in-era --open-ts-epoch {strict_epoch} 2>&1",
+            timeout=300,
+        )
+        bundle["steps"]["strict_repair_apply"] = {
+            "exit_code": rpair.get("exit_code"),
+            "stdout_tail": ((rpair.get("stdout") or "").strip())[-4000:],
+        }
+
         sg = _run(
             c,
             f"cd {PROJ} && PYTHONPATH={PROJ} {PROJ}/venv/bin/python {PROJ}/telemetry/alpaca_strict_completeness_gate.py "
