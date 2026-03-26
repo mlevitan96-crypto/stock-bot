@@ -210,10 +210,17 @@ def main() -> int:
     if cert_ok:
         args.json_out.write_text(json.dumps(run_record, indent=2, default=str), encoding="utf-8")
         vac = bool(gate.get("trades_seen") == 0)
+        if exit_ts_max_epoch is not None:
+            win_desc = (
+                f"{args.window_hours}h ending at `window_end_epoch`={exit_ts_max_epoch} "
+                f"(see gate `EXIT_TS_UTC_EPOCH_MAX`)"
+            )
+        else:
+            win_desc = f"{args.window_hours}h (open_ts_epoch = max(STRICT_EPOCH, now−window))"
         args.md_out.write_text(
             f"# Alpaca forward truth contract — CERT_OK\n\n"
             f"- **UTC:** {run_record['run_utc']}\n"
-            f"- **Window:** {args.window_hours}h (open_ts_epoch = max(STRICT_EPOCH, now−window))\n"
+            f"- **Window:** {win_desc}\n"
             f"- **trades_seen:** {gate.get('trades_seen')}\n"
             f"- **trades_incomplete:** 0\n"
             f"- **forward_trades_incomplete:** {gate.get('forward_trades_incomplete')}\n"
