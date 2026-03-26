@@ -1,0 +1,103 @@
+{
+  "mode": "proposal",
+  "input_path": "reports\\board\\SHADOW_SIGNAL_CORRELATION_CLUSTER_PROPOSAL.md",
+  "personas": [
+    "CSA",
+    "SRE",
+    "QUANT",
+    "RISK",
+    "ADVERSARIAL"
+  ],
+  "reviews": {
+    "CSA": {
+      "verdict": "PASS",
+      "summary": "Proposal review for CSA; 3 questions.",
+      "questions": [
+        "Does this analysis make sense for improving weight and signal decisions without changing behavior?",
+        "What could go wrong (e.g. overfitting to synthetic backfill, small sample)?",
+        "What is the best strategy to test: (A) run once on current backfill, (B) run weekly as backfill grows, (C) run only when native emission replaces backfill, (D) other?"
+      ],
+      "answers": [
+        "[CSA] Stub critique: Does this analysis make sense for improving weight...",
+        "[CSA] Stub critique: What could go wrong (e.g. overfitting to synthetic...",
+        "[CSA] Stub critique: What is the best strategy to test: (A) run once on..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    },
+    "SRE": {
+      "verdict": "PASS",
+      "summary": "Proposal review for SRE; 3 questions.",
+      "questions": [
+        "Does this analysis make sense for improving weight and signal decisions without changing behavior?",
+        "What could go wrong (e.g. overfitting to synthetic backfill, small sample)?",
+        "What is the best strategy to test: (A) run once on current backfill, (B) run weekly as backfill grows, (C) run only when native emission replaces backfill, (D) other?"
+      ],
+      "answers": [
+        "[SRE] Stub critique: Does this analysis make sense for improving weight...",
+        "[SRE] Stub critique: What could go wrong (e.g. overfitting to synthetic...",
+        "[SRE] Stub critique: What is the best strategy to test: (A) run once on..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    },
+    "QUANT": {
+      "verdict": "PASS",
+      "summary": "Proposal review for QUANT; 3 questions.",
+      "questions": [
+        "Does this analysis make sense for improving weight and signal decisions without changing behavior?",
+        "What could go wrong (e.g. overfitting to synthetic backfill, small sample)?",
+        "What is the best strategy to test: (A) run once on current backfill, (B) run weekly as backfill grows, (C) run only when native emission replaces backfill, (D) other?"
+      ],
+      "answers": [
+        "[QUANT] Stub critique: Does this analysis make sense for improving weight...",
+        "[QUANT] Stub critique: What could go wrong (e.g. overfitting to synthetic...",
+        "[QUANT] Stub critique: What is the best strategy to test: (A) run once on..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    },
+    "RISK": {
+      "verdict": "PASS",
+      "summary": "Proposal review for RISK; 3 questions.",
+      "questions": [
+        "Does this analysis make sense for improving weight and signal decisions without changing behavior?",
+        "What could go wrong (e.g. overfitting to synthetic backfill, small sample)?",
+        "What is the best strategy to test: (A) run once on current backfill, (B) run weekly as backfill grows, (C) run only when native emission replaces backfill, (D) other?"
+      ],
+      "answers": [
+        "[RISK] Stub critique: Does this analysis make sense for improving weight...",
+        "[RISK] Stub critique: What could go wrong (e.g. overfitting to synthetic...",
+        "[RISK] Stub critique: What is the best strategy to test: (A) run once on..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    },
+    "ADVERSARIAL": {
+      "verdict": "PASS",
+      "summary": "Proposal review for ADVERSARIAL; 3 questions.",
+      "questions": [
+        "Does this analysis make sense for improving weight and signal decisions without changing behavior?",
+        "What could go wrong (e.g. overfitting to synthetic backfill, small sample)?",
+        "What is the best strategy to test: (A) run once on current backfill, (B) run weekly as backfill grows, (C) run only when native emission replaces backfill, (D) other?"
+      ],
+      "answers": [
+        "[ADVERSARIAL] Stub critique: Does this analysis make sense for improving weight...",
+        "[ADVERSARIAL] Stub critique: What could go wrong (e.g. overfitting to synthetic...",
+        "[ADVERSARIAL] Stub critique: What is the best strategy to test: (A) run once on..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    }
+  },
+  "review_questions": [
+    "Does this analysis make sense for improving weight and signal decisions without changing behavior?",
+    "What could go wrong (e.g. overfitting to synthetic backfill, small sample)?",
+    "What is the best strategy to test: (A) run once on current backfill, (B) run weekly as backfill grows, (C) run only when native emission replaces backfill, (D) other?"
+  ]
+}

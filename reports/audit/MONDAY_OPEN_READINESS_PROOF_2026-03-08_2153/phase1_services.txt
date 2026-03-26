@@ -1,0 +1,8 @@
+active
+693469 /root/stock-bot/venv/bin/python -u dashboard.py
+789531 bash -c cd /root/stock-bot && systemctl is-active stock-bot 2>/dev/null || echo 'inactive'; pgrep -af 'dashboard.py' | head -3 || true; crontab -l 2>/dev/null | head -5 || echo 'no-cron'
+0 * * * * cd ~/stock-bot && ./report_status_to_git.sh >> /tmp/git_sync.log 2>&1
+30 20 * * 1-5 cd /root/stock-bot && venv/bin/python specialist_tier_monitoring_orchestrator.py >> logs/orchestrator.log 2>&1
+30 20 * * * cd /root/stock-bot && /root/stock-bot/venv/bin/python3 scripts/run_full_telemetry_extract.py >> logs/telemetry_extract.log 2>&1
+31 21 * * 1-5 cd /root/stock-bot && /usr/bin/python3 scripts/run_exit_join_and_blocked_attribution_on_droplet.py --date $(date -u +\%Y-\%m-\%d) >> logs/learning_pipeline.log 2>&1
+32 21 * * 1-5 cd /root/stock-bot && bash scripts/droplet_sync_to_github.sh >> /root/stock-bot/logs/cron_sync.log 2>&1

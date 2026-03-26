@@ -1,0 +1,111 @@
+{
+  "audit_utc": "2026-03-26T16:22:50Z",
+  "source_host": "Alpaca droplet /root/stock-bot",
+  "window_hours": 72,
+  "cutoff_utc": "2026-03-23T16:22:50.863849+00:00",
+  "unified_event_counts": {
+    "alpaca_entry_attribution": 681,
+    "alpaca_exit_attribution": 252
+  },
+  "run_event_counts": {
+    "trade_intent": 1668,
+    "exit_intent": 114,
+    "trade_intent_entered": 455,
+    "canonical_trade_id_resolved": 81
+  },
+  "orders_heuristic_counts": {
+    "orders_rows": 3996,
+    "rows_with_order_type_or_id": 3580,
+    "rows_marked_filled_or_fill_type": 468
+  },
+  "exit_attribution_closes_in_window": 682,
+  "unified_terminal_close_distinct_trade_ids": 252,
+  "ratios": {
+    "unified_terminal_to_exit_attribution": 0.36950146627565983,
+    "unified_entry_rows_to_trade_intent_entered": 1.4967032967032967,
+    "orders_rows_to_filled_heuristic": 0.11711711711711711
+  },
+  "random_trade_traces_seed_42": [
+    {
+      "trade_id": "open_QQQ_2026-03-26T15:10:28.882493+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": false,
+      "has_unified_exit_terminal_close": true,
+      "canonical_keys_sample": ["QQQ|LONG|1774537564", "QQQ|LONG|1774537828"],
+      "orders_rows_matching_canonical_keys": 7
+    },
+    {
+      "trade_id": "open_JNJ_2026-03-24T13:39:36.127308+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": false,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "open_SLB_2026-03-23T15:45:54.373912+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": false,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "open_XLE_2026-03-24T17:50:09.844650+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": false,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "open_GM_2026-03-24T16:19:05.138714+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": false,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "open_XLV_2026-03-24T16:12:23.595075+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": false,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "open_MS_2026-03-24T13:42:07.742696+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": false,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "open_NVDA_2026-03-23T19:12:16.423636+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": false,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "open_RIVN_2026-03-25T19:10:01.508797+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": true,
+      "has_unified_exit_terminal_close": true,
+      "canonical_keys_sample": ["RIVN|LONG|1774465801"],
+      "orders_rows_matching_canonical_keys": 2
+    },
+    {
+      "trade_id": "open_HOOD_2026-03-23T19:09:11.459508+00:00",
+      "has_exit_attribution": true,
+      "has_unified_entry": false,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    }
+  ],
+  "script": "scripts/audit/alpaca_event_flow_audit.py (uploaded to /tmp for run)"
+}

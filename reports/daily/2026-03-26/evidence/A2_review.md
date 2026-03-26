@@ -1,0 +1,8 @@
+# Scenario A2: Ignore max_positions_reached
+
+**Run (UTC):** 2026-03-04T23:03:27.014012+00:00
+
+- **additional_trades_admitted:** 585
+- **counterfactual_pnl_proxy_usd:** -45.8
+- **risk_note:** Increases concentration; regulatory/risk limit exposure.
+- **expected_improvement:** low; more positions can worsen tail.

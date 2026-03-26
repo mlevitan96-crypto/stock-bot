@@ -1,0 +1,48 @@
+{
+  "ts": "20260327_MKTS_FINAL",
+  "cohort_mode": true,
+  "root": "C:\\Dev\\stock-bot\\artifacts\\alpaca_pnl_session_et_20260326",
+  "strict_gate_source_sha256": "2ad5fa9bd6371b542a3c9b7ed5f422294cab29a47bfa5641d7a46c8187b0f9ca",
+  "truth_ref": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-26\\evidence\\ALPACA_MARKET_SESSION_TRUTH_20260327_MKTS_FINAL.json",
+  "session_window_epoch": {
+    "start": 1774531800.0,
+    "end": 1774555200.0
+  },
+  "row_counts": {
+    "exit_attribution_lines": 2,
+    "run_jsonl_lines": 4,
+    "orders_jsonl_lines": 4,
+    "alpaca_unified_events_lines": 4,
+    "cohort_complete_trade_ids": 2,
+    "exits_in_session_window": 2,
+    "trade_intent_non_entered_lines": 0
+  },
+  "cohort_trade_slice": {
+    "open_MKT1_2026-03-26T14:00:00+00:00": {
+      "trade_id": "open_MKT1_2026-03-26T14:00:00+00:00",
+      "symbol": "MKT1",
+      "side": "long",
+      "timestamp": "2026-03-26T17:00:00+00:00",
+      "entry_timestamp": "2026-03-26T14:00:00+00:00",
+      "exit_reason": "demo_session_fixture",
+      "pnl": 10.0,
+      "exit_price": 101.0,
+      "entry_price": 100.0,
+      "qty": 10.0
+    },
+    "open_MKT2_2026-03-26T15:30:00+00:00": {
+      "trade_id": "open_MKT2_2026-03-26T15:30:00+00:00",
+      "symbol": "MKT2",
+      "side": "long",
+      "timestamp": "2026-03-26T17:45:00+00:00",
+      "entry_timestamp": "2026-03-26T15:30:00+00:00",
+      "exit_reason": "demo_session_fixture",
+      "pnl": -2.5,
+      "exit_price": 99.5,
+      "entry_price": 100.0,
+      "qty": 5.0
+    }
+  },
+  "blocked_intents_sample": [],
+  "blockers": []
+}

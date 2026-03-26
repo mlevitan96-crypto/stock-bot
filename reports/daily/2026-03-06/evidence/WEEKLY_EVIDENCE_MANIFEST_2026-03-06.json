@@ -1,0 +1,702 @@
+{
+  "date": "2026-03-06",
+  "generated_ts": "2026-03-06T22:06:17.453963+00:00",
+  "coverage_window_days": 7,
+  "sources": [
+    {
+      "path": "logs/exit_attribution.jsonl",
+      "spec": "tail:3000",
+      "size_bytes": 11575154,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:21.284695+00:00"
+    },
+    {
+      "path": "state/blocked_trades.jsonl",
+      "spec": "tail:2000",
+      "size_bytes": 13510684,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:23.459247+00:00"
+    },
+    {
+      "path": "logs/score_snapshot.jsonl",
+      "spec": "tail:2000",
+      "size_bytes": 12584027,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:25.636911+00:00"
+    },
+    {
+      "path": "logs/attribution.jsonl",
+      "spec": "tail:1500",
+      "size_bytes": 4377063,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:27.110462+00:00"
+    },
+    {
+      "path": "reports/audit/GOVERNANCE_AUTOMATION_STATUS.json",
+      "spec": "full",
+      "size_bytes": 483,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:28.239857+00:00"
+    },
+    {
+      "path": "reports/audit/SRE_STATUS.json",
+      "spec": "full",
+      "size_bytes": 233,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:29.368054+00:00"
+    },
+    {
+      "path": "reports/audit/SRE_EVENTS.jsonl",
+      "spec": "tail:500",
+      "size_bytes": 1252,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:30.500775+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_LATEST.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:07:08.453693+00:00"
+    },
+    {
+      "path": "reports/state/TRADE_CSA_STATE.json",
+      "spec": "full",
+      "size_bytes": 176,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:32.757166+00:00"
+    },
+    {
+      "path": "reports/board/last387_comprehensive_review.json",
+      "spec": "full",
+      "size_bytes": 6782,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:34.184155+00:00"
+    },
+    {
+      "path": "reports/board/30d_comprehensive_review.json",
+      "spec": "full",
+      "size_bytes": 7162,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:35.312407+00:00"
+    },
+    {
+      "path": "reports/board/SHADOW_COMPARISON_LAST387.json",
+      "spec": "full",
+      "size_bytes": 5257,
+      "pulled": true,
+      "mtime_iso": "2026-03-06T22:06:36.441749+00:00"
+    },
+    {
+      "path": "reports/audit/deploy_runtime_context_data.json",
+      "spec": "full",
+      "size_bytes": 0,
+      "pulled": false,
+      "optional": true
+    },
+    {
+      "path": "reports/board/COMPARATIVE_REVIEW_30D_vs_LAST387.json",
+      "spec": "full",
+      "size_bytes": 5494,
+      "pulled": true,
+      "optional": true,
+      "mtime_iso": "2026-03-06T22:06:39.010880+00:00"
+    },
+    {
+      "path": "state/direction_readiness.json",
+      "spec": "full",
+      "size_bytes": 223,
+      "pulled": true,
+      "optional": true,
+      "mtime_iso": "2026-03-06T22:06:40.141057+00:00"
+    },
+    {
+      "path": "logs/wheel_events.jsonl",
+      "spec": "tail:200",
+      "size_bytes": 0,
+      "pulled": true,
+      "optional": true,
+      "mtime_iso": "2026-03-06T22:06:41.270767+00:00"
+    },
+    {
+      "path": "logs/options_events.jsonl",
+      "spec": "tail:200",
+      "size_bytes": 0,
+      "pulled": true,
+      "optional": true,
+      "mtime_iso": "2026-03-06T22:06:42.398176+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-200839.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:45.778212+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-191633.json",
+      "spec": "full",
+      "size_bytes": 2954,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:46.909386+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-175216.json",
+      "spec": "full",
+      "size_bytes": 2954,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:48.039051+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-183930.json",
+      "spec": "full",
+      "size_bytes": 3038,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:49.166286+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_csa_smoke.json",
+      "spec": "full",
+      "size_bytes": 2197,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:50.295671+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-002808.json",
+      "spec": "full",
+      "size_bytes": 2685,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:51.723677+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-173606.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:52.852751+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_clawdbot_removal.json",
+      "spec": "full",
+      "size_bytes": 2419,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:54.293992+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-204728.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:55.421553+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-194148.json",
+      "spec": "full",
+      "size_bytes": 3038,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:56.548917+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-181551.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:57.678018+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-180412.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:58.808373+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-192851.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:06:59.937696+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-185155.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:01.069898+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-195559.json",
+      "spec": "full",
+      "size_bytes": 2954,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:02.505044+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_sre_csa_smoke.json",
+      "spec": "full",
+      "size_bytes": 2848,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:03.941787+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-203427.json",
+      "spec": "full",
+      "size_bytes": 3038,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:05.069809+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-184551.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:06.197712+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-182549.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:07.325314+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_LATEST.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:08.453693+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-193525.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:09.608389+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-180956.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:10.735676+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-192306.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:11.874051+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-172922.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:13.003949+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-175803.json",
+      "spec": "full",
+      "size_bytes": 2954,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:14.136211+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-200200.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:15.264328+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-174119.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:16.392003+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_memorybank_cleanup.json",
+      "spec": "full",
+      "size_bytes": 2423,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:17.518791+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-202819.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:18.646531+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-205339.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:20.092587+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-190654.json",
+      "spec": "full",
+      "size_bytes": 3038,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:21.226667+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-202001.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:22.354980+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-201404.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:23.800077+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-183323.json",
+      "spec": "full",
+      "size_bytes": 3038,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:24.927643+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-204105.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:26.056303+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_VERDICT_CSA_TRADE_100_20260306-185746.json",
+      "spec": "full",
+      "size_bytes": 3067,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:27.183210+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-184551.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:28.331756+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-172922.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:29.459135+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-180412.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:30.592268+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-200839.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:31.723669+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-204728.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:33.154917+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-183323.md",
+      "spec": "full",
+      "size_bytes": 3302,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:34.284493+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-185746.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:35.411623+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-174119.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:36.541624+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-175803.md",
+      "spec": "full",
+      "size_bytes": 3213,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:37.716765+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-181551.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:38.866410+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-191633.md",
+      "spec": "full",
+      "size_bytes": 3213,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:40.037196+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-180956.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:41.175115+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_sre_csa_smoke.md",
+      "spec": "full",
+      "size_bytes": 2828,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:42.306541+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-202819.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:43.442853+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-193525.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:44.577157+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_clawdbot_removal.md",
+      "spec": "full",
+      "size_bytes": 2459,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:46.019108+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-201404.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:47.451302+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_csa_smoke.md",
+      "spec": "full",
+      "size_bytes": 2187,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:48.580998+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-192851.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:49.708724+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-182549.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:50.839284+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-203427.md",
+      "spec": "full",
+      "size_bytes": 3302,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:52.274104+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-175216.md",
+      "spec": "full",
+      "size_bytes": 3213,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:53.405719+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_memorybank_cleanup.md",
+      "spec": "full",
+      "size_bytes": 2463,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:54.534150+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-002808.md",
+      "spec": "full",
+      "size_bytes": 2972,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:55.662741+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-195559.md",
+      "spec": "full",
+      "size_bytes": 3213,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:56.793989+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-202001.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:58.232179+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-173606.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:07:59.687958+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-205339.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:08:01.127203+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-185155.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:08:02.257235+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-192306.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:08:03.393399+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-204105.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:08:04.527162+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-194148.md",
+      "spec": "full",
+      "size_bytes": 3302,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:08:05.661486+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-200200.md",
+      "spec": "full",
+      "size_bytes": 3299,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:08:06.791330+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-183930.md",
+      "spec": "full",
+      "size_bytes": 3302,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:08:08.546616+00:00"
+    },
+    {
+      "path": "reports/audit/CSA_FINDINGS_CSA_TRADE_100_20260306-190654.md",
+      "spec": "full",
+      "size_bytes": 3302,
+      "pulled": true,
+      "csa_artifact": true,
+      "mtime_iso": "2026-03-06T22:08:09.681993+00:00"
+    }
+  ],
+  "critical_missing": [],
+  "optional_missing": [
+    "reports/audit/deploy_runtime_context_data.json"
+  ]
+}

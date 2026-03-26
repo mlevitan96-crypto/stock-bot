@@ -1,0 +1,216 @@
+
+================================================================================
+TRADE 1 (newest first): MRNA
+================================================================================
+
+--- SUMMARY ---
+  Symbol: MRNA  |  Entry: 2026-02-27T20:57:43.296294+00:00  |  Exit: 2026-02-27T20:59:16.052245+00:00
+  Entry price: 53.53  |  Exit price: 53.57  |  Qty: 5.0
+  P&L: -0.19999999999999574 USD  |  P&L %: -0.07472445357743161%  |  Hold: 1.5459325166666666 min
+  Close reason: signal_decay(0.90)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: 3.754
+  Market regime at entry: mixed
+  Attribution components (per-signal contribution to entry score):
+    - flow: contribution_to_score=2.4
+    - dark_pool: contribution_to_score=0.181
+    - insider: contribution_to_score=0.087
+    - iv_skew: contribution_to_score=0.044
+    - smile: contribution_to_score=0.005
+    - whale: contribution_to_score=0.0
+    - event: contribution_to_score=0.236
+    - motif_bonus: contribution_to_score=0.0
+    - toxicity_penalty: contribution_to_score=-0.188
+    - regime: contribution_to_score=0.008
+    - congress: contribution_to_score=0.0
+    - shorts_squeeze: contribution_to_score=0.0
+    - institutional: contribution_to_score=0.0
+    - market_tide: contribution_to_score=0.0
+    - calendar: contribution_to_score=0.0
+    - greeks_gamma: contribution_to_score=0.056
+    - ftd_pressure: contribution_to_score=0.042
+    - iv_rank: contribution_to_score=0.021
+    - oi_change: contribution_to_score=0.049
+    - etf_flow: contribution_to_score=0.042
+    - squeeze_score: contribution_to_score=0.028
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+  This trade's entry_score 3.754 was above threshold → position opened.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: mixed
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+
+================================================================================
+TRADE 2 (newest first): SOFI
+================================================================================
+
+--- SUMMARY ---
+  Symbol: SOFI  |  Entry: 2026-02-27T20:57:34.885470+00:00  |  Exit: 2026-02-27T20:59:07.531782+00:00
+  Entry price: 17.7  |  Exit price: 17.74  |  Qty: 13.0
+  P&L: -0.5199999999999889 USD  |  P&L %: -0.22598870056496695%  |  Hold: 1.5441052 min
+  Close reason: signal_decay(0.90)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: None
+  Market regime at entry: NEUTRAL
+  Attribution components (per-signal contribution to entry score):
+  (none recorded)
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: mixed
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+
+================================================================================
+TRADE 3 (newest first): PLTR
+================================================================================
+
+--- SUMMARY ---
+  Symbol: PLTR  |  Entry: 2026-02-27T20:57:30.326481+00:00  |  Exit: 2026-02-27T20:59:02.014673+00:00
+  Entry price: 136.79  |  Exit price: 137.26  |  Qty: 2.0
+  P&L: -0.9399999999999977 USD  |  P&L %: -0.34359236786314706%  |  Hold: 1.5281365333333334 min
+  Close reason: signal_decay(0.90)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: 3.768
+  Market regime at entry: mixed
+  Attribution components (per-signal contribution to entry score):
+    - flow: contribution_to_score=2.4
+    - dark_pool: contribution_to_score=0.181
+    - insider: contribution_to_score=0.087
+    - iv_skew: contribution_to_score=0.044
+    - smile: contribution_to_score=0.005
+    - whale: contribution_to_score=0.0
+    - event: contribution_to_score=0.236
+    - motif_bonus: contribution_to_score=0.0
+    - toxicity_penalty: contribution_to_score=-0.188
+    - regime: contribution_to_score=0.008
+    - congress: contribution_to_score=0.0
+    - shorts_squeeze: contribution_to_score=0.0
+    - institutional: contribution_to_score=0.0
+    - market_tide: contribution_to_score=0.0
+    - calendar: contribution_to_score=0.0
+    - greeks_gamma: contribution_to_score=0.056
+    - ftd_pressure: contribution_to_score=0.042
+    - iv_rank: contribution_to_score=0.07
+    - oi_change: contribution_to_score=0.049
+    - etf_flow: contribution_to_score=0.042
+    - squeeze_score: contribution_to_score=0.028
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+  This trade's entry_score 3.768 was above threshold → position opened.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: mixed
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+
+================================================================================
+TRADE 4 (newest first): INTC
+================================================================================
+
+--- SUMMARY ---
+  Symbol: INTC  |  Entry: 2026-02-27T20:57:25.619983+00:00  |  Exit: 2026-02-27T20:58:53.286155+00:00
+  Entry price: 45.59  |  Exit price: 45.6  |  Qty: 7.0
+  P&L: -0.06999999999998607 USD  |  P&L %: -0.02193463478832641%  |  Hold: 1.4611028666666668 min
+  Close reason: signal_decay(0.89)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: 3.7769999999999997
+  Market regime at entry: mixed
+  Attribution components (per-signal contribution to entry score):
+    - flow: contribution_to_score=2.4
+    - dark_pool: contribution_to_score=0.181
+    - insider: contribution_to_score=0.087
+    - iv_skew: contribution_to_score=0.044
+    - smile: contribution_to_score=0.005
+    - whale: contribution_to_score=0.0
+    - event: contribution_to_score=0.236
+    - motif_bonus: contribution_to_score=0.0
+    - toxicity_penalty: contribution_to_score=-0.188
+    - regime: contribution_to_score=0.008
+    - congress: contribution_to_score=0.0
+    - shorts_squeeze: contribution_to_score=0.0
+    - institutional: contribution_to_score=0.0
+    - market_tide: contribution_to_score=0.0
+    - calendar: contribution_to_score=0.0
+    - greeks_gamma: contribution_to_score=0.056
+    - ftd_pressure: contribution_to_score=0.042
+    - iv_rank: contribution_to_score=0.021
+    - oi_change: contribution_to_score=0.049
+    - etf_flow: contribution_to_score=0.042
+    - squeeze_score: contribution_to_score=0.028
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+  This trade's entry_score 3.7769999999999997 was above threshold → position opened.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: mixed
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+
+================================================================================
+TRADE 5 (newest first): SPY
+================================================================================
+
+--- SUMMARY ---
+  Symbol: SPY  |  Entry: 2026-02-27T20:57:16.458812+00:00  |  Exit: 2026-02-27T20:58:46.823794+00:00
+  Entry price: 685.402  |  Exit price: 685.87  |  Qty: 1.0
+  P&L: 0.4679999999999609 USD  |  P&L %: 0.06828109634929003%  |  Hold: 1.5060830333333333 min
+  Close reason: signal_decay(0.80)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: None
+  Market regime at entry: unknown
+  Attribution components (per-signal contribution to entry score):
+  (none recorded)
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: unknown
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+================================================================================
+END OF REPORT
+================================================================================

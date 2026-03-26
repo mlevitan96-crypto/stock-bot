@@ -1,0 +1,15 @@
+{
+  "analysis": "J",
+  "name": "interactions",
+  "cohort": "MARKET_SESSION_ET",
+  "n_trades": 2,
+  "blocked": false,
+  "blockers": [],
+  "profit_implication": "see slices",
+  "slices": {
+    "symbol_x_side": [
+      "MKT1|long",
+      "MKT2|long"
+    ]
+  }
+}

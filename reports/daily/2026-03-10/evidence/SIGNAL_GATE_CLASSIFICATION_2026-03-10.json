@@ -1,0 +1,596 @@
+{
+  "inventory_path": "reports\\shadow\\SIGNAL_GATE_INVENTORY_2026-03-10.json",
+  "gate_count": 84,
+  "alpha_count": 75,
+  "safety_count": 9,
+  "gates": [
+    {
+      "source": "exit_regimes.json",
+      "key_path": "exit_regimes.fire_sale.signal_delta_threshold",
+      "type": "threshold",
+      "value": -0.25,
+      "classification": "alpha"
+    },
+    {
+      "source": "exit_regimes.json",
+      "key_path": "exit_regimes.fire_sale.price_delta_pct_threshold",
+      "type": "threshold",
+      "value": -3,
+      "classification": "alpha"
+    },
+    {
+      "source": "exit_regimes.json",
+      "key_path": "exit_regimes.fire_sale.catastrophic_decay_delta",
+      "type": "threshold",
+      "value": -1.0,
+      "classification": "alpha"
+    },
+    {
+      "source": "exit_regimes.json",
+      "key_path": "exit_regimes.fire_sale.enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "exit_regimes.json",
+      "key_path": "exit_regimes.let_it_breathe.entry_signal_strength_threshold",
+      "type": "threshold",
+      "value": 2.5,
+      "classification": "alpha"
+    },
+    {
+      "source": "exit_regimes.json",
+      "key_path": "exit_regimes.let_it_breathe.pnl_delta_15m_threshold",
+      "type": "threshold",
+      "value": 0,
+      "classification": "alpha"
+    },
+    {
+      "source": "exit_regimes.json",
+      "key_path": "exit_regimes.let_it_breathe.relax_decay_multiplier",
+      "type": "threshold",
+      "value": 1.5,
+      "classification": "alpha"
+    },
+    {
+      "source": "exit_regimes.json",
+      "key_path": "exit_regimes.let_it_breathe.enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.risk.max_positions_multiplier",
+      "type": "threshold",
+      "value": 1.0,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.risk.new_entries_enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.risk.allow_experimental_exits",
+      "type": "boolean",
+      "value": false,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.execution.min_hold_seconds",
+      "type": "threshold",
+      "value": 120,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.execution.cooldown_seconds_after_exit",
+      "type": "threshold",
+      "value": 20,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.execution.max_daily_exits_multiplier",
+      "type": "threshold",
+      "value": 1.1,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.exits.signal_decay_exit_enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.exits.signal_decay_sensitivity",
+      "type": "threshold",
+      "value": 0.9,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.exits.displacement_exit_enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.LIVE.exits.displacement_sensitivity",
+      "type": "threshold",
+      "value": 0.9,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.risk.max_positions_multiplier",
+      "type": "threshold",
+      "value": 1.2,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.risk.new_entries_enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.risk.allow_experimental_exits",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.execution.min_hold_seconds",
+      "type": "threshold",
+      "value": 60,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.execution.cooldown_seconds_after_exit",
+      "type": "threshold",
+      "value": 10,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.execution.max_daily_exits_multiplier",
+      "type": "threshold",
+      "value": 1.4,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.exits.signal_decay_exit_enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.exits.signal_decay_sensitivity",
+      "type": "threshold",
+      "value": 0.7,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.exits.displacement_exit_enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.PAPER.exits.displacement_sensitivity",
+      "type": "threshold",
+      "value": 0.7,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.risk.max_positions_multiplier",
+      "type": "threshold",
+      "value": 1.6,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.risk.new_entries_enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.risk.allow_experimental_exits",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.execution.min_hold_seconds",
+      "type": "threshold",
+      "value": 15,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.execution.cooldown_seconds_after_exit",
+      "type": "threshold",
+      "value": 0,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.execution.max_daily_exits_multiplier",
+      "type": "threshold",
+      "value": 2.5,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.exits.signal_decay_exit_enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.exits.signal_decay_sensitivity",
+      "type": "threshold",
+      "value": 0.45,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.exits.displacement_exit_enabled",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "mode_governance.json",
+      "key_path": "modes.SHADOW.exits.displacement_sensitivity",
+      "type": "threshold",
+      "value": 0.45,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.entry_thresholds.base",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.entry_thresholds.canary",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.entry_thresholds.champion",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.exit_weights.flow_deterioration",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.exit_weights.darkpool_deterioration",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.exit_weights.sentiment_deterioration",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.exit_weights.score_deterioration",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.exit_weights.regime_shift",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.exit_weights.sector_shift",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.exit_weights.vol_expansion",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/schema.json",
+      "key_path": "tuning.exit_weights.thesis_invalidated",
+      "type": "weight",
+      "value": null,
+      "classification": "alpha"
+    },
+    {
+      "source": "tuning/active.json",
+      "key_path": "exit_weights.flow_deterioration",
+      "type": "weight",
+      "value": 0.37,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.baseline.signal_decay.decay_ratio_threshold",
+      "type": "threshold",
+      "value": 0.6,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.baseline.signal_decay.hold_tolerance_factor",
+      "type": "threshold",
+      "value": 1,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.baseline.signal_decay.min_hold_minutes_before_decay_exit",
+      "type": "threshold",
+      "value": 0,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.baseline.signal_decay.disable_decay_for_top_quartile_entry",
+      "type": "boolean",
+      "value": false,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.baseline.blockers.max_positions_burst_pct",
+      "type": "threshold",
+      "value": 0,
+      "classification": "safety"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.baseline.blockers.displacement_override_top_n",
+      "type": "threshold",
+      "value": 0,
+      "classification": "safety"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.baseline.blockers.displacement_override_score_gap_min",
+      "type": "threshold",
+      "value": null,
+      "classification": "safety"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.live_canary.signal_decay.decay_ratio_threshold",
+      "type": "threshold",
+      "value": 0.4,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.live_canary.signal_decay.hold_tolerance_factor",
+      "type": "threshold",
+      "value": 1.5,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.live_canary.signal_decay.min_hold_minutes_before_decay_exit",
+      "type": "threshold",
+      "value": 4,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.live_canary.signal_decay.disable_decay_for_top_quartile_entry",
+      "type": "boolean",
+      "value": false,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.live_canary.blockers.max_positions_burst_pct",
+      "type": "threshold",
+      "value": 0.1,
+      "classification": "safety"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.live_canary.blockers.displacement_override_top_n",
+      "type": "threshold",
+      "value": 2,
+      "classification": "safety"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.live_canary.blockers.displacement_override_score_gap_min",
+      "type": "threshold",
+      "value": 1.5,
+      "classification": "safety"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.paper_aggressive.signal_decay.decay_ratio_threshold",
+      "type": "threshold",
+      "value": 0.2,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.paper_aggressive.signal_decay.hold_tolerance_factor",
+      "type": "threshold",
+      "value": 3,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.paper_aggressive.signal_decay.min_hold_minutes_before_decay_exit",
+      "type": "threshold",
+      "value": 12,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.paper_aggressive.signal_decay.disable_decay_for_top_quartile_entry",
+      "type": "boolean",
+      "value": true,
+      "classification": "alpha"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.paper_aggressive.blockers.max_positions_burst_pct",
+      "type": "threshold",
+      "value": 0.25,
+      "classification": "safety"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.paper_aggressive.blockers.displacement_override_top_n",
+      "type": "threshold",
+      "value": 5,
+      "classification": "safety"
+    },
+    {
+      "source": "policy_variants.json",
+      "key_path": "policy_variants.paper_aggressive.blockers.displacement_override_score_gap_min",
+      "type": "threshold",
+      "value": 1,
+      "classification": "safety"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_flow_premium",
+      "type": "weight",
+      "value": 0.4,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_flow_sweep_ratio",
+      "type": "weight",
+      "value": 0.2,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_flow_aggressor",
+      "type": "weight",
+      "value": 0.25,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_flow_conviction",
+      "type": "weight",
+      "value": 0.5,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_flow_volume",
+      "type": "weight",
+      "value": 0.1,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_flow_oi",
+      "type": "weight",
+      "value": 0.1,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_flow_magnitude",
+      "type": "weight",
+      "value": 0.2,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_dp_notional",
+      "type": "weight",
+      "value": 0.5,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_dp_lit_ratio",
+      "type": "weight",
+      "value": 0.2,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_dp_side",
+      "type": "weight",
+      "value": 0.3,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_insider_activity",
+      "type": "weight",
+      "value": 0.4,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_insider_usd",
+      "type": "weight",
+      "value": 0.3,
+      "classification": "alpha"
+    },
+    {
+      "source": "uw_micro_signal_weights.yaml",
+      "key_path": "uw_micro.default.uw_insider_sentiment",
+      "type": "weight",
+      "value": 0.3,
+      "classification": "alpha"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "scenario_id": "scenario_004",
+  "status": "complete",
+  "trades": 9,
+  "total_pnl": 18000.0,
+  "expectancy": 2000.0,
+  "params": {
+    "session_start_minutes": 0,
+    "session_end_minutes": 120
+  },
+  "data_source": "logs/exit_attribution.jsonl or logs/attribution.jsonl"
+}

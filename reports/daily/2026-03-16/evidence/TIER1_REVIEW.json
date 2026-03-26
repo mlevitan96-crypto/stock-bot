@@ -1,0 +1,67 @@
+{
+  "cover": {
+    "title": "Alpaca Tier 1 Board Review",
+    "generated_ts": "2026-03-16T02:31:58.216035+00:00",
+    "base_dir": "C:\\Dev\\stock-bot",
+    "inputs_present": {
+      "rolling_1_3_5": true,
+      "rolling_pnl_5d": true,
+      "trade_visibility": true,
+      "fast_lane": true,
+      "daily_pack": false
+    }
+  },
+  "tier1_summary": {
+    "pnl_by_window": {
+      "1_day": 0,
+      "3_day": 0,
+      "5_day": 0
+    },
+    "win_rate_by_window": {
+      "1_day": 0.0,
+      "3_day": 0.0,
+      "5_day": 0.0
+    },
+    "rolling_5d_last_point": {
+      "ts": "2026-03-08T22:43:52.452643+00:00",
+      "equity": 0.0,
+      "pnl": 0.0,
+      "source": "unified_exits",
+      "window": "5d"
+    },
+    "trade_visibility": {
+      "since_hours": 48,
+      "cutoff_utc": "2026-03-14T02:31:58.355191+00:00",
+      "executed_in_window": 0,
+      "exit_attribution_total": 0,
+      "telemetry_backed": 0
+    },
+    "fast_lane_total_trades": 25,
+    "fast_lane_cumulative_pnl": 40500.0,
+    "fast_lane_cycles_count": 1,
+    "daily_pack_present": false
+  },
+  "short_horizon_metrics": {
+    "exit_reason_counts_by_window": {
+      "1_day": {},
+      "3_day": {},
+      "5_day": {}
+    },
+    "blocked_trade_counts_by_window": {
+      "1_day": {},
+      "3_day": {},
+      "5_day": {}
+    },
+    "signal_decay_exit_rate_by_window": {
+      "1_day": 0.0,
+      "3_day": 0.0,
+      "5_day": 0.0
+    }
+  },
+  "appendices_paths": [
+    "logs/attribution.jsonl",
+    "logs/exit_attribution.jsonl",
+    "reports/state/rolling_pnl_5d.jsonl",
+    "state/fast_lane_experiment/fast_lane_ledger.json"
+  ]
+}

@@ -1,0 +1,1417 @@
+{
+  "window_start": "2026-02-01",
+  "window_end": "2026-03-02",
+  "total_scenarios_run": 14,
+  "baseline": {
+    "scenario_name": "baseline",
+    "total_pnl": -248.54,
+    "expectancy_per_trade": -0.0928,
+    "win_rate": 0.3323,
+    "avg_hold_minutes": 5.61,
+    "total_trades_in_scenario": 2678
+  },
+  "all_summaries": [
+    {
+      "scenario_name": "baseline",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 2678,
+      "total_pnl": -248.54,
+      "expectancy_per_trade": -0.0928,
+      "win_rate": 0.3323,
+      "avg_hold_minutes": 5.61,
+      "tail_loss_5pct": -1.0,
+      "tail_loss_1pct": -2.04,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.89)": 108,
+        "signal_decay(0.76)": 92,
+        "signal_decay(0.75)": 91,
+        "signal_decay(0.77)": 82,
+        "signal_decay(0.88)": 73,
+        "signal_decay(0.87)": 69,
+        "signal_decay(0.86)": 60,
+        "signal_decay(0.85)": 56,
+        "signal_decay(0.81)": 52,
+        "signal_decay(0.80)": 52,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.74)": 46,
+        "signal_decay(0.83)": 45,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.82)": 45,
+        "signal_decay(0.92)+flow_reversal": 42
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 1696,
+          "total_pnl": -120.89,
+          "expectancy": -0.0713
+        },
+        "unknown": {
+          "trades": 183,
+          "total_pnl": -8.11,
+          "expectancy": -0.0443
+        },
+        "NEUTRAL": {
+          "trades": 799,
+          "total_pnl": -119.55,
+          "expectancy": -0.1496
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_5",
+      "scenario_params": {
+        "min_hold_minutes": 5,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 480,
+      "total_pnl": -27.0,
+      "expectancy_per_trade": -0.0562,
+      "win_rate": 0.3854,
+      "avg_hold_minutes": 24.53,
+      "tail_loss_5pct": -1.47,
+      "tail_loss_1pct": -2.98,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 29,
+        "signal_decay(0.91)": 26,
+        "signal_decay(0.91)+flow_reversal": 18,
+        "signal_decay(0.90)": 18,
+        "signal_decay(0.93)": 17,
+        "signal_decay(0.90)+flow_reversal": 14,
+        "signal_decay(0.88)": 14,
+        "signal_decay(0.89)": 13,
+        "signal_decay(0.88)+flow_reversal": 13,
+        "signal_decay(0.80)": 11,
+        "signal_decay(0.92)+flow_reversal": 9,
+        "signal_decay(0.87)+flow_reversal": 9,
+        "signal_decay(0.86)": 9,
+        "signal_decay(0.87)": 9,
+        "signal_decay(0.85)": 9,
+        "signal_decay(0.83)": 8,
+        "signal_decay(0.81)": 8,
+        "signal_decay(0.68)": 7,
+        "signal_decay(0.63)": 7,
+        "signal_decay(0.86)+flow_reversal": 7
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 234,
+          "total_pnl": 0.87,
+          "expectancy": 0.0037
+        },
+        "NEUTRAL": {
+          "trades": 209,
+          "total_pnl": -30.76,
+          "expectancy": -0.1472
+        },
+        "unknown": {
+          "trades": 37,
+          "total_pnl": 2.89,
+          "expectancy": 0.0781
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_15",
+      "scenario_params": {
+        "min_hold_minutes": 15,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 200,
+      "total_pnl": -12.62,
+      "expectancy_per_trade": -0.0631,
+      "win_rate": 0.415,
+      "avg_hold_minutes": 46.34,
+      "tail_loss_5pct": -2.06,
+      "tail_loss_1pct": -3.74,
+      "exit_reason_distribution": {
+        "signal_decay(0.90)": 12,
+        "signal_decay(0.91)": 11,
+        "signal_decay(0.88)+flow_reversal": 8,
+        "signal_decay(0.88)": 8,
+        "signal_decay(0.89)": 7,
+        "signal_decay(0.80)": 7,
+        "signal_decay(0.86)": 6,
+        "signal_decay(0.92)": 5,
+        "signal_decay(0.87)+flow_reversal": 4,
+        "signal_decay(0.85)": 4,
+        "signal_decay(0.81)": 4,
+        "signal_decay(0.93)": 4,
+        "signal_decay(0.61)": 3,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "signal_decay(0.93)+flow_reversal": 3,
+        "signal_decay(0.86)+flow_reversal": 3,
+        "signal_decay(0.91)+flow_reversal": 3,
+        "signal_decay(0.79)": 3,
+        "signal_decay(0.74)": 3,
+        "signal_decay(0.70)": 3
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 102,
+          "total_pnl": -26.26,
+          "expectancy": -0.2575
+        },
+        "mixed": {
+          "trades": 82,
+          "total_pnl": 11.66,
+          "expectancy": 0.1423
+        },
+        "unknown": {
+          "trades": 16,
+          "total_pnl": 1.98,
+          "expectancy": 0.1239
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_60",
+      "scenario_params": {
+        "min_hold_minutes": 60,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 23,
+      "total_pnl": -7.31,
+      "expectancy_per_trade": -0.318,
+      "win_rate": 0.3913,
+      "avg_hold_minutes": 177.43,
+      "tail_loss_5pct": -2.24,
+      "tail_loss_1pct": -2.98,
+      "exit_reason_distribution": {
+        "signal_decay(0.80)": 4,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "signal_decay(0.89)+flow_reversal": 2,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2,
+        "trail_stop": 1,
+        "signal_decay(0.74)": 1,
+        "signal_decay(0.70)": 1,
+        "signal_decay(0.34)": 1,
+        "signal_decay(0.29)": 1,
+        "signal_decay(0.76)": 1,
+        "signal_decay(0.81)": 1,
+        "signal_decay(0.90)": 1,
+        "signal_decay(0.56)": 1,
+        "signal_decay(0.91)+stale_alpha_cutoff(1128min,-0.01%)": 1,
+        "signal_decay(0.68)+flow_reversal+stale_alpha_cutoff(1056min,0.00%)": 1,
+        "signal_decay(0.59)": 1
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 14,
+          "total_pnl": -6.24,
+          "expectancy": -0.4459
+        },
+        "unknown": {
+          "trades": 4,
+          "total_pnl": -0.48,
+          "expectancy": -0.1195
+        },
+        "mixed": {
+          "trades": 5,
+          "total_pnl": -0.59,
+          "expectancy": -0.1188
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "decay_074",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.74,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 2026,
+      "total_pnl": -223.19,
+      "expectancy_per_trade": -0.1102,
+      "win_rate": 0.3233,
+      "avg_hold_minutes": 5.0,
+      "tail_loss_5pct": -1.02,
+      "tail_loss_1pct": -2.06,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.89)": 108,
+        "signal_decay(0.76)": 92,
+        "signal_decay(0.75)": 91,
+        "signal_decay(0.77)": 82,
+        "signal_decay(0.88)": 73,
+        "signal_decay(0.87)": 69,
+        "signal_decay(0.86)": 60,
+        "signal_decay(0.85)": 56,
+        "signal_decay(0.81)": 52,
+        "signal_decay(0.80)": 52,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.74)": 46,
+        "signal_decay(0.83)": 45,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.82)": 45,
+        "signal_decay(0.92)+flow_reversal": 42
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 1239,
+          "total_pnl": -103.75,
+          "expectancy": -0.0837
+        },
+        "unknown": {
+          "trades": 122,
+          "total_pnl": -8.7,
+          "expectancy": -0.0713
+        },
+        "NEUTRAL": {
+          "trades": 665,
+          "total_pnl": -110.74,
+          "expectancy": -0.1665
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "decay_080",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.8,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 1580,
+      "total_pnl": -162.31,
+      "expectancy_per_trade": -0.1027,
+      "win_rate": 0.3354,
+      "avg_hold_minutes": 5.69,
+      "tail_loss_5pct": -1.03,
+      "tail_loss_1pct": -2.25,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.89)": 108,
+        "signal_decay(0.88)": 73,
+        "signal_decay(0.87)": 69,
+        "signal_decay(0.86)": 60,
+        "signal_decay(0.85)": 56,
+        "signal_decay(0.81)": 52,
+        "signal_decay(0.80)": 52,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.83)": 45,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.82)": 45,
+        "signal_decay(0.92)+flow_reversal": 42,
+        "signal_decay(0.84)": 39,
+        "signal_decay(0.89)+flow_reversal": 33,
+        "signal_decay(0.88)+flow_reversal": 32,
+        "signal_decay(0.86)+flow_reversal": 29
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 905,
+          "total_pnl": -69.78,
+          "expectancy": -0.0771
+        },
+        "NEUTRAL": {
+          "trades": 579,
+          "total_pnl": -85.84,
+          "expectancy": -0.1483
+        },
+        "unknown": {
+          "trades": 96,
+          "total_pnl": -6.69,
+          "expectancy": -0.0697
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "decay_086",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.86,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 1205,
+      "total_pnl": -132.13,
+      "expectancy_per_trade": -0.1097,
+      "win_rate": 0.3353,
+      "avg_hold_minutes": 5.99,
+      "tail_loss_5pct": -1.08,
+      "tail_loss_1pct": -2.25,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.89)": 108,
+        "signal_decay(0.88)": 73,
+        "signal_decay(0.87)": 69,
+        "signal_decay(0.86)": 60,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.92)+flow_reversal": 42,
+        "signal_decay(0.89)+flow_reversal": 33,
+        "signal_decay(0.88)+flow_reversal": 32,
+        "signal_decay(0.86)+flow_reversal": 29,
+        "signal_decay(0.94)": 20,
+        "signal_decay(0.87)+flow_reversal": 15,
+        "signal_decay(0.93)+flow_reversal": 10,
+        "trail_stop": 3,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 466,
+          "total_pnl": -70.3,
+          "expectancy": -0.1509
+        },
+        "mixed": {
+          "trades": 681,
+          "total_pnl": -56.63,
+          "expectancy": -0.0832
+        },
+        "unknown": {
+          "trades": 58,
+          "total_pnl": -5.2,
+          "expectancy": -0.0897
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "decay_090",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.9,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 785,
+      "total_pnl": -83.39,
+      "expectancy_per_trade": -0.1062,
+      "win_rate": 0.3427,
+      "avg_hold_minutes": 6.33,
+      "tail_loss_5pct": -1.11,
+      "tail_loss_1pct": -2.1,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.92)+flow_reversal": 42,
+        "signal_decay(0.94)": 20,
+        "signal_decay(0.93)+flow_reversal": 10,
+        "trail_stop": 3,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2,
+        "trail_stop+flow_reversal": 1,
+        "signal_decay(0.91)+stale_alpha_cutoff(1128min,-0.01%)": 1,
+        "trail_stop+signal_decay(0.98)+flow_reversal": 1
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 452,
+          "total_pnl": -42.78,
+          "expectancy": -0.0946
+        },
+        "NEUTRAL": {
+          "trades": 297,
+          "total_pnl": -36.35,
+          "expectancy": -0.1224
+        },
+        "unknown": {
+          "trades": 36,
+          "total_pnl": -4.26,
+          "expectancy": -0.1183
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_15_decay_086",
+      "scenario_params": {
+        "min_hold_minutes": 15,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.86,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 92,
+      "total_pnl": -9.87,
+      "expectancy_per_trade": -0.1073,
+      "win_rate": 0.4022,
+      "avg_hold_minutes": 47.62,
+      "tail_loss_5pct": -2.52,
+      "tail_loss_1pct": -5.2,
+      "exit_reason_distribution": {
+        "signal_decay(0.90)": 12,
+        "signal_decay(0.91)": 11,
+        "signal_decay(0.88)+flow_reversal": 8,
+        "signal_decay(0.88)": 8,
+        "signal_decay(0.89)": 7,
+        "signal_decay(0.86)": 6,
+        "signal_decay(0.92)": 5,
+        "signal_decay(0.87)+flow_reversal": 4,
+        "signal_decay(0.93)": 4,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "signal_decay(0.93)+flow_reversal": 3,
+        "signal_decay(0.86)+flow_reversal": 3,
+        "signal_decay(0.91)+flow_reversal": 3,
+        "signal_decay(0.89)+flow_reversal": 3,
+        "signal_decay(0.87)": 3,
+        "trail_stop": 2,
+        "signal_decay(0.92)+flow_reversal": 2,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2,
+        "trail_stop+signal_decay(0.89)": 1,
+        "signal_decay(0.90)+flow_reversal": 1
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 56,
+          "total_pnl": -8.67,
+          "expectancy": -0.1549
+        },
+        "mixed": {
+          "trades": 32,
+          "total_pnl": -3.14,
+          "expectancy": -0.0981
+        },
+        "unknown": {
+          "trades": 4,
+          "total_pnl": 1.94,
+          "expectancy": 0.485
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_60_decay_090",
+      "scenario_params": {
+        "min_hold_minutes": 60,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.9,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 8,
+      "total_pnl": -2.12,
+      "expectancy_per_trade": -0.2653,
+      "win_rate": 0.375,
+      "avg_hold_minutes": 235.02,
+      "tail_loss_5pct": -1.2,
+      "tail_loss_1pct": -1.2,
+      "exit_reason_distribution": {
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2,
+        "trail_stop": 1,
+        "signal_decay(0.90)": 1,
+        "signal_decay(0.91)+stale_alpha_cutoff(1128min,-0.01%)": 1
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 7,
+          "total_pnl": -1.13,
+          "expectancy": -0.1618
+        },
+        "mixed": {
+          "trades": 1,
+          "total_pnl": -0.99,
+          "expectancy": -0.99
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "remove_exit_time_decay",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [
+          "exit_time_decay"
+        ],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 0,
+      "total_pnl": 0,
+      "expectancy_per_trade": 0,
+      "win_rate": 0,
+      "avg_hold_minutes": null,
+      "tail_loss_5pct": null,
+      "tail_loss_1pct": null,
+      "exit_reason_distribution": {},
+      "per_regime": {},
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "remove_exit_flow_deterioration",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [
+          "exit_flow_deterioration"
+        ],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 0,
+      "total_pnl": 0,
+      "expectancy_per_trade": 0,
+      "win_rate": 0,
+      "avg_hold_minutes": null,
+      "tail_loss_5pct": null,
+      "tail_loss_1pct": null,
+      "exit_reason_distribution": {},
+      "per_regime": {},
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "remove_exit_score_deterioration",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [
+          "exit_score_deterioration"
+        ],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 0,
+      "total_pnl": 0,
+      "expectancy_per_trade": 0,
+      "win_rate": 0,
+      "avg_hold_minutes": null,
+      "tail_loss_5pct": null,
+      "tail_loss_1pct": null,
+      "exit_reason_distribution": {},
+      "per_regime": {},
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "remove_exit_time_decay_and_flow",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [
+          "exit_time_decay",
+          "exit_flow_deterioration"
+        ],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 0,
+      "total_pnl": 0,
+      "expectancy_per_trade": 0,
+      "win_rate": 0,
+      "avg_hold_minutes": null,
+      "tail_loss_5pct": null,
+      "tail_loss_1pct": null,
+      "exit_reason_distribution": {},
+      "per_regime": {},
+      "giveback_stats": null
+    }
+  ],
+  "ranked": [
+    {
+      "scenario_name": "remove_exit_time_decay",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [
+          "exit_time_decay"
+        ],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 0,
+      "total_pnl": 0,
+      "expectancy_per_trade": 0,
+      "win_rate": 0,
+      "avg_hold_minutes": null,
+      "tail_loss_5pct": null,
+      "tail_loss_1pct": null,
+      "exit_reason_distribution": {},
+      "per_regime": {},
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "remove_exit_flow_deterioration",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [
+          "exit_flow_deterioration"
+        ],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 0,
+      "total_pnl": 0,
+      "expectancy_per_trade": 0,
+      "win_rate": 0,
+      "avg_hold_minutes": null,
+      "tail_loss_5pct": null,
+      "tail_loss_1pct": null,
+      "exit_reason_distribution": {},
+      "per_regime": {},
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "remove_exit_score_deterioration",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [
+          "exit_score_deterioration"
+        ],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 0,
+      "total_pnl": 0,
+      "expectancy_per_trade": 0,
+      "win_rate": 0,
+      "avg_hold_minutes": null,
+      "tail_loss_5pct": null,
+      "tail_loss_1pct": null,
+      "exit_reason_distribution": {},
+      "per_regime": {},
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "remove_exit_time_decay_and_flow",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [
+          "exit_time_decay",
+          "exit_flow_deterioration"
+        ],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 0,
+      "total_pnl": 0,
+      "expectancy_per_trade": 0,
+      "win_rate": 0,
+      "avg_hold_minutes": null,
+      "tail_loss_5pct": null,
+      "tail_loss_1pct": null,
+      "exit_reason_distribution": {},
+      "per_regime": {},
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_5",
+      "scenario_params": {
+        "min_hold_minutes": 5,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 480,
+      "total_pnl": -27.0,
+      "expectancy_per_trade": -0.0562,
+      "win_rate": 0.3854,
+      "avg_hold_minutes": 24.53,
+      "tail_loss_5pct": -1.47,
+      "tail_loss_1pct": -2.98,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 29,
+        "signal_decay(0.91)": 26,
+        "signal_decay(0.91)+flow_reversal": 18,
+        "signal_decay(0.90)": 18,
+        "signal_decay(0.93)": 17,
+        "signal_decay(0.90)+flow_reversal": 14,
+        "signal_decay(0.88)": 14,
+        "signal_decay(0.89)": 13,
+        "signal_decay(0.88)+flow_reversal": 13,
+        "signal_decay(0.80)": 11,
+        "signal_decay(0.92)+flow_reversal": 9,
+        "signal_decay(0.87)+flow_reversal": 9,
+        "signal_decay(0.86)": 9,
+        "signal_decay(0.87)": 9,
+        "signal_decay(0.85)": 9,
+        "signal_decay(0.83)": 8,
+        "signal_decay(0.81)": 8,
+        "signal_decay(0.68)": 7,
+        "signal_decay(0.63)": 7,
+        "signal_decay(0.86)+flow_reversal": 7
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 234,
+          "total_pnl": 0.87,
+          "expectancy": 0.0037
+        },
+        "NEUTRAL": {
+          "trades": 209,
+          "total_pnl": -30.76,
+          "expectancy": -0.1472
+        },
+        "unknown": {
+          "trades": 37,
+          "total_pnl": 2.89,
+          "expectancy": 0.0781
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_15",
+      "scenario_params": {
+        "min_hold_minutes": 15,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 200,
+      "total_pnl": -12.62,
+      "expectancy_per_trade": -0.0631,
+      "win_rate": 0.415,
+      "avg_hold_minutes": 46.34,
+      "tail_loss_5pct": -2.06,
+      "tail_loss_1pct": -3.74,
+      "exit_reason_distribution": {
+        "signal_decay(0.90)": 12,
+        "signal_decay(0.91)": 11,
+        "signal_decay(0.88)+flow_reversal": 8,
+        "signal_decay(0.88)": 8,
+        "signal_decay(0.89)": 7,
+        "signal_decay(0.80)": 7,
+        "signal_decay(0.86)": 6,
+        "signal_decay(0.92)": 5,
+        "signal_decay(0.87)+flow_reversal": 4,
+        "signal_decay(0.85)": 4,
+        "signal_decay(0.81)": 4,
+        "signal_decay(0.93)": 4,
+        "signal_decay(0.61)": 3,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "signal_decay(0.93)+flow_reversal": 3,
+        "signal_decay(0.86)+flow_reversal": 3,
+        "signal_decay(0.91)+flow_reversal": 3,
+        "signal_decay(0.79)": 3,
+        "signal_decay(0.74)": 3,
+        "signal_decay(0.70)": 3
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 102,
+          "total_pnl": -26.26,
+          "expectancy": -0.2575
+        },
+        "mixed": {
+          "trades": 82,
+          "total_pnl": 11.66,
+          "expectancy": 0.1423
+        },
+        "unknown": {
+          "trades": 16,
+          "total_pnl": 1.98,
+          "expectancy": 0.1239
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "baseline",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 2678,
+      "total_pnl": -248.54,
+      "expectancy_per_trade": -0.0928,
+      "win_rate": 0.3323,
+      "avg_hold_minutes": 5.61,
+      "tail_loss_5pct": -1.0,
+      "tail_loss_1pct": -2.04,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.89)": 108,
+        "signal_decay(0.76)": 92,
+        "signal_decay(0.75)": 91,
+        "signal_decay(0.77)": 82,
+        "signal_decay(0.88)": 73,
+        "signal_decay(0.87)": 69,
+        "signal_decay(0.86)": 60,
+        "signal_decay(0.85)": 56,
+        "signal_decay(0.81)": 52,
+        "signal_decay(0.80)": 52,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.74)": 46,
+        "signal_decay(0.83)": 45,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.82)": 45,
+        "signal_decay(0.92)+flow_reversal": 42
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 1696,
+          "total_pnl": -120.89,
+          "expectancy": -0.0713
+        },
+        "unknown": {
+          "trades": 183,
+          "total_pnl": -8.11,
+          "expectancy": -0.0443
+        },
+        "NEUTRAL": {
+          "trades": 799,
+          "total_pnl": -119.55,
+          "expectancy": -0.1496
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "decay_080",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.8,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 1580,
+      "total_pnl": -162.31,
+      "expectancy_per_trade": -0.1027,
+      "win_rate": 0.3354,
+      "avg_hold_minutes": 5.69,
+      "tail_loss_5pct": -1.03,
+      "tail_loss_1pct": -2.25,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.89)": 108,
+        "signal_decay(0.88)": 73,
+        "signal_decay(0.87)": 69,
+        "signal_decay(0.86)": 60,
+        "signal_decay(0.85)": 56,
+        "signal_decay(0.81)": 52,
+        "signal_decay(0.80)": 52,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.83)": 45,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.82)": 45,
+        "signal_decay(0.92)+flow_reversal": 42,
+        "signal_decay(0.84)": 39,
+        "signal_decay(0.89)+flow_reversal": 33,
+        "signal_decay(0.88)+flow_reversal": 32,
+        "signal_decay(0.86)+flow_reversal": 29
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 905,
+          "total_pnl": -69.78,
+          "expectancy": -0.0771
+        },
+        "NEUTRAL": {
+          "trades": 579,
+          "total_pnl": -85.84,
+          "expectancy": -0.1483
+        },
+        "unknown": {
+          "trades": 96,
+          "total_pnl": -6.69,
+          "expectancy": -0.0697
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "decay_090",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.9,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 785,
+      "total_pnl": -83.39,
+      "expectancy_per_trade": -0.1062,
+      "win_rate": 0.3427,
+      "avg_hold_minutes": 6.33,
+      "tail_loss_5pct": -1.11,
+      "tail_loss_1pct": -2.1,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.92)+flow_reversal": 42,
+        "signal_decay(0.94)": 20,
+        "signal_decay(0.93)+flow_reversal": 10,
+        "trail_stop": 3,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2,
+        "trail_stop+flow_reversal": 1,
+        "signal_decay(0.91)+stale_alpha_cutoff(1128min,-0.01%)": 1,
+        "trail_stop+signal_decay(0.98)+flow_reversal": 1
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 452,
+          "total_pnl": -42.78,
+          "expectancy": -0.0946
+        },
+        "NEUTRAL": {
+          "trades": 297,
+          "total_pnl": -36.35,
+          "expectancy": -0.1224
+        },
+        "unknown": {
+          "trades": 36,
+          "total_pnl": -4.26,
+          "expectancy": -0.1183
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_15_decay_086",
+      "scenario_params": {
+        "min_hold_minutes": 15,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.86,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 92,
+      "total_pnl": -9.87,
+      "expectancy_per_trade": -0.1073,
+      "win_rate": 0.4022,
+      "avg_hold_minutes": 47.62,
+      "tail_loss_5pct": -2.52,
+      "tail_loss_1pct": -5.2,
+      "exit_reason_distribution": {
+        "signal_decay(0.90)": 12,
+        "signal_decay(0.91)": 11,
+        "signal_decay(0.88)+flow_reversal": 8,
+        "signal_decay(0.88)": 8,
+        "signal_decay(0.89)": 7,
+        "signal_decay(0.86)": 6,
+        "signal_decay(0.92)": 5,
+        "signal_decay(0.87)+flow_reversal": 4,
+        "signal_decay(0.93)": 4,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "signal_decay(0.93)+flow_reversal": 3,
+        "signal_decay(0.86)+flow_reversal": 3,
+        "signal_decay(0.91)+flow_reversal": 3,
+        "signal_decay(0.89)+flow_reversal": 3,
+        "signal_decay(0.87)": 3,
+        "trail_stop": 2,
+        "signal_decay(0.92)+flow_reversal": 2,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2,
+        "trail_stop+signal_decay(0.89)": 1,
+        "signal_decay(0.90)+flow_reversal": 1
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 56,
+          "total_pnl": -8.67,
+          "expectancy": -0.1549
+        },
+        "mixed": {
+          "trades": 32,
+          "total_pnl": -3.14,
+          "expectancy": -0.0981
+        },
+        "unknown": {
+          "trades": 4,
+          "total_pnl": 1.94,
+          "expectancy": 0.485
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "decay_086",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.86,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 1205,
+      "total_pnl": -132.13,
+      "expectancy_per_trade": -0.1097,
+      "win_rate": 0.3353,
+      "avg_hold_minutes": 5.99,
+      "tail_loss_5pct": -1.08,
+      "tail_loss_1pct": -2.25,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.89)": 108,
+        "signal_decay(0.88)": 73,
+        "signal_decay(0.87)": 69,
+        "signal_decay(0.86)": 60,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.92)+flow_reversal": 42,
+        "signal_decay(0.89)+flow_reversal": 33,
+        "signal_decay(0.88)+flow_reversal": 32,
+        "signal_decay(0.86)+flow_reversal": 29,
+        "signal_decay(0.94)": 20,
+        "signal_decay(0.87)+flow_reversal": 15,
+        "signal_decay(0.93)+flow_reversal": 10,
+        "trail_stop": 3,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 466,
+          "total_pnl": -70.3,
+          "expectancy": -0.1509
+        },
+        "mixed": {
+          "trades": 681,
+          "total_pnl": -56.63,
+          "expectancy": -0.0832
+        },
+        "unknown": {
+          "trades": 58,
+          "total_pnl": -5.2,
+          "expectancy": -0.0897
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "decay_074",
+      "scenario_params": {
+        "min_hold_minutes": 0,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.74,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 2026,
+      "total_pnl": -223.19,
+      "expectancy_per_trade": -0.1102,
+      "win_rate": 0.3233,
+      "avg_hold_minutes": 5.0,
+      "tail_loss_5pct": -1.02,
+      "tail_loss_1pct": -2.06,
+      "exit_reason_distribution": {
+        "signal_decay(0.92)": 185,
+        "signal_decay(0.91)": 160,
+        "signal_decay(0.90)": 138,
+        "signal_decay(0.93)": 127,
+        "signal_decay(0.89)": 108,
+        "signal_decay(0.76)": 92,
+        "signal_decay(0.75)": 91,
+        "signal_decay(0.77)": 82,
+        "signal_decay(0.88)": 73,
+        "signal_decay(0.87)": 69,
+        "signal_decay(0.86)": 60,
+        "signal_decay(0.85)": 56,
+        "signal_decay(0.81)": 52,
+        "signal_decay(0.80)": 52,
+        "signal_decay(0.91)+flow_reversal": 47,
+        "signal_decay(0.74)": 46,
+        "signal_decay(0.83)": 45,
+        "signal_decay(0.90)+flow_reversal": 45,
+        "signal_decay(0.82)": 45,
+        "signal_decay(0.92)+flow_reversal": 42
+      },
+      "per_regime": {
+        "mixed": {
+          "trades": 1239,
+          "total_pnl": -103.75,
+          "expectancy": -0.0837
+        },
+        "unknown": {
+          "trades": 122,
+          "total_pnl": -8.7,
+          "expectancy": -0.0713
+        },
+        "NEUTRAL": {
+          "trades": 665,
+          "total_pnl": -110.74,
+          "expectancy": -0.1665
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_60_decay_090",
+      "scenario_params": {
+        "min_hold_minutes": 60,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.9,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 8,
+      "total_pnl": -2.12,
+      "expectancy_per_trade": -0.2653,
+      "win_rate": 0.375,
+      "avg_hold_minutes": 235.02,
+      "tail_loss_5pct": -1.2,
+      "tail_loss_1pct": -1.2,
+      "exit_reason_distribution": {
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2,
+        "trail_stop": 1,
+        "signal_decay(0.90)": 1,
+        "signal_decay(0.91)+stale_alpha_cutoff(1128min,-0.01%)": 1
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 7,
+          "total_pnl": -1.13,
+          "expectancy": -0.1618
+        },
+        "mixed": {
+          "trades": 1,
+          "total_pnl": -0.99,
+          "expectancy": -0.99
+        }
+      },
+      "giveback_stats": null
+    },
+    {
+      "scenario_name": "minhold_60",
+      "scenario_params": {
+        "min_hold_minutes": 60,
+        "take_profit_pct": null,
+        "stop_loss_pct": null,
+        "signal_decay_threshold": 0.0,
+        "trail_pct": null,
+        "remove_components": [],
+        "regime_overrides": {}
+      },
+      "window_start": "2026-02-01",
+      "window_end": "2026-03-02",
+      "total_trades_in_window": 2678,
+      "total_trades_in_scenario": 23,
+      "total_pnl": -7.31,
+      "expectancy_per_trade": -0.318,
+      "win_rate": 0.3913,
+      "avg_hold_minutes": 177.43,
+      "tail_loss_5pct": -2.24,
+      "tail_loss_1pct": -2.98,
+      "exit_reason_distribution": {
+        "signal_decay(0.80)": 4,
+        "stale_alpha_cutoff(120min,-0.01%)": 3,
+        "signal_decay(0.89)+flow_reversal": 2,
+        "flow_reversal+stale_alpha_cutoff(120min,0.00%)": 2,
+        "trail_stop": 1,
+        "signal_decay(0.74)": 1,
+        "signal_decay(0.70)": 1,
+        "signal_decay(0.34)": 1,
+        "signal_decay(0.29)": 1,
+        "signal_decay(0.76)": 1,
+        "signal_decay(0.81)": 1,
+        "signal_decay(0.90)": 1,
+        "signal_decay(0.56)": 1,
+        "signal_decay(0.91)+stale_alpha_cutoff(1128min,-0.01%)": 1,
+        "signal_decay(0.68)+flow_reversal+stale_alpha_cutoff(1056min,0.00%)": 1,
+        "signal_decay(0.59)": 1
+      },
+      "per_regime": {
+        "NEUTRAL": {
+          "trades": 14,
+          "total_pnl": -6.24,
+          "expectancy": -0.4459
+        },
+        "unknown": {
+          "trades": 4,
+          "total_pnl": -0.48,
+          "expectancy": -0.1195
+        },
+        "mixed": {
+          "trades": 5,
+          "total_pnl": -0.59,
+          "expectancy": -0.1188
+        }
+      },
+      "giveback_stats": null
+    }
+  ]
+}

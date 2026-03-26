@@ -1,0 +1,17 @@
+{
+  "date": "2026-03-09",
+  "count_with_lag": 69,
+  "min_minutes": 2.22,
+  "max_minutes": 144.72,
+  "mean_minutes": 42.71,
+  "median_minutes": 7.88,
+  "p90_minutes": 109.88,
+  "p95_minutes": 135.25,
+  "histogram_minutes": {
+    "0-5": 20,
+    "5-15": 20,
+    "15-30": 3,
+    "30-60": 2,
+    "60+": 24
+  }
+}

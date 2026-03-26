@@ -1,0 +1,163 @@
+{
+  "generated_at_utc": "2026-03-26T16:21:25.608685+00:00",
+  "repo_root": "C:\\Dev\\stock-bot",
+  "endpoints": [
+    {
+      "path": "/api/version",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/versions",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/ping",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/direction_banner",
+      "status": 200,
+      "error": null,
+      "summary": {
+        "message": "Direction banner unavailable"
+      }
+    },
+    {
+      "path": "/api/situation",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/positions",
+      "status": 200,
+      "error": null,
+      "summary": {
+        "positions_count": 0,
+        "error": "Alpaca API not connected"
+      }
+    },
+    {
+      "path": "/api/stockbot/closed_trades",
+      "status": 200,
+      "error": null,
+      "summary": {
+        "closed_trades_count": 174
+      }
+    },
+    {
+      "path": "/api/stockbot/fast_lane_ledger",
+      "status": 200,
+      "error": null,
+      "summary": {
+        "cycles_count": 1
+      }
+    },
+    {
+      "path": "/api/sre/health",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/sre/self_heal_events?limit=5",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/executive_summary",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/failure_points",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/signal_history",
+      "status": 200,
+      "error": null,
+      "summary": {
+        "signals_count": 0
+      }
+    },
+    {
+      "path": "/api/learning_readiness",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/profitability_learning",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/dashboard/data_integrity",
+      "status": 200,
+      "error": null,
+      "summary": {
+        "generated_at_utc": "2026-03-26T16:21:30.845545+00:00",
+        "LEARNING_STATUS": "BLOCKED",
+        "trades_complete": 0
+      }
+    },
+    {
+      "path": "/api/telemetry/latest/index",
+      "status": 200,
+      "error": null,
+      "summary": {
+        "as_of_ts": "2026-03-26T16:21:30.860307+00:00",
+        "latest_date": "2026-02-04"
+      }
+    },
+    {
+      "path": "/api/telemetry/latest/health",
+      "status": 200,
+      "error": null,
+      "summary": {
+        "as_of_ts": "2026-03-26T16:21:30.862378+00:00",
+        "latest_date": "2026-02-04"
+      }
+    },
+    {
+      "path": "/api/telemetry/latest/computed?name=live_vs_shadow_pnl",
+      "status": 200,
+      "error": null,
+      "summary": {
+        "as_of_ts": "2026-03-26T16:21:30.864345+00:00",
+        "latest_date": "2026-02-04",
+        "error": "computed artifact missing: live_vs_shadow_pnl.json"
+      }
+    },
+    {
+      "path": "/api/paper-mode-intel-state",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/xai/auditor",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    },
+    {
+      "path": "/api/xai/health",
+      "status": 200,
+      "error": null,
+      "summary": {}
+    }
+  ]
+}

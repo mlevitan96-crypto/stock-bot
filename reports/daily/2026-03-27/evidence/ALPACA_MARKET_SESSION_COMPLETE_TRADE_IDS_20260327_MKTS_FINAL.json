@@ -1,0 +1,12 @@
+{
+  "session_date_et": "2026-03-26",
+  "window_start_epoch_utc": 1774531800.0,
+  "window_end_epoch_utc": 1774555200.0,
+  "trades_seen": 2,
+  "trades_complete": 2,
+  "complete_trade_ids": [
+    "open_MKT1_2026-03-26T14:00:00+00:00",
+    "open_MKT2_2026-03-26T15:30:00+00:00"
+  ],
+  "source": "workspace_session_demo_fixture"
+}

@@ -1,0 +1,17 @@
+{
+  "date": "2026-03-10",
+  "verdict": "REVERT",
+  "rationale": "Realized loss beyond threshold; revert exit overlay.",
+  "realized_pnl": -21.9457,
+  "criteria_used": [
+    "realized_pnl",
+    "would_have_pnl",
+    "exit_latency",
+    "tail_risk"
+  ],
+  "results_summary": {
+    "executed_count": 163,
+    "blocked_count": 2000,
+    "selected_parameter": "exit_weight:+0.15"
+  }
+}

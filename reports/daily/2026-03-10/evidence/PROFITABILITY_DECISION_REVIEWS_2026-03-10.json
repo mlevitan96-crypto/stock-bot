@@ -1,0 +1,121 @@
+{
+  "mode": "proposal",
+  "input_path": "reports\\board\\PROFITABILITY_EVIDENCE_SNAPSHOT_2026-03-10.md",
+  "personas": [
+    "CSA",
+    "SRE",
+    "QUANT",
+    "RISK",
+    "ADVERSARIAL",
+    "BOARD"
+  ],
+  "reviews": {
+    "CSA": {
+      "verdict": "PASS",
+      "summary": "Proposal review for CSA; 3 questions.",
+      "questions": [
+        "Given the evidence, what single action most increases near-term profitability?",
+        "What is the primary risk of this action and how do we cap it?",
+        "What should we explicitly NOT do right now?"
+      ],
+      "answers": [
+        "[CSA] Stub critique: Given the evidence, what single action most increa...",
+        "[CSA] Stub critique: What is the primary risk of this action and how do...",
+        "[CSA] Stub critique: What should we explicitly NOT do right now?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    },
+    "SRE": {
+      "verdict": "PASS",
+      "summary": "Proposal review for SRE; 3 questions.",
+      "questions": [
+        "Given the evidence, what single action most increases near-term profitability?",
+        "What is the primary risk of this action and how do we cap it?",
+        "What should we explicitly NOT do right now?"
+      ],
+      "answers": [
+        "[SRE] Stub critique: Given the evidence, what single action most increa...",
+        "[SRE] Stub critique: What is the primary risk of this action and how do...",
+        "[SRE] Stub critique: What should we explicitly NOT do right now?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    },
+    "QUANT": {
+      "verdict": "PASS",
+      "summary": "Proposal review for QUANT; 3 questions.",
+      "questions": [
+        "Given the evidence, what single action most increases near-term profitability?",
+        "What is the primary risk of this action and how do we cap it?",
+        "What should we explicitly NOT do right now?"
+      ],
+      "answers": [
+        "[QUANT] Stub critique: Given the evidence, what single action most increa...",
+        "[QUANT] Stub critique: What is the primary risk of this action and how do...",
+        "[QUANT] Stub critique: What should we explicitly NOT do right now?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    },
+    "RISK": {
+      "verdict": "PASS",
+      "summary": "Proposal review for RISK; 3 questions.",
+      "questions": [
+        "Given the evidence, what single action most increases near-term profitability?",
+        "What is the primary risk of this action and how do we cap it?",
+        "What should we explicitly NOT do right now?"
+      ],
+      "answers": [
+        "[RISK] Stub critique: Given the evidence, what single action most increa...",
+        "[RISK] Stub critique: What is the primary risk of this action and how do...",
+        "[RISK] Stub critique: What should we explicitly NOT do right now?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    },
+    "ADVERSARIAL": {
+      "verdict": "PASS",
+      "summary": "Proposal review for ADVERSARIAL; 3 questions.",
+      "questions": [
+        "Given the evidence, what single action most increases near-term profitability?",
+        "What is the primary risk of this action and how do we cap it?",
+        "What should we explicitly NOT do right now?"
+      ],
+      "answers": [
+        "[ADVERSARIAL] Stub critique: Given the evidence, what single action most increa...",
+        "[ADVERSARIAL] Stub critique: What is the primary risk of this action and how do...",
+        "[ADVERSARIAL] Stub critique: What should we explicitly NOT do right now?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    },
+    "BOARD": {
+      "verdict": "PASS",
+      "summary": "Proposal review for BOARD; 3 questions.",
+      "questions": [
+        "Given the evidence, what single action most increases near-term profitability?",
+        "What is the primary risk of this action and how do we cap it?",
+        "What should we explicitly NOT do right now?"
+      ],
+      "answers": [
+        "[BOARD] Stub critique: Given the evidence, what single action most increa...",
+        "[BOARD] Stub critique: What is the primary risk of this action and how do...",
+        "[BOARD] Stub critique: What should we explicitly NOT do right now?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": ""
+    }
+  },
+  "review_questions": [
+    "Given the evidence, what single action most increases near-term profitability?",
+    "What is the primary risk of this action and how do we cap it?",
+    "What should we explicitly NOT do right now?"
+  ]
+}

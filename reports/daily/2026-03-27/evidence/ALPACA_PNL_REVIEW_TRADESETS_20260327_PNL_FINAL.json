@@ -1,0 +1,50 @@
+{
+  "ts": "20260327_PNL_FINAL",
+  "today_utc_date": "2026-03-26",
+  "certified_window_label": "EXECUTED_QUALIFIED_LAST_WINDOW",
+  "forward_truth_ref": "C:\\Dev\\stock-bot\\reports\\ALPACA_LAST_WINDOW_TRUTH_20260327_LAST_WINDOW.json",
+  "cert_ok": true,
+  "trades_incomplete": 0,
+  "forward_trades_complete": 44,
+  "EXECUTED_QUALIFIED_TODAY": {
+    "note": "Mission 'today' interpreted as certified last-window cohort on session date 2026-03-26 ET; full UTC-day enumeration requires droplet logs + daily window gate.",
+    "trade_ids": [],
+    "count": 0,
+    "sample_trade_ids_only": [
+      "open_AMD_2026-03-26T18:28:37.680805+00:00",
+      "open_C_2026-03-26T18:36:24.522943+00:00",
+      "open_INTC_2026-03-26T18:28:53.218240+00:00"
+    ],
+    "sample_note": "sample_only_from_chain_matrices_complete_sample"
+  },
+  "BLOCKED_TODAY": {
+    "note": "Blocked / rejected intents require `logs/run.jsonl` trade_intent with decision_outcome != entered; not present in this workspace snapshot.",
+    "trade_ids": []
+  },
+  "SHADOW_WOULD_HAVE_TODAY": {
+    "note": "Shadow / counterfactual requires `replay/alpaca_truth_warehouse_*/decision_ledger.jsonl.gz` or `shadow.jsonl` slice; workspace replay bundles are empty stubs.",
+    "trade_ids": []
+  },
+  "blockers": [
+    {
+      "id": "B1",
+      "field": "complete_trade_ids",
+      "detail": "artifact lacks full enumeration: have 0 ids, expected 44 (re-run forward truth runner with collect_complete_trade_ids; see telemetry gate + scripts/audit/alpaca_forward_truth_contract_runner.py)."
+    },
+    {
+      "id": "B3",
+      "field": "execution_joined.jsonl.gz",
+      "detail": "replay_bundle_empty_or_tiny_bytes=48"
+    },
+    {
+      "id": "B3",
+      "field": "fills.jsonl.gz",
+      "detail": "replay_bundle_empty_or_tiny_bytes=37"
+    },
+    {
+      "id": "B4",
+      "field": "workspace_exit_attribution_window",
+      "detail": "local logs/exit_attribution.jsonl has 0 exits in [1774548000.0,1774555200.0] but certified JSON claims n=44 \u2014 droplet slice not in workspace."
+    }
+  ]
+}

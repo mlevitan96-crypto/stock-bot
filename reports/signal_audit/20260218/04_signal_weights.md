@@ -1,5 +1,0 @@
-# 04 Signal weights
-
-```
-{}
-```

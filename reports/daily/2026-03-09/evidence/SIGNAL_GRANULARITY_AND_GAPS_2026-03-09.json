@@ -1,0 +1,28 @@
+{
+  "audit_date": "2026-03-09",
+  "description": "Signal granularity and blind spots. For each signal: granular_enough, observable_at_decision_time, explains_why_trade_worked_or_failed. Plus: too_coarse, exist_but_not_logged, should_exist_but_missing.",
+  "signals_assessed": [
+    {"signal_name": "UW", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "UW sub-fields in exit_decision_trace; imbalance/velocity often 0 (optional)."},
+    {"signal_name": "UW_flow", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "flow_strength in trace; conviction/sentiment in enriched, flow_reversal in exit_conditions."},
+    {"signal_name": "UW_dark_pool", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "dark_pool in trace; notional in enriched, not in trace."},
+    {"signal_name": "UW_imbalance", "granular_enough": false, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": false, "logged_in_trace": true, "gap_notes": "Trace has imbalance (often 0); put_call_skew/net_premium not in trace. Coarse."},
+    {"signal_name": "UW_velocity", "granular_enough": false, "observable_at_decision_time": false, "explains_why_trade_worked_or_failed": false, "logged_in_trace": true, "gap_notes": "Velocity not computed; trace has 0. Should exist for flow momentum."},
+    {"signal_name": "momentum", "granular_enough": false, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "Trace signals.momentum is {}; ExitSignalModel uses momentum but not written to trace. Exist but not logged in trace."},
+    {"signal_name": "volatility", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "realized_vol_20d, realized_vol_5d in trace. Beta not in trace."},
+    {"signal_name": "trend", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "regime, sector in trace."},
+    {"signal_name": "composite_score", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "composite_score, signal_decay in trace."},
+    {"signal_name": "signal_decay", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "In trace and exit_conditions."},
+    {"signal_name": "flow_reversal", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "exit_conditions.flow_reversal."},
+    {"signal_name": "stale_alpha", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "exit_conditions.stale_alpha; hold_minutes in trace."},
+    {"signal_name": "risk_stop", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "exit_conditions.risk_stop."},
+    {"signal_name": "time_of_day", "granular_enough": false, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": false, "logged_in_trace": false, "gap_notes": "Derivable from ts; not a first-class signal. Should exist for session-segment analysis."},
+    {"signal_name": "liquidity", "granular_enough": false, "observable_at_decision_time": false, "explains_why_trade_worked_or_failed": false, "logged_in_trace": false, "gap_notes": "Should exist but missing. Spread, depth, volume at order not captured."},
+    {"signal_name": "correlation_crowding", "granular_enough": false, "observable_at_decision_time": false, "explains_why_trade_worked_or_failed": false, "logged_in_trace": false, "gap_notes": "Signal correlation cache exists; not in trace. Crowding metric missing."},
+    {"signal_name": "macro_calendar", "granular_enough": false, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": false, "logged_in_trace": false, "gap_notes": "Calendar in UW enriched; not in exit_decision_trace. Coarse in composite."},
+    {"signal_name": "positioning_flow", "granular_enough": true, "observable_at_decision_time": true, "explains_why_trade_worked_or_failed": true, "logged_in_trace": true, "gap_notes": "UW flow is positioning/flow proxy; in trace."}
+  ],
+  "too_coarse": ["UW_imbalance", "UW_velocity", "time_of_day", "macro_calendar"],
+  "exist_but_not_logged_in_trace": ["momentum (magnitude/reversal)", "beta_vs_spy", "dark_pool notional"],
+  "should_exist_but_missing": ["liquidity", "correlation_crowding", "UW_velocity (flow change rate)", "vol_of_vol", "session_segment"],
+  "fail_closed_status": "PASS — All exit-contributing signals in registry appear in exit_decision_trace or exit_conditions. Gaps are explainability enhancements, not decision-affecting omissions."
+}

@@ -1,0 +1,37 @@
+{
+  "angle": 3,
+  "n": 3,
+  "hypothesis": "Gate false negatives: blocked trades with shadow-positive EV cluster by veto code.",
+  "fields": [
+    "block_reason",
+    "shadow_pnl_or_path_pnl",
+    "symbol",
+    "score_at_decision"
+  ],
+  "metric": "Sum opportunity cost by veto \u00d7 score decile",
+  "decision": "Relax specific veto when shadow EV positive with bounded notional.",
+  "status": "BLOCKED_NO_ROWS",
+  "n_rows": 0,
+  "blockers": [
+    {
+      "id": "B1",
+      "field": "complete_trade_ids",
+      "detail": "artifact lacks full enumeration: have 0 ids, expected 44 (re-run forward truth runner with collect_complete_trade_ids; see telemetry gate + scripts/audit/alpaca_forward_truth_contract_runner.py)."
+    },
+    {
+      "id": "B3",
+      "field": "execution_joined.jsonl.gz",
+      "detail": "replay_bundle_empty_or_tiny_bytes=48"
+    },
+    {
+      "id": "B3",
+      "field": "fills.jsonl.gz",
+      "detail": "replay_bundle_empty_or_tiny_bytes=37"
+    },
+    {
+      "id": "B4",
+      "field": "workspace_exit_attribution_window",
+      "detail": "local logs/exit_attribution.jsonl has 0 exits in [1774548000.0,1774555200.0] but certified JSON claims n=44 \u2014 droplet slice not in workspace."
+    }
+  ]
+}

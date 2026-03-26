@@ -1,0 +1,152 @@
+{
+  "_meta": {
+    "mission": "ALPACA_QUANT_CAUSALITY_PROFIT_DISCOVERY",
+    "phase": 4,
+    "schema_version": "1.0",
+    "generated_at": "2026-03-19T02:29:13.764951+00:00",
+    "data_source": "c:\\Dev\\stock-bot\\reports\\alpaca_edge_2000_20260317_1721\\TRADES_FROZEN.csv"
+  },
+  "strategies": [
+    {
+      "strategy_id": "all",
+      "filters": {},
+      "total_pnl": 63000.0,
+      "trades": 36,
+      "expectancy": 1750.0
+    },
+    {
+      "strategy_id": "entry_regime=NEUTRAL",
+      "filters": {
+        "entry_regime": "NEUTRAL"
+      },
+      "total_pnl": 63000.0,
+      "trades": 36,
+      "expectancy": 1750.0
+    },
+    {
+      "strategy_id": "exit_regime=NEUTRAL",
+      "filters": {
+        "exit_regime": "NEUTRAL"
+      },
+      "total_pnl": 63000.0,
+      "trades": 36,
+      "expectancy": 1750.0
+    },
+    {
+      "strategy_id": "side=long",
+      "filters": {
+        "side": "long"
+      },
+      "total_pnl": 63000.0,
+      "trades": 36,
+      "expectancy": 1750.0
+    },
+    {
+      "strategy_id": "entry_regime=NEUTRAL|side=long",
+      "filters": {
+        "entry_regime": "NEUTRAL",
+        "side": "long"
+      },
+      "total_pnl": 63000.0,
+      "trades": 36,
+      "expectancy": 1750.0
+    }
+  ],
+  "summary": {
+    "total_strategies_evaluated": 5,
+    "total_pnl": 63000.0,
+    "top_by_pnl": [
+      {
+        "strategy_id": "all",
+        "filters": {},
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      },
+      {
+        "strategy_id": "entry_regime=NEUTRAL",
+        "filters": {
+          "entry_regime": "NEUTRAL"
+        },
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      },
+      {
+        "strategy_id": "exit_regime=NEUTRAL",
+        "filters": {
+          "exit_regime": "NEUTRAL"
+        },
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      },
+      {
+        "strategy_id": "side=long",
+        "filters": {
+          "side": "long"
+        },
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      },
+      {
+        "strategy_id": "entry_regime=NEUTRAL|side=long",
+        "filters": {
+          "entry_regime": "NEUTRAL",
+          "side": "long"
+        },
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      }
+    ],
+    "top_by_expectancy": [
+      {
+        "strategy_id": "all",
+        "filters": {},
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      },
+      {
+        "strategy_id": "entry_regime=NEUTRAL",
+        "filters": {
+          "entry_regime": "NEUTRAL"
+        },
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      },
+      {
+        "strategy_id": "exit_regime=NEUTRAL",
+        "filters": {
+          "exit_regime": "NEUTRAL"
+        },
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      },
+      {
+        "strategy_id": "side=long",
+        "filters": {
+          "side": "long"
+        },
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      },
+      {
+        "strategy_id": "entry_regime=NEUTRAL|side=long",
+        "filters": {
+          "entry_regime": "NEUTRAL",
+          "side": "long"
+        },
+        "total_pnl": 63000.0,
+        "trades": 36,
+        "expectancy": 1750.0
+      }
+    ],
+    "deduplicated_count": 5
+  }
+}

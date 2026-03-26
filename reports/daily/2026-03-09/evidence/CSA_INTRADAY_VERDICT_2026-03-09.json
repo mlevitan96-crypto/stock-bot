@@ -1,0 +1,22 @@
+{
+  "date": "2026-03-09",
+  "verdict": "EXIT_TIMING_PRIMARY",
+  "had_portfolio_edge": true,
+  "peak_unrealized_usd": 50.8495,
+  "classification_summary": {
+    "total_trades": 174,
+    "never_green": 52,
+    "green_reversal": 22,
+    "eligible_but_late": 56,
+    "eligible_and_timely": 13,
+    "no_trace": 31,
+    "ambiguous_trace": 0
+  },
+  "why_not_captured": [
+    "exit eligibility lag (ELIGIBLE_BUT_LATE)",
+    "reversal before eligibility (GREEN_REVERSAL)",
+    "many trades never went green (52/174)"
+  ],
+  "blocked_count": 2000,
+  "data_integrity_fail_closed": false
+}

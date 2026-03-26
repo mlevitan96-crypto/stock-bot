@@ -1,0 +1,13 @@
+{
+  "date": "2026-03-09",
+  "exit_decision_trace_exists": true,
+  "exit_decision_trace_size": 2546186,
+  "exit_attribution_exists": true,
+  "exit_attribution_today_count": 174,
+  "exit_decision_trace_today_samples": 3980,
+  "blocked_trades_exists": true,
+  "blocked_trades_today_count": 2000,
+  "fail_closed": false,
+  "source": "droplet",
+  "run": "scripts/audit/run_intraday_forensic_on_droplet.py --date 2026-03-09"
+}

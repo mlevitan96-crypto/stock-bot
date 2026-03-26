@@ -1,0 +1,23 @@
+{
+  "signal_names": [
+    "ns_pnl_norm",
+    "ns_raw_pnl",
+    "sv_signal_decay",
+    "sv_unknown"
+  ],
+  "method": "hierarchical",
+  "threshold": 0.7,
+  "clusters": [
+    [
+      "ns_pnl_norm",
+      "ns_raw_pnl"
+    ],
+    [
+      "sv_signal_decay"
+    ],
+    [
+      "sv_unknown"
+    ]
+  ],
+  "cluster_count": 3
+}

@@ -1,0 +1,74 @@
+{
+  "mode": "paper",
+  "contract_path": "C:\\Dev\\stock-bot\\reports\\audit\\CSA_TRUE_REPLAY_CONTRACT_2026-03-10.json",
+  "sre_scan_path": "C:\\Dev\\stock-bot\\reports\\audit\\SRE_LEDGER_EMISSION_SCAN_2026-03-10.json",
+  "emission_points": [
+    "C:\\Dev\\stock-bot\\scripts\\audit\\reconstruct_full_trade_ledger.py",
+    "C:\\Dev\\stock-bot\\scripts\\counter_intel\\merge_counter_intel_into_ledger.py",
+    "C:\\Dev\\stock-bot\\dashboard.py",
+    "C:\\Dev\\stock-bot\\main.py",
+    "C:\\Dev\\stock-bot\\scripts\\adjustment_chain_forensics.py",
+    "C:\\Dev\\stock-bot\\scripts\\score_autopsy_from_ledger.py",
+    "C:\\Dev\\stock-bot\\scripts\\update_profitability_cockpit.py",
+    "C:\\Dev\\stock-bot\\scripts\\uw_experiment_summary.py",
+    "C:\\Dev\\stock-bot\\shadow\\shadow_pnl_engine.py",
+    "C:\\Dev\\stock-bot\\scripts\\audit\\build_weekly_trade_decision_ledger.py",
+    "C:\\Dev\\stock-bot\\scripts\\audit\\collect_weekly_droplet_evidence.py",
+    "C:\\Dev\\stock-bot\\scripts\\audit\\run_csa_weekly_review.py",
+    "C:\\Dev\\stock-bot\\scripts\\audit\\run_full_day_trading_intelligence_audit_on_droplet.py",
+    "C:\\Dev\\stock-bot\\scripts\\audit\\verify_trade_ledger_integrity.py",
+    "C:\\Dev\\stock-bot\\scripts\\audit\\write_weekly_persona_memos.py",
+    "C:\\Dev\\stock-bot\\scripts\\board\\compile_profitability_evidence.py",
+    "C:\\Dev\\stock-bot\\scripts\\board\\generate_day_board_packet.py",
+    "C:\\Dev\\stock-bot\\scripts\\counter_intel\\emit_counter_intel_events.py",
+    "C:\\Dev\\stock-bot\\scripts\\counter_intel\\enrich_counter_intel_events.py",
+    "C:\\Dev\\stock-bot\\scripts\\csa\\analyze_counter_intel_impact.py",
+    "C:\\Dev\\stock-bot\\scripts\\csa\\analyze_decision_quality.py",
+    "C:\\Dev\\stock-bot\\scripts\\csa\\assert_counter_intel_present.py",
+    "C:\\Dev\\stock-bot\\scripts\\csa\\render_execution_verdict.py",
+    "C:\\Dev\\stock-bot\\scripts\\experiments\\select_exit_aggression_params.py",
+    "C:\\Dev\\stock-bot\\scripts\\ideas\\harvest_promotion_candidates.py",
+    "C:\\Dev\\stock-bot\\scripts\\runtime\\apply_ledger_schema_patch.py",
+    "C:\\Dev\\stock-bot\\scripts\\runtime\\collect_exit_experiment_metrics.py",
+    "C:\\Dev\\stock-bot\\scripts\\runtime\\patch_ledger_schema_add_replay_fields.py",
+    "C:\\Dev\\stock-bot\\scripts\\shadow\\backfill_replay_artifacts.py",
+    "C:\\Dev\\stock-bot\\scripts\\shadow\\discover_replay_artifacts.py",
+    "C:\\Dev\\stock-bot\\scripts\\shadow\\init_shadow_replay_harness.py"
+  ],
+  "fields_to_add": [
+    {
+      "key": "signal_vectors",
+      "type": "array",
+      "description": "Per-signal contribution vector for rescoring"
+    },
+    {
+      "key": "normalized_scores",
+      "type": "object",
+      "description": "Normalized score components [-1,1]"
+    },
+    {
+      "key": "entry_ts",
+      "type": "integer",
+      "description": "Unix timestamp"
+    },
+    {
+      "key": "exit_ts",
+      "type": "integer",
+      "description": "Unix timestamp"
+    },
+    {
+      "key": "exit_reason",
+      "type": "string",
+      "description": "Exit reason code"
+    },
+    {
+      "key": "entry_reason",
+      "type": "string",
+      "description": "Entry reason code"
+    }
+  ],
+  "apply_to": [
+    "executed",
+    "blocked"
+  ]
+}

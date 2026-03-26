@@ -1,0 +1,52 @@
+{
+  "clusters_path": "C:\\Dev\\stock-bot\\reports\\shadow\\clusters\\SIGNAL_CLUSTERS_2026-03-10.json",
+  "signal_matrices_path": "C:\\Dev\\stock-bot\\reports\\shadow\\correlation\\SIGNAL_MATRICES_2026-03-10.json",
+  "conditional_importance": [
+    {
+      "cluster": [
+        "ns_pnl_norm",
+        "ns_raw_pnl"
+      ],
+      "importance_win": {
+        "ns_pnl_norm": 0.06950775086134842,
+        "ns_raw_pnl": 1.0531934507042229
+      },
+      "importance_lose": {
+        "ns_pnl_norm": 0.053001189151476606,
+        "ns_raw_pnl": 1.0513305434782612
+      },
+      "mean_abs": {
+        "ns_pnl_norm": 0.061254470006412515,
+        "ns_raw_pnl": 1.0522619970912421
+      }
+    },
+    {
+      "cluster": [
+        "sv_signal_decay"
+      ],
+      "importance_win": {
+        "sv_signal_decay": 0.5335211267605634
+      },
+      "importance_lose": {
+        "sv_signal_decay": 0.6895652173913043
+      },
+      "mean_abs": {
+        "sv_signal_decay": 0.6115431720759339
+      }
+    },
+    {
+      "cluster": [
+        "sv_unknown"
+      ],
+      "importance_win": {
+        "sv_unknown": 0.0
+      },
+      "importance_lose": {
+        "sv_unknown": 0.0
+      },
+      "mean_abs": {
+        "sv_unknown": 0.0
+      }
+    }
+  ]
+}

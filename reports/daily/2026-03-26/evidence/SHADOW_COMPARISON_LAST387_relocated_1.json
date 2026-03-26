@@ -1,0 +1,137 @@
+{
+  "generated_ts": "2026-03-05T00:09:01.482951+00:00",
+  "baseline_scope": "last-387",
+  "shadows": {
+    "A1_shadow": {
+      "shadow_id": "A1_shadow",
+      "name": "Relax displacement_blocked",
+      "run_ts": "2026-03-04T23:39:38.247760+00:00",
+      "would_admit_count": 963,
+      "proxy_pnl_delta": -75.4,
+      "proxy_pnl_delta_label": "proxy",
+      "win_rate_delta": null,
+      "tail_risk_notes": [
+        "Relaxing displacement may increase drawdown; capacity unchanged."
+      ],
+      "cohort": "last-387"
+    },
+    "A2_shadow": {
+      "shadow_id": "A2_shadow",
+      "name": "Relax max_positions_reached",
+      "run_ts": "2026-03-04T23:39:38.311129+00:00",
+      "would_admit_count": 585,
+      "proxy_pnl_delta": -45.8,
+      "proxy_pnl_delta_label": "proxy",
+      "win_rate_delta": null,
+      "tail_risk_notes": [
+        "Increases concentration; regulatory/risk limit exposure."
+      ],
+      "cohort": "last-387"
+    },
+    "A3_shadow": {
+      "scenario_id": "A3",
+      "name": "Lower expectancy score floor (shadow only)",
+      "run_ts": "2026-03-04T23:39:38.631448+00:00",
+      "since_hours": 720.0,
+      "baseline_floor": 2.5,
+      "delta_one_notch": 0.5,
+      "effective_floor_shadow": 2.0,
+      "blocked_in_window": 2000,
+      "floor_breach_count": 151,
+      "additional_admitted_trades": 151,
+      "estimated_pnl_delta_usd": -11.82,
+      "estimated_pnl_delta_label": "proxy",
+      "win_rate_delta": null,
+      "tail_risk_notes": [
+        "Admitting more low-score trades may increase loss concentration; monitor worst-N if promoted to live.",
+        "Would-admit score range: 2.18\u20132.70 (effective_floor=2.0)."
+      ],
+      "avg_pnl_per_exit_proxy": -0.0783,
+      "shadow_only": true,
+      "no_live_execution_change": true,
+      "shadow_id": "A3_shadow",
+      "would_admit_count": 151,
+      "proxy_pnl_delta": -11.82,
+      "proxy_pnl_delta_label": "proxy"
+    },
+    "B1_shadow": {
+      "shadow_id": "B1_shadow",
+      "name": "Extend minimum hold +15 min",
+      "run_ts": "2026-03-04T23:39:38.828809+00:00",
+      "would_admit_count": 260,
+      "proxy_pnl_delta": 21.09,
+      "proxy_pnl_delta_label": "proxy",
+      "win_rate_delta": null,
+      "tail_risk_notes": [
+        "Extending min hold may increase drawdown in fast reversals."
+      ],
+      "cohort": "last-387"
+    },
+    "B2_shadow": {
+      "shadow_id": "B2_shadow",
+      "name": "Remove early signal_decay exits",
+      "run_ts": "2026-03-04T23:39:38.991994+00:00",
+      "would_admit_count": 335,
+      "proxy_pnl_delta": 27.18,
+      "proxy_pnl_delta_label": "proxy",
+      "win_rate_delta": null,
+      "tail_risk_notes": [
+        "Removing early decay may hold losers longer."
+      ],
+      "cohort": "last-387"
+    },
+    "C2_shadow": {
+      "shadow_id": "C2_shadow",
+      "name": "Good vetoes vs missed winners",
+      "run_ts": "2026-03-04T23:39:39.077541+00:00",
+      "would_admit_count": 1764,
+      "proxy_pnl_delta": -138.11,
+      "proxy_pnl_delta_label": "proxy",
+      "win_rate_delta": null,
+      "tail_risk_notes": [
+        "Full C2 requires estimate_blocked_outcome per block; this is proxy by reason count * baseline avg PnL."
+      ],
+      "cohort": "last-387",
+      "block_reason_counts": {
+        "displacement_blocked": 963,
+        "max_positions_reached": 585,
+        "expectancy_blocked:score_floor_breach": 141,
+        "order_validation_failed": 59,
+        "max_new_positions_per_cycle": 16
+      },
+      "opportunity_cost_proxy_by_reason": {
+        "displacement_blocked": -75.4,
+        "max_positions_reached": -45.8,
+        "expectancy_blocked:score_floor_breach": -11.04,
+        "order_validation_failed": -4.62,
+        "max_new_positions_per_cycle": -1.25
+      }
+    }
+  },
+  "ranked_by_expected_improvement": [
+    "B2_shadow",
+    "B1_shadow",
+    "A3_shadow",
+    "A2_shadow",
+    "A1_shadow",
+    "C2_shadow"
+  ],
+  "risk_flags": {
+    "A1_shadow": "Displacement relaxation increases exposure.",
+    "A2_shadow": "Max positions increase concentration risk.",
+    "A3_shadow": "Lower score floor may admit worse entries.",
+    "B1_shadow": "Min hold extension may increase drawdown in fast reversals.",
+    "B2_shadow": "Removing early signal_decay may hold losers longer.",
+    "C2_shadow": "Full C2 requires per-block outcome; proxy only."
+  },
+  "nomination": "Advance to live paper test",
+  "advance_to_live_paper_test_candidate": "B2_shadow",
+  "stability_notes": "Signal consistency across time windows TBD; last-387 is governing cohort.",
+  "persona_verdicts": {
+    "adversarial": "SHADOW_COMPARISON_LAST387 ranks shadows by proxy delta. Recommend advancing B2_shadow only if shadow is least negative and tail-risk acceptable. Others: wait or discard.",
+    "quant": "Ranking by expected improvement (proxy). Advance B2_shadow to live paper test; validate with backtest. Others hold until more data.",
+    "product_operator": "Use comparison to pick ONE shadow for next live paper test: B2_shadow. Others wait for product prioritization.",
+    "risk": "Risk flags per shadow in comparison. Advance only B2_shadow if risk signs off. Others hold or discard.",
+    "execution_sre": "Advance B2_shadow only after SRE confirms rollback procedure. Others: hold."
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "blocked": true,
+  "reason": "True replay artifacts missing",
+  "note": "Promotion from shadow shortlist blocked until true replay artifacts exist and CSA verdict is TRUE_REPLAY_POSSIBLE."
+}

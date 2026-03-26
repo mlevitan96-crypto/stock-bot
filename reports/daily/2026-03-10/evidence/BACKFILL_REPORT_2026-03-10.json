@@ -1,0 +1,13 @@
+{
+  "ledger_dir": "reports\\ledger",
+  "output_dir": "C:\\Dev\\stock-bot\\reports\\shadow\\backfill",
+  "backfilled": [
+    {
+      "source": "reports\\ledger\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "dest": "reports\\shadow\\backfill\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "executed": 163,
+      "blocked": 2000
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,156 @@
+{
+  "cover": {
+    "title": "Alpaca Tier 3 Board Review",
+    "generated_ts": "2026-03-16T021929Z",
+    "base_dir": "C:\\Dev\\stock-bot",
+    "inputs_present": {
+      "comprehensive_review": true,
+      "shadow_comparison": true,
+      "weekly_ledger": false,
+      "csa_verdict_latest": true,
+      "sre_status": true
+    },
+    "input_mtimes_utc": {
+      "last_review": "2026-03-13T22:17:00.764150+00:00",
+      "shadow_comparison": "2026-03-05T00:09:11.319371+00:00",
+      "weekly_ledger": null,
+      "csa_verdict_latest": "2026-03-13T22:28:27.535206+00:00",
+      "sre_status": "2026-03-05T21:07:05.168028+00:00"
+    }
+  },
+  "tier3_summary": {
+    "scope": "last387",
+    "window_start": "2026-03-04",
+    "window_end": "2026-03-05",
+    "total_pnl_attribution_usd": -97.76,
+    "total_pnl_exit_attribution_usd": -97.87,
+    "win_rate": 0.2002,
+    "total_exits": 387,
+    "total_trades": 809,
+    "blocked_total": 2287,
+    "shadow_nomination": "Advance to live paper test",
+    "shadow_advance_candidate": null,
+    "csa_verdict": "HOLD",
+    "csa_confidence": "LOW"
+  },
+  "executed_attribution": {
+    "pnl": {
+      "total_pnl_attribution_usd": -97.76,
+      "total_pnl_exit_attribution_usd": -97.87,
+      "total_trades": 809,
+      "total_exits": 387,
+      "win_rate": 0.2002,
+      "avg_hold_minutes": 38.81
+    },
+    "by_direction": {
+      "long": {
+        "count": 213,
+        "total_pnl_usd": -114.79,
+        "win_rate": 0.3662
+      },
+      "short": {
+        "count": 143,
+        "total_pnl_usd": 27.94,
+        "win_rate": 0.5175
+      },
+      "unknown": {
+        "count": 31,
+        "total_pnl_usd": -11.02,
+        "win_rate": 0.3226
+      }
+    },
+    "canonical_logs": [
+      "logs/exit_attribution.jsonl",
+      "logs/attribution.jsonl"
+    ]
+  },
+  "blocked_counterintel": {
+    "blocked_total": 2287,
+    "blocking_patterns": {
+      "displacement_blocked": 2014,
+      "max_positions_reached": 238,
+      "expectancy_blocked:score_floor_breach": 22,
+      "order_validation_failed": 13
+    },
+    "opportunity_cost_ranked_reasons": [
+      {
+        "reason": "displacement_blocked",
+        "blocked_count": 2014,
+        "estimated_opportunity_cost_usd": -509.35,
+        "avg_score": 4.45,
+        "notes": "Proxy: uses executed-trade avg PnL per exit; not per-block outcome."
+      },
+      {
+        "reason": "max_positions_reached",
+        "blocked_count": 238,
+        "estimated_opportunity_cost_usd": -60.19,
+        "avg_score": 3.19,
+        "notes": "Proxy: uses executed-trade avg PnL per exit; not per-block outcome."
+      },
+      {
+        "reason": "expectancy_blocked:score_floor_breach",
+        "blocked_count": 22,
+        "estimated_opportunity_cost_usd": -5.56,
+        "avg_score": 2.44,
+        "notes": "Proxy: uses executed-trade avg PnL per exit; not per-block outcome."
+      },
+      {
+        "reason": "order_validation_failed",
+        "blocked_count": 13,
+        "estimated_opportunity_cost_usd": -3.29,
+        "avg_score": 4.64,
+        "notes": "Proxy: uses executed-trade avg PnL per exit; not per-block outcome."
+      }
+    ]
+  },
+  "shadow_comparison": {
+    "ranked_by_expected_improvement": [
+      "B2_shadow",
+      "B1_shadow",
+      "A3_shadow",
+      "A2_shadow",
+      "A1_shadow",
+      "C2_shadow"
+    ],
+    "nomination": "Advance to live paper test",
+    "risk_flags": {
+      "A1_shadow": "Displacement relaxation increases exposure.",
+      "A2_shadow": "Max positions increase concentration risk.",
+      "A3_shadow": "Lower score floor may admit worse entries.",
+      "B1_shadow": "Min hold extension may increase drawdown in fast reversals.",
+      "B2_shadow": "Removing early signal_decay may hold losers longer.",
+      "C2_shadow": "Full C2 requires per-block outcome; proxy only."
+    },
+    "persona_verdicts": {
+      "adversarial": "SHADOW_COMPARISON_LAST387 ranks shadows by proxy delta. Recommend advancing B2_shadow only if shadow is least negative and tail-risk acceptable. Others: wait or discard.",
+      "quant": "Ranking by expected improvement (proxy). Advance B2_shadow to live paper test; validate with backtest. Others hold until more data.",
+      "product_operator": "Use comparison to pick ONE shadow for next live paper test: B2_shadow. Others wait for product prioritization.",
+      "risk": "Risk flags per shadow in comparison. Advance only B2_shadow if risk signs off. Others hold or discard.",
+      "execution_sre": "Advance B2_shadow only after SRE confirms rollback procedure. Others: hold."
+    }
+  },
+  "learning_replay": {
+    "learning_telemetry": {
+      "total_exits_in_scope": 387,
+      "telemetry_backed": 387,
+      "pct_telemetry": 100.0,
+      "ready_for_replay": true
+    },
+    "how_to_proceed": [
+      "Replay gate met (\u2265100 exits with \u226590% telemetry in scope). Run direction replay when ready.",
+      "Review blocked trades: top reason 'displacement_blocked' (2014 blocks). Consider counter-intel report for missed opportunities.",
+      "PnL negative in scope; use board personas for top 5 recommendations (entry/exit/gates).",
+      "Board task: each persona 3 ideas \u2192 agree top 5 with owner, metric, success criteria."
+    ]
+  },
+  "sre_automation": {
+    "sre_overall_status": "OK",
+    "governance_anomalies_detected": false,
+    "sre_events_path": "reports/audit/SRE_EVENTS.jsonl",
+    "sre_events_tail_count": 0
+  },
+  "appendices_paths": [
+    "reports/POSTMARKET_*.md",
+    "reports/SHADOW_TRADING_CONFIRMATION_*.md"
+  ]
+}
