@@ -1,0 +1,192 @@
+{
+  "base_url": "http://127.0.0.1:5000",
+  "endpoints_total": 23,
+  "ok_200": 23,
+  "all_pass": true,
+  "results": [
+    {
+      "path": "/api/alpaca_operational_activity?hours=72",
+      "url": "http://127.0.0.1:5000/api/alpaca_operational_activity?hours=72",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"disclaimer\":\"Trades are executing on Alpaca. Data is NOT certified for learning or attribution.\",\"does_not_claim\":[\"learning_certification\",\"attribution_completeness\",\"broker_reconciliation\"],\"exit_attribution_rows_in_window\":692,\"fills_seen_heuristic\":521,\"generated_at_utc\":\"2026-03-26T17:43:25.027593+00:00\",\"hours\":72,\"last_entry_timestamp_utc\":\"2026-03-26T17:05:20.763885+00:00\",\"last_exit_timestamp_utc\":\"2026-03-26T17:06:29.051195+00:00\",\"ok\":true,\"orders_log\":{\"reason\":null,\"state\":\"OK\"},\"orders_rows_in_window\":4293,\"state\":\"OK\",\"trade_intent_entered_in_window\":493,\"trades_observed\":692,\"unified_entry_rows_in_window\":694,\"unified_exit_rows_in_window\":281,\"window_start_utc\":\"2026-03-23T17:43:25.027593+00:00\"}\n"
+    },
+    {
+      "path": "/api/version",
+      "url": "http://127.0.0.1:5000/api/version",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"build_time_utc\":\"2026-03-26T17:43:18.140983+00:00\",\"cwd\":\"/root/stock-bot\",\"git_commit\":\"ecc4216d420917d50f96b194c3650f33d6b65a72\",\"git_commit_short\":\"ecc4216\",\"process_start_time_utc\":\"2026-03-26T17:43:18.140983+00:00\",\"python_version\":\"3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]\",\"service\":\"stock-bot-dashboard\"}\n"
+    },
+    {
+      "path": "/api/versions",
+      "url": "http://127.0.0.1:5000/api/versions",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"live\":{\"commit\":\"ecc4216d420917d50f96b194c3650f33d6b65a72\",\"version\":\"live_v2\"},\"paper\":{\"commit\":\"ecc4216d420917d50f96b194c3650f33d6b65a72\",\"version\":\"paper_v2\"},\"shadow\":{\"commit\":\"ecc4216d420917d50f96b194c3650f33d6b65a72\",\"version\":\"shadow_v2\"}}\n"
+    },
+    {
+      "path": "/api/ping",
+      "url": "http://127.0.0.1:5000/api/ping",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"ok\":true,\"ts\":\"2026-03-26T17:43:25.780911+00:00\"}\n"
+    },
+    {
+      "path": "/api/direction_banner",
+      "url": "http://127.0.0.1:5000/api/direction_banner",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"detail\":\"unmatched '}' (direction_banner_state.py, line 99)\",\"message\":\"Direction banner unavailable\",\"severity\":\"info\",\"state\":\"WAITING\"}\n"
+    },
+    {
+      "path": "/api/situation",
+      "url": "http://127.0.0.1:5000/api/situation",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"closed_trades_count\":500,\"governance_joined_count\":100,\"open_positions_count\":32,\"promotion_reasons\":[],\"promotion_recommendation\":\"WAIT\",\"promotion_score\":null,\"trades_reviewed\":100,\"trades_reviewed_target\":100,\"trades_reviewed_total\":100}\n"
+    },
+    {
+      "path": "/api/positions",
+      "url": "http://127.0.0.1:5000/api/positions",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"day_pnl\":-178.47,\"missed_alpha_usd\":0.0,\"positions\":[{\"accrued_fees_usd\":null,\"avg_entry_price\":256.01,\"current_price\":254.4317,\"current_score\":3.546,\"current_score_likely_stale\":false,\"current_signal_evaluated\":true,\"entry_reason\":null,\"entry_reason_display\":\"INCOMPLETE\",\"entry_score\":4.0914,\"entry_ts\":\"2026-03-26T16:28:00.248422+00:00\",\"exit_reason_display\":\"\\u2014 (open position)\",\"fees_display\":\"INCOMPLETE\",\"market_value\":254.4317,\"prev_score\":3.547,\"qty\":1.0,\"row_data_source\":\"Alpaca positions API + state/position_metadata.json\",\"side\":\"short\",\"signal_delta\":-0.001,\"signal_trend\":\"flat\",\"strategy_id\":\"equity\",\"strict_alpaca_chain\":\"N/A \\u2014 strict completeness evaluates closed cohort only (open_ts floor)\",\"symbol\":\"AAPL\",\"unrealized_pnl\":1.5783,\"unrealized_pnl_pct\":0.616},{\"accrued_fees_usd\":null,\"avg_entry_price\":206.45,\"current_price\":206.15,\"current_score\":4.659,\"current_score_likely_stale\":false,\"current_signal_evaluated\":true,\"entry_reason\":null,\"entry_reason_display\":\"INCOMPLETE\",\"entry_score\":4.2957,\"entry_ts\":\"2026-03-26T16:26:21.292520+00:00\",\"exit_reason_display\":\"\\u2014 (open position)\",\"fees_display\":\"INCOMPLETE\",\"market_value\":206.15,\"prev_score\":4.66,\"qty\":1."
+    },
+    {
+      "path": "/api/stockbot/closed_trades",
+      "url": "http://127.0.0.1:5000/api/stockbot/closed_trades",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"alpaca_strict_eval_error\":null,\"alpaca_strict_summary\":{\"LEARNING_STATUS\":\"BLOCKED\",\"STRICT_EPOCH_START\":1774458080.0,\"learning_fail_closed_reason\":\"incomplete_trade_chain\",\"trades_complete\":104,\"trades_incomplete\":117,\"trades_seen\":221},\"closed_trades\":[{\"assigned\":null,\"called_away\":null,\"close_reason\":\"signal_decay(0.57)+flow_reversal\",\"data_sources\":[\"logs/attribution.jsonl\"],\"delta_at_entry\":null,\"dte\":null,\"entry_reason\":null,\"entry_reason_display\":\"INCOMPLETE\",\"entry_timestamp\":\"2026-03-26T16:32:07.568530+00:00\",\"exit_timestamp\":\"2026-03-26T17:06:29.051656+00:00\",\"expiry\":null,\"fees_display\":\"INCOMPLETE\",\"fees_usd\":null,\"option_phase\":null,\"option_type\":null,\"pnl_usd\":0.84,\"premium\":null,\"strategy_id\":\"equity\",\"strict_alpaca_chain\":\"NOT_APPLICABLE\",\"strike\":null,\"symbol\":\"PFE\",\"timestamp\":\"2026-03-26T17:06:29.051656+00:00\",\"trade_id\":\"close_PFE_2026-03-26T17:06:29.051621+00:00\"},{\"assigned\":null,\"called_away\":null,\"close_reason\":\"signal_decay(0.58)\",\"data_sources\":[\"logs/attribution.jsonl\"],\"delta_at_entry\":null,\"dte\":null,\"entry_reason\":null,\"entry_reason_display\":\"INCOMPLETE\",\"entry_timestamp\":\"2026-03-26T16:30:58.329330+00:00\",\"exit_timestamp\":\"2026-03-26T17:05:53.53997"
+    },
+    {
+      "path": "/api/stockbot/fast_lane_ledger",
+      "url": "http://127.0.0.1:5000/api/stockbot/fast_lane_ledger",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"cumulative_pnl\":-63.5771,\"cycles\":[{\"best_candidate_id\":\"UNKNOWN\",\"candidate_rankings\":[{\"id\":\"UNKNOWN\",\"pnl_usd\":28.18,\"score\":28.18}],\"cycle_id\":\"cycle_0001\",\"end_trade_id\":\"open_MS_2026-03-04T15:06:53.254043+00:00\",\"notes\":\"CSA shadow cycle; no execution impact.\",\"pnl_per_trade_usd\":1.1272,\"pnl_usd\":28.18,\"start_trade_id\":\"open_COIN_2026-03-04T14:56:38.537825+00:00\",\"timestamp_completed\":\"2026-03-14T18:00:02.323199+00:00\",\"trade_count\":25},{\"best_candidate_id\":\"UNKNOWN\",\"candidate_rankings\":[{\"id\":\"UNKNOWN\",\"pnl_usd\":-9.7787,\"score\":-9.7787}],\"cycle_id\":\"cycle_0002\",\"end_trade_id\":\"open_XLE_2026-03-04T15:16:32.491583+00:00\",\"notes\":\"CSA shadow cycle; no execution impact.\",\"pnl_per_trade_usd\":-0.3911,\"pnl_usd\":-9.7787,\"start_trade_id\":\"open_XLV_2026-03-04T15:07:22.377942+00:00\",\"timestamp_completed\":\"2026-03-14T18:15:01.957351+00:00\",\"trade_count\":25},{\"best_candidate_id\":\"UNKNOWN\",\"candidate_rankings\":[{\"id\":\"UNKNOWN\",\"pnl_usd\":7.37,\"score\":7.37}],\"cycle_id\":\"cycle_0003\",\"end_trade_id\":\"open_BAC_2026-03-04T15:20:47.164215+00:00\",\"notes\":\"CSA shadow cycle; no execution impact.\",\"pnl_per_trade_usd\":0.2948,\"pnl_usd\":7.37,\"start_trade_id\":\"open_XLK_2026-03-04T15:15:15.033678+00:00"
+    },
+    {
+      "path": "/api/sre/health",
+      "url": "http://127.0.0.1:5000/api/sre/health",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"error\":\"sre_health_timeout\",\"overall_health\":\"unknown\",\"recent_rca_fixes\":[{\"checks\":[{\"check_name\":\"uw_parser_integrity\",\"fix_applied\":null,\"fix_success\":false,\"message\":\"Parser fields present\",\"status\":\"OK\"},{\"check_name\":\"composite_weights\",\"fix_applied\":null,\"fix_success\":false,\"message\":\"Weights file exists with 21 entries\",\"status\":\"OK\"},{\"check_name\":\"entry_thresholds\",\"fix_applied\":null,\"fix_success\":false,\"message\":\"Entry thresholds OK: base=2.7\",\"status\":\"OK\"},{\"check_name\":\"freshness_scores\",\"fix_applied\":null,\"fix_success\":false,\"message\":\"Scores low: avg=1.22. Check freshness decay.\",\"status\":\"WARNING\"},{\"check_name\":\"alpaca_latency\",\"fix_applied\":null,\"fix_success\":false,\"message\":\"Alpaca latency: 90ms\",\"status\":\"OK\"},{\"check_name\":\"cache_lock\",\"fix_applied\":null,\"fix_success\":false,\"message\":\"No stale lock files\",\"status\":\"OK\"}],\"fixes_applied\":[],\"overall_status\":\"WARNING\",\"time\":\"2026-03-02T16:29:21.233989+00:00\",\"timestamp\":1772468961.2336447,\"trigger\":\"mock_signal_failure\"},{\"checks\":[{\"check_name\":\"uw_parser_integrity\",\"fix_applied\":null,\"fix_success\":false,\"message\":\"Parser fields present\",\"status\":\"OK\"},{\"check_name\":\"composite_weights\",\"fix_applied\":null,\"f"
+    },
+    {
+      "path": "/api/sre/self_heal_events?limit=5",
+      "url": "http://127.0.0.1:5000/api/sre/self_heal_events?limit=5",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"count\":0,\"events\":[]}\n"
+    },
+    {
+      "path": "/api/executive_summary",
+      "url": "http://127.0.0.1:5000/api/executive_summary",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"learning_insights\":{\"counterfactual_insights\":{\"avoided_losses\":39,\"missed_opportunities\":11,\"theoretical_pnl\":-41.71},\"daily_learnings\":[],\"weekly_learnings\":[],\"weight_adjustments\":{}},\"pnl_metrics\":{\"pnl\":-155.09,\"pnl_2d\":null,\"pnl_5d\":null,\"timeframe\":\"24h\",\"trades\":221,\"trades_2d\":null,\"trades_5d\":null,\"win_rate\":33.5,\"win_rate_2d\":null,\"win_rate_5d\":null},\"signal_analysis\":{\"all_signals\":{\"congress\":{\"avg_pnl\":-0.0,\"count\":558,\"total_pnl\":-1.87,\"win_rate\":42.5},\"dark_pool\":{\"avg_pnl\":-0.06,\"count\":1999,\"total_pnl\":-111.7,\"win_rate\":43.5},\"etf_flow\":{\"avg_pnl\":-0.01,\"count\":1999,\"total_pnl\":-25.78,\"win_rate\":43.5},\"event\":{\"avg_pnl\":-0.07,\"count\":1999,\"total_pnl\":-135.74,\"win_rate\":43.5},\"flow\":{\"avg_pnl\":-0.49,\"count\":1999,\"total_pnl\":-977.44,\"win_rate\":43.5},\"freshness_factor\":{\"avg_pnl\":-0.21,\"count\":1999,\"total_pnl\":-422.46,\"win_rate\":43.5},\"ftd_pressure\":{\"avg_pnl\":-0.01,\"count\":1999,\"total_pnl\":-25.78,\"win_rate\":43.5},\"greeks_gamma\":{\"avg_pnl\":-0.03,\"count\":1999,\"total_pnl\":-67.54,\"win_rate\":43.5},\"insider\":{\"avg_pnl\":-0.03,\"count\":1999,\"total_pnl\":-53.7,\"win_rate\":43.5},\"iv_rank\":{\"avg_pnl\":-0.01,\"count\":1999,\"total_pnl\":-26.06,\"win_rate\":43.5},\"iv_skew\":{\"avg_pnl\":-0"
+    },
+    {
+      "path": "/api/failure_points",
+      "url": "http://127.0.0.1:5000/api/failure_points",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"color\":\"yellow\",\"critical_count\":0,\"critical_fps\":[],\"failure_points\":{\"FP-1.1\":{\"category\":\"Data & Signal Generation\",\"details\":{\"running\":true},\"id\":\"FP-1.1\",\"last_check\":1774547009.5520902,\"last_error\":null,\"name\":\"UW Daemon Running\",\"self_healing_attempted\":false,\"self_healing_success\":false,\"status\":\"OK\"},\"FP-1.2\":{\"category\":\"Data & Signal Generation\",\"details\":{\"exists\":true,\"size\":6424502},\"id\":\"FP-1.2\",\"last_check\":1774547009.552177,\"last_error\":null,\"name\":\"Cache File Exists\",\"self_healing_attempted\":false,\"self_healing_success\":false,\"status\":\"OK\"},\"FP-1.3\":{\"category\":\"Data & Signal Generation\",\"details\":{\"age_minutes\":0.0047763307889302576},\"id\":\"FP-1.3\",\"last_check\":1774547009.5522017,\"last_error\":null,\"name\":\"Cache Fresh\",\"self_healing_attempted\":false,\"self_healing_success\":false,\"status\":\"OK\"},\"FP-1.4\":{\"category\":\"Data & Signal Generation\",\"details\":{\"symbol_count\":55},\"id\":\"FP-1.4\",\"last_check\":1774547009.5996578,\"last_error\":null,\"name\":\"Cache Has Symbols\",\"self_healing_attempted\":false,\"self_healing_success\":false,\"status\":\"OK\"},\"FP-1.5\":{\"category\":\"Data & Signal Generation\",\"details\":null,\"id\":\"FP-1.5\",\"last_check\":1774547009.6282668,\"last_error\":null,\"name"
+    },
+    {
+      "path": "/api/signal_history",
+      "url": "http://127.0.0.1:5000/api/signal_history",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"count\":50,\"last_signal_timestamp\":\"2026-03-26T17:43:29.638504+00:00\",\"signals\":[{\"atr_multiplier\":null,\"decision\":\"Blocked: max_one_position_per_symbol\",\"direction\":\"bullish\",\"final_score\":4.935,\"metadata\":{\"existing_side\":\"long\",\"normalized_symbol\":\"MS\"},\"momentum_pct\":0.0,\"momentum_required_pct\":0.0,\"persistence_count\":9,\"raw_score\":4.935,\"sector\":\"Financial\",\"sector_tide_count\":12,\"shadow_created\":false,\"symbol\":\"MS\",\"timestamp\":\"2026-03-26T17:43:29.638504+00:00\",\"virtual_pnl\":null,\"whale_boost\":0.5},{\"atr_multiplier\":null,\"decision\":\"Blocked: max_one_position_per_symbol\",\"direction\":\"bullish\",\"final_score\":4.942,\"metadata\":{\"existing_side\":\"long\",\"normalized_symbol\":\"XLE\"},\"momentum_pct\":0.0,\"momentum_required_pct\":0.0,\"persistence_count\":9,\"raw_score\":4.942,\"sector\":\"ETF\",\"sector_tide_count\":10,\"shadow_created\":false,\"symbol\":\"XLE\",\"timestamp\":\"2026-03-26T17:43:29.565834+00:00\",\"virtual_pnl\":null,\"whale_boost\":0.5},{\"atr_multiplier\":null,\"decision\":\"Blocked: displacement_blocked\",\"direction\":\"bullish\",\"final_score\":4.945,\"metadata\":{\"displaced_symbol\":\"AAPL\",\"policy_reason\":\"displacement_no_thesis_dominance\"},\"momentum_pct\":0.0,\"momentum_required_pct\":0.0,\"persistence_count\""
+    },
+    {
+      "path": "/api/learning_readiness",
+      "url": "http://127.0.0.1:5000/api/learning_readiness",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"all_time_exits\":2209,\"deployed_commit\":\"1bab716d51ac\",\"error\":null,\"error_code\":null,\"features_reviewed\":[\"Entry intel (premarket, futures, sector, regime at position open)\",\"Exit intel (same at close)\",\"Direction, side, position_side\",\"Sizing (qty or notional)\",\"Join key: symbol + entry_ts\"],\"fresh\":false,\"last_cron_run_iso\":\"2026-03-19T21:55:01.982679+00:00\",\"last_csa_mission_id\":\"CSA_TRADE_100_20260326-174321\",\"min_pct_telemetry\":90.0,\"ok\":true,\"pct_telemetry\":100.0,\"promotion_close_missing\":[],\"promotion_reasons\":[],\"promotion_recommendation\":\"WAIT\",\"promotion_score\":null,\"ready\":true,\"replay_status\":{\"last_run_ts\":\"2026-03-06T19:11:27.964250+00:00\",\"reason\":\"Replay pipeline completed.\",\"status\":\"SUCCESS\"},\"review_continues_after_100\":\"Yes. Every exit appends to exit_attribution; cron recomputes every 5 min.\",\"run_ts\":\"2026-03-26T17:43:29.960515+00:00\",\"still_reviewing\":true,\"target_trades\":100,\"telemetry_total\":100,\"telemetry_trades\":100,\"total_trades\":100,\"trades_until_next_csa\":97,\"update_schedule\":\"every 5 min (9\\u201321 UTC, Mon\\u2013Fri)\",\"updated_ts\":\"2026-03-19T21:55:01.982679+00:00\",\"visibility_matrix\":[{\"field\":\"intel_snapshot_entry\",\"pct\":100.0,\"present\":100,\"total"
+    },
+    {
+      "path": "/api/profitability_learning",
+      "url": "http://127.0.0.1:5000/api/profitability_learning",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"cockpit_md\":\"# Profitability Cockpit \\u2014 2026-03-06 22:06\\n\\n## 1. CSA Status\\n- **Last CSA mission:** CSA_WEEKLY_REVIEW_2026-03-06\\n- **Last CSA run:** 2026-03-06T22:05:59.319021+00:00\\n- **CSA overall status:** ok\\n- **Trades since last CSA:** 0\\n- **Trades until next CSA review:** 100\\n- **100-trade trigger wired:** yes\\n\\n## 2. Promotable Items\\n\\n- **Advance to live paper test candidate:** B2_shadow\\n- **Shadow ranking (by expected improvement):** B2_shadow, B1_shadow, A3_shadow, A2_shadow, A1_shadow, C2_shadow\\n  - B2_shadow: Remove early signal_decay exits (proxy_pnl_delta=27.18)\\n  - B1_shadow: Extend minimum hold +15 min (proxy_pnl_delta=21.09)\\n  - A3_shadow: Lower expectancy score floor (shadow only) (proxy_pnl_delta=-11.82)\\n\\n## 3. Not Promotable / Needs More Evidence\\n\\n- Board review lacks exits_in_scope or opportunity_cost_ranked_reasons.\\n\\n**Counterfactuals not tested:**\\n- Alternative time windows (7d, 14d) not compared in this run.\\n- Rollback impact (reverting B2/paper flags) not re-measured post-enable.\\n- Different exit-count cohorts (e.g. last750) not compared for stability.\\n- Shadow advance: live paper outcome vs shadow proxy not yet observed.\\n\\n## 4"
+    },
+    {
+      "path": "/api/dashboard/data_integrity",
+      "url": "http://127.0.0.1:5000/api/dashboard/data_integrity",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"alpaca_strict\":{\"AUTHORITATIVE_JOIN_KEY_RULE\":\"Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).\",\"FORWARD_CHAIN_PERFECT\":false,\"FORWARD_COHORT_VACUOUS\":false,\"FORWARD_SINCE_UTC_EPOCH\":null,\"LEARNING_STATUS\":\"BLOCKED\",\"LEGACY_DEBT_QUARANTINED_NOTE\":null,\"OPEN_TS_UTC_EPOCH\":1774458080.0,\"ROOT\":\"/root/stock-bot\",\"STRICT_EPOCH_START\":1774458080.0,\"code_structural_trade_intent_no_canonical_on_entered\":false,\"excluded_trade_ids_capped\":[\"open_AMD_2026-03-25T17:00:34.675846+00:00\",\"open_AMZN_2026-03-25T16:55:39.648677+00:00\",\"open_BA_2026-03-25T17:00:03.584932+00:00\",\"open_BAC_2026-03-25T16:52:51.211013+00:00\",\"open_COIN_2026-03-25T16:58:41.514540+00:00\",\"open_C_2026-03-25T16:58:28.765671+00:00\",\"open_LCID_2026-03-25T16:20:57.882391+00:00\",\"open_COP_2026-03-25T16:58:02.632944+00:00\",\"open_CVX_2026-03-25T16:59:07.620009+"
+    },
+    {
+      "path": "/api/telemetry/latest/index",
+      "url": "http://127.0.0.1:5000/api/telemetry/latest/index",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"as_of_ts\":\"2026-03-26T17:43:31.007513+00:00\",\"computed\":[{\"age_sec\":null,\"bytes\":0,\"filename\":\"bar_health_summary.json\",\"name\":\"bar_health_summary\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/bar_health_summary.json\",\"status\":\"missing\"},{\"age_sec\":null,\"bytes\":0,\"filename\":\"blocked_counterfactuals_summary.json\",\"name\":\"blocked_counterfactuals_summary\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/blocked_counterfactuals_summary.json\",\"status\":\"missing\"},{\"age_sec\":null,\"bytes\":0,\"filename\":\"entry_parity_details.json\",\"name\":\"entry_parity_details\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/entry_parity_details.json\",\"status\":\"missing\"},{\"age_sec\":594807.1661217213,\"bytes\":2783,\"filename\":\"exit_intel_completeness.json\",\"name\":\"exit_intel_completeness\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/exit_intel_completeness.json\",\"status\":\"stale\"},{\"age_sec\":null,\"bytes\":0,\"filename\":\"exit_quality_summary.json\",\"name\":\"exit_quality_summary\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/exit_quality_summary.json\",\"status\":\"missing\"},{\"age_sec\":594807.1661682129,\"bytes\":774,\"filename\":\"feature_equalizer_builder.json\",\"name\":\"feature_equalizer_"
+    },
+    {
+      "path": "/api/telemetry/latest/health",
+      "url": "http://127.0.0.1:5000/api/telemetry/latest/health",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"as_of_ts\":\"2026-03-26T17:43:31.011336+00:00\",\"computed_index\":{\"as_of_ts\":\"2026-03-26T17:43:31.011103+00:00\",\"computed\":[{\"age_sec\":null,\"bytes\":0,\"filename\":\"bar_health_summary.json\",\"name\":\"bar_health_summary\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/bar_health_summary.json\",\"status\":\"missing\"},{\"age_sec\":null,\"bytes\":0,\"filename\":\"blocked_counterfactuals_summary.json\",\"name\":\"blocked_counterfactuals_summary\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/blocked_counterfactuals_summary.json\",\"status\":\"missing\"},{\"age_sec\":null,\"bytes\":0,\"filename\":\"entry_parity_details.json\",\"name\":\"entry_parity_details\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/entry_parity_details.json\",\"status\":\"missing\"},{\"age_sec\":594807.1697402,\"bytes\":2783,\"filename\":\"exit_intel_completeness.json\",\"name\":\"exit_intel_completeness\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/exit_intel_completeness.json\",\"status\":\"stale\"},{\"age_sec\":null,\"bytes\":0,\"filename\":\"exit_quality_summary.json\",\"name\":\"exit_quality_summary\",\"path\":\"/root/stock-bot/telemetry/2026-03-19/computed/exit_quality_summary.json\",\"status\":\"missing\"},{\"age_sec\":594807.1697824001,\"bytes\":774,\"filename"
+    },
+    {
+      "path": "/api/telemetry/latest/computed?name=live_vs_shadow_pnl",
+      "url": "http://127.0.0.1:5000/api/telemetry/latest/computed?name=live_vs_shadow_pnl",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"as_of_ts\":\"2026-03-26T17:43:31.014049+00:00\",\"data\":null,\"error\":\"computed artifact missing: live_vs_shadow_pnl.json\",\"filename\":\"live_vs_shadow_pnl.json\",\"latest_date\":\"2026-03-19\",\"name\":\"live_vs_shadow_pnl\",\"ok\":false}\n"
+    },
+    {
+      "path": "/api/paper-mode-intel-state",
+      "url": "http://127.0.0.1:5000/api/paper-mode-intel-state",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"max_concurrent_positions\":16,\"max_new_positions_per_cycle\":6,\"paper_mode\":true}\n"
+    },
+    {
+      "path": "/api/xai/auditor",
+      "url": "http://127.0.0.1:5000/api/xai/auditor",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"status\":\"ok\",\"trade_count\":500,\"trades\":[{\"_from_attribution\":true,\"entry_price\":27.64,\"entry_score\":6.062399999999999,\"exit_pnl\":0.1447,\"exit_price\":27.68,\"exit_reason\":\"signal_decay(0.57)+flow_reversal\",\"hold_minutes\":34.4,\"market_regime\":\"mixed\",\"pnl_pct\":0.1447,\"regime\":\"NEUTRAL\",\"stealth_boost_applied\":false,\"symbol\":\"PFE\",\"timestamp\":\"2026-03-26T17:06:29.051656+00:00\",\"trade_id\":\"close_PFE_2026-03-26T17:06:29.051621+00:00\",\"type\":\"trade_exit\",\"why\":\"Exited PFE because: exit reason: signal_decay(0.57)+flow_reversal. market in mixed regime. profit of 0.14% over 34 minutes.\"},{\"_from_attribution\":true,\"entry_price\":10.05,\"entry_score\":6.927599999999999,\"exit_pnl\":-0.597,\"exit_price\":9.99,\"exit_reason\":\"signal_decay(0.58)\",\"hold_minutes\":34.9,\"market_regime\":\"mixed\",\"pnl_pct\":-0.597,\"regime\":\"NEUTRAL\",\"stealth_boost_applied\":false,\"symbol\":\"LCID\",\"timestamp\":\"2026-03-26T17:05:53.539971+00:00\",\"trade_id\":\"close_LCID_2026-03-26T17:05:53.539937+00:00\",\"type\":\"trade_exit\",\"why\":\"Exited LCID because: exit reason: signal_decay(0.58). market in mixed regime. loss of 0.60% over 35 minutes.\"},{\"_from_attribution\":true,\"entry_price\":78.89,\"entry_score\":3.8933999999999997,\"exit_pnl\":-0.38"
+    },
+    {
+      "path": "/api/xai/health",
+      "url": "http://127.0.0.1:5000/api/xai/health",
+      "http_status": 200,
+      "ok_200": true,
+      "error": null,
+      "body_snippet": "{\"errors\":[],\"log_file_exists\":true,\"log_file_size\":966496,\"logger_available\":true,\"recent_entries\":81,\"recent_exits\":22,\"recent_weights\":0,\"status\":\"ok\"}\n"
+    }
+  ]
+}
