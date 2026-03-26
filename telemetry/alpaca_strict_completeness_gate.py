@@ -67,6 +67,13 @@ def _stream_jsonl(path: Path):
                 continue
 
 
+def _stream_jsonl_primary_then_backfill(logs: Path, basename: str):
+    """Primary ``logs/{basename}`` then additive ``logs/strict_backfill_{basename}`` (no primary mutation)."""
+    yield from _stream_jsonl(logs / basename)
+    bf = logs / f"strict_backfill_{basename}"
+    yield from _stream_jsonl(bf)
+
+
 def market_open_epoch_today_et() -> Optional[float]:
     if _ET is None:
         return None
@@ -108,6 +115,7 @@ def evaluate_completeness(
     *,
     audit: bool = False,
     forward_since_epoch: Optional[float] = None,
+    exit_ts_max_epoch: Optional[float] = None,
     collect_complete_trade_ids: bool = False,
     collect_strict_cohort_trade_ids: bool = False,
 ) -> Dict[str, Any]:
@@ -116,6 +124,9 @@ def evaluate_completeness(
     If ``forward_since_epoch`` is set (UTC epoch), each closed trade is split by **position open**
     time parsed from ``trade_id`` (``open_<SYM>_<ISO>``): ``>= forward_since_epoch`` → forward cohort;
     otherwise legacy. Counters ``forward_*`` and ``legacy_*`` are populated (global ``trades_*`` unchanged).
+
+    If ``exit_ts_max_epoch`` is set, exclude ``exit_attribution`` rows whose exit timestamp is **strictly after**
+    this UTC epoch (bounded window ending at exchange close).
     """
     root = root.resolve()
     logs = root / "logs"
@@ -139,7 +150,7 @@ def evaluate_completeness(
 
     unified_entry: Dict[str, dict] = {}
     unified_exit_by_tid: Dict[str, dict] = {}
-    for rec in _stream_jsonl(unified_path):
+    for rec in _stream_jsonl_primary_then_backfill(logs, "alpaca_unified_events.jsonl"):
         et = rec.get("event_type") or rec.get("type")
         if et == "alpaca_entry_attribution":
             for k in (rec.get("trade_key"), rec.get("canonical_trade_id")):
@@ -151,7 +162,7 @@ def evaluate_completeness(
                 unified_exit_by_tid[str(tid)] = rec
 
     orders_by_ct: Dict[str, List[dict]] = {}
-    for rec in _stream_jsonl(orders_path):
+    for rec in _stream_jsonl_primary_then_backfill(logs, "orders.jsonl"):
         ct = rec.get("canonical_trade_id")
         if ct:
             orders_by_ct.setdefault(str(ct), []).append(rec)
@@ -159,7 +170,7 @@ def evaluate_completeness(
     exit_intents_by_ct: Dict[str, List[dict]] = defaultdict(list)
     trade_intents_entered: List[dict] = []
     intent_to_fill: Dict[str, str] = {}
-    for rec in _stream_jsonl(run_path):
+    for rec in _stream_jsonl_primary_then_backfill(logs, "run.jsonl"):
         et = rec.get("event_type")
         if et == "exit_intent":
             for _ek in (rec.get("canonical_trade_id"), rec.get("trade_key")):
@@ -188,6 +199,8 @@ def evaluate_completeness(
     for rec in _stream_jsonl(exit_path):
         ex_ts = _parse_iso_ts(rec.get("timestamp"))
         if open_ts is not None and (ex_ts is None or ex_ts < open_ts):
+            continue
+        if exit_ts_max_epoch is not None and ex_ts is not None and ex_ts > float(exit_ts_max_epoch):
             continue
         tid = rec.get("trade_id")
         sym = rec.get("symbol")
@@ -409,6 +422,7 @@ def evaluate_completeness(
     out: Dict[str, Any] = {
         "ROOT": str(root),
         "OPEN_TS_UTC_EPOCH": open_ts,
+        "EXIT_TS_UTC_EPOCH_MAX": exit_ts_max_epoch,
         "FORWARD_SINCE_UTC_EPOCH": forward_since_epoch,
         "STRICT_EPOCH_START": STRICT_EPOCH_START,
         "strict_cohort_entry_era_floor_applied": entry_era_floor is not None,
@@ -474,6 +488,12 @@ def main() -> int:
         help="UTC epoch: split forward vs legacy by position open time from trade_id",
     )
     ap.add_argument(
+        "--exit-ts-max-epoch",
+        type=float,
+        default=None,
+        help="UTC epoch: exclude exit_attribution rows with exit timestamp after this instant",
+    )
+    ap.add_argument(
         "--forward-exit-zero",
         action="store_true",
         help="Exit 0 iff forward cohort non-vacuous and forward_trades_incomplete==0 (ignores global LEARNING_STATUS)",
@@ -484,6 +504,7 @@ def main() -> int:
         open_ts_epoch=args.open_ts_epoch,
         audit=args.audit,
         forward_since_epoch=args.forward_since_epoch,
+        exit_ts_max_epoch=args.exit_ts_max_epoch,
     )
     print(json.dumps(r, indent=2))
     if args.forward_exit_zero and args.forward_since_epoch is not None:

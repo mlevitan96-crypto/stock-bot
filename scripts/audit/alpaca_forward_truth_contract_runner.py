@@ -14,7 +14,7 @@ import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -39,7 +39,7 @@ def _load_sre_engine():
     return mod
 
 
-def _gate(root: Path, open_ts: float, forward_since: float) -> Dict[str, Any]:
+def _gate(root: Path, open_ts: float, forward_since: float, exit_ts_max: Optional[float] = None) -> Dict[str, Any]:
     sys.path.insert(0, str(REPO))
     from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START, evaluate_completeness
 
@@ -48,6 +48,7 @@ def _gate(root: Path, open_ts: float, forward_since: float) -> Dict[str, Any]:
         root,
         open_ts_epoch=open_ts,
         forward_since_epoch=forward_since,
+        exit_ts_max_epoch=exit_ts_max,
         audit=True,
     )
 
@@ -100,6 +101,12 @@ def main() -> int:
     ap.add_argument("--repair-max-rounds", type=int, default=6)
     ap.add_argument("--repair-sleep-seconds", type=int, default=10)
     ap.add_argument("--repair-internal-rounds-per-iteration", type=int, default=1, help="max-repair-rounds per subprocess")
+    ap.add_argument(
+        "--window-end-epoch",
+        type=float,
+        default=None,
+        help="UTC epoch of window end (e.g. NYSE regular close); floor = end - window_hours; exit_ts_max = end",
+    )
     ap.add_argument("--json-out", type=Path, required=True)
     ap.add_argument("--md-out", type=Path, required=True)
     ap.add_argument("--incident-md", type=Path, required=True)
@@ -114,31 +121,40 @@ def main() -> int:
         print(json.dumps({"error": "sre_repair_engine_load", "detail": str(e)}), file=sys.stderr)
         return 1
 
-    now = time.time()
-    window_sec = max(3600, int(args.window_hours) * 3600)
-    window_start = now - window_sec
-
     sys.path.insert(0, str(REPO))
     from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START
 
-    # Policy C explicit floor: cohort never starts before strict era constant.
-    open_ts_epoch = max(float(STRICT_EPOCH_START), float(window_start))
-    forward_since_epoch = open_ts_epoch
+    window_sec = max(1, int(args.window_hours) * 3600)
+    exit_ts_max_epoch: Optional[float] = None
+    if args.window_end_epoch is not None:
+        end = float(args.window_end_epoch)
+        window_start = end - window_sec
+        open_ts_epoch = max(float(STRICT_EPOCH_START), float(window_start))
+        forward_since_epoch = open_ts_epoch
+        exit_ts_max_epoch = end
+        policy_note = "explicit_max(STRICT_EPOCH_START, window_end - window_hours); EXIT_TS_UTC_EPOCH_MAX = window_end"
+    else:
+        now = time.time()
+        window_start = now - window_sec
+        open_ts_epoch = max(float(STRICT_EPOCH_START), float(window_start))
+        forward_since_epoch = open_ts_epoch
+        policy_note = "explicit_max(STRICT_EPOCH_START, now - window_hours)"
 
     run_record: Dict[str, Any] = {
         "contract": "alpaca_forward_truth",
         "run_utc": datetime.now(timezone.utc).isoformat(),
         "window_hours": int(args.window_hours),
+        "window_end_epoch": exit_ts_max_epoch,
         "open_ts_epoch": open_ts_epoch,
         "forward_since_epoch": forward_since_epoch,
         "STRICT_EPOCH_START": STRICT_EPOCH_START,
-        "strict_epoch_policy": "explicit_max(STRICT_EPOCH_START, now - window_hours)",
+        "strict_epoch_policy": policy_note,
         "repair_max_rounds": int(args.repair_max_rounds),
         "repair_sleep_seconds": int(args.repair_sleep_seconds),
         "sre_auto_repair_engine": True,
     }
 
-    gate0 = _gate(root, open_ts_epoch, forward_since_epoch)
+    gate0 = _gate(root, open_ts_epoch, forward_since_epoch, exit_ts_max_epoch)
     run_record["initial_gate"] = gate0
 
     precheck = gate0.get("precheck") or []
@@ -170,6 +186,7 @@ def main() -> int:
         int(args.repair_max_rounds),
         int(args.repair_sleep_seconds),
         repair_mod,
+        exit_ts_max_epoch=exit_ts_max_epoch,
     )
     run_record["sre_repair_actions_applied"] = repair_actions
     run_record["sre_classification_per_trade_id"] = class_map
