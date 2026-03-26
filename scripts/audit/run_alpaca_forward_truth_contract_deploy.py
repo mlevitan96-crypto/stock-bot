@@ -31,6 +31,7 @@ def main() -> int:
         "scripts/audit/alpaca_strict_six_trade_additive_repair.py",
         "scripts/audit/alpaca_sre_repair_playbooks.py",
         "scripts/audit/alpaca_sre_auto_repair_engine.py",
+        "scripts/audit/alpaca_learning_status_summary.py",
         "scripts/audit/alpaca_forward_truth_contract_runner.py",
         "deploy/systemd/alpaca-forward-truth-contract-run.sh",
         "deploy/systemd/alpaca-forward-truth-contract.service",

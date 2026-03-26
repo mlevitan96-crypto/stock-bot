@@ -5,6 +5,7 @@ Last-window learning safety: NYSE regular close (America/New_York 16:00) as wind
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import subprocess
@@ -151,6 +152,24 @@ def main() -> int:
         f"## CSA verdict line\n\n**CSA_VERDICT: {verdict}**\n",
         encoding="utf-8",
     )
+
+    try:
+        sp = REPO / "scripts" / "audit" / "alpaca_learning_status_summary.py"
+        spec = importlib.util.spec_from_file_location("alpaca_learning_status_summary", sp)
+        if spec and spec.loader:
+            m = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(m)
+            if json_out.is_file():
+                m.emit_learning_status_summary(
+                    root,
+                    json_out,
+                    exit_code,
+                    m.git_head_sha(root),
+                    incident_json_path=inc_json if inc_json.is_file() else None,
+                    window_hours_override=window_h,
+                )
+    except Exception:
+        pass
 
     print(json.dumps({"scope": str(scope_path), "truth": str(json_out), "verdict": str(verdict_path), "exit_code": exit_code, "csa_verdict": verdict}, indent=2))
     return 0

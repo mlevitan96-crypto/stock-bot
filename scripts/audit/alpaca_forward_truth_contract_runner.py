@@ -39,6 +39,34 @@ def _load_sre_engine():
     return mod
 
 
+def _emit_learning_summary(
+    root: Path,
+    truth_path: Path,
+    exit_code: int,
+    incident_path: Optional[Path] = None,
+    window_hours: Optional[int] = None,
+) -> None:
+    try:
+        lp = REPO / "scripts" / "audit" / "alpaca_learning_status_summary.py"
+        spec = importlib.util.spec_from_file_location("alpaca_learning_status_summary", lp)
+        if spec is None or spec.loader is None:
+            return
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        sha = mod.git_head_sha(root)
+        inc = incident_path if incident_path is not None and incident_path.is_file() else None
+        mod.emit_learning_status_summary(
+            root,
+            truth_path,
+            exit_code,
+            sha,
+            incident_json_path=inc,
+            window_hours_override=window_hours,
+        )
+    except Exception as e:
+        print(json.dumps({"learning_status_summary_emit_failed": str(e)[:500]}), file=sys.stderr)
+
+
 def _gate(root: Path, open_ts: float, forward_since: float, exit_ts_max: Optional[float] = None) -> Dict[str, Any]:
     sys.path.insert(0, str(REPO))
     from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START, evaluate_completeness
@@ -169,6 +197,7 @@ def main() -> int:
             + "\n```\n",
             encoding="utf-8",
         )
+        _emit_learning_summary(root, args.json_out, 1, args.incident_json, int(args.window_hours))
         return 1
 
     if gate0.get("code_structural_trade_intent_no_canonical_on_entered"):
@@ -177,6 +206,7 @@ def main() -> int:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
         args.json_out.write_text(json.dumps(run_record, indent=2, default=str), encoding="utf-8")
         args.md_out.write_text("# Forward truth contract\n\n**BLOCKED:** structural trade_intent path in main.py.\n", encoding="utf-8")
+        _emit_learning_summary(root, args.json_out, 1, args.incident_json, int(args.window_hours))
         return 1
 
     gate, repair_actions, class_map, engine_meta = sre.run_sre_auto_repair(
@@ -236,6 +266,7 @@ def main() -> int:
                 except OSError:
                     pass
         print("alpaca_forward_truth_contract_runner: exit 0 CERT_OK", file=sys.stderr)
+        _emit_learning_summary(root, args.json_out, 0, args.incident_json, int(args.window_hours))
         return 0
 
     # INCIDENT
@@ -293,6 +324,7 @@ def main() -> int:
         encoding="utf-8",
     )
     print("alpaca_forward_truth_contract_runner: exit 2 INCIDENT", file=sys.stderr)
+    _emit_learning_summary(root, args.json_out, 2, args.incident_json, int(args.window_hours))
     return 2
 
 

@@ -31,6 +31,7 @@ def main() -> int:
         "scripts/audit/alpaca_sre_auto_repair_engine.py",
         "scripts/audit/alpaca_sre_repair_playbooks.py",
         "scripts/audit/alpaca_strict_six_trade_additive_repair.py",
+        "scripts/audit/alpaca_learning_status_summary.py",
         "scripts/audit/alpaca_last_window_learning_verify.py",
     ):
         rel = rel.replace("\\", "/")
@@ -51,6 +52,8 @@ def main() -> int:
         f"{PROJ}/reports/ALPACA_LAST_WINDOW_TRUTH_{TS}.json",
         f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_TRUTH_{TS}.md",
         f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md",
+        f"{PROJ}/reports/ALPACA_LEARNING_STATUS_SUMMARY.json",
+        f"{PROJ}/reports/audit/ALPACA_LEARNING_STATUS_SUMMARY.md",
     ]
     fetched = {}
     for p in paths:
@@ -79,6 +82,14 @@ def main() -> int:
     vk = f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md"
     if vk in fetched and not fetched[vk].startswith("MISSING"):
         verdict_local.write_text(fetched[vk], encoding="utf-8")
+    sum_json_local = REPO / "reports" / "ALPACA_LEARNING_STATUS_SUMMARY.json"
+    sum_md_local = REPO / "reports" / "audit" / "ALPACA_LEARNING_STATUS_SUMMARY.md"
+    skj = f"{PROJ}/reports/ALPACA_LEARNING_STATUS_SUMMARY.json"
+    if skj in fetched and not fetched[skj].startswith("MISSING"):
+        sum_json_local.write_text(fetched[skj], encoding="utf-8")
+    skm = f"{PROJ}/reports/audit/ALPACA_LEARNING_STATUS_SUMMARY.md"
+    if skm in fetched and not fetched[skm].startswith("MISSING"):
+        sum_md_local.write_text(fetched[skm], encoding="utf-8")
 
     print(json.dumps({"written": str(out), "local_verdict": str(verdict_local)}, indent=2))
     return 0
