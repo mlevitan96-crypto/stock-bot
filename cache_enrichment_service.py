@@ -125,11 +125,15 @@ class CacheEnrichmentService:
             # Write enriched cache back (always write to ensure signals are persisted)
             # Even if no updates, we should ensure all signals are present
             if updated_count > 0 or enriched_count > 0:
-                # Atomic write
-                temp_file = self.cache_file.with_suffix(".json.tmp")
-                with temp_file.open("w") as f:
+                # Atomic write: unique tmp + fsync + replace (avoids cross-process .tmp rename races)
+                dest = self.cache_file.resolve()
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                temp_file = dest.with_name(dest.name + f".{os.getpid()}.tmp")
+                with temp_file.open("w", encoding="utf-8") as f:
                     json.dump(cache_data, f, indent=2)
-                temp_file.replace(self.cache_file)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(str(temp_file), str(dest))
                 logger.info(f"Enriched {enriched_count} symbols, updated {updated_count} with computed signals")
             else:
                 # No updates needed, but log that we checked

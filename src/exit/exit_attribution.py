@@ -78,9 +78,19 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
             from src.telemetry.alpaca_trade_key import build_trade_key
             from telemetry.attribution_emit_keys import get_symbol_attribution_keys
 
-            _trade_key = build_trade_key(_sym, _side, _entry_ts)
+            _trade_key = rec.get("trade_key") or None
+            if not _trade_key and _sym and _entry_ts:
+                try:
+                    _trade_key = build_trade_key(_sym, _side, _entry_ts)
+                except Exception:
+                    _trade_key = None
+            if not _trade_key:
+                try:
+                    _trade_key = build_trade_key(_sym or "?", _side, _entry_ts or _now_iso())
+                except Exception:
+                    _trade_key = f"{str(_sym).upper()}|LONG|0"
             _ak = get_symbol_attribution_keys(_sym)
-            _canon = _ak.get("canonical_trade_id") or _trade_key
+            _canon = rec.get("canonical_trade_id") or _ak.get("canonical_trade_id") or _trade_key
             _pnl = rec.get("pnl")
             emit_exit_attribution(
                 trade_id=trade_id,

@@ -1581,6 +1581,7 @@ def _emit_trade_intent(
     decision_outcome: str = "entered",
     blocked_reason: Optional[str] = None,
     intelligence_trace: Optional[dict] = None,
+    canonical_trade_id_override: Optional[str] = None,
 ) -> None:
     """Emit trade_intent to logs/run.jsonl (feature_snapshot + thesis_tags). Additive only.
     When intelligence_trace is provided, adds intent_id, intelligence_trace, active_signal_names,
@@ -1630,21 +1631,26 @@ def _emit_trade_intent(
             _ctid = f"BLOCKED|{_sn}|{_de}"
             set_symbol_attribution_keys(symbol, canonical_trade_id=_ctid)
         elif (decision_outcome or "").lower() == "entered":
-            try:
-                from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _ns_intent
-
-                _anchor = datetime.now(timezone.utc)
-                _side_norm = _ns_intent(side)
-                _ctid = build_trade_key(symbol, _side_norm, _anchor)
+            _co = (canonical_trade_id_override or "").strip()
+            if _co:
+                _ctid = _co
                 set_symbol_attribution_keys(symbol, canonical_trade_id=_ctid)
-            except Exception as _e_ctid:
+            else:
                 try:
-                    from telemetry.learning_blocker_emit import emit_learning_blocker
+                    from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _ns_intent
 
-                    emit_learning_blocker("unresolved_canonical_id", str(symbol), error=str(_e_ctid)[:400])
-                except Exception:
-                    pass
-                _ctid = None
+                    _anchor = datetime.now(timezone.utc)
+                    _side_norm = _ns_intent(side)
+                    _ctid = build_trade_key(symbol, _side_norm, _anchor)
+                    set_symbol_attribution_keys(symbol, canonical_trade_id=_ctid)
+                except Exception as _e_ctid:
+                    try:
+                        from telemetry.learning_blocker_emit import emit_learning_blocker
+
+                        emit_learning_blocker("unresolved_canonical_id", str(symbol), error=str(_e_ctid)[:400])
+                    except Exception:
+                        pass
+                    _ctid = None
         rec = {
             "event_type": "trade_intent",
             "symbol": symbol,
@@ -1660,6 +1666,8 @@ def _emit_trade_intent(
             "time_bucket_id": _tb,
             "canonical_trade_id": _ctid,
         }
+        if _ctid:
+            rec["trade_key"] = str(_ctid)
         if (decision_outcome or "").lower() in ("entered", "blocked") and not intelligence_trace:
             try:
                 log_system_event(
@@ -2069,6 +2077,21 @@ def log_exit_attribution(
     FIX 2025-12-05: Now falls back to metadata for entry data when info is incomplete.
     FIX 2025-12-11: Use aware UTC datetimes to prevent TypeError crashes.
     """
+    metadata = dict(metadata or {})
+    try:
+        from config.registry import load_metadata_with_lock
+
+        if StateFiles.POSITION_METADATA.exists():
+            _pmd_exit = load_metadata_with_lock(StateFiles.POSITION_METADATA)
+            _sym_u = str(symbol).strip().upper()
+            _row_pmd = _pmd_exit.get(symbol) if isinstance(_pmd_exit.get(symbol), dict) else _pmd_exit.get(_sym_u)
+            if isinstance(_row_pmd, dict):
+                for _k in ("canonical_trade_id", "decision_event_id", "symbol_normalized", "time_bucket_id", "entry_ts"):
+                    if metadata.get(_k) is None and _row_pmd.get(_k) is not None:
+                        metadata[_k] = _row_pmd[_k]
+    except Exception:
+        pass
+
     entry_price = info.get("entry_price", 0.0)
     entry_qty = info.get("qty", 1)
     side = info.get("side", "buy")
@@ -2613,6 +2636,24 @@ def log_exit_attribution(
             rec["direction"] = _dir if _dir in ("bullish", "bearish", "flat", "unknown") else "unknown"
         rec["side"] = _side
         rec["position_side"] = _pos_side
+        try:
+            from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _nsx
+
+            _pmd_r = metadata if isinstance(metadata, dict) else {}
+            if _pmd_r.get("canonical_trade_id"):
+                rec["canonical_trade_id"] = str(_pmd_r["canonical_trade_id"])
+            if _pmd_r.get("trade_key"):
+                rec["trade_key"] = str(_pmd_r["trade_key"])
+            elif entry_ts_iso_attr:
+                rec["trade_key"] = build_trade_key(
+                    symbol,
+                    _nsx("buy" if _side == "buy" else "sell"),
+                    entry_ts_iso_attr,
+                )
+            if not rec.get("canonical_trade_id") and rec.get("trade_key"):
+                rec["canonical_trade_id"] = rec["trade_key"]
+        except Exception:
+            pass
         append_exit_attribution(rec)
         # CSA every-100-trades: count exit as one trade event (primary trigger)
         try:
@@ -2690,6 +2731,12 @@ def log_exit_attribution(
             thesis_tags_at_exit=thesis_tags_at_exit,
             thesis_break_reason=thesis_break_reason,
         )
+    except Exception:
+        pass
+    try:
+        from telemetry.attribution_emit_keys import clear_symbol_attribution_keys
+
+        clear_symbol_attribution_keys(symbol)
     except Exception:
         pass
 
@@ -9933,7 +9980,9 @@ class StrategyEngine:
                     )
                     continue
 
-                # Alpha discovery: snapshot + thesis tags, directional gate (HIGH_VOL), trade_intent
+                # Alpha discovery: snapshot + thesis tags, directional gate (HIGH_VOL).
+                # trade_intent(decision_outcome=entered) is emitted AFTER mark_open so canonical_trade_id matches metadata/orders (strict gate).
+                entered_intelligence_trace = None
                 try:
                     from telemetry.feature_snapshot import build_feature_snapshot
                     from telemetry.thesis_tags import derive_thesis_tags
@@ -9997,24 +10046,17 @@ class StrategyEngine:
                             decision=f"Blocked: {dg_reason}", metadata={"reason": dg_reason},
                         )
                         continue
-                    _trace_entered = None
                     try:
                         from telemetry.decision_intelligence_trace import build_initial_trace, append_gate_result, set_final_decision
-                        _trace_entered = build_initial_trace(symbol, side, score, comps or {}, c, None, None, self)
-                        append_gate_result(_trace_entered, "score_gate", True)
-                        append_gate_result(_trace_entered, "capacity_gate", True)
-                        append_gate_result(_trace_entered, "risk_gate", True)
-                        append_gate_result(_trace_entered, "momentum_gate", True)
-                        append_gate_result(_trace_entered, "directional_gate", True)
-                        set_final_decision(_trace_entered, "entered", "all_gates_passed", [])
+                        entered_intelligence_trace = build_initial_trace(symbol, side, score, comps or {}, c, None, None, self)
+                        append_gate_result(entered_intelligence_trace, "score_gate", True)
+                        append_gate_result(entered_intelligence_trace, "capacity_gate", True)
+                        append_gate_result(entered_intelligence_trace, "risk_gate", True)
+                        append_gate_result(entered_intelligence_trace, "momentum_gate", True)
+                        append_gate_result(entered_intelligence_trace, "directional_gate", True)
+                        set_final_decision(entered_intelligence_trace, "entered", "all_gates_passed", [])
                     except Exception:
                         pass
-                    _emit_trade_intent(
-                        symbol=symbol, side=side, score=score, comps=comps or {}, cluster=c,
-                        market_regime=market_regime, engine=self, displacement_context=_disp_ctx,
-                        decision_outcome="entered", blocked_reason=None,
-                        intelligence_trace=_trace_entered,
-                    )
                 except Exception as telem_ex:
                     try:
                         log_event("telemetry", "trade_intent_or_gate_error", symbol=symbol, error=str(telem_ex))
@@ -10312,6 +10354,62 @@ class StrategyEngine:
                                 "emit_entry_attribution_failed",
                                 symbol=symbol,
                                 error=str(_emit_ent_ex)[:400],
+                            )
+                        except Exception:
+                            pass
+                    # Strict-gate parity: trade_intent(entered) uses same canonical_trade_id as position_metadata / orders.
+                    try:
+                        from config.registry import load_metadata_with_lock
+
+                        _ct_post = None
+                        _row_ct = None
+                        _mp_ct = StateFiles.POSITION_METADATA
+                        if _mp_ct.exists():
+                            _md_ct = load_metadata_with_lock(_mp_ct)
+                            _row_ct = _md_ct.get(symbol) if isinstance(_md_ct.get(symbol), dict) else _md_ct.get(str(symbol).upper())
+                            if isinstance(_row_ct, dict) and _row_ct.get("canonical_trade_id"):
+                                _ct_post = str(_row_ct["canonical_trade_id"])
+                        if not _ct_post and isinstance(_row_ct, dict) and _row_ct.get("entry_ts"):
+                            try:
+                                from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _nsp
+
+                                _ct_post = build_trade_key(
+                                    symbol,
+                                    _nsp("buy" if str(side).lower() == "buy" else "sell"),
+                                    str(_row_ct["entry_ts"]),
+                                )
+                            except Exception:
+                                _ct_post = None
+                        if not _ct_post:
+                            try:
+                                log_event(
+                                    "telemetry",
+                                    "trade_intent_missing_canonical_after_mark_open",
+                                    symbol=symbol,
+                                )
+                            except Exception:
+                                pass
+                        _emit_trade_intent(
+                            symbol=symbol,
+                            side=side,
+                            score=score,
+                            comps=comps or {},
+                            cluster=c,
+                            market_regime=market_regime,
+                            engine=self,
+                            displacement_context=_disp_ctx,
+                            decision_outcome="entered",
+                            blocked_reason=None,
+                            intelligence_trace=entered_intelligence_trace,
+                            canonical_trade_id_override=_ct_post,
+                        )
+                    except Exception as _tie:
+                        try:
+                            log_event(
+                                "telemetry",
+                                "trade_intent_post_mark_open_failed",
+                                symbol=symbol,
+                                error=str(_tie)[:400],
                             )
                         except Exception:
                             pass
@@ -10777,8 +10875,7 @@ def audit_seg(name, phase, extra=None):
 # =========================
 def run_all_strategies():
     """
-    Run all enabled strategies (equity, wheel).
-    Loads config/strategies.yaml and invokes each enabled strategy.
+    Run enabled strategies from config/strategies.yaml (equity cohort only).
     Returns combined metrics for run.jsonl.
     """
     strategies_cfg = {}
@@ -10792,11 +10889,9 @@ def run_all_strategies():
         log_event("strategies", "config_load_failed", error=str(e))
     strat = strategies_cfg.get("strategies", {})
     equity_cfg = strat.get("equity", {})
-    wheel_cfg = strat.get("wheel", {})
     equity_enabled = equity_cfg.get("enabled", True)
-    wheel_enabled = wheel_cfg.get("enabled", False)
     total_orders = 0
-    combined_metrics = {"clusters": 0, "orders": 0, "equity_orders": 0, "wheel_orders": 0}
+    combined_metrics = {"clusters": 0, "orders": 0, "equity_orders": 0}
     try:
         from strategies.context import strategy_context
     except ImportError:
@@ -10815,22 +10910,6 @@ def run_all_strategies():
                 combined_metrics.update(metrics)
         except Exception as e:
             log_event("strategies", "equity_run_failed", error=str(e))
-    # Wheel strategy: regime is modifier-only; must never gate or block wheel entries.
-    # Run wheel whenever enabled (with or without strategy_context so dispatch is not blocked by context import).
-    if wheel_enabled:
-        try:
-            from strategies.wheel_strategy import run as run_wheel
-            api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL)
-            if strategy_context:
-                with strategy_context("wheel"):
-                    wheel_result = run_wheel(api, wheel_cfg)
-            else:
-                wheel_result = run_wheel(api, wheel_cfg)
-            wo = wheel_result.get("orders_placed", 0)
-            total_orders += wo
-            combined_metrics["wheel_orders"] = wo
-        except Exception as e:
-            log_event("strategies", "wheel_run_failed", error=str(e))
     combined_metrics["orders"] = total_orders
     return combined_metrics
 

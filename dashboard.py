@@ -107,7 +107,15 @@ else:
             # Allow unauthenticated GET so the dashboard HTML loads (e.g. proxy not forwarding Authorization on first request).
             if request.method == "GET" and (
                 request.path == "/"
-                or request.path in ("/api/direction_banner", "/api/situation", "/api/telemetry_health", "/api/learning_readiness", "/api/profitability_learning")
+                or request.path
+                in (
+                    "/api/direction_banner",
+                    "/api/situation",
+                    "/api/telemetry_health",
+                    "/api/dashboard/data_integrity",
+                    "/api/learning_readiness",
+                    "/api/profitability_learning",
+                )
             ):
                 return None
 
@@ -317,6 +325,25 @@ DASHBOARD_HTML = """
         .more-dropdown-content.show { display: block; }
         .more-dropdown-content button { display: block; width: 100%; padding: 10px 16px; text-align: left; border: none; background: none; cursor: pointer; font-size: 0.95em; }
         .more-dropdown-content button:hover { background: #f3f4f6; }
+        /* Direction banner + situation strip (Alpaca governance / promotion truth surfaces) */
+        .direction-banner {
+            padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; font-size: 0.95em; line-height: 1.45;
+        }
+        .direction-banner.info { background: #e0f2fe; border: 1px solid #38bdf8; color: #0c4a6e; }
+        .direction-banner.warning { background: #fef3c7; border: 1px solid #f59e0b; color: #78350f; }
+        .direction-banner.error { background: #fee2e2; border: 1px solid #ef4444; color: #7f1d1d; }
+        .direction-banner.success { background: #d1fae5; border: 1px solid #10b981; color: #065f46; }
+        .situation-strip {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+            padding: 10px 14px; margin-bottom: 14px; background: #f1f5f9; border: 1px solid #cbd5e1;
+            border-radius: 8px; font-size: 0.88em;
+        }
+        .situation-strip .sit-label { font-weight: 600; color: #475569; }
+        .situation-strip .sit-value { color: #0f172a; }
+        .promo-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; }
+        .promo-badge.promote { background: #d1fae5; color: #065f46; }
+        .promo-badge.wait { background: #e2e8f0; color: #475569; }
+        .promo-badge.dnp { background: #fee2e2; color: #991b1b; }
     </style>
 </head>
 <body>
@@ -324,6 +351,8 @@ DASHBOARD_HTML = """
         <div class="header">
             <h1>Trading Bot Dashboard</h1>
             <p>Live position monitoring with real-time P&L updates</p>
+            <div id="direction-banner" class="direction-banner __BANNER_SEV__">__BANNER_HTML__</div>
+            <div id="situation-strip" class="situation-strip">__SITUATION_HTML__</div>
             <div id="top-strip" class="top-strip">
                 <span><strong>Health:</strong> <span id="strip-health" class="strip-health">—</span></span>
                 <span><strong>P&L today:</strong> <span id="strip-pnl-today">—</span></span>
@@ -341,18 +370,15 @@ DASHBOARD_HTML = """
         <div class="tabs">
             <button class="tab active" data-tab="positions" onclick="switchTab('positions', event)">📊 Positions</button>
             <button class="tab" data-tab="closed_trades" onclick="switchTab('closed_trades', event)">📋 Closed Trades</button>
+            <button class="tab" data-tab="system_health" onclick="switchTab('system_health', event)">🩺 System Health</button>
             <button class="tab" data-tab="executive" onclick="switchTab('executive', event)">📈 Executive Summary</button>
             <button class="tab" data-tab="sre" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
-            <button class="tab" data-tab="wheel_strategy" onclick="switchTab('wheel_strategy', event)">🛞 Wheel Strategy</button>
-            <button class="tab" data-tab="strategy_comparison" onclick="switchTab('strategy_comparison', event)">⚖️ Strategy Comparison</button>
             <div class="more-dropdown">
                 <button class="tab" data-tab="more" onclick="toggleMoreDropdown(event)" style="margin-bottom: -2px;">More ▾</button>
                 <div id="more-dropdown-content" class="more-dropdown-content" onclick="event.stopPropagation()">
                     <button type="button" onclick="switchTab('signal_review', event); closeMoreDropdown();">🔍 Signal Review</button>
-                    <button type="button" onclick="switchTab('xai', event); closeMoreDropdown();">🧠 Natural Language Auditor</button>
                     <button type="button" onclick="switchTab('failure_points', event); closeMoreDropdown();">⚠️ Trading Readiness</button>
                     <button type="button" onclick="switchTab('telemetry', event); closeMoreDropdown();">📦 Telemetry</button>
-                    <button type="button" onclick="switchTab('telemetry_health', event); closeMoreDropdown();">📋 Telemetry Health</button>
                     <button type="button" onclick="switchTab('learning_readiness', event); closeMoreDropdown();">📚 Learning & Readiness</button>
                     <button type="button" onclick="switchTab('profitability_learning', event); closeMoreDropdown();">📊 Profitability & Learning</button>
                     <button type="button" onclick="switchTab('fast_lane', event); closeMoreDropdown();">🔬 Alpaca Fast-Lane 25-Trade PnL</button>
@@ -412,24 +438,9 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
-        <div id="xai-tab" class="tab-content">
-            <div id="xai-content">
-                <div class="loading">Loading Natural Language Auditor...</div>
-            </div>
-        </div>
-        
-        <div id="wheel_universe-tab" class="tab-content" style="display:none;"></div>
-        <div id="strategy_comparison-tab" class="tab-content">
-            <div id="strategy_comparison-content"></div>
-        </div>
         <div id="closed_trades-tab" class="tab-content">
             <div id="closed_trades-content">
                 <div class="loading">Loading closed trades...</div>
-            </div>
-        </div>
-        <div id="wheel_strategy-tab" class="tab-content">
-            <div id="wheel_strategy-content">
-                <div class="loading">Loading Wheel Strategy analytics...</div>
             </div>
         </div>
         <div id="failure_points-tab" class="tab-content">
@@ -443,9 +454,9 @@ DASHBOARD_HTML = """
                 <div class="loading">Loading telemetry...</div>
             </div>
         </div>
-        <div id="telemetry_health-tab" class="tab-content">
-            <div id="telemetry_health-content">
-                <div class="loading">Loading Telemetry Health...</div>
+        <div id="system_health-tab" class="tab-content">
+            <div id="system_health-content">
+                <div class="loading">Loading System Health &amp; Data Integrity...</div>
             </div>
         </div>
         <div id="learning_readiness-tab" class="tab-content">
@@ -479,15 +490,11 @@ DASHBOARD_HTML = """
     var el=document.getElementById(tabName+'-tab');if(el)el.classList.add('active');
     if(typeof loadSREContent==='function'&&tabName==='sre')loadSREContent();
     else if(typeof loadExecutiveSummary==='function'&&tabName==='executive')loadExecutiveSummary();
-    else if(typeof loadXAIAuditor==='function'&&tabName==='xai')loadXAIAuditor();
     else if(typeof loadFailurePoints==='function'&&tabName==='failure_points')loadFailurePoints();
-    else if(typeof loadWheelUniverseHealth==='function'&&tabName==='wheel_universe')loadWheelUniverseHealth();
-    else if(typeof loadStrategyComparison==='function'&&tabName==='strategy_comparison')loadStrategyComparison();
     else if(typeof loadClosedTrades==='function'&&tabName==='closed_trades')loadClosedTrades();
-    else if(typeof loadWheelAnalytics==='function'&&tabName==='wheel_strategy')loadWheelAnalytics();
     else if(typeof loadSignalReview==='function'&&tabName==='signal_review')loadSignalReview();
     else if(typeof loadTelemetryContent==='function'&&tabName==='telemetry')loadTelemetryContent();
-    else if(typeof loadTelemetryHealth==='function'&&tabName==='telemetry_health')loadTelemetryHealth();
+    else if(typeof loadSystemHealth==='function'&&tabName==='system_health')loadSystemHealth();
     else if(tabName==='learning_readiness'&&typeof loadLearningReadiness==='function')loadLearningReadiness();
     else if(tabName==='profitability_learning'&&typeof loadProfitabilityLearning==='function')loadProfitabilityLearning();
     else if(tabName==='fast_lane'&&typeof loadFastLanePnl==='function')loadFastLanePnl();
@@ -495,7 +502,7 @@ DASHBOARD_HTML = """
     };
     function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
     function loadVersion(){fetch('/api/version',creds).then(function(r){if(!r.ok){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v??? ('+r.status+')';b.title='HTTP '+r.status;}}return r.ok?r.json():null;}).then(function(d){var b=document.getElementById('version-badge');if(!b||!d)return;var s=(d.git_commit_short||(d.git_commit||'').substring(0,7))||'???';b.textContent='Dashboard v'+s;b.title='Commit '+s;}).catch(function(){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v???';b.title='Version fetch failed';}});}
-    function loadPositions(){fetch('/api/positions',creds).then(function(r){if(!r.ok){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Server '+r.status+'. Refresh and log in again.</p>';return null;}return r.json();}).then(function(d){if(!d){return;}var el=document.getElementById('positions-content');if(!el)return;if(d.error){el.innerHTML='<p class="no-positions">'+d.error+'</p>';return;}var pos=Array.isArray(d.positions)?d.positions:[];var tp=document.getElementById('total-positions');if(tp)tp.textContent=pos.length;var tv=document.getElementById('total-value');if(tv)tv.textContent='$'+fmt(d.total_value);var up=document.getElementById('unrealized-pnl');if(up){up.textContent='$'+fmt(d.unrealized_pnl);up.className='stat-value '+(Number(d.unrealized_pnl)>=0?'positive':'negative');}var dp=document.getElementById('day-pnl');if(dp){dp.textContent='$'+fmt(d.day_pnl);dp.className='stat-value '+(Number(d.day_pnl)>=0?'positive':'negative');}if(pos.length===0){el.innerHTML='<p class="no-positions">No open positions</p>';return;}var h='<table><thead><tr><th>Strategy</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th></tr></thead><tbody>';for(var i=0;i<pos.length;i++){var p=pos[i];var strat=(p.strategy_id||'equity')==='wheel'?'Wheel':'Equity';var side=p.side||'long';var qty=p.qty!=null?p.qty:0;var entry=p.avg_entry_price!=null?fmt(p.avg_entry_price):'-';var cur=p.current_price!=null?fmt(p.current_price):'-';var val=p.market_value!=null?fmt(p.market_value):'-';var pl=p.unrealized_pnl!=null?fmt(p.unrealized_pnl):'-';var plp=(p.unrealized_pnl_pct!=null?fmt(p.unrealized_pnl_pct):'-')+'%';var cls=Number(p.unrealized_pnl)>=0?'positive':'negative';h+='<tr><td>'+strat+'</td><td>'+p.symbol+'</td><td>'+side+'</td><td>'+qty+'</td><td>'+entry+'</td><td>'+cur+'</td><td>'+val+'</td><td class="'+cls+'">'+pl+'</td><td class="'+cls+'">'+plp+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;}).catch(function(e){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Positions failed: '+(e&&e.message?e.message:'network error')+'. Refresh and log in.</p>';});}
+    function loadPositions(){fetch('/api/positions',creds).then(function(r){if(!r.ok){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Server '+r.status+'. Refresh and log in again.</p>';return null;}return r.json();}).then(function(d){if(!d){return;}var el=document.getElementById('positions-content');if(!el)return;if(d.error){el.innerHTML='<p class="no-positions">'+d.error+'</p>';return;}var pos=Array.isArray(d.positions)?d.positions:[];var tp=document.getElementById('total-positions');if(tp)tp.textContent=pos.length;var tv=document.getElementById('total-value');if(tv)tv.textContent='$'+fmt(d.total_value);var up=document.getElementById('unrealized-pnl');if(up){up.textContent='$'+fmt(d.unrealized_pnl);up.className='stat-value '+(Number(d.unrealized_pnl)>=0?'positive':'negative');}var dp=document.getElementById('day-pnl');if(dp){dp.textContent='$'+fmt(d.day_pnl);dp.className='stat-value '+(Number(d.day_pnl)>=0?'positive':'negative');}if(pos.length===0){el.innerHTML='<p class="no-positions">No open positions</p>';return;}var h='<table><thead><tr><th>Strategy</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry $</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry at</th><th>Entry reason</th><th>Fees</th><th>Strict</th></tr></thead><tbody>';for(var i=0;i<pos.length;i++){var p=pos[i];var strat='Equity';var side=p.side||'long';var qty=p.qty!=null?p.qty:0;var entry=p.avg_entry_price!=null?fmt(p.avg_entry_price):'-';var cur=p.current_price!=null?fmt(p.current_price):'-';var val=p.market_value!=null?fmt(p.market_value):'-';var pl=p.unrealized_pnl!=null?fmt(p.unrealized_pnl):'-';var plp=(p.unrealized_pnl_pct!=null?fmt(p.unrealized_pnl_pct):'-')+'%';var cls=Number(p.unrealized_pnl)>=0?'positive':'negative';var ets=p.entry_ts?String(p.entry_ts).substring(0,19):'INCOMPLETE';var erd=p.entry_reason_display||'INCOMPLETE';var fds=p.fees_display||'INCOMPLETE';var stb=p.strict_alpaca_chain||'N/A';h+='<tr><td>'+strat+'</td><td>'+p.symbol+'</td><td>'+side+'</td><td>'+qty+'</td><td>'+entry+'</td><td>'+cur+'</td><td>'+val+'</td><td class="'+cls+'">'+pl+'</td><td class="'+cls+'">'+plp+'</td><td style="font-size:11px">'+ets+'</td><td style="font-size:11px">'+erd+'</td><td style="font-size:11px">'+fds+'</td><td style="font-size:10px">'+stb+'</td></tr>';}h+='</tbody></table><p style="font-size:0.8em;color:#6b7280">Source: GET /api/positions. INCOMPLETE if missing from metadata.</p>';el.innerHTML=h;}).catch(function(e){var el=document.getElementById('positions-content');if(el)el.innerHTML='<p class="no-positions">Positions failed: '+(e&&e.message?e.message:'network error')+'. Refresh and log in.</p>';});}
     function err(el,msg){if(el)el.innerHTML='<div class="loading" style="color:#ef4444;">'+msg+'</div>';}
     function cur(v){if(v==null||v===undefined)return '';var n=Number(v);return isFinite(n)?'$'+n.toFixed(2):String(v);}
     window.loadSREContent=function(){var el=document.getElementById('sre-content');if(!el)return;el.innerHTML='<div class="loading">Loading SRE...</div>';fetch('/api/sre/health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var m=d.sre_metrics||{};var f=d.signal_funnel||{};var h='<div class="stat-card" style="margin-bottom:16px;"><h3>SRE Health</h3><p><strong>Overall:</strong> '+(d.overall_health||'—')+'</p><p><strong>Bot:</strong> '+(d.bot_process&&d.bot_process.running?'Running':'—')+'</p><p><strong>Market:</strong> '+(d.market_status||'—')+' '+(d.market_open?'(open)':'')+'</p></div>';
@@ -505,42 +512,35 @@ DASHBOARD_HTML = """
     if(d.critical_issues&&d.critical_issues.length){h+='<div class="stat-card" style="margin-bottom:16px; border-color:#ef4444;"><h3>Critical</h3><p>'+d.critical_issues.join(', ')+'</p></div>';}
     var fixes=d.recent_rca_fixes||[];if(fixes.length){h+='<div class="stat-card"><h3>Recent RCA Fixes</h3>';for(var i=0;i<Math.min(fixes.length,5);i++){var x=fixes[i];h+='<p>'+(x.check_name||x.reason_code||'')+' — '+(x.reason_code||'')+'</p>';}h+='</div>';}
     el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'SRE failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadExecutiveSummary=function(){var el=document.getElementById('executive-content');if(!el)return;el.innerHTML='<div class="loading">Loading Executive...</div>';fetch('/api/executive_summary',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var t=d.total_trades!=null?d.total_trades:0;var pm=d.pnl_metrics||{};var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Executive Summary</h3><p><strong>Total trades:</strong> '+t+'</p>';
+    window.loadExecutiveSummary=function(){var el=document.getElementById('executive-content');if(!el)return;el.innerHTML='<div class="loading">Loading Executive...</div>';fetch('/api/executive_summary',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var t=d.total_trades!=null?d.total_trades:0;var pm=d.pnl_metrics||{};var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Executive Summary</h3><p style="font-size:0.82em;color:#64748b">Data: <code>/api/executive_summary</code>. P&amp;L windows are not the Alpaca strict cohort; use <strong>System Health</strong> for LEARNING_STATUS.</p><p><strong>Total trades:</strong> '+t+'</p>';
     h+='<p><strong>2d P&L:</strong> '+cur(pm.pnl_2d)+' ('+(pm.trades_2d!=null?pm.trades_2d:'—')+' trades, '+(pm.win_rate_2d!=null?pm.win_rate_2d:'—')+'% win)</p>';
     h+='<p><strong>5d P&L:</strong> '+cur(pm.pnl_5d)+' ('+(pm.trades_5d!=null?pm.trades_5d:'—')+' trades, '+(pm.win_rate_5d!=null?pm.win_rate_5d:'—')+'% win)</p></div>';
     var tr=d.trades||[];if(tr.length){h+='<div class="stat-card" style="margin-bottom:16px;"><h3>Recent Trades</h3><table style="width:100%"><thead><tr><th>Time</th><th>Symbol</th><th>P&L</th><th>Close</th></tr></thead><tbody>';for(var i=0;i<Math.min(tr.length,15);i++){var x=tr[i];var ts=x.timestamp?new Date(x.timestamp).toLocaleString():'—';h+='<tr><td>'+ts+'</td><td>'+(x.symbol||'—')+'</td><td>'+cur(x.pnl_usd)+'</td><td>'+(x.close_reason||'—')+'</td></tr>';}h+='</tbody></table></div>';}
     if(d.written_summary){h+='<div class="stat-card"><h3>Summary</h3><pre style="white-space:pre-wrap;font-size:0.9em;">'+String(d.written_summary).substring(0,2000)+(d.written_summary.length>2000?'…':'')+'</pre></div>';}
     el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Executive failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadXAIAuditor=function(){var el=document.getElementById('xai-content');if(!el)return;el.innerHTML='<div class="loading">Loading XAI...</div>';fetch('/api/xai/auditor',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var tc=d.trade_count!=null?d.trade_count:0;var wc=d.weight_count!=null?d.weight_count:0;var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Natural Language Auditor</h3><p><strong>Trades:</strong> '+tc+'</p><p><strong>Weights:</strong> '+wc+'</p></div>';
-    var tr=d.trades||[];if(tr.length){h+='<div class="stat-card" style="margin-bottom:16px;"><h3>Trade explanations</h3><table style="width:100%"><thead><tr><th>Symbol</th><th>Type</th><th>Why / Summary</th></tr></thead><tbody>';for(var i=0;i<Math.min(tr.length,20);i++){var x=tr[i];var sum=String(x.why||x.summary||x.reason||'').substring(0,80);h+='<tr><td>'+(x.symbol||'—')+'</td><td>'+(x.type||x.event_type||'—')+'</td><td>'+sum+'</td></tr>';}h+='</tbody></table></div>';}
-    var wt=d.weights||[];if(wt.length){h+='<div class="stat-card"><h3>Weight entries</h3><table style="width:100%"><thead><tr><th>Component</th><th>Change</th></tr></thead><tbody>';for(var j=0;j<Math.min(wt.length,15);j++){var w=wt[j];h+='<tr><td>'+(w.component||w.name||'—')+'</td><td>'+(w.change!=null?w.change:(w.multiplier!=null?w.multiplier:'—'))+'</td></tr>';}h+='</tbody></table></div>';}
-    if(d.errors&&d.errors.length){h+='<div class="stat-card" style="border-color:#ef4444;"><h3>Errors</h3><p>'+d.errors.join('; ')+'</p></div>';}
-    el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'XAI failed: '+(e&&e.message?e.message:'network'));});};
     window.loadFailurePoints=function(){var el=document.getElementById('failure_points-content');if(!el)return;el.innerHTML='<div class="loading">Loading Trading Readiness...</div>';fetch('/api/failure_points',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var rdy=d.readiness||'—';var crit=d.critical_count!=null?d.critical_count:0;var warn=d.warning_count!=null?d.warning_count:0;var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Trading Readiness</h3><p><strong>Status:</strong> '+rdy+'</p><p><strong>Critical:</strong> '+crit+'</p><p><strong>Warnings:</strong> '+warn+'</p></div>';
     var fpObj=d.failure_points||d.checks||{};var fpKeys=Object.keys(fpObj);if(fpKeys.length){h+='<div class="stat-card"><h3>Checks</h3><table style="width:100%"><thead><tr><th>Check</th><th>Status</th></tr></thead><tbody>';for(var i=0;i<fpKeys.length;i++){var k=fpKeys[i];var x=fpObj[k];var nm=typeof x==='object'&&x?(x.name||x.check_name||x.id||k):k;var st=typeof x==='object'&&x?(x.status||(x.passing===true?'OK':(x.passing===false?'FAIL':'—'))):'—';h+='<tr><td>'+nm+'</td><td>'+st+'</td></tr>';}h+='</tbody></table></div>';}
     if(d.error){h+='<div class="stat-card" style="border-color:#ef4444;"><p>'+d.error+'</p></div>';}
     el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Readiness failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadWheelUniverseHealth=function(){var el=document.getElementById('wheel_universe-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Universe Health...</div>';fetch('/api/wheel/universe_health',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var h='';if(d.message){h+='<div class="stat-card"><p>'+d.message+'</p><p>Run: <code>python scripts/generate_wheel_universe_health.py</code></p></div>';}else{h+='<div class="stat-card"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Current universe:</strong> '+(Array.isArray(d.current_universe)?d.current_universe.join(', '):'—')+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(d.selected_candidates)?d.selected_candidates.join(', '):'—')+'</p></div>';h+='<div class="stat-card"><h3>Sector distribution</h3><pre>'+JSON.stringify(d.sector_distribution||{},null,2)+'</pre></div>';if(d.assignment_count!=null)h+='<div class="stat-card"><p><strong>Assignments:</strong> '+d.assignment_count+' | <strong>Called away:</strong> '+d.call_away_count+'</p></div>';if(d.ai_recommendations&&d.ai_recommendations.length){h+='<div class="stat-card"><h3>AI recommendations</h3><ul>';for(var i=0;i<d.ai_recommendations.length;i++)h+='<li>'+JSON.stringify(d.ai_recommendations[i])+'</li>';h+='</ul></div>';}}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel Universe Health failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadStrategyComparison=function(){var el=document.getElementById('strategy_comparison-content');if(!el)return;el.innerHTML='<div class="loading">Loading Strategy Comparison...</div>';fetch('/api/strategy/comparison',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sc=d.strategy_comparison||{};var rec=d.recommendation||'WAIT';var score=d.promotion_readiness_score;var badge='<span style="padding:4px 12px;border-radius:6px;font-weight:bold;background:'+(rec==='PROMOTE'?'#10b981':rec==='DO NOT PROMOTE'?'#ef4444':'#f59e0b')+';color:#fff">'+rec+'</span>';var h='<div class="stat-card"><h3>Strategy Comparison</h3><p><strong>Date:</strong> '+(d.date||'—')+'</p><p><strong>Promotion Readiness Score:</strong> '+(score!=null?score:'—')+' / 100</p><p><strong>Recommendation:</strong> '+badge+'</p></div>';h+='<div class="stat-card"><h3>Equity vs Wheel</h3><p>Equity Realized: $'+(sc.equity_realized_pnl!=null?fmt(sc.equity_realized_pnl):'—')+' | Wheel Realized: $'+(sc.wheel_realized_pnl!=null?fmt(sc.wheel_realized_pnl):'—')+'</p><p>Equity Unrealized: $'+(sc.equity_unrealized_pnl!=null?fmt(sc.equity_unrealized_pnl):'—')+' | Wheel Unrealized: $'+(sc.wheel_unrealized_pnl!=null?fmt(sc.wheel_unrealized_pnl):'—')+'</p><p>Equity Drawdown: '+(sc.equity_drawdown!=null?sc.equity_drawdown:'—')+' | Wheel Drawdown: '+(sc.wheel_drawdown!=null?sc.wheel_drawdown:'—')+'</p><p>Equity Sharpe: '+(sc.equity_sharpe_proxy!=null?sc.equity_sharpe_proxy:'—')+' | Wheel Sharpe: '+(sc.wheel_sharpe_proxy!=null?sc.wheel_sharpe_proxy:'—')+'</p><p>Wheel Yield: '+(sc.wheel_yield_per_period!=null?sc.wheel_yield_per_period:'—')+' | Capital Eff Equity: '+(sc.capital_efficiency_equity!=null?sc.capital_efficiency_equity:'—')+' | Wheel: '+(sc.capital_efficiency_wheel!=null?sc.capital_efficiency_wheel:'—')+'</p></div>';if(d.weekly_report&&d.weekly_report.reasoning){var wr=d.weekly_report.reasoning;h+='<div class="stat-card"><h3>Weekly Reasoning</h3><pre>'+JSON.stringify(wr,null,2)+'</pre></div>';}if(d.historical_comparison&&d.historical_comparison.length){h+='<div class="stat-card"><h3>Historical (last 30 days)</h3><table><thead><tr><th>Date</th><th>Equity</th><th>Wheel</th><th>Score</th></tr></thead><tbody>';for(var i=0;i<Math.min(d.historical_comparison.length,15);i++){var x=d.historical_comparison[i];h+='<tr><td>'+(x.date||'—')+'</td><td>$'+(x.equity_realized!=null?fmt(x.equity_realized):'—')+'</td><td>$'+(x.wheel_realized!=null?fmt(x.wheel_realized):'—')+'</td><td>'+(x.promotion_score!=null?x.promotion_score:'—')+'</td></tr>';}h+='</tbody></table></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Strategy Comparison failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadSignalReview=function(){var el=document.getElementById('signal-review-content');if(!el)return;el.innerHTML='<div class="loading">Loading Signal Review...</div>';fetch('/api/signal_history',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sig=Array.isArray(d.signals)?d.signals:[];if(sig.length===0){el.innerHTML='<p class="no-positions">No signal history</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Direction</th><th>Score</th><th>Decision</th></tr></thead><tbody>';for(var i=0;i<Math.min(sig.length,50);i++){var s=sig[i];h+='<tr><td>'+(s.symbol||'—')+'</td><td>'+(s.direction||'—')+'</td><td>'+(s.final_score!=null?fmt(s.final_score):'—')+'</td><td>'+(s.decision||'—')+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Signal review failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadSignalReview=function(){var el=document.getElementById('signal-review-content');if(!el)return;el.innerHTML='<div class="loading">Loading Signal Review...</div>';fetch('/api/signal_history',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var sig=Array.isArray(d.signals)?d.signals:[];if(sig.length===0){el.innerHTML='<p class="no-positions">No signal history rows returned. Source: <code>GET /api/signal_history</code> (typically <code>logs/signal_history.jsonl</code> or empty if bot has not logged signals yet). This is not a loading error.</p>';return;}var h='<table><thead><tr><th>Symbol</th><th>Direction</th><th>Score</th><th>Decision</th></tr></thead><tbody>';for(var i=0;i<Math.min(sig.length,50);i++){var s=sig[i];h+='<tr><td>'+(s.symbol||'—')+'</td><td>'+(s.direction||'—')+'</td><td>'+(s.final_score!=null?fmt(s.final_score):'—')+'</td><td>'+(s.decision||'—')+'</td></tr>';}h+='</tbody></table>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Signal review failed: '+(e&&e.message?e.message:'network'));});};
     window.loadLearningReadiness=function(){var el=document.getElementById('learning_readiness-content');if(!el)return;var lastAttempt=new Date().toISOString();el.innerHTML='<div class="loading">Loading Learning & Readiness...</div>';function errState(msg){el.innerHTML='<div class="stat-card" style="border-color:#ef4444"><h3>State: ERROR</h3><p>'+msg+'</p><p>Last attempt: '+lastAttempt+'</p><p>Check <code>/api/learning_readiness</code> and browser console.</p></div>';}function degState(msg,code){el.innerHTML='<div class="stat-card" style="border-color:#f59e0b"><h3>State: DEGRADED</h3><p>'+msg+'</p><p>Code: '+(code||'')+'</p></div>';}fetch('/api/learning_readiness',creds).then(function(r){if(!r.ok){errState('Learning & Readiness unavailable (HTTP '+r.status+').');return null;}return r.json();}).then(function(d){if(!el)return;lastAttempt=new Date().toISOString();try{if(!d){errState('No response body.');return;}if(d.ok===false){degState((d.error||'Backend error')+'',d.error_code||'');return;}var x=Number(d.telemetry_trades);if(!isFinite(x))x=0;var tot=Number(d.telemetry_total||d.total_trades);if(!isFinite(tot))tot=0;var pct=Number(d.pct_telemetry);if(!isFinite(pct))pct=0;var tgt=Number(d.target_trades)||100;var minPct=Number(d.min_pct_telemetry)||90;var ready=d.ready===true;var stateLabel=d.ok===true?'OK':(d.error?'DEGRADED':'WAITING');var allTime=d.all_time_exits!=null?d.all_time_exits:0;var lastCsa=d.last_csa_mission_id;var untilCsa=d.trades_until_next_csa;var h='<div class="stat-card" style="margin-bottom:12px;"><button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Refresh</button> <button type="button" onclick="switchTab(\'profitability_learning\', event);">See Profitability &amp; Learning</button></div>';h+='<div class="stat-card"><h3>State: '+stateLabel+'</h3><p>run_ts: '+(d.run_ts||'—')+' · commit: '+(d.deployed_commit||'—')+'</p></div>';h+='<div class="stat-card"><h3>Trades reviewed</h3>'+(allTime?'<p><strong>Total exits (all-time):</strong> '+allTime+'</p>':'')+(lastCsa!=null||untilCsa!=null?'<p><strong>Last CSA mission:</strong> '+(lastCsa||'—')+' · <strong>Trades until next CSA:</strong> '+(untilCsa!=null?untilCsa:'—')+'</p>':'')+'<p><strong>'+x+'</strong> / '+tgt+' telemetry-backed</p><p>'+tot+' total exits · '+pct.toFixed(1)+'% with full telemetry</p><p><strong>Ready for replay:</strong> '+(ready?'Yes':'No — need &ge;'+tgt+' and &ge;'+minPct+'%')+'</p></div>';h+='<div class="stat-card"><h3>Still reviewing?</h3><p><strong>Yes.</strong> '+(d.review_continues_after_100||'Counts updated every 5 min from exit_attribution.')+'</p></div>';h+='<div class="stat-card"><h3>Visibility matrix (last 100 exits)</h3>';var mx=d.visibility_matrix||[];if(mx.length===0){h+='<p>No exits yet.</p>';}else{h+='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Field</th><th>Present</th><th>Total</th><th>%</th></tr></thead><tbody>';for(var j=0;j<mx.length;j++){var row=mx[j];var fn=row.field||row.feature||'—';var cnt=row.present!=null?row.present:(row.count!=null?row.count:0);var totRow=row.total!=null?row.total:tot;var pc=row.pct!=null?row.pct:0;h+='<tr><td>'+fn+'</td><td>'+cnt+'</td><td>'+totRow+'</td><td>'+Number(pc).toFixed(1)+'%</td></tr>';}h+='</tbody></table>';}h+='</div>';h+='<div class="stat-card"><h3>Close to promotion?</h3><p>'+(d.promotion_close_missing&&d.promotion_close_missing.length?d.promotion_close_missing.join('; '):'Replay gate: need &ge;100 telemetry-backed and &ge;90% coverage.')+'</p></div>';h+='<div class="stat-card"><h3>Update schedule</h3><p><strong>'+((d.update_schedule||d.cron_schedule)||'—')+'</strong></p><p>Last cron: '+(d.last_cron_run_iso||'—')+' '+(d.fresh===true?'(fresh)':'')+'</p></div>';var rs=d.replay_status;if(rs&&(rs.status||rs.reason)){h+='<div class="stat-card"><h3>Replay status</h3><p><strong>Status:</strong> '+(rs.status||'—')+'</p>'+(rs.reason?'<p><strong>Reason:</strong> '+rs.reason+'</p>':'')+(rs.last_run_ts?'<p><strong>Last run:</strong> '+rs.last_run_ts+'</p>':'')+'</div>';}var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];h+='<div class="stat-card"><h3>Promotion readiness</h3><p><strong>Recommendation:</strong> '+rec+(score!=null?' '+score+'/100':'')+'</p>'+(reasons.length?'<p><strong>Reasons:</strong> '+reasons.join('; ')+'</p>':'')+'</div>';el.innerHTML=h;}catch(e){errState('Error rendering: '+(e&&e.message?e.message:'unknown'));}}).catch(function(e){if(el)errState('Failed to load. '+(e&&e.message?e.message:''));});};
-    window.loadTelemetryHealth=function(){var el=document.getElementById('telemetry_health-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry Health...</div>';fetch('/api/telemetry_health',creds).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!el)return;if(!d){el.innerHTML='<p>Telemetry health unavailable.</p>';return;}var h='<div class="stat-card"><h3>Canonical logs</h3><table style="width:100%"><thead><tr><th>Log</th><th>Exists</th><th>Last write</th></tr></thead><tbody>';var ls=d.log_status||[];for(var i=0;i<ls.length;i++){var x=ls[i];h+='<tr><td>'+ (x.log||'')+'</td><td>'+(x.exists?'Yes':'No')+'</td><td>'+(x.last_write||'—')+'</td></tr>';}h+='</tbody></table></div>';h+='<div class="stat-card"><h3>Coverage</h3><p><strong>Direction telemetry-backed:</strong> '+(d.direction_coverage||'0/100')+'</p><p><strong>Direction ready:</strong> '+(d.direction_ready?'Yes':'No')+'</p></div>';if(d.gate_status){h+='<div class="stat-card"><h3>Contract audit</h3><p><strong>Last run:</strong> '+d.gate_status+'</p><p>Run <code>make telemetry_gate</code> to refresh.</p></div>';}if(!d.last_droplet_analysis){h+='<div class="stat-card" style="border:2px solid #f59e0b;"><h3>Droplet Data Authority</h3><p style="margin:0;color:#92400e;"><strong>No authoritative data review has been run.</strong> Run analysis on the droplet with --droplet-run --deployed-commit.</p></div>';}else{var lda=d.last_droplet_analysis;h+='<div class="stat-card"><h3>Last droplet analysis run</h3><p><strong>Script:</strong> '+(lda.script||'—')+'</p><p><strong>Deployed commit:</strong> '+(lda.deployed_commit||'—')+'</p><p><strong>Run time (UTC):</strong> '+(lda.run_ts||'—')+'</p></div>';}el.innerHTML=h;}).catch(function(){if(el)el.innerHTML='<p>Failed to load telemetry health.</p>';});};
+    window.loadSystemHealth=function(){var el=document.getElementById('system_health-content');if(!el)return;var clientTs=new Date().toISOString();el.innerHTML='<div class="loading">Loading System Health...</div>';Promise.all([fetch('/api/dashboard/data_integrity',creds).then(function(r){return r.ok?r.json():null;}),fetch('/api/telemetry/latest/index',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var di=arr[0];var idx=arr[1];if(!el)return;if(!di){el.innerHTML='<div class="stat-card"><p>Data unavailable. <code>/api/dashboard/data_integrity</code> returned empty.</p></div>';return;}var h='<div class="stat-card"><h3>System Health &amp; Data Integrity</h3><p style="font-size:0.85em;color:#64748b"><strong>Panel generated:</strong> '+clientTs+' (browser)</p><p style="font-size:0.85em"><strong>API:</strong> <code>/api/dashboard/data_integrity</code> · server <code>generated_at_utc</code>: '+(di.generated_at_utc||'—')+'</p><p style="font-size:0.82em">Each subsection lists its file/telemetry source in the JSON <code>data_sources</code> map.</p></div>';if(idx&&idx.latest_date){h+='<div class="stat-card"><h3>Telemetry bundle pointer</h3><p><strong>Latest bundle date:</strong> '+idx.latest_date+'</p><p style="font-size:0.85em">Source: <code>/api/telemetry/latest/index</code></p></div>';}if(di.alpaca_strict_error){h+='<div class="stat-card" style="border-color:#ef4444"><h3>Alpaca strict gate</h3><p>UNAVAILABLE: '+String(di.alpaca_strict_error).substring(0,400)+'</p></div>';}else if(di.alpaca_strict){var a=di.alpaca_strict;h+='<div class="stat-card"><h3>Alpaca strict learning (closed cohort)</h3><p><strong>LEARNING_STATUS:</strong> '+(a.LEARNING_STATUS||'—')+'</p><p><strong>Reason:</strong> '+(a.learning_fail_closed_reason||'—')+'</p><p><strong>trades_seen / complete / incomplete:</strong> '+(a.trades_seen!=null?a.trades_seen:'—')+' / '+(a.trades_complete!=null?a.trades_complete:'—')+' / '+(a.trades_incomplete!=null?a.trades_incomplete:'—')+'</p><p style="font-size:0.85em">Cohort: entry-based vs STRICT_EPOCH_START. See gate module.</p></div>';}var kd=di.kraken_direction_readiness||{};h+='<div class="stat-card"><h3>Kraken / direction readiness (exit join)</h3><p><strong>Telemetry-backed / window:</strong> '+(kd.telemetry_trades!=null?kd.telemetry_trades:'—')+' / '+(kd.total_trades_window!=null?kd.total_trades_window:'—')+'</p><p><strong>Ready:</strong> '+(kd.ready===true?'Yes':'No')+'</p><p><strong>updated_ts:</strong> '+(kd.updated_ts||'—')+'</p><p style="font-size:0.8em">'+(kd.note||'')+'</p></div>';var ls=di.canonical_log_staleness||[];h+='<div class="stat-card"><h3>Canonical log staleness</h3><table style="width:100%;font-size:12px"><thead><tr><th>Log</th><th>Exists</th><th>Last write (UTC)</th></tr></thead><tbody>';for(var i=0;i<ls.length;i++){var x=ls[i];h+='<tr><td>'+(x.log||'')+'</td><td>'+(x.exists?'Yes':'No')+'</td><td>'+(x.last_write||'—')+'</td></tr>';}h+='</tbody></table></div>';var mx=di.join_coverage_exit_attribution||[];h+='<div class="stat-card"><h3>Join coverage (last 100 exit_attribution rows)</h3>';if(!mx.length){h+='<p>No rows sampled.</p></div>';}else{h+='<table style="width:100%;font-size:12px"><thead><tr><th>Field</th><th>Present</th><th>Total</th><th>%</th></tr></thead><tbody>';for(var j=0;j<mx.length;j++){var r=mx[j];h+='<tr><td>'+(r.field||'—')+'</td><td>'+(r.present!=null?r.present:0)+'</td><td>'+(r.total!=null?r.total:0)+'</td><td>'+(r.pct!=null?r.pct:0)+'</td></tr>';}h+='</tbody></table></div>';}h+='<div class="stat-card"><h3>Temporal / structural flags</h3><pre style="font-size:11px;white-space:pre-wrap">'+(JSON.stringify(di.temporal_and_structural_flags||[],null,2))+'</pre><p><strong>Contract audit gate:</strong> '+(di.contract_audit_gate!=null?di.contract_audit_gate:'—')+'</p></div>';if(!di.last_droplet_analysis){h+='<div class="stat-card" style="border:2px solid #f59e0b"><h3>Droplet analysis</h3><p>No <code>state/last_droplet_analysis.json</code> yet.</p></div>';}else{var lda=di.last_droplet_analysis;h+='<div class="stat-card"><h3>Last droplet analysis</h3><p><strong>Script:</strong> '+(lda.script||'—')+'</p><p><strong>Commit:</strong> '+(lda.deployed_commit||'—')+'</p><p><strong>Run (UTC):</strong> '+(lda.run_ts||'—')+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){if(el)el.innerHTML='<div class="stat-card" style="color:#ef4444">Failed: '+(e&&e.message?e.message:'network')+'</div>';});};
     window.loadTelemetryContent=function(){var el=document.getElementById('telemetry-content');if(!el)return;el.innerHTML='<div class="loading">Loading Telemetry...</div>';fetch('/api/telemetry/latest/index',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var dt=d.latest_date||'—';var list=d.computed||[];var h='<div class="stat-card" style="margin-bottom:16px;"><h3>Telemetry</h3><p><strong>Latest bundle:</strong> '+dt+'</p>';
     if(d.message){h+='<p>'+d.message+'</p>';}
     if(list.length){h+='<p><strong>Computed artifacts:</strong></p><ul>';for(var i=0;i<list.length;i++){var c=list[i];var name=typeof c==='string'?c:(c.name||c.id||'');if(name)h+='<li>'+name+'</li>';}h+='</ul>';}
     h+='</div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Telemetry failed: '+(e&&e.message?e.message:'network'));});};
     window.loadProfitabilityLearning=function(){var el=document.getElementById('profitability_learning-content');if(!el)return;el.innerHTML='<div class="loading">Loading Profitability &amp; Learning...</div>';fetch('/api/profitability_learning',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and try again.');return null;}return r.json();}).then(function(d){if(!el)return;if(!d){el.innerHTML='<div class="stat-card"><p>No data. Run scripts/update_profitability_cockpit.py on the droplet.</p></div>';return;}var ts=d.trade_state||{};var total=ts.total_trade_events!=null?ts.total_trade_events:0;var until=total>0?100-(total%100):100;var v=d.csa_verdict||{};var h='<div class="stat-card"><h3>CSA &amp; Trade Count</h3><p><strong>Last mission:</strong> '+(v.mission_id||'—')+'</p><p><strong>Verdict:</strong> '+(v.verdict||'—')+'</p><p><strong>Total trade events:</strong> '+total+'</p><p><strong>Trades until next CSA:</strong> '+until+'</p></div>';var md=String(d.cockpit_md||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');h+='<div class="stat-card"><h3>Profitability Cockpit</h3><pre style="white-space:pre-wrap;font-size:0.9em;">'+md+'</pre></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){if(el)err(el,'Profitability failed: '+(e&&e.message?e.message:'network'));});};
     window.loadFastLanePnl=function(){var el=document.getElementById('fast_lane-content');if(!el)return;el.innerHTML='<div class="loading">Loading Alpaca Fast-Lane 25-Trade PnL...</div>';fetch('/api/stockbot/fast_lane_ledger',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!el)return;var cycles=Array.isArray(d.cycles)?d.cycles:[];var totalTrades=d.total_trades!=null?d.total_trades:0;var cum=d.cumulative_pnl!=null?d.cumulative_pnl:0;var h='<div class="stat-card"><h3>Alpaca Fast-Lane (25-trade cycles)</h3><p><strong>Total trades:</strong> '+totalTrades+'</p><p><strong>Cumulative PnL:</strong> <span class="'+(cum>=0?'positive':'negative')+'">$'+Number(cum).toFixed(2)+'</span></p><p style="font-size:0.9em;color:#6b7280;">Shadow-only; no execution impact.</p></div>';if(cycles.length){var run=0;h+='<div class="stat-card"><h3>PnL per cycle (25 trades)</h3><table style="width:100%;font-size:12px;"><thead><tr><th>Cycle</th><th>PnL (USD)</th><th>Cumulative</th><th>Promoted</th><th>Completed</th></tr></thead><tbody>';for(var i=0;i<cycles.length;i++){var c=cycles[i];run+=Number(c.pnl_usd)||0;var pnlCls=(c.pnl_usd>=0?'positive':'negative');var promoted=(c.promoted_angle||c.best_candidate_id||'—');h+='<tr><td>'+(c.cycle_id||'—')+'</td><td class="'+pnlCls+'">$'+(Number(c.pnl_usd).toFixed(2))+'</td><td>$'+Number(run).toFixed(2)+'</td><td>'+promoted+'</td><td>'+(c.timestamp_completed||'—').toString().substring(0,19)+'</td></tr>';}h+='</tbody></table></div>';}else{h+='<div class="stat-card"><p>No cycles yet. Run <code>python scripts/run_fast_lane_shadow_cycle.py</code> (cron every 15 min on droplet).</p></div>';}if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Fast-lane failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadClosedTrades=function(){var el=document.getElementById('closed_trades-content');if(!el)return;el.innerHTML='<div class="loading">Loading closed trades...</div>';fetch('/api/stockbot/closed_trades',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var filter=document.getElementById('closed_trades_filter');var raw=Array.isArray(d.closed_trades)?d.closed_trades:[];var strategyFilter=(filter&&filter.value)||'all';var list=raw;if(strategyFilter==='equity')list=raw.filter(function(t){return (t.strategy_id||'equity')==='equity';});if(strategyFilter==='wheel')list=raw.filter(function(t){return (t.strategy_id||'')==='wheel';});var h='<div class="stat-card" style="margin-bottom:12px;"><label>Filter: </label><select id="closed_trades_filter" onchange="if(typeof loadClosedTrades===\'function\')loadClosedTrades();"><option value="all"'+(strategyFilter==='all'?' selected':'')+'>All trades</option><option value="equity"'+(strategyFilter==='equity'?' selected':'')+'>Equity only</option><option value="wheel"'+(strategyFilter==='wheel'?' selected':'')+'>Wheel only</option></select></div>';
-    h+='<div class="stat-card"><h3>Closed Trades ('+list.length+')</h3><table style="width:100%;font-size:12px;"><thead><tr><th>Strategy</th><th>Symbol</th><th>Time</th><th>P&L</th><th>Close</th><th>Phase</th><th>Type</th><th>Strike</th><th>Expiry</th><th>DTE</th><th>Premium</th><th>Assigned</th><th>Called</th></tr></thead><tbody>';
-    for(var i=0;i<list.length;i++){var t=list[i];var sid=t.strategy_id||'equity';var stratLabel=sid==='wheel'?'Wheel':'Equity';var ts=t.timestamp?new Date(t.timestamp).toLocaleString():'—';var pnl=t.pnl_usd!=null?'$'+Number(t.pnl_usd).toFixed(2):'—';var close=t.close_reason||'—';var ph=t.wheel_phase||'—';var ot=t.option_type||'—';var st=t.strike!=null?t.strike:'—';var ex=t.expiry||'—';var dte=t.dte!=null?t.dte:'—';var pr=t.premium!=null?'$'+Number(t.premium).toFixed(2):'—';var asn=t.assigned===true?'Y':(t.assigned===false?'N':'—');var ca=t.called_away===true?'Y':(t.called_away===false?'N':'—');h+='<tr><td>'+stratLabel+'</td><td>'+(t.symbol||'—')+'</td><td>'+ts+'</td><td>'+pnl+'</td><td>'+close+'</td><td>'+ph+'</td><td>'+ot+'</td><td>'+st+'</td><td>'+ex+'</td><td>'+dte+'</td><td>'+pr+'</td><td>'+asn+'</td><td>'+ca+'</td></tr>';}
-    h+='</tbody></table></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Closed trades failed: '+(e&&e.message?e.message:'network'));});};
-    window.loadWheelAnalytics=function(){var el=document.getElementById('wheel_strategy-content');if(!el)return;el.innerHTML='<div class="loading">Loading Wheel Strategy...</div>';Promise.all([fetch('/api/stockbot/wheel_analytics',creds).then(function(r){return r.ok?r.json():null;}),fetch('/api/wheel/universe_health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var d=arr[0];var univ=arr[1];if(!d)d={};var h='<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> '+(d.total_trades!=null?d.total_trades:0)+'</p><p><strong>Premium collected:</strong> $'+(d.premium_collected!=null?Number(d.premium_collected).toFixed(2):'0.00')+'</p><p><strong>Assignment count:</strong> '+(d.assignment_count!=null?d.assignment_count:0)+' | <strong>Call-away count:</strong> '+(d.call_away_count!=null?d.call_away_count:0)+'</p><p><strong>Assignment rate:</strong> '+(d.assignment_rate_pct!=null?d.assignment_rate_pct.toFixed(1):'—')+'% | <strong>Call-away rate:</strong> '+(d.call_away_rate_pct!=null?d.call_away_rate_pct.toFixed(1):'—')+'%</p><p><strong>Expectancy per trade (USD):</strong> '+(d.expectancy_per_trade_usd!=null?'$'+Number(d.expectancy_per_trade_usd).toFixed(2):'—')+'</p><p><strong>Realized P&L sum:</strong> '+(d.realized_pnl_sum!=null?'$'+Number(d.realized_pnl_sum).toFixed(2):'—')+'</p></div>';var openPos=d.open_wheel_positions||[];h+='<div class="stat-card" style="margin-top:16px;"><h3>Current wheel positions</h3>';if(openPos.length){h+='<table style="width:100%;font-size:12px;"><thead><tr><th>Symbol</th><th>Stage</th><th>Strike</th><th>Expiry</th><th>Premium</th><th>Status</th></tr></thead><tbody>';for(var i=0;i<openPos.length;i++){var p=openPos[i];h+='<tr><td>'+(p.symbol||'—')+'</td><td>'+(p.phase||'—')+'</td><td>'+(p.strike!=null?p.strike:'—')+'</td><td>'+(p.expiry||'—').toString().substring(0,10)+'</td><td>'+(p.premium!=null?'$'+Number(p.premium).toFixed(2):'—')+'</td><td>'+(p.status||'open')+'</td></tr>';}h+='</tbody></table></div>';}else{h+='<p>No open wheel positions. Wheel positions appear here and in Open Positions with Strategy=Wheel.</p></div>';}if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}if(univ){h+='<div class="stat-card" style="margin-top:16px;"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> '+(univ.date||'—')+'</p><p><strong>Universe:</strong> '+(Array.isArray(univ.current_universe)?univ.current_universe.join(', '):(univ.message||'—'))+'</p><p><strong>Selected candidates:</strong> '+(Array.isArray(univ.selected_candidates)?univ.selected_candidates.join(', '):'—')+'</p></div>';}el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Wheel analytics failed: '+(e&&e.message?e.message:'network'));});};
+    window.loadClosedTrades=function(){var el=document.getElementById('closed_trades-content');if(!el)return;el.innerHTML='<div class="loading">Loading closed trades...</div>';fetch('/api/stockbot/closed_trades',creds).then(function(r){if(!r.ok){err(el,'Server '+r.status+'. Refresh and log in.');return null;}return r.json();}).then(function(d){if(!d)return;var filter=document.getElementById('closed_trades_filter');var raw=Array.isArray(d.closed_trades)?d.closed_trades:[];var strategyFilter=(filter&&filter.value)||'all';var list=raw;if(strategyFilter==='equity')list=raw.filter(function(t){return (t.strategy_id||'equity')==='equity';});var h='<div class="stat-card" style="margin-bottom:12px;"><label>Filter: </label><select id="closed_trades_filter" onchange="if(typeof loadClosedTrades===\'function\')loadClosedTrades();"><option value="all"'+(strategyFilter==='all'?' selected':'')+'>All trades</option><option value="equity"'+(strategyFilter==='equity'?' selected':'')+'>Equity only</option></select></div>';
+    var asum=d.alpaca_strict_summary||null;var sumLine='';if(asum){sumLine='<p style="font-size:0.85em"><strong>Alpaca strict snapshot:</strong> '+(asum.LEARNING_STATUS||'—')+' · seen '+(asum.trades_seen!=null?asum.trades_seen:'—')+' · incomplete '+(asum.trades_incomplete!=null?asum.trades_incomplete:'—')+' · API ts '+(d.response_generated_at_utc||'—')+'</p>';}if(d.alpaca_strict_eval_error){sumLine+='<p style="color:#b45309;font-size:0.85em">Strict eval error: '+String(d.alpaca_strict_eval_error).substring(0,200)+'</p>';}
+    h+='<div class="stat-card"><h3>Closed Trades ('+list.length+')</h3>'+sumLine+'<p style="font-size:0.8em;color:#64748b">Row sources: <code>data_sources</code> per row. INCOMPLETE = field absent in log line.</p><div style="overflow-x:auto"><table style="width:100%;font-size:11px;"><thead><tr><th>Strategy</th><th>Symbol</th><th>Exit time</th><th>Entry @</th><th>P&amp;L</th><th>Fees</th><th>Entry reason</th><th>Exit reason</th><th>Strict</th><th>Options context</th></tr></thead><tbody>';
+    for(var i=0;i<list.length;i++){var t=list[i];var stratLabel='Equity';var ts=t.timestamp?new Date(t.timestamp).toLocaleString():'—';var pnl=t.pnl_usd!=null?'$'+Number(t.pnl_usd).toFixed(2):'—';var close=t.close_reason||'—';var ph=t.option_phase||'—';var ot=t.option_type||'—';var st=t.strike!=null?t.strike:'—';var ctx=ph+' / '+ot+' / '+st;var ent=t.entry_timestamp?String(t.entry_timestamp).substring(0,19):'INCOMPLETE';var er=t.entry_reason_display||'INCOMPLETE';var fd=t.fees_display||'INCOMPLETE';var sc=t.strict_alpaca_chain||'—';h+='<tr><td>'+stratLabel+'</td><td>'+(t.symbol||'—')+'</td><td>'+ts+'</td><td>'+ent+'</td><td>'+pnl+'</td><td>'+fd+'</td><td style="max-width:120px;word-break:break-word">'+er+'</td><td style="max-width:120px;word-break:break-word">'+close+'</td><td style="font-size:10px">'+sc+'</td><td style="font-size:10px">'+ctx+'</td></tr>';}
+    h+='</tbody></table></div></div>';el.innerHTML=h;el.dataset.loaded='1';}).catch(function(e){err(el,'Closed trades failed: '+(e&&e.message?e.message:'network'));});};
     function loadTopStrip(){Promise.all([fetch('/api/sre/health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=24h',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=7d',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var health=arr[0];var d24=arr[1];var d7=arr[2];var hel=document.getElementById('strip-health');if(hel){var h=health&&health.overall_health?health.overall_health:'—';hel.textContent=h;hel.className='strip-health '+(h==='healthy'?'healthy':h==='degraded'?'degraded':'critical');}var todayEl=document.getElementById('strip-pnl-today');if(todayEl){var pm24=d24&&d24.pnl_metrics?d24.pnl_metrics:{};var p24=pm24.pnl!=null?pm24.pnl:(pm24.pnl_2d!=null?pm24.pnl_2d:0);todayEl.textContent='$'+fmt(p24);todayEl.className=Number(p24)>=0?'positive':'negative';}var d7El=document.getElementById('strip-pnl-7d');if(d7El){var pm7=d7&&d7.pnl_metrics?d7.pnl_metrics:{};var p7=pm7.pnl!=null?pm7.pnl:0;d7El.textContent='$'+fmt(p7);d7El.className=Number(p7)>=0?'positive':'negative';}var lu=document.getElementById('last-update');if(lu)lu.textContent=new Date().toLocaleTimeString();});}
     window.loadDirectionBanner=function(){var el=document.getElementById('direction-banner');if(!el)return;var done=function(d){if(!el)return;var sev=(d&&d.severity)||'info';el.className='direction-banner '+sev;if(!d){el.textContent='Direction status unavailable';return;}var esc=function(s){if(s==null||s===undefined)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};var msg=esc(d.message||'');var detail=esc(d.detail||'');var link=esc(d.link||'');var html=msg;if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;};var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();done(null);},5000);fetch('/api/direction_banner',Object.assign({},creds,{signal:ac&&ac.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid);done(d);});};
     window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;var done=function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var x=d.trades_reviewed!=null?d.trades_reviewed:0;var tot=d.trades_reviewed_total!=null?d.trades_reviewed_total:0;var tgt=d.trades_reviewed_target!=null?d.trades_reviewed_target:100;var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Trades reviewed:</span><span class="sit-value">'+x+'/'+tgt+(tot!==x?' <span style="opacity:0.85;">('+tot+' total)</span>':'')+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;};var ac2=typeof AbortController!=='undefined'?new AbortController():null;var tid2=setTimeout(function(){if(ac2)ac2.abort();done(null);},5000);fetch('/api/situation',Object.assign({},creds,{signal:ac2&&ac2.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid2);done(d);});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
-    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();},0);
+    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function')loadDirectionBanner();if(typeof loadSituationStrip==='function')loadSituationStrip();},0);
     })();
     </script>
     <script>
@@ -551,7 +551,7 @@ DASHBOARD_HTML = """
         function switchTab(tabName, event) {
             if (tabName === 'more') return;
             closeMoreDropdown();
-            var advancedTabs = ['signal_review', 'xai', 'failure_points', 'telemetry', 'telemetry_health', 'learning_readiness', 'profitability_learning', 'fast_lane'];
+            var advancedTabs = ['signal_review', 'failure_points', 'telemetry', 'learning_readiness', 'profitability_learning', 'fast_lane'];
             var isAdvanced = advancedTabs.indexOf(tabName) >= 0;
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
@@ -581,22 +581,16 @@ DASHBOARD_HTML = """
                 loadSREContent();
             } else if (tabName === 'executive') {
                 loadExecutiveSummary();
-            } else if (tabName === 'xai') {
-                loadXAIAuditor();
             } else if (tabName === 'failure_points') {
                 loadFailurePoints();
-            } else if (tabName === 'strategy_comparison') {
-                loadStrategyComparison();
             } else if (tabName === 'closed_trades' && typeof loadClosedTrades === 'function') {
                 loadClosedTrades();
-            } else if (tabName === 'wheel_strategy') {
-                loadWheelAnalytics();
             } else if (tabName === 'signal_review') {
                 loadSignalReview();
             } else if (tabName === 'telemetry') {
                 loadTelemetryContent();
-            } else if (tabName === 'telemetry_health') {
-                if (typeof loadTelemetryHealth === 'function') loadTelemetryHealth();
+            } else if (tabName === 'system_health') {
+                if (typeof loadSystemHealth === 'function') loadSystemHealth();
             } else if (tabName === 'learning_readiness') {
                 if (typeof loadLearningReadiness === 'function') loadLearningReadiness();
             } else if (tabName === 'profitability_learning') {
@@ -998,7 +992,7 @@ DASHBOARD_HTML = """
                         if (severity) url += '&severity=' + encodeURIComponent(severity);
                         if (auto !== '') url += '&auto_healed=' + (auto === 'true');
                         if (window_) url += '&since=' + encodeURIComponent(window_);
-                        fetch(url).then(r => r.json()).then(data => {
+                        fetch(url, { credentials: 'same-origin' }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(data => {
                             const events = data.events || [];
                             const tbody = document.getElementById('ledger-tbody');
                             if (!tbody) return;
@@ -1151,8 +1145,11 @@ DASHBOARD_HTML = """
             container.innerHTML = html;
         }
         
-        // Direction banner: update every 60s so counts and replay status stay current
-        setInterval(() => { }, 60000);
+        // Direction banner + situation: refresh every 60s (same contract as /api/direction_banner, /api/situation)
+        setInterval(() => {
+            if (typeof loadDirectionBanner === 'function') loadDirectionBanner();
+            if (typeof loadSituationStrip === 'function') loadSituationStrip();
+        }, 60000);
         // Auto-refresh SRE content if on SRE tab (less frequent)
         setInterval(() => {
             if (document.getElementById('sre-tab').classList.contains('active')) {
@@ -1168,14 +1165,14 @@ DASHBOARD_HTML = """
             }
         }, 60000);  // Refresh every 60 seconds (reduced from 30s)
         
-        // Auto-refresh XAI Auditor if on xai tab
+        // Auto-refresh System Health if on system_health tab
         setInterval(() => {
-            const xaiTab = document.getElementById('xai-tab');
-            if (xaiTab && xaiTab.classList.contains('active')) {
-                loadXAIAuditor();
+            const shTab = document.getElementById('system_health-tab');
+            if (shTab && shTab.classList.contains('active') && typeof loadSystemHealth === 'function') {
+                loadSystemHealth();
             }
-        }, 60000);  // Refresh every 60 seconds
-        
+        }, 120000);
+
         // Auto-refresh Failure Points if on failure_points tab
         setInterval(() => {
             const fpTab = document.getElementById('failure_points-tab');
@@ -1272,6 +1269,17 @@ DASHBOARD_HTML = """
                 const intelRecData = (intelRec && intelRec.data) ? intelRec.data : {};
                 const paperIntelData = paperIntel && !paperIntel.error ? paperIntel : {};
 
+                const telemetryStale = [];
+                function pushStale(label, obj) {
+                    if (obj && obj.ok === false && obj.error) telemetryStale.push(label + ': ' + obj.error);
+                }
+                pushStale('live_vs_shadow_pnl', lvs);
+                pushStale('signal_performance', sp);
+                pushStale('signal_weight_recommendations', swr);
+                const staleBanner = telemetryStale.length
+                    ? `<div style="padding: 12px; background: #fff7ed; border: 1px solid #ea580c; border-radius: 8px; margin-bottom: 12px; color: #9a3412;"><strong>STALE / INCOMPLETE TELEMETRY</strong> — Some computed artifacts are missing for bundle <code>${latestDate}</code>. Panels below may show zeros or notes only. <br/>${telemetryStale.map(function(s){ return '• ' + s; }).join('<br/>')}</div>`
+                    : '';
+
                 const parity = (health && health.parity_health) ? health.parity_health : {};
                 const repl = (health && health.replacement_health) ? health.replacement_health : {};
                 const mtl = (health && health.master_trade_log) ? health.master_trade_log : {};
@@ -1312,6 +1320,7 @@ DASHBOARD_HTML = """
                 let html = `
                     <div class="positions-table" style="margin-bottom: 20px;">
                         <h2 style="margin-bottom: 15px;">📦 Telemetry (latest bundle: ${latestDate})</h2>
+                        ${staleBanner}
                         ${noBundleMessage ? `<div style="padding: 12px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; margin-bottom: 12px; color: #92400e;">${noBundleMessage}</div>` : ''}
                         <div style="color:#666;">These panels read from telemetry/${latestDate}/computed/*.json (read-only).</div>
                     </div>
@@ -1741,118 +1750,6 @@ DASHBOARD_HTML = """
                 });
         }
         
-        function loadWheelUniverseHealth() {
-            const el = document.getElementById('wheel_universe-content');
-            if (!el) return;
-            el.innerHTML = '<div class="loading">Loading Wheel Universe Health...</div>';
-            fetch('/api/wheel/universe_health', { credentials: 'same-origin' })
-                .then(function(r) {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
-                    return r.json();
-                })
-                .then(function(d) {
-                    if (!d) return;
-                    let h = '';
-                    if (d.message) {
-                        h += '<div class="stat-card"><p>' + (d.message || '') + '</p><p>Run: <code>python scripts/generate_wheel_universe_health.py</code></p></div>';
-                    } else {
-                        h += '<div class="stat-card"><h3>Wheel Universe Health</h3><p><strong>Date:</strong> ' + (d.date || '—') + '</p><p><strong>Current universe:</strong> ' + (Array.isArray(d.current_universe) ? d.current_universe.join(', ') : '—') + '</p><p><strong>Selected candidates:</strong> ' + (Array.isArray(d.selected_candidates) ? d.selected_candidates.join(', ') : '—') + '</p></div>';
-                        h += '<div class="stat-card"><h3>Sector distribution</h3><pre>' + JSON.stringify(d.sector_distribution || {}, null, 2) + '</pre></div>';
-                        if (d.assignment_count != null) h += '<div class="stat-card"><p><strong>Assignments:</strong> ' + d.assignment_count + ' | <strong>Called away:</strong> ' + (d.call_away_count != null ? d.call_away_count : '—') + '</p></div>';
-                        if (d.ai_recommendations && d.ai_recommendations.length) {
-                            h += '<div class="stat-card"><h3>AI recommendations</h3><ul>';
-                            for (let i = 0; i < d.ai_recommendations.length; i++) h += '<li>' + JSON.stringify(d.ai_recommendations[i]) + '</li>';
-                            h += '</ul></div>';
-                        }
-                    }
-                    el.innerHTML = h;
-                    el.dataset.loaded = '1';
-                })
-                .catch(function(e) {
-                    el.innerHTML = '<div class="loading" style="color:#ef4444;">Wheel Universe Health failed: ' + (e && e.message ? e.message : 'network') + '</div>';
-                });
-        }
-        
-        function loadStrategyComparison() {
-            const el = document.getElementById('strategy_comparison-content');
-            if (!el) return;
-            el.innerHTML = '<div class="loading">Loading Strategy Comparison...</div>';
-            fetch('/api/strategy/comparison', { credentials: 'same-origin' })
-                .then(function(r) {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
-                    return r.json();
-                })
-                .then(function(d) {
-                    if (!d) return;
-                    const sc = d.strategy_comparison || {};
-                    const rec = d.recommendation || 'WAIT';
-                    const score = d.promotion_readiness_score;
-                    const badgeClr = rec === 'PROMOTE' ? '#10b981' : (rec === 'DO NOT PROMOTE' ? '#ef4444' : '#f59e0b');
-                    const badge = '<span style="padding:4px 12px;border-radius:6px;font-weight:bold;background:' + badgeClr + ';color:#fff">' + rec + '</span>';
-                    let h = '<div class="stat-card"><h3>Strategy Comparison</h3><p><strong>Date:</strong> ' + (d.date || '—') + '</p><p><strong>Promotion Readiness Score:</strong> ' + (score != null ? score : '—') + ' / 100</p><p><strong>Recommendation:</strong> ' + badge + '</p></div>';
-                    const fmt = function(v) { const n = Number(v); return (v == null || v === undefined) ? '0.00' : (isFinite(n) ? n.toFixed(2) : '0.00'); };
-                    h += '<div class="stat-card"><h3>Equity vs Wheel</h3><p>Equity Realized: $' + (sc.equity_realized_pnl != null ? fmt(sc.equity_realized_pnl) : '—') + ' | Wheel Realized: $' + (sc.wheel_realized_pnl != null ? fmt(sc.wheel_realized_pnl) : '—') + '</p><p>Equity Unrealized: $' + (sc.equity_unrealized_pnl != null ? fmt(sc.equity_unrealized_pnl) : '—') + ' | Wheel Unrealized: $' + (sc.wheel_unrealized_pnl != null ? fmt(sc.wheel_unrealized_pnl) : '—') + '</p><p>Equity Drawdown: ' + (sc.equity_drawdown != null ? sc.equity_drawdown : '—') + ' | Wheel Drawdown: ' + (sc.wheel_drawdown != null ? sc.wheel_drawdown : '—') + '</p><p>Equity Sharpe: ' + (sc.equity_sharpe_proxy != null ? sc.equity_sharpe_proxy : '—') + ' | Wheel Sharpe: ' + (sc.wheel_sharpe_proxy != null ? sc.wheel_sharpe_proxy : '—') + '</p><p>Wheel Yield: ' + (sc.wheel_yield_per_period != null ? sc.wheel_yield_per_period : '—') + ' | Capital Eff Equity: ' + (sc.capital_efficiency_equity != null ? sc.capital_efficiency_equity : '—') + ' | Wheel: ' + (sc.capital_efficiency_wheel != null ? sc.capital_efficiency_wheel : '—') + '</p></div>';
-                    if (d.weekly_report && d.weekly_report.reasoning) h += '<div class="stat-card"><h3>Weekly Reasoning</h3><pre>' + JSON.stringify(d.weekly_report.reasoning, null, 2) + '</pre></div>';
-                    if (d.historical_comparison && d.historical_comparison.length) {
-                        h += '<div class="stat-card"><h3>Historical (last 30 days)</h3><table><thead><tr><th>Date</th><th>Equity</th><th>Wheel</th><th>Score</th></tr></thead><tbody>';
-                        for (let i = 0; i < Math.min(d.historical_comparison.length, 15); i++) {
-                            const x = d.historical_comparison[i];
-                            h += '<tr><td>' + (x.date || '—') + '</td><td>$' + (x.equity_realized != null ? fmt(x.equity_realized) : '—') + '</td><td>$' + (x.wheel_realized != null ? fmt(x.wheel_realized) : '—') + '</td><td>' + (x.promotion_score != null ? x.promotion_score : '—') + '</td></tr>';
-                        }
-                        h += '</tbody></table></div>';
-                    }
-                    el.innerHTML = h;
-                    el.dataset.loaded = '1';
-                })
-                .catch(function(e) {
-                    el.innerHTML = '<div class="loading" style="color:#ef4444;">Strategy Comparison failed: ' + (e && e.message ? e.message : 'network') + '</div>';
-                });
-        }
-        
-        function loadWheelAnalytics() {
-            const el = document.getElementById('wheel_strategy-content');
-            if (!el) return;
-            el.innerHTML = '<div class="loading">Loading Wheel Strategy...</div>';
-            fetch('/api/stockbot/wheel_analytics', { credentials: 'same-origin' })
-                .then(function(r) {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
-                    return r.json();
-                })
-                .then(function(d) {
-                    if (!d) return;
-                    const totalTrades = d.total_trades != null ? d.total_trades : 0;
-                    const premium = d.premium_collected != null ? Number(d.premium_collected).toFixed(2) : '0.00';
-                    const allZero = totalTrades === 0 && parseFloat(premium) === 0 && (d.assignment_count || 0) === 0 && (d.call_away_count || 0) === 0;
-                    let h = '<div class="stat-card"><h3>Wheel Strategy Analytics</h3><p><strong>Total wheel trades:</strong> ' + totalTrades + '</p><p><strong>Premium collected:</strong> $' + premium + '</p><p><strong>Assignment count:</strong> ' + (d.assignment_count != null ? d.assignment_count : '0') + ' | <strong>Call-away count:</strong> ' + (d.call_away_count != null ? d.call_away_count : '0') + '</p><p><strong>Assignment rate:</strong> ' + (d.assignment_rate_pct != null ? d.assignment_rate_pct.toFixed(1) : '0.0') + '% | <strong>Call-away rate:</strong> ' + (d.call_away_rate_pct != null ? d.call_away_rate_pct.toFixed(1) : '0.0') + '%</p><p><strong>Expectancy per trade (USD):</strong> ' + (d.expectancy_per_trade_usd != null ? '$' + Number(d.expectancy_per_trade_usd).toFixed(2) : '—') + '</p><p><strong>Realized P&L sum:</strong> $' + (d.realized_pnl_sum != null ? Number(d.realized_pnl_sum).toFixed(2) : '0.00') + '</p></div>';
-                    const openPos = d.open_wheel_positions || [];
-                    h += '<div class="stat-card" style="margin-top:16px;"><h3>Current wheel positions</h3>';
-                    if (openPos.length) {
-                        h += '<table style="width:100%;font-size:12px;"><thead><tr><th>Symbol</th><th>Stage</th><th>Strike</th><th>Expiry</th><th>Premium</th><th>Status</th><th>Opened</th></tr></thead><tbody>';
-                        for (let i = 0; i < openPos.length; i++) {
-                            const p = openPos[i];
-                            const sym = p.symbol || '—';
-                            const phase = p.phase || '—';
-                            const strike = p.strike != null ? p.strike : '—';
-                            const expiry = (p.expiry || '—').toString().substring(0, 10);
-                            const prem = p.premium != null ? '$' + Number(p.premium).toFixed(2) : '—';
-                            const status = p.status || 'open';
-                            const opened = p.opened_at ? new Date(p.opened_at).toLocaleString() : '—';
-                            h += '<tr><td>' + sym + '</td><td>' + phase + '</td><td>' + strike + '</td><td>' + expiry + '</td><td>' + prem + '</td><td>' + status + '</td><td>' + opened + '</td></tr>';
-                        }
-                        h += '</tbody></table></div>';
-                    } else {
-                        h += '<p>No open wheel positions. Open positions from wheel (CSP/CC) appear here and in Open Positions with Strategy=Wheel.</p></div>';
-                    }
-                    if (allZero) h += '<div class="stat-card" style="border-left:4px solid #64748b;"><p style="color:#64748b;font-size:0.9em;"><strong>Data sources:</strong> logs/attribution.jsonl, logs/telemetry.jsonl (strategy_id=wheel), reports/*_stock-bot_wheel.json, state/wheel_state.json. Run <code>python3 scripts/generate_daily_strategy_reports.py</code> to refresh reports. Wheel data appears when the wheel strategy executes trades.</p></div>';
-                    if (d.error) h += '<div class="stat-card" style="border-color:#f59e0b;"><p>' + (d.error || '') + '</p></div>';
-                    el.innerHTML = h;
-                    el.dataset.loaded = '1';
-                })
-                .catch(function(e) {
-                    el.innerHTML = '<div class="loading" style="color:#ef4444;">Wheel analytics failed: ' + (e && e.message ? e.message : 'network') + '</div>';
-                });
-        }
-        
         function renderFailurePoints(data, container) {
             const readiness = data.readiness || 'UNKNOWN';
             const color = data.color || 'gray';
@@ -1957,202 +1854,6 @@ DASHBOARD_HTML = """
             container.innerHTML = html;
         }
         
-        function loadXAIAuditor() {
-            const xaiContent = document.getElementById('xai-content');
-            const scrollTop = xaiContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
-            
-            if (!xaiContent.dataset.loaded) {
-                xaiContent.innerHTML = '<div class="loading">Loading Natural Language Auditor...</div>';
-            }
-            
-            fetch('/api/xai/auditor', { credentials: 'same-origin' })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    xaiContent.dataset.loaded = 'true';
-                    renderXAIAuditor(data, xaiContent);
-                    if (scrollTop > 0) {
-                        requestAnimationFrame(() => {
-                            xaiContent.scrollTop = scrollTop;
-                            window.scrollTo(0, scrollTop);
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('XAI Auditor error:', error);
-                    xaiContent.innerHTML = `
-                        <div class="loading" style="color: #ef4444; padding: 20px;">
-                            <h3>⚠️ Error loading Natural Language Auditor</h3>
-                            <p>${error.message}</p>
-                            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
-                                The system will retry automatically. If this persists, check the dashboard logs.
-                            </p>
-                            <button onclick="loadXAIAuditor()" style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                🔄 Retry
-                            </button>
-                        </div>`;
-                });
-        }
-        
-        function renderXAIAuditor(data, container) {
-            // Handle errors gracefully
-            if (data.error) {
-                container.innerHTML = `
-                    <div class="loading" style="color: #ef4444; padding: 20px;">
-                        <h3>⚠️ Error loading data</h3>
-                        <p>${data.error}</p>
-                        <button onclick="loadXAIAuditor()" style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            🔄 Retry
-                        </button>
-                    </div>`;
-                return;
-            }
-            
-            // Show status if partial
-            let statusHtml = '';
-            if (data.status === 'partial' && data.errors) {
-                statusHtml = `<div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
-                    <strong>⚠️ Partial data loaded:</strong> Some data may be missing. Errors: ${data.errors.join(', ')}
-                </div>`;
-            }
-            
-            let html = `
-                <div class="stat-card" style="margin-bottom: 20px; border: 3px solid #667eea;">
-                    <h2 style="color: #667eea; margin-bottom: 15px;">🧠 Natural Language Auditor</h2>
-                    <p style="color: #666; margin-bottom: 15px;">Explainable AI (XAI) logs showing natural language "Why" sentences for every trade and weight adjustment.</p>
-                    ${statusHtml}
-                    <div style="margin-bottom: 10px;">
-                        <span style="color: #666;">Trades: ${data.trade_count || 0} | Weights: ${data.weight_count || 0}</span>
-                    </div>
-                    <button onclick="exportXAI()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
-                        📥 Export All Logs
-                    </button>
-                </div>
-                
-                <div class="positions-table" style="margin-bottom: 20px;">
-                    <h2 style="margin-bottom: 15px;">📊 Trade Explanations</h2>
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>Symbol</th>
-                                    <th>Type</th>
-                                    <th>Why (Natural Language)</th>
-                                    <th>Regime</th>
-                                    <th>P&L %</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-            
-            // Filter out TEST symbols
-            const trades = (data.trades || []).filter(t => {
-                const symbol = String(t.symbol || '').toUpperCase();
-                return symbol && !symbol.includes('TEST');
-            });
-            
-            if (trades.length === 0) {
-                html += '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No trade explanations yet</td></tr>';
-            } else {
-                trades.forEach(trade => {
-                    const timeStr = trade.timestamp ? new Date(trade.timestamp).toLocaleString() : 'N/A';
-                    const pnl = trade.pnl_pct || (trade.type === 'trade_exit' ? trade.pnl_pct : null);
-                    const pnlClass = pnl !== null && pnl !== undefined && pnl >= 0 ? 'positive' : 'negative';
-                    html += `
-                        <tr>
-                            <td>${timeStr}</td>
-                            <td class="symbol">${trade.symbol}</td>
-                            <td>${trade.type || 'N/A'}</td>
-                            <td style="max-width: 400px; word-wrap: break-word;">${trade.why || 'N/A'}</td>
-                            <td>${trade.regime && trade.regime !== 'unknown' && trade.regime !== '' ? trade.regime.toUpperCase() : 'NEUTRAL'}</td>
-                            <td class="${pnlClass}">${pnl !== null && pnl !== undefined ? (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%' : 'N/A'}</td>
-                        </tr>
-                    `;
-                });
-            }
-            
-            html += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <div class="positions-table" style="margin-bottom: 20px;">
-                    <h2 style="margin-bottom: 15px;">⚙️ Weight Adjustment Explanations</h2>
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>Component</th>
-                                    <th>Old Weight</th>
-                                    <th>New Weight</th>
-                                    <th>Why (Natural Language)</th>
-                                    <th>Samples</th>
-                                    <th>Win Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-            
-            // Filter out TEST symbols from weights (if any)
-            const weights = (data.weights || []).filter(w => {
-                const component = String(w.component || '').toUpperCase();
-                return component && !component.includes('TEST');
-            });
-            
-            if (weights.length === 0) {
-                html += '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No weight adjustments yet</td></tr>';
-            } else {
-                weights.forEach(weight => {
-                    const timeStr = weight.timestamp ? new Date(weight.timestamp).toLocaleString() : 'N/A';
-                    html += `
-                        <tr>
-                            <td>${timeStr}</td>
-                            <td class="symbol">${weight.component}</td>
-                            <td>${weight.old_weight !== undefined ? weight.old_weight.toFixed(2) : 'N/A'}</td>
-                            <td>${weight.new_weight !== undefined ? weight.new_weight.toFixed(2) : 'N/A'}</td>
-                            <td style="max-width: 400px; word-wrap: break-word;">${weight.why || 'N/A'}</td>
-                            <td>${weight.sample_count || 0}</td>
-                            <td>${weight.win_rate !== undefined ? (weight.win_rate * 100).toFixed(1) + '%' : 'N/A'}</td>
-                        </tr>
-                    `;
-                });
-            }
-            
-            html += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            
-            container.innerHTML = html;
-        }
-        
-        function exportXAI() {
-            fetch('/api/xai/export', { credentials: 'same-origin' })
-                .then(response => response.blob())
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `xai_logs_${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                })
-                .catch(error => {
-                    alert('Export failed: ' + error.message);
-                });
-        }
-        
         function loadExecutiveSummary(timeframe) {
             timeframe = timeframe || document.getElementById('executive-timeframe')?.value || '24h';
             const executiveContent = document.getElementById('executive-content');
@@ -2162,11 +1863,10 @@ DASHBOARD_HTML = """
             }
             Promise.all([
                 fetch('/api/executive_summary?timeframe=' + encodeURIComponent(timeframe), { credentials: 'same-origin' }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
-                fetch('/api/stockbot/wheel_analytics', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
                 fetch('/api/sre/health', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
-            ]).then(([data, wheelData, healthData]) => {
+            ]).then(([data, healthData]) => {
                 executiveContent.dataset.loaded = 'true';
-                renderExecutiveSummary(data, executiveContent, timeframe, wheelData, healthData);
+                renderExecutiveSummary(data, executiveContent, timeframe, healthData);
                 if (scrollTop > 0) {
                     requestAnimationFrame(() => {
                         executiveContent.scrollTop = scrollTop;
@@ -2179,8 +1879,7 @@ DASHBOARD_HTML = """
             });
         }
         
-        function renderExecutiveSummary(data, container, currentTimeframe, wheelData, healthData) {
-            wheelData = wheelData || {};
+        function renderExecutiveSummary(data, container, currentTimeframe, healthData) {
             healthData = healthData || {};
             const pm = data.pnl_metrics || {};
             const tf = pm.timeframe || currentTimeframe || '24h';
@@ -2199,10 +1898,10 @@ DASHBOARD_HTML = """
             const healthClass = healthStatus === 'healthy' ? 'healthy' : (healthStatus === 'degraded' ? 'degraded' : 'critical');
             let html = `
                 <div class="stat-card" style="margin-bottom: 16px; border: 2px solid #e5e7eb;">
-                    <h3 style="margin-bottom: 8px;">Health &amp; Wheel at a glance</h3>
-                    <p><strong>Health:</strong> <span class="${healthClass}" style="font-weight: 600;">${healthStatus}</span>
-                    ${wheelData.total_trades != null ? ' | <strong>Wheel trades:</strong> ' + wheelData.total_trades + ' | <strong>Premium:</strong> $' + (Number(wheelData.premium_collected || 0).toFixed(2)) + ' | <strong>Wheel P&L:</strong> $' + (Number(wheelData.realized_pnl_sum || 0).toFixed(2)) : ''}</p>
+                    <h3 style="margin-bottom: 8px;">Health at a glance</h3>
+                    <p><strong>Health:</strong> <span class="${healthClass}" style="font-weight: 600;">${healthStatus}</span></p>
                 </div>
+                <p style="font-size:0.85em;color:#64748b;margin:0 0 12px 0">Data sources: <code>/api/executive_summary</code> and SRE health. For Alpaca strict cohort use <strong>System Health</strong>.</p>
                 <div class="stat-card" style="margin-bottom: 20px; border: 3px solid #667eea;">
                     <h2 style="color: #667eea; margin-bottom: 15px;">📊 Performance Metrics</h2>
                     <div style="margin-bottom: 12px;">
@@ -2516,15 +2215,16 @@ DASHBOARD_HTML = """
                     var existingRows = existingTable ? existingTable.querySelectorAll('tbody tr').length : 0;
                     var firstRow = existingTable ? existingTable.querySelector('tbody tr') : null;
                     var colCount = firstRow ? firstRow.querySelectorAll('td').length : 0;
-                    var needsFullRebuild = !existingTable || existingRows !== positions.length || colCount < 14;
+                    var needsFullRebuild = !existingTable || existingRows !== positions.length || colCount < 18;
                     
                     if (needsFullRebuild) {
                         var html = '<table><thead><tr>';
-                        html += '<th>Strategy</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th>';
-                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry</th><th>Current</th><th>Prev</th><th>Delta</th><th>Trend</th></tr></thead><tbody>';
+                        html += '<th>Strategy</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry $</th>';
+                        html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry score</th><th>Current score</th><th>Prev</th><th>Delta</th><th>Trend</th>';
+                        html += '<th>Entry at</th><th>Entry reason</th><th>Fees</th><th>Strict</th></tr></thead><tbody>';
                         
                         positions.forEach(function(pos) {
-                            var stratLabel = (pos.strategy_id || 'equity') === 'wheel' ? 'Wheel' : 'Equity';
+                            var stratLabel = 'Equity';
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
                             const entryScore = pos.entry_score !== undefined && pos.entry_score !== null ? pos.entry_score.toFixed(2) : '0.00';
                             const currentScoreEvaluated = pos.current_signal_evaluated === true;
@@ -2564,10 +2264,16 @@ DASHBOARD_HTML = """
                             const deltaVal = currentScoreEvaluated && pos.signal_delta !== undefined && pos.signal_delta !== null ? (pos.signal_delta >= 0 ? '+' : '') + pos.signal_delta.toFixed(2) : 'N/A';
                             const trendVal = currentScoreEvaluated && pos.signal_trend ? pos.signal_trend : 'N/A';
                             html += '<td>' + prevScore + '</td><td>' + deltaVal + '</td><td>' + trendVal + '</td>';
+                            var ets = pos.entry_ts ? String(pos.entry_ts).substring(0, 19) : 'INCOMPLETE';
+                            var erd = pos.entry_reason_display || 'INCOMPLETE';
+                            var fds = pos.fees_display || 'INCOMPLETE';
+                            var stb = pos.strict_alpaca_chain || 'N/A';
+                            html += '<td style="font-size:11px;">' + ets + '</td><td style="font-size:11px;max-width:140px;word-break:break-word;">' + erd + '</td><td style="font-size:11px;">' + fds + '</td><td style="font-size:10px;max-width:120px;">' + stb + '</td>';
                             html += '</tr>';
                         });
                         
                         html += '</tbody></table>';
+                        html += '<p style="font-size:0.82em;color:#6b7280;margin-top:10px;">Data: GET /api/positions (Alpaca + position_metadata). Freshness: row load time. INCOMPLETE = field not present in source.</p>';
                         var corr = data.signal_correlation || {};
                         var pairs = Array.isArray(corr.pairs) ? corr.pairs : [];
                         if (pairs.length > 0) {
@@ -2581,11 +2287,11 @@ DASHBOARD_HTML = """
                         if (tbody) positions.forEach(function(pos, index) {
                             const row = tbody.children[index];
                             if (!row) return;
-                            var stratLabel = (pos.strategy_id || 'equity') === 'wheel' ? 'Wheel' : 'Equity';
+                            var stratLabel = 'Equity';
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
                             const cells = row.querySelectorAll('td');
-                            // Columns: Strategy, Symbol, Side, Qty, Entry, Current, Value, P&L, P&L %, Entry score, Current, Prev, Delta, Trend (14)
-                            if (cells.length >= 14) {
+                            // Columns: ... Trend (14) + Entry at, Entry reason, Fees, Strict (18)
+                            if (cells.length >= 18) {
                                 cells[0].textContent = stratLabel;
                                 cells[3].textContent = pos.qty;
                                 cells[4].textContent = formatCurrency(pos.avg_entry_price);
@@ -2634,6 +2340,10 @@ DASHBOARD_HTML = """
                                 cells[11].textContent = prevScore;
                                 cells[12].textContent = deltaVal;
                                 cells[13].textContent = trendVal;
+                                cells[14].textContent = pos.entry_ts ? String(pos.entry_ts).substring(0, 19) : 'INCOMPLETE';
+                                cells[15].textContent = pos.entry_reason_display || 'INCOMPLETE';
+                                cells[16].textContent = pos.fees_display || 'INCOMPLETE';
+                                cells[17].textContent = pos.strict_alpaca_chain || 'N/A';
                             }
                         });
                     }
@@ -3199,29 +2909,128 @@ def api_situation():
         }), 200
 
 
+def _canonical_log_status_list(root: Path) -> list:
+    """Canonical JSONL paths + last write (UTC ISO). Shared by telemetry_health and data_integrity."""
+    logs_dir = root / "logs"
+    canonical = [
+        ("master_trade_log", logs_dir / "master_trade_log.jsonl"),
+        ("attribution", logs_dir / "attribution.jsonl"),
+        ("exit_attribution", logs_dir / "exit_attribution.jsonl"),
+        ("exit_event", logs_dir / "exit_event.jsonl"),
+        ("intel_snapshot_entry", logs_dir / "intel_snapshot_entry.jsonl"),
+        ("intel_snapshot_exit", logs_dir / "intel_snapshot_exit.jsonl"),
+        ("direction_event", logs_dir / "direction_event.jsonl"),
+    ]
+    log_status = []
+    for name, path in canonical:
+        exists = path.exists()
+        mtime = path.stat().st_mtime if exists else None
+        last_write = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat() if mtime else None
+        log_status.append({"log": name, "exists": exists, "last_write": last_write})
+    return log_status
+
+
+def _build_data_integrity_payload(root: Path) -> dict:
+    """
+    Decision-grade integrity view from existing telemetry files only (read-only).
+    Does not run trading or learning schedulers.
+    """
+    from datetime import datetime, timezone
+
+    run_ts = datetime.now(timezone.utc).isoformat()
+    log_status = _canonical_log_status_list(root)
+    state_dir = root / "state"
+    logs_dir = root / "logs"
+    direction_telemetry_trades = direction_total = 0
+    direction_ready = False
+    direction_updated_ts = None
+    try:
+        rpath = state_dir / "direction_readiness.json"
+        if rpath.exists():
+            dr = json.loads(rpath.read_text(encoding="utf-8"))
+            direction_telemetry_trades = int(dr.get("telemetry_trades") or 0)
+            direction_total = int(dr.get("total_trades") or 0)
+            direction_ready = dr.get("ready") is True
+            direction_updated_ts = dr.get("updated_ts") or dr.get("last_cron_run_iso")
+    except Exception:
+        pass
+    gate_status = None
+    try:
+        gate_path = root / "reports" / "audit" / "TELEMETRY_CONTRACT_AUDIT.md"
+        if gate_path.exists():
+            text = gate_path.read_text(encoding="utf-8", errors="replace")
+            gate_status = "FAIL" if "Logs with schema failures" in text else "PASS"
+    except Exception:
+        pass
+    exit_path = logs_dir / "exit_attribution.jsonl"
+    visibility_matrix = _compute_visibility_matrix(exit_path, 100)
+    alpaca_strict = None
+    alpaca_strict_error = None
+    try:
+        from telemetry.alpaca_strict_completeness_gate import (
+            STRICT_EPOCH_START,
+            evaluate_completeness,
+        )
+
+        alpaca_strict = evaluate_completeness(root, open_ts_epoch=STRICT_EPOCH_START, audit=False)
+    except Exception as e:
+        alpaca_strict_error = str(e)[:500]
+    temporal_flags: list = []
+    if alpaca_strict:
+        temporal_flags.extend([str(x) for x in (alpaca_strict.get("precheck") or [])])
+        rsn = alpaca_strict.get("learning_fail_closed_reason")
+        if rsn:
+            temporal_flags.append(f"learning_fail_closed_reason:{rsn}")
+    last_droplet_analysis = None
+    try:
+        lap = state_dir / "last_droplet_analysis.json"
+        if lap.exists():
+            last_droplet_analysis = json.loads(lap.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {
+        "generated_at_utc": run_ts,
+        "data_sources": {
+            "alpaca_strict": "telemetry/alpaca_strict_completeness_gate.evaluate_completeness (read-only, STRICT_EPOCH_START)",
+            "kraken_direction": "state/direction_readiness.json (exit_attribution join coverage)",
+            "canonical_logs": "logs/*.jsonl mtime scan",
+            "join_matrix": "logs/exit_attribution.jsonl last 100 rows",
+            "contract_audit": "reports/audit/TELEMETRY_CONTRACT_AUDIT.md",
+        },
+        "alpaca_strict": alpaca_strict,
+        "alpaca_strict_error": alpaca_strict_error,
+        "kraken_direction_readiness": {
+            "telemetry_trades": direction_telemetry_trades,
+            "total_trades_window": direction_total,
+            "ready": direction_ready,
+            "updated_ts": direction_updated_ts,
+            "note": "Kraken/legacy equity direction-replay gate; not the same as Alpaca strict cohort.",
+        },
+        "canonical_log_staleness": log_status,
+        "join_coverage_exit_attribution": visibility_matrix,
+        "contract_audit_gate": gate_status,
+        "temporal_and_structural_flags": temporal_flags,
+        "last_droplet_analysis": last_droplet_analysis,
+    }
+
+
+@app.route("/api/dashboard/data_integrity", methods=["GET"])
+def api_dashboard_data_integrity():
+    """System Health & Data Integrity tab — JSON from telemetry files only."""
+    try:
+        root = Path(_DASHBOARD_ROOT)
+        return jsonify(_build_data_integrity_payload(root)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)[:500], "generated_at_utc": datetime.now(timezone.utc).isoformat()}), 200
+
+
 @app.route("/api/telemetry_health", methods=["GET"])
 def api_telemetry_health():
     """Telemetry Health: canonical log existence + last-write, direction coverage X/100, optional gate status."""
     try:
         root = Path(_DASHBOARD_ROOT)
-        logs_dir = root / "logs"
         state_dir = root / "state"
-        canonical = [
-            ("master_trade_log", logs_dir / "master_trade_log.jsonl"),
-            ("attribution", logs_dir / "attribution.jsonl"),
-            ("exit_attribution", logs_dir / "exit_attribution.jsonl"),
-            ("exit_event", logs_dir / "exit_event.jsonl"),
-            ("intel_snapshot_entry", logs_dir / "intel_snapshot_entry.jsonl"),
-            ("intel_snapshot_exit", logs_dir / "intel_snapshot_exit.jsonl"),
-            ("direction_event", logs_dir / "direction_event.jsonl"),
-        ]
-        log_status = []
-        for name, path in canonical:
-            exists = path.exists()
-            mtime = path.stat().st_mtime if exists else None
-            from datetime import datetime, timezone
-            last_write = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat() if mtime else None
-            log_status.append({"log": name, "exists": exists, "last_write": last_write})
+        log_status = _canonical_log_status_list(root)
         direction_telemetry_trades = 0
         direction_total = 0
         direction_ready = False
@@ -4094,26 +3903,10 @@ def _api_positions_impl():
     except Exception as e:
         print(f"[Dashboard] Warning: Failed to load position metadata: {e}", flush=True)
 
-    # Wheel designation: symbols that are part of wheel (open CSPs, open CCs, or assigned shares)
-    wheel_symbols = set()
-    try:
-        wheel_state_path = (Path(_DASHBOARD_ROOT) / "state" / "wheel_state.json").resolve()
-        if wheel_state_path.exists():
-            wheel_state = json.loads(wheel_state_path.read_text(encoding="utf-8", errors="replace"))
-            wheel_symbols.update((wheel_state.get("open_csps") or {}).keys())
-            wheel_symbols.update((wheel_state.get("open_ccs") or {}).keys())
-            wheel_symbols.update((wheel_state.get("assigned_shares") or {}).keys())
-    except Exception as e:
-        print(f"[Dashboard] Warning: Failed to load wheel state for strategy_id: {e}", flush=True)
-
     def _underlying_for_position(alpaca_symbol: str, asset_class: str) -> str:
-        """Return underlying symbol for wheel matching. Equity: symbol as-is. Option: extract root (e.g. XLF from XLF260320P00051000)."""
-        if getattr(asset_class, "lower", lambda: "")() == "option" and len(alpaca_symbol) >= 2:
-            for L in range(min(6, len(alpaca_symbol)), 0, -1):
-                cand = alpaca_symbol[:L]
-                if cand in wheel_symbols:
-                    return cand
-            return alpaca_symbol[:6] if len(alpaca_symbol) >= 6 else alpaca_symbol
+        """Underlying root for options (first chars); equity uses symbol as-is."""
+        if getattr(asset_class, "lower", lambda: "")() == "option" and len(alpaca_symbol) >= 6:
+            return alpaca_symbol[:6]
         return alpaca_symbol
 
     # Load UW cache for current score calculation (paths resolved against repo root for cwd-independence)
@@ -4159,7 +3952,7 @@ def _api_positions_impl():
         symbol = p.symbol
         asset_class = getattr(p, "asset_class", None) or "us_equity"
         underlying = _underlying_for_position(symbol, asset_class)
-        strategy_id = "wheel" if underlying in wheel_symbols else (metadata.get(symbol, {}) or {}).get("strategy_id") or (metadata.get(underlying, {}) or {}).get("strategy_id") or "equity"
+        strategy_id = (metadata.get(symbol, {}) or {}).get("strategy_id") or (metadata.get(underlying, {}) or {}).get("strategy_id") or "equity"
         meta = (metadata.get(symbol, metadata.get(underlying, {})) or {}) if metadata else {}
         entry_score = meta.get("entry_score")
         if entry_score is None or (isinstance(entry_score, (int, float)) and float(entry_score) <= 0):
@@ -4224,6 +4017,15 @@ def _api_positions_impl():
             and current_score_val is not None
             and current_score_val < 0.5
         )
+        entry_ts_raw = meta.get("entry_ts") or meta.get("entry_timestamp") or ""
+        entry_reason_raw = meta.get("final_decision_primary_reason") or meta.get("entry_reason")
+        accrued_fees = None
+        try:
+            fattr = getattr(p, "fees", None)
+            if fattr is not None:
+                accrued_fees = float(fattr)
+        except (TypeError, ValueError):
+            accrued_fees = None
         pos_list.append({
             "symbol": symbol,
             "side": "long" if float(p.qty) > 0 else "short",
@@ -4241,6 +4043,20 @@ def _api_positions_impl():
             "signal_delta": float(signal_delta) if signal_delta is not None else None,
             "signal_trend": signal_trend,
             "strategy_id": strategy_id,
+            "entry_ts": entry_ts_raw,
+            "entry_reason": entry_reason_raw,
+            "entry_reason_display": (
+                str(entry_reason_raw)[:160] if entry_reason_raw else "INCOMPLETE"
+            ),
+            "exit_reason_display": "— (open position)",
+            "accrued_fees_usd": accrued_fees,
+            "fees_display": (
+                f"${accrued_fees:.2f}" if accrued_fees is not None else "INCOMPLETE"
+            ),
+            "strict_alpaca_chain": (
+                "N/A — strict completeness evaluates closed cohort only (open_ts floor)"
+            ),
+            "row_data_source": "Alpaca positions API + state/position_metadata.json",
         })
 
     missed_alpha_usd = 0.0
@@ -4474,15 +4290,72 @@ def api_pnl_reconcile():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def _dashboard_pick_entry_reason(context: dict) -> str | None:
+    if not isinstance(context, dict):
+        return None
+    for k in ("final_decision_primary_reason", "entry_signal", "primary_entry_reason"):
+        v = context.get(k)
+        if v is not None and str(v).strip():
+            return str(v).strip()[:240]
+    return None
+
+
+def _dashboard_fee_usd_from_rec(rec: dict, context: dict | None) -> float | None:
+    ctx = context if isinstance(context, dict) else {}
+    for k in ("fees_usd", "commission_usd", "fee_usd"):
+        v = rec.get(k)
+        if v is None:
+            v = ctx.get(k)
+        if v is not None:
+            try:
+                return round(float(v), 4)
+            except (TypeError, ValueError):
+                pass
+    return None
+
+
+def _strict_alpaca_chain_badge(trade_id: str | None, gate: dict | None, gate_error: str | None) -> str:
+    """Per-row label from one evaluate_completeness snapshot; no hidden defaults."""
+    if gate_error:
+        return f"UNAVAILABLE: {gate_error[:120]}"
+    tid = str(trade_id or "").strip()
+    if not tid.startswith("open_"):
+        return "NOT_APPLICABLE"
+    if not gate:
+        return "UNKNOWN"
+    inc = {
+        str(x.get("trade_id"))
+        for x in (gate.get("incomplete_examples") or [])
+        if x.get("trade_id")
+    }
+    if tid in inc:
+        return "INCOMPLETE"
+    if gate.get("LEARNING_STATUS") == "ARMED" and int(gate.get("trades_seen") or 0) > 0:
+        return "COMPLETE"
+    try:
+        import re
+
+        from telemetry.alpaca_strict_completeness_gate import (
+            STRICT_EPOCH_START,
+            _open_epoch_from_trade_id,
+        )
+
+        tid_re = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
+        oep = _open_epoch_from_trade_id(tid, tid_re)
+        if oep is not None and oep < STRICT_EPOCH_START:
+            return "EXCLUDED_PREERA"
+    except Exception:
+        pass
+    if int(gate.get("trades_seen") or 0) == 0:
+        return "VACUOUS_STRICT_COHORT"
+    return "UNKNOWN"
+
+
 def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_telemetry_lines=500):
     """
-    Load closed stock trades from attribution.jsonl, exit_attribution.jsonl (v2 equity exits),
-    and wheel events from telemetry.jsonl.
-    Returns list of records with strategy_id and wheel fields (nullable for equity).
-    Canonical field names per MEMORY_BANK / wheel_strategy: strategy_id, phase, option_type,
-    strike, expiry, dte, delta_at_entry, premium, assigned, called_away.
-    Data sources (per MEMORY_BANK 5.5, 7.12): logs/attribution.jsonl, logs/exit_attribution.jsonl,
-    logs/telemetry.jsonl. Paths resolved via _DASHBOARD_ROOT for cwd-independence.
+    Load closed trades from attribution.jsonl and exit_attribution.jsonl (equity-focused).
+    Omits legacy options-strategy rows (strategy_id filtered). option_phase and option metadata
+    are populated from attribution context when present.
     """
     from pathlib import Path
     from datetime import datetime, timezone, timedelta
@@ -4490,15 +4363,13 @@ def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_tele
         from config.registry import LogFiles
         attr_path = (_DASHBOARD_ROOT / LogFiles.ATTRIBUTION).resolve()
         exit_attr_path = (_DASHBOARD_ROOT / LogFiles.EXIT_ATTRIBUTION).resolve()
-        telem_path = (_DASHBOARD_ROOT / LogFiles.TELEMETRY).resolve()
     except ImportError:
         attr_path = (_DASHBOARD_ROOT / "logs" / "attribution.jsonl").resolve()
         exit_attr_path = (_DASHBOARD_ROOT / "logs" / "exit_attribution.jsonl").resolve()
-        telem_path = (_DASHBOARD_ROOT / "logs" / "telemetry.jsonl").resolve()
     cutoff = (datetime.now(timezone.utc) - timedelta(days=max_days)).isoformat()[:10]
     out = []
     seen_keys = set()  # (symbol, ts_precision) for deduplication
-    # 1) Attribution: closed trades (strategy_id injected by engine; wheel fields from context if present)
+    # 1) Attribution: closed trades (strategy_id and options context from engine when present)
     if attr_path.exists():
         line_count = 0
         with attr_path.open("r", encoding="utf-8", errors="replace") as f:
@@ -4532,13 +4403,23 @@ def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_tele
                 if not ts_str or str(ts_str)[:10] < cutoff:
                     continue
                 strategy_id = rec.get("strategy_id") or "equity"
+                er = _dashboard_pick_entry_reason(context)
+                fee = _dashboard_fee_usd_from_rec(rec, context)
                 row = {
                     "strategy_id": strategy_id,
                     "symbol": symbol,
                     "timestamp": ts_str,
                     "pnl_usd": round(pnl_usd, 2),
                     "close_reason": close_reason,
-                    "wheel_phase": context.get("phase"),
+                    "trade_id": str(rec.get("trade_id") or ""),
+                    "entry_timestamp": context.get("entry_ts") or context.get("entry_timestamp") or "",
+                    "exit_timestamp": ts_str,
+                    "entry_reason": er if er else None,
+                    "entry_reason_display": er if er else "INCOMPLETE",
+                    "fees_usd": fee,
+                    "fees_display": (f"${fee:.2f}" if fee is not None else "INCOMPLETE"),
+                    "data_sources": ["logs/attribution.jsonl"],
+                    "option_phase": context.get("phase"),
                     "option_type": context.get("option_type"),
                     "strike": context.get("strike"),
                     "expiry": context.get("expiry"),
@@ -4576,13 +4457,24 @@ def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_tele
                 if key in seen_keys:
                     continue
                 seen_keys.add(key)
+                er2 = _dashboard_pick_entry_reason(rec if isinstance(rec, dict) else {})
+                fee2 = _dashboard_fee_usd_from_rec(rec, None)
+                tid_e = str(rec.get("trade_id") or "")
                 row = {
                     "strategy_id": "equity",
                     "symbol": symbol,
                     "timestamp": ts_str,
                     "pnl_usd": round(pnl_usd, 2) if pnl_usd is not None else None,
                     "close_reason": rec.get("exit_reason") or "",
-                    "wheel_phase": None,
+                    "trade_id": tid_e,
+                    "entry_timestamp": rec.get("entry_timestamp") or "",
+                    "exit_timestamp": ts_str,
+                    "entry_reason": er2 if er2 else None,
+                    "entry_reason_display": er2 if er2 else "INCOMPLETE",
+                    "fees_usd": fee2,
+                    "fees_display": (f"${fee2:.2f}" if fee2 is not None else "INCOMPLETE"),
+                    "data_sources": ["logs/exit_attribution.jsonl"],
+                    "option_phase": None,
                     "option_type": None,
                     "strike": None,
                     "expiry": None,
@@ -4595,43 +4487,8 @@ def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_tele
                 out.append(row)
         except Exception:
             pass
-    # 3) Telemetry: wheel events (strategy_id=wheel) as trade-like rows with full wheel fields
-    if telem_path.exists():
-        lines = telem_path.read_text(encoding="utf-8", errors="replace").splitlines()
-        lines = lines[-max_telemetry_lines:] if len(lines) > max_telemetry_lines else lines
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if rec.get("strategy_id") != "wheel":
-                continue
-            ts_str = rec.get("timestamp") or rec.get("ts") or ""
-            if ts_str and str(ts_str)[:10] < cutoff:
-                continue
-            symbol = str(rec.get("symbol", "")).upper()
-            if not symbol:
-                continue
-            row = {
-                "strategy_id": "wheel",
-                "symbol": symbol,
-                "timestamp": ts_str,
-                "pnl_usd": None,
-                "close_reason": None,
-                "wheel_phase": rec.get("phase"),
-                "option_type": rec.get("option_type"),
-                "strike": rec.get("strike"),
-                "expiry": rec.get("expiry"),
-                "dte": rec.get("dte"),
-                "delta_at_entry": rec.get("delta_at_entry"),
-                "premium": rec.get("premium"),
-                "assigned": rec.get("assigned"),
-                "called_away": rec.get("called_away"),
-            }
-            out.append(row)
+    _ = max_telemetry_lines  # legacy signature; telemetry merge removed
+    out = [r for r in out if (r.get("strategy_id") or "equity").lower() == "equity"]
     out.sort(key=lambda x: (x.get("timestamp") or ""), reverse=True)
     return out[:500]
 
@@ -4639,144 +4496,49 @@ def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_tele
 @app.route("/api/stockbot/closed_trades", methods=["GET"])
 def api_stockbot_closed_trades():
     """
-    Stock-bot closed trades: strategy_id, wheel fields (wheel_phase, option_type, strike, expiry, dte,
-    delta_at_entry, premium, assigned, called_away). Additive; nullable for legacy/equity rows.
+    Closed trades for equity cohort: strategy_id, option_phase, option_type, strike, expiry, etc.
+    Legacy options-strategy rows are excluded from the merged list.
     """
     try:
         trades = _load_stock_closed_trades()
-        return jsonify({"closed_trades": trades, "count": len(trades)}), 200
+        gate = None
+        gate_err = None
+        try:
+            from telemetry.alpaca_strict_completeness_gate import (
+                STRICT_EPOCH_START,
+                evaluate_completeness,
+            )
+
+            gate = evaluate_completeness(
+                Path(_DASHBOARD_ROOT), open_ts_epoch=STRICT_EPOCH_START, audit=False
+            )
+        except Exception as e:
+            gate_err = str(e)
+        asg = None
+        if gate:
+            asg = {
+                "LEARNING_STATUS": gate.get("LEARNING_STATUS"),
+                "learning_fail_closed_reason": gate.get("learning_fail_closed_reason"),
+                "trades_seen": gate.get("trades_seen"),
+                "trades_complete": gate.get("trades_complete"),
+                "trades_incomplete": gate.get("trades_incomplete"),
+                "STRICT_EPOCH_START": gate.get("STRICT_EPOCH_START"),
+            }
+        for t in trades:
+            t["strict_alpaca_chain"] = _strict_alpaca_chain_badge(
+                t.get("trade_id"), gate, gate_err
+            )
+        return jsonify(
+            {
+                "closed_trades": trades,
+                "count": len(trades),
+                "response_generated_at_utc": datetime.now(timezone.utc).isoformat(),
+                "alpaca_strict_summary": asg,
+                "alpaca_strict_eval_error": gate_err,
+            }
+        ), 200
     except Exception as e:
         return jsonify({"closed_trades": [], "count": 0, "error": str(e)}), 200
-
-
-def _aggregate_wheel_reports(reports_dir: Path, max_days: int = 90) -> dict:
-    """Aggregate wheel metrics from reports/YYYY-MM-DD_stock-bot_wheel.json (fallback when attribution/telemetry empty)."""
-    out = {"premium_collected": 0.0, "assignment_count": 0, "call_away_count": 0, "realized_pnl": 0.0, "trade_count_estimate": 0}
-    try:
-        from datetime import timedelta
-        end_d = datetime.now(timezone.utc).date()
-        for i in range(max_days):
-            dk = (end_d - timedelta(days=i)).strftime("%Y-%m-%d")
-            p = reports_dir / f"{dk}_stock-bot_wheel.json"
-            if not p.exists():
-                continue
-            try:
-                data = json.loads(p.read_text(encoding="utf-8", errors="replace"))
-            except Exception:
-                continue
-            if data.get("strategy_id") != "wheel":
-                continue
-            out["premium_collected"] += float(data.get("premium_collected") or 0)
-            out["assignment_count"] += int(data.get("assignment_count") or 0)
-            out["call_away_count"] += int(data.get("call_away_count") or 0)
-            out["realized_pnl"] += float(data.get("realized_pnl") or 0)
-            if data.get("positions_by_symbol"):
-                out["trade_count_estimate"] += len(data.get("positions_by_symbol", {}))
-    except Exception:
-        pass
-    return out
-
-
-@app.route("/api/stockbot/wheel_analytics", methods=["GET"])
-def api_stockbot_wheel_analytics():
-    """
-    Wheel-only analytics: premium collected, assignment rate, call-away rate, expectancy, duration, MAE/MFE if available.
-    Data sources (in order): logs/attribution.jsonl + logs/telemetry.jsonl (strategy_id=wheel);
-    fallback: reports/*_stock-bot_wheel.json; supplement: state/wheel_state.json for assignments.
-    """
-    try:
-        trades = _load_stock_closed_trades()
-        wheel = [t for t in trades if t.get("strategy_id") == "wheel"]
-        total = len(wheel)
-        premium_sum = sum(float(t.get("premium") or 0) for t in wheel)
-        assigned_count = sum(1 for t in wheel if t.get("assigned") is True)
-        called_away_count = sum(1 for t in wheel if t.get("called_away") is True)
-        pnl_sum = sum(float(t.get("pnl_usd") or 0) for t in wheel if t.get("pnl_usd") is not None)
-
-        # Fallback: aggregate from reports + wheel_state when no wheel trades in attribution/telemetry
-        if total == 0:
-            reports_dir = Path(_DASHBOARD_ROOT) / "reports"
-            if reports_dir.exists():
-                agg = _aggregate_wheel_reports(reports_dir, max_days=90)
-                premium_sum = agg["premium_collected"]
-                assigned_count = agg["assignment_count"]
-                called_away_count = agg["call_away_count"]
-                pnl_sum = agg["realized_pnl"]
-                total = max(1, agg["trade_count_estimate"]) if (premium_sum or assigned_count or called_away_count or pnl_sum) else 0
-
-            # Supplement from state/wheel_state.json (assignments/call-aways)
-            try:
-                wheel_state_path = Path(_DASHBOARD_ROOT) / "state" / "wheel_state.json"
-                if wheel_state_path.exists():
-                    ws = json.loads(wheel_state_path.read_text(encoding="utf-8", errors="replace"))
-                    csp_history = ws.get("csp_history") or []
-                    cc_history = ws.get("cc_history") or []
-                    for h in csp_history if isinstance(csp_history, list) else []:
-                        if isinstance(h, dict) and h.get("assigned") is True:
-                            assigned_count += 1
-                    for h in cc_history if isinstance(cc_history, list) else []:
-                        if isinstance(h, dict) and h.get("called_away") is True:
-                            called_away_count += 1
-                    if assigned_count or called_away_count:
-                        total = max(total, assigned_count + called_away_count)
-            except Exception:
-                pass
-
-        assignment_rate = (assigned_count / total * 100) if total else 0
-        call_away_rate = (called_away_count / total * 100) if total else 0
-        expectancy = (pnl_sum / total) if total else None
-
-        # Current open wheel positions from state/wheel_state.json (open_csps, open_ccs)
-        open_wheel_positions = []
-        try:
-            wheel_state_path = Path(_DASHBOARD_ROOT) / "state" / "wheel_state.json"
-            if wheel_state_path.exists():
-                ws = json.loads(wheel_state_path.read_text(encoding="utf-8", errors="replace"))
-                open_csps = ws.get("open_csps") or {}
-                open_ccs = ws.get("open_ccs") or {}
-                for underlying, entries in open_csps.items():
-                    for ent in (entries if isinstance(entries, list) else [entries]):
-                        if isinstance(ent, dict) and (ent.get("status") or "open") == "open":
-                            open_wheel_positions.append({
-                                "symbol": ent.get("underlying_symbol") or underlying,
-                                "phase": "CSP",
-                                "option_symbol": ent.get("option_symbol"),
-                                "strike": ent.get("strike"),
-                                "expiry": ent.get("expiry"),
-                                "premium": ent.get("open_credit"),
-                                "status": ent.get("status", "open"),
-                                "opened_at": ent.get("opened_at"),
-                            })
-                for underlying, entries in open_ccs.items():
-                    for ent in (entries if isinstance(entries, list) else [entries]):
-                        if isinstance(ent, dict) and (ent.get("status") or "open") == "open":
-                            open_wheel_positions.append({
-                                "symbol": ent.get("underlying_symbol") or underlying,
-                                "phase": "CC",
-                                "option_symbol": ent.get("option_symbol"),
-                                "strike": ent.get("strike"),
-                                "expiry": ent.get("expiry"),
-                                "premium": ent.get("open_credit"),
-                                "status": ent.get("status", "open"),
-                                "opened_at": ent.get("opened_at"),
-                            })
-        except Exception:
-            pass
-
-        return jsonify({
-            "strategy_id": "wheel",
-            "total_trades": total,
-            "premium_collected": round(premium_sum, 2),
-            "assignment_count": assigned_count,
-            "call_away_count": called_away_count,
-            "assignment_rate_pct": round(assignment_rate, 2),
-            "call_away_rate_pct": round(call_away_rate, 2),
-            "expectancy_per_trade_usd": round(expectancy, 2) if expectancy is not None else None,
-            "realized_pnl_sum": round(pnl_sum, 2),
-            "open_wheel_positions": open_wheel_positions,
-        }), 200
-    except Exception as e:
-        return jsonify({"strategy_id": "wheel", "total_trades": 0, "open_wheel_positions": [], "error": str(e)}), 200
 
 
 def _load_fast_lane_ledger():
@@ -6078,6 +5840,8 @@ def api_health_status():
                                 if dt.tzinfo is None:
                                     dt = dt.replace(tzinfo=timezone.utc)
                                 last_order_ts = dt.timestamp()
+                            elif hasattr(submitted_at, "timestamp") and callable(getattr(submitted_at, "timestamp", None)):
+                                last_order_ts = float(submitted_at.timestamp())
                             else:
                                 last_order_ts = float(submitted_at)
                             
@@ -6338,140 +6102,6 @@ def api_signal_history():
         }), 500
 
 
-@app.route("/api/wheel/universe_health", methods=["GET"])
-def api_wheel_universe_health():
-    """
-    Wheel Universe Health: universe, candidates, sector distribution, metrics, outcomes.
-    Primary: state/wheel_universe_health.json. Fallback: derive from config/universe_wheel.yaml
-    and state/daily_universe_v2.json when primary file does not exist.
-    """
-    try:
-        from config.registry import Directories, StateFiles, read_json
-        path = (_DASHBOARD_ROOT / Directories.STATE / "wheel_universe_health.json").resolve()
-        if path.exists():
-            data = read_json(path, default={})
-            return jsonify(data), 200
-        # Fallback: derive from existing config/state (no external script required)
-        today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
-        current_universe = []
-        selected_candidates = []
-        sector_distribution = {}
-        # From config/universe_wheel.yaml
-        wheel_config = (_DASHBOARD_ROOT / "config" / "universe_wheel.yaml").resolve()
-        if wheel_config.exists():
-            try:
-                import yaml
-                cfg = yaml.safe_load(wheel_config.read_text(encoding="utf-8", errors="replace")) or {}
-                tickers = cfg.get("universe", {}).get("tickers", [])
-                current_universe = list(tickers) if isinstance(tickers, list) else []
-                selected_candidates = current_universe[:10]
-            except Exception:
-                # Fallback: parse simple YAML list (e.g. "  - SPY")
-                try:
-                    import re
-                    text = wheel_config.read_text(encoding="utf-8", errors="replace")
-                    current_universe = re.findall(r"^\s*-\s+([A-Z0-9]+)\s*$", text, re.MULTILINE)
-                    selected_candidates = current_universe[:10]
-                except Exception:
-                    pass
-        # From state/daily_universe_v2.json (may have symbols + sector info)
-        du_path = (_DASHBOARD_ROOT / Directories.STATE / "daily_universe_v2.json").resolve()
-        if du_path.exists():
-            try:
-                du = read_json(du_path, default={})
-                symbols = du.get("symbols", [])
-                if symbols and not current_universe:
-                    current_universe = [s.get("symbol") for s in symbols[:20] if isinstance(s, dict) and s.get("symbol")]
-                sectors = {}
-                for s in symbols if isinstance(symbols, list) else []:
-                    if isinstance(s, dict):
-                        sec = (s.get("context") or {}).get("sector", "UNKNOWN")
-                        sectors[sec] = sectors.get(sec, 0) + 1
-                sector_distribution = sectors
-            except Exception:
-                pass
-        return jsonify({
-            "date": today,
-            "message": "Derived from config/universe_wheel.yaml and state/daily_universe_v2.json (state/wheel_universe_health.json not present)",
-            "current_universe": current_universe or [],
-            "selected_candidates": selected_candidates or current_universe[:10],
-            "sector_distribution": sector_distribution,
-            "liquidity_metrics": {},
-            "iv_metrics": {},
-            "spread_metrics": {},
-            "assignment_outcomes_by_ticker": {},
-            "yield_by_ticker": {},
-            "ai_recommendations": None,
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/strategy/comparison", methods=["GET"])
-def api_strategy_comparison():
-    """
-    Strategy comparison: equity vs wheel metrics, promotion readiness, recommendation, last 30 days.
-    Data source: reports/{date}_stock-bot_combined.json (from scripts/generate_daily_strategy_reports.py).
-    """
-    try:
-        from pathlib import Path
-        from datetime import datetime, timedelta
-        reports_dir = (_DASHBOARD_ROOT / "reports").resolve()
-        today = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
-
-        def _load_json(p):
-            if not p.exists():
-                return None
-            try:
-                return json.loads(p.read_text(encoding="utf-8", errors="replace"))
-            except Exception:
-                return None
-
-        comb_path = reports_dir / f"{today}_stock-bot_combined.json"
-        comparison = {}
-        recommendation = "WAIT"
-        promotion_score = None
-        if comb_path.exists():
-            comb = _load_json(comb_path)
-            if comb and isinstance(comb.get("strategy_comparison"), dict):
-                comparison = comb["strategy_comparison"]
-                recommendation = comparison.get("recommendation", "WAIT")
-                promotion_score = comparison.get("promotion_readiness_score")
-
-        historical = []
-        try:
-            end_d = datetime.strptime(today[:10], "%Y-%m-%d").date()
-            for i in range(29, -1, -1):
-                dk = (end_d - timedelta(days=i)).strftime("%Y-%m-%d")
-                cp = reports_dir / f"{dk}_stock-bot_combined.json"
-                if cp.exists():
-                    c = _load_json(cp)
-                    if c:
-                        sc = c.get("strategy_comparison") or {}
-                        historical.append({
-                            "date": dk,
-                            "equity_realized": c.get("equity_strategy_pnl") or sc.get("equity_realized_pnl"),
-                            "wheel_realized": c.get("wheel_strategy_pnl") or sc.get("wheel_realized_pnl"),
-                            "promotion_score": sc.get("promotion_readiness_score"),
-                        })
-        except Exception:
-            pass
-
-        weekly_path = reports_dir / f"{today}_weekly_promotion_report.json"
-        weekly = _load_json(weekly_path) if weekly_path.exists() else None
-
-        return jsonify({
-            "date": today,
-            "strategy_comparison": comparison,
-            "recommendation": recommendation,
-            "promotion_readiness_score": promotion_score,
-            "historical_comparison": historical[-30:],
-            "weekly_report": weekly,
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @app.route("/api/regime-and-posture", methods=["GET"])
 def api_regime_and_posture():
     """
@@ -6634,24 +6264,58 @@ def api_telemetry_latest_computed():
 
         tdir = _latest_telemetry_dir()
         if tdir is None:
+            # 200 + explicit error: UI must not treat missing bundle as silent OK; avoid 404 for tab hydration.
             return jsonify({
+                "ok": False,
                 "error": "no telemetry bundles found",
                 "message": "Run bar health or full telemetry extract to create telemetry/YYYY-MM-DD/computed/",
                 "telemetry_root": str(TELEMETRY_ROOT),
-            }), 404
+                "latest_date": None,
+                "name": name,
+                "data": None,
+                "as_of_ts": datetime.now(timezone.utc).isoformat(),
+            }), 200
 
         comp_dir = tdir / "computed"
         comp_dir.mkdir(parents=True, exist_ok=True)
         fn = _TELEMETRY_COMPUTED_MAP.get(name) or name
         # Allow passing a filename directly (must end with .json).
         if not str(fn).endswith(".json"):
-            return jsonify({"error": f"unknown computed artifact: {name}"}), 404
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": f"unknown computed artifact: {name}",
+                    "latest_date": tdir.name,
+                    "name": name,
+                    "data": None,
+                    "as_of_ts": datetime.now(timezone.utc).isoformat(),
+                }
+            ), 200
         fp = comp_dir / str(fn)
         if not fp.exists():
-            return jsonify({"error": f"computed artifact missing: {fn}", "latest_date": tdir.name}), 404
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": f"computed artifact missing: {fn}",
+                    "latest_date": tdir.name,
+                    "name": name,
+                    "filename": str(fn),
+                    "data": None,
+                    "as_of_ts": datetime.now(timezone.utc).isoformat(),
+                }
+            ), 200
 
         data = json.loads(fp.read_text(encoding="utf-8", errors="replace"))
-        return jsonify({"latest_date": tdir.name, "name": name, "filename": str(fn), "data": data})
+        return jsonify(
+            {
+                "ok": True,
+                "latest_date": tdir.name,
+                "name": name,
+                "filename": str(fn),
+                "data": data,
+                "as_of_ts": datetime.now(timezone.utc).isoformat(),
+            }
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
