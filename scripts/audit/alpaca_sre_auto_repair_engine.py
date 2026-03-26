@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 REPO = Path(__file__).resolve().parents[2]
 _AUDIT = str(REPO / "scripts" / "audit")
@@ -31,7 +31,7 @@ def _all_incomplete_tids(gate: Dict[str, Any]) -> List[str]:
     return sorted(s)
 
 
-def _gate(root: Path, open_ts: float, forward_since: float) -> Dict[str, Any]:
+def _gate(root: Path, open_ts: float, forward_since: float, exit_ts_max: Optional[float] = None) -> Dict[str, Any]:
     sys.path.insert(0, str(REPO))
     from telemetry.alpaca_strict_completeness_gate import evaluate_completeness
 
@@ -39,6 +39,7 @@ def _gate(root: Path, open_ts: float, forward_since: float) -> Dict[str, Any]:
         root,
         open_ts_epoch=open_ts,
         forward_since_epoch=forward_since,
+        exit_ts_max_epoch=exit_ts_max,
         audit=True,
     )
 
@@ -62,6 +63,8 @@ def run_sre_auto_repair(
     repair_max_rounds: int,
     repair_sleep_seconds: int,
     repair_mod: Any = None,
+    *,
+    exit_ts_max_epoch: Optional[float] = None,
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]], Dict[str, str], Dict[str, Any]]:
     """
     Returns:
@@ -76,7 +79,7 @@ def run_sre_auto_repair(
     repair_actions: List[Dict[str, Any]] = []
     classification_per_trade_id: Dict[str, str] = {}
 
-    gate = _gate(root, open_ts_epoch, forward_since_epoch)
+    gate = _gate(root, open_ts_epoch, forward_since_epoch, exit_ts_max_epoch)
     initial_incomplete = int(gate.get("trades_incomplete") or 0)
     meta: Dict[str, Any] = {
         "initial_trades_incomplete": initial_incomplete,
@@ -127,7 +130,7 @@ def run_sre_auto_repair(
             }
         )
         time.sleep(max(0, int(repair_sleep_seconds)))
-        gate = _gate(root, open_ts_epoch, forward_since_epoch)
+        gate = _gate(root, open_ts_epoch, forward_since_epoch, exit_ts_max_epoch)
         inc_after = int(gate.get("trades_incomplete") or 0)
         repair_actions[-1]["trades_incomplete_after"] = inc_after
         meta["rounds_executed"] = rnum
