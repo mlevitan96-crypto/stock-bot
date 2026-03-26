@@ -1286,6 +1286,60 @@ If service won't start:
 
 ---
 
+## Alpaca Dashboard — Canonical verification and recovery
+
+### Purpose
+Ensure the Alpaca dashboard remains a truthful trust surface and cannot silently regress after deploys or resets.
+
+### Canonical service
+- **systemd unit:** stock-bot-dashboard.service
+- **Runtime:** Flask on :5000
+- **Authoritative source:** origin/main (no SCP hotfixes permitted)
+
+### Canonical endpoints
+- **Operational activity:** /api/alpaca_operational_activity?hours=72
+  - Must return HTTP 200
+  - Must include exact CSA disclaimer:
+    “Trades are executing on Alpaca. Data is NOT certified for learning or attribution.”
+- **Integrity computed:** /api/telemetry/latest/computed?name=data_integrity
+  - Must return HTTP 200
+  - ok:false is valid and must render PARTIAL (amber), not error
+
+### Canonical verifier (hard gate)
+- **Script:** scripts/dashboard_verify_all_tabs.py
+- **Command:**
+  ```bash
+  python3 -u scripts/dashboard_verify_all_tabs.py --json-out <path>.json
+  ```
+- **Pass condition:** exit code 0 and all tabs HTTP 200 (currently 23/23)
+
+### Canonical proof location
+- Droplet proof bundle: reports/audit/ALPACA_DASHBOARD_DROPLET_PROOF_<TS>.md
+- Verifier JSON: reports/ALPACA_DASHBOARD_VERIFY_ALL_TABS_<TS>.json
+- Proof must be marked executed:true for CSA clearance.
+
+### Recovery procedure (if dashboard regresses)
+1. `git fetch origin main && git reset --hard origin/main`
+2. `systemctl restart stock-bot-dashboard.service`
+3. Run the canonical verifier (above).
+4. If verifier fails:
+   - Inspect failing endpoint/status in the JSON output
+   - Fix in repo (never SCP)
+   - Re-run verifier until exit 0
+5. Update droplet proof + closeout only after verifier passes
+
+### Governance status
+- Dashboard truth: RESTORED and PERMANENTIZED
+- CSA status: PERMANENTIZED_OK
+- Permanentizing commit: 1bab716d51aca0373878612b1f66d20ccb53639f
+
+### Authoritative artifacts (do not copy contents; reference only)
+- reports/audit/ALPACA_DASHBOARD_DROPLET_PROOF_20260326_1815Z.md
+- reports/audit/ALPACA_DASHBOARD_UI_CLOSEOUT_20260326_1815Z.md
+- reports/audit/ALPACA_DASHBOARD_PERMANENTIZE_CLOSEOUT_20260326_2015Z.md
+
+---
+
 ## 6.6 DASHBOARD DEPLOYMENT (VERIFIED 2026-01-12, UPDATED 2026-02-17)
 
 ### Dashboard URL and How It Runs
