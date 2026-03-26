@@ -1,0 +1,114 @@
+{
+  "date": "2026-03-09",
+  "blocked_count": 2000,
+  "by_reason": {
+    "displacement_blocked": {
+      "count": 1612,
+      "sample": [
+        {
+          "symbol": "META",
+          "score": 5.132600000000001,
+          "ts": "2026-03-09T17:27:51.648747+00:00"
+        },
+        {
+          "symbol": "WMT",
+          "score": 5.126,
+          "ts": "2026-03-09T17:27:54.306217+00:00"
+        },
+        {
+          "symbol": "PFE",
+          "score": 5.1249,
+          "ts": "2026-03-09T17:27:56.845703+00:00"
+        },
+        {
+          "symbol": "LOW",
+          "score": 5.120500000000001,
+          "ts": "2026-03-09T17:27:59.310389+00:00"
+        },
+        {
+          "symbol": "HD",
+          "score": 5.094100000000001,
+          "ts": "2026-03-09T17:28:01.747497+00:00"
+        }
+      ]
+    },
+    "max_positions_reached": {
+      "count": 367,
+      "sample": [
+        {
+          "symbol": "WMT",
+          "score": 3.4,
+          "ts": "2026-03-09T17:44:35.703216+00:00"
+        },
+        {
+          "symbol": "HD",
+          "score": 3.383,
+          "ts": "2026-03-09T17:44:35.867116+00:00"
+        },
+        {
+          "symbol": "LOW",
+          "score": 3.3049999999999997,
+          "ts": "2026-03-09T17:44:36.041726+00:00"
+        },
+        {
+          "symbol": "COST",
+          "score": 3.1839999999999997,
+          "ts": "2026-03-09T17:44:36.222036+00:00"
+        },
+        {
+          "symbol": "TGT",
+          "score": 3.5909999999999997,
+          "ts": "2026-03-09T17:45:46.105949+00:00"
+        }
+      ]
+    },
+    "order_validation_failed": {
+      "count": 2,
+      "sample": [
+        {
+          "symbol": "COST",
+          "score": 4.231,
+          "ts": "2026-03-09T19:14:49.068600+00:00"
+        },
+        {
+          "symbol": "COST",
+          "score": 3.7169999999999996,
+          "ts": "2026-03-09T19:27:14.117408+00:00"
+        }
+      ]
+    },
+    "max_new_positions_per_cycle": {
+      "count": 19,
+      "sample": [
+        {
+          "symbol": "MSFT",
+          "score": 4.5,
+          "ts": "2026-03-09T19:25:56.209486+00:00"
+        },
+        {
+          "symbol": "BLK",
+          "score": 4.496,
+          "ts": "2026-03-09T19:25:56.281661+00:00"
+        },
+        {
+          "symbol": "XLK",
+          "score": 4.4879999999999995,
+          "ts": "2026-03-09T19:25:56.341711+00:00"
+        },
+        {
+          "symbol": "COST",
+          "score": 4.451,
+          "ts": "2026-03-09T19:25:56.407385+00:00"
+        },
+        {
+          "symbol": "XLI",
+          "score": 4.42,
+          "ts": "2026-03-09T19:25:59.597192+00:00"
+        }
+      ]
+    }
+  },
+  "bars_available": false,
+  "counterfactual_note": "Bars not loaded; counterfactual PnL at 30m/60m/120m not computed. Run with data/bars or Alpaca to enable.",
+  "counterfactual_pnl_30m_60m_120m": null
+}

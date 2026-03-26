@@ -1,0 +1,10 @@
+{
+  "read_only": true,
+  "signal_model_path": "C:\\Dev\\stock-bot\\shadow\\config\\WEIGHTED_SIGNAL_MODEL.json",
+  "ledger_paths": [
+    "C:\\Dev\\stock-bot\\reports\\ledger\\FULL_TRADE_LEDGER_2026-03-10.json"
+  ],
+  "ledger_count": 1,
+  "status": "ready",
+  "contract": "Replay deterministically; never touch live or paper config. Ranked candidates only."
+}

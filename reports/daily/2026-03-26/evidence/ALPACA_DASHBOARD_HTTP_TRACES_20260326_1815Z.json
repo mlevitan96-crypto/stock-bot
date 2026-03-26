@@ -1,0 +1,46 @@
+{
+  "timestamp_utc": "20260326T1815Z",
+  "droplet_host": "alpaca",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/alpaca_operational_activity?hours=72",
+      "http_status": 200,
+      "auth": "Basic (DASHBOARD_USER from .env)",
+      "response": {
+        "disclaimer": "Trades are executing on Alpaca. Data is NOT certified for learning or attribution.",
+        "does_not_claim": ["learning_certification", "attribution_completeness", "broker_reconciliation"],
+        "exit_attribution_rows_in_window": 692,
+        "fills_seen_heuristic": 521,
+        "generated_at_utc": "2026-03-26T17:38:03.334138+00:00",
+        "hours": 72,
+        "last_entry_timestamp_utc": "2026-03-26T17:05:20.763885+00:00",
+        "last_exit_timestamp_utc": "2026-03-26T17:06:29.051195+00:00",
+        "ok": true,
+        "orders_log": {"reason": null, "state": "OK"},
+        "orders_rows_in_window": 4293,
+        "state": "OK",
+        "trade_intent_entered_in_window": 493,
+        "trades_observed": 692,
+        "unified_entry_rows_in_window": 694,
+        "unified_exit_rows_in_window": 281,
+        "window_start_utc": "2026-03-23T17:38:03.334138+00:00"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/telemetry/latest/computed?name=data_integrity",
+      "http_status": 200,
+      "auth": "Basic",
+      "response": {
+        "as_of_ts": "2026-03-26T17:38:04.706949+00:00",
+        "data": null,
+        "error": "unknown computed artifact: data_integrity",
+        "latest_date": "2026-03-19",
+        "name": "data_integrity",
+        "ok": false
+      },
+      "ui_interpretation": "PARTIAL — artifact name not in computed registry; informational, not red failure"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "applied": true,
+  "mode": "paper",
+  "plan_path": "C:\\Dev\\stock-bot\\reports\\audit\\LEDGER_SCHEMA_PATCH_PLAN_2026-03-10.json",
+  "fields_added": [
+    "signal_vectors",
+    "normalized_scores",
+    "entry_ts",
+    "exit_ts",
+    "exit_reason",
+    "entry_reason"
+  ],
+  "note": "Paper ledger emission shall include these fields when writing executed/blocked events. No behavior change; logging only."
+}

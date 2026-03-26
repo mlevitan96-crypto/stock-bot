@@ -1,0 +1,16 @@
+name: Report layout guard
+
+on:
+  pull_request:
+
+jobs:
+  report_layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify report paths and canonical daily completeness
+        run: |
+          git fetch origin main:refs/remotes/origin/main --depth=50 || true
+          python scripts/maintenance/verify_report_layout.py --base origin/main || python scripts/maintenance/verify_report_layout.py --base HEAD~1

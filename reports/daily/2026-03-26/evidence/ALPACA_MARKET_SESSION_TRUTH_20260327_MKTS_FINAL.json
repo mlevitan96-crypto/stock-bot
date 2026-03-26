@@ -1,0 +1,181 @@
+{
+  "contract": "alpaca_forward_truth",
+  "run_utc": "2026-03-26T22:59:32.185315+00:00",
+  "window_hours": 72,
+  "window_start_epoch_arg": 1774531800.0,
+  "window_end_epoch": 1774555200.0,
+  "open_ts_epoch": 1774531800.0,
+  "forward_since_epoch": 1774531800.0,
+  "STRICT_EPOCH_START": 1774458080.0,
+  "strict_epoch_policy": "market_session_explicit_start_end_utc; EXIT_TS_UTC_EPOCH_MAX = window_end",
+  "repair_max_rounds": 2,
+  "repair_sleep_seconds": 10,
+  "sre_auto_repair_engine": true,
+  "initial_gate": {
+    "ROOT": "C:\\Dev\\stock-bot\\artifacts\\alpaca_pnl_session_et_20260326",
+    "OPEN_TS_UTC_EPOCH": 1774531800.0,
+    "EXIT_TS_UTC_EPOCH_MAX": 1774555200.0,
+    "FORWARD_SINCE_UTC_EPOCH": 1774531800.0,
+    "STRICT_EPOCH_START": 1774458080.0,
+    "strict_cohort_entry_era_floor_applied": true,
+    "strict_cohort_excluded_preera_open_count": 0,
+    "strict_cohort_exclusion_reasons": {},
+    "excluded_trade_ids_capped": [],
+    "precheck": [],
+    "trades_seen": 2,
+    "trades_complete": 2,
+    "trades_incomplete": 0,
+    "reason_histogram": {},
+    "incomplete_examples": [],
+    "code_structural_trade_intent_no_canonical_on_entered": false,
+    "LEARNING_STATUS": "ARMED",
+    "learning_fail_closed_reason": null,
+    "AUTHORITATIVE_JOIN_KEY_RULE": "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).",
+    "legacy_trades_seen": 0,
+    "legacy_trades_complete": 0,
+    "legacy_trades_incomplete": 0,
+    "forward_trades_seen": 2,
+    "forward_trades_complete": 2,
+    "forward_trades_incomplete": 0,
+    "FORWARD_CHAIN_PERFECT": true,
+    "FORWARD_COHORT_VACUOUS": false,
+    "LEGACY_DEBT_QUARANTINED_NOTE": "Legacy cohort (open < FORWARD_SINCE_UTC_EPOCH) may remain incomplete; do not use for forward causal certification.",
+    "incomplete_trade_ids_by_reason": {},
+    "chain_matrices_sample": [],
+    "chain_matrices_complete_sample": [
+      {
+        "trade_id": "open_MKT1_2026-03-26T14:00:00+00:00",
+        "symbol": "MKT1",
+        "forward_cohort": true,
+        "authoritative_join_key": "MKT1|LONG|1774533600",
+        "trade_key_from_exit": "MKT1|LONG|1774533600",
+        "alias_sample": [
+          "MKT1|LONG|1774533600"
+        ],
+        "matrix": {
+          "trade_intent_entered_present": true,
+          "unified_entry_attribution_present": true,
+          "orders_rows_canonical_trade_id_present": true,
+          "exit_intent_keyed_present": true,
+          "unified_exit_attribution_terminal_close": true,
+          "exit_attribution_jsonl_row": true
+        },
+        "reasons": []
+      },
+      {
+        "trade_id": "open_MKT2_2026-03-26T15:30:00+00:00",
+        "symbol": "MKT2",
+        "forward_cohort": true,
+        "authoritative_join_key": "MKT2|LONG|1774539000",
+        "trade_key_from_exit": "MKT2|LONG|1774539000",
+        "alias_sample": [
+          "MKT2|LONG|1774539000"
+        ],
+        "matrix": {
+          "trade_intent_entered_present": true,
+          "unified_entry_attribution_present": true,
+          "orders_rows_canonical_trade_id_present": true,
+          "exit_intent_keyed_present": true,
+          "unified_exit_attribution_terminal_close": true,
+          "exit_attribution_jsonl_row": true
+        },
+        "reasons": []
+      }
+    ],
+    "complete_trade_ids": [
+      "open_MKT1_2026-03-26T14:00:00+00:00",
+      "open_MKT2_2026-03-26T15:30:00+00:00"
+    ]
+  },
+  "sre_repair_actions_applied": [],
+  "sre_classification_per_trade_id": {},
+  "sre_engine_meta": {
+    "initial_trades_incomplete": 0,
+    "initial_trades_seen": 2,
+    "emitter_regression_gate": false,
+    "immediate_unknown_escalation": false,
+    "rounds_executed": 0,
+    "final_trades_incomplete": 0
+  },
+  "repair_trace": [],
+  "final_gate": {
+    "ROOT": "C:\\Dev\\stock-bot\\artifacts\\alpaca_pnl_session_et_20260326",
+    "OPEN_TS_UTC_EPOCH": 1774531800.0,
+    "EXIT_TS_UTC_EPOCH_MAX": 1774555200.0,
+    "FORWARD_SINCE_UTC_EPOCH": 1774531800.0,
+    "STRICT_EPOCH_START": 1774458080.0,
+    "strict_cohort_entry_era_floor_applied": true,
+    "strict_cohort_excluded_preera_open_count": 0,
+    "strict_cohort_exclusion_reasons": {},
+    "excluded_trade_ids_capped": [],
+    "precheck": [],
+    "trades_seen": 2,
+    "trades_complete": 2,
+    "trades_incomplete": 0,
+    "reason_histogram": {},
+    "incomplete_examples": [],
+    "code_structural_trade_intent_no_canonical_on_entered": false,
+    "LEARNING_STATUS": "ARMED",
+    "learning_fail_closed_reason": null,
+    "AUTHORITATIVE_JOIN_KEY_RULE": "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).",
+    "legacy_trades_seen": 0,
+    "legacy_trades_complete": 0,
+    "legacy_trades_incomplete": 0,
+    "forward_trades_seen": 2,
+    "forward_trades_complete": 2,
+    "forward_trades_incomplete": 0,
+    "FORWARD_CHAIN_PERFECT": true,
+    "FORWARD_COHORT_VACUOUS": false,
+    "LEGACY_DEBT_QUARANTINED_NOTE": "Legacy cohort (open < FORWARD_SINCE_UTC_EPOCH) may remain incomplete; do not use for forward causal certification.",
+    "incomplete_trade_ids_by_reason": {},
+    "chain_matrices_sample": [],
+    "chain_matrices_complete_sample": [
+      {
+        "trade_id": "open_MKT1_2026-03-26T14:00:00+00:00",
+        "symbol": "MKT1",
+        "forward_cohort": true,
+        "authoritative_join_key": "MKT1|LONG|1774533600",
+        "trade_key_from_exit": "MKT1|LONG|1774533600",
+        "alias_sample": [
+          "MKT1|LONG|1774533600"
+        ],
+        "matrix": {
+          "trade_intent_entered_present": true,
+          "unified_entry_attribution_present": true,
+          "orders_rows_canonical_trade_id_present": true,
+          "exit_intent_keyed_present": true,
+          "unified_exit_attribution_terminal_close": true,
+          "exit_attribution_jsonl_row": true
+        },
+        "reasons": []
+      },
+      {
+        "trade_id": "open_MKT2_2026-03-26T15:30:00+00:00",
+        "symbol": "MKT2",
+        "forward_cohort": true,
+        "authoritative_join_key": "MKT2|LONG|1774539000",
+        "trade_key_from_exit": "MKT2|LONG|1774539000",
+        "alias_sample": [
+          "MKT2|LONG|1774539000"
+        ],
+        "matrix": {
+          "trade_intent_entered_present": true,
+          "unified_entry_attribution_present": true,
+          "orders_rows_canonical_trade_id_present": true,
+          "exit_intent_keyed_present": true,
+          "unified_exit_attribution_terminal_close": true,
+          "exit_attribution_jsonl_row": true
+        },
+        "reasons": []
+      }
+    ],
+    "complete_trade_ids": [
+      "open_MKT1_2026-03-26T14:00:00+00:00",
+      "open_MKT2_2026-03-26T15:30:00+00:00"
+    ]
+  },
+  "incomplete_trade_ids": [],
+  "forward_truth_contract": "CERT_OK",
+  "trades_incomplete_count": 0,
+  "exit_code_intended": 0
+}

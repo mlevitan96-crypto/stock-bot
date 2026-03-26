@@ -1,0 +1,1 @@
+python3: can't open file '/root/stock-bot/scripts/audit/check_alpaca_paper_on_droplet.py': [Errno 2] No such file or directory

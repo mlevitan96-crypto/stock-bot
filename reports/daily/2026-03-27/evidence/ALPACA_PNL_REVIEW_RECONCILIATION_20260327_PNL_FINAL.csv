@@ -1,0 +1,1 @@
+trade_id,symbol,side,entry_ts,exit_ts,qty,avg_entry,avg_exit,gross_pnl,fees,net_pnl,ledger_pnl,reconciliation_delta,notes

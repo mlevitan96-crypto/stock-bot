@@ -1,0 +1,9 @@
+{
+  "droplet_timestamp": "2026-03-06T20:35:22.321170+00:00",
+  "deployed_commit": "f4ebc22d71d0",
+  "paper_mode_active": true,
+  "b2_flag_active": true,
+  "telemetry_health_200": true,
+  "learning_readiness_200": true,
+  "env_snippet": "ALPACA_BASE_URL=https://paper-api.alpaca.markets\nFEATURE_B2_NO_EARLY_SIGNAL_DECAY_EXIT=true\nTRADING_MODE=PAPER"
+}

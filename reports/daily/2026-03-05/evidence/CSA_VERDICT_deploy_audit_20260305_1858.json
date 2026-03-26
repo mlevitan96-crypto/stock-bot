@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "mission_id": "deploy_audit_20260305_1858",
+  "verdict": "HOLD",
+  "confidence": "LOW",
+  "assumptions": [
+    "Board review and shadow data reflect current production behavior.",
+    "Last-387 (or chosen cohort) is representative for promotion decisions.",
+    "Telemetry and attribution paths are complete for in-scope exits.",
+    "No unmeasured regime shift between review window and deploy."
+  ],
+  "missing_data": [
+    "Board review JSON not provided; cannot validate scenario alignment.",
+    "Shadow comparison not provided; advance candidate may be unvalidated."
+  ],
+  "counterfactuals_not_tested": [
+    "Alternative time windows (7d, 14d) not compared in this run.",
+    "Rollback impact (reverting B2/paper flags) not re-measured post-enable.",
+    "Different exit-count cohorts (e.g. last750) not compared for stability."
+  ],
+  "value_leaks": [
+    "Ensure board review uses only in-scope exits; no post-cutoff data.",
+    "Shadow runs must not use post-decision execution data."
+  ],
+  "risk_asymmetry": "Default: downside (bad live paper / production impact) exceeds upside (marginal PnL gain) until proven in shadow and paper.",
+  "recommendation": "Do not promote until missing data is addressed or explicit CSA_RISK_ACCEPTANCE override is written.",
+  "escalation_triggers": [
+    "Verdict is HOLD, ESCALATE, or ROLLBACK and no CSA_RISK_ACCEPTANCE artifact exists.",
+    "Confidence is LOW on a PROCEED verdict.",
+    "Missing data list is non-empty and mission changes runtime behavior.",
+    "Risk asymmetry note indicates unbounded downside."
+  ],
+  "required_next_experiments": [
+    "Produce shadow comparison (build_shadow_comparison_last387) before any promotion.",
+    "Run parallel reviews (7d, 14d, 30d, last387) and compare nomination stability.",
+    "Run shadow comparison after every board review; gate enable on CSA + shadow.",
+    "Document rollback procedure and run rollback drill before enabling new flags."
+  ],
+  "override_allowed": true,
+  "override_requirements": [
+    "reports/audit/CSA_RISK_ACCEPTANCE_deploy_audit_20260305_1858.md"
+  ],
+  "generated_ts": "2026-03-05T18:58:03.359566+00:00",
+  "sre_interpretation": {
+    "benign_ids": [],
+    "silent_failure_ids": [],
+    "pnl_risk_threat_ids": [],
+    "breaking_assumption": "(none inferred)",
+    "experiment_or_rollback": [
+      "No SRE events or all benign."
+    ]
+  },
+  "sre_high_impact_block": false
+}

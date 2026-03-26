@@ -1,0 +1,134 @@
+{
+  "mode": "proposal",
+  "input_path": "reports\\board\\PROFITABILITY_STRATEGY_PROPOSAL.md",
+  "personas": [
+    "CSA",
+    "SRE",
+    "QUANT",
+    "RISK",
+    "ADVERSARIAL",
+    "BOARD"
+  ],
+  "reviews": {
+    "CSA": {
+      "verdict": "PASS",
+      "summary": "Proposal review for CSA; 4 questions.",
+      "questions": [
+        "What will fail first if we execute this?",
+        "What is the fastest path to profit from your domain?",
+        "What must be cut or constrained immediately?",
+        "What single action would you promote tomorrow?"
+      ],
+      "answers": [
+        "[CSA] Stub critique: What will fail first if we execute this?...",
+        "[CSA] Stub critique: What is the fastest path to profit from your domai...",
+        "[CSA] Stub critique: What must be cut or constrained immediately?...",
+        "[CSA] Stub critique: What single action would you promote tomorrow?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[CSA] Stub critique: What single action would you promote tomorrow?..."
+    },
+    "SRE": {
+      "verdict": "PASS",
+      "summary": "Proposal review for SRE; 4 questions.",
+      "questions": [
+        "What will fail first if we execute this?",
+        "What is the fastest path to profit from your domain?",
+        "What must be cut or constrained immediately?",
+        "What single action would you promote tomorrow?"
+      ],
+      "answers": [
+        "[SRE] Stub critique: What will fail first if we execute this?...",
+        "[SRE] Stub critique: What is the fastest path to profit from your domai...",
+        "[SRE] Stub critique: What must be cut or constrained immediately?...",
+        "[SRE] Stub critique: What single action would you promote tomorrow?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[SRE] Stub critique: What single action would you promote tomorrow?..."
+    },
+    "QUANT": {
+      "verdict": "PASS",
+      "summary": "Proposal review for QUANT; 4 questions.",
+      "questions": [
+        "What will fail first if we execute this?",
+        "What is the fastest path to profit from your domain?",
+        "What must be cut or constrained immediately?",
+        "What single action would you promote tomorrow?"
+      ],
+      "answers": [
+        "[QUANT] Stub critique: What will fail first if we execute this?...",
+        "[QUANT] Stub critique: What is the fastest path to profit from your domai...",
+        "[QUANT] Stub critique: What must be cut or constrained immediately?...",
+        "[QUANT] Stub critique: What single action would you promote tomorrow?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[QUANT] Stub critique: What single action would you promote tomorrow?..."
+    },
+    "RISK": {
+      "verdict": "PASS",
+      "summary": "Proposal review for RISK; 4 questions.",
+      "questions": [
+        "What will fail first if we execute this?",
+        "What is the fastest path to profit from your domain?",
+        "What must be cut or constrained immediately?",
+        "What single action would you promote tomorrow?"
+      ],
+      "answers": [
+        "[RISK] Stub critique: What will fail first if we execute this?...",
+        "[RISK] Stub critique: What is the fastest path to profit from your domai...",
+        "[RISK] Stub critique: What must be cut or constrained immediately?...",
+        "[RISK] Stub critique: What single action would you promote tomorrow?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[RISK] Stub critique: What single action would you promote tomorrow?..."
+    },
+    "ADVERSARIAL": {
+      "verdict": "PASS",
+      "summary": "Proposal review for ADVERSARIAL; 4 questions.",
+      "questions": [
+        "What will fail first if we execute this?",
+        "What is the fastest path to profit from your domain?",
+        "What must be cut or constrained immediately?",
+        "What single action would you promote tomorrow?"
+      ],
+      "answers": [
+        "[ADVERSARIAL] Stub critique: What will fail first if we execute this?...",
+        "[ADVERSARIAL] Stub critique: What is the fastest path to profit from your domai...",
+        "[ADVERSARIAL] Stub critique: What must be cut or constrained immediately?...",
+        "[ADVERSARIAL] Stub critique: What single action would you promote tomorrow?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[ADVERSARIAL] Stub critique: What single action would you promote tomorrow?..."
+    },
+    "BOARD": {
+      "verdict": "PASS",
+      "summary": "Proposal review for BOARD; 4 questions.",
+      "questions": [
+        "What will fail first if we execute this?",
+        "What is the fastest path to profit from your domain?",
+        "What must be cut or constrained immediately?",
+        "What single action would you promote tomorrow?"
+      ],
+      "answers": [
+        "[BOARD] Stub critique: What will fail first if we execute this?...",
+        "[BOARD] Stub critique: What is the fastest path to profit from your domai...",
+        "[BOARD] Stub critique: What must be cut or constrained immediately?...",
+        "[BOARD] Stub critique: What single action would you promote tomorrow?..."
+      ],
+      "findings": [],
+      "blockers": [],
+      "promote_tomorrow": "[BOARD] Stub critique: What single action would you promote tomorrow?..."
+    }
+  },
+  "review_questions": [
+    "What will fail first if we execute this?",
+    "What is the fastest path to profit from your domain?",
+    "What must be cut or constrained immediately?",
+    "What single action would you promote tomorrow?"
+  ]
+}

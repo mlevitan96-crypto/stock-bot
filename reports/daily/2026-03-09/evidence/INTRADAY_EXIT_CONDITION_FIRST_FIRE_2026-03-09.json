@@ -1,0 +1,11 @@
+{
+  "date": "2026-03-09",
+  "total_trades": 174,
+  "first_firing_condition_counts": {
+    "unknown": 68,
+    "risk_stop": 37,
+    "flow_reversal": 57,
+    "signal_decay": 12
+  },
+  "trades_with_eligibility": 106
+}

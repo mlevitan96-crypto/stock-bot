@@ -1,0 +1,14 @@
+{
+  "artifact": "ALPACA_DASHBOARD_DROPLET_PROOF_20260326_1900Z",
+  "status": "NOT_EXECUTED",
+  "reason": "Droplet proof was not run from the development workspace; no remote deploy or service restart was performed here.",
+  "required_next_steps": [
+    "git pull on Alpaca droplet",
+    "restart dashboard service only",
+    "run scripts/dashboard_verify_all_tabs.py with DASHBOARD_USER/PASS",
+    "run scripts/alpaca_dashboard_truth_probe.py --json reports/ALPACA_DASHBOARD_DATA_SANITY_<TS>.json",
+    "manual browser verification of all tabs and STALE banners"
+  ],
+  "local_reference_artifact": "reports/ALPACA_DASHBOARD_DATA_SANITY_20260326_1900Z.json",
+  "local_probe_endpoints_ok": "22/22 HTTP 200 (2026-03-26, Windows dev host)"
+}

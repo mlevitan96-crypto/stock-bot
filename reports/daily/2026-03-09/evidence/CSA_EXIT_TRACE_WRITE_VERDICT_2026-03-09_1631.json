@@ -1,0 +1,45 @@
+{
+  "verdict": "EXIT_TRACE_WRITE_HEALTH_PROVEN",
+  "confidence": 0.9,
+  "stamp": "2026-03-09_1631",
+  "health_exists": true,
+  "health_size": 666,
+  "health_recent_count": 4,
+  "written_true_count": 4,
+  "written_false_count": 0,
+  "trace_size": 134403,
+  "last_5_health": [
+    {
+      "ts": "2026-03-09T16:29:02.836482+00:00",
+      "trade_id": "open_AMD_2026-03-09T16:06:14.496Z",
+      "attempted": true,
+      "written": true,
+      "error_type": null,
+      "error_msg": null
+    },
+    {
+      "ts": "2026-03-09T16:31:54.065961+00:00",
+      "trade_id": "open_BA_2026-03-09T16:05:05.641Z",
+      "attempted": true,
+      "written": true,
+      "error_type": null,
+      "error_msg": null
+    },
+    {
+      "ts": "2026-03-09T16:32:20.621839+00:00",
+      "trade_id": "open_BA_2026-03-09T16:05:05.641Z",
+      "attempted": true,
+      "written": true,
+      "error_type": null,
+      "error_msg": null
+    },
+    {
+      "ts": "2026-03-09T16:33:29.430778+00:00",
+      "trade_id": "open_CVX_2026-03-09T16:02:39.925Z",
+      "attempted": true,
+      "written": true,
+      "error_type": null,
+      "error_msg": null
+    }
+  ]
+}

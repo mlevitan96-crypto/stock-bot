@@ -1,0 +1,10 @@
+{
+  "utc": "2026-03-26T23:15:28.597214+00:00",
+  "retention_days": 3,
+  "default_session_et": "2026-03-26",
+  "total_report_like_files_scanned": 1029,
+  "keep_allowed_layout": 80,
+  "move_to_session_evidence": 946,
+  "delete_stale_or_unreferenced": 3,
+  "apply": true
+}

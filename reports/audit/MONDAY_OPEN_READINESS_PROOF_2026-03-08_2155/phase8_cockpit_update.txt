@@ -1,0 +1,6 @@
+Profitability Cockpit updated: /root/stock-bot/reports/board/PROFITABILITY_COCKPIT.md
+  CSA live: True
+  100-trade trigger wired: True
+  Total trade events: 3089
+  Trades until next CSA: 11
+  Last mission: CSA_TRADE_100_20260306-002808
