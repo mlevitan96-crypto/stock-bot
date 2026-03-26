@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "mission_id": "csa_smoke",
+  "verdict": "PROCEED",
+  "confidence": "MED",
+  "assumptions": [
+    "Board review and shadow data reflect current production behavior.",
+    "Last-387 (or chosen cohort) is representative for promotion decisions.",
+    "Telemetry and attribution paths are complete for in-scope exits.",
+    "No unmeasured regime shift between review window and deploy.",
+    "Shadow comparison ranking (proxy_pnl_delta) is sufficient for advance decisions.",
+    "Board opportunity_cost / scenario logic is stable across runs."
+  ],
+  "missing_data": [
+    "Board review lacks exits_in_scope or opportunity_cost_ranked_reasons."
+  ],
+  "counterfactuals_not_tested": [
+    "Alternative time windows (7d, 14d) not compared in this run.",
+    "Rollback impact (reverting B2/paper flags) not re-measured post-enable.",
+    "Different exit-count cohorts (e.g. last750) not compared for stability.",
+    "Shadow advance: live paper outcome vs shadow proxy not yet observed."
+  ],
+  "value_leaks": [
+    "Ensure board review uses only in-scope exits; no post-cutoff data.",
+    "Shadow runs must not use post-decision execution data."
+  ],
+  "risk_asymmetry": "Asymmetry: advancing a shadow has unbounded downside (live paper loss); holding has bounded opportunity cost. Rollback cost non-zero.",
+  "recommendation": "CSA does not block. Proceed only if other gates pass; prefer HIGH confidence.",
+  "escalation_triggers": [
+    "Verdict is HOLD, ESCALATE, or ROLLBACK and no CSA_RISK_ACCEPTANCE artifact exists.",
+    "Confidence is LOW on a PROCEED verdict.",
+    "Missing data list is non-empty and mission changes runtime behavior.",
+    "Risk asymmetry note indicates unbounded downside."
+  ],
+  "required_next_experiments": [
+    "Run parallel reviews (7d, 14d, 30d, last387) and compare nomination stability.",
+    "Run shadow comparison after every board review; gate enable on CSA + shadow.",
+    "Document rollback procedure and run rollback drill before enabling new flags."
+  ],
+  "override_allowed": true,
+  "override_requirements": [
+    "reports/audit/CSA_RISK_ACCEPTANCE_csa_smoke.md"
+  ],
+  "generated_ts": "2026-03-05T17:17:28.847472+00:00"
+}

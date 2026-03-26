@@ -1,0 +1,12 @@
+{
+  "mode": "paper",
+  "verified": true,
+  "expect_overlay": "C:\\Dev\\stock-bot\\config\\overlays\\exit_aggression_paper.json",
+  "active_path": "C:\\Dev\\stock-bot\\config\\tuning\\active.json",
+  "details": {
+    "active_version": "exit_aggression_paper_+0.15",
+    "active_exit_weights_keys": [
+      "flow_deterioration"
+    ]
+  }
+}

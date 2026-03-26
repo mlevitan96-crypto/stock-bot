@@ -1,0 +1,143 @@
+{
+  "generated_ts": "2026-03-04T23:03:34.732755+00:00",
+  "baseline": "last 387 exits",
+  "scenarios": {
+    "A1": {
+      "scenario_id": "A1",
+      "name": "Ignore displacement_blocked",
+      "additional_trades_admitted": 963,
+      "counterfactual_pnl_proxy_usd": -75.4,
+      "baseline_win_rate": 0.2081,
+      "risk_note": "Relaxing displacement may increase drawdown; capacity unchanged.",
+      "expected_improvement": "neutral_to_negative if avg executed PnL stays negative",
+      "baseline_scope": "last 387 exits",
+      "run_ts": "2026-03-04T23:03:25.883508+00:00"
+    },
+    "A2": {
+      "scenario_id": "A2",
+      "name": "Ignore max_positions_reached",
+      "additional_trades_admitted": 585,
+      "counterfactual_pnl_proxy_usd": -45.8,
+      "risk_note": "Increases concentration; regulatory/risk limit exposure.",
+      "expected_improvement": "low; more positions can worsen tail.",
+      "baseline_scope": "last 387 exits",
+      "run_ts": "2026-03-04T23:03:27.014012+00:00"
+    },
+    "A3": {
+      "scenario_id": "A3",
+      "name": "Lower expectancy score floor by one notch",
+      "additional_trades_admitted_estimate": 35,
+      "blocked_at_floor": 141,
+      "counterfactual_pnl_proxy_usd": -2.74,
+      "risk_note": "Lower floor admits lower-score trades; backtest recommended.",
+      "expected_improvement": "moderate if score band 2.5-3.0 is profitable.",
+      "baseline_scope": "last 387 exits",
+      "run_ts": "2026-03-04T23:03:28.136194+00:00"
+    },
+    "B1": {
+      "scenario_id": "B1",
+      "name": "Extend minimum hold by +15 min",
+      "baseline_avg_hold_minutes": 15.36,
+      "exits_with_hold_below_15min": 260,
+      "expectancy_delta_note": "Excluding early exits may reduce churn; hold vs drawdown TBD.",
+      "expected_improvement": "moderate if early exits are net negative.",
+      "baseline_scope": "last 387 exits",
+      "run_ts": "2026-03-04T23:03:29.339625+00:00"
+    },
+    "B2": {
+      "scenario_id": "B2",
+      "name": "Remove early signal_decay exits",
+      "early_signal_decay_exits_under_30min": 335,
+      "total_signal_decay_exits_in_scope": 168,
+      "expectancy_delta_note": "Removing early decay may extend winners; test on replay.",
+      "expected_improvement": "moderate if early decay cuts winners.",
+      "baseline_scope": "last 387 exits",
+      "run_ts": "2026-03-04T23:03:30.473133+00:00"
+    },
+    "B3": {
+      "scenario_id": "B3",
+      "name": "Favor TP over time-based exits",
+      "time_based_exit_count": 168,
+      "tp_like_exit_count": 0,
+      "other": 793,
+      "hold_time_vs_drawdown_note": "Current mix is time/signal_decay heavy; TP favor needs rule change.",
+      "expected_improvement": "moderate if TP captures more upside.",
+      "baseline_scope": "last 387 exits",
+      "run_ts": "2026-03-04T23:03:31.831867+00:00"
+    },
+    "C1": {
+      "scenario_id": "C1",
+      "name": "Re-rank block reasons by realized opportunity cost",
+      "ranked_by_count": [
+        "displacement_blocked",
+        "max_positions_reached",
+        "expectancy_blocked:score_floor_breach",
+        "order_validation_failed",
+        "max_new_positions_per_cycle"
+      ],
+      "opportunity_cost_proxy_usd": {
+        "displacement_blocked": -75.4,
+        "max_positions_reached": -45.8,
+        "expectancy_blocked:score_floor_breach": -11.04,
+        "order_validation_failed": -4.62,
+        "max_new_positions_per_cycle": -1.25
+      },
+      "expected_improvement": "Prioritize relaxing blocks with highest negative opportunity cost.",
+      "baseline_scope": "last 387 exits",
+      "run_ts": "2026-03-04T23:03:32.993285+00:00"
+    },
+    "C2": {
+      "scenario_id": "C2",
+      "name": "Identify blocks that correlate with positive counterfactual PnL",
+      "good_vetoes_note": "Blocks that would have lost (need estimate_blocked_outcome per block).",
+      "missed_winners_note": "Blocks that would have won (same). Run counter_intelligence_analysis on droplet for full C2.",
+      "block_reason_counts": {
+        "displacement_blocked": 963,
+        "max_positions_reached": 585,
+        "expectancy_blocked:score_floor_breach": 141,
+        "order_validation_failed": 59,
+        "max_new_positions_per_cycle": 16
+      },
+      "expected_improvement": "High if we can relax only 'missed winner' blocks.",
+      "baseline_scope": "last 387 exits",
+      "run_ts": "2026-03-04T23:03:33.620948+00:00"
+    }
+  },
+  "ranked_by_expected_improvement": [
+    "A3",
+    "B1",
+    "B2",
+    "B3",
+    "A1",
+    "A2",
+    "C1",
+    "C2"
+  ],
+  "recommendations": {
+    "A1": "Test (gate relaxation; run in paper first)",
+    "A2": "Test (gate relaxation; run in paper first)",
+    "A3": "Test (score floor; backtest recommended)",
+    "B1": "Test (exit behavior; replay validation)",
+    "B2": "Test (exit behavior; replay validation)",
+    "B3": "Test (exit behavior; replay validation)",
+    "C1": "Promote (re-rank informs which gate to relax first)",
+    "C2": "Test (C2 needs full counter-intel run)"
+  },
+  "risk_notes": {
+    "A1": "Displacement relaxation increases exposure; monitor drawdown.",
+    "A2": "Max positions increase concentration risk.",
+    "A3": "Lower score floor may admit worse entries; validate with backtest.",
+    "B1": "Min hold extension may increase drawdown in fast reversals.",
+    "B2": "Removing early signal_decay may hold losers longer.",
+    "B3": "TP favor requires rule change; test on replay.",
+    "C1": "Opportunity cost is proxy; use for prioritization only.",
+    "C2": "Full C2 requires estimate_blocked_outcome per block."
+  },
+  "persona_verdicts": {
+    "adversarial": "Test A3 first (lower score floor): if the blocked score band is profitable, we are over-blocking; if not, we keep the floor. No live change until backtest.",
+    "quant": "Test C1 first: re-ranking by opportunity cost gives a clear order for which gate to relax; then validate with A1/A2/A3 tests.",
+    "product_operator": "Test B2 first (remove early signal_decay): quickest exit-policy change to validate on replay; if early decay exits are net negative, removing them improves expectancy.",
+    "risk": "Test A2 last; prioritize B1 or B3 (exit behavior) over gate relaxation to avoid concentration. Promote C1 for decision order.",
+    "execution_sre": "Test B1 first (extend min hold): single parameter, easy rollback; then C1 for prioritization. No live config change until tests pass."
+  }
+}

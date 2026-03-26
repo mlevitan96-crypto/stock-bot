@@ -1,0 +1,9 @@
+{
+  "overall_status": "OK",
+  "scan_ts": "2026-03-05T21:07:05.168092+00:00",
+  "schema_version": "1.0",
+  "observed_minutes": 10,
+  "baseline_hours": 24.0,
+  "event_count": 0,
+  "automation_anomalies_present": false
+}

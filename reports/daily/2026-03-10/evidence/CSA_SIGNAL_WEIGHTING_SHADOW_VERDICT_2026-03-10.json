@@ -1,0 +1,13 @@
+{
+  "verdict": "GO",
+  "blockers": [],
+  "actions_count": 1,
+  "ledger_executed": 163,
+  "ledger_blocked": 2000,
+  "next_steps": [
+    "Execute chosen path within 48\u201372 hours."
+  ],
+  "notes": [
+    "Profitability convergence; reversibility allowed, indecision is not."
+  ]
+}

@@ -1,0 +1,8 @@
+trade_idx,exit_pressure_total,pnl,winner
+0,0.7,0.0,time_exit
+1,,0.0,
+2,not_float,0.0,x
+3,,0.0,
+4,not_float,0.0,x
+5,,0.0,
+6,not_float,0.0,x

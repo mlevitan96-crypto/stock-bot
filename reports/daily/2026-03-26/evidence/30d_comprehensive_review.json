@@ -1,0 +1,196 @@
+{
+  "scope": "30 days",
+  "window_start": "2026-02-03",
+  "window_end": "2026-03-04",
+  "end_date": "2026-03-04",
+  "days": 30,
+  "last_n_exits": null,
+  "architecture_summary": "- Entry: composite score (UW + flow + dark pool + gamma + vol + option volume), expectancy gate, capacity/displacement/momentum gates.\n- Exit: signal_decay, time stop, trailing stop, regime-based exits; exit pressure v3.\n- Universe: daily universe from UW + survivorship; sector/regime filters.\n- Execution: Alpaca paper; cooldowns, concentration limits, max positions per cycle.\n- Data: attribution.jsonl, exit_attribution.jsonl, master_trade_log.jsonl, blocked_trades.jsonl; EOD root cause, exit effectiveness v2, governance loop.",
+  "pnl": {
+    "total_pnl_attribution_usd": -136.47,
+    "total_pnl_exit_attribution_usd": -279.79,
+    "total_trades": 2000,
+    "total_exits": 2000,
+    "win_rate": 0.2015,
+    "avg_hold_minutes": 11.83
+  },
+  "exit_reason_distribution": {
+    "unknown": 2000,
+    "signal_decay(0.76)": 153,
+    "signal_decay(0.75)": 129,
+    "signal_decay(0.91)": 127,
+    "signal_decay(0.77)": 92,
+    "signal_decay(0.92)": 86,
+    "signal_decay(0.90)": 78,
+    "signal_decay(0.93)": 71,
+    "signal_decay(0.74)": 65,
+    "signal_decay(0.78)": 48,
+    "signal_decay(0.73)": 34,
+    "signal_decay(0.83)": 32,
+    "signal_decay(0.89)": 31,
+    "signal_decay(0.79)": 30,
+    "signal_decay(0.94)": 30,
+    "signal_decay(0.68)": 28,
+    "signal_decay(0.69)": 28,
+    "signal_decay(0.85)": 27,
+    "signal_decay(0.86)": 24,
+    "signal_decay(0.87)": 23
+  },
+  "blocked_trade_distribution": {
+    "displacement_blocked": 1079,
+    "max_positions_reached": 672,
+    "expectancy_blocked:score_floor_breach": 151,
+    "order_validation_failed": 82,
+    "max_new_positions_per_cycle": 16
+  },
+  "blocked_total": 2000,
+  "by_direction": {
+    "long": {
+      "count": 224,
+      "total_pnl_usd": -11.76,
+      "win_rate": 0.4464
+    },
+    "short": {
+      "count": 132,
+      "total_pnl_usd": -9.38,
+      "win_rate": 0.4394
+    },
+    "unknown": {
+      "count": 1644,
+      "total_pnl_usd": -258.64,
+      "win_rate": 0.3881
+    }
+  },
+  "rolling_30_day": {
+    "date": "2026-03-04",
+    "win_rate_by_window": {
+      "30_day": 0.2015
+    },
+    "pnl_by_window": {
+      "30_day": -136.47
+    },
+    "exit_reason_counts_by_window": {
+      "30_day": {
+        "unknown": 2000,
+        "signal_decay(0.76)": 153,
+        "signal_decay(0.75)": 129,
+        "signal_decay(0.91)": 127,
+        "signal_decay(0.77)": 92,
+        "signal_decay(0.92)": 86,
+        "signal_decay(0.90)": 78,
+        "signal_decay(0.93)": 71,
+        "signal_decay(0.74)": 65,
+        "signal_decay(0.78)": 48,
+        "signal_decay(0.73)": 34,
+        "signal_decay(0.83)": 32,
+        "signal_decay(0.89)": 31,
+        "signal_decay(0.79)": 30,
+        "signal_decay(0.94)": 30,
+        "signal_decay(0.68)": 28,
+        "signal_decay(0.69)": 28,
+        "signal_decay(0.85)": 27,
+        "signal_decay(0.86)": 24,
+        "signal_decay(0.87)": 23
+      }
+    },
+    "blocked_trade_counts_by_window": {
+      "30_day": {
+        "displacement_blocked": 1079,
+        "max_positions_reached": 672,
+        "expectancy_blocked:score_floor_breach": 151,
+        "order_validation_failed": 82,
+        "max_new_positions_per_cycle": 16
+      }
+    },
+    "signal_decay_exit_rate_by_window": {
+      "30_day": 0.9815
+    },
+    "windows": {
+      "30_day": {
+        "window_days": [
+          "2026-02-03",
+          "2026-02-04",
+          "2026-02-05",
+          "2026-02-06",
+          "2026-02-07",
+          "2026-02-08",
+          "2026-02-09",
+          "2026-02-10",
+          "2026-02-11",
+          "2026-02-12",
+          "2026-02-13",
+          "2026-02-14",
+          "2026-02-15",
+          "2026-02-16",
+          "2026-02-17",
+          "2026-02-18",
+          "2026-02-19",
+          "2026-02-20",
+          "2026-02-21",
+          "2026-02-22",
+          "2026-02-23",
+          "2026-02-24",
+          "2026-02-25",
+          "2026-02-26",
+          "2026-02-27",
+          "2026-02-28",
+          "2026-03-01",
+          "2026-03-02",
+          "2026-03-03",
+          "2026-03-04"
+        ],
+        "total_trades": 2000,
+        "total_exits": 2000,
+        "total_blocked": 2000,
+        "pnl_usd": -136.47,
+        "win_rate": 0.2015,
+        "signal_decay_exit_count": 1963
+      }
+    }
+  },
+  "counter_intelligence": {
+    "blocking_patterns": {
+      "displacement_blocked": 1079,
+      "max_positions_reached": 672,
+      "expectancy_blocked:score_floor_breach": 151,
+      "order_validation_failed": 82,
+      "max_new_positions_per_cycle": 16
+    },
+    "gate_effectiveness": {
+      "max_positions_reached": {
+        "count": 672,
+        "avg_score": 3.51
+      },
+      "displacement_blocked": {
+        "count": 1079,
+        "avg_score": 4.12
+      },
+      "order_validation_failed": {
+        "count": 82,
+        "avg_score": 3.94
+      },
+      "expectancy_blocked:score_floor_breach": {
+        "count": 151,
+        "avg_score": 2.44
+      },
+      "max_new_positions_per_cycle": {
+        "count": 16,
+        "avg_score": 3.45
+      }
+    },
+    "executed_count": 2000,
+    "blocked_count": 2000
+  },
+  "learning_telemetry": {
+    "total_exits_in_scope": 2000,
+    "telemetry_backed": 387,
+    "pct_telemetry": 19.35,
+    "ready_for_replay": false
+  },
+  "how_to_proceed": [
+    "Continue capture: need 387/100 telemetry-backed in last-100 window; run replay when \u226590%.",
+    "Review blocked trades: top reason 'displacement_blocked' (1079 blocks). Consider counter-intel report for missed opportunities.",
+    "PnL negative in scope; use board personas for top 5 recommendations (entry/exit/gates).",
+    "Board task: each persona 3 ideas \u2192 agree top 5 with owner, metric, success criteria."
+  ]
+}

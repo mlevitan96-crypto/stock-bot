@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-03-08_2152",
+  "verdict": "FAIL",
+  "phases": {
+    "0_authority": {
+      "hostname": "ubuntu-s-1vcpu-2gb-nyc3-01-alpaca",
+      "commit": "7b9cf1de545a",
+      "raw": "ubuntu-s-1vcpu-2gb-nyc3-01-alpaca\n7b9cf1de545a2da54a57cdbd88f46cfef9df9028\n2026-03-08T21:52:10Z\nPython 3.12.3\n"
+    }
+  },
+  "blockers": [
+    "stock-bot service not active."
+  ],
+  "warnings": [],
+  "proof_dir": "C:\\Dev\\stock-bot\\reports\\audit\\MONDAY_OPEN_READINESS_PROOF_2026-03-08_2152"
+}

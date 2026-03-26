@@ -1,0 +1,225 @@
+{
+  "repo_root": "C:\\Dev\\stock-bot",
+  "emission_point_count": 31,
+  "emission_points": [
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\audit\\reconstruct_full_trade_ledger.py",
+      "role": "reconstruct",
+      "inferred_fields": [
+        "ts",
+        "ts_iso",
+        "symbol",
+        "direction",
+        "strategy_variant_id",
+        "decision",
+        "exit_reason",
+        "hold_time_minutes",
+        "realized_pnl",
+        "realized_pnl_pct",
+        "sizing",
+        "entry_ts",
+        "exit_ts"
+      ],
+      "writes": "ledger JSON"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\counter_intel\\merge_counter_intel_into_ledger.py",
+      "role": "merge_counter_intel",
+      "inferred_fields": [
+        "executed",
+        "blocked",
+        "counter_intel"
+      ],
+      "writes": "ledger in place"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\dashboard.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\main.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\adjustment_chain_forensics.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\score_autopsy_from_ledger.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\update_profitability_cockpit.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\uw_experiment_summary.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\shadow\\shadow_pnl_engine.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\audit\\build_weekly_trade_decision_ledger.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\audit\\collect_weekly_droplet_evidence.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\audit\\run_csa_weekly_review.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\audit\\run_full_day_trading_intelligence_audit_on_droplet.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\audit\\verify_trade_ledger_integrity.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\audit\\write_weekly_persona_memos.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\board\\compile_profitability_evidence.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\board\\generate_day_board_packet.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\counter_intel\\emit_counter_intel_events.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\counter_intel\\enrich_counter_intel_events.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\csa\\analyze_counter_intel_impact.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\csa\\analyze_decision_quality.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\csa\\assert_counter_intel_present.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\csa\\render_execution_verdict.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\experiments\\select_exit_aggression_params.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\ideas\\harvest_promotion_candidates.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\runtime\\apply_ledger_schema_patch.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\runtime\\collect_exit_experiment_metrics.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\runtime\\patch_ledger_schema_add_replay_fields.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\shadow\\backfill_replay_artifacts.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\shadow\\discover_replay_artifacts.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    },
+    {
+      "path": "C:\\Dev\\stock-bot\\scripts\\shadow\\init_shadow_replay_harness.py",
+      "role": "reference",
+      "inferred_fields": [],
+      "writes": "reference only"
+    }
+  ],
+  "current_executed_fields": [
+    "ts",
+    "ts_iso",
+    "symbol",
+    "direction",
+    "strategy_variant_id",
+    "decision",
+    "exit_reason",
+    "hold_time_minutes",
+    "realized_pnl",
+    "realized_pnl_pct",
+    "sizing",
+    "entry_ts",
+    "exit_ts"
+  ]
+}

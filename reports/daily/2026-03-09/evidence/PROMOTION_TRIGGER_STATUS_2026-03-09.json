@@ -1,0 +1,28 @@
+{
+  "date": "2026-03-09",
+  "timestamp_utc": "2026-03-09T15:38:50.048536+00:00",
+  "triggers_fired": [
+    "EXIT_CAPTURE_REVIEW_REQUIRED (realized<0, unrealized>0)"
+  ],
+  "trade_count_trigger": {
+    "total_trade_events": 4839,
+    "last_csa_trade_count": 4800,
+    "trades_since_last_csa": 39,
+    "threshold": 100,
+    "fired": false
+  },
+  "economic_trigger": {
+    "realized_pnl_sum": -241.76,
+    "unrealized_pnl": 51.29,
+    "ratio": -0.21,
+    "realized_negative_unrealized_positive": true,
+    "fired": true
+  },
+  "structural_trigger": {
+    "config_change_since_last_csa": false,
+    "b2_mtime": 1772829273,
+    "last_csa_ts": "2026-03-09T15:36:10.852859+00:00",
+    "fired": false
+  },
+  "status": "REVIEW_REQUIRED"
+}

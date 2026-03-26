@@ -1,0 +1,25 @@
+{
+  "date": "2026-03-10",
+  "candidates": [
+    "exit_delay:+2_bars",
+    "exit_delay:+4_bars",
+    "exit_confirmations:-1",
+    "exit_weight:+0.15"
+  ],
+  "selected": "exit_weight:+0.15",
+  "selection_criteria": [
+    "expected_pnl",
+    "tail_risk",
+    "reversibility"
+  ],
+  "scores": {
+    "candidate": "exit_weight:+0.15",
+    "expected_pnl_score": 0.9,
+    "tail_risk_score": 0.73,
+    "reversibility": 1.0
+  },
+  "ledger_executed": 163,
+  "notes": [
+    "Exit-only; entries and CI unchanged. Paper-only, reversible."
+  ]
+}

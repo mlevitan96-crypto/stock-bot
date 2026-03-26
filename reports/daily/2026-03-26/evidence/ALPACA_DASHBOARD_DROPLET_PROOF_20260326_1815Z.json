@@ -1,0 +1,24 @@
+{
+  "timestamp_utc": "20260326T1815Z",
+  "phase": "ALPACA_DASHBOARD_DROPLET_PROOF",
+  "executed": true,
+  "ssh_host": "alpaca",
+  "dashboard_unit": "stock-bot-dashboard.service",
+  "git_origin_main_at_reset": "1c2c94648d60bda9df61e296948dd2aef923bf3f",
+  "hotfix_scp_from_workspace": ["dashboard.py", "scripts/dashboard_verify_all_tabs.py"],
+  "verifier_exit_code": 0,
+  "verifier_ok_200": 23,
+  "verifier_endpoints_total": 23,
+  "artifacts": {
+    "service_discovery": "reports/audit/ALPACA_DASHBOARD_DROPLET_SERVICE_DISCOVERY_20260326_1815Z.md",
+    "deploy": "reports/audit/ALPACA_DASHBOARD_DROPLET_DEPLOY_20260326_1815Z.md",
+    "systemctl": "reports/audit/ALPACA_DASHBOARD_DROPLET_SYSTEMCTL_20260326_1815Z.md",
+    "journal": "reports/audit/ALPACA_DASHBOARD_DROPLET_JOURNAL_20260326_1815Z.md",
+    "verify_md": "reports/audit/ALPACA_DASHBOARD_VERIFY_ALL_TABS_20260326_1815Z.md",
+    "verify_json": "reports/ALPACA_DASHBOARD_VERIFY_ALL_TABS_20260326_1815Z.json",
+    "http_traces_md": "reports/audit/ALPACA_DASHBOARD_HTTP_TRACES_20260326_1815Z.md",
+    "http_traces_json": "reports/ALPACA_DASHBOARD_HTTP_TRACES_20260326_1815Z.json",
+    "screenshot_index": "reports/audit/ALPACA_DASHBOARD_SCREENSHOT_INDEX_20260326_1815Z.md",
+    "screenshots_glob": "reports/screenshots/alpaca_dashboard_20260326_1815Z/*.png"
+  }
+}

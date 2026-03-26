@@ -1,0 +1,70 @@
+{
+  "root": "C:\\Dev\\stock-bot",
+  "window_hours": 8760,
+  "cutoff_utc": "2025-03-26T16:27:24.142071+00:00",
+  "unified_path": "C:\\Dev\\stock-bot\\logs\\alpaca_unified_events.jsonl",
+  "unified_event_counts": {
+    "alpaca_entry_attribution": 51,
+    "alpaca_exit_attribution": 39
+  },
+  "run_event_counts": {
+    "trade_intent": 102,
+    "exit_intent": 22,
+    "trade_intent_entered": 78
+  },
+  "orders_heuristic_counts": {},
+  "exit_attribution_closes_in_window": 36,
+  "unified_terminal_close_distinct_trade_ids": 1,
+  "ratios": {
+    "unified_terminal_to_exit_attribution": 0.027777777777777776,
+    "unified_entry_rows_to_trade_intent_entered": 0.6538461538461539
+  },
+  "random_trade_traces": [
+    {
+      "trade_id": "parity_2",
+      "has_exit_attribution": false,
+      "has_unified_entry": true,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "parity_1",
+      "has_exit_attribution": false,
+      "has_unified_entry": true,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "inv",
+      "has_exit_attribution": false,
+      "has_unified_entry": true,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "open_TSLA_2026-03-14T12-00-00Z",
+      "has_exit_attribution": false,
+      "has_unified_entry": true,
+      "has_unified_exit_terminal_close": true,
+      "canonical_keys_sample": [
+        "TSLA|LONG|1773489600"
+      ],
+      "orders_rows_matching_canonical_keys": 0
+    },
+    {
+      "trade_id": "open_AAPL_1",
+      "has_exit_attribution": false,
+      "has_unified_entry": true,
+      "has_unified_exit_terminal_close": false,
+      "canonical_keys_sample": [],
+      "orders_rows_matching_canonical_keys": 0
+    }
+  ],
+  "notes": [
+    "entry_decision_made is proxied by trade_intent decision_outcome=entered and/or alpaca_entry_attribution.",
+    "execution submit/fill proxied by orders.jsonl rows in window (see heuristic counts)."
+  ]
+}

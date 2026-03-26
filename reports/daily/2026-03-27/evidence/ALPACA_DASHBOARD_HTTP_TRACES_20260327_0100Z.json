@@ -1,0 +1,21 @@
+{
+  "timestamp_utc": "20260327T0100Z",
+  "phase": "ALPACA_DASHBOARD_HTTP_TRACES",
+  "executed_on_droplet": false,
+  "verdict": "BLOCKED",
+  "blocker": "No authenticated HTTP capture against droplet dashboard from this workspace.",
+  "local_control_only": {
+    "command": "curl.exe -m 3 http://127.0.0.1:5000/api/ping",
+    "result": "connection refused / http_code=000",
+    "meaning": "No dashboard on agent localhost; not a statement about Alpaca droplet."
+  },
+  "droplet_endpoints_to_capture": [
+    "/api/alpaca_operational_activity?hours=72",
+    "/api/telemetry/latest/index",
+    "/api/telemetry/latest/computed?name=live_vs_shadow_pnl",
+    "/api/dashboard/data_integrity",
+    "/api/stockbot/fast_lane_ledger",
+    "/api/sre/health",
+    "/api/executive_summary"
+  ]
+}

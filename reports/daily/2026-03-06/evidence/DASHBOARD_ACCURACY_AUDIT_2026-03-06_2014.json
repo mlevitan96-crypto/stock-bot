@@ -1,0 +1,68 @@
+{
+  "audit_ts_utc": "2026-03-06T20:14:15.739845+00:00",
+  "today_utc": "2026-03-06",
+  "base_dir": "/root/stock-bot",
+  "sources": {
+    "state/direction_readiness.json": {
+      "exists": true,
+      "mtime_iso": "2026-03-06T20:10:02.045745+00:00",
+      "all_time_exits": 2032,
+      "total_trades": 100,
+      "telemetry_trades": 100,
+      "updated_ts": "2026-03-06T20:10:02.046581+00:00",
+      "fresh_within_24h": true
+    },
+    "state/direction_replay_status.json": {
+      "exists": true,
+      "mtime_iso": "2026-03-06T19:11:33.886686+00:00"
+    },
+    "logs/exit_attribution.jsonl": {
+      "exists": true,
+      "mtime_iso": "2026-03-06T20:08:00.567429+00:00",
+      "line_count": 2032
+    },
+    "logs/attribution.jsonl": {
+      "exists": true,
+      "line_count": 2065,
+      "mtime_iso": "2026-03-06T19:52:01.824659+00:00"
+    },
+    "reports/state/TRADE_CSA_STATE.json": {
+      "exists": true,
+      "mtime_iso": "2026-03-06T20:14:14.430680+00:00",
+      "total_trade_events": 2404,
+      "last_csa_mission_id": "CSA_TRADE_100_20260306-201404"
+    },
+    "reports/state/test_csa_100/TRADE_CSA_STATE.json": {
+      "exists": false,
+      "mtime_iso": null,
+      "used_only_if_prod_missing": false
+    },
+    "reports/state/trade_events.jsonl": {
+      "exists": true,
+      "line_count": 2404
+    },
+    "reports/audit/CSA_VERDICT_LATEST.json": {
+      "exists": true,
+      "mtime_iso": "2026-03-06T20:14:14.120669+00:00",
+      "mission_id": "CSA_TRADE_100_20260306-002808",
+      "verdict": "PROCEED"
+    },
+    "reports/board/PROFITABILITY_COCKPIT.md": {
+      "exists": true,
+      "mtime_iso": "2026-03-06T17:34:10.549094+00:00"
+    },
+    "reports/2026-03-06_stock-bot_combined.json": {
+      "exists": false,
+      "mtime_iso": null
+    }
+  },
+  "dashboard_csa_path_used": "reports/state/TRADE_CSA_STATE.json",
+  "cross_checks": {
+    "direction_readiness_all_time_matches_exit_attribution_lines": true,
+    "csa_state_is_production_not_test": true,
+    "trade_events_log_matches_csa_total": true
+  },
+  "findings": [
+    "MISSING: reports/2026-03-06_stock-bot_combined.json (Situation strip / strategy comparison may be empty for today)"
+  ]
+}

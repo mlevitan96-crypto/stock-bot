@@ -1,0 +1,26 @@
+● stock-bot.service - Algorithmic Trading Bot
+     Loaded: loaded (/etc/systemd/system/stock-bot.service; enabled; preset: enabled)
+    Drop-In: /etc/systemd/system/stock-bot.service.d
+             └─override.conf, paper-overlay.conf, truth.conf
+     Active: active (running) since Sat 2026-03-07 01:05:21 UTC; 1 day 20h ago
+   Main PID: 693457 (systemd_start.s)
+      Tasks: 33 (limit: 9483)
+     Memory: 1.9G (peak: 2.9G)
+        CPU: 1h 5min 53.922s
+     CGroup: /system.slice/stock-bot.service
+             ├─693457 /bin/bash /root/stock-bot/systemd_start.sh
+             ├─693458 /root/stock-bot/venv/bin/python deploy_supervisor.py
+             ├─693469 /root/stock-bot/venv/bin/python -u dashboard.py
+             ├─693482 /root/stock-bot/venv/bin/python -u main.py
+             └─693500 /root/stock-bot/venv/bin/python heartbeat_keeper.py
+
+Mar 08 21:51:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [trading-bot] ERROR EXITS: Failed to close XLI (attempt 2/3): close_position_api_once returned None
+Mar 08 21:51:19 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [trading-bot] ERROR EXITS: Failed to close XLI (attempt 3/3): close_position_api_once returned None
+Mar 08 21:51:19 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [trading-bot] ERROR EXITS: All 3 attempts to close XLI failed
+Mar 08 21:51:19 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [trading-bot] WARNING EXITS: XLI could not be verified as closed after 3 attempts - keeping in tracking for retry
+Mar 08 21:51:19 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [trading-bot] CRITICAL: Exit checker evaluate_exits() completed
+Mar 08 21:51:21 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [heartbeat-keeper] /root/stock-bot/heartbeat_keeper.py:459: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+Mar 08 21:51:21 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [heartbeat-keeper]   result["_dt"] = datetime.utcnow().isoformat()
+Mar 08 21:51:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [trading-bot] 2026-03-08 21:51:33,472 [CACHE-ENRICH] INFO: Starting cache enrichment cycle
+Mar 08 21:51:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [trading-bot] 2026-03-08 21:51:33,743 [CACHE-ENRICH] INFO: Enriched 53 symbols, updated 0 with computed signals
+Mar 08 21:51:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[693458]: [trading-bot] 2026-03-08 21:51:33,743 [CACHE-ENRICH] INFO: Cache enrichment complete: 53 symbols

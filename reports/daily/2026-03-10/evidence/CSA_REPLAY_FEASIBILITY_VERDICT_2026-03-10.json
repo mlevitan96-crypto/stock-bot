@@ -1,0 +1,28 @@
+{
+  "verdict": "TRUE_REPLAY_POSSIBLE",
+  "rationale": "All required replay artifacts present; decision-grade rescore allowed.",
+  "true_replay_ready": true,
+  "artifact_status": {
+    "signal_vectors": {
+      "present": true,
+      "source": "reports\\shadow\\backfill\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "sample_count": 20
+    },
+    "normalized_scores": {
+      "present": true,
+      "source": "reports\\shadow\\backfill\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "sample_count": 20
+    },
+    "decision_timestamps": {
+      "present": true,
+      "source": "reports\\shadow\\backfill\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "sample_count": 20
+    },
+    "entry_exit_reasons": {
+      "present": true,
+      "source": "reports\\shadow\\backfill\\FULL_TRADE_LEDGER_2026-03-10.json",
+      "sample_count": 20
+    }
+  },
+  "discovery_path": "C:\\Dev\\stock-bot\\reports\\shadow\\audit\\REPLAY_ARTIFACT_DISCOVERY_2026-03-10.json"
+}

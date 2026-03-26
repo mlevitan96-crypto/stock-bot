@@ -1,0 +1,12 @@
+{
+  "analysis": "F",
+  "name": "gate_value",
+  "cohort": "MARKET_SESSION_ET",
+  "n_trades": 2,
+  "blocked": false,
+  "blockers": [],
+  "profit_implication": "see slices",
+  "slices": {
+    "note": "requires blocked vs shadow join"
+  }
+}

@@ -1,0 +1,8 @@
+# Scenario C2: Identify blocks that correlate with positive counterfactual PnL
+
+**Run (UTC):** 2026-03-04T23:03:33.620948+00:00
+
+- **good_vetoes_note:** Blocks that would have lost (need estimate_blocked_outcome per block).
+- **missed_winners_note:** Blocks that would have won (same). Run counter_intelligence_analysis on droplet for full C2.
+- **block_reason_counts:** {'displacement_blocked': 963, 'max_positions_reached': 585, 'expectancy_blocked:score_floor_breach': 141, 'order_validation_failed': 59, 'max_new_positions_per_cycle': 16}
+- **expected_improvement:** High if we can relax only 'missed winner' blocks.

@@ -1,0 +1,6 @@
+total 16
+drwxr-xr-x 2 root root  4096 Dec 13 20:54 .
+drwxr-xr-x 5 root root 12288 Mar  8 21:55 ..
+---
+---
+2026-03-08 21:55:45.095402828 +0000

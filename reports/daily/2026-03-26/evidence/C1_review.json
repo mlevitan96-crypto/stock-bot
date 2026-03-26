@@ -1,0 +1,21 @@
+{
+  "scenario_id": "C1",
+  "name": "Re-rank block reasons by realized opportunity cost",
+  "ranked_by_count": [
+    "displacement_blocked",
+    "max_positions_reached",
+    "expectancy_blocked:score_floor_breach",
+    "order_validation_failed",
+    "max_new_positions_per_cycle"
+  ],
+  "opportunity_cost_proxy_usd": {
+    "displacement_blocked": -75.4,
+    "max_positions_reached": -45.8,
+    "expectancy_blocked:score_floor_breach": -11.04,
+    "order_validation_failed": -4.62,
+    "max_new_positions_per_cycle": -1.25
+  },
+  "expected_improvement": "Prioritize relaxing blocks with highest negative opportunity cost.",
+  "baseline_scope": "last 387 exits",
+  "run_ts": "2026-03-04T23:03:32.993285+00:00"
+}

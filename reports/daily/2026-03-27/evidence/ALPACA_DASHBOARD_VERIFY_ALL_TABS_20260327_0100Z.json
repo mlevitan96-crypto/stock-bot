@@ -1,0 +1,11 @@
+{
+  "timestamp_utc": "20260327T0100Z",
+  "phase": "ALPACA_DASHBOARD_VERIFY_ALL_TABS",
+  "executed_on_droplet": false,
+  "verdict": "BLOCKED",
+  "blocker": "No SSH or DASHBOARD_BASE_URL route from Cursor workspace to Alpaca droplet; authenticated verifier not run on production host.",
+  "script": "scripts/dashboard_verify_all_tabs.py",
+  "json_out_flag": "--json-out",
+  "endpoints_expected": 23,
+  "note": "Re-run on droplet with: set -a && source .env && python3 -u scripts/dashboard_verify_all_tabs.py --json-out reports/ALPACA_DASHBOARD_VERIFY_ALL_TABS_<TS>.json"
+}

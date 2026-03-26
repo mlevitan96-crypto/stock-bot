@@ -1,0 +1,28 @@
+{
+  "session_date_et": "2026-03-26",
+  "ts": "20260327_MKTS_FINAL",
+  "market_session": {
+    "scope_evidence": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-26\\evidence\\ALPACA_PNL_MARKET_SESSION_SCOPE_20260327_MKTS_FINAL.md"
+  },
+  "trades": {
+    "trades_seen": 2,
+    "trades_complete": 2,
+    "complete_trade_ids_count": 2,
+    "blocked_intent_lines_hint": 0
+  },
+  "pnl": {
+    "net_pnl_sum": 7.5,
+    "reconciliation_csv": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-26\\evidence\\ALPACA_PNL_REVIEW_RECONCILIATION_20260327_MKTS_FINAL.csv"
+  },
+  "learning": {
+    "verdict": "LEARNING_SAFE",
+    "summary_md": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-26\\evidence\\ALPACA_LEARNING_STATUS_SUMMARY.md",
+    "summary_json": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-26\\evidence\\ALPACA_LEARNING_STATUS_SUMMARY.json"
+  },
+  "signal_attribution_md": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-26\\evidence\\ALPACA_PNL_SIGNAL_ATTRIBUTION_20260327_MKTS_FINAL.md",
+  "csa_verdict_excerpt": "**Root cause:** none\n\nCSA_VERDICT: PNL_REVIEW_COMPLETE\n---\n## CSA verdict line\n\n**CSA_VERDICT: LAST_WINDOW_LEARNING_SAFE**",
+  "promotion_decision": "YES",
+  "closeout_evidence": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-26\\evidence\\ALPACA_PNL_REVIEW_CLOSEOUT_20260327_MKTS_FINAL.md",
+  "last_window_verdict_md": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-26\\evidence\\ALPACA_LAST_WINDOW_LEARNING_VERDICT_20260327_LAST_WINDOW.md",
+  "evidence_dir": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-26\\evidence"
+}

@@ -1,0 +1,15 @@
+{
+  "counts": {
+    "blocked": 2000,
+    "counter_intel": 0,
+    "executed": 163
+  },
+  "date": "2026-03-10",
+  "generated_at": "2026-03-10T23:02:48.927185Z",
+  "issues": [],
+  "notes": [
+    "SRE stub: certifies ledger usability and basic schema; does not enforce ts uniqueness.",
+    "Warnings do not block downstream phases; FAIL blocks promotion and stops pipeline."
+  ],
+  "verdict": "PASS"
+}

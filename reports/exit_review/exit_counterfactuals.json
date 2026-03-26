@@ -1,7 +1,0 @@
-{
-  "schema": "exit_counterfactuals_v1",
-  "description": "Hold+N bars and exit-earlier outcomes per closed trade; populated by exit path when trade closes.",
-  "hold_longer_would_help": [],
-  "exit_earlier_would_save": [],
-  "labels": {}
-}

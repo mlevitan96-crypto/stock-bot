@@ -1,0 +1,11 @@
+{
+  "mode": "paper",
+  "max_loss_usd": 25.0,
+  "duration_hours": 48.0,
+  "armed_at": "2026-03-11T00:58:36.459548+00:00",
+  "expires_at": "2026-03-13T00:58:36.459548+00:00",
+  "on_breach": "revert",
+  "on_expiry": "revert",
+  "breach_triggered": false,
+  "expiry_triggered": false
+}

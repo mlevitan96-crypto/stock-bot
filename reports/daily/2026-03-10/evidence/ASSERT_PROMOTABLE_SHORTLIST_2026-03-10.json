@@ -1,0 +1,8 @@
+{
+  "shortlist_path": "C:\\Dev\\stock-bot\\reports\\shadow\\PROMOTION_SHORTLIST_2026-03-10.promotable.backfill.json",
+  "required_method": "true_replay_rescore",
+  "actual_method": "true_replay_rescore",
+  "shortlist_count": 10,
+  "passed": true,
+  "blockers": []
+}

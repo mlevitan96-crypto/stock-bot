@@ -1,0 +1,8 @@
+{
+  "timestamp_utc": "20260326T2200Z",
+  "phase": "ALPACA_DASHBOARD_DROPLET_PROOF",
+  "executed": true,
+  "superseded_by_canonical": "20260326_1815Z",
+  "canonical_artifacts": "reports/audit/ALPACA_DASHBOARD_DROPLET_PROOF_20260326_1815Z.md",
+  "note": "Original stub timestamp; final proof committed under 1815Z run."
+}

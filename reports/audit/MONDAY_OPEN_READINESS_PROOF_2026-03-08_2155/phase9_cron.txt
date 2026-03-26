@@ -1,0 +1,12 @@
+0 * * * * cd ~/stock-bot && ./report_status_to_git.sh >> /tmp/git_sync.log 2>&1
+30 20 * * 1-5 cd /root/stock-bot && venv/bin/python specialist_tier_monitoring_orchestrator.py >> logs/orchestrator.log 2>&1
+30 20 * * * cd /root/stock-bot && /root/stock-bot/venv/bin/python3 scripts/run_full_telemetry_extract.py >> logs/telemetry_extract.log 2>&1
+31 21 * * 1-5 cd /root/stock-bot && /usr/bin/python3 scripts/run_exit_join_and_blocked_attribution_on_droplet.py --date $(date -u +\%Y-\%m-\%d) >> logs/learning_pipeline.log 2>&1
+32 21 * * 1-5 cd /root/stock-bot && bash scripts/droplet_sync_to_github.sh >> /root/stock-bot/logs/cron_sync.log 2>&1
+20 21 * * 1-5 /usr/bin/python3 /root/stock-bot/board/eod/cron_health_check.py >> /var/log/cron_health.log 2>&1
+*/5 9-21 * * 1-5 cd /root/stock-bot && /root/stock-bot/venv/bin/python scripts/governance/check_direction_readiness_and_run.py >> logs/direction_readiness_cron.log 2>&1
+*/10 * * * * cd /root/stock-bot && /root/stock-bot/venv/bin/python scripts/sre/run_sre_anomaly_scan.py --base-dir . >> logs/sre_anomaly_scan.log 2>&1
+30 21 * * 1-5 cd /root/stock-bot && /usr/bin/python3 /root/stock-bot/board/eod/eod_confirmation.py >> /root/stock-bot/logs/cron_eod.log 2>&1
+---
+-rw-r--r-- 1 root root  3604 Mar  6 21:30 logs/cron_eod.log
+-rw-r--r-- 1 root root 25530 Mar  6 21:32 logs/cron_sync.log

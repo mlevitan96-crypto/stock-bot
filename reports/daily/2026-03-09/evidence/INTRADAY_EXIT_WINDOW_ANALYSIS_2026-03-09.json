@@ -1,0 +1,58 @@
+{
+  "phase0_data_integrity": {
+    "date": "2026-03-09",
+    "exit_decision_trace_exists": true,
+    "exit_decision_trace_size": 2546186,
+    "exit_attribution_exists": true,
+    "blocked_trades_exists": true,
+    "fail_closed": false
+  },
+  "phase1_exit_window": {
+    "date": "2026-03-09",
+    "n_trades": 98,
+    "realized_pnl_usd": -124.1912,
+    "unrealized_peak_proxy_usd": 13.7149,
+    "green_then_red_count": 4,
+    "green_then_red_pnl_usd": -0.3,
+    "green_then_red_mfe_left_usd": 0.06,
+    "winners_count": 23,
+    "losers_count": 73,
+    "win_rate_pct": 23.47,
+    "trades_with_mfe_positive": 27,
+    "missed_exit_candidates": [
+      {
+        "symbol": "TGT",
+        "pnl_usd": -0.08,
+        "mfe_usd": 0.005,
+        "profit_giveback": 0.0,
+        "exit_reason": "signal_decay(0.79)+flow_reversal",
+        "hold_minutes": 33.332382466666665
+      },
+      {
+        "symbol": "JPM",
+        "pnl_usd": -0.05,
+        "mfe_usd": 0.03,
+        "profit_giveback": 1.0,
+        "exit_reason": "signal_decay(0.77)",
+        "hold_minutes": 35.57908846666667
+      },
+      {
+        "symbol": "LCID",
+        "pnl_usd": -0.11,
+        "mfe_usd": 0.01,
+        "profit_giveback": 1.0,
+        "exit_reason": "signal_decay(0.70)",
+        "hold_minutes": 33.71676346666666
+      },
+      {
+        "symbol": "SLB",
+        "pnl_usd": -0.06,
+        "mfe_usd": 0.015,
+        "profit_giveback": 0.0,
+        "exit_reason": "signal_decay(0.94)",
+        "hold_minutes": 35.74033216666667
+      }
+    ],
+    "blocked_trades_today_count": 2000
+  }
+}

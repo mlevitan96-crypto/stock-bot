@@ -1,0 +1,203 @@
+{
+  "generated_ts": "2026-03-04T23:31:39.116832+00:00",
+  "by_scope": {
+    "7d": {
+      "learning_telemetry": {
+        "total_exits_in_scope": 2000,
+        "telemetry_backed": 387,
+        "pct_telemetry": 19.35,
+        "ready_for_replay": false
+      },
+      "pnl": {
+        "total_pnl_attribution_usd": -136.47,
+        "total_pnl_exit_attribution_usd": -279.79,
+        "total_trades": 2000,
+        "total_exits": 2000,
+        "win_rate": 0.2015,
+        "avg_hold_minutes": 11.83
+      },
+      "blocked_total": 2000,
+      "blocked_trade_distribution": {
+        "displacement_blocked": 1079,
+        "max_positions_reached": 672,
+        "expectancy_blocked:score_floor_breach": 151,
+        "order_validation_failed": 82,
+        "max_new_positions_per_cycle": 16
+      },
+      "scope_label": "7 days",
+      "a3_shadow": {
+        "additional_admitted_trades": 151,
+        "estimated_pnl_delta_usd": -11.82,
+        "estimated_pnl_delta_label": "proxy"
+      }
+    },
+    "14d": {
+      "learning_telemetry": {
+        "total_exits_in_scope": 2000,
+        "telemetry_backed": 387,
+        "pct_telemetry": 19.35,
+        "ready_for_replay": false
+      },
+      "pnl": {
+        "total_pnl_attribution_usd": -136.47,
+        "total_pnl_exit_attribution_usd": -279.79,
+        "total_trades": 2000,
+        "total_exits": 2000,
+        "win_rate": 0.2015,
+        "avg_hold_minutes": 11.83
+      },
+      "blocked_total": 2000,
+      "blocked_trade_distribution": {
+        "displacement_blocked": 1079,
+        "max_positions_reached": 672,
+        "expectancy_blocked:score_floor_breach": 151,
+        "order_validation_failed": 82,
+        "max_new_positions_per_cycle": 16
+      },
+      "scope_label": "14 days",
+      "a3_shadow": {
+        "additional_admitted_trades": 151,
+        "estimated_pnl_delta_usd": -11.82,
+        "estimated_pnl_delta_label": "proxy"
+      }
+    },
+    "30d": {
+      "learning_telemetry": {
+        "total_exits_in_scope": 2000,
+        "telemetry_backed": 387,
+        "pct_telemetry": 19.35,
+        "ready_for_replay": false
+      },
+      "pnl": {
+        "total_pnl_attribution_usd": -136.47,
+        "total_pnl_exit_attribution_usd": -279.79,
+        "total_trades": 2000,
+        "total_exits": 2000,
+        "win_rate": 0.2015,
+        "avg_hold_minutes": 11.83
+      },
+      "blocked_total": 2000,
+      "blocked_trade_distribution": {
+        "displacement_blocked": 1079,
+        "max_positions_reached": 672,
+        "expectancy_blocked:score_floor_breach": 151,
+        "order_validation_failed": 82,
+        "max_new_positions_per_cycle": 16
+      },
+      "scope_label": "30 days",
+      "a3_shadow": {
+        "additional_admitted_trades": 151,
+        "estimated_pnl_delta_usd": -11.82,
+        "estimated_pnl_delta_label": "proxy"
+      }
+    },
+    "last100": {
+      "learning_telemetry": {
+        "total_exits_in_scope": 100,
+        "telemetry_backed": 100,
+        "pct_telemetry": 100.0,
+        "ready_for_replay": true
+      },
+      "pnl": {
+        "total_pnl_attribution_usd": -18.59,
+        "total_pnl_exit_attribution_usd": -18.46,
+        "total_trades": 210,
+        "total_exits": 100,
+        "win_rate": 0.1952,
+        "avg_hold_minutes": 11.69
+      },
+      "blocked_total": 342,
+      "blocked_trade_distribution": {
+        "displacement_blocked": 199,
+        "max_positions_reached": 113,
+        "order_validation_failed": 18,
+        "expectancy_blocked:score_floor_breach": 9,
+        "max_new_positions_per_cycle": 3
+      },
+      "scope_label": "last 100 exits",
+      "a3_shadow": {
+        "additional_admitted_trades": 151,
+        "estimated_pnl_delta_usd": -11.82,
+        "estimated_pnl_delta_label": "proxy"
+      }
+    },
+    "last387": {
+      "learning_telemetry": {
+        "total_exits_in_scope": 387,
+        "telemetry_backed": 387,
+        "pct_telemetry": 100.0,
+        "ready_for_replay": true
+      },
+      "pnl": {
+        "total_pnl_attribution_usd": -30.3,
+        "total_pnl_exit_attribution_usd": -30.18,
+        "total_trades": 793,
+        "total_exits": 387,
+        "win_rate": 0.2081,
+        "avg_hold_minutes": 15.36
+      },
+      "blocked_total": 1764,
+      "blocked_trade_distribution": {
+        "displacement_blocked": 963,
+        "max_positions_reached": 585,
+        "expectancy_blocked:score_floor_breach": 141,
+        "order_validation_failed": 59,
+        "max_new_positions_per_cycle": 16
+      },
+      "scope_label": "last 387 exits",
+      "a3_shadow": {
+        "additional_admitted_trades": 151,
+        "estimated_pnl_delta_usd": -11.82,
+        "estimated_pnl_delta_label": "proxy"
+      }
+    },
+    "last750": {
+      "learning_telemetry": {
+        "total_exits_in_scope": 750,
+        "telemetry_backed": 387,
+        "pct_telemetry": 51.6,
+        "ready_for_replay": false
+      },
+      "pnl": {
+        "total_pnl_attribution_usd": -123.89,
+        "total_pnl_exit_attribution_usd": -123.74,
+        "total_trades": 1587,
+        "total_exits": 750,
+        "win_rate": 0.1972,
+        "avg_hold_minutes": 15.44
+      },
+      "blocked_total": 2000,
+      "blocked_trade_distribution": {
+        "displacement_blocked": 1079,
+        "max_positions_reached": 672,
+        "expectancy_blocked:score_floor_breach": 151,
+        "order_validation_failed": 82,
+        "max_new_positions_per_cycle": 16
+      },
+      "scope_label": "last 750 exits",
+      "a3_shadow": {
+        "additional_admitted_trades": 151,
+        "estimated_pnl_delta_usd": -11.82,
+        "estimated_pnl_delta_label": "proxy"
+      }
+    }
+  },
+  "recommendation": {
+    "governing_scope_for_next_live_decision": "last387",
+    "context_only_scopes": [
+      "7d",
+      "14d",
+      "30d",
+      "last100",
+      "last750"
+    ],
+    "rationale": "last387 is the agreed learning baseline; other scopes provide regime sensitivity and stability context."
+  },
+  "persona_verdicts": {
+    "adversarial": "MULTI_SCOPE_COMPARATIVE_REVIEW shows A3 shadow deltas by scope; 7d/14d may be regime-sensitive. Recommend Hold A3 until 30d or last387 shadow is stable; do not advance to live paper test on 7d alone.",
+    "quant": "Compare PnL and A3 estimated_pnl_delta across scopes; if last387 and 30d align, A3 is stable. Promote A3 to live paper test only if governing scope (last387) and 30d both show acceptable proxy delta.",
+    "product_operator": "Use multi-scope view to prioritize which scope drives the next feature (e.g. exit vs gate). A3: Hold until Product agrees which scope is the success metric; then advance to live paper test.",
+    "risk": "Stability vs regime: 7d/14d can swing; last387 and 30d are more stable. Discard A3 for live if any scope shows tail-risk note or large negative delta. Hold A3 until Risk signs off on governing scope.",
+    "execution_sre": "Verify all scope artifacts exist on droplet and synthesis ran. Promote A3 only after SRE confirms no config/restart drift. Advance to live paper test only with rollback procedure documented."
+  }
+}

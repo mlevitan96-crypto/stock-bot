@@ -1,0 +1,21 @@
+{
+  "audit_utc": "2026-03-26T18:00Z",
+  "host": "Alpaca droplet /root/stock-bot",
+  "note": "Gate binary and JSON reflect DROPPLET CODE BEFORE this repair deploy. Repair is in workspace; re-run after git pull + restart stock-bot.service.",
+  "command": "PYTHONPATH=/root/stock-bot venv/bin/python telemetry/alpaca_strict_completeness_gate.py --root . --audit --open-ts-epoch 1774458080",
+  "summary": {
+    "LEARNING_STATUS": "BLOCKED",
+    "learning_fail_closed_reason": "incomplete_trade_chain",
+    "trades_seen": 197,
+    "trades_complete": 81,
+    "trades_incomplete": 116,
+    "join_coverage_pct": 41.12
+  },
+  "reason_histogram": {
+    "entry_decision_not_joinable_by_canonical_trade_id": 116,
+    "missing_exit_intent_for_canonical_trade_id": 92,
+    "missing_unified_entry_attribution": 22,
+    "no_orders_rows_with_canonical_trade_id": 22
+  },
+  "local_synthetic_test": "tests/test_strict_completeness_forward_parity.py — PASSED (ARMED, 1/1 trades_complete after repair-aligned fixture)"
+}

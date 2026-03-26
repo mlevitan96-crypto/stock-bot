@@ -1,0 +1,117 @@
+{
+  "stamp": "2026-03-09_1558",
+  "samples": [
+    {
+      "ts": "2026-03-09T15:57:13.851725+00:00",
+      "trade_id": "open_DIA_2026-03-09T14:18:39.105Z",
+      "symbol": "DIA",
+      "side": "long",
+      "unrealized_pnl": 3.82,
+      "price": 471.43,
+      "hold_minutes": 98.5037,
+      "composite_score": 3.782,
+      "signal_decay": 0.7225,
+      "exit_eligible": false,
+      "exit_conditions": {
+        "signal_decay": false,
+        "flow_reversal": true,
+        "stale_alpha": false,
+        "risk_stop": false
+      },
+      "signals": {
+        "UW": {
+          "flow": 0.0,
+          "dark_pool": 0.0,
+          "imbalance": 0.0,
+          "velocity": 0.0,
+          "confidence": 0.0
+        },
+        "momentum": {},
+        "volatility": {
+          "realized_vol_20d": 0.095926,
+          "realized_vol_5d": null
+        },
+        "trend": {
+          "regime": "mixed",
+          "sector": "UNKNOWN"
+        }
+      },
+      "schema_version": 1
+    },
+    {
+      "ts": "2026-03-09T15:57:13.967230+00:00",
+      "trade_id": "open_BA_2026-03-09T14:19:12.392Z",
+      "symbol": "BA",
+      "side": "long",
+      "unrealized_pnl": 1.39,
+      "price": 223.005,
+      "hold_minutes": 97.9489,
+      "composite_score": 4.027,
+      "signal_decay": 0.7759,
+      "exit_eligible": false,
+      "exit_conditions": {
+        "signal_decay": false,
+        "flow_reversal": true,
+        "stale_alpha": false,
+        "risk_stop": false
+      },
+      "signals": {
+        "UW": {
+          "flow": 0.6,
+          "dark_pool": 0.1,
+          "imbalance": 0.0,
+          "velocity": 0.0,
+          "confidence": 0.6
+        },
+        "momentum": {},
+        "volatility": {
+          "realized_vol_20d": 0.239148,
+          "realized_vol_5d": null
+        },
+        "trend": {
+          "regime": "NEUTRAL",
+          "sector": "UNKNOWN"
+        }
+      },
+      "schema_version": 1
+    },
+    {
+      "ts": "2026-03-09T15:57:14.147036+00:00",
+      "trade_id": "open_AAPL_2026-03-09T14:19:47.246Z",
+      "symbol": "AAPL",
+      "side": "long",
+      "unrealized_pnl": 1.77,
+      "price": 257.67,
+      "hold_minutes": 97.368,
+      "composite_score": 3.755,
+      "signal_decay": 0.7215,
+      "exit_eligible": false,
+      "exit_conditions": {
+        "signal_decay": false,
+        "flow_reversal": false,
+        "stale_alpha": false,
+        "risk_stop": false
+      },
+      "signals": {
+        "UW": {
+          "flow": 0.0,
+          "dark_pool": 0.0,
+          "imbalance": 0.0,
+          "velocity": 0.0,
+          "confidence": 0.0
+        },
+        "momentum": {},
+        "volatility": {
+          "realized_vol_20d": 0.1057,
+          "realized_vol_5d": null
+        },
+        "trend": {
+          "regime": "mixed",
+          "sector": "UNKNOWN"
+        }
+      },
+      "schema_version": 1
+    }
+  ],
+  "count": 3
+}

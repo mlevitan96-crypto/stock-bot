@@ -1,0 +1,22 @@
+{
+  "evaluated_at": "2026-03-05T18:15:36.785684+00:00",
+  "since_hours": 24.0,
+  "window_exits": 456,
+  "b2_suppression_count": 0,
+  "b2_suppression_rate": 0.0,
+  "exit_reason_mix_delta_pct": -1.7600000000000051,
+  "current_signal_decay_pct": 96.05,
+  "baseline_signal_decay_pct": 97.81,
+  "avg_hold_minutes_delta": 5.05,
+  "current_avg_hold_minutes": 36.82,
+  "pnl_attribution_delta_usd": -15.93,
+  "total_pnl_window_usd": -87.09,
+  "expectancy_per_exit_usd": -0.191,
+  "baseline_expectancy_per_exit_usd": -0.156,
+  "tail_risk_summary": {
+    "worst_5pct_count": 22,
+    "worst_5pct_mean_pnl_usd": -4.54,
+    "worst_single_pnl_usd": -9.45
+  },
+  "paper_safety_violation_count": 0
+}

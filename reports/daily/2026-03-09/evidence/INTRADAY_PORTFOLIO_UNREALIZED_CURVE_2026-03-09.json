@@ -1,0 +1,1655 @@
+{
+  "date": "2026-03-09",
+  "curve": [
+    {
+      "ts": 1773071580.0,
+      "sum_unrealized_pnl": 49.9118,
+      "count_open": 32
+    },
+    {
+      "ts": 1773071640.0,
+      "sum_unrealized_pnl": 50.8495,
+      "count_open": 32
+    },
+    {
+      "ts": 1773071700.0,
+      "sum_unrealized_pnl": 49.7786,
+      "count_open": 32
+    },
+    {
+      "ts": 1773071820.0,
+      "sum_unrealized_pnl": 50.7036,
+      "count_open": 32
+    },
+    {
+      "ts": 1773072120.0,
+      "sum_unrealized_pnl": -0.005,
+      "count_open": 1
+    },
+    {
+      "ts": 1773072180.0,
+      "sum_unrealized_pnl": 0.29,
+      "count_open": 1
+    },
+    {
+      "ts": 1773072240.0,
+      "sum_unrealized_pnl": 0.325,
+      "count_open": 1
+    },
+    {
+      "ts": 1773072300.0,
+      "sum_unrealized_pnl": 0.5165,
+      "count_open": 1
+    },
+    {
+      "ts": 1773072360.0,
+      "sum_unrealized_pnl": 0.27,
+      "count_open": 1
+    },
+    {
+      "ts": 1773072480.0,
+      "sum_unrealized_pnl": 0.34,
+      "count_open": 1
+    },
+    {
+      "ts": 1773072540.0,
+      "sum_unrealized_pnl": 0.1435,
+      "count_open": 1
+    },
+    {
+      "ts": 1773072600.0,
+      "sum_unrealized_pnl": -0.0355,
+      "count_open": 3
+    },
+    {
+      "ts": 1773072660.0,
+      "sum_unrealized_pnl": 0.04,
+      "count_open": 1
+    },
+    {
+      "ts": 1773072720.0,
+      "sum_unrealized_pnl": -0.5799,
+      "count_open": 3
+    },
+    {
+      "ts": 1773072780.0,
+      "sum_unrealized_pnl": -0.325,
+      "count_open": 3
+    },
+    {
+      "ts": 1773072840.0,
+      "sum_unrealized_pnl": 0.23,
+      "count_open": 1
+    },
+    {
+      "ts": 1773072900.0,
+      "sum_unrealized_pnl": -0.595,
+      "count_open": 2
+    },
+    {
+      "ts": 1773072960.0,
+      "sum_unrealized_pnl": -0.49,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073020.0,
+      "sum_unrealized_pnl": -0.46,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073080.0,
+      "sum_unrealized_pnl": -0.55,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073140.0,
+      "sum_unrealized_pnl": -0.835,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073200.0,
+      "sum_unrealized_pnl": -0.88,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073260.0,
+      "sum_unrealized_pnl": 0.27,
+      "count_open": 1
+    },
+    {
+      "ts": 1773073320.0,
+      "sum_unrealized_pnl": -0.785,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073380.0,
+      "sum_unrealized_pnl": -0.93,
+      "count_open": 2
+    },
+    {
+      "ts": 1773073440.0,
+      "sum_unrealized_pnl": 0.33,
+      "count_open": 1
+    },
+    {
+      "ts": 1773073500.0,
+      "sum_unrealized_pnl": -1.2295,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073560.0,
+      "sum_unrealized_pnl": -0.53,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073620.0,
+      "sum_unrealized_pnl": -1.3001,
+      "count_open": 2
+    },
+    {
+      "ts": 1773073680.0,
+      "sum_unrealized_pnl": 0.54,
+      "count_open": 1
+    },
+    {
+      "ts": 1773073740.0,
+      "sum_unrealized_pnl": -0.83,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073800.0,
+      "sum_unrealized_pnl": -0.905,
+      "count_open": 3
+    },
+    {
+      "ts": 1773073860.0,
+      "sum_unrealized_pnl": 0.4351,
+      "count_open": 6
+    },
+    {
+      "ts": 1773073920.0,
+      "sum_unrealized_pnl": 2.3016,
+      "count_open": 10
+    },
+    {
+      "ts": 1773073980.0,
+      "sum_unrealized_pnl": -0.22,
+      "count_open": 14
+    },
+    {
+      "ts": 1773074040.0,
+      "sum_unrealized_pnl": -2.0151,
+      "count_open": 19
+    },
+    {
+      "ts": 1773074100.0,
+      "sum_unrealized_pnl": 0.9121,
+      "count_open": 25
+    },
+    {
+      "ts": 1773074160.0,
+      "sum_unrealized_pnl": 0.9294,
+      "count_open": 29
+    },
+    {
+      "ts": 1773074220.0,
+      "sum_unrealized_pnl": -0.49,
+      "count_open": 3
+    },
+    {
+      "ts": 1773074280.0,
+      "sum_unrealized_pnl": -0.6756,
+      "count_open": 28
+    },
+    {
+      "ts": 1773074340.0,
+      "sum_unrealized_pnl": -0.0415,
+      "count_open": 31
+    },
+    {
+      "ts": 1773074400.0,
+      "sum_unrealized_pnl": 2.5578,
+      "count_open": 32
+    },
+    {
+      "ts": 1773074640.0,
+      "sum_unrealized_pnl": 2.545,
+      "count_open": 6
+    },
+    {
+      "ts": 1773074700.0,
+      "sum_unrealized_pnl": 2.1188,
+      "count_open": 6
+    },
+    {
+      "ts": 1773074820.0,
+      "sum_unrealized_pnl": 8.354,
+      "count_open": 28
+    },
+    {
+      "ts": 1773074880.0,
+      "sum_unrealized_pnl": 7.4607,
+      "count_open": 25
+    },
+    {
+      "ts": 1773074940.0,
+      "sum_unrealized_pnl": 3.6096,
+      "count_open": 31
+    },
+    {
+      "ts": 1773075000.0,
+      "sum_unrealized_pnl": 2.0362,
+      "count_open": 21
+    },
+    {
+      "ts": 1773075060.0,
+      "sum_unrealized_pnl": 2.8321,
+      "count_open": 13
+    },
+    {
+      "ts": 1773075120.0,
+      "sum_unrealized_pnl": 3.4349,
+      "count_open": 13
+    },
+    {
+      "ts": 1773075180.0,
+      "sum_unrealized_pnl": 2.7614,
+      "count_open": 13
+    },
+    {
+      "ts": 1773075240.0,
+      "sum_unrealized_pnl": 1.335,
+      "count_open": 16
+    },
+    {
+      "ts": 1773075300.0,
+      "sum_unrealized_pnl": 1.865,
+      "count_open": 12
+    },
+    {
+      "ts": 1773075420.0,
+      "sum_unrealized_pnl": 2.6818,
+      "count_open": 16
+    },
+    {
+      "ts": 1773075480.0,
+      "sum_unrealized_pnl": -1.6977,
+      "count_open": 29
+    },
+    {
+      "ts": 1773075540.0,
+      "sum_unrealized_pnl": -4.264,
+      "count_open": 32
+    },
+    {
+      "ts": 1773075600.0,
+      "sum_unrealized_pnl": -12.0601,
+      "count_open": 32
+    },
+    {
+      "ts": 1773075660.0,
+      "sum_unrealized_pnl": -8.4575,
+      "count_open": 32
+    },
+    {
+      "ts": 1773075720.0,
+      "sum_unrealized_pnl": 1.2,
+      "count_open": 3
+    },
+    {
+      "ts": 1773075780.0,
+      "sum_unrealized_pnl": -18.642,
+      "count_open": 29
+    },
+    {
+      "ts": 1773075840.0,
+      "sum_unrealized_pnl": -15.4255,
+      "count_open": 31
+    },
+    {
+      "ts": 1773075900.0,
+      "sum_unrealized_pnl": -15.6097,
+      "count_open": 32
+    },
+    {
+      "ts": 1773075960.0,
+      "sum_unrealized_pnl": -14.2217,
+      "count_open": 32
+    },
+    {
+      "ts": 1773076080.0,
+      "sum_unrealized_pnl": -17.2046,
+      "count_open": 32
+    },
+    {
+      "ts": 1773076140.0,
+      "sum_unrealized_pnl": -16.0107,
+      "count_open": 32
+    },
+    {
+      "ts": 1773076200.0,
+      "sum_unrealized_pnl": 1.108,
+      "count_open": 3
+    },
+    {
+      "ts": 1773076260.0,
+      "sum_unrealized_pnl": -14.0756,
+      "count_open": 29
+    },
+    {
+      "ts": 1773076320.0,
+      "sum_unrealized_pnl": -13.5413,
+      "count_open": 32
+    },
+    {
+      "ts": 1773076380.0,
+      "sum_unrealized_pnl": -11.4689,
+      "count_open": 24
+    },
+    {
+      "ts": 1773076440.0,
+      "sum_unrealized_pnl": -2.311,
+      "count_open": 16
+    },
+    {
+      "ts": 1773076500.0,
+      "sum_unrealized_pnl": -11.7237,
+      "count_open": 24
+    },
+    {
+      "ts": 1773076560.0,
+      "sum_unrealized_pnl": -17.0277,
+      "count_open": 32
+    },
+    {
+      "ts": 1773076620.0,
+      "sum_unrealized_pnl": -12.1399,
+      "count_open": 25
+    },
+    {
+      "ts": 1773076680.0,
+      "sum_unrealized_pnl": -17.1046,
+      "count_open": 32
+    },
+    {
+      "ts": 1773076740.0,
+      "sum_unrealized_pnl": -24.8207,
+      "count_open": 32
+    },
+    {
+      "ts": 1773076800.0,
+      "sum_unrealized_pnl": -26.1554,
+      "count_open": 25
+    },
+    {
+      "ts": 1773076860.0,
+      "sum_unrealized_pnl": -2.2338,
+      "count_open": 11
+    },
+    {
+      "ts": 1773076920.0,
+      "sum_unrealized_pnl": -37.4124,
+      "count_open": 32
+    },
+    {
+      "ts": 1773076980.0,
+      "sum_unrealized_pnl": -34.6967,
+      "count_open": 21
+    },
+    {
+      "ts": 1773077040.0,
+      "sum_unrealized_pnl": -3.8794,
+      "count_open": 11
+    },
+    {
+      "ts": 1773077100.0,
+      "sum_unrealized_pnl": -39.5793,
+      "count_open": 32
+    },
+    {
+      "ts": 1773077160.0,
+      "sum_unrealized_pnl": -35.7024,
+      "count_open": 25
+    },
+    {
+      "ts": 1773077220.0,
+      "sum_unrealized_pnl": -4.12,
+      "count_open": 7
+    },
+    {
+      "ts": 1773077280.0,
+      "sum_unrealized_pnl": -42.6485,
+      "count_open": 32
+    },
+    {
+      "ts": 1773077340.0,
+      "sum_unrealized_pnl": -36.4788,
+      "count_open": 25
+    },
+    {
+      "ts": 1773077400.0,
+      "sum_unrealized_pnl": -4.0497,
+      "count_open": 7
+    },
+    {
+      "ts": 1773077460.0,
+      "sum_unrealized_pnl": -36.6158,
+      "count_open": 32
+    },
+    {
+      "ts": 1773077520.0,
+      "sum_unrealized_pnl": -38.9351,
+      "count_open": 32
+    },
+    {
+      "ts": 1773077640.0,
+      "sum_unrealized_pnl": -38.8946,
+      "count_open": 32
+    },
+    {
+      "ts": 1773077700.0,
+      "sum_unrealized_pnl": -39.2853,
+      "count_open": 32
+    },
+    {
+      "ts": 1773077760.0,
+      "sum_unrealized_pnl": -7.8201,
+      "count_open": 16
+    },
+    {
+      "ts": 1773077820.0,
+      "sum_unrealized_pnl": -36.5929,
+      "count_open": 16
+    },
+    {
+      "ts": 1773077880.0,
+      "sum_unrealized_pnl": -47.0583,
+      "count_open": 32
+    },
+    {
+      "ts": 1773077940.0,
+      "sum_unrealized_pnl": -15.9864,
+      "count_open": 20
+    },
+    {
+      "ts": 1773078000.0,
+      "sum_unrealized_pnl": -30.8794,
+      "count_open": 12
+    },
+    {
+      "ts": 1773078060.0,
+      "sum_unrealized_pnl": -51.8997,
+      "count_open": 32
+    },
+    {
+      "ts": 1773078120.0,
+      "sum_unrealized_pnl": -16.8307,
+      "count_open": 20
+    },
+    {
+      "ts": 1773078180.0,
+      "sum_unrealized_pnl": -33.308,
+      "count_open": 12
+    },
+    {
+      "ts": 1773078240.0,
+      "sum_unrealized_pnl": -51.3682,
+      "count_open": 32
+    },
+    {
+      "ts": 1773078300.0,
+      "sum_unrealized_pnl": -47.2766,
+      "count_open": 32
+    },
+    {
+      "ts": 1773078420.0,
+      "sum_unrealized_pnl": -45.0981,
+      "count_open": 32
+    },
+    {
+      "ts": 1773078480.0,
+      "sum_unrealized_pnl": -41.5754,
+      "count_open": 32
+    },
+    {
+      "ts": 1773078540.0,
+      "sum_unrealized_pnl": -45.7661,
+      "count_open": 32
+    },
+    {
+      "ts": 1773078660.0,
+      "sum_unrealized_pnl": -46.3819,
+      "count_open": 32
+    },
+    {
+      "ts": 1773078720.0,
+      "sum_unrealized_pnl": -37.9949,
+      "count_open": 32
+    },
+    {
+      "ts": 1773078840.0,
+      "sum_unrealized_pnl": -39.9272,
+      "count_open": 32
+    },
+    {
+      "ts": 1773078900.0,
+      "sum_unrealized_pnl": -34.2775,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079020.0,
+      "sum_unrealized_pnl": -39.6383,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079080.0,
+      "sum_unrealized_pnl": -40.6242,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079140.0,
+      "sum_unrealized_pnl": -2.8999,
+      "count_open": 12
+    },
+    {
+      "ts": 1773079200.0,
+      "sum_unrealized_pnl": -40.1265,
+      "count_open": 20
+    },
+    {
+      "ts": 1773079260.0,
+      "sum_unrealized_pnl": -38.3654,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079320.0,
+      "sum_unrealized_pnl": -39.3229,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079440.0,
+      "sum_unrealized_pnl": -40.0307,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079500.0,
+      "sum_unrealized_pnl": -36.4991,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079620.0,
+      "sum_unrealized_pnl": -34.0468,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079680.0,
+      "sum_unrealized_pnl": -41.3782,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079800.0,
+      "sum_unrealized_pnl": -40.9971,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079860.0,
+      "sum_unrealized_pnl": -35.9551,
+      "count_open": 32
+    },
+    {
+      "ts": 1773079980.0,
+      "sum_unrealized_pnl": -31.0552,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080040.0,
+      "sum_unrealized_pnl": -26.5643,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080100.0,
+      "sum_unrealized_pnl": -29.2647,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080160.0,
+      "sum_unrealized_pnl": -10.7426,
+      "count_open": 18
+    },
+    {
+      "ts": 1773080220.0,
+      "sum_unrealized_pnl": -13.9026,
+      "count_open": 14
+    },
+    {
+      "ts": 1773080280.0,
+      "sum_unrealized_pnl": -20.4646,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080340.0,
+      "sum_unrealized_pnl": -18.4036,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080400.0,
+      "sum_unrealized_pnl": -6.3742,
+      "count_open": 18
+    },
+    {
+      "ts": 1773080460.0,
+      "sum_unrealized_pnl": -14.4756,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080520.0,
+      "sum_unrealized_pnl": -27.1644,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080580.0,
+      "sum_unrealized_pnl": -17.6261,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080640.0,
+      "sum_unrealized_pnl": -8.9227,
+      "count_open": 18
+    },
+    {
+      "ts": 1773080700.0,
+      "sum_unrealized_pnl": -21.0504,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080760.0,
+      "sum_unrealized_pnl": -20.1922,
+      "count_open": 32
+    },
+    {
+      "ts": 1773080820.0,
+      "sum_unrealized_pnl": -21.8464,
+      "count_open": 26
+    },
+    {
+      "ts": 1773080880.0,
+      "sum_unrealized_pnl": -1.3799,
+      "count_open": 6
+    },
+    {
+      "ts": 1773080940.0,
+      "sum_unrealized_pnl": -22.6403,
+      "count_open": 32
+    },
+    {
+      "ts": 1773081000.0,
+      "sum_unrealized_pnl": -20.2195,
+      "count_open": 32
+    },
+    {
+      "ts": 1773081060.0,
+      "sum_unrealized_pnl": -16.9196,
+      "count_open": 25
+    },
+    {
+      "ts": 1773081120.0,
+      "sum_unrealized_pnl": -2.1319,
+      "count_open": 7
+    },
+    {
+      "ts": 1773081180.0,
+      "sum_unrealized_pnl": -15.8367,
+      "count_open": 32
+    },
+    {
+      "ts": 1773081240.0,
+      "sum_unrealized_pnl": -16.8703,
+      "count_open": 29
+    },
+    {
+      "ts": 1773081360.0,
+      "sum_unrealized_pnl": -3.155,
+      "count_open": 10
+    },
+    {
+      "ts": 1773081420.0,
+      "sum_unrealized_pnl": -2.615,
+      "count_open": 5
+    },
+    {
+      "ts": 1773081480.0,
+      "sum_unrealized_pnl": -2.725,
+      "count_open": 5
+    },
+    {
+      "ts": 1773081600.0,
+      "sum_unrealized_pnl": -1.95,
+      "count_open": 5
+    },
+    {
+      "ts": 1773081660.0,
+      "sum_unrealized_pnl": -1.4999,
+      "count_open": 5
+    },
+    {
+      "ts": 1773081720.0,
+      "sum_unrealized_pnl": -1.0601,
+      "count_open": 5
+    },
+    {
+      "ts": 1773081780.0,
+      "sum_unrealized_pnl": -1.335,
+      "count_open": 5
+    },
+    {
+      "ts": 1773081840.0,
+      "sum_unrealized_pnl": 0.135,
+      "count_open": 4
+    },
+    {
+      "ts": 1773081900.0,
+      "sum_unrealized_pnl": 0.105,
+      "count_open": 5
+    },
+    {
+      "ts": 1773081960.0,
+      "sum_unrealized_pnl": 1.58,
+      "count_open": 4
+    },
+    {
+      "ts": 1773082020.0,
+      "sum_unrealized_pnl": -0.33,
+      "count_open": 1
+    },
+    {
+      "ts": 1773082080.0,
+      "sum_unrealized_pnl": 1.4749,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082140.0,
+      "sum_unrealized_pnl": 1.063,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082200.0,
+      "sum_unrealized_pnl": 1.359,
+      "count_open": 4
+    },
+    {
+      "ts": 1773082260.0,
+      "sum_unrealized_pnl": 0.56,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082320.0,
+      "sum_unrealized_pnl": 0.73,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082380.0,
+      "sum_unrealized_pnl": 1.1399,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082500.0,
+      "sum_unrealized_pnl": 0.55,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082560.0,
+      "sum_unrealized_pnl": -0.2149,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082620.0,
+      "sum_unrealized_pnl": -0.4201,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082680.0,
+      "sum_unrealized_pnl": -1.1797,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082740.0,
+      "sum_unrealized_pnl": -1.1417,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082800.0,
+      "sum_unrealized_pnl": -1.6587,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082860.0,
+      "sum_unrealized_pnl": -0.88,
+      "count_open": 5
+    },
+    {
+      "ts": 1773082920.0,
+      "sum_unrealized_pnl": -0.725,
+      "count_open": 2
+    },
+    {
+      "ts": 1773082980.0,
+      "sum_unrealized_pnl": -0.8551,
+      "count_open": 5
+    },
+    {
+      "ts": 1773083040.0,
+      "sum_unrealized_pnl": -0.5399,
+      "count_open": 3
+    },
+    {
+      "ts": 1773083100.0,
+      "sum_unrealized_pnl": -1.4201,
+      "count_open": 5
+    },
+    {
+      "ts": 1773083160.0,
+      "sum_unrealized_pnl": -1.82,
+      "count_open": 5
+    },
+    {
+      "ts": 1773083220.0,
+      "sum_unrealized_pnl": -1.1999,
+      "count_open": 10
+    },
+    {
+      "ts": 1773083280.0,
+      "sum_unrealized_pnl": 2.525,
+      "count_open": 12
+    },
+    {
+      "ts": 1773083340.0,
+      "sum_unrealized_pnl": -1.36,
+      "count_open": 2
+    },
+    {
+      "ts": 1773083400.0,
+      "sum_unrealized_pnl": 0.9315,
+      "count_open": 18
+    },
+    {
+      "ts": 1773083460.0,
+      "sum_unrealized_pnl": 2.2699,
+      "count_open": 21
+    },
+    {
+      "ts": 1773083580.0,
+      "sum_unrealized_pnl": 1.8244,
+      "count_open": 25
+    },
+    {
+      "ts": 1773083640.0,
+      "sum_unrealized_pnl": -1.4405,
+      "count_open": 32
+    },
+    {
+      "ts": 1773083700.0,
+      "sum_unrealized_pnl": -0.0763,
+      "count_open": 1
+    },
+    {
+      "ts": 1773083880.0,
+      "sum_unrealized_pnl": -0.3853,
+      "count_open": 2
+    },
+    {
+      "ts": 1773083940.0,
+      "sum_unrealized_pnl": -0.3126,
+      "count_open": 2
+    },
+    {
+      "ts": 1773084000.0,
+      "sum_unrealized_pnl": 0.8764,
+      "count_open": 3
+    },
+    {
+      "ts": 1773084060.0,
+      "sum_unrealized_pnl": 0.8251,
+      "count_open": 2
+    },
+    {
+      "ts": 1773084120.0,
+      "sum_unrealized_pnl": 1.5423,
+      "count_open": 2
+    },
+    {
+      "ts": 1773084180.0,
+      "sum_unrealized_pnl": 1.9232,
+      "count_open": 2
+    },
+    {
+      "ts": 1773084240.0,
+      "sum_unrealized_pnl": 1.9891,
+      "count_open": 2
+    },
+    {
+      "ts": 1773084300.0,
+      "sum_unrealized_pnl": 2.128,
+      "count_open": 2
+    },
+    {
+      "ts": 1773084360.0,
+      "sum_unrealized_pnl": 0.2444,
+      "count_open": 3
+    },
+    {
+      "ts": 1773084420.0,
+      "sum_unrealized_pnl": 2.3842,
+      "count_open": 3
+    },
+    {
+      "ts": 1773084480.0,
+      "sum_unrealized_pnl": 2.3652,
+      "count_open": 3
+    },
+    {
+      "ts": 1773084540.0,
+      "sum_unrealized_pnl": 3.4179,
+      "count_open": 2
+    },
+    {
+      "ts": 1773084660.0,
+      "sum_unrealized_pnl": 1.9563,
+      "count_open": 3
+    },
+    {
+      "ts": 1773084720.0,
+      "sum_unrealized_pnl": 2.0007,
+      "count_open": 3
+    },
+    {
+      "ts": 1773084780.0,
+      "sum_unrealized_pnl": 4.336,
+      "count_open": 2
+    },
+    {
+      "ts": 1773084840.0,
+      "sum_unrealized_pnl": 1.7644,
+      "count_open": 3
+    },
+    {
+      "ts": 1773084900.0,
+      "sum_unrealized_pnl": 1.9144,
+      "count_open": 3
+    },
+    {
+      "ts": 1773084960.0,
+      "sum_unrealized_pnl": 2.096,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085020.0,
+      "sum_unrealized_pnl": 5.1728,
+      "count_open": 2
+    },
+    {
+      "ts": 1773085080.0,
+      "sum_unrealized_pnl": -3.4,
+      "count_open": 1
+    },
+    {
+      "ts": 1773085140.0,
+      "sum_unrealized_pnl": 1.5882,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085200.0,
+      "sum_unrealized_pnl": 2.1788,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085260.0,
+      "sum_unrealized_pnl": 3.8281,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085320.0,
+      "sum_unrealized_pnl": 4.8194,
+      "count_open": 2
+    },
+    {
+      "ts": 1773085380.0,
+      "sum_unrealized_pnl": 3.9295,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085440.0,
+      "sum_unrealized_pnl": 3.4298,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085500.0,
+      "sum_unrealized_pnl": 4.0013,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085560.0,
+      "sum_unrealized_pnl": 3.8453,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085680.0,
+      "sum_unrealized_pnl": 3.6063,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085740.0,
+      "sum_unrealized_pnl": 3.3756,
+      "count_open": 3
+    },
+    {
+      "ts": 1773085800.0,
+      "sum_unrealized_pnl": -2.0434,
+      "count_open": 5
+    },
+    {
+      "ts": 1773085860.0,
+      "sum_unrealized_pnl": -7.0398,
+      "count_open": 13
+    },
+    {
+      "ts": 1773085920.0,
+      "sum_unrealized_pnl": -9.6651,
+      "count_open": 17
+    },
+    {
+      "ts": 1773085980.0,
+      "sum_unrealized_pnl": -12.4503,
+      "count_open": 20
+    },
+    {
+      "ts": 1773086100.0,
+      "sum_unrealized_pnl": -17.5556,
+      "count_open": 24
+    },
+    {
+      "ts": 1773086160.0,
+      "sum_unrealized_pnl": -25.1034,
+      "count_open": 33
+    },
+    {
+      "ts": 1773086340.0,
+      "sum_unrealized_pnl": 0.1214,
+      "count_open": 5
+    },
+    {
+      "ts": 1773086400.0,
+      "sum_unrealized_pnl": -0.0487,
+      "count_open": 6
+    },
+    {
+      "ts": 1773086520.0,
+      "sum_unrealized_pnl": -0.3087,
+      "count_open": 5
+    },
+    {
+      "ts": 1773086580.0,
+      "sum_unrealized_pnl": 1.0132,
+      "count_open": 5
+    },
+    {
+      "ts": 1773086640.0,
+      "sum_unrealized_pnl": 4.231,
+      "count_open": 5
+    },
+    {
+      "ts": 1773086700.0,
+      "sum_unrealized_pnl": -1.3287,
+      "count_open": 5
+    },
+    {
+      "ts": 1773086760.0,
+      "sum_unrealized_pnl": -1.4205,
+      "count_open": 5
+    },
+    {
+      "ts": 1773086820.0,
+      "sum_unrealized_pnl": -1.2787,
+      "count_open": 5
+    },
+    {
+      "ts": 1773086880.0,
+      "sum_unrealized_pnl": -1.4488,
+      "count_open": 5
+    },
+    {
+      "ts": 1773086940.0,
+      "sum_unrealized_pnl": -1.3087,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087000.0,
+      "sum_unrealized_pnl": 1.1426,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087060.0,
+      "sum_unrealized_pnl": 1.3913,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087120.0,
+      "sum_unrealized_pnl": 1.1548,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087180.0,
+      "sum_unrealized_pnl": 1.2603,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087240.0,
+      "sum_unrealized_pnl": 1.2713,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087300.0,
+      "sum_unrealized_pnl": 1.2213,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087360.0,
+      "sum_unrealized_pnl": 1.3113,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087420.0,
+      "sum_unrealized_pnl": 0.8842,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087480.0,
+      "sum_unrealized_pnl": 0.6837,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087540.0,
+      "sum_unrealized_pnl": 0.8559,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087600.0,
+      "sum_unrealized_pnl": 1.075,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087720.0,
+      "sum_unrealized_pnl": 0.7468,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087780.0,
+      "sum_unrealized_pnl": 0.7358,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087840.0,
+      "sum_unrealized_pnl": 0.7468,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087900.0,
+      "sum_unrealized_pnl": 0.9159,
+      "count_open": 5
+    },
+    {
+      "ts": 1773087960.0,
+      "sum_unrealized_pnl": 0.9248,
+      "count_open": 5
+    },
+    {
+      "ts": 1773088020.0,
+      "sum_unrealized_pnl": 1.5699,
+      "count_open": 6
+    },
+    {
+      "ts": 1773088080.0,
+      "sum_unrealized_pnl": 0.386,
+      "count_open": 8
+    },
+    {
+      "ts": 1773088140.0,
+      "sum_unrealized_pnl": -2.0378,
+      "count_open": 11
+    },
+    {
+      "ts": 1773088200.0,
+      "sum_unrealized_pnl": -1.5958,
+      "count_open": 12
+    },
+    {
+      "ts": 1773088260.0,
+      "sum_unrealized_pnl": -2.2078,
+      "count_open": 12
+    },
+    {
+      "ts": 1773088740.0,
+      "sum_unrealized_pnl": 0.5319,
+      "count_open": 12
+    },
+    {
+      "ts": 1773088920.0,
+      "sum_unrealized_pnl": 0.6285,
+      "count_open": 12
+    },
+    {
+      "ts": 1773089100.0,
+      "sum_unrealized_pnl": 0.3299,
+      "count_open": 12
+    },
+    {
+      "ts": 1773089280.0,
+      "sum_unrealized_pnl": 0.3278,
+      "count_open": 12
+    },
+    {
+      "ts": 1773089460.0,
+      "sum_unrealized_pnl": 1.9457,
+      "count_open": 12
+    },
+    {
+      "ts": 1773089640.0,
+      "sum_unrealized_pnl": 1.7261,
+      "count_open": 12
+    },
+    {
+      "ts": 1773089820.0,
+      "sum_unrealized_pnl": 1.9814,
+      "count_open": 12
+    },
+    {
+      "ts": 1773090000.0,
+      "sum_unrealized_pnl": 2.1467,
+      "count_open": 12
+    },
+    {
+      "ts": 1773090180.0,
+      "sum_unrealized_pnl": 2.2347,
+      "count_open": 12
+    },
+    {
+      "ts": 1773090360.0,
+      "sum_unrealized_pnl": 1.8078,
+      "count_open": 12
+    },
+    {
+      "ts": 1773090540.0,
+      "sum_unrealized_pnl": 0.9135,
+      "count_open": 12
+    },
+    {
+      "ts": 1773090660.0,
+      "sum_unrealized_pnl": 0.7969,
+      "count_open": 12
+    },
+    {
+      "ts": 1773090840.0,
+      "sum_unrealized_pnl": 2.3796,
+      "count_open": 12
+    },
+    {
+      "ts": 1773090960.0,
+      "sum_unrealized_pnl": 1.9171,
+      "count_open": 12
+    },
+    {
+      "ts": 1773091140.0,
+      "sum_unrealized_pnl": 1.1367,
+      "count_open": 12
+    },
+    {
+      "ts": 1773091320.0,
+      "sum_unrealized_pnl": 1.5241,
+      "count_open": 12
+    },
+    {
+      "ts": 1773091440.0,
+      "sum_unrealized_pnl": 2.0924,
+      "count_open": 12
+    },
+    {
+      "ts": 1773091620.0,
+      "sum_unrealized_pnl": 1.3061,
+      "count_open": 12
+    },
+    {
+      "ts": 1773091860.0,
+      "sum_unrealized_pnl": 1.1435,
+      "count_open": 12
+    },
+    {
+      "ts": 1773092040.0,
+      "sum_unrealized_pnl": 0.7563,
+      "count_open": 12
+    },
+    {
+      "ts": 1773092220.0,
+      "sum_unrealized_pnl": -0.4617,
+      "count_open": 12
+    },
+    {
+      "ts": 1773092400.0,
+      "sum_unrealized_pnl": -0.2019,
+      "count_open": 12
+    },
+    {
+      "ts": 1773092580.0,
+      "sum_unrealized_pnl": -0.4814,
+      "count_open": 12
+    },
+    {
+      "ts": 1773092820.0,
+      "sum_unrealized_pnl": -1.7252,
+      "count_open": 12
+    },
+    {
+      "ts": 1773093000.0,
+      "sum_unrealized_pnl": -1.7299,
+      "count_open": 12
+    },
+    {
+      "ts": 1773093180.0,
+      "sum_unrealized_pnl": -0.9404,
+      "count_open": 12
+    },
+    {
+      "ts": 1773093360.0,
+      "sum_unrealized_pnl": -1.0415,
+      "count_open": 12
+    },
+    {
+      "ts": 1773093540.0,
+      "sum_unrealized_pnl": -0.9741,
+      "count_open": 12
+    },
+    {
+      "ts": 1773093720.0,
+      "sum_unrealized_pnl": -1.159,
+      "count_open": 12
+    },
+    {
+      "ts": 1773093900.0,
+      "sum_unrealized_pnl": -1.9077,
+      "count_open": 11
+    },
+    {
+      "ts": 1773093960.0,
+      "sum_unrealized_pnl": -1.12,
+      "count_open": 1
+    },
+    {
+      "ts": 1773094140.0,
+      "sum_unrealized_pnl": -2.4117,
+      "count_open": 12
+    },
+    {
+      "ts": 1773094320.0,
+      "sum_unrealized_pnl": -2.5411,
+      "count_open": 12
+    },
+    {
+      "ts": 1773094500.0,
+      "sum_unrealized_pnl": -2.4476,
+      "count_open": 12
+    },
+    {
+      "ts": 1773094680.0,
+      "sum_unrealized_pnl": -3.2742,
+      "count_open": 12
+    },
+    {
+      "ts": 1773094860.0,
+      "sum_unrealized_pnl": -4.1033,
+      "count_open": 12
+    },
+    {
+      "ts": 1773095040.0,
+      "sum_unrealized_pnl": -5.9356,
+      "count_open": 12
+    },
+    {
+      "ts": 1773095280.0,
+      "sum_unrealized_pnl": -7.1962,
+      "count_open": 12
+    },
+    {
+      "ts": 1773095460.0,
+      "sum_unrealized_pnl": -5.2136,
+      "count_open": 12
+    },
+    {
+      "ts": 1773095640.0,
+      "sum_unrealized_pnl": -6.5525,
+      "count_open": 12
+    },
+    {
+      "ts": 1773095820.0,
+      "sum_unrealized_pnl": -6.6307,
+      "count_open": 12
+    },
+    {
+      "ts": 1773096000.0,
+      "sum_unrealized_pnl": -7.4023,
+      "count_open": 12
+    },
+    {
+      "ts": 1773096180.0,
+      "sum_unrealized_pnl": -8.0555,
+      "count_open": 12
+    },
+    {
+      "ts": 1773096420.0,
+      "sum_unrealized_pnl": -6.7359,
+      "count_open": 12
+    },
+    {
+      "ts": 1773096600.0,
+      "sum_unrealized_pnl": -4.814,
+      "count_open": 12
+    },
+    {
+      "ts": 1773096780.0,
+      "sum_unrealized_pnl": -8.0793,
+      "count_open": 12
+    },
+    {
+      "ts": 1773096960.0,
+      "sum_unrealized_pnl": -8.3977,
+      "count_open": 12
+    },
+    {
+      "ts": 1773097140.0,
+      "sum_unrealized_pnl": -8.5578,
+      "count_open": 12
+    },
+    {
+      "ts": 1773097320.0,
+      "sum_unrealized_pnl": -7.2917,
+      "count_open": 12
+    },
+    {
+      "ts": 1773097500.0,
+      "sum_unrealized_pnl": -8.0852,
+      "count_open": 12
+    },
+    {
+      "ts": 1773097740.0,
+      "sum_unrealized_pnl": -9.3652,
+      "count_open": 12
+    },
+    {
+      "ts": 1773097920.0,
+      "sum_unrealized_pnl": -5.607,
+      "count_open": 12
+    },
+    {
+      "ts": 1773098100.0,
+      "sum_unrealized_pnl": -6.9548,
+      "count_open": 12
+    },
+    {
+      "ts": 1773098280.0,
+      "sum_unrealized_pnl": -6.5947,
+      "count_open": 12
+    },
+    {
+      "ts": 1773098460.0,
+      "sum_unrealized_pnl": -6.254,
+      "count_open": 12
+    },
+    {
+      "ts": 1773098640.0,
+      "sum_unrealized_pnl": -6.564,
+      "count_open": 12
+    },
+    {
+      "ts": 1773098880.0,
+      "sum_unrealized_pnl": -6.7516,
+      "count_open": 12
+    },
+    {
+      "ts": 1773099060.0,
+      "sum_unrealized_pnl": -7.2865,
+      "count_open": 12
+    },
+    {
+      "ts": 1773099240.0,
+      "sum_unrealized_pnl": -6.8697,
+      "count_open": 12
+    },
+    {
+      "ts": 1773099420.0,
+      "sum_unrealized_pnl": -7.0545,
+      "count_open": 12
+    },
+    {
+      "ts": 1773099600.0,
+      "sum_unrealized_pnl": -7.0379,
+      "count_open": 12
+    },
+    {
+      "ts": 1773099780.0,
+      "sum_unrealized_pnl": -8.9284,
+      "count_open": 12
+    },
+    {
+      "ts": 1773099960.0,
+      "sum_unrealized_pnl": 1.8057,
+      "count_open": 5
+    },
+    {
+      "ts": 1773100020.0,
+      "sum_unrealized_pnl": -10.6487,
+      "count_open": 7
+    },
+    {
+      "ts": 1773100200.0,
+      "sum_unrealized_pnl": -9.3697,
+      "count_open": 12
+    },
+    {
+      "ts": 1773100380.0,
+      "sum_unrealized_pnl": -10.8119,
+      "count_open": 12
+    },
+    {
+      "ts": 1773100560.0,
+      "sum_unrealized_pnl": -11.1054,
+      "count_open": 12
+    },
+    {
+      "ts": 1773100740.0,
+      "sum_unrealized_pnl": -10.0338,
+      "count_open": 12
+    }
+  ],
+  "peak_ts": 1773071640.0,
+  "peak_unrealized_usd": 50.8495,
+  "drawdown_from_peak_usd": 60.8833,
+  "top_trades_at_peak": [
+    {
+      "trade_id": "open_C_2026-03-09T14:14:12.044Z",
+      "unrealized_pnl_usd": 4.66
+    },
+    {
+      "trade_id": "open_LCID_2026-03-09T14:20:56.611Z",
+      "unrealized_pnl_usd": 4.522
+    },
+    {
+      "trade_id": "open_DIA_2026-03-09T14:18:39.105Z",
+      "unrealized_pnl_usd": 3.9008
+    },
+    {
+      "trade_id": "open_NIO_2026-03-09T14:13:49.925Z",
+      "unrealized_pnl_usd": 3.66
+    },
+    {
+      "trade_id": "open_INTC_2026-03-09T14:13:32.449Z",
+      "unrealized_pnl_usd": 3.33
+    },
+    {
+      "trade_id": "open_SOFI_2026-03-09T14:20:40.103Z",
+      "unrealized_pnl_usd": 3.2748
+    },
+    {
+      "trade_id": "open_F_2026-03-09T14:16:08.019Z",
+      "unrealized_pnl_usd": 3.23
+    },
+    {
+      "trade_id": "open_GM_2026-03-09T14:17:07.451Z",
+      "unrealized_pnl_usd": 3.03
+    },
+    {
+      "trade_id": "open_GOOGL_2026-03-09T14:18:07.226Z",
+      "unrealized_pnl_usd": 3.02
+    },
+    {
+      "trade_id": "open_XLI_2026-03-09T14:16:51.246Z",
+      "unrealized_pnl_usd": 2.77
+    },
+    {
+      "trade_id": "open_JPM_2026-03-09T14:15:55.475Z",
+      "unrealized_pnl_usd": 2.75
+    },
+    {
+      "trade_id": "open_RIVN_2026-03-09T14:21:02.772Z",
+      "unrealized_pnl_usd": 2.695
+    },
+    {
+      "trade_id": "open_UNH_2026-03-09T14:16:34.209Z",
+      "unrealized_pnl_usd": 2.66
+    },
+    {
+      "trade_id": "open_AAPL_2026-03-09T14:19:47.246Z",
+      "unrealized_pnl_usd": 2.17
+    },
+    {
+      "trade_id": "open_XLP_2026-03-09T14:18:15.399Z",
+      "unrealized_pnl_usd": 2.025
+    },
+    {
+      "trade_id": "open_XLK_2026-03-09T14:16:19.090Z",
+      "unrealized_pnl_usd": 1.95
+    },
+    {
+      "trade_id": "open_MS_2026-03-09T14:15:22.102Z",
+      "unrealized_pnl_usd": 1.875
+    },
+    {
+      "trade_id": "open_HD_2026-03-09T14:17:50.342Z",
+      "unrealized_pnl_usd": 1.675
+    },
+    {
+      "trade_id": "open_BAC_2026-03-09T14:14:55.205Z",
+      "unrealized_pnl_usd": 1.5
+    },
+    {
+      "trade_id": "open_BA_2026-03-09T14:19:12.392Z",
+      "unrealized_pnl_usd": 1.48
+    }
+  ]
+}

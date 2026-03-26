@@ -1,0 +1,12 @@
+{
+  "analysis": "I",
+  "name": "regime_slices",
+  "cohort": "MARKET_SESSION_ET",
+  "n_trades": 2,
+  "blocked": false,
+  "blockers": [],
+  "profit_implication": "see slices",
+  "slices": {
+    "": 2
+  }
+}
