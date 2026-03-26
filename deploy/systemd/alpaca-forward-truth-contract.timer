@@ -1,0 +1,11 @@
+[Unit]
+Description=Every 15 minutes — Alpaca forward truth contract runner
+
+[Timer]
+OnCalendar=*-*-* *:00,15,30,45:00
+Persistent=true
+AccuracySec=1min
+Unit=alpaca-forward-truth-contract.service
+
+[Install]
+WantedBy=timers.target

@@ -231,7 +231,14 @@ def main() -> int:
     ap.add_argument(
         "--repair-all-incomplete-in-era",
         action="store_true",
-        help="Loop evaluate_completeness + backfill until no incompletes or no progress (max 8 rounds)",
+        help="Loop evaluate_completeness + backfill until no incompletes or no progress",
+    )
+    ap.add_argument(
+        "--max-repair-rounds",
+        type=int,
+        default=8,
+        metavar="N",
+        help="Max internal flush rounds for --repair-all-incomplete-in-era (default 8)",
     )
     args = ap.parse_args()
     root = args.root.resolve()
@@ -261,7 +268,8 @@ def main() -> int:
             return 2
         tot_run = tot_ord = tot_uni = 0
         rounds = 0
-        while rounds < 8:
+        max_rr = max(1, int(args.max_repair_rounds))
+        while rounds < max_rr:
             rounds += 1
             tids = _incomplete_tids_for_era(root, float(args.open_ts_epoch))
             if not tids:

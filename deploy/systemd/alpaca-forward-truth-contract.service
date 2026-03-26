@@ -1,0 +1,10 @@
+[Unit]
+Description=Alpaca forward truth contract — rolling strict gate, bounded additive repair, CERT_OK or INCIDENT
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/stock-bot
+ExecStart=/bin/bash /root/stock-bot/deploy/systemd/alpaca-forward-truth-contract-run.sh
+StandardOutput=journal
+StandardError=journal
