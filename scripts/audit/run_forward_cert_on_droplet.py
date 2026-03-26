@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import sys
+from json import JSONDecoder
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -71,12 +72,17 @@ def main() -> int:
         timeout=120,
     )
     gout = (rg.get("stdout") or "").strip()
-    out["steps"]["strict_gate_forward"] = {"stdout_tail": gout[-15000:], "exit_code": rg.get("exit_code")}
+    out["steps"]["strict_gate_forward"] = {
+        "stdout_tail": gout[-15000:],
+        "stderr_tail": ((rg.get("stderr") or "").strip())[-4000:],
+        "exit_code": rg.get("exit_code"),
+    }
     try:
-        # last JSON object in output
-        jstart = gout.rfind("{")
-        if jstart >= 0:
-            out["strict_gate_json"] = json.loads(gout[jstart:])
+        # Single top-level object; do not use rfind("{") (nested dicts contain "{" in values).
+        dec = JSONDecoder()
+        i = gout.find("{")
+        if i >= 0:
+            out["strict_gate_json"], _ = dec.raw_decode(gout, i)
     except json.JSONDecodeError:
         out["strict_gate_json_parse_error"] = True
 
