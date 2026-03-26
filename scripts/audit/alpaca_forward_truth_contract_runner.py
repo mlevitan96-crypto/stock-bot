@@ -239,6 +239,7 @@ def main() -> int:
                     p.unlink()
                 except OSError:
                     pass
+        print("alpaca_forward_truth_contract_runner: exit 0 CERT_OK", file=sys.stderr)
         return 0
 
     # INCIDENT
@@ -289,6 +290,7 @@ def main() -> int:
         + "\n",
         encoding="utf-8",
     )
+    print("alpaca_forward_truth_contract_runner: exit 2 INCIDENT", file=sys.stderr)
     return 2
 
 
