@@ -70,22 +70,23 @@ def main() -> int:
     bundle["steps"]["systemctl_status_timer"] = (st.get("stdout") or "").strip()[:12000]
 
     manual = c.execute_command(
-        "bash deploy/systemd/alpaca-forward-truth-contract-run.sh >/tmp/alpaca_ftc_last.log 2>&1; "
-        "echo $? > /tmp/alpaca_ftc_ec.txt; "
-        "tail -c 12000 /tmp/alpaca_ftc_last.log; printf '\\n__EXIT_CODE__ '; cat /tmp/alpaca_ftc_ec.txt",
+        "bash deploy/systemd/alpaca-forward-truth-contract-run.sh >/tmp/alpaca_ftc_last.log 2>&1; echo $? > /tmp/alpaca_ftc_ec.txt",
         timeout=600,
     )
-    mo = (manual.get("stdout") or "").strip()
+    ec_f = c.execute_command("cat /tmp/alpaca_ftc_ec.txt 2>/dev/null || echo missing", 15)
+    log_tail = c.execute_command("tail -c 12000 /tmp/alpaca_ftc_last.log 2>/dev/null || true", 15)
+    mo = (log_tail.get("stdout") or "").strip()
     bundle["steps"]["manual_run"] = {
+        "runner_ssh_meta": {"exit_code": manual.get("exit_code"), "stderr": (manual.get("stderr") or "").strip()[:2000]},
         "stdout_tail": mo[-25000:],
-        "ssh_exit_code": manual.get("exit_code"),
+        "ec_file_raw": (ec_f.get("stdout") or "").strip()[:80],
     }
-    if "__EXIT_CODE__" in mo:
-        try:
-            tail = mo.rsplit("__EXIT_CODE__", 1)[-1].strip()
-            bundle["manual_exit_code"] = int(tail.split()[0])
-        except (ValueError, IndexError):
-            bundle["manual_exit_parse_error"] = True
+    try:
+        raw_ec = (ec_f.get("stdout") or "").strip()
+        if raw_ec and raw_ec != "missing":
+            bundle["manual_exit_code"] = int(raw_ec.split()[0])
+    except (ValueError, IndexError):
+        bundle["manual_exit_parse_error"] = True
 
     lj = c.execute_command(
         "journalctl -u alpaca-forward-truth-contract.service --no-pager -n 120 2>&1",
@@ -98,6 +99,12 @@ def main() -> int:
         20,
     )
     bundle["steps"]["recent_run_artifacts"] = (ls_art.get("stdout") or "").strip()
+    latest = c.execute_command(
+        f"L=$(ls -t {PROJ}/reports/ALPACA_FORWARD_TRUTH_RUN*.json 2>/dev/null | head -1); "
+        f"test -n \"$L\" && head -c 2500 \"$L\" || echo {{}}",
+        20,
+    )
+    bundle["steps"]["latest_run_json_head"] = (latest.get("stdout") or "").strip()
 
     dest = REPO / "reports" / "audit" / f"ALPACA_FORWARD_TRUTH_CONTRACT_DROPLET_BUNDLE_{TS_TAG}.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
