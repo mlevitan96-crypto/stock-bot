@@ -1,0 +1,8 @@
+{
+  "venue": "kraken",
+  "kraken_data_telegram_certification_suite_py": null,
+  "strict_tail_gate_in_repo": false,
+  "milestone_telegram_script_in_repo": false,
+  "note": "No kraken_data_telegram_certification_suite.py found in repository; Kraken path is downloader + shell massive review only (see scripts/run_kraken_on_droplet.py).",
+  "evidence_ts_utc": "2026-03-26T17:16:59.276400+00:00"
+}

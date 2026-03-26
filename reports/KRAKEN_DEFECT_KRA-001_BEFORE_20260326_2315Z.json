@@ -1,0 +1,7 @@
+{
+  "defect_id": "KRA-001",
+  "kraken_data_telegram_certification_suite_py_exists": false,
+  "strict_tail_gate_in_repo": false,
+  "source": "reports/KRAKEN_BASELINE_20260326_2315Z.json",
+  "ts": "20260326_2315Z"
+}
