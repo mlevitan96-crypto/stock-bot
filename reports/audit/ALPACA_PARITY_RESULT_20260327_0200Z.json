@@ -1,0 +1,7 @@
+{
+  "open_ts_epoch": 1774535335.472568,
+  "strict_cohort_economic_closes": 89,
+  "strict_cohort_unified_terminal_closes": 89,
+  "parity_exact": true,
+  "missing_unified_terminal_trade_ids_sample": []
+}

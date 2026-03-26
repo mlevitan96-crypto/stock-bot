@@ -1,0 +1,23 @@
+{
+  "iteration": 0,
+  "ts": "20260327_0200Z",
+  "trades_incomplete": 6,
+  "failing_trade_ids": [
+    "open_PFE_2026-03-26T14:29:25.977370+00:00",
+    "open_QQQ_2026-03-26T15:10:28.882493+00:00",
+    "open_WMT_2026-03-26T15:10:28.883737+00:00",
+    "open_HOOD_2026-03-26T15:51:38.174449+00:00",
+    "open_LCID_2026-03-26T15:51:38.396698+00:00",
+    "open_CAT_2026-03-26T16:34:40.245664+00:00"
+  ],
+  "missing_legs_per_trade": [
+    "entry_decision_not_joinable_by_canonical_trade_id",
+    "missing_unified_entry_attribution",
+    "no_orders_rows_with_canonical_trade_id",
+    "missing_exit_intent_for_canonical_trade_id"
+  ],
+  "raw_data_economic_close_exists": true,
+  "recoverable": true,
+  "fix_required": "Additive backfill or emitter fix so run.jsonl trade_intent(entered), orders.jsonl canonical rows, exit_intent, and unified entry exist for these trade_keys; no gate relaxation.",
+  "code_changes_applied": false
+}
