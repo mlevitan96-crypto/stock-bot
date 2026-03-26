@@ -1,0 +1,23 @@
+{
+  "timestamp_utc": "2026-03-26T22:18:32.103673+00:00",
+  "window_hours": 2,
+  "window_start_epoch": 1774548000.0,
+  "window_end_epoch": 1774555200.0,
+  "verdict": "LEARNING_SAFE",
+  "trades_seen": 44,
+  "trades_incomplete": 0,
+  "sre_auto_repair": {
+    "ran": false,
+    "actions_applied": 0,
+    "residual_incompletes": 0
+  },
+  "exit_code": 0,
+  "commit_sha": "235fe9ad407ad0a5ee19d0081b2396371438d9c4",
+  "runner": "alpaca_forward_truth_runner",
+  "notes": [
+    "synthesis_from_truth_json_and_exit_code"
+  ],
+  "proof_links": [
+    "reports/ALPACA_LAST_WINDOW_TRUTH_20260327_LAST_WINDOW.json"
+  ]
+}
