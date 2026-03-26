@@ -36,4 +36,8 @@ To https://github.com/mlevitan96-crypto/stock-bot
 
 - **Branch:** `main`
 - **Prior tip:** `1c2c9464…`
-- **New tip:** `1bab716d…`
+- **New tip (code):** `1bab716d…`
+
+## Proof bundle follow-up commit
+
+Markdown + `reports/ALPACA_DASHBOARD_VERIFY_ALL_TABS_20260326_2020Z.json` were added in **`0bb5603`** (`docs: Alpaca dashboard permanentize proof (20260326_2015Z)`).

@@ -14,6 +14,11 @@
 
 No failing endpoint; no non-200 in verifier run.
 
+## Git notes
+
+- **Code + Phase 1 diff** landed in **`1bab716d51aca0373878612b1f66d20ccb53639f`**.
+- **Phase 2–3 proof artifacts** (commit record, droplet proof, closeout, verifier JSON) landed in follow-up **`0bb5603`** on `main`.
+
 ## References
 
 - Phase 1 diff: `reports/audit/ALPACA_DASHBOARD_PERMANENTIZE_DIFF_20260326_2015Z.md`
