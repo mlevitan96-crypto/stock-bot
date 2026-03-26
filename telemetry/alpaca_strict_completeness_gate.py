@@ -108,6 +108,8 @@ def evaluate_completeness(
     *,
     audit: bool = False,
     forward_since_epoch: Optional[float] = None,
+    collect_complete_trade_ids: bool = False,
+    collect_strict_cohort_trade_ids: bool = False,
 ) -> Dict[str, Any]:
     """Evaluate strict completeness since market open (ET today) or custom open_ts_epoch (UTC).
 
@@ -227,11 +229,15 @@ def evaluate_completeness(
     chain_matrices_sample: List[dict] = []
     chain_matrices_complete_sample: List[dict] = []
     complete = 0
+    complete_trade_ids: List[str] = []
+    strict_cohort_trade_ids: List[str] = []
 
     fwd_seen = fwd_cmp = fwd_inc = 0
     leg_seen = leg_cmp = leg_inc = 0
 
     for tid, sym, ent_iso, rec in closed:
+        if collect_strict_cohort_trade_ids and len(strict_cohort_trade_ids) < 5000:
+            strict_cohort_trade_ids.append(tid)
         reasons: List[str] = []
         uexit = unified_exit_by_tid.get(tid)
         uexit = uexit if (uexit and uexit.get("terminal_close")) else None
@@ -345,6 +351,8 @@ def evaluate_completeness(
                     leg_inc += 1
         else:
             complete += 1
+            if collect_complete_trade_ids and len(complete_trade_ids) < 500:
+                complete_trade_ids.append(tid)
             if audit and len(chain_matrices_complete_sample) < 3:
                 chain_matrices_complete_sample.append(
                     {
@@ -436,6 +444,10 @@ def evaluate_completeness(
         out["incomplete_trade_ids_by_reason"] = {k: list(v) for k, v in incomplete_ids_by_reason.items()}
         out["chain_matrices_sample"] = chain_matrices_sample
         out["chain_matrices_complete_sample"] = chain_matrices_complete_sample
+    if collect_complete_trade_ids:
+        out["complete_trade_ids"] = complete_trade_ids
+    if collect_strict_cohort_trade_ids:
+        out["strict_cohort_trade_ids"] = strict_cohort_trade_ids
     return out
 
 

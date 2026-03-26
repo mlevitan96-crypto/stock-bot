@@ -1,0 +1,22 @@
+{
+  "iteration": 3,
+  "runtime_sec": 126,
+  "deploy_epoch": 1774544849.0,
+  "exit_code": 2,
+  "parsed": {
+    "deploy_epoch_utc": 1774544849.0,
+    "forward_economic_closes": 0,
+    "forward_unified_terminal_closes": 0,
+    "parity_exact": true,
+    "missing_unified_for_forward_closes_sample": [],
+    "alpaca_emit_failures_since_deploy": 0,
+    "forward_trade_intents_with_ct_and_tk": 0,
+    "forward_trade_intents_bad": [],
+    "trace_sample_size": 0,
+    "trace_all_pass": false,
+    "traces": [],
+    "LEGACY_DEBT_QUARANTINED": "Opens before deploy epoch are excluded from forward counts",
+    "forward_cohort_vacuous": true
+  },
+  "stdout_tail": "{\n  \"deploy_epoch_utc\": 1774544849.0,\n  \"forward_economic_closes\": 0,\n  \"forward_unified_terminal_closes\": 0,\n  \"parity_exact\": true,\n  \"missing_unified_for_forward_closes_sample\": [],\n  \"alpaca_emit_failures_since_deploy\": 0,\n  \"forward_trade_intents_with_ct_and_tk\": 0,\n  \"forward_trade_intents_bad\": [],\n  \"trace_sample_size\": 0,\n  \"trace_all_pass\": false,\n  \"traces\": [],\n  \"LEGACY_DEBT_QUARANTINED\": \"Opens before deploy epoch are excluded from forward counts\",\n  \"forward_cohort_vacuous\": true\n}"
+}
