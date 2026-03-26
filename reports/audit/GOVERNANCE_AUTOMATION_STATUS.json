@@ -1,19 +1,19 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-26T07:40:01.856Z",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [],
-  "anomalies": [],
+  "details": [
+    "repo_structure: Missing expected top-level directory 'memory_bank/' — MEMORY_BANK.md exists as a flat file but the directory is absent",
+    "governance_contracts_present: memory_bank/ directory not found; .cursor/automations/ (with README + specs), reports/audit/, and reports/board/ all present"
+  ],
   "slack_sent": false
 }
