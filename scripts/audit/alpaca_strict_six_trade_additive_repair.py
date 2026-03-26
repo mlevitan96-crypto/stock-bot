@@ -347,5 +347,40 @@ def _flush_planned(run_bf: Path, ord_bf: Path, uni_bf: Path, planned: List[Tuple
     return n_run, n_ord, n_uni
 
 
+def apply_backfill_for_trade_ids(root: Path, trade_ids: List[str]) -> Dict[str, Any]:
+    """Append additive strict-chain rows for trade_ids (skips if already backfilled or unbuildable)."""
+    root = root.resolve()
+    logs = root / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    run_bf = logs / "strict_backfill_run.jsonl"
+    ord_bf = logs / "strict_backfill_orders.jsonl"
+    uni_bf = logs / "strict_backfill_alpaca_unified_events.jsonl"
+    planned: List[Tuple[str, dict]] = []
+    applied: List[str] = []
+    skipped_done: List[str] = []
+    skipped_empty: List[str] = []
+    for tid in trade_ids:
+        if _already_done(run_bf, tid):
+            skipped_done.append(tid)
+            continue
+        batch = build_lines_for_trade(root, tid)
+        if not batch:
+            skipped_empty.append(tid)
+            continue
+        planned.extend([(tid, x) for x in batch])
+        applied.append(tid)
+    n_run = n_ord = n_uni = 0
+    if planned:
+        n_run, n_ord, n_uni = _flush_planned(run_bf, ord_bf, uni_bf, planned)
+    return {
+        "applied_trade_ids": applied,
+        "skipped_already_backfilled": skipped_done,
+        "skipped_empty_batch": skipped_empty,
+        "run_lines": n_run,
+        "orders_lines": n_ord,
+        "unified_lines": n_uni,
+    }
+
+
 if __name__ == "__main__":
     raise SystemExit(main())

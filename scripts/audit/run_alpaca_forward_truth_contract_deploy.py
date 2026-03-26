@@ -13,6 +13,7 @@ from droplet_client import DropletClient  # noqa: E402
 
 PROJ = "/root/stock-bot"
 TS_TAG = "20260327_FORWARD_TRUTH_FINAL"
+TS_SRE = "20260327_SRE_AUTO_REPAIR_FINAL"
 
 
 def main() -> int:
@@ -28,6 +29,8 @@ def main() -> int:
     upload = [
         "telemetry/alpaca_strict_completeness_gate.py",
         "scripts/audit/alpaca_strict_six_trade_additive_repair.py",
+        "scripts/audit/alpaca_sre_repair_playbooks.py",
+        "scripts/audit/alpaca_sre_auto_repair_engine.py",
         "scripts/audit/alpaca_forward_truth_contract_runner.py",
         "deploy/systemd/alpaca-forward-truth-contract-run.sh",
         "deploy/systemd/alpaca-forward-truth-contract.service",
@@ -61,6 +64,8 @@ def main() -> int:
         timeout=60,
     )
     bundle["steps"]["enable_timer"] = {"stdout": (en.get("stdout") or "").strip(), "exit_code": en.get("exit_code")}
+    rt = c.execute_command("systemctl restart alpaca-forward-truth-contract.timer 2>&1", 30)
+    bundle["steps"]["restart_timer"] = {"stdout": (rt.get("stdout") or "").strip(), "exit_code": rt.get("exit_code")}
 
     cat_s = c.execute_command("systemctl cat alpaca-forward-truth-contract.service 2>&1", 30)
     cat_t = c.execute_command("systemctl cat alpaca-forward-truth-contract.timer 2>&1", 30)
@@ -105,11 +110,19 @@ def main() -> int:
         20,
     )
     bundle["steps"]["latest_run_json_head"] = (latest.get("stdout") or "").strip()
+    bundle["sre_auto_repair_drop_proof_ts"] = TS_SRE
 
     dest = REPO / "reports" / "audit" / f"ALPACA_FORWARD_TRUTH_CONTRACT_DROPLET_BUNDLE_{TS_TAG}.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
-    print(json.dumps({"written": str(dest), "manual_exit": bundle.get("manual_exit_code")}, indent=2))
+    sre_dest = REPO / "reports" / f"ALPACA_SRE_AUTO_REPAIR_DROPLET_BUNDLE_{TS_SRE}.json"
+    sre_dest.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
+    print(
+        json.dumps(
+            {"written": str(dest), "sre_bundle": str(sre_dest), "manual_exit": bundle.get("manual_exit_code")},
+            indent=2,
+        )
+    )
     return 0
 
 
