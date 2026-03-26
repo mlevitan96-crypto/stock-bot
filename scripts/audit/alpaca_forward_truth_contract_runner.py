@@ -9,10 +9,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import os
-import subprocess
 import sys
-import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +23,16 @@ def _load_repair_module():
     spec = importlib.util.spec_from_file_location("alpaca_strict_six_trade_additive_repair", path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load repair module from {path}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _load_sre_engine():
+    path = REPO / "scripts" / "audit" / "alpaca_sre_auto_repair_engine.py"
+    spec = importlib.util.spec_from_file_location("alpaca_sre_auto_repair_engine", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load SRE engine from {path}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -85,27 +92,6 @@ def _next_actions() -> Dict[str, str]:
     }
 
 
-def _run_repair_subprocess(root: Path, open_ts: float, max_rounds: int) -> Tuple[int, str, str]:
-    py = sys.executable
-    script = REPO / "scripts" / "audit" / "alpaca_strict_six_trade_additive_repair.py"
-    cmd = [
-        py,
-        str(script),
-        "--root",
-        str(root),
-        "--apply",
-        "--repair-all-incomplete-in-era",
-        "--open-ts-epoch",
-        str(open_ts),
-        "--max-repair-rounds",
-        str(max(1, int(max_rounds))),
-    ]
-    env = {**os.environ, "PYTHONPATH": str(REPO)}
-    pr = subprocess.run(cmd, cwd=str(root), capture_output=True, text=True, timeout=600, env=env)
-    out = (pr.stdout or "") + ("\n" + pr.stderr if pr.stderr else "")
-    return pr.returncode, out, (pr.stderr or "")
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description="Alpaca forward truth contract runner")
     ap.add_argument("--root", type=Path, default=Path("."))
@@ -122,8 +108,9 @@ def main() -> int:
     root = args.root.resolve()
     try:
         repair_mod = _load_repair_module()
+        sre = _load_sre_engine()
     except Exception as e:
-        print(json.dumps({"error": "repair_module_load", "detail": str(e)}), file=sys.stderr)
+        print(json.dumps({"error": "sre_repair_engine_load", "detail": str(e)}), file=sys.stderr)
         return 1
 
     now = time.time()
@@ -147,12 +134,13 @@ def main() -> int:
         "strict_epoch_policy": "explicit_max(STRICT_EPOCH_START, now - window_hours)",
         "repair_max_rounds": int(args.repair_max_rounds),
         "repair_sleep_seconds": int(args.repair_sleep_seconds),
+        "sre_auto_repair_engine": True,
     }
 
-    gate = _gate(root, open_ts_epoch, forward_since_epoch)
-    run_record["initial_gate"] = gate
+    gate0 = _gate(root, open_ts_epoch, forward_since_epoch)
+    run_record["initial_gate"] = gate0
 
-    precheck = gate.get("precheck") or []
+    precheck = gate0.get("precheck") or []
     if precheck:
         run_record["error"] = "precheck_failed"
         run_record["precheck"] = precheck
@@ -166,47 +154,30 @@ def main() -> int:
         )
         return 1
 
-    if gate.get("code_structural_trade_intent_no_canonical_on_entered"):
+    if gate0.get("code_structural_trade_intent_no_canonical_on_entered"):
         run_record["error"] = "structural_code_path"
+        run_record["sre_failure_class"] = "EMITTER_REGRESSION"
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
         args.json_out.write_text(json.dumps(run_record, indent=2, default=str), encoding="utf-8")
         args.md_out.write_text("# Forward truth contract\n\n**BLOCKED:** structural trade_intent path in main.py.\n", encoding="utf-8")
         return 1
 
-    incomplete = int(gate.get("trades_incomplete") or 0)
-    repair_trace: List[Dict[str, Any]] = []
-
-    if incomplete > 0:
-        for rnum in range(1, int(args.repair_max_rounds) + 1):
-            try:
-                rc, stdout, stderr = _run_repair_subprocess(
-                    root,
-                    open_ts_epoch,
-                    int(args.repair_internal_rounds_per_iteration),
-                )
-            except subprocess.TimeoutExpired as e:
-                run_record["repair_error"] = str(e)
-                run_record["repair_trace"] = repair_trace
-                args.json_out.parent.mkdir(parents=True, exist_ok=True)
-                args.json_out.write_text(json.dumps(run_record, indent=2, default=str), encoding="utf-8")
-                args.md_out.write_text("# Forward truth contract\n\n**ERROR:** repair subprocess timeout.\n", encoding="utf-8")
-                return 1
-            repair_trace.append(
-                {
-                    "iteration": rnum,
-                    "subprocess_returncode": rc,
-                    "stdout_tail": (stdout or "")[-6000:],
-                    "stderr_tail": (stderr or "")[-2000:],
-                }
-            )
-            time.sleep(max(0, int(args.repair_sleep_seconds)))
-            gate = _gate(root, open_ts_epoch, forward_since_epoch)
-            repair_trace.append({"iteration": rnum, "post_gate_trades_incomplete": gate.get("trades_incomplete")})
-            incomplete = int(gate.get("trades_incomplete") or 0)
-            if incomplete == 0:
-                break
-
-    run_record["repair_trace"] = repair_trace
+    gate, repair_actions, class_map, engine_meta = sre.run_sre_auto_repair(
+        root,
+        open_ts_epoch,
+        forward_since_epoch,
+        int(args.repair_max_rounds),
+        int(args.repair_sleep_seconds),
+        repair_mod,
+    )
+    run_record["sre_repair_actions_applied"] = repair_actions
+    run_record["sre_classification_per_trade_id"] = class_map
+    run_record["sre_engine_meta"] = engine_meta
+    run_record["repair_trace"] = repair_actions
+    if int(args.repair_internal_rounds_per_iteration) != 1:
+        run_record["note_repair_internal_rounds"] = (
+            "SRE engine applies one additive batch per outer round; subprocess multi-round unused."
+        )
     run_record["final_gate"] = gate
     incomplete = int(gate.get("trades_incomplete") or 0)
 
@@ -246,6 +217,7 @@ def main() -> int:
     tids = _all_incomplete_tids(gate)
     sample = tids[:50]
     rec, unrec = _classify_recoverable(root, tids, repair_mod)
+    sre_snap = {tid: run_record.get("sre_classification_per_trade_id", {}).get(tid) for tid in sample}
     incident: Dict[str, Any] = {
         "severity": "LEARNING_BLOCKER",
         "trades_incomplete_count": incomplete,
@@ -257,6 +229,11 @@ def main() -> int:
         "open_ts_epoch": open_ts_epoch,
         "forward_since_epoch": forward_since_epoch,
         "repair_iterations_attempted": int(args.repair_max_rounds),
+        "sre_classification_sample": sre_snap,
+        "sre_immediate_unknown_escalation": (run_record.get("sre_engine_meta") or {}).get(
+            "immediate_unknown_escalation"
+        ),
+        "sre_actions_count": len(run_record.get("sre_repair_actions_applied") or []),
     }
     run_record["incident"] = incident
 
