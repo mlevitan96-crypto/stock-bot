@@ -65,6 +65,7 @@ def main() -> int:
     # Mirror verdict + scope + truth json locally when present
     scope_local = REPO / "reports" / "audit" / f"ALPACA_LAST_WINDOW_SCOPE_{TS}.md"
     truth_local = REPO / "reports" / f"ALPACA_LAST_WINDOW_TRUTH_{TS}.json"
+    truth_md_local = REPO / "reports" / "audit" / f"ALPACA_LAST_WINDOW_TRUTH_{TS}.md"
     verdict_local = REPO / "reports" / "audit" / f"ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md"
     sk = f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_SCOPE_{TS}.md"
     if sk in fetched and not fetched[sk].startswith("MISSING"):
@@ -72,6 +73,9 @@ def main() -> int:
     tk = f"{PROJ}/reports/ALPACA_LAST_WINDOW_TRUTH_{TS}.json"
     if tk in fetched and not fetched[tk].startswith("MISSING"):
         truth_local.write_text(fetched[tk], encoding="utf-8")
+    tmk = f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_TRUTH_{TS}.md"
+    if tmk in fetched and not fetched[tmk].startswith("MISSING"):
+        truth_md_local.write_text(fetched[tmk], encoding="utf-8")
     vk = f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md"
     if vk in fetched and not fetched[vk].startswith("MISSING"):
         verdict_local.write_text(fetched[vk], encoding="utf-8")
