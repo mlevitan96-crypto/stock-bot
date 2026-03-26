@@ -107,8 +107,14 @@ def evaluate_completeness(
     open_ts_epoch: Optional[float] = None,
     *,
     audit: bool = False,
+    forward_since_epoch: Optional[float] = None,
 ) -> Dict[str, Any]:
-    """Evaluate strict completeness since market open (ET today) or custom open_ts_epoch (UTC)."""
+    """Evaluate strict completeness since market open (ET today) or custom open_ts_epoch (UTC).
+
+    If ``forward_since_epoch`` is set (UTC epoch), each closed trade is split by **position open**
+    time parsed from ``trade_id`` (``open_<SYM>_<ISO>``): ``>= forward_since_epoch`` → forward cohort;
+    otherwise legacy. Counters ``forward_*`` and ``legacy_*`` are populated (global ``trades_*`` unchanged).
+    """
     root = root.resolve()
     logs = root / "logs"
     exit_path = logs / "exit_attribution.jsonl"
@@ -153,8 +159,10 @@ def evaluate_completeness(
     intent_to_fill: Dict[str, str] = {}
     for rec in _stream_jsonl(run_path):
         et = rec.get("event_type")
-        if et == "exit_intent" and rec.get("canonical_trade_id"):
-            exit_intents_by_ct[str(rec["canonical_trade_id"])].append(rec)
+        if et == "exit_intent":
+            for _ek in (rec.get("canonical_trade_id"), rec.get("trade_key")):
+                if _ek:
+                    exit_intents_by_ct[str(_ek)].append(rec)
         if et == "trade_intent" and str(rec.get("decision_outcome", "")).lower() == "entered":
             trade_intents_entered.append(rec)
         if et == "canonical_trade_id_resolved" and rec.get("canonical_trade_id_fill"):
@@ -220,6 +228,9 @@ def evaluate_completeness(
     chain_matrices_complete_sample: List[dict] = []
     complete = 0
 
+    fwd_seen = fwd_cmp = fwd_inc = 0
+    leg_seen = leg_cmp = leg_inc = 0
+
     for tid, sym, ent_iso, rec in closed:
         reasons: List[str] = []
         uexit = unified_exit_by_tid.get(tid)
@@ -246,7 +257,10 @@ def evaluate_completeness(
 
         entry_decision_ok = any(
             str(r.get("symbol") or "").upper() == sym
-            and str(r.get("canonical_trade_id") or "") in aliases
+            and (
+                str(r.get("canonical_trade_id") or "") in aliases
+                or str(r.get("trade_key") or "") in aliases
+            )
             for r in trade_intents_entered
         )
         unified_ok = bool(aliases) and any(k in unified_entry for k in aliases)
@@ -280,6 +294,11 @@ def evaluate_completeness(
         if not TID_RE.match(tid):
             reasons.append("trade_id_schema_unexpected")
 
+        oep_for_split = _open_epoch_from_trade_id(tid, TID_RE)
+        is_forward_cohort = False
+        if forward_since_epoch is not None and oep_for_split is not None:
+            is_forward_cohort = oep_for_split >= float(forward_since_epoch)
+
         if reasons:
             for r in reasons:
                 reason_hist[r] += 1
@@ -300,6 +319,7 @@ def evaluate_completeness(
                     {
                         "trade_id": tid,
                         "symbol": sym,
+                        "forward_cohort": is_forward_cohort,
                         "authoritative_join_key": join_key,
                         "trade_key_from_exit": tk,
                         "alias_sample": sorted(aliases)[:16],
@@ -316,6 +336,13 @@ def evaluate_completeness(
                         "reasons": list(reasons),
                     }
                 )
+            if forward_since_epoch is not None:
+                if is_forward_cohort:
+                    fwd_seen += 1
+                    fwd_inc += 1
+                else:
+                    leg_seen += 1
+                    leg_inc += 1
         else:
             complete += 1
             if audit and len(chain_matrices_complete_sample) < 3:
@@ -323,6 +350,7 @@ def evaluate_completeness(
                     {
                         "trade_id": tid,
                         "symbol": sym,
+                        "forward_cohort": is_forward_cohort,
                         "authoritative_join_key": join_key,
                         "trade_key_from_exit": tk,
                         "alias_sample": sorted(aliases)[:16],
@@ -339,6 +367,13 @@ def evaluate_completeness(
                         "reasons": [],
                     }
                 )
+            if forward_since_epoch is not None:
+                if is_forward_cohort:
+                    fwd_seen += 1
+                    fwd_cmp += 1
+                else:
+                    leg_seen += 1
+                    leg_cmp += 1
 
     structural = code_structural or any("STRUCTURAL" in str(x) for x in precheck)
     vacuous_zero_trades = len(closed) == 0
@@ -358,9 +393,15 @@ def evaluate_completeness(
         else:
             learning_fail_closed_reason = "incomplete_trade_chain"
 
+    forward_perfect = (
+        forward_since_epoch is not None and fwd_seen > 0 and fwd_inc == 0 and not precheck and not structural
+    )
+    forward_vacuous = forward_since_epoch is not None and fwd_seen == 0
+
     out: Dict[str, Any] = {
         "ROOT": str(root),
         "OPEN_TS_UTC_EPOCH": open_ts,
+        "FORWARD_SINCE_UTC_EPOCH": forward_since_epoch,
         "STRICT_EPOCH_START": STRICT_EPOCH_START,
         "strict_cohort_entry_era_floor_applied": entry_era_floor is not None,
         "strict_cohort_excluded_preera_open_count": strict_cohort_excluded_preera_open_count,
@@ -376,6 +417,20 @@ def evaluate_completeness(
         "LEARNING_STATUS": learning_status,
         "learning_fail_closed_reason": learning_fail_closed_reason,
         "AUTHORITATIVE_JOIN_KEY_RULE": AUTHORITATIVE_JOIN_KEY_RULE,
+        "legacy_trades_seen": leg_seen if forward_since_epoch is not None else None,
+        "legacy_trades_complete": leg_cmp if forward_since_epoch is not None else None,
+        "legacy_trades_incomplete": leg_inc if forward_since_epoch is not None else None,
+        "forward_trades_seen": fwd_seen if forward_since_epoch is not None else None,
+        "forward_trades_complete": fwd_cmp if forward_since_epoch is not None else None,
+        "forward_trades_incomplete": fwd_inc if forward_since_epoch is not None else None,
+        "FORWARD_CHAIN_PERFECT": forward_perfect,
+        "FORWARD_COHORT_VACUOUS": forward_vacuous,
+        "LEGACY_DEBT_QUARANTINED_NOTE": (
+            "Legacy cohort (open < FORWARD_SINCE_UTC_EPOCH) may remain incomplete; "
+            "do not use for forward causal certification."
+            if forward_since_epoch is not None
+            else None
+        ),
     }
     if audit:
         out["incomplete_trade_ids_by_reason"] = {k: list(v) for k, v in incomplete_ids_by_reason.items()}
@@ -400,9 +455,29 @@ def main() -> int:
         action="store_true",
         help="Include incomplete_trade_ids_by_reason and chain_matrices_sample",
     )
+    ap.add_argument(
+        "--forward-since-epoch",
+        type=float,
+        default=None,
+        help="UTC epoch: split forward vs legacy by position open time from trade_id",
+    )
+    ap.add_argument(
+        "--forward-exit-zero",
+        action="store_true",
+        help="Exit 0 iff forward cohort non-vacuous and forward_trades_incomplete==0 (ignores global LEARNING_STATUS)",
+    )
     args = ap.parse_args()
-    r = evaluate_completeness(args.root, open_ts_epoch=args.open_ts_epoch, audit=args.audit)
+    r = evaluate_completeness(
+        args.root,
+        open_ts_epoch=args.open_ts_epoch,
+        audit=args.audit,
+        forward_since_epoch=args.forward_since_epoch,
+    )
     print(json.dumps(r, indent=2))
+    if args.forward_exit_zero and args.forward_since_epoch is not None:
+        if r.get("FORWARD_COHORT_VACUOUS"):
+            return 1
+        return 0 if r.get("forward_trades_incomplete") == 0 else 1
     return 0 if r["LEARNING_STATUS"] == "ARMED" else 1
 
 

@@ -288,6 +288,25 @@ def emit_exit_attribution(
         except Exception:
             pass
         _maybe_diag_unified_exit_emit(str(trade_id), unified_p, False, "validation:" + ";".join(exit_issues[:5]))
+        try:
+            fail_p = LOG_DIR / "alpaca_emit_failures.jsonl"
+            fail_p.parent.mkdir(parents=True, exist_ok=True)
+            with fail_p.open("a", encoding="utf-8") as ff:
+                ff.write(
+                    json.dumps(
+                        {
+                            "kind": "exit_validation_blocked",
+                            "trade_id": str(trade_id),
+                            "symbol": str(symbol),
+                            "issues": exit_issues[:20],
+                            "ts": _now_iso(),
+                        },
+                        default=str,
+                    )
+                    + "\n"
+                )
+        except Exception:
+            pass
         return
     _append_jsonl(_exit_log_path(), base, symbol=str(symbol), purpose="dedicated_exit_attribution")
     if LOG_DIR.exists():
