@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-03-27T20:04:28Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "status": "fail",
+      "message": "reports/board/ directory does not exist. Expected top-level directories src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/ are all present, and reports/audit/ exists, but reports/board/ is missing."
+    },
+    {
+      "check": "governance_contracts_present",
+      "status": "fail",
+      "message": "reports/board/ directory does not exist. memory_bank/ has key docs (report_output_contract.md, report_retention_policy.md). .cursor/automations/ exists with README + specs. reports/audit/ exists. reports/board/ is missing."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "status": "fail",
+      "message": "Moltbot/moltbot references found in code: moltbot/board.py, moltbot/orchestrator.py, moltbot/sentinel.py, moltbot/memory_evolution.py, moltbot/promotion_discipline.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_intelligence_expansion.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. The moltbot/ directory itself still exists as a code package."
+    }
+  ],
+  "slack_sent": false
+}
