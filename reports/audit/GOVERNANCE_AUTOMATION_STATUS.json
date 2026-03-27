@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-03-27T23:43:58.643Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing (expected at /workspace/reports/board/)",
+    "governance_contracts_present: reports/board/ directory is missing; required for governance contract completeness",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active Python code (board.py, orchestrator.py, sentinel.py, memory_evolution.py, promotion_discipline.py); moltbot-related scripts found in scripts/ (run_molt_workflow.py, run_molt_intelligence_expansion.py, run_openclaw_molt_synthesis.py); references in scripts/sre/run_sre_anomaly_scan.py and scripts/automations/run_governance_integrity_once.py"
+  ],
+  "slack_sent": false,
+  "github_issue": "existing open issue #670 covers these anomalies; gh CLI is read-only, unable to create/update issues from this automation"
+}
