@@ -34,6 +34,7 @@ TAB_ENDPOINTS = [
     "/api/telemetry/latest/index",
     "/api/telemetry/latest/health",
     "/api/telemetry/latest/computed?name=live_vs_shadow_pnl",
+    "/api/telemetry/latest/computed?name=bar_health_summary",
     "/api/paper-mode-intel-state",
     "/api/xai/auditor",
     "/api/xai/health",
