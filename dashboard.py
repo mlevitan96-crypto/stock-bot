@@ -552,7 +552,7 @@ DASHBOARD_HTML = """
     function hoursSinceIso(iso){if(!iso)return null;try{return (Date.now()-new Date(iso).getTime())/3600000;}catch(e){return null;}}
     function tabStateFromApi(iso,staleH,partialMsg){var h=hoursSinceIso(iso);if(h==null)return {st:'partial',msg:partialMsg||'No server timestamp in response.'};if(h>staleH)return {st:'stale',msg:'Last data '+iso+' (~'+h.toFixed(1)+'h ago).'};return {st:'ok',msg:'Last data '+iso+'.'};}
     window.tabStateFromApi=tabStateFromApi;
-    window.loadAlpacaOperationalActivity=function(){var box=document.getElementById('alpaca-operational-activity');if(!box)return;fetch('/api/alpaca_operational_activity?hours=72',creds).then(function(r){return r.json();}).then(function(d){if(!d){box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info">No response.</p>';return;}if(d.ok===false){box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info"><strong>DISABLED</strong>: '+(d.reason||'unavailable')+'</p>';return;}var st=d.state||'OK';var ord=d.orders_log||{};var ordNote=ord.reason?('<br/><span style="color:#92400e">Orders log: '+ord.state+' — '+ord.reason+'</span>'):'';box.innerHTML='<h3>Alpaca operational activity</h3><p>Window: last <strong>'+d.hours+'</strong> hours (server <code>generated_at_utc</code>: '+(d.generated_at_utc||'—')+') · Panel state: <strong>'+st+'</strong></p><ul style="margin:8px 0 0 18px;padding:0;"><li><strong>Trades observed (max of exit / unified / entered intents):</strong> '+(d.trades_observed!=null?d.trades_observed:'—')+'</li><li><strong>Exit rows (exit_attribution):</strong> '+(d.exit_attribution_rows_in_window!=null?d.exit_attribution_rows_in_window:'—')+'</li><li><strong>Last exit (UTC):</strong> '+(d.last_exit_timestamp_utc||'—')+'</li><li><strong>Last entry (UTC):</strong> '+(d.last_entry_timestamp_utc||'—')+'</li><li><strong>Orders rows (orders.jsonl):</strong> '+(d.orders_rows_in_window!=null?d.orders_rows_in_window:'—')+'</li><li><strong>Fills (heuristic):</strong> '+(d.fills_seen_heuristic!=null?d.fills_seen_heuristic:'—')+'</li></ul><p class="ops-disclaimer"><strong>'+(d.disclaimer||'')+'</strong>'+ordNote+'</p>';}).catch(function(e){box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info">Could not load snapshot: '+(e&&e.message?e.message:'network')+'.</p>';});};
+    window.loadAlpacaOperationalActivity=function(){var box=document.getElementById('alpaca-operational-activity');if(!box)return;var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();},25000);var opts=Object.assign({},creds);if(ac)opts.signal=ac.signal;fetch('/api/alpaca_operational_activity?hours=72',opts).then(function(r){clearTimeout(tid);if(!r.ok){throw new Error('HTTP '+r.status);}return r.json();}).then(function(d){if(!d){box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info">No response.</p>';return;}if(d.ok===false){box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info"><strong>DISABLED</strong>: '+(d.reason||'unavailable')+'</p>';return;}var st=d.state||'OK';var ord=d.orders_log||{};var ordNote=ord.reason?('<br/><span style="color:#92400e">Orders log: '+ord.state+' — '+ord.reason+'</span>'):'';var scanNote=d.scan_note?('<p style="font-size:0.82em;color:#64748b;margin-top:8px">'+String(d.scan_note).replace(/</g,'&lt;')+'</p>'):'';box.innerHTML='<h3>Alpaca operational activity</h3><p>Window: last <strong>'+d.hours+'</strong> hours (server <code>generated_at_utc</code>: '+(d.generated_at_utc||'—')+') · Panel state: <strong>'+st+'</strong></p><ul style="margin:8px 0 0 18px;padding:0;"><li><strong>Trades observed (max of exit / unified / entered intents):</strong> '+(d.trades_observed!=null?d.trades_observed:'—')+'</li><li><strong>Exit rows (exit_attribution):</strong> '+(d.exit_attribution_rows_in_window!=null?d.exit_attribution_rows_in_window:'—')+'</li><li><strong>Last exit (UTC):</strong> '+(d.last_exit_timestamp_utc||'—')+'</li><li><strong>Last entry (UTC):</strong> '+(d.last_entry_timestamp_utc||'—')+'</li><li><strong>Orders rows (orders.jsonl):</strong> '+(d.orders_rows_in_window!=null?d.orders_rows_in_window:'—')+'</li><li><strong>Fills (heuristic):</strong> '+(d.fills_seen_heuristic!=null?d.fills_seen_heuristic:'—')+'</li></ul>'+scanNote+'<p class="ops-disclaimer"><strong>'+(d.disclaimer||'')+'</strong>'+ordNote+'</p>';}).catch(function(e){clearTimeout(tid);box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info">Could not load snapshot: '+(e&&e.name==='AbortError'?'timed out (25s)':(e&&e.message?e.message:'network'))+'.</p>';});};
     function cur(v){if(v==null||v===undefined)return '';var n=Number(v);return isFinite(n)?'$'+n.toFixed(2):String(v);}
     window.loadSREContent=function(){var el=document.getElementById('sre-content');if(!el)return;el.innerHTML='<div class="loading">Loading SRE...</div>';fetch('/api/sre/health',creds).then(function(r){if(!r.ok){infoErr(el,'HTTP '+r.status+': sign in to load SRE tab.');if(typeof setTabStateLine==='function')setTabStateLine('sre','partial','Auth required.');return null;}return r.json();}).then(function(d){if(!d)return;var m=d.sre_metrics||{};var f=d.signal_funnel||{};var h='<div class="stat-card" style="margin-bottom:16px;"><h3>SRE Health</h3><p><strong>Overall:</strong> '+(d.overall_health||'—')+'</p><p><strong>Bot:</strong> '+(d.bot_process&&d.bot_process.running?'Running':'—')+'</p><p><strong>Market:</strong> '+(d.market_status||'—')+' '+(d.market_open?'(open)':'')+'</p></div>';
     h+='<div class="stat-card" style="margin-bottom:16px;"><h3>Metrics</h3><p>Logic heartbeat: '+(m.logic_heartbeat?new Date(m.logic_heartbeat*1000).toLocaleString():'—')+'</p><p>Mock signal success: '+(m.mock_signal_success_pct!=null?m.mock_signal_success_pct.toFixed(1):'—')+'%</p><p>Parser health: '+(m.parser_health_index!=null?m.parser_health_index.toFixed(1):'—')+'%</p><p>Auto-fix count: '+(m.auto_fix_count!=null?m.auto_fix_count:'—')+'</p></div>';
@@ -586,10 +586,10 @@ DASHBOARD_HTML = """
     for(var i=0;i<list.length;i++){var t=list[i];var stratLabel='Equity';var ts=t.timestamp?new Date(t.timestamp).toLocaleString():'—';var pnl=t.pnl_usd!=null?'$'+Number(t.pnl_usd).toFixed(2):'—';var close=t.close_reason||'—';var ph=t.option_phase||'—';var ot=t.option_type||'—';var st=t.strike!=null?t.strike:'—';var ctx=ph+' / '+ot+' / '+st;var ent=t.entry_timestamp?String(t.entry_timestamp).substring(0,19):'INCOMPLETE';var er=t.entry_reason_display||'INCOMPLETE';var fd=t.fees_display||'INCOMPLETE';var sc=t.strict_alpaca_chain||'—';h+='<tr><td>'+stratLabel+'</td><td>'+(t.symbol||'—')+'</td><td>'+ts+'</td><td>'+ent+'</td><td>'+pnl+'</td><td>'+fd+'</td><td style="max-width:120px;word-break:break-word">'+er+'</td><td style="max-width:120px;word-break:break-word">'+close+'</td><td style="font-size:10px">'+sc+'</td><td style="font-size:10px">'+ctx+'</td></tr>';}
     h+='</tbody></table></div></div>';el.innerHTML=h;el.dataset.loaded='1';var _ct=tabStateFromApi(d.response_generated_at_utc,72,'API timestamp not supplied.');if(typeof setTabStateLine==='function')setTabStateLine('closed_trades',_ct.st,_ct.msg);}).catch(function(e){infoErr(el,'Closed trades did not load: '+(e&&e.message?e.message:'network')+'.');if(typeof setTabStateLine==='function')setTabStateLine('closed_trades','partial','Retry after sign in.');});};
     function loadTopStrip(){Promise.all([fetch('/api/sre/health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=24h',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=7d',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var health=arr[0];var d24=arr[1];var d7=arr[2];var hel=document.getElementById('strip-health');if(hel){var h=health&&health.overall_health?health.overall_health:'—';hel.textContent=h;hel.className='strip-health '+(h==='healthy'?'healthy':h==='degraded'?'degraded':'critical');}var todayEl=document.getElementById('strip-pnl-today');if(todayEl){var pm24=d24&&d24.pnl_metrics?d24.pnl_metrics:{};var p24=pm24.pnl!=null?pm24.pnl:(pm24.pnl_2d!=null?pm24.pnl_2d:0);todayEl.textContent='$'+fmt(p24);todayEl.className=Number(p24)>=0?'positive':'negative';}var d7El=document.getElementById('strip-pnl-7d');if(d7El){var pm7=d7&&d7.pnl_metrics?d7.pnl_metrics:{};var p7=pm7.pnl!=null?pm7.pnl:0;d7El.textContent='$'+fmt(p7);d7El.className=Number(p7)>=0?'positive':'negative';}var lu=document.getElementById('last-update');if(lu)lu.textContent=new Date().toLocaleTimeString();});}
-    window.loadDirectionBanner=function(){var el=document.getElementById('direction-banner');if(!el)return;var done=function(d){if(!el)return;var sev=(d&&d.severity)||'info';el.className='direction-banner '+sev;if(!d){el.textContent='Direction status unavailable';return;}var esc=function(s){if(s==null||s===undefined)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};var msg=esc(d.message||'');var detail=esc(d.detail||'');var link=esc(d.link||'');var html=msg;if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;};var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();done(null);},5000);fetch('/api/direction_banner',Object.assign({},creds,{signal:ac&&ac.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid);done(d);});};
-    window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;var done=function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var x=d.trades_reviewed!=null?d.trades_reviewed:0;var tot=d.trades_reviewed_total!=null?d.trades_reviewed_total:0;var tgt=d.trades_reviewed_target!=null?d.trades_reviewed_target:100;var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Trades reviewed:</span><span class="sit-value">'+x+'/'+tgt+(tot!==x?' <span style="opacity:0.85;">('+tot+' total)</span>':'')+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;};var ac2=typeof AbortController!=='undefined'?new AbortController():null;var tid2=setTimeout(function(){if(ac2)ac2.abort();done(null);},5000);fetch('/api/situation',Object.assign({},creds,{signal:ac2&&ac2.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid2);done(d);});};
+    window.loadDirectionBanner=function(){var el=document.getElementById('direction-banner');if(!el)return;var done=function(d){if(!el)return;var sev=(d&&d.severity)||'info';el.className='direction-banner '+sev;if(!d){el.textContent='Direction status unavailable (timeout or network — retry refresh).';return;}var esc=function(s){if(s==null||s===undefined)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};var msg=esc(d.message||'');var detail=esc(d.detail||'');var link=esc(d.link||'');var html=msg||'(no message)';if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;};var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();done(null);},20000);fetch('/api/direction_banner',Object.assign({},creds,{signal:ac&&ac.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid);done(d);});};
+    window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;var done=function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var x=d.trades_reviewed!=null?d.trades_reviewed:0;var tot=d.trades_reviewed_total!=null?d.trades_reviewed_total:0;var tgt=d.trades_reviewed_target!=null?d.trades_reviewed_target:100;var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Trades reviewed:</span><span class="sit-value">'+x+'/'+tgt+(tot!==x?' <span style="opacity:0.85;">('+tot+' total)</span>':'')+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;};var ac2=typeof AbortController!=='undefined'?new AbortController():null;var tid2=setTimeout(function(){if(ac2)ac2.abort();done(null);},20000);fetch('/api/situation',Object.assign({},creds,{signal:ac2&&ac2.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid2);done(d);});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
-    setTimeout(function(){loadVersion();loadPositions();if(typeof loadAlpacaOperationalActivity==='function')loadAlpacaOperationalActivity();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function')loadDirectionBanner();if(typeof loadSituationStrip==='function')loadSituationStrip();},0);
+    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function')loadDirectionBanner();if(typeof loadSituationStrip==='function')loadSituationStrip();if(typeof loadAlpacaOperationalActivity==='function')loadAlpacaOperationalActivity();},0);
     })();
     </script>
     <script>
@@ -2942,6 +2942,9 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     """
     Read-only snapshot from local logs. Does not certify learning or attribution.
     Always returns ok=True with explicit partial/disabled flags — never empty without explanation.
+
+    Scans only the **tail** of each JSONL (last N lines / bytes) so multi-GB logs cannot block
+    the Flask worker (which would otherwise stall direction_banner, situation, and this panel).
     """
     from datetime import timedelta
 
@@ -2951,6 +2954,11 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     logs = root / "logs"
     disclaimer = (
         "Trades are executing on Alpaca. Data is NOT certified for learning or attribution."
+    )
+    tail_lines = 50_000
+    tail_note = (
+        f"Counts use the last ~{tail_lines} lines per log file (plus up to 12MB read each). "
+        "If volume is extreme, figures are a lower bound for the time window."
     )
 
     last_exit_ts: float | None = None
@@ -2962,19 +2970,32 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     orders_n = 0
     fills_h = 0
 
-    for r in _iter_jsonl_ops(logs / "exit_attribution.jsonl"):
+    def _consume_tail(path: Path, handle):
+        for line in _tail_file_lines(path, max_lines=tail_lines, max_chunk_bytes=12_000_000):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            handle(rec)
+
+    def _h_exit(r):
+        nonlocal exit_attr_n, last_exit_ts
         ts = _parse_log_ts_ops(r.get("timestamp"))
         if ts is not None and ts < cut_ts:
-            continue
+            return
         exit_attr_n += 1
         if ts is not None and (last_exit_ts is None or ts > last_exit_ts):
             last_exit_ts = ts
 
-    for r in _iter_jsonl_ops(logs / "alpaca_unified_events.jsonl"):
+    def _h_unified(r):
+        nonlocal unified_exit_n, unified_entry_n, last_exit_ts, last_entry_ts
         et = r.get("event_type")
         ts = _parse_log_ts_ops(r.get("timestamp") or r.get("ts"))
         if ts is not None and ts < cut_ts:
-            continue
+            return
         if et == "alpaca_exit_attribution":
             unified_exit_n += 1
             if ts is not None and (last_exit_ts is None or ts > last_exit_ts):
@@ -2984,16 +3005,21 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
             if ts is not None and (last_entry_ts is None or ts > last_entry_ts):
                 last_entry_ts = ts
 
-    for r in _iter_jsonl_ops(logs / "run.jsonl"):
+    def _h_run(r):
+        nonlocal run_entered_n, last_entry_ts
         ts = _parse_log_ts_ops(r.get("timestamp") or r.get("ts") or r.get("_ts"))
         if isinstance(r.get("_ts"), (int, float)) and ts is None:
             ts = float(r["_ts"])
         if ts is not None and ts < cut_ts:
-            continue
+            return
         if r.get("event_type") == "trade_intent" and str(r.get("decision_outcome", "")).lower() == "entered":
             run_entered_n += 1
             if ts is not None and (last_entry_ts is None or ts > last_entry_ts):
                 last_entry_ts = ts
+
+    _consume_tail(logs / "exit_attribution.jsonl", _h_exit)
+    _consume_tail(logs / "alpaca_unified_events.jsonl", _h_unified)
+    _consume_tail(logs / "run.jsonl", _h_run)
 
     op_path = logs / "orders.jsonl"
     orders_state = "OK"
@@ -3002,15 +3028,18 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
         orders_state = "PARTIAL"
         orders_reason = "orders.jsonl missing or empty on this host — order/fill counts may be zero while trading still occurs."
     else:
-        for r in _iter_jsonl_ops(op_path):
+        def _h_ord(r):
+            nonlocal orders_n, fills_h
             ts = _parse_log_ts_ops(r.get("timestamp") or r.get("_ts") or r.get("ts"))
             if ts is not None and ts < cut_ts:
-                continue
+                return
             orders_n += 1
             st = str(r.get("status", "")).lower()
             typ = str(r.get("type", "")).lower()
             if st == "filled" or typ == "fill" or (r.get("filled_qty") not in (None, 0, "0")):
                 fills_h += 1
+
+        _consume_tail(op_path, _h_ord)
 
     trades_observed = max(exit_attr_n, unified_exit_n, run_entered_n)
 
@@ -3032,6 +3061,8 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
         "generated_at_utc": now.isoformat(),
         "window_start_utc": cutoff.isoformat(),
         "disclaimer": disclaimer,
+        "scan_method": "tail",
+        "scan_note": tail_note,
         "trades_observed": trades_observed,
         "exit_attribution_rows_in_window": exit_attr_n,
         "unified_exit_rows_in_window": unified_exit_n,
@@ -5257,6 +5288,26 @@ def _tail_lines(path, max_lines=2000):
                 f.seek(max(0, size - chunk))
                 f.readline()  # skip partial line
             return f.read().splitlines()[-max_lines:]
+    except Exception:
+        return []
+
+
+def _tail_file_lines(path: Path, max_lines: int = 40000, max_chunk_bytes: int = 12_000_000) -> list:
+    """
+    Read up to max_lines from end of file, reading at most max_chunk_bytes from disk.
+    Used for operational-activity scans so huge JSONL files cannot block the dashboard worker.
+    """
+    if not path.is_file():
+        return []
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            size = path.stat().st_size
+            chunk = min(max_chunk_bytes, size)
+            if size > chunk:
+                f.seek(max(0, size - chunk))
+                f.readline()
+            lines = f.read().splitlines()
+            return lines[-max_lines:] if len(lines) > max_lines else lines
     except Exception:
         return []
 
