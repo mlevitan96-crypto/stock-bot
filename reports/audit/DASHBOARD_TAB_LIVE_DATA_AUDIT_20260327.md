@@ -36,7 +36,7 @@ set -a && source /root/stock-bot/.env && set +a
 python3 -u scripts/dashboard_verify_all_tabs.py --json-out reports/ALPACA_DASHBOARD_VERIFY_ALL_TABS_<TS>.json
 ```
 
-Expect **all endpoints HTTP 200** (count includes `bar_health_summary`).
+Expect **all endpoints HTTP 200** (24 paths as of this change, including `bar_health_summary`). **Droplet check 2026-03-27:** `24 / 24 returned 200` after deploy.
 
 ## Minimal bootstrap script (first paint)
 
