@@ -1,0 +1,17 @@
+[Unit]
+Description=Telegram failure pager (Alpaca + Kraken integrity)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/stock-bot
+Environment=TRADING_BOT_ROOT=/root/stock-bot
+EnvironmentFile=-/root/stock-bot/.env
+ExecStart=/root/stock-bot/venv/bin/python3 /root/stock-bot/scripts/governance/telegram_failure_detector.py
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
