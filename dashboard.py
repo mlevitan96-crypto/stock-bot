@@ -545,7 +545,7 @@ DASHBOARD_HTML = """
     };
     function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
     function loadVersion(){fetch('/api/version',creds).then(function(r){if(!r.ok){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v??? ('+r.status+')';b.title='HTTP '+r.status;}}return r.ok?r.json():null;}).then(function(d){var b=document.getElementById('version-badge');if(!b||!d)return;var s=(d.git_commit_short||(d.git_commit||'').substring(0,7))||'???';b.textContent='Dashboard v'+s;b.title='Commit '+s;}).catch(function(){var b=document.getElementById('version-badge');if(b){b.textContent='Dashboard v???';b.title='Version fetch failed';}});}
-    function loadPositions(){fetch('/api/positions',creds).then(function(r){if(!r.ok){var el=document.getElementById('positions-content');if(el)infoErr(el,'HTTP '+r.status+': sign in again if prompted. This gate is <strong>live broker access</strong>, not learning certification.');if(typeof setTabStateLine==='function')setTabStateLine('positions','partial','Authenticated broker snapshot only.');return null;}return r.json();}).then(function(d){if(!d){return;}var el=document.getElementById('positions-content');if(!el)return;if(d.error){infoErr(el,'<strong>Broker/API</strong>: '+String(d.error)+'<br/><span style="font-size:0.9em">Use <strong>Alpaca operational activity</strong> for log-based counts. Does not mean learning is certified.</span>');if(typeof setTabStateLine==='function')setTabStateLine('positions','partial',String(d.error).substring(0,100));return;}var pos=Array.isArray(d.positions)?d.positions:[];var tp=document.getElementById('total-positions');if(tp)tp.textContent=pos.length;var tv=document.getElementById('total-value');if(tv)tv.textContent='$'+fmt(d.total_value);var up=document.getElementById('unrealized-pnl');if(up){up.textContent='$'+fmt(d.unrealized_pnl);up.className='stat-value '+(Number(d.unrealized_pnl)>=0?'positive':'negative');}var dp=document.getElementById('day-pnl');if(dp){dp.textContent='$'+fmt(d.day_pnl);dp.className='stat-value '+(Number(d.day_pnl)>=0?'positive':'negative');}if(pos.length===0){el.innerHTML='<p class="no-positions">No open positions (broker snapshot).</p>';if(typeof setTabStateLine==='function')setTabStateLine('positions','ok','Zero open positions from Alpaca API.');return;}var h='<table><thead><tr><th>Strategy</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry $</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry at</th><th>Entry reason</th><th>Fees</th><th>Strict</th></tr></thead><tbody>';for(var i=0;i<pos.length;i++){var p=pos[i];var strat='Equity';var side=p.side||'long';var qty=p.qty!=null?p.qty:0;var entry=p.avg_entry_price!=null?fmt(p.avg_entry_price):'-';var cur=p.current_price!=null?fmt(p.current_price):'-';var val=p.market_value!=null?fmt(p.market_value):'-';var pl=p.unrealized_pnl!=null?fmt(p.unrealized_pnl):'-';var plp=(p.unrealized_pnl_pct!=null?fmt(p.unrealized_pnl_pct):'-')+'%';var cls=Number(p.unrealized_pnl)>=0?'positive':'negative';var ets=p.entry_ts?String(p.entry_ts).substring(0,19):'INCOMPLETE';var erd=p.entry_reason_display||'INCOMPLETE';var fds=p.fees_display||'INCOMPLETE';var stb=p.strict_alpaca_chain||'N/A';h+='<tr><td>'+strat+'</td><td>'+p.symbol+'</td><td>'+side+'</td><td>'+qty+'</td><td>'+entry+'</td><td>'+cur+'</td><td>'+val+'</td><td class="'+cls+'">'+pl+'</td><td class="'+cls+'">'+plp+'</td><td style="font-size:11px">'+ets+'</td><td style="font-size:11px">'+erd+'</td><td style="font-size:11px">'+fds+'</td><td style="font-size:10px">'+stb+'</td></tr>';}h+='</tbody></table><p style="font-size:0.8em;color:#6b7280">Source: GET /api/positions. INCOMPLETE if missing from metadata.</p>';el.innerHTML=h;if(typeof setTabStateLine==='function')setTabStateLine('positions','ok','Live broker positions (operational).');}).catch(function(e){var el=document.getElementById('positions-content');if(el)infoErr(el,'Positions did not load: '+(e&&e.message?e.message:'network')+'.');if(typeof setTabStateLine==='function')setTabStateLine('positions','partial','Try refresh or sign in.');});}
+    function loadPositions(){fetch('/api/positions',creds).then(function(r){if(!r.ok){var el=document.getElementById('positions-content');if(el)infoErr(el,'HTTP '+r.status+': sign in again if prompted. This gate is <strong>live broker access</strong>, not learning certification.');if(typeof setTabStateLine==='function')setTabStateLine('positions','partial','Authenticated broker snapshot only.');return null;}return r.json();}).then(function(d){if(!d){return;}var el=document.getElementById('positions-content');if(!el)return;if(d.error){infoErr(el,'<strong>Broker/API</strong>: '+String(d.error)+'<br/><span style="font-size:0.9em">Use <strong>Alpaca operational activity</strong> for log-based counts. Does not mean learning is certified.</span>');if(typeof setTabStateLine==='function')setTabStateLine('positions','partial',String(d.error).substring(0,100));return;}var pos=Array.isArray(d.positions)?d.positions:[];var tp=document.getElementById('total-positions');if(tp)tp.textContent=pos.length;var tv=document.getElementById('total-value');if(tv)tv.textContent='$'+fmt(d.total_value);var up=document.getElementById('unrealized-pnl');if(up){up.textContent='$'+fmt(d.unrealized_pnl);up.className='stat-value '+(Number(d.unrealized_pnl)>=0?'positive':'negative');}var dp=document.getElementById('day-pnl');if(dp){dp.textContent='$'+fmt(d.day_pnl);dp.className='stat-value '+(Number(d.day_pnl)>=0?'positive':'negative');}if(pos.length===0){el.innerHTML='<p class="no-positions">No open positions (broker snapshot).</p>';if(typeof setTabStateLine==='function')setTabStateLine('positions','ok','Zero open positions from Alpaca API.');return;}var h='<table><thead><tr><th>Strategy</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry $</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry at</th><th>Entry context</th></tr></thead><tbody>';for(var i=0;i<pos.length;i++){var p=pos[i];var strat='Equity';var side=p.side||'long';var qty=p.qty!=null?p.qty:0;var entry=p.avg_entry_price!=null?fmt(p.avg_entry_price):'-';var cur=p.current_price!=null?fmt(p.current_price):'-';var val=p.market_value!=null?fmt(p.market_value):'-';var pl=p.unrealized_pnl!=null?fmt(p.unrealized_pnl):'-';var plp=(p.unrealized_pnl_pct!=null?fmt(p.unrealized_pnl_pct):'-')+'%';var cls=Number(p.unrealized_pnl)>=0?'positive':'negative';var ets=p.entry_ts?String(p.entry_ts).substring(0,19):'—';var erd=p.entry_reason_display||p.entry_context_display||'—';h+='<tr><td>'+strat+'</td><td>'+p.symbol+'</td><td>'+side+'</td><td>'+qty+'</td><td>'+entry+'</td><td>'+cur+'</td><td>'+val+'</td><td class="'+cls+'">'+pl+'</td><td class="'+cls+'">'+plp+'</td><td style="font-size:11px">'+ets+'</td><td style="font-size:11px;max-width:220px;word-break:break-word;">'+erd+'</td></tr>';}h+='</tbody></table><p style="font-size:0.8em;color:#6b7280">Source: GET /api/positions. Entry context from metadata (see main dashboard script for full score columns).</p>';el.innerHTML=h;if(typeof setTabStateLine==='function')setTabStateLine('positions','ok','Live broker positions (operational).');}).catch(function(e){var el=document.getElementById('positions-content');if(el)infoErr(el,'Positions did not load: '+(e&&e.message?e.message:'network')+'.');if(typeof setTabStateLine==='function')setTabStateLine('positions','partial','Try refresh or sign in.');});}
     function err(el,msg){if(el)el.innerHTML='<div class="loading" style="color:#ef4444;">'+msg+'</div>';}
     function infoErr(el,msg){if(el)el.innerHTML='<div class="panel-info">'+msg+'</div>';}
     window.setTabStateLine=function(k,st,detail){var el=document.getElementById('tab-state-line-'+k);if(!el)return;el.className='tab-state-banner '+st;el.style.display='block';var lab={ok:'OK',stale:'STALE',partial:'PARTIAL',disabled:'DISABLED'};el.innerHTML='<strong>'+(lab[st]||st)+'</strong>'+(detail?': '+detail:'');};
@@ -2272,13 +2272,13 @@ DASHBOARD_HTML = """
                     var existingRows = existingTable ? existingTable.querySelectorAll('tbody tr').length : 0;
                     var firstRow = existingTable ? existingTable.querySelector('tbody tr') : null;
                     var colCount = firstRow ? firstRow.querySelectorAll('td').length : 0;
-                    var needsFullRebuild = !existingTable || existingRows !== positions.length || colCount < 18;
+                    var needsFullRebuild = !existingTable || existingRows !== positions.length || colCount < 16;
                     
                     if (needsFullRebuild) {
                         var html = '<table><thead><tr>';
                         html += '<th>Strategy</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry $</th>';
                         html += '<th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Entry score</th><th>Current score</th><th>Prev</th><th>Delta</th><th>Trend</th>';
-                        html += '<th>Entry at</th><th>Entry reason</th><th>Fees</th><th>Strict</th></tr></thead><tbody>';
+                        html += '<th>Entry at</th><th>Entry context</th></tr></thead><tbody>';
                         
                         positions.forEach(function(pos) {
                             var stratLabel = 'Equity';
@@ -2321,16 +2321,14 @@ DASHBOARD_HTML = """
                             const deltaVal = currentScoreEvaluated && pos.signal_delta !== undefined && pos.signal_delta !== null ? (pos.signal_delta >= 0 ? '+' : '') + pos.signal_delta.toFixed(2) : 'N/A';
                             const trendVal = currentScoreEvaluated && pos.signal_trend ? pos.signal_trend : 'N/A';
                             html += '<td>' + prevScore + '</td><td>' + deltaVal + '</td><td>' + trendVal + '</td>';
-                            var ets = pos.entry_ts ? String(pos.entry_ts).substring(0, 19) : 'INCOMPLETE';
-                            var erd = pos.entry_reason_display || 'INCOMPLETE';
-                            var fds = pos.fees_display || 'INCOMPLETE';
-                            var stb = pos.strict_alpaca_chain || 'N/A';
-                            html += '<td style="font-size:11px;">' + ets + '</td><td style="font-size:11px;max-width:140px;word-break:break-word;">' + erd + '</td><td style="font-size:11px;">' + fds + '</td><td style="font-size:10px;max-width:120px;">' + stb + '</td>';
+                            var ets = pos.entry_ts ? String(pos.entry_ts).substring(0, 19) : '—';
+                            var erd = pos.entry_reason_display || pos.entry_context_display || '—';
+                            html += '<td style="font-size:11px;">' + ets + '</td><td style="font-size:11px;max-width:220px;word-break:break-word;">' + erd + '</td>';
                             html += '</tr>';
                         });
                         
                         html += '</tbody></table>';
-                        html += '<p style="font-size:0.82em;color:#6b7280;margin-top:10px;">Data: GET /api/positions (Alpaca + position_metadata). Freshness: row load time. INCOMPLETE = field not present in source.</p>';
+                        html += '<p style="font-size:0.82em;color:#6b7280;margin-top:10px;">Data: GET /api/positions (Alpaca + position_metadata). <strong>Entry context</strong> uses explicit reason if logged, else regime/direction/components from metadata. Strict learning badges apply to <em>closed</em> trades only (Closed Trades tab).</p>';
                         var corr = data.signal_correlation || {};
                         var pairs = Array.isArray(corr.pairs) ? corr.pairs : [];
                         if (pairs.length > 0) {
@@ -2347,8 +2345,8 @@ DASHBOARD_HTML = """
                             var stratLabel = 'Equity';
                             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
                             const cells = row.querySelectorAll('td');
-                            // Columns: ... Trend (14) + Entry at, Entry reason, Fees, Strict (18)
-                            if (cells.length >= 18) {
+                            // Columns: ... Trend (14) + Entry at, Entry context (16)
+                            if (cells.length >= 16) {
                                 cells[0].textContent = stratLabel;
                                 cells[3].textContent = pos.qty;
                                 cells[4].textContent = formatCurrency(pos.avg_entry_price);
@@ -2397,10 +2395,8 @@ DASHBOARD_HTML = """
                                 cells[11].textContent = prevScore;
                                 cells[12].textContent = deltaVal;
                                 cells[13].textContent = trendVal;
-                                cells[14].textContent = pos.entry_ts ? String(pos.entry_ts).substring(0, 19) : 'INCOMPLETE';
-                                cells[15].textContent = pos.entry_reason_display || 'INCOMPLETE';
-                                cells[16].textContent = pos.fees_display || 'INCOMPLETE';
-                                cells[17].textContent = pos.strict_alpaca_chain || 'N/A';
+                                cells[14].textContent = pos.entry_ts ? String(pos.entry_ts).substring(0, 19) : '—';
+                                cells[15].textContent = pos.entry_reason_display || pos.entry_context_display || '—';
                             }
                         });
                     }
@@ -4114,6 +4110,61 @@ def api_versions():
         })
 
 
+def _open_position_entry_context_display(meta: dict) -> str:
+    """
+    Human-readable entry line from position_metadata only (read-only; no trading-path changes).
+    Prefer explicit reason fields; otherwise synthesize from persisted regime/direction/components.
+    """
+    if not isinstance(meta, dict):
+        return "—"
+    raw = meta.get("final_decision_primary_reason") or meta.get("entry_reason")
+    if raw is not None and str(raw).strip():
+        return str(raw).strip()[:240]
+    parts: list[str] = []
+    mr = meta.get("market_regime")
+    if mr is not None and str(mr).strip() and str(mr).strip().lower() != "unknown":
+        parts.append(f"regime={str(mr).strip()[:40]}")
+    dr = meta.get("direction")
+    if dr is not None and str(dr).strip() and str(dr).strip().lower() != "unknown":
+        parts.append(f"dir={str(dr).strip()[:32]}")
+    ig = meta.get("ignition_status")
+    if ig is not None and str(ig).strip() and str(ig).strip().lower() != "unknown":
+        parts.append(f"ignition={str(ig).strip()[:28]}")
+    vid = meta.get("variant_id")
+    if vid is not None and str(vid).strip() and str(vid).strip().lower() != "unknown":
+        parts.append(f"variant={str(vid).strip()[:28]}")
+    try:
+        rm = meta.get("regime_modifier")
+        if rm is not None and float(rm) != 1.0:
+            parts.append(f"reg_mod={float(rm):.2f}")
+    except (TypeError, ValueError):
+        pass
+    comps = meta.get("components")
+    if isinstance(comps, dict) and comps:
+        scored: list[tuple[float, str, float]] = []
+        for k, v in comps.items():
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                continue
+            if abs(fv) > 1e-9:
+                scored.append((abs(fv), str(k)[:32], fv))
+        scored.sort(reverse=True)
+        for _, k, fv in scored[:5]:
+            parts.append(f"{k}={fv:.2f}")
+    v2 = meta.get("v2")
+    if isinstance(v2, dict):
+        ver = v2.get("uw_intel_version")
+        if ver is not None and str(ver).strip():
+            parts.append(f"uw_intel={str(ver).strip()[:24]}")
+    if not parts:
+        return "—"
+    out = "; ".join(parts)
+    if len(out) > 240:
+        return out[:237] + "…"
+    return out
+
+
 def _api_positions_impl():
     """Inner implementation so we can run it with a timeout (prevents dashboard stuck)."""
     if _alpaca_api is None:
@@ -4254,13 +4305,7 @@ def _api_positions_impl():
         )
         entry_ts_raw = meta.get("entry_ts") or meta.get("entry_timestamp") or ""
         entry_reason_raw = meta.get("final_decision_primary_reason") or meta.get("entry_reason")
-        accrued_fees = None
-        try:
-            fattr = getattr(p, "fees", None)
-            if fattr is not None:
-                accrued_fees = float(fattr)
-        except (TypeError, ValueError):
-            accrued_fees = None
+        entry_ctx = _open_position_entry_context_display(meta)
         pos_list.append({
             "symbol": symbol,
             "side": "long" if float(p.qty) > 0 else "short",
@@ -4280,17 +4325,12 @@ def _api_positions_impl():
             "strategy_id": strategy_id,
             "entry_ts": entry_ts_raw,
             "entry_reason": entry_reason_raw,
+            # Open positions: synthesized from metadata when no explicit reason (dashboard-only).
             "entry_reason_display": (
-                str(entry_reason_raw)[:160] if entry_reason_raw else "INCOMPLETE"
+                str(entry_reason_raw)[:240] if entry_reason_raw else entry_ctx
             ),
+            "entry_context_display": entry_ctx,
             "exit_reason_display": "— (open position)",
-            "accrued_fees_usd": accrued_fees,
-            "fees_display": (
-                f"${accrued_fees:.2f}" if accrued_fees is not None else "INCOMPLETE"
-            ),
-            "strict_alpaca_chain": (
-                "N/A — strict completeness evaluates closed cohort only (open_ts floor)"
-            ),
             "row_data_source": "Alpaca positions API + state/position_metadata.json",
         })
 
