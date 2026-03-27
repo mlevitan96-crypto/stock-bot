@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-03-27T22:51:43Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "status": "fail",
+      "reason": "reports/board/ directory is missing. All other expected top-level dirs (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) and reports/audit/ are present."
+    },
+    {
+      "check": "governance_contracts_present",
+      "status": "fail",
+      "reason": "reports/board/ directory is missing. memory_bank/ has key docs (report_output_contract.md, report_retention_policy.md). .cursor/automations/ exists with README.md and spec files. reports/audit/ exists."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "status": "fail",
+      "reason": "Active moltbot/ directory found with code files: board.py, orchestrator.py, sentinel.py, memory_evolution.py, promotion_discipline.py. Also found: scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. These are code/config files, not audit/docs documenting removal."
+    }
+  ],
+  "slack_sent": false
+}
