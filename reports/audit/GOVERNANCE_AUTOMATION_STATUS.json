@@ -1,19 +1,26 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-05T21:07:05.107529+00:00",
-  "run_ts_utc": "2026-03-05T21:07:05.107788+00:00",
+  "run_ts_utc": "2026-03-27T05:35:37.913235Z",
   "branch": "main",
-  "status": "ok",
-  "anomalies_detected": false,
+  "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
-    "governance_contracts_present": "pass",
+    "governance_contracts_present": "fail",
     "required_artifacts": "pass",
-    "no_deprecated_dirs": "pass",
-    "no_clawdbot_moltbot": "pass"
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
   },
-  "details": [],
-  "anomalies": [],
-  "slack_sent": false
+  "details": [
+    "repo_structure: expected top-level directory \"memory_bank/\" is missing",
+    "governance_contracts_present: memory_bank/ directory missing (MEMORY_BANK.md exists as file at root, but expected directory)",
+    "no_deprecated_dirs: moltbot/ directory still present at top-level (deprecated naming per audit docs)",
+    "no_clawdbot_moltbot: references found in code/config files: moltbot/board.py, moltbot/memory_evolution.py, moltbot/orchestrator.py, moltbot/promotion_discipline.py, moltbot/sentinel.py, reports/repo_audit/DEAD_CODE_MAP.json, reports/repo_audit/FILE_INVENTORY.json, reports/repo_audit/UNREFERENCED_DIRECTORIES.json, scripts/automations/run_governance_integrity_once.py, scripts/run_molt_intelligence_expansion.py"
+  ],
+  "slack_sent": false,
+  "github_issue": {
+    "existing_open_issue": 596,
+    "comment_attempted": true,
+    "comment_result": "gh CLI is read-only; could not add comment. Issue #596 already tracks these anomalies."
+  }
 }
