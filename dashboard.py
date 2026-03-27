@@ -656,44 +656,41 @@ DASHBOARD_HTML = """
             const sreContent = document.getElementById('sre-content');
             if (!sreContent) return;
             const scrollTop = sreContent.scrollTop || window.pageYOffset || document.documentElement.scrollTop;
-            
-            if (sreContent.innerHTML.includes('Loading') || !sreContent.dataset.loaded) {
-                fetch('/api/sre/health', { credentials: 'same-origin' })
-                    .then(function(response) {
-                        if (!response.ok) {
-                            sreContent.innerHTML = '<div class="loading" style="color:#ef4444;">Server ' + response.status + '. Refresh and log in again.</div>';
-                            return Promise.reject(new Error('HTTP ' + response.status));
-                        }
-                        return response.json();
-                    })
-                    .then(function(data) {
-                        return Promise.all([
-                            Promise.resolve(data),
-                            fetch('/api/telemetry/latest/computed?name=bar_health_summary', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
-                        ]);
-                    })
-                    .then(([data, barHealthResp]) => {
-                        const barHealth = (barHealthResp && barHealthResp.data) ? barHealthResp.data : null;
-                        sreContent.dataset.loaded = 'true';
-                        renderSREContent(data, sreContent, barHealth);
-                        fetch('/api/version', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(versionData => {
-                            renderVersionPanel(versionData, sreContent);
-                        }).catch(() => renderVersionPanel(null, sreContent));
-                        fetch('/api/versions', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).then(versionsData => {
-                            renderVersionParityPanel(versionsData, sreContent);
-                        }).catch(() => renderVersionParityPanel({}, sreContent));
-                        // Restore scroll position after render
-                        if (scrollTop > 0) {
-                            requestAnimationFrame(() => {
-                                sreContent.scrollTop = scrollTop;
-                                window.scrollTo(0, scrollTop);
-                            });
-                        }
-                    })
-                    .catch(error => {
-                        sreContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading SRE data: ${error.message}</div>`;
-                    });
-            }
+            // Always refetch on tab open and on interval — never freeze after first paint (SRE/CSA sanity).
+            fetch('/api/sre/health', { credentials: 'same-origin' })
+                .then(function(response) {
+                    if (!response.ok) {
+                        sreContent.innerHTML = '<div class="loading" style="color:#ef4444;">Server ' + response.status + '. Refresh and log in again.</div>';
+                        return Promise.reject(new Error('HTTP ' + response.status));
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    return Promise.all([
+                        Promise.resolve(data),
+                        fetch('/api/telemetry/latest/computed?name=bar_health_summary', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+                    ]);
+                })
+                .then(([data, barHealthResp]) => {
+                    const barHealth = (barHealthResp && barHealthResp.data) ? barHealthResp.data : null;
+                    sreContent.dataset.loaded = 'true';
+                    renderSREContent(data, sreContent, barHealth);
+                    fetch('/api/version', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(versionData => {
+                        renderVersionPanel(versionData, sreContent);
+                    }).catch(() => renderVersionPanel(null, sreContent));
+                    fetch('/api/versions', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : {}).then(versionsData => {
+                        renderVersionParityPanel(versionsData, sreContent);
+                    }).catch(() => renderVersionParityPanel({}, sreContent));
+                    if (scrollTop > 0) {
+                        requestAnimationFrame(() => {
+                            sreContent.scrollTop = scrollTop;
+                            window.scrollTo(0, scrollTop);
+                        });
+                    }
+                })
+                .catch(error => {
+                    sreContent.innerHTML = `<div class="loading" style="color: #ef4444;">Error loading SRE data: ${error.message}</div>`;
+                });
         }
         
         function renderVersionPanel(versionData, container) {
@@ -848,6 +845,7 @@ DASHBOARD_HTML = """
                         <br/><a href="#self-heal-ledger" data-active-ids="${(data.health_subsystem.active_heal_ids || []).join(',')}" class="self-heal-ledger-link" style="font-size: 0.9em;">View Self-Healing Ledger</a>
                     </div>
                     ` : ''}
+                    <p style="font-size:0.78em;color:#64748b;margin-top:12px;">Refreshes every visit and ~60s while this tab is open. Payload <code>ts</code>: ${data.ts || data.timestamp || '—'} (operational, not CSA certification).</p>
                 </div>
                 
                 ${funnelMetrics.alerts !== undefined ? `
@@ -5073,6 +5071,12 @@ def api_sre_health():
                     health_data["recent_rca_fixes"] = recent_fixes
                 except:
                     pass
+                # Same dashboard-side watchdog as fallback path (8081 health may omit it).
+                if not health_data.get("stagnation_watchdog"):
+                    try:
+                        health_data["stagnation_watchdog"] = _calculate_stagnation_watchdog()
+                    except Exception:
+                        pass
                 return jsonify(health_data), 200
         except:
             pass
