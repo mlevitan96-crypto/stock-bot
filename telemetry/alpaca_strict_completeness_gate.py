@@ -19,9 +19,17 @@ from typing import Any, Dict, List, Optional, Set
 
 from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
 
+try:
+    from telemetry.alpaca_entry_decision_made_emit import audit_entry_decision_made_row_ok as _audit_edm_ok
+except Exception:  # pragma: no cover - optional during bootstrap
+    _audit_edm_ok = None  # type: ignore
+
 # Forward-only strict learning era (UTC epoch). Used when ``open_ts_epoch`` is set: cohort
 # membership requires position **open** time parsed from ``trade_id`` (open_<SYM>_<ISO>) >= this floor.
 STRICT_EPOCH_START = 1774458080.0  # 2026-03-25T17:01:20Z
+
+# Trades opened on/after this UTC instant must have a LIVE `entry_decision_made` row (OK, non-synthetic).
+LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH = datetime(2026, 3, 28, 0, 0, tzinfo=timezone.utc).timestamp()
 
 AUTHORITATIVE_JOIN_KEY_RULE = (
     "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from "
@@ -89,6 +97,30 @@ def _open_epoch_from_trade_id(tid: str, tid_re: Any) -> Optional[float]:
     if not m:
         return None
     return _parse_iso_ts(m.group(2))
+
+
+def _pick_best_entry_decision_made(
+    entry_rows: List[dict],
+    aliases: Set[str],
+    sym: str,
+    trade_tid: str,
+) -> Optional[dict]:
+    from telemetry.alpaca_entry_decision_made_emit import score_entry_decision_made_row
+
+    cands: List[dict] = []
+    for er in entry_rows:
+        if str(er.get("symbol") or "").upper() != sym:
+            continue
+        if str(er.get("trade_id") or "") == trade_tid:
+            cands.append(er)
+            continue
+        for kk in (er.get("canonical_trade_id"), er.get("trade_key")):
+            if kk and str(kk) in aliases:
+                cands.append(er)
+                break
+    if not cands:
+        return None
+    return max(cands, key=score_entry_decision_made_row)
 
 
 def _expand_canonical_aliases(seed_ids: Set[str], intent_to_fill: Dict[str, str]) -> Set[str]:
@@ -169,6 +201,7 @@ def evaluate_completeness(
 
     exit_intents_by_ct: Dict[str, List[dict]] = defaultdict(list)
     trade_intents_entered: List[dict] = []
+    entry_decisions_made: List[dict] = []
     intent_to_fill: Dict[str, str] = {}
     for rec in _stream_jsonl_primary_then_backfill(logs, "run.jsonl"):
         et = rec.get("event_type")
@@ -178,6 +211,8 @@ def evaluate_completeness(
                     exit_intents_by_ct[str(_ek)].append(rec)
         if et == "trade_intent" and str(rec.get("decision_outcome", "")).lower() == "entered":
             trade_intents_entered.append(rec)
+        if et == "entry_decision_made":
+            entry_decisions_made.append(rec)
         if et == "canonical_trade_id_resolved" and rec.get("canonical_trade_id_fill"):
             cf = str(rec["canonical_trade_id_fill"])
             ci = rec.get("canonical_trade_id_intent")
@@ -274,6 +309,16 @@ def evaluate_completeness(
             seed_ids.add(join_key)
         aliases = _expand_canonical_aliases(seed_ids, intent_to_fill)
 
+        oep_trade = _open_epoch_from_trade_id(tid, TID_RE)
+        if (
+            _audit_edm_ok is not None
+            and oep_trade is not None
+            and oep_trade >= LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH
+        ):
+            best_edm = _pick_best_entry_decision_made(entry_decisions_made, aliases, sym, tid)
+            if not _audit_edm_ok(best_edm):
+                reasons.append("live_entry_decision_made_missing_or_blocked")
+
         entry_decision_ok = any(
             str(r.get("symbol") or "").upper() == sym
             and (
@@ -364,7 +409,7 @@ def evaluate_completeness(
                     leg_inc += 1
         else:
             complete += 1
-            if collect_complete_trade_ids and len(complete_trade_ids) < 500:
+            if collect_complete_trade_ids and len(complete_trade_ids) < 50_000:
                 complete_trade_ids.append(tid)
             if audit and len(chain_matrices_complete_sample) < 3:
                 chain_matrices_complete_sample.append(
