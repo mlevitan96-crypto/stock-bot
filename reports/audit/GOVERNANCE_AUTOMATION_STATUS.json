@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-03-28T09:58:10.125651+00:00",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "Missing required subdir: reports/board",
+    "Governance contract missing: reports/board"
+  ],
+  "slack_sent": false,
+  "github_issue": "Existing open issue #712. gh CLI is read-only; comment not posted."
+}
