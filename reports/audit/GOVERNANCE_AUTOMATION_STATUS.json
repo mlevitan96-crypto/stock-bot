@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-03-28T11:38:31+00:00",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected by governance spec)"
+  ],
+  "slack_sent": false,
+  "github_issue_updated": false,
+  "github_issue_note": "Existing open issue #716 covers this anomaly. Unable to add comment due to read-only gh CLI permissions."
+}
