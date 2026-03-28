@@ -207,6 +207,26 @@ def emit_entry_decision_made(
             pass
 
 
+def audit_entry_decision_made_row_live_truth_present(row: Optional[dict]) -> bool:
+    """LIVE learning truth: full OK contract OR explicit non-synthetic MISSING_INTENT_BLOCKER (stay-live)."""
+    if audit_entry_decision_made_row_ok(row):
+        return True
+    if not row or not isinstance(row, dict):
+        return False
+    if row.get("event_type") != ENTRY_EVENT_TYPE:
+        return False
+    if row.get("strict_backfilled") or row.get("strict_backfill_trade_id"):
+        return False
+    if row.get("entry_intent_synthetic") is True:
+        return False
+    if str(row.get("entry_intent_status") or "") != ENTRY_INTENT_STATUS_BLOCKER:
+        return False
+    comp = row.get("entry_score_components")
+    if not isinstance(comp, dict) or comp.get("_blocked") is not True:
+        return False
+    return True
+
+
 def audit_entry_decision_made_row_ok(row: Optional[dict]) -> bool:
     """True only for LIVE, OK status, full contract (used by audits/tests)."""
     if not row or not isinstance(row, dict):
@@ -242,9 +262,14 @@ def score_entry_decision_made_row(row: dict) -> tuple:
     if not isinstance(row, dict) or row.get("event_type") != ENTRY_EVENT_TYPE:
         return (0, 0, 0)
     synth = 1 if (row.get("strict_backfilled") or row.get("strict_backfill_trade_id") or row.get("entry_intent_synthetic") is True) else 0
-    ok = 1 if audit_entry_decision_made_row_ok(row) else 0
+    if audit_entry_decision_made_row_ok(row):
+        tier = 2
+    elif audit_entry_decision_made_row_live_truth_present(row):
+        tier = 1
+    else:
+        tier = 0
     layers = 0
     st = row.get("signal_trace")
     if isinstance(st, dict) and isinstance(st.get("intelligence_trace"), dict):
         layers = len((st["intelligence_trace"].get("signal_layers") or {}) or {})
-    return (synth == 0, ok, layers)
+    return (synth == 0, tier, layers)

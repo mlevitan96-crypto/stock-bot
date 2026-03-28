@@ -6,6 +6,7 @@ import unittest
 from telemetry.alpaca_entry_decision_made_emit import (
     ENTRY_INTENT_STATUS_BLOCKER,
     ENTRY_INTENT_STATUS_OK,
+    audit_entry_decision_made_row_live_truth_present,
     audit_entry_decision_made_row_ok,
     build_entry_decision_made_record,
     emit_entry_decision_made,
@@ -44,6 +45,24 @@ class TestEntryDecisionMadeEmit(unittest.TestCase):
         self.assertEqual(rec["event_type"], "entry_decision_made")
         self.assertFalse(rec.get("entry_intent_synthetic"))
         self.assertTrue(audit_entry_decision_made_row_ok(rec))
+
+    def test_live_truth_present_accepts_explicit_blocker(self) -> None:
+        rec = build_entry_decision_made_record(
+            symbol="PLTR",
+            side="buy",
+            score=None,
+            comps={},
+            cluster={"direction": "bullish", "composite_meta": {}},
+            intelligence_trace=_minimal_trace(),
+            canonical_trade_id="K",
+            trade_id_open="open_PLTR_2026-03-28T15:00:00+00:00",
+            decision_event_id=None,
+            time_bucket_id=None,
+            symbol_normalized="PLTR",
+        )
+        self.assertEqual(rec["entry_intent_status"], ENTRY_INTENT_STATUS_BLOCKER)
+        self.assertFalse(audit_entry_decision_made_row_ok(rec))
+        self.assertTrue(audit_entry_decision_made_row_live_truth_present(rec))
 
     def test_blocker_when_no_numeric_score(self) -> None:
         rec = build_entry_decision_made_record(
