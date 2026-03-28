@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-03-28T08:56:48Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected at /workspace/reports/board/)",
+    "governance_contracts_present: reports/board/ directory is missing; governance contract requires reports/audit/ and reports/board/ to both exist"
+  ],
+  "slack_sent": false
+}
