@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-03-28T02:44:58Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "fail",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "governance_contracts_present: Missing reports/board directory (was purged in commit f12028c1, still expected by governance contract)",
+    "required_artifacts: reports/board missing \u2014 required as a governance contract directory"
+  ],
+  "slack_sent": false
+}
