@@ -15,14 +15,18 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
 
 try:
-    from telemetry.alpaca_entry_decision_made_emit import audit_entry_decision_made_row_ok as _audit_edm_ok
+    from telemetry.alpaca_entry_decision_made_emit import (
+        audit_entry_decision_made_row_live_truth_present as _audit_edm_live_truth,
+        audit_entry_decision_made_row_ok as _audit_edm_ok,
+    )
 except Exception:  # pragma: no cover - optional during bootstrap
     _audit_edm_ok = None  # type: ignore
+    _audit_edm_live_truth = None  # type: ignore
 
 # Forward-only strict learning era (UTC epoch). Used when ``open_ts_epoch`` is set: cohort
 # membership requires position **open** time parsed from ``trade_id`` (open_<SYM>_<ISO>) >= this floor.
@@ -150,6 +154,9 @@ def evaluate_completeness(
     exit_ts_max_epoch: Optional[float] = None,
     collect_complete_trade_ids: bool = False,
     collect_strict_cohort_trade_ids: bool = False,
+    min_exit_ts_epoch: Optional[float] = None,
+    recent_closes_limit: Optional[int] = None,
+    postfix_allow_intent_blocker: bool = False,
 ) -> Dict[str, Any]:
     """Evaluate strict completeness since market open (ET today) or custom open_ts_epoch (UTC).
 
@@ -159,6 +166,12 @@ def evaluate_completeness(
 
     If ``exit_ts_max_epoch`` is set, exclude ``exit_attribution`` rows whose exit timestamp is **strictly after**
     this UTC epoch (bounded window ending at exchange close).
+
+    If ``min_exit_ts_epoch`` is set, keep only closes whose exit timestamp is **strictly greater** than this UTC epoch.
+    If ``recent_closes_limit`` is also set, keep only the last N such closes by exit time (postfix deploy window).
+
+    When ``postfix_allow_intent_blocker`` is true, ``live_entry_decision_made`` may satisfy learning truth via
+    explicit non-synthetic ``MISSING_INTENT_BLOCKER`` rows (stay-live semantics).
     """
     root = root.resolve()
     logs = root / "logs"
@@ -271,6 +284,27 @@ def evaluate_completeness(
 
     closed = closed_cohort
 
+    postfix_meta: Dict[str, Any] = {}
+    postfix_insufficient_closes = False
+    if min_exit_ts_epoch is not None:
+        tmp_pairs: List[Tuple[tuple, float]] = []
+        for row in closed:
+            _tid, _sym, _ent_iso, _rec = row[0], row[1], row[2], row[3]
+            ex_ts = _parse_iso_ts(_rec.get("timestamp"))
+            if ex_ts is not None and ex_ts > float(min_exit_ts_epoch):
+                tmp_pairs.append((row, ex_ts))
+        tmp_pairs.sort(key=lambda x: x[1])
+        if recent_closes_limit is not None:
+            tmp_pairs = tmp_pairs[-int(recent_closes_limit) :]
+        closed = [x[0] for x in tmp_pairs]
+        postfix_meta = {
+            "postfix_min_exit_ts_epoch": float(min_exit_ts_epoch),
+            "postfix_recent_closes_limit": recent_closes_limit,
+            "postfix_closes_in_window": len(closed),
+        }
+        if recent_closes_limit is not None and len(closed) < int(recent_closes_limit):
+            postfix_insufficient_closes = True
+
     reason_hist: Counter = Counter()
     incomplete_ex: List[dict] = []
     incomplete_ids_by_reason: Dict[str, List[str]] = defaultdict(list)
@@ -311,12 +345,15 @@ def evaluate_completeness(
 
         oep_trade = _open_epoch_from_trade_id(tid, TID_RE)
         if (
-            _audit_edm_ok is not None
+            (_audit_edm_ok is not None or _audit_edm_live_truth is not None)
             and oep_trade is not None
             and oep_trade >= LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH
         ):
             best_edm = _pick_best_entry_decision_made(entry_decisions_made, aliases, sym, tid)
-            if not _audit_edm_ok(best_edm):
+            if postfix_allow_intent_blocker and _audit_edm_live_truth is not None:
+                if not _audit_edm_live_truth(best_edm):
+                    reasons.append("live_entry_decision_made_missing_or_nonlive")
+            elif _audit_edm_ok is not None and not _audit_edm_ok(best_edm):
                 reasons.append("live_entry_decision_made_missing_or_blocked")
 
         entry_decision_ok = any(
@@ -443,7 +480,13 @@ def evaluate_completeness(
 
     structural = code_structural or any("STRUCTURAL" in str(x) for x in precheck)
     vacuous_zero_trades = len(closed) == 0
-    blocked = bool(precheck) or vacuous_zero_trades or (len(closed) - complete) > 0 or structural
+    blocked = (
+        bool(precheck)
+        or postfix_insufficient_closes
+        or vacuous_zero_trades
+        or (len(closed) - complete) > 0
+        or structural
+    )
 
     if not blocked:
         learning_fail_closed_reason = None
@@ -452,6 +495,8 @@ def evaluate_completeness(
         learning_status = "BLOCKED"
         if precheck:
             learning_fail_closed_reason = "precheck:" + ",".join(precheck)
+        elif postfix_insufficient_closes:
+            learning_fail_closed_reason = "postfix_insufficient_recent_closes"
         elif structural:
             learning_fail_closed_reason = "structural_trade_intent_path"
         elif vacuous_zero_trades:
@@ -492,6 +537,9 @@ def evaluate_completeness(
         "forward_trades_incomplete": fwd_inc if forward_since_epoch is not None else None,
         "FORWARD_CHAIN_PERFECT": forward_perfect,
         "FORWARD_COHORT_VACUOUS": forward_vacuous,
+        "POSTFIX_META": postfix_meta or None,
+        "postfix_insufficient_closes": postfix_insufficient_closes,
+        "postfix_allow_intent_blocker": postfix_allow_intent_blocker,
         "LEGACY_DEBT_QUARANTINED_NOTE": (
             "Legacy cohort (open < FORWARD_SINCE_UTC_EPOCH) may remain incomplete; "
             "do not use for forward causal certification."
