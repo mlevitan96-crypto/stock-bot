@@ -10300,6 +10300,7 @@ class StrategyEngine:
                         regime_posture=_rp if isinstance(_rp, dict) else None,
                     )
                     # Canonical entry attribution + unified events (trade_id matches position_metadata.entry_ts for exit join)
+                    _tid = None
                     try:
                         from src.telemetry.alpaca_attribution_emitter import emit_entry_attribution
                         from src.telemetry.alpaca_trade_key import build_trade_key
@@ -10411,21 +10412,22 @@ class StrategyEngine:
                             from telemetry.alpaca_entry_decision_made_emit import emit_entry_decision_made
 
                             _ak_edm = get_symbol_attribution_keys(symbol)
-                            emit_entry_decision_made(
-                                jsonl_write,
-                                symbol=symbol,
-                                side=side,
-                                score=score,
-                                comps=comps or {},
-                                cluster=c,
-                                intelligence_trace=entered_intelligence_trace,
-                                canonical_trade_id=_ct_post,
-                                trade_id_open=_tid,
-                                decision_event_id=_ak_edm.get("decision_event_id"),
-                                time_bucket_id=_ak_edm.get("time_bucket_id"),
-                                symbol_normalized=_ak_edm.get("symbol_normalized"),
-                                phase2_enabled=getattr(Config, "PHASE2_TELEMETRY_ENABLED", True),
-                            )
+                            if _tid:
+                                emit_entry_decision_made(
+                                    jsonl_write,
+                                    symbol=symbol,
+                                    side=side,
+                                    score=score,
+                                    comps=comps or {},
+                                    cluster=c,
+                                    intelligence_trace=entered_intelligence_trace,
+                                    canonical_trade_id=_ct_post,
+                                    trade_id_open=_tid,
+                                    decision_event_id=_ak_edm.get("decision_event_id"),
+                                    time_bucket_id=_ak_edm.get("time_bucket_id"),
+                                    symbol_normalized=_ak_edm.get("symbol_normalized"),
+                                    phase2_enabled=getattr(Config, "PHASE2_TELEMETRY_ENABLED", True),
+                                )
                         except Exception as _edm_ex:
                             try:
                                 log_event(
