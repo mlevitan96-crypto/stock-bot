@@ -1666,6 +1666,9 @@ def _emit_trade_intent(
             "time_bucket_id": _tb,
             "canonical_trade_id": _ctid,
         }
+        if (decision_outcome or "").lower() == "entered":
+            rec["entry_intent_synthetic"] = False
+            rec["entry_intent_source"] = "live_runtime"
         if _ctid:
             rec["trade_key"] = str(_ctid)
         if (decision_outcome or "").lower() in ("entered", "blocked") and not intelligence_trace:
@@ -10403,6 +10406,36 @@ class StrategyEngine:
                             intelligence_trace=entered_intelligence_trace,
                             canonical_trade_id_override=_ct_post,
                         )
+                        try:
+                            from telemetry.attribution_emit_keys import get_symbol_attribution_keys
+                            from telemetry.alpaca_entry_decision_made_emit import emit_entry_decision_made
+
+                            _ak_edm = get_symbol_attribution_keys(symbol)
+                            emit_entry_decision_made(
+                                jsonl_write,
+                                symbol=symbol,
+                                side=side,
+                                score=score,
+                                comps=comps or {},
+                                cluster=c,
+                                intelligence_trace=entered_intelligence_trace,
+                                canonical_trade_id=_ct_post,
+                                trade_id_open=_tid,
+                                decision_event_id=_ak_edm.get("decision_event_id"),
+                                time_bucket_id=_ak_edm.get("time_bucket_id"),
+                                symbol_normalized=_ak_edm.get("symbol_normalized"),
+                                phase2_enabled=getattr(Config, "PHASE2_TELEMETRY_ENABLED", True),
+                            )
+                        except Exception as _edm_ex:
+                            try:
+                                log_event(
+                                    "telemetry",
+                                    "entry_decision_made_emit_failed",
+                                    symbol=symbol,
+                                    error=str(_edm_ex)[:400],
+                                )
+                            except Exception:
+                                pass
                     except Exception as _tie:
                         try:
                             log_event(
