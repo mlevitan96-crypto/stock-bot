@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-03-29T00:44:25Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "fail",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "Missing reports/board/ directory — required by governance contract for board artifacts",
+    "governance_contracts_present: reports/board/ does not exist",
+    "required_artifacts: reports/board/ not present (reports/audit exists and is valid)"
+  ],
+  "slack_sent": false
+}
