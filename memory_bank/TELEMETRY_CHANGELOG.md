@@ -4,6 +4,15 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 ---
 
+## 2026-03-30 — Milestone counting floor: integrity_armed (Alpaca)
+
+- **Changed:** Default **`milestone_counting_basis`** in `config/alpaca_telegram_integrity.json` is **`integrity_armed`**: **100** and **250** trade counts use canonical `trade_key` only for exits **on or after** the first cycle in the ET session anchor where the **100-trade pre-check** passes (DATA_READY + coverage + strict ARMED + exit tail probe). Until armed, displayed count is **0** even if exits exist since 09:30 ET.
+- **State:** `state/alpaca_milestone_integrity_arm.json` (`session_anchor_et`, `arm_epoch_utc`, `armed_at_utc_iso`).
+- **Rollback:** Set `milestone_counting_basis` to **`session_open`** (prior behavior: count since US regular session open only).
+- **Templates:** 100-trade checkpoint no longer prints a false “on track for 250” line when the integrity pre-check fails (including `[TEST]` sends).
+
+---
+
 ## 2026-03-30 — 100-trade informational checkpoint (Alpaca integrity cycle)
 
 - **Added:** Pre-send integrity gate for a **100-trade** session checkpoint (canonical `trade_key` count vs US regular session open): requires **DATA_READY YES**, coverage thresholds, fresh coverage artifact, **strict LEARNING_STATUS ARMED**, clean exit tail probe. If degraded, **one** deferred Telegram per session anchor; when green, sends **`[ALPACA] 100-TRADE CHECKPOINT`** (informational, on-track for 250 messaging).

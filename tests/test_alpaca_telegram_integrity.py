@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from telemetry.alpaca_telegram_integrity.milestone import (
+    build_milestone_snapshot,
     count_since_session_open,
     should_fire_milestone,
 )
@@ -105,10 +106,69 @@ def test_format_100trade_checkpoint():
         data_ready="YES",
         strict_status="ARMED",
         exit_probe_ok=True,
+        precheck_ok=True,
         utc_iso="2026-03-30T18:00:00Z",
     )
     assert "100-TRADE CHECKPOINT" in s
     assert "250-trade" in s.lower()
+
+
+def test_format_100trade_checkpoint_no_false_on_track_when_precheck_fails():
+    from telemetry.alpaca_telegram_integrity.milestone import MilestoneSnapshot
+
+    snap = MilestoneSnapshot(
+        session_open_utc_iso="2026-03-30T13:30:00+00:00",
+        session_anchor_et="2026-03-30",
+        unique_closed_trades=0,
+        realized_pnl_sum_usd=0.0,
+        sample_trade_keys=[],
+        counting_basis="integrity_armed",
+        count_floor_utc_iso="(not armed",
+        integrity_armed=False,
+    )
+    cov = CoverageSummary(None, None, None, None, None, None, [], None)
+    s = format_100trade_checkpoint(
+        test=True,
+        snap=snap,
+        cov=cov,
+        data_ready="unknown",
+        strict_status="BLOCKED",
+        exit_probe_ok=True,
+        precheck_ok=False,
+        utc_iso="2026-03-30T18:00:00Z",
+    )
+    assert "system is on track" not in s.lower()
+    assert "omitted" in s.lower()
+
+
+def test_integrity_armed_zero_until_arm_epoch(tmp_path: Path):
+    root = tmp_path
+    (root / "logs").mkdir()
+    now = datetime(2026, 3, 30, 15, 0, tzinfo=timezone.utc)
+    open_iso = effective_regular_session_open_utc(now)
+    line = json.dumps(
+        {
+            "symbol": "ZZZ",
+            "side": "LONG",
+            "entry_ts": "2026-03-30T14:00:00+00:00",
+            "exit_ts": open_iso.isoformat(),
+            "trade_id": "open_ZZZ_2026-03-30T14:00:00+00:00",
+            "pnl": "1.0",
+        }
+    )
+    (root / "logs" / "exit_attribution.jsonl").write_text(line + "\n", encoding="utf-8")
+    unarmed = build_milestone_snapshot(
+        root, counting_basis="integrity_armed", arm_epoch_utc=None, now=now
+    )
+    assert unarmed.unique_closed_trades == 0
+    assert unarmed.integrity_armed is False
+    armed = build_milestone_snapshot(
+        root,
+        counting_basis="integrity_armed",
+        arm_epoch_utc=open_iso.timestamp() - 1.0,
+        now=now,
+    )
+    assert armed.unique_closed_trades == 1
 
 
 def test_should_fire_milestone_once_per_session(tmp_path: Path):

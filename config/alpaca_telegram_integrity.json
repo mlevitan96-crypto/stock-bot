@@ -1,5 +1,6 @@
 {
   "enabled": true,
+  "milestone_counting_basis": "integrity_armed",
   "checkpoint_100_enabled": true,
   "checkpoint_100_trade_count": 100,
   "milestone_trade_count": 250,
