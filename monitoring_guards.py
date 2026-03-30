@@ -273,7 +273,15 @@ def check_freeze_state() -> bool:
     
     try:
         freezes = json.loads(freeze_path.read_text())
-        active_freezes = {k: v for k, v in freezes.items() if v == True}
+
+        def _freeze_entry_active(v: Any) -> bool:
+            if v is True:
+                return True
+            if isinstance(v, dict) and v.get("active") is True:
+                return True
+            return False
+
+        active_freezes = {k: v for k, v in freezes.items() if _freeze_entry_active(v)}
         
         if active_freezes:
             log_alert("freeze_active", {

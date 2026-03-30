@@ -279,8 +279,15 @@ class FailurePointMonitor:
             try:
                 with freeze_file.open() as f:
                     freezes = json.load(f)
-                    # Check for active freezes (value == True)
-                    active_freezes = {k: v for k, v in freezes.items() if v == True}
+
+                    def _active(v):
+                        if v is True:
+                            return True
+                        if isinstance(v, dict) and v.get("active") is True:
+                            return True
+                        return False
+
+                    active_freezes = {k: v for k, v in freezes.items() if _active(v)}
                     if active_freezes:
                         frozen = True
                         freeze_reason = f"governor_freezes.json: {', '.join(active_freezes.keys())}"
