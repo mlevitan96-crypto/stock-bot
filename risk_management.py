@@ -99,6 +99,62 @@ def get_risk_limits() -> Dict[str, float]:
 # PEAK EQUITY TRACKING
 # ============================================================
 
+def sanitize_peak_equity_vs_broker(current_equity: float) -> None:
+    """
+    Rebase peak_equity.json when stored peak is implausibly above live broker equity
+    (e.g. stale STARTING_EQUITY / hand-edited file / wrong paper baseline). Prevents
+    permanent max_drawdown_exceeded when the account never traded near the stored peak.
+
+    Controlled by PEAK_EQUITY_SANITY_MAX_RATIO (default 1.28): if peak > current * ratio, rebase.
+    Set PEAK_EQUITY_SANITY_DISABLE=1 to skip.
+    """
+    if str(os.getenv("PEAK_EQUITY_SANITY_DISABLE", "")).strip().lower() in ("1", "true", "yes"):
+        return
+    try:
+        ce = float(current_equity)
+    except (TypeError, ValueError):
+        return
+    if ce <= 0:
+        return
+    try:
+        max_ratio = float(os.getenv("PEAK_EQUITY_SANITY_MAX_RATIO", "1.28"))
+    except (TypeError, ValueError):
+        max_ratio = 1.28
+    if max_ratio <= 1.0:
+        return
+    peak = load_peak_equity()
+    try:
+        peak_f = float(peak)
+    except (TypeError, ValueError):
+        return
+    if peak_f <= ce * max_ratio:
+        return
+    prev = peak_f
+    atomic_write_json(
+        PEAK_EQUITY_FILE,
+        {
+            "peak_equity": ce,
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+            "rebased_reason": "sanity_vs_broker",
+            "previous_peak": prev,
+            "max_ratio_threshold": max_ratio,
+        },
+    )
+    try:
+        from telemetry.logger import TelemetryLogger
+
+        TelemetryLogger().update_peak_equity(ce)
+    except Exception:
+        pass
+    log_event(
+        "risk_management",
+        "peak_equity_sanity_rebase",
+        previous_peak=prev,
+        current_equity=ce,
+        max_ratio=max_ratio,
+    )
+
+
 def load_peak_equity() -> float:
     """Load peak equity from persistent storage"""
     starting_equity = get_starting_equity()
@@ -278,6 +334,14 @@ def check_drawdown(current_equity: float, peak_equity: float) -> Tuple[bool, Opt
     drawdown_pct = (peak_equity - current_equity) / peak_equity
     
     if drawdown_pct >= limits["max_drawdown_pct"]:
+        log_event(
+            "risk_management",
+            "drawdown_breach_pending_freeze",
+            current_equity=current_equity,
+            peak_equity=peak_equity,
+            drawdown_pct=drawdown_pct,
+            limit_pct=limits["max_drawdown_pct"],
+        )
         freeze_trading(
             "max_drawdown_exceeded",
             current_equity=current_equity,
@@ -478,7 +542,9 @@ def run_risk_checks(
         results["freeze_reason"] = "api_error"
         return results
     
-    # Update peak equity
+    # Rebase stale peak before drawdown math (see sanitize_peak_equity_vs_broker docstring)
+    sanitize_peak_equity_vs_broker(current_equity)
+    # Update peak equity (ratchet up when account makes new highs)
     peak_equity = update_peak_equity(current_equity)
     
     # 1. Check account equity floor
