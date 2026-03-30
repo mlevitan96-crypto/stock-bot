@@ -92,34 +92,60 @@ def main() -> int:
 
     results: List[Dict[str, Any]] = []
     if args.execute:
+        try:
+            api.cancel_all_orders()
+            lines.append("## Pre-close\n\nCalled `cancel_all_orders()` (best effort).\n\n")
+        except Exception as e:
+            lines.append(f"## Pre-close\n\n`cancel_all_orders` skipped/failed: `{str(e)[:200]}`\n\n")
+
         for p in positions:
             sym = getattr(p, "symbol", "")
             if not sym:
                 continue
             try:
-                api.close_position(sym, cancel_orders=True)
+                try:
+                    api.close_position(sym, cancel_orders=True)
+                except TypeError:
+                    # Older alpaca_trade_api builds omit cancel_orders
+                    api.close_position(sym)
                 results.append({"symbol": sym, "ok": True, "error": None})
             except Exception as e:
                 results.append({"symbol": sym, "ok": False, "error": str(e)[:500]})
             time.sleep(0.35)
-        time.sleep(2.0)
-        remaining = api.list_positions() or []
         lines.append("## close_position results\n\n```json\n")
         lines.append(json.dumps(results, indent=2))
         lines.append("\n```\n\n")
-        lines.append(f"## Positions after (verify)\n\n**{len(remaining)}** open\n\n")
+
+        # Poll until flat (fills can lag, especially off-hours)
+        max_poll = 40
+        poll_interval = 3.0
+        remaining: List[Any] = []
+        for i in range(max_poll):
+            remaining = api.list_positions() or []
+            if not remaining:
+                break
+            time.sleep(poll_interval)
+        lines.append(f"## Positions after (verify, up to {max_poll}×{poll_interval:.0f}s)\n\n")
+        lines.append(f"**{len(remaining)}** open (poll rounds: {i + 1})\n\n")
         lines.append("```json\n" + json.dumps([getattr(x, "symbol", "") for x in remaining], indent=2) + "\n```\n")
 
-        # Clear hollow metadata after full book exit
         meta_path = REPO / StateFiles.POSITION_METADATA
         backup = meta_path.with_suffix(f".pre_liquidation.{ts}.json")
-        if meta_path.exists():
-            try:
-                backup.write_text(meta_path.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
-            except Exception:
-                pass
-        atomic_write_json(meta_path, {})
-        lines.append("\n## position_metadata.json\n\nReset to `{}`; backup at `" + backup.name + "`\n")
+        if not remaining:
+            if meta_path.exists():
+                try:
+                    backup.write_text(meta_path.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
+                except Exception:
+                    pass
+            atomic_write_json(meta_path, {})
+            lines.append(
+                "\n## position_metadata.json\n\nReset to `{}`; backup at `" + backup.name + "`\n"
+            )
+        else:
+            lines.append(
+                "\n## position_metadata.json\n\n**Not cleared** — positions still open after poll. "
+                "Fix close errors and re-run.\n"
+            )
     else:
         lines.append("## DRY RUN — no orders sent\n")
 
@@ -131,7 +157,26 @@ def main() -> int:
         out_path = str(ev / f"ALPACA_FULL_LIQUIDATION_{ts}.md")
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     Path(out_path).write_text(md, encoding="utf-8")
-    print(json.dumps({"evidence_md": out_path, "positions": len(rows), "executed": bool(args.execute)}, indent=2))
+    remaining_n = 0
+    if args.execute:
+        try:
+            remaining_n = len(api.list_positions() or [])
+        except Exception:
+            remaining_n = -1
+    print(
+        json.dumps(
+            {
+                "evidence_md": out_path,
+                "positions_before": len(rows),
+                "executed": bool(args.execute),
+                "positions_after": remaining_n if args.execute else None,
+                "flat": bool(args.execute and remaining_n == 0),
+            },
+            indent=2,
+        )
+    )
+    if args.execute and remaining_n != 0:
+        return 3
     return 0
 
 
