@@ -22,7 +22,7 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 - **Fixed:** `scripts/repair/alpaca_controlled_liquidation.py` — `TypeError` fallback when `REST.close_position(..., cancel_orders=True)` is unsupported (older `alpaca_trade_api` on droplet); pre-close `cancel_all_orders()`; poll `list_positions` after closes; optional **second** close wave on any remaining symbols after the first poll loop; **do not** wipe `position_metadata.json` unless flat; exit code **3** if not flat; JSON stdout includes `positions_after`, `flat`.
 - **Orchestrator:** liquidation step uses non-fatal exit code — peak reset, freeze clear, metadata repair, and evidence MDs still run; `ALPACA_RISK_PEAK_EQUITY_REPAIR_*` records liquidation subprocess exit code.
-- **Doc:** `MEMORY_BANK.md` Alpaca repair bullet documents SDK behavior.
+- **Doc:** `MEMORY_BANK.md` Alpaca repair bullet documents SDK behavior and **stop `stock-bot` before liquidation** so the trading loop cannot re-open positions mid-reset.
 
 ---
 
