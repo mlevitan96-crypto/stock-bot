@@ -6507,6 +6507,7 @@ class AlpacaExecutor:
         self.reload_positions_from_metadata()
         _pipeline_touch("exit_eval")
         _pipeline_heartbeat_maybe()
+        _v2_exit_thr = float(os.environ.get("V2_EXIT_SCORE_THRESHOLD", "0.80"))
         
         to_close = []
         exit_reasons = {}  # Track composite exit reasons per symbol
@@ -7043,7 +7044,7 @@ class AlpacaExecutor:
                     time_exit_min = float(os.environ.get("TIME_EXIT_MINUTES", "240"))
                     exit_cond_stale_alpha = age_min >= time_exit_min
                     exit_cond_risk_stop = bool(stop_px and current_price <= float(stop_px)) or (float(high_water_pct or 0) - float(pnl_pct or 0) >= 3.5)
-                    exit_eligible_trace = float(v2_exit_score) >= 0.80
+                    exit_eligible_trace = float(v2_exit_score) >= _v2_exit_thr
                     entry_ts_obj = info.get("ts") or now
                     entry_ts_iso = entry_ts_obj.strftime("%Y-%m-%dT%H:%M:%S.%f")[:23] + "Z" if hasattr(entry_ts_obj, "strftime") else str(entry_ts_obj)[:26]
                     trade_id_trace = f"open_{str(symbol).upper()}_{entry_ts_iso}"
@@ -7147,8 +7148,8 @@ class AlpacaExecutor:
                     except Exception as _ep:
                         log_event("exit", "exit_pressure_error", symbol=symbol, error=str(_ep))
 
-                # v2 exit promotion: allow v2 exit score to trigger a close (conservative threshold).
-                if float(v2_exit_score) >= 0.80:
+                # v2 exit promotion: allow v2 exit score to trigger a close (threshold: V2_EXIT_SCORE_THRESHOLD).
+                if float(v2_exit_score) >= _v2_exit_thr:
                     exit_signals["v2_exit_score"] = round(float(v2_exit_score), 4)
                     exit_signals["primary_reason"] = f"v2_exit({v2_exit_reason})"
                     exit_reasons[symbol] = build_composite_close_reason(exit_signals)

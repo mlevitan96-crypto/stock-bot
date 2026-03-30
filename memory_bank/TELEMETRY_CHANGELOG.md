@@ -4,6 +4,20 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 ---
 
+## 2026-03-30 — FULL ENGINE & DATA REPAIR (Alpaca droplet)
+
+- **Risk:** `risk_management.sanitize_peak_equity_vs_broker()` rebases `state/peak_equity.json` when stored peak exceeds live equity × `PEAK_EQUITY_SANITY_MAX_RATIO` (default 1.28); extra logging before `max_drawdown_exceeded` freeze.
+- **Ops scripts:** `scripts/reset_peak_equity_to_broker.py` (`--dry-run` / `--apply`), `scripts/clear_drawdown_governor_freeze.py`, `scripts/repair/alpaca_full_repair_snapshot.py`, `scripts/repair/alpaca_controlled_liquidation.py`, `scripts/repair/repair_position_metadata_from_logs.py`, `scripts/repair/alpaca_full_repair_orchestrator.py`.
+- **Governor freezes:** `monitoring_guards.check_freeze_state` and `failure_point_monitor` treat dict-shaped freezes with `active: true` as blocking (parity with `risk_management.freeze_trading`).
+- **Exits:** `V2_EXIT_SCORE_THRESHOLD` env (default 0.80) gates v2 exit promotion in `main.py`.
+- **Recovery:** `utils.entry_score_recovery` falls back to last `composite_calculated` per symbol in `logs/scoring_flow.jsonl`.
+- **Dashboard:** `/api/positions` rows include `metadata_instrumented`, `metadata_reconciled_repair_only`, `metadata_gap_flags`; composite fallback uses `compute_composite_score_v2`.
+- **Sample env:** `deploy/alpaca_post_repair.env.sample` for optional paper tuning (not auto-sourced).
+- **Rollback:** See `reports/daily/<ET>/evidence/ALPACA_FULL_REPAIR_ROLLBACK_<TS>.md` from orchestrator run.
+- **Scope:** Alpaca venue; repair/tuning only — no new strategies or signals.
+
+---
+
 ## 2026-03-30 — Milestone counting floor: integrity_armed (Alpaca)
 
 - **Changed:** Default **`milestone_counting_basis`** in `config/alpaca_telegram_integrity.json` is **`integrity_armed`**: **100** and **250** trade counts use canonical `trade_key` only for exits **on or after** the first cycle in the ET session anchor where the **100-trade pre-check** passes (DATA_READY + coverage + strict ARMED + exit tail probe). Until armed, displayed count is **0** even if exits exist since 09:30 ET.

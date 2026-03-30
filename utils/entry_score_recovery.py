@@ -38,6 +38,10 @@ def _attribution_path() -> Path:
         return Path("logs/attribution.jsonl")
 
 
+def _scoring_flow_path() -> Path:
+    return Path("logs/scoring_flow.jsonl")
+
+
 def persist_pending_fill_score(symbol: str, score: float) -> None:
     """Persist entry score for a symbol whose order was submitted but not yet filled.
     Reconciliation or health check can later apply this when the position appears in Alpaca."""
@@ -119,4 +123,32 @@ def recover_entry_score_for_symbol(symbol: str, pop_pending: bool = True) -> Opt
             pass
         if last_score is not None and last_score > 0:
             return last_score
+    # Last composite_calculated in scoring_flow.jsonl (authoritative recent composite)
+    sf = _scoring_flow_path()
+    if sf.exists():
+        last_sf = None
+        try:
+            with open(sf, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        if rec.get("msg") != "composite_calculated":
+                            continue
+                        if str(rec.get("symbol", "")).upper() != sym:
+                            continue
+                        s = rec.get("score")
+                        if s is not None:
+                            try:
+                                last_sf = float(s)
+                            except (TypeError, ValueError):
+                                pass
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            pass
+        if last_sf is not None and last_sf > 0:
+            return last_sf
     return None

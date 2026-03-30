@@ -1180,6 +1180,16 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 ### Alpaca Convergence — IMPLEMENTED
 - **Script:** `scripts/run_alpaca_convergence_check.py` — Convergence check across Tier 1, Tier 2, Tier 3 (PnL sign consistency + SRE anomaly). Args: --base-dir, --force, --dry-run. Reads `state/alpaca_board_review_state.json` for packet dirs; Tier 1/2/3 packet JSON or fallbacks (rolling_pnl_5d.jsonl, board 7d/30d/last387); `reports/audit/SRE_STATUS.json`. Writes `state/alpaca_convergence_state.json` (convergence_status green/yellow/red, divergence_class none/mild/moderate/severe, one_liner). Advisory only; no auto-block, no promotion logic. Plan: `docs/ALPACA_PHASE3_CONVERGENCE_PLAN.md`. CSA: `reports/audit/CSA_FINDINGS_ALPACA_PHASE3_CONVERGENCE_PLAN.md` (ACCEPT). SRE: `reports/audit/SRE_VERDICT_ALPACA_PHASE3_CONVERGENCE_PLAN.md` (OK).
 
+### Alpaca full engine & data repair (2026-03-30) — OPERATOR CANON
+- **When to run:** Hollow `position_metadata` (e.g. `entry_score==0` for all), false `max_drawdown_exceeded` from stale `peak_equity.json` (e.g. 100k vs ~47k live paper equity), and 32/32 capacity with no rotation. **Controlled liquidation** is allowed as a one-shot reset when metadata and risk state are untrustworthy — documented in daily evidence.
+- **Orchestrator (droplet):** `git pull` then `python3 scripts/repair/alpaca_full_repair_orchestrator.py --full-repair` (optional `--skip-liquidation`, `--skip-systemd-restart`). Produces evidence under `reports/daily/<ET>/evidence/` (`ALPACA_FULL_REPAIR_*`, `ALPACA_FULL_LIQUIDATION_*`, etc.).
+- **Peak equity policy:** (1) `scripts/reset_peak_equity_to_broker.py --apply` sets peak to live broker equity. (2) Each `run_risk_checks` calls `sanitize_peak_equity_vs_broker()` so peak cannot stay far above live equity (`PEAK_EQUITY_SANITY_MAX_RATIO`, default 1.28; set `PEAK_EQUITY_SANITY_DISABLE=1` to turn off). (3) Normal ratchet still via `update_peak_equity`.
+- **Governor freezes:** `freeze_trading()` writes dict entries with `active: true`. `check_freeze_state()` must treat those as active (fixed 2026-03-30). Clear drawdown-only flags with `scripts/clear_drawdown_governor_freeze.py --apply` or manual edit.
+- **Metadata repair:** `scripts/repair/repair_position_metadata_from_logs.py` backfills open positions from last `composite_calculated` per symbol in `logs/scoring_flow.jsonl`. Runtime dashboard/recovery also uses `utils.entry_score_recovery` (attribution.jsonl + scoring_flow). New fills should still go through `mark_open` / `_persist_position_metadata` for full `v2` blocks.
+- **Exit tuning (conservative):** Env-only knobs — `V2_EXIT_SCORE_THRESHOLD` (default 0.80), `STALE_TRADE_EXIT_MINUTES`, `TRAILING_STOP_PCT`, optional `EXIT_PRESSURE_*`. Sample: `deploy/alpaca_post_repair.env.sample`.
+- **Dashboard:** Open positions API exposes `metadata_instrumented`, `metadata_reconciled_repair_only`, `metadata_gap_flags` for UI truth.
+- **Rollback:** Evidence file `ALPACA_FULL_REPAIR_ROLLBACK_<TS>.md` + git revert of the repair commit; restore `position_metadata` / `peak_equity` from backups if taken.
+
 ---
 
 ## 5.2 PROHIBITED PRACTICES
