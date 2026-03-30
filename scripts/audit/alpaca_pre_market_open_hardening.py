@@ -11,18 +11,43 @@ Writes: reports/daily/<ET-date>/evidence/ALPACA_PRE_MARKET_OPEN_HARDENING.md
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 REPO = Path(__file__).resolve().parent.parent.parent
 os.chdir(REPO)
 sys.path.insert(0, str(REPO))
+
+try:
+    from dotenv import load_dotenv  # type: ignore
+
+    load_dotenv(REPO / ".env")
+except Exception:
+    pass
+
+
+def _http_code(url: str, basic: Optional[Tuple[str, str]] = None, timeout: int = 8) -> str:
+    """Return HTTP status as string, or '0' / 'fail' on error."""
+    try:
+        req = urllib.request.Request(url, method="GET")
+        if basic and basic[0] and basic[1]:
+            token = base64.b64encode(f"{basic[0]}:{basic[1]}".encode()).decode("ascii")
+            req.add_header("Authorization", f"Basic {token}")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 — local health check
+            return str(getattr(resp, "status", 200) or 200)
+    except urllib.error.HTTPError as e:
+        return str(e.code)
+    except Exception:
+        return "0"
 
 
 def _et_date() -> str:
@@ -171,9 +196,6 @@ def main() -> int:
     lines += _section("Alpaca broker (read-only)")
     broker: Dict[str, Any] = {}
     try:
-        from dotenv import load_dotenv  # type: ignore
-
-        load_dotenv(REPO / ".env")
         import alpaca_trade_api as tradeapi  # type: ignore
 
         from main import Config
@@ -197,21 +219,28 @@ def main() -> int:
         lines.append(f"**FAIL:** `{e!s}`\n")
 
     # --- Dashboard HTTP ---
+    # Contract: `_enforce_basic_auth` allowlists GET `/api/telemetry_health` without credentials.
+    # `/api/ping` and `/api/sre/health` require Basic auth — use DASHBOARD_USER / DASHBOARD_PASS from .env.
     lines += _section("Dashboard (localhost)")
-    for path in ("/api/ping", "/api/telemetry_health", "/api/sre/health"):
-        code, _, _ = _sh(
-            f"curl -s -o /dev/null -w '%{{http_code}}' --max-time 8 http://127.0.0.1:5000{path} 2>/dev/null || echo fail",
-            15,
-        )
-        c = code.strip()
-        lines.append(f"- `{path}` → **HTTP {c}**\n")
-        if path == "/api/ping":
-            if c != "200":
-                critical_fail.append(f"dashboard_ping_not_200:{c}")
-        elif c in ("000", "fail", ""):
+    base = "http://127.0.0.1:5000"
+    dash_user = (os.getenv("DASHBOARD_USER") or "").strip()
+    dash_pass = (os.getenv("DASHBOARD_PASS") or "").strip()
+    basic: Optional[Tuple[str, str]] = (dash_user, dash_pass) if dash_user and dash_pass else None
+
+    c_th = _http_code(f"{base}/api/telemetry_health", basic=None)
+    lines.append(f"- `/api/telemetry_health` (no auth) → **HTTP {c_th}**\n")
+    if c_th != "200":
+        critical_fail.append(f"dashboard_telemetry_health_not_200:{c_th}")
+
+    for path, need_auth in (("/api/ping", True), ("/api/sre/health", True)):
+        c = _http_code(f"{base}{path}", basic=basic if need_auth else None)
+        lines.append(f"- `{path}` ({'Basic auth' if need_auth and basic else 'no auth'}) → **HTTP {c}**\n")
+        if need_auth and not basic:
+            warnings.append(f"dashboard_skip_auth_route_no_env:{path}")
+        elif c in ("0", "fail", ""):
             critical_fail.append(f"dashboard_unreachable:{path}")
-        elif c not in ("200", "401", "403"):
-            warnings.append(f"dashboard_unexpected_http:{path}={c}")
+        elif c != "200":
+            critical_fail.append(f"dashboard_{path.replace('/', '_')}_not_200:{c}")
 
     # --- Canonical log sinks (Phase-2 parity + audit spine) ---
     lines += _section("Telemetry surfaces (writable / mtime)")
