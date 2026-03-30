@@ -45,6 +45,12 @@ def _run(cmd: list[str]) -> None:
         raise SystemExit(r.returncode)
 
 
+def _run_capture_rc(cmd: list[str]) -> int:
+    print("RUN:", " ".join(cmd), flush=True)
+    r = subprocess.run(cmd, cwd=str(REPO))
+    return r.returncode
+
+
 def main() -> int:
     import argparse
 
@@ -70,8 +76,9 @@ def main() -> int:
         return 2
 
     liq_md = str(ev / f"ALPACA_FULL_LIQUIDATION_{ts}.md")
+    liq_rc = 0
     if not args.skip_liquidation:
-        _run(
+        liq_rc = _run_capture_rc(
             [
                 sys.executable,
                 str(REPO / "scripts/repair/alpaca_controlled_liquidation.py"),
@@ -80,6 +87,15 @@ def main() -> int:
                 liq_md,
             ]
         )
+        if liq_rc != 0:
+            print(
+                "WARNING: liquidation exit code",
+                liq_rc,
+                "(non-zero = not flat or API error; see",
+                liq_md,
+                ")",
+                flush=True,
+            )
     _run([sys.executable, str(REPO / "scripts/reset_peak_equity_to_broker.py"), "--apply"])
     _run([sys.executable, str(REPO / "scripts/clear_drawdown_governor_freeze.py"), "--apply"])
     _run([sys.executable, str(REPO / "scripts/repair/repair_position_metadata_from_logs.py"), "--apply"])
@@ -88,6 +104,7 @@ def main() -> int:
     risk_md = ev / f"ALPACA_RISK_PEAK_EQUITY_REPAIR_{ts}.md"
     risk_md.write_text(
         f"# ALPACA RISK & PEAK EQUITY REPAIR\n\n- UTC `{ts}`\n\n"
+        f"- **Liquidation subprocess:** exit code **{liq_rc}** (`0` = flat after poll; non-zero = open positions remain or final `list_positions` failed — see `ALPACA_FULL_LIQUIDATION_{ts}.md`).\n"
         "- Ran `scripts/reset_peak_equity_to_broker.py --apply` — peak_equity.json set to live broker equity.\n"
         "- Ran `scripts/clear_drawdown_governor_freeze.py --apply` — drawdown-shaped governor freezes deactivated.\n"
         "- Code: `risk_management.sanitize_peak_equity_vs_broker()` rebases peak when peak > current×`PEAK_EQUITY_SANITY_MAX_RATIO` (default 1.28).\n"
