@@ -1,0 +1,520 @@
+{
+  "schema_version": "1.0.0",
+  "title": "PnL audit lineage matrix",
+  "description": "Field -> source -> emitter -> persistence -> join. Broker vs local declared per row.",
+  "fields": [
+    {
+      "field_name": "score",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:_emit_trade_intent",
+      "persistence_location": "logs/run.jsonl",
+      "join_keys": [
+        "canonical_trade_id",
+        "symbol_normalized",
+        "symbol"
+      ],
+      "join_direction": "intent \u2192 order \u2192 broker fill \u2192 exit_attribution",
+      "freshness_expectation": "Each trade_intent row at decision time",
+      "failure_mode_notes": "Missing if PHASE2_TELEMETRY_DISABLED or emit exception"
+    },
+    {
+      "field_name": "entry_score",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:log_attribution",
+      "persistence_location": "logs/attribution.jsonl|state/position_metadata.json",
+      "join_keys": [
+        "symbol",
+        "trade_id",
+        "canonical_trade_id"
+      ],
+      "join_direction": "intent/metadata \u2192 exit row",
+      "freshness_expectation": "On entry attribution write; metadata on fill reconcile",
+      "failure_mode_notes": "submit_entry aborts if entry_score missing/\u22640"
+    },
+    {
+      "field_name": "final_decision_primary_reason",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:_emit_trade_intent",
+      "persistence_location": "logs/run.jsonl",
+      "join_keys": [
+        "decision_event_id",
+        "canonical_trade_id"
+      ],
+      "join_direction": "intent only",
+      "freshness_expectation": "When intelligence_trace provided to emit",
+      "failure_mode_notes": "Absent without trace; system_event missing_intelligence_trace CRITICAL"
+    },
+    {
+      "field_name": "blocked_reason",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:_emit_trade_intent_blocked",
+      "persistence_location": "logs/run.jsonl",
+      "join_keys": [
+        "canonical_trade_id"
+      ],
+      "join_direction": "intent",
+      "freshness_expectation": "Blocked intents only",
+      "failure_mode_notes": "N/A for entered path"
+    },
+    {
+      "field_name": "market_regime",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:AlpacaExecutor.submit_entry",
+      "persistence_location": "logs/orders.jsonl|logs/attribution.jsonl",
+      "join_keys": [
+        "symbol",
+        "ts"
+      ],
+      "join_direction": "order row \u2192 attribution",
+      "freshness_expectation": "At order submit",
+      "failure_mode_notes": "Abort if regime unknown"
+    },
+    {
+      "field_name": "regime",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:log_attribution",
+      "persistence_location": "logs/attribution.jsonl",
+      "join_keys": [
+        "trade_id",
+        "symbol"
+      ],
+      "join_direction": "attribution \u2192 exit",
+      "freshness_expectation": "Entry attribution",
+      "failure_mode_notes": "Logged as data_integrity if zero entry_score"
+    },
+    {
+      "field_name": "variant_id",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "src/exit/exit_attribution.py:build_exit_attribution_record",
+      "persistence_location": "logs/exit_attribution.jsonl",
+      "join_keys": [
+        "symbol",
+        "entry_timestamp",
+        "timestamp"
+      ],
+      "join_direction": "exit row",
+      "freshness_expectation": "On closed trade",
+      "failure_mode_notes": "Optional kwargs from caller"
+    },
+    {
+      "field_name": "strategy_id",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:jsonl_write",
+      "persistence_location": "logs/*.jsonl (injected on append)",
+      "join_keys": [
+        "symbol",
+        "ts"
+      ],
+      "join_direction": "all JSONL streams when strategy context set",
+      "freshness_expectation": "Per append",
+      "failure_mode_notes": "Omitted if context missing"
+    },
+    {
+      "field_name": "attribution_components",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:log_attribution",
+      "persistence_location": "logs/attribution.jsonl",
+      "join_keys": [
+        "symbol",
+        "trade_id"
+      ],
+      "join_direction": "attribution \u2192 exit enrich",
+      "freshness_expectation": "At entry fill attribution",
+      "failure_mode_notes": "May be synthesized from comps dict"
+    },
+    {
+      "field_name": "decision_event_id",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:_emit_trade_intent",
+      "persistence_location": "logs/run.jsonl",
+      "join_keys": [
+        "canonical_trade_id"
+      ],
+      "join_direction": "intent anchor",
+      "freshness_expectation": "Each trade_intent",
+      "failure_mode_notes": "From telemetry.attribution_emit_keys.new_decision_event_id"
+    },
+    {
+      "field_name": "canonical_trade_id",
+      "entity_group": "F",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:_emit_trade_intent",
+      "persistence_location": "logs/run.jsonl|state/position_metadata.json",
+      "join_keys": [
+        "symbol",
+        "trade_key"
+      ],
+      "join_direction": "intent \u2194 metadata \u2194 orders via merge_attribution_keys",
+      "freshness_expectation": "At intent; copied to metadata on fill",
+      "failure_mode_notes": "learning_blocker if build_trade_key fails"
+    },
+    {
+      "field_name": "trade_key",
+      "entity_group": "F",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "src/telemetry/alpaca_trade_key.py:build_trade_key",
+      "persistence_location": "logs/run.jsonl",
+      "join_keys": [
+        "canonical_trade_id"
+      ],
+      "join_direction": "same as canonical_trade_id",
+      "freshness_expectation": "trade_intent",
+      "failure_mode_notes": "Alias of canonical id string"
+    },
+    {
+      "field_name": "feature_snapshot",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:_emit_trade_intent",
+      "persistence_location": "logs/run.jsonl",
+      "join_keys": [
+        "decision_event_id",
+        "symbol"
+      ],
+      "join_direction": "intent",
+      "freshness_expectation": "trade_intent",
+      "failure_mode_notes": "Large nested object"
+    },
+    {
+      "field_name": "thesis_tags",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "telemetry/thesis_tags.py:derive_thesis_tags",
+      "persistence_location": "logs/run.jsonl",
+      "join_keys": [
+        "decision_event_id"
+      ],
+      "join_direction": "intent",
+      "freshness_expectation": "trade_intent",
+      "failure_mode_notes": "Derived from snapshot"
+    },
+    {
+      "field_name": "ts",
+      "entity_group": "G",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:jsonl_write",
+      "persistence_location": "logs/*.jsonl",
+      "join_keys": [
+        "symbol+ts_proximity"
+      ],
+      "join_direction": "fallback join when ids missing",
+      "freshness_expectation": "Every append",
+      "failure_mode_notes": "Clock skew vs broker"
+    },
+    {
+      "field_name": "order_id",
+      "entity_group": "B",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "alpaca_trade_api.REST (submit responses)",
+      "persistence_location": "logs/orders.jsonl|broker API",
+      "join_keys": [
+        "id"
+      ],
+      "join_direction": "broker authoritative; local may omit on some fill logs",
+      "freshness_expectation": "After submit; stable forever",
+      "failure_mode_notes": "Local fill rows historically sparse \u2014 join via broker list_orders"
+    },
+    {
+      "field_name": "client_order_id",
+      "entity_group": "B",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:AlpacaExecutor._submit_order_guarded",
+      "persistence_location": "broker REST|logs/orders.jsonl (when logged)",
+      "join_keys": [
+        "client_order_id"
+      ],
+      "join_direction": "engine \u2192 broker",
+      "freshness_expectation": "Submit",
+      "failure_mode_notes": "Optional None"
+    },
+    {
+      "field_name": "order_status",
+      "entity_group": "B",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "alpaca_trade_api.REST.get_order",
+      "persistence_location": "broker API|logs/orders.jsonl",
+      "join_keys": [
+        "order_id"
+      ],
+      "join_direction": "broker \u2192 local mirror",
+      "freshness_expectation": "Updated until terminal state",
+      "failure_mode_notes": "Paper may show accepted vs filled naming"
+    },
+    {
+      "field_name": "created_at",
+      "entity_group": "B",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "alpaca_trade_api.REST.list_orders",
+      "persistence_location": "broker API",
+      "join_keys": [
+        "order_id"
+      ],
+      "join_direction": "broker",
+      "freshness_expectation": "Order creation",
+      "failure_mode_notes": "Read from REST object"
+    },
+    {
+      "field_name": "filled_at",
+      "entity_group": "C",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "alpaca_trade_api.REST.list_orders",
+      "persistence_location": "broker API",
+      "join_keys": [
+        "order_id"
+      ],
+      "join_direction": "fill \u2192 exit timing",
+      "freshness_expectation": "When fill completes",
+      "failure_mode_notes": "May be null until filled"
+    },
+    {
+      "field_name": "filled_avg_price",
+      "entity_group": "C",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "main.py:AlpacaExecutor.check_order_filled",
+      "persistence_location": "broker API|logs/orders.jsonl",
+      "join_keys": [
+        "order_id"
+      ],
+      "join_direction": "broker truth for PnL",
+      "freshness_expectation": "Post-fill",
+      "failure_mode_notes": "Do not use quote for realized"
+    },
+    {
+      "field_name": "filled_qty",
+      "entity_group": "C",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "alpaca_trade_api.REST",
+      "persistence_location": "broker API",
+      "join_keys": [
+        "order_id"
+      ],
+      "join_direction": "broker",
+      "freshness_expectation": "Post-fill",
+      "failure_mode_notes": "Partial fills aggregate on order"
+    },
+    {
+      "field_name": "commission",
+      "entity_group": "D",
+      "source_of_truth": "broker_rest|deterministic_paper_zero",
+      "emitter_code_location": "scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py:order_row_to_normalized",
+      "persistence_location": "broker REST order|activities FILL|implicit 0 paper",
+      "join_keys": [
+        "order_id"
+      ],
+      "join_direction": "activities \u2194 order",
+      "freshness_expectation": "Post-fill",
+      "failure_mode_notes": "Often absent on paper REST \u2014 use deterministic zero contract"
+    },
+    {
+      "field_name": "symbol",
+      "entity_group": "B",
+      "source_of_truth": "engine_emit|broker_rest",
+      "emitter_code_location": "main.py:log_order",
+      "persistence_location": "logs/orders.jsonl|broker",
+      "join_keys": [
+        "symbol"
+      ],
+      "join_direction": "all surfaces",
+      "freshness_expectation": "Always",
+      "failure_mode_notes": "Normalize to upper in exit_attribution"
+    },
+    {
+      "field_name": "side",
+      "entity_group": "B",
+      "source_of_truth": "engine_emit|broker_rest",
+      "emitter_code_location": "main.py:log_order",
+      "persistence_location": "logs/orders.jsonl|broker",
+      "join_keys": [
+        "symbol",
+        "order_id"
+      ],
+      "join_direction": "order/fill",
+      "freshness_expectation": "Submit",
+      "failure_mode_notes": "long/short vs buy/sell context"
+    },
+    {
+      "field_name": "qty",
+      "entity_group": "B",
+      "source_of_truth": "engine_emit|broker_rest",
+      "emitter_code_location": "main.py:log_order",
+      "persistence_location": "logs/orders.jsonl|broker",
+      "join_keys": [
+        "order_id"
+      ],
+      "join_direction": "order/fill",
+      "freshness_expectation": "Submit",
+      "failure_mode_notes": "String vs int in SDK"
+    },
+    {
+      "field_name": "pnl",
+      "entity_group": "E",
+      "source_of_truth": "engine_emit|derived",
+      "emitter_code_location": "src/exit/exit_attribution.py:append_exit_attribution",
+      "persistence_location": "logs/exit_attribution.jsonl",
+      "join_keys": [
+        "symbol",
+        "entry_timestamp",
+        "exit_order_id"
+      ],
+      "join_direction": "closed trade spine",
+      "freshness_expectation": "On exit",
+      "failure_mode_notes": "Pre-fee unless enriched"
+    },
+    {
+      "field_name": "pnl_pct",
+      "entity_group": "E",
+      "source_of_truth": "derived",
+      "emitter_code_location": "src/exit/exit_attribution.py:build_exit_attribution_record",
+      "persistence_location": "logs/exit_attribution.jsonl",
+      "join_keys": [
+        "symbol",
+        "timestamp"
+      ],
+      "join_direction": "exit row",
+      "freshness_expectation": "On exit",
+      "failure_mode_notes": "Depends on entry/exit price quality"
+    },
+    {
+      "field_name": "entry_order_id",
+      "entity_group": "F",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:log_attribution",
+      "persistence_location": "logs/exit_attribution.jsonl|logs/attribution.jsonl",
+      "join_keys": [
+        "order_id"
+      ],
+      "join_direction": "entry \u2194 broker",
+      "freshness_expectation": "When caller supplies",
+      "failure_mode_notes": "May be null if not threaded"
+    },
+    {
+      "field_name": "exit_order_id",
+      "entity_group": "F",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:log_attribution",
+      "persistence_location": "logs/exit_attribution.jsonl",
+      "join_keys": [
+        "order_id"
+      ],
+      "join_direction": "exit \u2194 broker; duplicate as order_id on row",
+      "freshness_expectation": "On exit",
+      "failure_mode_notes": "Truth-warehouse join uses order_id"
+    },
+    {
+      "field_name": "unrealized_pl",
+      "entity_group": "E",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "dashboard.py:_api_positions_impl",
+      "persistence_location": "GET /api/positions JSON|broker",
+      "join_keys": [
+        "symbol"
+      ],
+      "join_direction": "live snapshot",
+      "freshness_expectation": "Each poll",
+      "failure_mode_notes": "Not a historical ledger"
+    },
+    {
+      "field_name": "avg_entry_price",
+      "entity_group": "E",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "dashboard.py:_api_positions_impl",
+      "persistence_location": "GET /api/positions|logs/positions.jsonl",
+      "join_keys": [
+        "symbol"
+      ],
+      "join_direction": "position snapshot",
+      "freshness_expectation": "Open position",
+      "failure_mode_notes": "Flat book \u2192 empty"
+    },
+    {
+      "field_name": "exit_reason",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "src/exit/exit_attribution.py:build_exit_attribution_record",
+      "persistence_location": "logs/exit_attribution.jsonl",
+      "join_keys": [
+        "symbol",
+        "timestamp"
+      ],
+      "join_direction": "exit",
+      "freshness_expectation": "Close",
+      "failure_mode_notes": "Normalized in main close paths"
+    },
+    {
+      "field_name": "v2_exit_score",
+      "entity_group": "E",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "src/exit/exit_attribution.py:build_exit_attribution_record",
+      "persistence_location": "logs/exit_attribution.jsonl",
+      "join_keys": [
+        "symbol"
+      ],
+      "join_direction": "exit analytics",
+      "freshness_expectation": "Exit",
+      "failure_mode_notes": "V2 exit stack"
+    },
+    {
+      "field_name": "is_open",
+      "entity_group": "G",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "main.py:is_market_open_now",
+      "persistence_location": "broker clock API",
+      "join_keys": [
+        "n/a"
+      ],
+      "join_direction": "session context",
+      "freshness_expectation": "Real-time",
+      "failure_mode_notes": "Fallback ET heuristic if API fails"
+    },
+    {
+      "field_name": "next_open",
+      "entity_group": "G",
+      "source_of_truth": "broker_rest",
+      "emitter_code_location": "alpaca_trade_api.REST.get_clock",
+      "persistence_location": "broker API",
+      "join_keys": [
+        "n/a"
+      ],
+      "join_direction": "session",
+      "freshness_expectation": "Clock poll",
+      "failure_mode_notes": "None"
+    },
+    {
+      "field_name": "reconcile_snapshot",
+      "entity_group": "E",
+      "source_of_truth": "dashboard_api",
+      "emitter_code_location": "dashboard.py:api_pnl_reconcile",
+      "persistence_location": "GET /api/pnl/reconcile|logs/pnl_reconciliation.jsonl",
+      "join_keys": [
+        "date"
+      ],
+      "join_direction": "read-only audit overlay",
+      "freshness_expectation": "On request",
+      "failure_mode_notes": "503 if Alpaca not connected"
+    },
+    {
+      "field_name": "signal_context_row",
+      "entity_group": "A",
+      "source_of_truth": "engine_emit",
+      "emitter_code_location": "main.py:CONTAINS:log_signal_context",
+      "persistence_location": "logs/signal_context.jsonl",
+      "join_keys": [
+        "symbol",
+        "ts"
+      ],
+      "join_direction": "parallel to attribution",
+      "freshness_expectation": "Per decision",
+      "failure_mode_notes": "Optional path"
+    }
+  ]
+}
