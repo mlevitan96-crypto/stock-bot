@@ -98,35 +98,50 @@ def main() -> int:
         except Exception as e:
             lines.append(f"## Pre-close\n\n`cancel_all_orders` skipped/failed: `{str(e)[:200]}`\n\n")
 
-        for p in positions:
-            sym = getattr(p, "symbol", "")
-            if not sym:
-                continue
-            try:
+        def _close_all(pos_list: List[Any], wave_label: str) -> List[Dict[str, Any]]:
+            wave: List[Dict[str, Any]] = []
+            for p in pos_list:
+                sym = getattr(p, "symbol", "")
+                if not sym:
+                    continue
                 try:
-                    api.close_position(sym, cancel_orders=True)
-                except TypeError:
-                    # Older alpaca_trade_api builds omit cancel_orders
-                    api.close_position(sym)
-                results.append({"symbol": sym, "ok": True, "error": None})
-            except Exception as e:
-                results.append({"symbol": sym, "ok": False, "error": str(e)[:500]})
-            time.sleep(0.35)
-        lines.append("## close_position results\n\n```json\n")
-        lines.append(json.dumps(results, indent=2))
-        lines.append("\n```\n\n")
+                    try:
+                        api.close_position(sym, cancel_orders=True)
+                    except TypeError:
+                        # Older alpaca_trade_api builds omit cancel_orders
+                        api.close_position(sym)
+                    wave.append({"symbol": sym, "wave": wave_label, "ok": True, "error": None})
+                except Exception as e:
+                    wave.append({"symbol": sym, "wave": wave_label, "ok": False, "error": str(e)[:500]})
+                time.sleep(0.35)
+            return wave
+
+        results.extend(_close_all(positions, "wave1"))
 
         # Poll until flat (fills can lag, especially off-hours)
         max_poll = 40
         poll_interval = 3.0
         remaining: List[Any] = []
-        for i in range(max_poll):
+        for _ in range(max_poll):
             remaining = api.list_positions() or []
             if not remaining:
                 break
             time.sleep(poll_interval)
-        lines.append(f"## Positions after (verify, up to {max_poll}×{poll_interval:.0f}s)\n\n")
-        lines.append(f"**{len(remaining)}** open (poll rounds: {i + 1})\n\n")
+
+        # Second close wave if broker still shows legs (partial fills, race with bot, etc.)
+        if remaining:
+            results.extend(_close_all(remaining, "wave2"))
+            for _ in range(max_poll):
+                remaining = api.list_positions() or []
+                if not remaining:
+                    break
+                time.sleep(poll_interval)
+
+        lines.append("## close_position results\n\n```json\n")
+        lines.append(json.dumps(results, indent=2))
+        lines.append("\n```\n\n")
+        lines.append(f"## Positions after (verify, up to 2 close waves + 2×{max_poll}×{poll_interval:.0f}s poll)\n\n")
+        lines.append(f"**{len(remaining)}** open\n\n")
         lines.append("```json\n" + json.dumps([getattr(x, "symbol", "") for x in remaining], indent=2) + "\n```\n")
 
         meta_path = REPO / StateFiles.POSITION_METADATA
