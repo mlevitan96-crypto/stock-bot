@@ -456,17 +456,12 @@ Forward trades use the same paths; era metadata may be enforced by `utils/era_cu
         bro = api.list_orders(status="all", limit=200, nested=True) or []
         for o in bro:
             d = _order_to_dict(o)
-            st = str(d.get("status") or "").lower()
-            fq = d.get("filled_qty")
-            try:
-                fq_f = float(fq or 0)
-            except (TypeError, ValueError):
-                fq_f = 0.0
-            if st == "filled" or fq_f > 0:
+            # Paper/live: status may be accepted/pending_new/filled/partially_filled — id is the join key.
+            if str(d.get("id") or "").strip():
                 broker_filled.append(d)
         broker_filled = broker_filled[-N:]
         with_id = sum(1 for x in broker_filled if str(x.get("id") or "").strip())
-        broker_join_note = f"broker REST filled-like sample n={len(broker_filled)} with id={with_id}"
+        broker_join_note = f"broker REST order sample n={len(broker_filled)} with id={with_id}"
     except Exception as e:
         broker_join_note = f"broker sample failed: {e}"[:200]
 
@@ -505,7 +500,7 @@ Forward trades use the same paths; era metadata may be enforced by `utils/era_cu
         from main import Config
 
         api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL, api_version="v2")
-        raw_orders = api.list_orders(status="all", limit=50, nested=True)
+        raw_orders = api.list_orders(status="all", limit=100, nested=True)
         for o in raw_orders or []:
             orders_rest.append(_order_to_dict(o))
         try:
