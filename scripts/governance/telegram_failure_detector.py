@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Telegram failure pager: detect missing or failed expected Telegram / integrity outputs
-for Alpaca and Kraken, dedupe by failure_signature, alert via Telegram, REMEDIATED on recovery.
+for Alpaca (post-close, milestones, direction-readiness), dedupe by failure_signature,
+alert via Telegram, REMEDIATED on recovery.
 
 Runs on Linux (droplet). Idempotent state in state/telegram_failure_pager_state.json.
 Does not relax strict completeness or truth gates; auto-heal hooks are read-only or
@@ -14,6 +15,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -41,7 +43,7 @@ ST_RUNNER_NOT_RUN = "RUNNER_NOT_RUN"
 ST_GATED = "GATED"
 ST_PENDING = "PENDING"  # before evaluation window
 ST_SKIPPED = "SKIPPED"  # weekend / outside calendar
-ST_PASS = "PASS"  # Kraken integrity OK
+ST_PASS = "PASS"  # direction readiness / integrity OK
 
 
 @dataclass
@@ -294,15 +296,21 @@ def evaluate_alpaca_milestone(root: Path, now_utc: datetime) -> WindowEval:
     d_et = session_et_date(now_utc)
     session_iso = d_et.isoformat()
     window_key = "alpaca:milestone"
-    log_path = root / "logs" / "notify_milestones.log"
-    evidence = "logs/notify_milestones.log"
+    primary = root / "logs" / "alpaca_telegram_integrity.log"
+    legacy = root / "logs" / "notify_milestones.log"
+    log_path = primary if primary.is_file() else legacy
+    evidence = (
+        "logs/alpaca_telegram_integrity.log"
+        if primary.is_file()
+        else "logs/notify_milestones.log"
+    )
 
     now_u = now_utc.astimezone(timezone.utc)
     if now_u.weekday() >= 5:
         return WindowEval(window_key, "alpaca", "milestone", ST_SKIPPED, session_iso, "weekend_utc", evidence)
 
-    # Align with install_cron_alpaca_notifier.py: */10 during 13-21 UTC Mon-Fri (droplet local = UTC).
-    if not (13 <= now_u.hour < 21):
+    # Align with install_cron_alpaca_notifier.py: */10 during hours 13–21 UTC Mon–Fri (cron `13-21` is inclusive).
+    if not (13 <= now_u.hour <= 21):
         return WindowEval(window_key, "alpaca", "milestone", ST_PENDING, session_iso, "outside_13_21_utc", evidence)
 
     if not log_path.is_file():
@@ -349,25 +357,33 @@ def evaluate_alpaca_milestone(root: Path, now_utc: datetime) -> WindowEval:
     )
 
 
-def evaluate_kraken_integrity(root: Path, now_utc: datetime) -> WindowEval:
-    """Kraken-relevant direction readiness integrity (dashboard contract); pages if cron stale."""
+def evaluate_alpaca_direction_readiness(root: Path, now_utc: datetime) -> WindowEval:
+    """Alpaca direction-readiness integrity (state/direction_readiness.json); pages if artifact stale."""
     d_et = session_et_date(now_utc)
     session_iso = d_et.isoformat()
-    window_key = "kraken:integrity"
+    window_key = "alpaca:direction_readiness"
     artifact = root / "state" / "direction_readiness.json"
     log_path = root / "logs" / "direction_readiness_cron.log"
     evidence = "state/direction_readiness.json+logs/direction_readiness_cron.log"
 
     if not is_weekday_et(d_et):
-        return WindowEval(window_key, "kraken", "integrity", ST_SKIPPED, session_iso, "weekend_et", evidence)
+        return WindowEval(window_key, "alpaca", "direction_readiness", ST_SKIPPED, session_iso, "weekend_et", evidence)
 
     now_utc_hour = now_utc.astimezone(timezone.utc).hour
     if not (9 <= now_utc_hour < 22):
-        return WindowEval(window_key, "kraken", "integrity", ST_PENDING, session_iso, "outside_9_21_utc", evidence)
+        return WindowEval(
+            window_key, "alpaca", "direction_readiness", ST_PENDING, session_iso, "outside_9_21_utc", evidence
+        )
 
     if not artifact.is_file():
         return WindowEval(
-            window_key, "kraken", "integrity", ST_RUNNER_NOT_RUN, session_iso, "direction_readiness_missing", evidence
+            window_key,
+            "alpaca",
+            "direction_readiness",
+            ST_RUNNER_NOT_RUN,
+            session_iso,
+            "direction_readiness_missing",
+            evidence,
         )
 
     try:
@@ -379,8 +395,8 @@ def evaluate_kraken_integrity(root: Path, now_utc: datetime) -> WindowEval:
     if age_min > 90:
         return WindowEval(
             window_key,
-            "kraken",
-            "integrity",
+            "alpaca",
+            "direction_readiness",
             ST_GATED,
             session_iso,
             "artifact_stale_over_90m",
@@ -388,41 +404,107 @@ def evaluate_kraken_integrity(root: Path, now_utc: datetime) -> WindowEval:
             detail={"age_minutes": round(age_min, 1)},
         )
 
+    # Primary signal is direction_readiness.json. Cron log is supplementary; auto-heal and manual
+    # runs refresh the JSON without appending direction_readiness_cron.log — stale log alone must not page.
+    detail: Dict[str, Any] = {"artifact_age_minutes": round(age_min, 1)}
     if log_path.is_file():
         try:
             lm = datetime.fromtimestamp(log_path.stat().st_mtime, tz=timezone.utc)
             log_age = (now_utc - lm).total_seconds() / 60.0
+            detail["log_age_minutes"] = round(log_age, 1)
+            if log_age > 90:
+                detail["cron_log_stale_operational_warn"] = True
         except OSError:
-            log_age = 999
-        if log_age > 90:
-            return WindowEval(
-                window_key,
-                "kraken",
-                "integrity",
-                ST_RUNNER_NOT_RUN,
-                session_iso,
-                "cron_log_stale_over_90m",
-                evidence,
-                detail={"log_age_minutes": round(log_age, 1)},
-            )
+            detail["cron_log_stale_operational_warn"] = True
 
     return WindowEval(
         window_key,
-        "kraken",
-        "integrity",
+        "alpaca",
+        "direction_readiness",
         ST_PASS,
         session_iso,
         "freshness_ok",
         evidence,
-        detail={"artifact_age_minutes": round(age_min, 1)},
+        detail=detail,
     )
+
+
+def _auto_heal_alpaca_milestone(root: Path) -> str:
+    """Run milestone notifier like cron (source .alpaca_env on droplet); append output to notify_milestones.log."""
+    log_path = root / "logs" / "notify_milestones.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    script = root / "scripts" / "run_alpaca_telegram_integrity_cycle.py"
+    if not script.is_file():
+        return "integrity_cycle_script_missing"
+    stamp = datetime.now(timezone.utc).isoformat()
+    header = f"\n--- telegram_failure_detector auto_heal {stamp} ---\n"
+    root_q = shlex.quote(str(root))
+    py_q = shlex.quote(sys.executable)
+    scr_q = shlex.quote(str(script))
+    alpaca_env = Path("/root/.alpaca_env")
+    try:
+        with open(log_path, "a", encoding="utf-8") as logf:
+            logf.write(header)
+            if os.name != "nt" and alpaca_env.is_file():
+                inner = (
+                    f"cd {root_q} && set -a && . {shlex.quote(str(alpaca_env))} && set +a 2>/dev/null; "
+                    f"export PYTHONPATH={root_q} && {py_q} {scr_q} --skip-warehouse --no-self-heal"
+                )
+                try:
+                    r = subprocess.run(
+                        ["bash", "-lc", inner],
+                        stdout=logf,
+                        stderr=subprocess.STDOUT,
+                        timeout=180,
+                        text=True,
+                    )
+                    return f"milestone_run_exit_{r.returncode}"
+                except FileNotFoundError:
+                    pass
+            env = {**os.environ, "PYTHONPATH": str(root)}
+            r = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "--skip-warehouse",
+                    "--no-self-heal",
+                ],
+                cwd=str(root),
+                stdout=logf,
+                stderr=subprocess.STDOUT,
+                timeout=180,
+                text=True,
+                env=env,
+            )
+            return f"milestone_run_exit_{r.returncode}"
+    except (subprocess.TimeoutExpired, OSError) as e:
+        return f"milestone_heal_failed:{e}"
+
+
+def _auto_heal_direction_readiness(root: Path) -> str:
+    script = root / "scripts" / "governance" / "check_direction_readiness_and_run.py"
+    if not script.is_file():
+        return "direction_readiness_script_missing"
+    try:
+        r = subprocess.run(
+            [sys.executable, str(script)],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        return f"direction_readiness_exit_{r.returncode}"
+    except (subprocess.TimeoutExpired, OSError) as e:
+        return f"direction_readiness_heal_failed:{e}"
 
 
 def run_auto_heal(root: Path, venue: str, kind: str) -> str:
     """Venue-specific safe refresh; does not disable gates."""
     if venue == "alpaca" and kind == "milestone":
-        return "milestone_no_auto_heal"
-    if venue == "alpaca":
+        return _auto_heal_alpaca_milestone(root)
+    if venue == "alpaca" and kind == "direction_readiness":
+        return _auto_heal_direction_readiness(root)
+    if venue == "alpaca" and kind == "post_close":
         try:
             subprocess.run(
                 [
@@ -440,21 +522,6 @@ def run_auto_heal(root: Path, venue: str, kind: str) -> str:
         except (subprocess.TimeoutExpired, OSError) as e:
             return f"alpaca_audit_invocation_failed:{e}"
         return "alpaca_strict_audit_ran"
-    if venue == "kraken":
-        script = root / "scripts" / "governance" / "check_direction_readiness_and_run.py"
-        if not script.is_file():
-            return "kraken_script_missing"
-        try:
-            r = subprocess.run(
-                [sys.executable, str(script)],
-                cwd=str(root),
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
-            return f"direction_readiness_exit_{r.returncode}"
-        except (subprocess.TimeoutExpired, OSError) as e:
-            return f"kraken_heal_failed:{e}"
     return "no_heal"
 
 
@@ -500,7 +567,7 @@ def run_cycle(
     evals = [
         evaluate_alpaca_post_close(root, now_utc, journal_fn=journal_fn),
         evaluate_alpaca_milestone(root, now_utc),
-        evaluate_kraken_integrity(root, now_utc),
+        evaluate_alpaca_direction_readiness(root, now_utc),
     ]
 
     state_path = root / "state" / STATE_FILE
@@ -526,8 +593,8 @@ def run_cycle(
                     ev.root_cause = ev2.root_cause
                     ev.detail = {**ev.detail, "post_heal": ev2.detail}
                     sig = failure_signature(ev.venue, ev.kind, ev.session_et, ev.state, ev.root_cause)
-                elif ev.window_key == "kraken:integrity":
-                    ev2 = evaluate_kraken_integrity(root, now_utc)
+                elif ev.window_key == "alpaca:direction_readiness":
+                    ev2 = evaluate_alpaca_direction_readiness(root, now_utc)
                     ev.state = ev2.state
                     ev.root_cause = ev2.root_cause
                     ev.detail = {**ev.detail, "post_heal": ev2.detail}

@@ -1,5 +1,5 @@
 [Unit]
-Description=Telegram failure pager (Alpaca post-close / direction / integrity expectations)
+Description=Alpaca Telegram + data integrity cycle (milestone 250, coverage, strict gate)
 After=network-online.target
 Wants=network-online.target
 
@@ -9,7 +9,8 @@ User=root
 WorkingDirectory=/root/stock-bot
 Environment=TRADING_BOT_ROOT=/root/stock-bot
 EnvironmentFile=-/root/stock-bot/.env
-ExecStart=/root/stock-bot/venv/bin/python3 /root/stock-bot/scripts/governance/telegram_failure_detector.py
+EnvironmentFile=-/root/.alpaca_env
+ExecStart=/root/stock-bot/venv/bin/python3 /root/stock-bot/scripts/run_alpaca_telegram_integrity_cycle.py
 StandardOutput=journal
 StandardError=journal
 

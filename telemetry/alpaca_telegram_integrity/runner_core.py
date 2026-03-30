@@ -1,0 +1,319 @@
+"""Single coherent Alpaca integrity + Telegram cycle."""
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import asdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+from telemetry.alpaca_telegram_integrity import checks
+from telemetry.alpaca_telegram_integrity.milestone import (
+    count_since_session_open,
+    load_milestone_state,
+    mark_milestone_fired,
+    save_milestone_state,
+    should_fire_milestone,
+)
+from telemetry.alpaca_telegram_integrity.self_heal import run_self_heal
+from telemetry.alpaca_telegram_integrity.templates import format_integrity_alert, format_milestone_250
+from telemetry.alpaca_telegram_integrity.warehouse_summary import (
+    CoverageSummary,
+    load_latest_coverage,
+    run_warehouse_mission,
+)
+
+
+def _root() -> Path:
+    r = os.environ.get("TRADING_BOT_ROOT", "").strip()
+    if r:
+        return Path(r).resolve()
+    return Path(__file__).resolve().parents[2]
+
+
+def _load_config(root: Path) -> Dict[str, Any]:
+    p = root / "config" / "alpaca_telegram_integrity.json"
+    if not p.is_file():
+        return {}
+    try:
+        o = json.loads(p.read_text(encoding="utf-8"))
+        return o if isinstance(o, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _merge_env_files(root: Path) -> None:
+    """Populate os.environ for Telegram + Alpaca if unset (droplet parity)."""
+    if os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID"):
+        pass
+    for path in (root / ".env", Path("/root/stock-bot/.env"), Path("/root/.alpaca_env")):
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("export "):
+                line = line[7:].strip()
+            if "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            k, v = k.strip(), v.strip().strip('"').strip("'")
+            if k and k not in os.environ:
+                os.environ[k] = v
+
+
+def _integrity_state_path(root: Path) -> Path:
+    return root / "state" / "alpaca_telegram_integrity_cycle.json"
+
+
+def _milestone_state_path(root: Path) -> Path:
+    return root / "state" / "alpaca_milestone_250_state.json"
+
+
+def _load_cycle_state(path: Path) -> Dict[str, Any]:
+    if not path.is_file():
+        return {"version": 1, "cycle_count": 0, "cooldowns": {}, "last_good": {}}
+    try:
+        o = json.loads(path.read_text(encoding="utf-8"))
+        return o if isinstance(o, dict) else {"version": 1, "cycle_count": 0, "cooldowns": {}}
+    except (OSError, json.JSONDecodeError):
+        return {"version": 1, "cycle_count": 0, "cooldowns": {}}
+
+
+def _save_cycle_state(path: Path, data: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.replace(path)
+
+
+def _coverage_vs_thresholds(cov: CoverageSummary, thr: Dict[str, float]) -> List[str]:
+    reasons: List[str] = []
+    if cov.execution_join_pct is not None and cov.execution_join_pct < thr.get("execution_join", 0):
+        reasons.append(
+            f"execution_join_coverage {cov.execution_join_pct}% < {thr.get('execution_join')}%"
+        )
+    if cov.fee_pct is not None and cov.fee_pct < thr.get("fee", 0):
+        reasons.append(f"fee_coverage {cov.fee_pct}% < {thr.get('fee')}%")
+    if cov.slippage_pct is not None and cov.slippage_pct < thr.get("slippage", 0):
+        reasons.append(f"slippage_coverage {cov.slippage_pct}% < {thr.get('slippage')}%")
+    if cov.data_ready_yes is False:
+        reasons.append("DATA_READY reported NO in latest coverage artifact")
+    return reasons
+
+
+def run_integrity_cycle(
+    *,
+    root: Optional[Path] = None,
+    dry_run: bool = False,
+    send_test_milestone: bool = False,
+    send_test_integrity: bool = False,
+    skip_warehouse: bool = False,
+    skip_self_heal: bool = False,
+) -> Dict[str, Any]:
+    root = root or _root()
+    root = root.resolve()
+    os.chdir(root)
+    _merge_env_files(root)
+    cfg = _load_config(root)
+    if not cfg.get("enabled", True) and not (send_test_milestone or send_test_integrity):
+        return {"skipped": True, "reason": "config.enabled false"}
+
+    out: Dict[str, Any] = {"root": str(root), "utc": datetime.now(timezone.utc).isoformat()}
+    st_path = _integrity_state_path(root)
+    st = _load_cycle_state(st_path)
+    st["cycle_count"] = int(st.get("cycle_count", 0)) + 1
+    n = st["cycle_count"]
+
+    if not skip_self_heal:
+        out["self_heal"] = run_self_heal(cfg, root)
+
+    target = int(cfg.get("milestone_trade_count", 250))
+    snap = count_since_session_open(root)
+    out["milestone"] = asdict(snap)
+
+    # Optional full warehouse run (throttled)
+    wh_days = int(cfg.get("warehouse_days_when_run", 30))
+    every_n = max(1, int(cfg.get("warehouse_run_every_n_cycles", 6)))
+    wh_tail = ""
+    run_wh = not skip_warehouse and (n % every_n == 0 or st.get("force_next_warehouse"))
+    # Throttle heavy mission outside US RTH (still allow milestone / strict / probes).
+    try:
+        from zoneinfo import ZoneInfo
+
+        _et = ZoneInfo("America/New_York")
+        et_now = datetime.now(timezone.utc).astimezone(_et)
+        rth = et_now.weekday() < 5 and (
+            (et_now.hour, et_now.minute) >= (9, 30) and (et_now.hour, et_now.minute) <= (16, 10)
+        )
+    except Exception:
+        rth = True
+    if run_wh and not rth:
+        out["warehouse_run"] = {"skipped": True, "reason": "outside_us_rth_et"}
+        run_wh = False
+    if run_wh:
+        code, wh_tail = run_warehouse_mission(root, wh_days)
+        out["warehouse_run"] = {"exit_code": code, "tail": wh_tail[-1500:]}
+        st["force_next_warehouse"] = False
+    elif skip_warehouse:
+        out["warehouse_run"] = {"skipped": True}
+
+    cov = load_latest_coverage(root)
+    out["coverage_file"] = str(cov.path) if cov.path else None
+    out["coverage_age_hours"] = cov.age_hours
+    thr = cfg.get("coverage_thresholds_pct") or {}
+    cov_reasons = _coverage_vs_thresholds(cov, {k: float(v) for k, v in thr.items()})
+
+    max_age = float(cfg.get("warehouse_coverage_file_max_age_hours", 36))
+    if cov.path is None or (cov.age_hours is not None and cov.age_hours > max_age):
+        cov_reasons.append(
+            f"stale_or_missing_warehouse_coverage (max_age_h={max_age}, age={cov.age_hours})"
+        )
+
+    strict: Dict[str, Any] = {}
+    try:
+        strict = checks.run_strict_completeness(root)
+        out["strict"] = {
+            "LEARNING_STATUS": strict.get("LEARNING_STATUS"),
+            "trades_seen": strict.get("trades_seen"),
+            "trades_incomplete": strict.get("trades_incomplete"),
+        }
+    except Exception as e:  # pragma: no cover
+        strict = {}
+        out["strict_error"] = str(e)
+
+    tail_n = int(cfg.get("exit_attribution_tail_lines", 400))
+    req_fields = list(cfg.get("exit_required_fields") or ["symbol", "exit_ts", "trade_id"])
+    probe = checks.probe_exit_attribution_tail(root / "logs" / "exit_attribution.jsonl", tail_n, req_fields)
+    out["exit_probe"] = {"lines_scanned": probe.lines_scanned, "missing": probe.missing_field_counts}
+    schema_reasons: List[str] = []
+    for field, cnt in probe.missing_field_counts.items():
+        if probe.lines_scanned > 0 and cnt > max(5, probe.lines_scanned // 4):
+            schema_reasons.append(f"exit_attribution missing {field} in {cnt}/{probe.lines_scanned} tail rows")
+
+    # Strict regression: was ARMED, now BLOCKED
+    prev_strict = (st.get("last_good") or {}).get("LEARNING_STATUS")
+    cur_strict = strict.get("LEARNING_STATUS")
+    reg_reasons: List[str] = []
+    if prev_strict == "ARMED" and cur_strict == "BLOCKED":
+        reg_reasons.append(
+            f"strict completeness regression ARMED→BLOCKED ({strict.get('learning_fail_closed_reason')})"
+        )
+
+    reasons = cov_reasons + schema_reasons + reg_reasons
+
+    # Post-close / direction windows (reuse failure detector evaluators)
+    try:
+        from scripts.governance.telegram_failure_detector import (
+            evaluate_alpaca_direction_readiness,
+            evaluate_alpaca_post_close,
+        )
+
+        now_utc = datetime.now(timezone.utc)
+        pc = evaluate_alpaca_post_close(root, now_utc)
+        dr = evaluate_alpaca_direction_readiness(root, now_utc)
+        out["pager_windows"] = [
+            {"key": pc.window_key, "state": pc.state, "cause": pc.root_cause},
+            {"key": dr.window_key, "state": dr.state, "cause": dr.root_cause},
+        ]
+        for ev, label in ((pc, "post_close"), (dr, "direction_readiness")):
+            if ev.state not in ("SENT", "PASS", "SKIPPED", "PENDING"):
+                reasons.append(f"{label}_pager:{ev.state}:{ev.root_cause}")
+    except Exception as e:
+        out["pager_import_error"] = str(e)
+
+    cd = float(cfg.get("integrity_alert_cooldown_sec", 7200))
+    cd_reg = float(cfg.get("strict_regression_alert_cooldown_sec", 3600))
+
+    def send_msg(text: str, script_name: str) -> bool:
+        if dry_run:
+            out.setdefault("dry_run_messages", []).append(text[:500])
+            return True
+        try:
+            from scripts.alpaca_telegram import send_governance_telegram
+
+            return send_governance_telegram(text, script_name=script_name)
+        except Exception as e:
+            out["send_error"] = str(e)
+            return False
+
+    # --- milestone 250 ---
+    ms_path = _milestone_state_path(root)
+    fire, ms_st = should_fire_milestone(root, target, snap, ms_path)
+    data_ready_s = "YES" if cov.data_ready_yes else ("NO" if cov.data_ready_yes is False else None)
+    spi = checks.latest_spi_pointer(root)
+    reports_hint = "reports/ and reports/daily/*/evidence/ on droplet"
+
+    if send_test_milestone:
+        msg = format_milestone_250(
+            test=True,
+            snap=snap,
+            data_ready=data_ready_s,
+            strict_status=str(strict.get("LEARNING_STATUS") or ""),
+            spi_rel=spi,
+            reports_hint=reports_hint,
+        )
+        out["test_milestone_sent"] = send_msg(msg, "alpaca_integrity_test_milestone")
+    elif fire:
+        msg = format_milestone_250(
+            test=False,
+            snap=snap,
+            data_ready=data_ready_s,
+            strict_status=str(strict.get("LEARNING_STATUS") or ""),
+            spi_rel=spi,
+            reports_hint=reports_hint,
+        )
+        if send_msg(msg, "alpaca_milestone_250"):
+            mark_milestone_fired(ms_path, ms_st)
+            out["milestone_fired"] = True
+        else:
+            out["milestone_fire_failed"] = True
+            save_milestone_state(ms_path, ms_st)
+    else:
+        save_milestone_state(ms_path, ms_st)
+
+    # --- integrity alert ---
+    if send_test_integrity:
+        msg = format_integrity_alert(
+            test=True,
+            reasons=["TEST simulated integrity failure"],
+            last_good=st.get("last_good"),
+            action="Ignore — test message from run_alpaca_telegram_integrity_cycle.py",
+        )
+        out["test_integrity_sent"] = send_msg(msg, "alpaca_integrity_test_alert")
+    elif reasons:
+        reg_key = "strict_regression" if reg_reasons else "integrity_general"
+        use_cd = cd_reg if reg_reasons else cd
+        if checks.cooldown_ok(st, reg_key, use_cd):
+            msg = format_integrity_alert(
+                test=False,
+                reasons=reasons,
+                last_good=st.get("last_good"),
+                action="Inspect logs, rerun truth warehouse mission, review strict gate output; see MEMORY_BANK section 1.2.",
+            )
+            if send_msg(msg, "alpaca_data_integrity"):
+                checks.touch_cooldown(st, reg_key)
+                out["integrity_alert_sent"] = True
+        else:
+            out["integrity_alert_suppressed_cooldown"] = True
+
+    # Update last_good when healthy
+    if not reasons and cov.execution_join_pct is not None:
+        st["last_good"] = {
+            "utc": datetime.now(timezone.utc).isoformat(),
+            "execution_join_pct": cov.execution_join_pct,
+            "fee_pct": cov.fee_pct,
+            "slippage_pct": cov.slippage_pct,
+            "DATA_READY": cov.data_ready_yes,
+            "LEARNING_STATUS": cur_strict,
+            "coverage_path": str(cov.path) if cov.path else None,
+        }
+
+    if cur_strict is not None:
+        st.setdefault("last_observed", {})["LEARNING_STATUS"] = cur_strict
+
+    _save_cycle_state(st_path, st)
+    out["reasons_evaluated"] = reasons
+    return out

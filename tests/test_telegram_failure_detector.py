@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+import pytest
 
 from scripts.governance.telegram_failure_detector import (
     ST_GATED,
@@ -18,7 +21,7 @@ from scripts.governance.telegram_failure_detector import (
     audit_live_sent_for_session,
     evaluate_alpaca_milestone,
     evaluate_alpaca_post_close,
-    evaluate_kraken_integrity,
+    evaluate_alpaca_direction_readiness,
     failure_signature,
     parse_postclose_journal,
     run_cycle,
@@ -92,12 +95,12 @@ def test_evaluate_alpaca_post_close_sent_via_audit(tmp_path: Path):
     assert ev.state == ST_SENT
 
 
-def test_evaluate_kraken_pending_utc_hour(tmp_path: Path):
+def test_evaluate_direction_readiness_pending_utc_hour(tmp_path: Path):
     root = tmp_path
     (root / "state").mkdir()
     # Weekday but 04 UTC -> outside 9-21
     now = datetime(2026, 3, 30, 4, 0, tzinfo=timezone.utc)
-    ev = evaluate_kraken_integrity(root, now)
+    ev = evaluate_alpaca_direction_readiness(root, now)
     assert ev.state == ST_PENDING
 
 
@@ -177,10 +180,12 @@ def test_run_cycle_dedup_same_signature(tmp_path: Path, monkeypatch):
 
 
 def test_evaluate_alpaca_milestone_gated_stale_log(tmp_path: Path):
+    if sys.platform == "win32":
+        pytest.skip("mtime backdating unreliable on Windows tmp for this assertion")
     root = tmp_path
     logd = root / "logs"
     logd.mkdir(parents=True)
-    log = logd / "notify_milestones.log"
+    log = logd / "alpaca_telegram_integrity.log"
     log.write_text("ok\n", encoding="utf-8")
     old = time.time() - 5000
     os.utime(log, (old, old))
@@ -190,7 +195,9 @@ def test_evaluate_alpaca_milestone_gated_stale_log(tmp_path: Path):
     assert "stale" in ev.root_cause
 
 
-def test_evaluate_kraken_gated_stale(tmp_path: Path):
+def test_evaluate_direction_readiness_gated_stale(tmp_path: Path):
+    if sys.platform == "win32":
+        pytest.skip("mtime backdating unreliable on Windows tmp for this assertion")
     root = tmp_path
     st = root / "state"
     st.mkdir(parents=True)
@@ -199,11 +206,11 @@ def test_evaluate_kraken_gated_stale(tmp_path: Path):
     old = time.time() - 8000
     os.utime(p, (old, old))
     now = datetime(2026, 3, 30, 15, 0, tzinfo=timezone.utc)
-    ev = evaluate_kraken_integrity(root, now)
+    ev = evaluate_alpaca_direction_readiness(root, now)
     assert ev.state == ST_GATED
 
 
-def test_evaluate_kraken_pass_fresh(tmp_path: Path):
+def test_evaluate_direction_readiness_pass_fresh(tmp_path: Path):
     root = tmp_path
     st = root / "state"
     st.mkdir(parents=True)
@@ -216,5 +223,37 @@ def test_evaluate_kraken_pass_fresh(tmp_path: Path):
     ts = now.timestamp()
     os.utime(p, (ts, ts))
     os.utime(lp, (ts, ts))
-    ev = evaluate_kraken_integrity(root, now)
+    ev = evaluate_alpaca_direction_readiness(root, now)
     assert ev.state == ST_PASS
+
+
+def test_evaluate_direction_readiness_pass_artifact_fresh_cron_log_stale(tmp_path: Path):
+    """JSON is source of truth; stale direction_readiness_cron.log must not fail (auto-heal updates JSON only)."""
+    if sys.platform == "win32":
+        pytest.skip("mtime backdating unreliable on Windows tmp for this assertion")
+    root = tmp_path
+    st = root / "state"
+    st.mkdir(parents=True)
+    p = st / "direction_readiness.json"
+    p.write_text('{"ready":false}', encoding="utf-8")
+    (root / "logs").mkdir(exist_ok=True)
+    lp = root / "logs" / "direction_readiness_cron.log"
+    lp.write_text("old cron\n", encoding="utf-8")
+    now = datetime(2026, 3, 30, 15, 0, tzinfo=timezone.utc)
+    os.utime(p, (now.timestamp(), now.timestamp()))
+    os.utime(lp, (time.time() - 8000, time.time() - 8000))
+    ev = evaluate_alpaca_direction_readiness(root, now)
+    assert ev.state == ST_PASS
+    assert ev.detail.get("cron_log_stale_operational_warn") is True
+
+
+def test_evaluate_alpaca_milestone_active_hour_21_utc(tmp_path: Path):
+    root = tmp_path
+    logd = root / "logs"
+    logd.mkdir(parents=True)
+    log = logd / "alpaca_telegram_integrity.log"
+    log.write_text("ok\n", encoding="utf-8")
+    now = datetime(2026, 3, 30, 21, 15, tzinfo=timezone.utc)
+    os.utime(log, (now.timestamp(), now.timestamp()))
+    ev = evaluate_alpaca_milestone(root, now)
+    assert ev.state == ST_SENT

@@ -4,6 +4,17 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 ---
 
+## 2026-03-30 — Alpaca Telegram + data integrity cycle (systemd)
+
+- **Added:** `telemetry/alpaca_telegram_integrity/` — session-open clock (09:30 ET, weekday-aware), milestone 250 unique `trade_key` since session open, parse latest `ALPACA_TRUTH_WAREHOUSE_COVERAGE_*.md`, throttled subprocess truth warehouse during US RTH, strict `evaluate_completeness` + exit_attribution tail probe, Telegram templates, safe self-heal (mkdir; try-restart failed `alpaca-postclose-deepdive.service` only).
+- **Added:** `scripts/run_alpaca_telegram_integrity_cycle.py`, `config/alpaca_telegram_integrity.json`, state files under `state/`, append log `logs/alpaca_telegram_integrity.log`.
+- **Added:** `deploy/systemd/alpaca-telegram-integrity.service` + `.timer` (10 min); `scripts/install_alpaca_telegram_integrity_on_droplet.sh`; units load `.env` and `/root/.alpaca_env`.
+- **Deprecated:** `scripts/notify_alpaca_trade_milestones.py` (no-op stub); `install_cron_alpaca_notifier.py` strips legacy crontab lines only; `install_alpaca_notifier_cron.sh` exits with deprecation message.
+- **Changed:** `telegram_failure_detector` auto-heal milestone hook runs `run_alpaca_telegram_integrity_cycle.py --skip-warehouse --no-self-heal`; milestone freshness log prefers `alpaca_telegram_integrity.log`.
+- **Scope:** Alpaca venue only; no Kraken; no strategy or signal changes.
+
+---
+
 ## 2026-03-30 — Truth warehouse DATA_READY baseline (MEMORY_BANK)
 
 - **Documented:** `MEMORY_BANK.md` section **1.2** — canonical Alpaca **truth warehouse** path: `scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py`, droplet command, API key merge order (`ALPACA_KEY` / `ALPACA_SECRET` supported), env windows and paper vs live coverage thresholds, corporate-actions and broker REST expectations, timestamped outputs under `reports/` and `replay/`.

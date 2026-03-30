@@ -1,0 +1,12 @@
+[Unit]
+Description=Every 10 minutes — Alpaca Telegram integrity cycle
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+AccuracySec=1min
+Persistent=true
+Unit=alpaca-telegram-integrity.service
+
+[Install]
+WantedBy=timers.target

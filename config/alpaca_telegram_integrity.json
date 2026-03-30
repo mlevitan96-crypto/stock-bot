@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "milestone_trade_count": 250,
+  "warehouse_days_when_run": 30,
+  "warehouse_run_every_n_cycles": 6,
+  "warehouse_coverage_file_max_age_hours": 36,
+  "coverage_thresholds_pct": {
+    "execution_join": 95.0,
+    "fee": 95.0,
+    "slippage": 80.0
+  },
+  "exit_attribution_tail_lines": 400,
+  "exit_required_fields": ["symbol", "exit_ts", "trade_id"],
+  "integrity_alert_cooldown_sec": 7200,
+  "strict_regression_alert_cooldown_sec": 3600,
+  "self_heal": {
+    "ensure_log_dirs": true,
+    "restart_failed_postclose_service": true,
+    "restart_failed_timer_services": []
+  }
+}
