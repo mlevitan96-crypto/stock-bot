@@ -1,6 +1,6 @@
 # MEMORY_BANK.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-03-30 (Truth warehouse DATA_READY baseline)
+# Version: 2026-03-30 (Truth warehouse DATA_READY baseline; see section 1.2)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -167,7 +167,7 @@ The mission fills missing keys by merging **only unset** vars from, in order: re
 - **equity (active in repo)** — UW-driven equity strategy. `strategies/equity_strategy.py`.
 - **wheel (removed from codebase)** — Options wheel modules and `config/universe_wheel*.yaml` are **not** in the current tree; historical logs/dashboard may still show `strategy_id=wheel` for old periods. Do not reference `strategies/wheel_strategy.py` or wheel universe YAML as current deploy paths.
 - Single droplet, single Alpaca paper, single UW, single EOD review where applicable. Telemetry uses `strategy_id` where recorded.
-- Config: `config/strategies.yaml` (primary). Governance/overview docs may still mention wheel historically; **operational truth** is the files present in repo + §1.2 warehouse baseline.
+- Config: `config/strategies.yaml` (primary). Governance/overview docs may still mention wheel historically; **operational truth** is the files present in repo plus section **1.2** warehouse baseline.
 
 ## 2.2.2 STRUCTURAL UPGRADE MODULES (ADDITIVE - 2026-01-20)
 - `structural_intelligence/market_context_v2.py` — market context snapshot (premarket/overnight + vol term proxy)
