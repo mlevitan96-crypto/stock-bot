@@ -244,16 +244,24 @@ def run_integrity_cycle(
 
     reasons = cov_reasons + schema_reasons + reg_reasons
 
-    # Post-close / direction windows (reuse failure detector evaluators)
+    # Post-close / direction windows (reuse failure detector evaluators).
+    # Direction readiness: same auto-heal as telegram_failure_detector (refresh JSON) before
+    # turning missing/stale artifact into integrity-alert noise.
     try:
         from scripts.governance.telegram_failure_detector import (
             evaluate_alpaca_direction_readiness,
             evaluate_alpaca_post_close,
+            run_auto_heal,
         )
 
         now_utc = datetime.now(timezone.utc)
         pc = evaluate_alpaca_post_close(root, now_utc)
         dr = evaluate_alpaca_direction_readiness(root, now_utc)
+        heal_status: Optional[str] = None
+        if dr.state not in ("SENT", "PASS", "SKIPPED", "PENDING"):
+            heal_status = run_auto_heal(root, "alpaca", "direction_readiness")
+            dr = evaluate_alpaca_direction_readiness(root, now_utc)
+            out["direction_readiness_pager_heal"] = heal_status
         out["pager_windows"] = [
             {"key": pc.window_key, "state": pc.state, "cause": pc.root_cause},
             {"key": dr.window_key, "state": dr.state, "cause": dr.root_cause},
