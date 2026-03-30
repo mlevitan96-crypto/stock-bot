@@ -47,6 +47,8 @@ python3 scripts/audit/alpaca_pnl_lineage_map_check.py --write-evidence
 python3 scripts/audit/alpaca_forward_collection_readiness.py   # optional cross-check
 ```
 
+**Emitter in `LINEAGE_MATRIX.json`:** use `path/file.py:function_name` or `Class.method` when unambiguous. For inline calls without a stable `def` name, use `main.py:CONTAINS:log_signal_context` (supported by the map check).
+
 ## 7. Evidence artifact
 
 Write under `reports/daily/<ET-date>/evidence/`:
