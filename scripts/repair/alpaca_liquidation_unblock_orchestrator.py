@@ -281,10 +281,12 @@ def main() -> int:
             f"## FAILURE\n\n{err_a}\n",
         )
         print(json.dumps({"phase": "A", "ok": False, "error": err_a, "evidence": str(ctx_path)}, indent=2))
+        sys.stdout.flush()
         return 1
 
     write_context_md(ctx_path, is_active_line, git_head, date_u, pos0, ord0)
     print(json.dumps({"phase": "A", "ok": True, "evidence": str(ctx_path)}, indent=2))
+    sys.stdout.flush()
 
     api = _make_api()
 
@@ -311,6 +313,7 @@ def main() -> int:
         ]
         blocker_b.write_text("".join(blocker_body), encoding="utf-8")
         print(json.dumps({"phase": "B", "ok": False, "evidence": str(blocker_b)}, indent=2))
+        sys.stdout.flush()
         return 2
 
     time.sleep(20)
@@ -340,6 +343,7 @@ def main() -> int:
         encoding="utf-8",
     )
     print(json.dumps({"phase": "B", "ok": True, "evidence": str(b_path)}, indent=2))
+    sys.stdout.flush()
 
     # Phase C — up to 4 waves
     flat = False
@@ -412,6 +416,7 @@ def main() -> int:
                     encoding="utf-8",
                 )
                 print(json.dumps({"phase": "C", "ok": False, "wave": wave, "evidence": str(blk)}, indent=2))
+                sys.stdout.flush()
                 return 2
 
             time.sleep(20)
@@ -445,6 +450,7 @@ def main() -> int:
             encoding="utf-8",
         )
         print(json.dumps({"phase": "E", "ok": True, "flat": True, "evidence": str(proof)}, indent=2))
+        sys.stdout.flush()
         return 0
 
     # Phase D — stuck triage
@@ -482,6 +488,7 @@ def main() -> int:
     d_path = ev / "ALPACA_LIQUIDATION_STUCK_POSITIONS_BLOCKER.md"
     d_path.write_text("".join(d_lines), encoding="utf-8")
     print(json.dumps({"phase": "D", "ok": False, "flat": False, "evidence": str(d_path)}, indent=2))
+    sys.stdout.flush()
     return 3
 
 
