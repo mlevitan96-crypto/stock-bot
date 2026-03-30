@@ -9,6 +9,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from telemetry.alpaca_telegram_integrity import checks
+from telemetry.alpaca_telegram_integrity.checkpoint_100 import (
+    checkpoint_100_state_path,
+    load_checkpoint_100_state,
+    save_checkpoint_100_state,
+)
 from telemetry.alpaca_telegram_integrity.milestone import (
     count_since_session_open,
     load_milestone_state,
@@ -17,7 +22,12 @@ from telemetry.alpaca_telegram_integrity.milestone import (
     should_fire_milestone,
 )
 from telemetry.alpaca_telegram_integrity.self_heal import run_self_heal
-from telemetry.alpaca_telegram_integrity.templates import format_integrity_alert, format_milestone_250
+from telemetry.alpaca_telegram_integrity.templates import (
+    format_100trade_checkpoint,
+    format_100trade_checkpoint_deferred,
+    format_integrity_alert,
+    format_milestone_250,
+)
 from telemetry.alpaca_telegram_integrity.warehouse_summary import (
     CoverageSummary,
     load_latest_coverage,
@@ -89,6 +99,33 @@ def _save_cycle_state(path: Path, data: Dict[str, Any]) -> None:
     tmp.replace(path)
 
 
+def _checkpoint_100_integrity_ok(
+    cov: CoverageSummary,
+    strict: Dict[str, Any],
+    cov_reasons: List[str],
+    schema_reasons: List[str],
+    max_age_h: float,
+) -> Tuple[bool, List[str]]:
+    """
+    Pre-send gate for 100-trade checkpoint: DATA_READY + coverage thresholds + strict ARMED + exit probe.
+    Pager / post-close not included (informational checkpoint only).
+    """
+    bad: List[str] = []
+    if cov.path is None:
+        bad.append("missing_coverage_artifact")
+    elif cov.age_hours is not None and cov.age_hours > max_age_h:
+        bad.append(f"coverage_artifact_stale (age_h={cov.age_hours} > max={max_age_h})")
+    if cov.data_ready_yes is not True:
+        bad.append("DATA_READY not YES (or unknown)")
+    bad.extend(cov_reasons)
+    bad.extend(schema_reasons)
+    if strict.get("LEARNING_STATUS") != "ARMED":
+        bad.append(
+            f"strict LEARNING_STATUS is not ARMED (got {strict.get('LEARNING_STATUS')!r})"
+        )
+    return (len(bad) == 0), bad
+
+
 def _coverage_vs_thresholds(cov: CoverageSummary, thr: Dict[str, float]) -> List[str]:
     reasons: List[str] = []
     if cov.execution_join_pct is not None and cov.execution_join_pct < thr.get("execution_join", 0):
@@ -110,6 +147,7 @@ def run_integrity_cycle(
     dry_run: bool = False,
     send_test_milestone: bool = False,
     send_test_integrity: bool = False,
+    send_test_100trade: bool = False,
     skip_warehouse: bool = False,
     skip_self_heal: bool = False,
 ) -> Dict[str, Any]:
@@ -118,7 +156,9 @@ def run_integrity_cycle(
     os.chdir(root)
     _merge_env_files(root)
     cfg = _load_config(root)
-    if not cfg.get("enabled", True) and not (send_test_milestone or send_test_integrity):
+    if not cfg.get("enabled", True) and not (
+        send_test_milestone or send_test_integrity or send_test_100trade
+    ):
         return {"skipped": True, "reason": "config.enabled false"}
 
     out: Dict[str, Any] = {"root": str(root), "utc": datetime.now(timezone.utc).isoformat()}
@@ -239,10 +279,87 @@ def run_integrity_cycle(
             out["send_error"] = str(e)
             return False
 
+    data_ready_s = "YES" if cov.data_ready_yes else ("NO" if cov.data_ready_yes is False else "unknown")
+
+    # --- 100-trade informational checkpoint (before 250; state/alpaca_100trade_sent.json) ---
+    cp100_path = checkpoint_100_state_path(root)
+    cp100_target = int(cfg.get("checkpoint_100_trade_count", 100))
+    cp100_on = cfg.get("checkpoint_100_enabled", True)
+    exit_probe_ok = len(schema_reasons) == 0
+    cp_ok, cp_bad = _checkpoint_100_integrity_ok(
+        cov, strict, cov_reasons, schema_reasons, max_age
+    )
+    out["checkpoint_100_precheck_ok"] = cp_ok
+    out["checkpoint_100_precheck_reasons"] = cp_bad
+
+    st100 = load_checkpoint_100_state(cp100_path)
+    if st100.get("session_anchor_et") != snap.session_anchor_et:
+        st100 = {
+            "session_anchor_et": snap.session_anchor_et,
+            "checkpoint_100_info_sent": False,
+            "checkpoint_100_deferred_sent": False,
+            "last_count": 0,
+        }
+    st100["last_count"] = snap.unique_closed_trades
+
+    if send_test_100trade:
+        msg = format_100trade_checkpoint(
+            test=True,
+            snap=snap,
+            cov=cov,
+            data_ready=data_ready_s,
+            strict_status=str(strict.get("LEARNING_STATUS") or ""),
+            exit_probe_ok=exit_probe_ok,
+            utc_iso=out["utc"],
+        )
+        out["test_100trade_sent"] = send_msg(msg, "alpaca_integrity_test_100trade")
+        st100["last_test_100trade_utc"] = out["utc"]
+        save_checkpoint_100_state(cp100_path, st100)
+        out["checkpoint_100_guard_file"] = str(cp100_path)
+    elif cp100_on and snap.unique_closed_trades >= cp100_target:
+        if st100.get("checkpoint_100_info_sent"):
+            out["checkpoint_100_already_complete"] = True
+        elif cp_ok:
+            msg = format_100trade_checkpoint(
+                test=False,
+                snap=snap,
+                cov=cov,
+                data_ready=data_ready_s,
+                strict_status=str(strict.get("LEARNING_STATUS") or ""),
+                exit_probe_ok=exit_probe_ok,
+                utc_iso=out["utc"],
+            )
+            if send_msg(msg, "alpaca_checkpoint_100"):
+                st100["checkpoint_100_info_sent"] = True
+                st100["checkpoint_100_info_sent_at_utc"] = datetime.now(timezone.utc).isoformat()
+                out["checkpoint_100_sent"] = True
+            else:
+                out["checkpoint_100_send_failed"] = True
+        elif not st100.get("checkpoint_100_deferred_sent"):
+            dmsg = format_100trade_checkpoint_deferred(
+                test=False,
+                degradation_reasons=cp_bad,
+                snap=snap,
+                utc_iso=out["utc"],
+            )
+            if send_msg(dmsg, "alpaca_checkpoint_100_deferred"):
+                st100["checkpoint_100_deferred_sent"] = True
+                st100["checkpoint_100_deferred_at_utc"] = datetime.now(timezone.utc).isoformat()
+                out["checkpoint_100_deferred_alert_sent"] = True
+            else:
+                out["checkpoint_100_deferred_send_failed"] = True
+        else:
+            out["checkpoint_100_waiting_integrity_recovery"] = True
+        save_checkpoint_100_state(cp100_path, st100)
+        out["checkpoint_100_guard_file"] = str(cp100_path)
+    else:
+        save_checkpoint_100_state(cp100_path, st100)
+        if cp100_on:
+            out["checkpoint_100_guard_file"] = str(cp100_path)
+
     # --- milestone 250 ---
     ms_path = _milestone_state_path(root)
     fire, ms_st = should_fire_milestone(root, target, snap, ms_path)
-    data_ready_s = "YES" if cov.data_ready_yes else ("NO" if cov.data_ready_yes is False else None)
     spi = checks.latest_spi_pointer(root)
     reports_hint = "reports/ and reports/daily/*/evidence/ on droplet"
 
