@@ -112,7 +112,7 @@ def main() -> None:
     except Exception as e:
         _blocker("Phase 0 broker/clock failed", str(e))
 
-    gh, g0 = _sh("git rev-parse HEAD", 30)
+    gh, _, g0 = _sh("git rev-parse HEAD", 30)
     p0.append(f"## Git HEAD\n\n`{gh.strip()}`\n\n")
     du, _, _ = _sh("date -u '+%Y-%m-%dT%H:%M:%SZ'", 10)
     p0.append(f"## date -u\n\n`{du.strip()}`\n\n")
