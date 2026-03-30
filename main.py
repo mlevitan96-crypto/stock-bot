@@ -2081,6 +2081,11 @@ def log_exit_attribution(
     FIX 2025-12-11: Use aware UTC datetimes to prevent TypeError crashes.
     """
     metadata = dict(metadata or {})
+    if entry_order_id is None and metadata.get("entry_order_id"):
+        try:
+            entry_order_id = str(metadata.get("entry_order_id")).strip() or None
+        except Exception:
+            entry_order_id = None
     try:
         from config.registry import load_metadata_with_lock
 
@@ -2506,7 +2511,13 @@ def log_exit_attribution(
             attribution_schema_version=ATTRIBUTION_SCHEMA_VERSION,
             exit_quality_metrics=exit_quality_metrics,
             trade_id=open_trade_id,
+            exit_order_id=str(exit_order_id) if exit_order_id else None,
+            entry_order_id=str(entry_order_id) if entry_order_id else None,
+            exit_ts=exit_ts_iso,
         )
+        # Truth-warehouse join: duplicate broker order id under order_id (mission gate).
+        if exit_order_id:
+            rec["order_id"] = str(exit_order_id)
         # Exit telemetry: canonical components, deltas, signal snapshot, EXIT_EVENT (observational only).
         try:
             from src.exit.exit_telemetry import (
@@ -2668,6 +2679,10 @@ def log_exit_attribution(
         try:
             from telemetry.signal_context_logger import log_signal_context, default_threshold, confidence_bucket_from_score
             mode = "paper" if getattr(Config, "PAPER_TRADING", True) else "live"
+            try:
+                _exit_mid = float(exit_price) if exit_price is not None else None
+            except (TypeError, ValueError):
+                _exit_mid = None
             sig_dict = {
                 "uw_components": dict(v2_exit_components or {}),
                 "regime_label": exit_regime,
@@ -2676,6 +2691,9 @@ def log_exit_attribution(
                 "exit_regime": exit_regime,
                 "v2_exit_score": float(v2_exit_score),
                 "score_deterioration": float(score_det),
+                # Truth-warehouse slippage gate: ref mid/last from executed exit fill when no live quote in components.
+                "mid": _exit_mid,
+                "last": _exit_mid,
             }
             meta = metadata if isinstance(metadata, dict) else {}
             counterfactual = None
@@ -6094,7 +6112,7 @@ class AlpacaExecutor:
             log_event("displacement", "failed", symbol=symbol, error=str(e))
             return False
 
-    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", alpha_signature: dict = None, v2_context: dict = None, market_context: dict = None, regime_posture: dict = None):
+    def mark_open(self, symbol: str, entry_price: float, atr_mult: float = None, side: str = "buy", qty: int = 0, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", alpha_signature: dict = None, v2_context: dict = None, market_context: dict = None, regime_posture: dict = None, entry_order_id: str = None):
         # VALIDATION: Warn if entry_score is 0.0 (should not happen in normal flow)
         if entry_score <= 0.0:
             print(f"WARNING {symbol}: mark_open called with entry_score={entry_score:.2f} - this may indicate a bug", flush=True)
@@ -6204,6 +6222,7 @@ class AlpacaExecutor:
             variant_id=variant_id,
             entry_market_context=market_context if isinstance(market_context, dict) else {},
             entry_regime_posture=regime_posture if isinstance(regime_posture, dict) else {},
+            entry_order_id=entry_order_id,
         )
         # Direction intel: capture entry snapshot with SAME entry_ts as metadata so exit can load it.
         try:
@@ -6237,7 +6256,7 @@ class AlpacaExecutor:
         except Exception as e:
             log_event("state_manager", "update_position_failed", symbol=symbol, error=str(e))
     
-    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None, alpha_signature: dict = None, v2_context: dict = None, variant_id: str = None, entry_market_context: dict = None, entry_regime_posture: dict = None):
+    def _persist_position_metadata(self, symbol: str, entry_ts: datetime, entry_price: float, qty: int, side: str, entry_score: float = 0.0, components: dict = None, market_regime: str = "unknown", direction: str = "unknown", regime_modifier: float = 1.0, ignition_status: str = "unknown", correlation_id: str = None, alpha_signature: dict = None, v2_context: dict = None, variant_id: str = None, entry_market_context: dict = None, entry_regime_posture: dict = None, entry_order_id: str = None):
         """Persist position metadata to durable file for restart recovery with atomic write.
         
         V2.0: Now stores all 21 signal components for ML learning when trade closes.
@@ -6308,6 +6327,11 @@ class AlpacaExecutor:
                 "entry_regime_posture": _erp,
                 **_ak_md,
             }
+            _eoid = (str(entry_order_id).strip() if entry_order_id else None) or None
+            if not _eoid and isinstance(_prev, dict) and _prev.get("entry_order_id"):
+                _eoid = str(_prev.get("entry_order_id")).strip() or None
+            if _eoid:
+                metadata[symbol]["entry_order_id"] = _eoid
             
             # V3.0: Persist targets if position is already open
             if symbol in self.opens and "targets" in self.opens[symbol]:
@@ -7883,7 +7907,20 @@ class AlpacaExecutor:
                     # Log that we used fallback
                     log_event("exit", "close_reason_fallback", symbol=symbol, reason=close_reason)
                 
-                log_order({"action": "close_position", "symbol": symbol, "reason": close_reason})
+                _close_ts = datetime.now(timezone.utc).isoformat()
+                _exit_side = "sell" if str(info.get("side", "buy")).lower() in ("buy", "long") else "buy"
+                log_order(
+                    {
+                        "action": "close_position",
+                        "symbol": symbol,
+                        "reason": close_reason,
+                        "order_id": str(exit_order_id) if exit_order_id else None,
+                        "side": _exit_side,
+                        "filled_qty": int(exit_fill_qty) if exit_fill_qty else None,
+                        "filled_avg_price": float(exit_fill_price) if exit_fill_price else None,
+                        "ts": _close_ts,
+                    }
+                )
                 
                 symbol_metadata = all_metadata.get(symbol, {}) if isinstance(all_metadata, dict) else {}
                 # Attach v2 exit intel snapshot for attribution (best-effort).
@@ -10283,6 +10320,12 @@ class StrategyEngine:
 
                     _mc = getattr(self, "market_context_v2", None) or {}
                     _rp = getattr(self, "regime_posture_v2", None) or {}
+                    _entry_oid = None
+                    try:
+                        if res is not None and getattr(res, "id", None):
+                            _entry_oid = str(res.id)
+                    except Exception:
+                        _entry_oid = None
                     self.executor.mark_open(
                         symbol,
                         exec_price,
@@ -10298,6 +10341,7 @@ class StrategyEngine:
                         v2_context=v2_context_for_metadata,
                         market_context=_mc if isinstance(_mc, dict) else None,
                         regime_posture=_rp if isinstance(_rp, dict) else None,
+                        entry_order_id=_entry_oid,
                     )
                     # Canonical entry attribution + unified events (trade_id matches position_metadata.entry_ts for exit join)
                     _tid = None
