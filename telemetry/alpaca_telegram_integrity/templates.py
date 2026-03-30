@@ -16,6 +16,12 @@ def _fmt_pct(x: Any) -> str:
         return str(x)
 
 
+def _counting_label(snap: MilestoneSnapshot) -> str:
+    if snap.counting_basis == "integrity_armed":
+        return "canonical trade_key since integrity arm (100/250 pre-check first green)"
+    return "canonical trade_key since session open"
+
+
 def format_100trade_checkpoint(
     *,
     test: bool,
@@ -24,6 +30,7 @@ def format_100trade_checkpoint(
     data_ready: Optional[str],
     strict_status: Optional[str],
     exit_probe_ok: bool,
+    precheck_ok: bool = True,
     utc_iso: str,
 ) -> str:
     """Informational only; no operator action."""
@@ -31,7 +38,8 @@ def format_100trade_checkpoint(
     lines = [
         f"{prefix}[ALPACA] 100-TRADE CHECKPOINT",
         "Informational only — no operator action required.",
-        f"Trade count (canonical trade_key since session open): {snap.unique_closed_trades}",
+        f"Trade count ({_counting_label(snap)}): {snap.unique_closed_trades}",
+        f"Count floor (UTC): {snap.count_floor_utc_iso}",
         f"Session open (UTC): {snap.session_open_utc_iso}",
         f"Session baseline (ET date): {snap.session_anchor_et}",
         f"Timestamp (UTC): {utc_iso}",
@@ -46,8 +54,19 @@ def format_100trade_checkpoint(
         f"  Strict LEARNING_STATUS: {strict_status or 'unknown'}",
         f"  Exit attribution tail probe OK: {exit_probe_ok}",
         "",
-        "System is on track for 250-trade milestone (same session baseline and counters).",
     ]
+    if precheck_ok:
+        lines.append(
+            "System is on track for 250-trade milestone (same counting floor and trade_key semantics)."
+        )
+    elif test:
+        lines.append(
+            "Test template only — 250-milestone progress line omitted because integrity pre-check did not pass this run."
+        )
+    else:
+        lines.append(
+            "Integrity pre-check did not pass; 250 milestone will use the same counting floor once armed."
+        )
     return "\n".join(lines)
 
 
@@ -63,7 +82,7 @@ def format_100trade_checkpoint_deferred(
     body = [
         f"{prefix}ALPACA DATA INTEGRITY ALERT (100-trade checkpoint deferred)",
         "The 100-trade informational checkpoint was not sent because integrity pre-checks failed.",
-        f"Session baseline (ET): {snap.session_anchor_et} | trades_since_open={snap.unique_closed_trades} | {utc_iso}",
+        f"Session baseline (ET): {snap.session_anchor_et} | milestone_trade_count={snap.unique_closed_trades} (basis={snap.counting_basis}) | {utc_iso}",
         "Degradation:",
     ]
     for r in degradation_reasons:
@@ -86,10 +105,12 @@ def format_milestone_250(
     prefix = "[TEST] " if test else ""
     lines = [
         f"{prefix}ALPACA 250-TRADE MILESTONE",
+        f"Counting basis: {snap.counting_basis}",
+        f"Count floor (UTC): {snap.count_floor_utc_iso or snap.session_open_utc_iso}",
         f"Session open (UTC): {snap.session_open_utc_iso}",
         f"Session anchor (ET date): {snap.session_anchor_et}",
         f"Unique closed trades (canonical keys): {snap.unique_closed_trades}",
-        f"Realized PnL sum since session open (USD): {snap.realized_pnl_sum_usd}",
+        f"Realized PnL sum since count floor (USD): {snap.realized_pnl_sum_usd}",
         f"DATA_READY: {data_ready or 'unknown (run warehouse)'}",
         f"Strict LEARNING_STATUS: {strict_status or 'unknown'}",
     ]

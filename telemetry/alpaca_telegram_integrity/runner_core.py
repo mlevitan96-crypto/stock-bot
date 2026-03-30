@@ -15,12 +15,14 @@ from telemetry.alpaca_telegram_integrity.checkpoint_100 import (
     save_checkpoint_100_state,
 )
 from telemetry.alpaca_telegram_integrity.milestone import (
-    count_since_session_open,
+    build_milestone_snapshot,
     load_milestone_state,
     mark_milestone_fired,
     save_milestone_state,
     should_fire_milestone,
+    update_integrity_arm_state,
 )
+from telemetry.alpaca_telegram_integrity.session_clock import session_anchor_date_et_iso
 from telemetry.alpaca_telegram_integrity.self_heal import run_self_heal
 from telemetry.alpaca_telegram_integrity.templates import (
     format_100trade_checkpoint,
@@ -171,8 +173,6 @@ def run_integrity_cycle(
         out["self_heal"] = run_self_heal(cfg, root)
 
     target = int(cfg.get("milestone_trade_count", 250))
-    snap = count_since_session_open(root)
-    out["milestone"] = asdict(snap)
 
     # Optional full warehouse run (throttled)
     wh_days = int(cfg.get("warehouse_days_when_run", 30))
@@ -292,6 +292,27 @@ def run_integrity_cycle(
     out["checkpoint_100_precheck_ok"] = cp_ok
     out["checkpoint_100_precheck_reasons"] = cp_bad
 
+    now_utc = datetime.now(timezone.utc)
+    anchor_et = session_anchor_date_et_iso(now_utc)
+    basis = str(cfg.get("milestone_counting_basis", "integrity_armed")).strip() or "integrity_armed"
+    if basis not in ("session_open", "integrity_armed"):
+        basis = "integrity_armed"
+    arm_st: Dict[str, Any] = {}
+    arm_ep: Optional[float] = None
+    if basis == "integrity_armed":
+        arm_st = update_integrity_arm_state(root, anchor_et, cp_ok)
+        raw = arm_st.get("arm_epoch_utc")
+        arm_ep = float(raw) if raw is not None else None
+    snap = build_milestone_snapshot(
+        root,
+        counting_basis=basis,
+        arm_epoch_utc=arm_ep,
+        now=now_utc,
+    )
+    out["milestone"] = asdict(snap)
+    out["milestone_counting_basis"] = basis
+    out["milestone_integrity_arm"] = arm_st if basis == "integrity_armed" else {"basis": "session_open"}
+
     st100 = load_checkpoint_100_state(cp100_path)
     if st100.get("session_anchor_et") != snap.session_anchor_et:
         st100 = {
@@ -310,6 +331,7 @@ def run_integrity_cycle(
             data_ready=data_ready_s,
             strict_status=str(strict.get("LEARNING_STATUS") or ""),
             exit_probe_ok=exit_probe_ok,
+            precheck_ok=cp_ok,
             utc_iso=out["utc"],
         )
         out["test_100trade_sent"] = send_msg(msg, "alpaca_integrity_test_100trade")
@@ -327,6 +349,7 @@ def run_integrity_cycle(
                 data_ready=data_ready_s,
                 strict_status=str(strict.get("LEARNING_STATUS") or ""),
                 exit_probe_ok=exit_probe_ok,
+                precheck_ok=True,
                 utc_iso=out["utc"],
             )
             if send_msg(msg, "alpaca_checkpoint_100"):
