@@ -320,6 +320,7 @@ DASHBOARD_HTML = """
         .top-strip .strip-health.healthy { color: #10b981; }
         .top-strip .strip-health.degraded { color: #f59e0b; }
         .top-strip .strip-health.critical { color: #ef4444; }
+        .top-strip .strip-health.unknown { color: #64748b; }
         /* More dropdown */
         .more-dropdown { position: relative; display: inline-block; }
         .more-dropdown-content { display: none; position: absolute; right: 0; top: 100%; min-width: 200px; z-index: 100; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: 2px; }
@@ -386,9 +387,10 @@ DASHBOARD_HTML = """
                 <p class="loading" style="padding:0;margin:0;">Loading activity snapshot…</p>
             </div>
             <div id="top-strip" class="top-strip">
-                <span><strong>Health:</strong> <span id="strip-health" class="strip-health">—</span></span>
-                <span><strong>P&L today:</strong> <span id="strip-pnl-today">—</span></span>
-                <span><strong>P&L 7d:</strong> <span id="strip-pnl-7d">—</span></span>
+                <span title="SRE overall from bot :8081 or heartbeat age"><strong>Health:</strong> <span id="strip-health" class="strip-health">—</span></span>
+                <span title="Alpaca session day P&amp;L (same logic as Positions &quot;Day P&amp;L&quot;)"><strong>Day (broker):</strong> <span id="strip-pnl-today">—</span></span>
+                <span title="Sum of closed trades in logs/attribution.jsonl, exit ts rolling 24h"><strong>24h (closed):</strong> <span id="strip-pnl-24h">—</span></span>
+                <span title="Same source, rolling 7d — full file in Executive Summary tab"><strong>7d (closed):</strong> <span id="strip-pnl-7d">—</span></span>
                 <span><strong>Last signal:</strong> <span id="last-signal">—</span></span>
                 <span><strong>Last update:</strong> <span id="last-update">—</span></span>
             </div>
@@ -419,7 +421,7 @@ DASHBOARD_HTML = """
         </div>
         
         <div id="positions-tab" class="tab-content active">
-        <div id="tab-state-line-positions" class="tab-state-banner partial" style="display:block">PARTIAL: Loading…</div>
+        <div id="tab-state-line-positions" class="tab-state-banner partial" style="display:block">PARTIAL: Resolving GET /api/positions…</div>
         <div class="stats" id="stats-container">
             <div class="stat-card">
                 <div class="stat-label">Total Positions</div>
@@ -460,40 +462,40 @@ DASHBOARD_HTML = """
         </div>
         
         <div id="sre-tab" class="tab-content">
-            <div id="tab-state-line-sre" class="tab-state-banner partial" style="display:block">PARTIAL: Loading…</div>
+            <div id="tab-state-line-sre" class="tab-state-banner partial" style="display:block">PARTIAL: Open SRE tab to load — not an error.</div>
             <div id="sre-content">
                 <div class="loading">Loading SRE monitoring data...</div>
             </div>
         </div>
         
         <div id="executive-tab" class="tab-content">
-            <div id="tab-state-line-executive" class="tab-state-banner partial" style="display:block">PARTIAL: Loading…</div>
+            <div id="tab-state-line-executive" class="tab-state-banner partial" style="display:block">PARTIAL: Open Executive tab to load full summary.</div>
             <div id="executive-content">
                 <div class="loading">Loading executive summary...</div>
             </div>
         </div>
         
         <div id="closed_trades-tab" class="tab-content">
-            <div id="tab-state-line-closed_trades" class="tab-state-banner partial" style="display:block">PARTIAL: Loading…</div>
+            <div id="tab-state-line-closed_trades" class="tab-state-banner partial" style="display:block">PARTIAL: Open Closed Trades tab to load.</div>
             <div id="closed_trades-content">
                 <div class="loading">Loading closed trades...</div>
             </div>
         </div>
         <div id="failure_points-tab" class="tab-content">
-            <div id="tab-state-line-failure_points" class="tab-state-banner partial" style="display:block">PARTIAL: Loading…</div>
+            <div id="tab-state-line-failure_points" class="tab-state-banner partial" style="display:block">PARTIAL: Open Trading Readiness (More) to load.</div>
             <div id="failure_points-content">
                 <div class="loading">Loading Trading Readiness...</div>
             </div>
         </div>
 
         <div id="telemetry-tab" class="tab-content">
-            <div id="tab-state-line-telemetry" class="tab-state-banner partial" style="display:block">PARTIAL: Loading…</div>
+            <div id="tab-state-line-telemetry" class="tab-state-banner partial" style="display:block">PARTIAL: Open Telemetry (More) to load.</div>
             <div id="telemetry-content">
                 <div class="loading">Loading telemetry...</div>
             </div>
         </div>
         <div id="system_health-tab" class="tab-content">
-            <div id="tab-state-line-system_health" class="tab-state-banner partial" style="display:block">PARTIAL: Loading…</div>
+            <div id="tab-state-line-system_health" class="tab-state-banner partial" style="display:block">PARTIAL: Open System Health tab to load.</div>
             <div id="system_health-content">
                 <div class="loading">Loading System Health &amp; Data Integrity...</div>
             </div>
@@ -514,7 +516,7 @@ DASHBOARD_HTML = """
         </div>
         
         <div id="signal_review-tab" class="tab-content">
-            <div id="tab-state-line-signal_review" class="tab-state-banner partial" style="display:block">PARTIAL: Loading…</div>
+            <div id="tab-state-line-signal_review" class="tab-state-banner partial" style="display:block">PARTIAL: Open Signal Review (More) to load.</div>
             <div class="positions-table">
                 <h2 style="margin-bottom: 15px;">Signal Review - Last 50 Processing Events</h2>
                 <div id="signal-review-content">
@@ -552,7 +554,7 @@ DASHBOARD_HTML = """
     function hoursSinceIso(iso){if(!iso)return null;try{return (Date.now()-new Date(iso).getTime())/3600000;}catch(e){return null;}}
     function tabStateFromApi(iso,staleH,partialMsg){var h=hoursSinceIso(iso);if(h==null)return {st:'partial',msg:partialMsg||'No server timestamp in response.'};if(h>staleH)return {st:'stale',msg:'Last data '+iso+' (~'+h.toFixed(1)+'h ago).'};return {st:'ok',msg:'Last data '+iso+'.'};}
     window.tabStateFromApi=tabStateFromApi;
-    window.loadAlpacaOperationalActivity=function(){var box=document.getElementById('alpaca-operational-activity');if(!box)return;var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();},25000);var opts=Object.assign({},creds);if(ac)opts.signal=ac.signal;fetch('/api/alpaca_operational_activity?hours=72',opts).then(function(r){clearTimeout(tid);if(!r.ok){throw new Error('HTTP '+r.status);}return r.json();}).then(function(d){if(!d){box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info">No response.</p>';return;}if(d.ok===false){box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info"><strong>DISABLED</strong>: '+(d.reason||'unavailable')+'</p>';return;}var st=d.state||'OK';var ord=d.orders_log||{};var ordNote=ord.reason?('<br/><span style="color:#92400e">Orders log: '+ord.state+' — '+ord.reason+'</span>'):'';var scanNote=d.scan_note?('<p style="font-size:0.82em;color:#64748b;margin-top:8px">'+String(d.scan_note).replace(/</g,'&lt;')+'</p>'):'';box.innerHTML='<h3>Alpaca operational activity</h3><p>Window: last <strong>'+d.hours+'</strong> hours (server <code>generated_at_utc</code>: '+(d.generated_at_utc||'—')+') · Panel state: <strong>'+st+'</strong></p><ul style="margin:8px 0 0 18px;padding:0;"><li><strong>Trades observed (max of exit / unified / entered intents):</strong> '+(d.trades_observed!=null?d.trades_observed:'—')+'</li><li><strong>Exit rows (exit_attribution):</strong> '+(d.exit_attribution_rows_in_window!=null?d.exit_attribution_rows_in_window:'—')+'</li><li><strong>Last exit (UTC):</strong> '+(d.last_exit_timestamp_utc||'—')+'</li><li><strong>Last entry (UTC):</strong> '+(d.last_entry_timestamp_utc||'—')+'</li><li><strong>Orders rows (orders.jsonl):</strong> '+(d.orders_rows_in_window!=null?d.orders_rows_in_window:'—')+'</li><li><strong>Fills (heuristic):</strong> '+(d.fills_seen_heuristic!=null?d.fills_seen_heuristic:'—')+'</li></ul>'+scanNote+'<p class="ops-disclaimer"><strong>'+(d.disclaimer||'')+'</strong>'+ordNote+'</p>';}).catch(function(e){clearTimeout(tid);box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info">Could not load snapshot: '+(e&&e.name==='AbortError'?'timed out (25s)':(e&&e.message?e.message:'network'))+'.</p>';});};
+    window.loadAlpacaOperationalActivity=function(){var box=document.getElementById('alpaca-operational-activity');if(!box)return;var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)try{ac.abort();}catch(e){}},45000);var opts=Object.assign({},creds);if(ac)opts.signal=ac.signal;fetch('/api/alpaca_operational_activity?hours=72',opts).then(function(r){clearTimeout(tid);if(!r.ok){throw new Error('HTTP '+r.status);}return r.json();}).then(function(d){if(!d){box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info">No response.</p>';return;}if(d.ok===false){box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info"><strong>DISABLED</strong>: '+(d.reason||'unavailable')+'</p>';return;}var st=d.state||'OK';var ord=d.orders_log||{};var ordNote=ord.reason?('<br/><span style="color:#92400e">Orders log: '+ord.state+' — '+ord.reason+'</span>'):'';var scanNote=d.scan_note?('<p style="font-size:0.82em;color:#64748b;margin-top:8px">'+String(d.scan_note).replace(/</g,'&lt;')+'</p>'):'';box.innerHTML='<h3>Alpaca operational activity</h3><p>Window: last <strong>'+d.hours+'</strong> hours (server <code>generated_at_utc</code>: '+(d.generated_at_utc||'—')+') · Panel state: <strong>'+st+'</strong></p><ul style="margin:8px 0 0 18px;padding:0;"><li><strong>Trades observed (max of exit / unified / entered intents):</strong> '+(d.trades_observed!=null?d.trades_observed:'—')+'</li><li><strong>Exit rows (exit_attribution):</strong> '+(d.exit_attribution_rows_in_window!=null?d.exit_attribution_rows_in_window:'—')+'</li><li><strong>Last exit (UTC):</strong> '+(d.last_exit_timestamp_utc||'—')+'</li><li><strong>Last entry (UTC):</strong> '+(d.last_entry_timestamp_utc||'—')+'</li><li><strong>Orders rows (orders.jsonl):</strong> '+(d.orders_rows_in_window!=null?d.orders_rows_in_window:'—')+'</li><li><strong>Fills (heuristic):</strong> '+(d.fills_seen_heuristic!=null?d.fills_seen_heuristic:'—')+'</li></ul>'+scanNote+'<p class="ops-disclaimer"><strong>'+(d.disclaimer||'')+'</strong>'+ordNote+'</p>';}).catch(function(e){clearTimeout(tid);box.innerHTML='<h3>Alpaca operational activity</h3><p class="panel-info">Could not load snapshot: '+(e&&e.name==='AbortError'?'timed out (45s)':(e&&e.message?e.message:'network'))+'. <span style="font-size:0.9em">Loads after top strip; retry refresh.</span></p>';});};
     function cur(v){if(v==null||v===undefined)return '';var n=Number(v);return isFinite(n)?'$'+n.toFixed(2):String(v);}
     window.loadSREContent=function(){var el=document.getElementById('sre-content');if(!el)return;el.innerHTML='<div class="loading">Loading SRE...</div>';fetch('/api/sre/health',creds).then(function(r){if(!r.ok){infoErr(el,'HTTP '+r.status+': sign in to load SRE tab.');if(typeof setTabStateLine==='function')setTabStateLine('sre','partial','Auth required.');return null;}return r.json();}).then(function(d){if(!d)return;var m=d.sre_metrics||{};var f=d.signal_funnel||{};var h='<div class="stat-card" style="margin-bottom:16px;"><h3>SRE Health</h3><p><strong>Overall:</strong> '+(d.overall_health||'—')+'</p><p><strong>Bot:</strong> '+(d.bot_process&&d.bot_process.running?'Running':'—')+'</p><p><strong>Market:</strong> '+(d.market_status||'—')+' '+(d.market_open?'(open)':'')+'</p></div>';
     h+='<div class="stat-card" style="margin-bottom:16px;"><h3>Metrics</h3><p>Logic heartbeat: '+(m.logic_heartbeat?new Date(m.logic_heartbeat*1000).toLocaleString():'—')+'</p><p>Mock signal success: '+(m.mock_signal_success_pct!=null?m.mock_signal_success_pct.toFixed(1):'—')+'%</p><p>Parser health: '+(m.parser_health_index!=null?m.parser_health_index.toFixed(1):'—')+'%</p><p>Auto-fix count: '+(m.auto_fix_count!=null?m.auto_fix_count:'—')+'</p></div>';
@@ -585,11 +587,61 @@ DASHBOARD_HTML = """
     h+='<div class="stat-card"><h3>Closed Trades ('+list.length+')</h3>'+sumLine+'<p style="font-size:0.8em;color:#64748b">Row sources: <code>data_sources</code> per row. INCOMPLETE = field absent in log line.</p><div style="overflow-x:auto"><table style="width:100%;font-size:11px;"><thead><tr><th>Strategy</th><th>Symbol</th><th>Exit time</th><th>Entry @</th><th>P&amp;L</th><th>Fees</th><th>Entry reason</th><th>Exit reason</th><th>Strict</th><th>Options context</th></tr></thead><tbody>';
     for(var i=0;i<list.length;i++){var t=list[i];var stratLabel='Equity';var ts=t.timestamp?new Date(t.timestamp).toLocaleString():'—';var pnl=t.pnl_usd!=null?'$'+Number(t.pnl_usd).toFixed(2):'—';var close=t.close_reason||'—';var ph=t.option_phase||'—';var ot=t.option_type||'—';var st=t.strike!=null?t.strike:'—';var ctx=ph+' / '+ot+' / '+st;var ent=t.entry_timestamp?String(t.entry_timestamp).substring(0,19):'INCOMPLETE';var er=t.entry_reason_display||'INCOMPLETE';var fd=t.fees_display||'INCOMPLETE';var sc=t.strict_alpaca_chain||'—';h+='<tr><td>'+stratLabel+'</td><td>'+(t.symbol||'—')+'</td><td>'+ts+'</td><td>'+ent+'</td><td>'+pnl+'</td><td>'+fd+'</td><td style="max-width:120px;word-break:break-word">'+er+'</td><td style="max-width:120px;word-break:break-word">'+close+'</td><td style="font-size:10px">'+sc+'</td><td style="font-size:10px">'+ctx+'</td></tr>';}
     h+='</tbody></table></div></div>';el.innerHTML=h;el.dataset.loaded='1';var _ct=tabStateFromApi(d.response_generated_at_utc,72,'API timestamp not supplied.');if(typeof setTabStateLine==='function')setTabStateLine('closed_trades',_ct.st,_ct.msg);}).catch(function(e){infoErr(el,'Closed trades did not load: '+(e&&e.message?e.message:'network')+'.');if(typeof setTabStateLine==='function')setTabStateLine('closed_trades','partial','Retry after sign in.');});};
-    function loadTopStrip(){Promise.all([fetch('/api/sre/health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=24h',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=7d',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){var health=arr[0];var d24=arr[1];var d7=arr[2];var hel=document.getElementById('strip-health');if(hel){var h=health&&health.overall_health?health.overall_health:'—';hel.textContent=h;hel.className='strip-health '+(h==='healthy'?'healthy':h==='degraded'?'degraded':'critical');}var todayEl=document.getElementById('strip-pnl-today');if(todayEl){var pm24=d24&&d24.pnl_metrics?d24.pnl_metrics:{};var p24=pm24.pnl!=null?pm24.pnl:(pm24.pnl_2d!=null?pm24.pnl_2d:0);todayEl.textContent='$'+fmt(p24);todayEl.className=Number(p24)>=0?'positive':'negative';}var d7El=document.getElementById('strip-pnl-7d');if(d7El){var pm7=d7&&d7.pnl_metrics?d7.pnl_metrics:{};var p7=pm7.pnl!=null?pm7.pnl:0;d7El.textContent='$'+fmt(p7);d7El.className=Number(p7)>=0?'positive':'negative';}var lu=document.getElementById('last-update');if(lu)lu.textContent=new Date().toLocaleTimeString();});}
+    function loadTopStrip(){
+    var ac=typeof AbortController!=='undefined'?new AbortController():null;
+    var tid=setTimeout(function(){if(ac)try{ac.abort();}catch(e){}},15000);
+    var opts=Object.assign({},creds);if(ac)opts.signal=ac.signal;
+    function paintStrip(d,src){
+    var hel=document.getElementById('strip-health');
+    if(hel){
+    var h=(d&&d.overall_health)?d.overall_health:'—';
+    hel.textContent=h;
+    var hc=(h==='healthy'?'healthy':h==='degraded'?'degraded':(h==='unknown'||h==='—'?'unknown':'critical'));
+    hel.className='strip-health '+hc;
+    if(d&&d.overall_health_source)hel.title='Source: '+d.overall_health_source;
+    }
+    var dayBr=document.getElementById('strip-pnl-today');
+    if(dayBr){
+    var bd=d&&d.broker_day_pnl!=null?Number(d.broker_day_pnl):null;
+    if(bd===null||!isFinite(bd)){dayBr.textContent='—';dayBr.className='';}
+    else{dayBr.textContent='$'+fmt(bd);dayBr.className=Number(bd)>=0?'positive':'negative';}
+    }
+    var e24=document.getElementById('strip-pnl-24h');
+    if(e24){
+    var a24=d&&d.pnl_24h_attribution!=null?Number(d.pnl_24h_attribution):null;
+    if(a24===null||!isFinite(a24)){e24.textContent='—';e24.className='';}
+    else{e24.textContent='$'+fmt(a24);e24.className=Number(a24)>=0?'positive':'negative';}
+    if(d&&d.trades_24h_attribution!=null)e24.title='Trades in window: '+d.trades_24h_attribution+(d.attribution_tail_note?'. '+d.attribution_tail_note:'');
+    }
+    var d7El=document.getElementById('strip-pnl-7d');
+    if(d7El){
+    var p7=d&&d.pnl_7d_attribution!=null?Number(d.pnl_7d_attribution):null;
+    if(p7===null||!isFinite(p7)){d7El.textContent='—';d7El.className='';}
+    else{d7El.textContent='$'+fmt(p7);d7El.className=Number(p7)>=0?'positive':'negative';}
+    if(d&&d.trades_7d_attribution!=null)d7El.title='Trades in window: '+d.trades_7d_attribution;
+    }
+    var lu=document.getElementById('last-update');if(lu)lu.textContent=new Date().toLocaleTimeString()+(src?(' · '+src):'');
+    }
+    fetch('/api/dashboard/header_strip',opts).then(function(r){clearTimeout(tid);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
+    if(d&&d.ok===false){throw new Error(d.error||'strip failed');}
+    paintStrip(d,'header_strip');
+    }).catch(function(){
+    clearTimeout(tid);
+    paintStrip({overall_health:'—',broker_day_pnl:null,pnl_24h_attribution:null,pnl_7d_attribution:null},'fallback');
+    Promise.all([fetch('/api/sre/health',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=24h',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),fetch('/api/executive_summary?timeframe=7d',creds).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})]).then(function(arr){
+    var health=arr[0];var d24=arr[1];var d7=arr[2];
+    var hel=document.getElementById('strip-health');if(hel&&health&&health.overall_health){var h=health.overall_health;hel.textContent=h;hel.className='strip-health '+(h==='healthy'?'healthy':h==='degraded'?'degraded':'critical');}
+    var todayEl=document.getElementById('strip-pnl-today');if(todayEl&&d24&&d24.pnl_metrics){var pm=d24.pnl_metrics;var p24=pm.pnl!=null?pm.pnl:(pm.pnl_2d!=null?pm.pnl_2d:0);todayEl.textContent='$'+fmt(p24);todayEl.className=Number(p24)>=0?'positive':'negative';todayEl.title='Fallback: executive_summary 24h (not broker day)';}
+    var e24f=document.getElementById('strip-pnl-24h');if(e24f&&d24&&d24.pnl_metrics){var pm2=d24.pnl_metrics;var p242=pm2.pnl!=null?pm2.pnl:(pm2.pnl_2d!=null?pm2.pnl_2d:0);e24f.textContent='$'+fmt(p242);e24f.className=Number(p242)>=0?'positive':'negative';}
+    var d7El=document.getElementById('strip-pnl-7d');if(d7El&&d7&&d7.pnl_metrics){var pm7=d7.pnl_metrics;var p7=pm7.pnl!=null?pm7.pnl:0;d7El.textContent='$'+fmt(p7);d7El.className=Number(p7)>=0?'positive':'negative';}
+    var lu=document.getElementById('last-update');if(lu)lu.textContent=new Date().toLocaleTimeString()+' · legacy';
+    });
+    });
+    }
     window.loadDirectionBanner=function(){var el=document.getElementById('direction-banner');if(!el)return;var done=function(d){if(!el)return;var sev=(d&&d.severity)||'info';el.className='direction-banner '+sev;if(!d){el.textContent='Direction status unavailable (timeout or network — retry refresh).';return;}var esc=function(s){if(s==null||s===undefined)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};var msg=esc(d.message||'');var detail=esc(d.detail||'');var link=esc(d.link||'');var html=msg||'(no message)';if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;};var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();done(null);},20000);fetch('/api/direction_banner',Object.assign({},creds,{signal:ac&&ac.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid);done(d);});};
     window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;var done=function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var x=d.trades_reviewed!=null?d.trades_reviewed:0;var tot=d.trades_reviewed_total!=null?d.trades_reviewed_total:0;var tgt=d.trades_reviewed_target!=null?d.trades_reviewed_target:100;var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Trades reviewed:</span><span class="sit-value">'+x+'/'+tgt+(tot!==x?' <span style="opacity:0.85;">('+tot+' total)</span>':'')+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;};var ac2=typeof AbortController!=='undefined'?new AbortController():null;var tid2=setTimeout(function(){if(ac2)ac2.abort();done(null);},20000);fetch('/api/situation',Object.assign({},creds,{signal:ac2&&ac2.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid2);done(d);});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
-    setTimeout(function(){loadVersion();loadPositions();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function')loadDirectionBanner();if(typeof loadSituationStrip==='function')loadSituationStrip();if(typeof loadAlpacaOperationalActivity==='function')loadAlpacaOperationalActivity();},0);
+    setTimeout(function(){loadVersion();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function')loadDirectionBanner();if(typeof loadSituationStrip==='function')loadSituationStrip();setTimeout(function(){if(typeof loadAlpacaOperationalActivity==='function')loadAlpacaOperationalActivity();},500);},0);
     })();
     </script>
     <script>
@@ -2225,6 +2277,7 @@ DASHBOARD_HTML = """
                     if (!data || typeof data !== 'object') {
                         var el = document.getElementById('positions-content');
                         if (el) el.innerHTML = '<p class="no-positions">Invalid response. Try another tab or refresh.</p>';
+                        if (typeof window.setTabStateLine === 'function') window.setTabStateLine('positions', 'partial', 'Invalid JSON payload.');
                         return;
                     }
                     var lastUpdate = document.getElementById('last-update');
@@ -2233,6 +2286,7 @@ DASHBOARD_HTML = """
                     if (data.error) {
                         var posContent = document.getElementById('positions-content');
                         if (posContent) posContent.innerHTML = '<p class="no-positions">Error: ' + (data.error || 'Unknown') + '</p>';
+                        if (typeof window.setTabStateLine === 'function') window.setTabStateLine('positions', 'partial', String(data.error).substring(0, 120));
                         return;
                     }
                     
@@ -2261,6 +2315,7 @@ DASHBOARD_HTML = """
                     if (positions.length === 0) {
                         var posContent0 = document.getElementById('positions-content');
                         if (posContent0) posContent0.innerHTML = '<p class="no-positions">No open positions</p>';
+                        if (typeof window.setTabStateLine === 'function') window.setTabStateLine('positions', 'ok', 'Zero open (Alpaca API).');
                         return;
                     }
                     
@@ -2398,6 +2453,7 @@ DASHBOARD_HTML = """
                             }
                         });
                     }
+                    if (typeof window.setTabStateLine === 'function') window.setTabStateLine('positions', 'ok', 'Live broker + metadata (' + positions.length + ').');
                     
                     if (scrollTop > 0 && positionsContent) {
                         requestAnimationFrame(function() {
@@ -2416,6 +2472,7 @@ DASHBOARD_HTML = """
                             : ('Positions load failed: ' + (error.message || 'network error'));
                         content.innerHTML = '<p class="no-positions">' + msg + '</p>';
                     }
+                    if (typeof window.setTabStateLine === 'function') window.setTabStateLine('positions', 'partial', (error && error.name === 'AbortError') ? 'Timed out (15s).' : 'Load failed.');
                 });
             
             // Fetch health status for Last Order and Doctor (credentials so auth is sent)
@@ -2955,9 +3012,9 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     disclaimer = (
         "Trades are executing on Alpaca. Data is NOT certified for learning or attribution."
     )
-    tail_lines = 50_000
+    tail_lines = 18_000
     tail_note = (
-        f"Counts use the last ~{tail_lines} lines per log file (plus up to 12MB read each). "
+        f"Counts use the last ~{tail_lines} lines per log file (plus up to 4MB read each). "
         "If volume is extreme, figures are a lower bound for the time window."
     )
 
@@ -2971,7 +3028,7 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     fills_h = 0
 
     def _consume_tail(path: Path, handle):
-        for line in _tail_file_lines(path, max_lines=tail_lines, max_chunk_bytes=12_000_000):
+        for line in _tail_file_lines(path, max_lines=tail_lines, max_chunk_bytes=4_000_000):
             line = line.strip()
             if not line:
                 continue
@@ -3104,6 +3161,149 @@ def api_alpaca_operational_activity():
                 "fills_seen_heuristic": None,
             }
         ), 200
+
+
+def _load_attribution_closed_trades_tail(root: Path, *, max_lines: int = 18_000, max_chunk_bytes: int = 4_000_000) -> list:
+    """
+    Parse closed attribution rows from the tail of logs/attribution.jsonl only.
+    Same inclusion rules as executive_summary_generator.get_all_trades (no full-file read).
+    """
+    try:
+        from config.registry import LogFiles
+
+        path = (root / LogFiles.ATTRIBUTION).resolve()
+    except Exception:
+        path = (root / "logs" / "attribution.jsonl").resolve()
+    if not path.is_file():
+        return []
+    trades: list = []
+    for line in _tail_file_lines(path, max_lines=max_lines, max_chunk_bytes=max_chunk_bytes):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            trade = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if trade.get("type") != "attribution":
+            continue
+        trade_id = trade.get("trade_id", "")
+        if trade_id and str(trade_id).startswith("open_"):
+            continue
+        context = trade.get("context", {}) or {}
+        pnl_usd = float(trade.get("pnl_usd", 0.0))
+        close_reason = context.get("close_reason", "") or trade.get("close_reason", "")
+        if pnl_usd == 0.0 and (not close_reason or close_reason in ("unknown", "N/A")):
+            continue
+        ts_str = trade.get("ts", "")
+        if not ts_str:
+            continue
+        trades.append(trade)
+    return trades
+
+
+def _header_strip_payload() -> dict:
+    """
+    Single fast response for the dashboard top strip (avoids 3 queued heavy requests on one Flask worker).
+    """
+    from datetime import datetime, timezone
+    import time as time_module
+
+    now = datetime.now(timezone.utc)
+    out: dict = {
+        "ok": True,
+        "generated_at_utc": now.isoformat(),
+        "overall_health": None,
+        "overall_health_source": None,
+        "market_open": None,
+        "broker_day_pnl": None,
+        "pnl_24h_attribution": None,
+        "pnl_7d_attribution": None,
+        "trades_24h_attribution": None,
+        "trades_7d_attribution": None,
+        "attribution_tail_note": None,
+        "definitions": {
+            "broker_day_pnl": "Alpaca session/day P&L: equity minus daily_start_equity.json (if today) else equity - last_equity.",
+            "pnl_24h_attribution": "Sum of pnl_usd on closed attribution rows with exit ts in rolling 24h (logs/attribution.jsonl tail).",
+            "pnl_7d_attribution": "Same, rolling 7d window. For full cohort use Executive Summary tab.",
+        },
+    }
+    try:
+        import requests
+
+        resp = requests.get("http://127.0.0.1:8081/api/sre/health", timeout=2)
+        if resp.status_code == 200:
+            jd = resp.json()
+            out["overall_health"] = jd.get("overall_health")
+            out["market_open"] = jd.get("market_open")
+            out["overall_health_source"] = "bot:8081"
+    except Exception:
+        pass
+    if not out["overall_health"]:
+        try:
+            hb = (_DASHBOARD_ROOT / "state" / "bot_heartbeat.json").resolve()
+            if hb.exists():
+                age = time_module.time() - hb.stat().st_mtime
+                out["overall_health"] = "healthy" if age < 180 else "degraded"
+                out["overall_health_source"] = "bot_heartbeat_mtime"
+        except Exception:
+            pass
+    if not out["overall_health"]:
+        out["overall_health"] = "unknown"
+        out["overall_health_source"] = "none"
+
+    if _alpaca_api is not None:
+        try:
+            account = _alpaca_api.get_account()
+            day_pnl = float(getattr(account, "equity", 0) or 0) - float(getattr(account, "last_equity", 0) or 0)
+            try:
+                from datetime import datetime as _dt, timezone as _tz
+
+                date_str = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+                p_daily = (_DASHBOARD_ROOT / "state" / "daily_start_equity.json").resolve()
+                if p_daily.exists():
+                    d0 = json.loads(p_daily.read_text(encoding="utf-8", errors="replace"))
+                    if isinstance(d0, dict) and str(d0.get("date", "")) == date_str and d0.get("equity") is not None:
+                        day_pnl = float(getattr(account, "equity", 0) or 0) - float(d0["equity"])
+            except Exception:
+                pass
+            out["broker_day_pnl"] = round(day_pnl, 2)
+        except Exception as e:
+            out["broker_day_pnl_error"] = str(e)[:160]
+
+    max_lines = 18_000
+    trades_tail = _load_attribution_closed_trades_tail(_DASHBOARD_ROOT, max_lines=max_lines, max_chunk_bytes=4_000_000)
+    try:
+        ap = (_DASHBOARD_ROOT / "logs" / "attribution.jsonl").resolve()
+        if ap.is_file() and ap.stat().st_size > 3_500_000 and len(trades_tail) >= max_lines - 100:
+            out["attribution_tail_note"] = (
+                f"P&L uses the last ~{max_lines} closed rows from attribution.jsonl; "
+                "very large files may omit older trades inside the 7d window."
+            )
+    except Exception:
+        pass
+    try:
+        from executive_summary_generator import calculate_pnl_metrics
+
+        m24 = calculate_pnl_metrics(trades_tail, "24h")
+        m7 = calculate_pnl_metrics(trades_tail, "7d")
+        out["pnl_24h_attribution"] = m24.get("pnl")
+        out["pnl_7d_attribution"] = m7.get("pnl")
+        out["trades_24h_attribution"] = m24.get("trades")
+        out["trades_7d_attribution"] = m7.get("trades")
+    except Exception as e:
+        out["attribution_error"] = str(e)[:200]
+
+    return out
+
+
+@app.route("/api/dashboard/header_strip", methods=["GET"])
+def api_dashboard_header_strip():
+    """Fast top-strip data (one request; avoids blocking the Flask worker with parallel heavy calls)."""
+    try:
+        return jsonify(_header_strip_payload()), 200
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300], "generated_at_utc": datetime.now(timezone.utc).isoformat()}), 200
 
 
 @app.route("/api/ping", methods=["GET"])
