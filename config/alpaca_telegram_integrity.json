@@ -1,5 +1,7 @@
 {
   "enabled": true,
+  "checkpoint_100_enabled": true,
+  "checkpoint_100_trade_count": 100,
   "milestone_trade_count": 250,
   "warehouse_days_when_run": 30,
   "warehouse_run_every_n_cycles": 6,

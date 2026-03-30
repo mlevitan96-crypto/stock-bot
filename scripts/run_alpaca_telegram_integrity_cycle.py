@@ -26,6 +26,11 @@ def main() -> int:
     ap.add_argument("--no-self-heal", action="store_true", help="Skip mkdir / postclose try-restart")
     ap.add_argument("--send-test-milestone", action="store_true", help="Send [TEST] milestone template")
     ap.add_argument("--send-test-integrity", action="store_true", help="Send [TEST] integrity alert")
+    ap.add_argument(
+        "--send-test-100trade",
+        action="store_true",
+        help="Send [TEST] ALPACA 100-TRADE CHECKPOINT (updates guard file last_test_100trade_utc)",
+    )
     args = ap.parse_args()
     root = args.root
     if root:
@@ -37,6 +42,7 @@ def main() -> int:
         dry_run=args.dry_run,
         send_test_milestone=args.send_test_milestone,
         send_test_integrity=args.send_test_integrity,
+        send_test_100trade=args.send_test_100trade,
         skip_warehouse=args.skip_warehouse,
         skip_self_heal=args.no_self_heal,
     )

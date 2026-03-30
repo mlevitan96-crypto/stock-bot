@@ -12,8 +12,13 @@ from telemetry.alpaca_telegram_integrity.milestone import (
     should_fire_milestone,
 )
 from telemetry.alpaca_telegram_integrity.session_clock import effective_regular_session_open_utc
-from telemetry.alpaca_telegram_integrity.templates import format_integrity_alert, format_milestone_250
-from telemetry.alpaca_telegram_integrity.warehouse_summary import parse_coverage_markdown
+from telemetry.alpaca_telegram_integrity.runner_core import _checkpoint_100_integrity_ok
+from telemetry.alpaca_telegram_integrity.templates import (
+    format_100trade_checkpoint,
+    format_integrity_alert,
+    format_milestone_250,
+)
+from telemetry.alpaca_telegram_integrity.warehouse_summary import CoverageSummary, parse_coverage_markdown
 
 
 def test_parse_coverage_markdown_extracts_pct():
@@ -64,6 +69,46 @@ def test_format_integrity_alert_no_crash():
     )
     assert "TEST" in s
     assert "a" in s
+
+
+def test_checkpoint_100_integrity_ok():
+    cov = CoverageSummary(
+        path=Path("x.md"),
+        execution_join_pct=99.0,
+        fee_pct=100.0,
+        slippage_pct=90.0,
+        signal_snap_pct=90.0,
+        data_ready_yes=True,
+        age_hours=1.0,
+    )
+    ok, bad = _checkpoint_100_integrity_ok(cov, {"LEARNING_STATUS": "ARMED"}, [], [], 36.0)
+    assert ok and bad == []
+    ok2, bad2 = _checkpoint_100_integrity_ok(cov, {"LEARNING_STATUS": "BLOCKED"}, [], [], 36.0)
+    assert not ok2
+
+
+def test_format_100trade_checkpoint():
+    from telemetry.alpaca_telegram_integrity.milestone import MilestoneSnapshot
+
+    snap = MilestoneSnapshot(
+        session_open_utc_iso="2026-03-30T13:30:00+00:00",
+        session_anchor_et="2026-03-30",
+        unique_closed_trades=100,
+        realized_pnl_sum_usd=0.0,
+        sample_trade_keys=[],
+    )
+    cov = CoverageSummary(None, 100.0, 100.0, 92.0, 91.0, True, [], 2.0)
+    s = format_100trade_checkpoint(
+        test=True,
+        snap=snap,
+        cov=cov,
+        data_ready="YES",
+        strict_status="ARMED",
+        exit_probe_ok=True,
+        utc_iso="2026-03-30T18:00:00Z",
+    )
+    assert "100-TRADE CHECKPOINT" in s
+    assert "250-trade" in s.lower()
 
 
 def test_should_fire_milestone_once_per_session(tmp_path: Path):
