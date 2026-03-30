@@ -1,6 +1,6 @@
 # MEMORY_BANK.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-01-12 (SSH Deployment Verified)
+# Version: 2026-03-30 (Truth warehouse DATA_READY baseline)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -91,6 +91,59 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - **STRICT_EPOCH_START (UTC epoch seconds):** `1774458080` (`2026-03-25T17:01:20Z`). Canonical: `telemetry/alpaca_strict_completeness_gate.py` (`STRICT_EPOCH_START`).
 - **Strict cohort (entry-based):** When `evaluate_completeness` is called with `open_ts_epoch` set, terminal closes are kept only if exit time `>= open_ts_epoch`. Among those, a trade is in the strict cohort only if the open instant parsed from `trade_id` (`open_<SYM>_<ISO8601>`) is also `>= open_ts_epoch`. Earlier opens are excluded (`PREERA_OPEN`) and do not count as `trades_seen` or incomplete.
 
+## 1.2 Alpaca truth warehouse — DATA_READY baseline (do not drift)
+
+**Purpose:** Before profitability narratives, board packets, or learning promotion, the repo defines a **single scripted path** that proves telemetry + broker data are **joinable** for PnL attribution (fees, slippage, signal snapshots, UW/blocked context). This section is the **contract**; detail and commands live in **`docs/DATA_READY_RUNBOOK.md`**.
+
+### Canonical artifacts (code + docs)
+
+| Item | Role |
+|------|------|
+| `scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py` | **Only** authoritative runner for warehouse **`DATA_READY: YES/NO`**, coverage %, blockers, PnL/board packets. Exit **2** when fail-closed. |
+| `docs/DATA_READY_RUNBOOK.md` | Operator runbook: droplet command, env, strict gate vs warehouse, order of operations. |
+| `main.py` (exit `log_signal_context`) | **New** closes should log **`mid` / `last`** (from executed prices when needed) so `signal_context.jsonl` joins stay honest. **Restart bot after deploy** (see below). |
+| `src/exit/exit_attribution.py` | Canonical **`exit_ts`** and exit rows; mission prefers **`exit_ts`** over legacy timestamp fields. |
+
+### Droplet — authoritative run (production logs)
+
+```bash
+cd /root/stock-bot
+git pull origin main
+# Keys: systemd loads /root/stock-bot/.env; manual runs should have APCA_* or ALPACA_KEY/ALPACA_SECRET in env
+PYTHONPATH=. python3 scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py --root /root/stock-bot --days 90 --max-compute
+```
+
+- **Never** treat a one-off **scp** copy of the mission script as source of truth; droplet **`main`** must match GitHub or metrics drift without review.
+- After **`main.py`** or exit-path changes: **`sudo systemctl restart stock-bot`** so new logging is live. If the supervisor/dashboard split leaves an orphan on port 5000, follow **Stale dashboard PIDs** later in this file (search within `MEMORY_BANK.md`).
+
+### API keys (mission + broker REST)
+
+The mission fills missing keys by merging **only unset** vars from, in order: repo **`/root/stock-bot/.env`**, then **`/root/.alpaca_env`**. It accepts **`ALPACA_KEY` / `ALPACA_SECRET`** as well as **`APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`**. If `.alpaca_env` is Telegram-only, Alpaca keys must come from **`.env`** (same as `stock-bot.service` **EnvironmentFile**).
+
+### Gates and defaults (paper vs live)
+
+- **Coverage windows (override via env):** `ALPACA_TRUTH_CONTEXT_WINDOW_SEC` and `ALPACA_TRUTH_EXECUTION_WINDOW_SEC` default **7200** seconds (exit ↔ signal context, exit ↔ order/fill proximity).
+- **Slippage / signal-snapshot gates:** `ALPACA_TRUTH_THRESHOLD_SLIPPAGE`, `ALPACA_TRUTH_THRESHOLD_SIGNAL_SNAP`. If unset: **90%** when **`ALPACA_BASE_URL`** is **paper**, else **95%** (stricter live-shaped runs).
+- **Broker fetch:** `ALPACA_TRUTH_FETCH_BROKER_ORDERS=0` disables REST order pull (debug only).
+
+### External data paths the mission relies on
+
+- **Corporate actions:** `https://data.alpaca.markets/v1/corporate-actions` (not deprecated broker URLs that 404).
+- **Broker orders:** Alpaca REST `list_orders` with safe pagination (dict-shaped rows tolerated); timestamps from **`filled_at` / `submitted_at` / `created_at`**; paper fills treat **explicit $0** commission as fee-computable.
+
+### Interpretation — what DATA_READY does *not* mean
+
+- **`DATA_READY: YES` is not the same as `LEARNING_STATUS: READY`.** `telemetry/alpaca_strict_completeness_gate.py` (`evaluate_completeness`) can still return **`BLOCKED`** (e.g. `incomplete_trade_chain`, `live_entry_decision_made_missing_or_blocked`) while the warehouse is green. Run both when the question is “promotion / strict panel” vs “PnL packet join coverage.”
+- **Execution join at 100% on paper** can be achieved in part via documented fallbacks (e.g. **economic closure** when order stream alignment is weak). That supports **attribution math**, not a claim that every exit row matched a broker **`order_id`** in logs. Board and CSA language must stay precise.
+- **Baseline for improvement:** Record the **timestamped** `reports/ALPACA_TRUTH_WAREHOUSE_COVERAGE_*.md` and `replay/alpaca_truth_warehouse_*` dirs from the run you treat as baseline; compare future runs to those filenames and %s.
+
+### Outputs (timestamped tags)
+
+- `reports/ALPACA_TRUTH_WAREHOUSE_COVERAGE_*.md`, `ALPACA_TRUTH_WAREHOUSE_BLOCKERS_*.md` (when NO), `ALPACA_PNL_AUDIT_PACKET_*.md`, `ALPACA_BOARD_DECISION_PACKET_*.md`
+- `replay/alpaca_truth_warehouse_<TS>/`, `replay/alpaca_execution_truth_<TS>/`, manifest under `replay/`
+
+**Other scripts** (`scripts/run_alpaca_data_ready_on_droplet.py`, `.sh`, etc.) may exist for legacy or auxiliary checks; **warehouse pass/fail for PnL truth** is defined by the **mission** above and the runbook.
+
 ---
 
 # 2. PROJECT ARCHITECTURE OVERVIEW
@@ -110,11 +163,11 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - `comprehensive_learning_scheduler.py`  
 - `v2_nightly_orchestration_with_auto_promotion.py`  
 
-## 2.2.1 MULTI-STRATEGY ARCHITECTURE (ADDITIVE - 2026-01)
-- **equity** — Existing UW-driven equity strategy (unchanged logic). `strategies/equity_strategy.py`.
-- **wheel** — Options wheel (CSP → CC). `strategies/wheel_strategy.py`.
-- Single droplet, single Alpaca paper, single UW, single EOD review. All orders/telemetry tagged with `strategy_id`.
-- Config: `config/strategies.yaml`, `config/universe_wheel.yaml`. See `docs/stock-bot_overview.md`, `docs/stock-bot_wheel_strategy.md`, `docs/stock-bot_governance.md`.
+## 2.2.1 STRATEGY ARCHITECTURE (UPDATED - 2026-03)
+- **equity (active in repo)** — UW-driven equity strategy. `strategies/equity_strategy.py`.
+- **wheel (removed from codebase)** — Options wheel modules and `config/universe_wheel*.yaml` are **not** in the current tree; historical logs/dashboard may still show `strategy_id=wheel` for old periods. Do not reference `strategies/wheel_strategy.py` or wheel universe YAML as current deploy paths.
+- Single droplet, single Alpaca paper, single UW, single EOD review where applicable. Telemetry uses `strategy_id` where recorded.
+- Config: `config/strategies.yaml` (primary). Governance/overview docs may still mention wheel historically; **operational truth** is the files present in repo + §1.2 warehouse baseline.
 
 ## 2.2.2 STRUCTURAL UPGRADE MODULES (ADDITIVE - 2026-01-20)
 - `structural_intelligence/market_context_v2.py` — market context snapshot (premarket/overnight + vol term proxy)
@@ -1082,11 +1135,11 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 
 ### Alpaca Rolling Reviews & Shadow Experiments — INVENTORIED
 - **Inventory doc:** `docs/ALPACA_ROLLING_REVIEWS_AND_SHADOW_EXPERIMENTS.md` — code-level inventory of (1) rolling reviews of trades (EOD 1/3/5/7 day windows, 5d rolling PnL, 30d/last-N comprehensive review, trade visibility, fast-lane 25-trade, daily pack, weekly ledger), (2) shadow experiments and shadow policies (telemetry shadow variants, state/shadow A1–C2, shadow comparison last387, fast-lane, snapshot profiles, intraday/exit-lag shadow, ShadowTradeLogger, droplet shadow confirmation), and (3) their wiring to CSA, SRE, tuning, and daily/weekly reviews. Descriptive only; no behavior changes, no new cron, no new promotion logic.
-- Alpaca remains fully isolated from Kraken; no cross-references in this inventory.
+- This inventory is Alpaca US-equities only; no cross-venue execution paths.
 
 ### Alpaca Tiered Board Review — DESIGN PROPOSED
 - **Design doc:** `docs/ALPACA_TIERED_BOARD_REVIEW_DESIGN.md` — governance design that (1) tiers Alpaca rolling reviews into Tier 1 (short: 1d/3d/5d, 25-trade fast-lane), Tier 2 (medium: 7d/30d, last-N), Tier 3 (long: last387, weekly ledger, stability), (2) maps shadow experiments into governance inputs (state/shadow A1–C2 + shadow comparison), diagnostic-only (telemetry shadow, exit-lag, ShadowTradeLogger, daily confirmation), and excluded from promotion (fast-lane, snapshot profiles), (3) proposes Alpaca-native tiered board review model: convergence rules, Board Review Packet structure, CSA/SRE roles, promotion gate and heartbeat (design only). Synthesis and design only; no implementation, no code/cron/promotion changes.
-- Alpaca remains fully isolated from Kraken; concepts may be analogous but no shared code or state.
+- Design stays Alpaca-native; no shared code or state with non-Alpaca venues.
 
 ### Alpaca Tier 3 Board Review — IMPLEMENTED
 - **Script:** `scripts/run_alpaca_board_review_tier3.py` — Alpaca Tier 3 (long-horizon) Board Review packet generation. Args: --base-dir, --date, --force, --dry-run. Reads last387/last750/30d comprehensive review, SHADOW_COMPARISON_LAST387, weekly ledger (optional), CSA_VERDICT_LATEST, SRE_STATUS, etc.; writes `reports/ALPACA_BOARD_REVIEW_<YYYYMMDD>_<HHMM>/BOARD_REVIEW.md` and `BOARD_REVIEW.json`; updates `state/alpaca_board_review_state.json`. No cron, no promotion logic, no heartbeat, no convergence logic.
