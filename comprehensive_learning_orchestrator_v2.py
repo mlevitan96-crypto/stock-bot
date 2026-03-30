@@ -148,6 +148,16 @@ def process_attribution_log(state: Dict, process_all_historical: bool = False) -
                 
                 if rec_id in processed_ids:
                     continue
+
+                try:
+                    from utils.era_cut import learning_excluded_for_attribution_record
+
+                    if learning_excluded_for_attribution_record(rec):
+                        processed_ids.add(rec_id)
+                        state["last_attribution_id"] = rec_id
+                        continue
+                except ImportError:
+                    pass
                 
                 # Extract data
                 symbol = rec.get("symbol")
@@ -314,6 +324,16 @@ def process_exit_log(state: Dict, process_all_historical: bool = False) -> int:
                 
                 if rec_id in processed_ids:
                     continue
+
+                try:
+                    from utils.era_cut import learning_excluded_for_exit_record
+
+                    if learning_excluded_for_exit_record(rec):
+                        processed_ids.add(rec_id)
+                        state["last_exit_id"] = rec_id
+                        continue
+                except ImportError:
+                    pass
                 
                 # Extract exit data
                 close_reason = rec.get("reason", rec.get("close_reason", "unknown"))

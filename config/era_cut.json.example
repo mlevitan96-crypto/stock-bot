@@ -1,0 +1,13 @@
+{
+  "alpaca": {
+    "era_cut_ts": "2026-03-30T12:00:00+00:00",
+    "reason": "Governance reset: metadata integrity + exit correctness + learning truth",
+    "legacy_policy": {
+      "learning": "excluded",
+      "decay": "excluded",
+      "exit_tuning": "excluded",
+      "dashboard_certification": "excluded",
+      "governance_audits": "excluded"
+    }
+  }
+}

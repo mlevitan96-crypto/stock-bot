@@ -4540,13 +4540,24 @@ def _api_positions_impl():
         repaired_sf = v2_blk.get("repaired_from") == "scoring_flow.jsonl" and bool(meta.get("metadata_repair"))
         metadata_instrumented = bool(float(entry_score) > 0 and v2_nonempty and not repaired_sf)
         metadata_reconciled_only = bool(float(entry_score) > 0 and repaired_sf)
+        era_legacy = False
+        try:
+            from utils.era_cut import entry_ts_is_before_era_cut
+
+            era_legacy = bool(entry_ts_is_before_era_cut(entry_ts_raw))
+        except Exception:
+            era_legacy = False
         gap_flags = []
-        if float(entry_score) <= 0:
-            gap_flags.append("entry_score_missing")
-        if not v2_nonempty:
-            gap_flags.append("v2_block_missing")
-        if not entry_reason_raw:
-            gap_flags.append("entry_reason_missing")
+        if era_legacy:
+            # Pre-era-cut rows: do not surface metadata gaps for governance certification views.
+            gap_flags = []
+        else:
+            if float(entry_score) <= 0:
+                gap_flags.append("entry_score_missing")
+            if not v2_nonempty:
+                gap_flags.append("v2_block_missing")
+            if not entry_reason_raw:
+                gap_flags.append("entry_reason_missing")
         pos_list.append({
             "symbol": symbol,
             "side": "long" if float(p.qty) > 0 else "short",
@@ -4560,6 +4571,8 @@ def _api_positions_impl():
             "metadata_instrumented": metadata_instrumented,
             "metadata_reconciled_repair_only": metadata_reconciled_only,
             "metadata_gap_flags": gap_flags,
+            "era_cut_legacy_row": era_legacy,
+            "governance_certification_excluded": era_legacy,
             "current_score": current_score_val,
             "current_signal_evaluated": current_signal_evaluated,
             "current_score_likely_stale": current_score_likely_stale,

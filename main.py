@@ -161,6 +161,13 @@ def get_all_adaptive_weights() -> Dict[str, float]:
 
 def record_trade_for_learning(feature_vector: dict, pnl: float, regime: str = "neutral", sector: str = "unknown"):
     """Record completed trade for adaptive weight learning"""
+    try:
+        from utils.era_cut import feature_vector_excluded_from_learning
+
+        if feature_vector_excluded_from_learning(feature_vector):
+            return
+    except Exception:
+        pass
     optimizer = _get_adaptive_optimizer()
     if optimizer:
         optimizer.record_trade(feature_vector, pnl, regime, sector)
