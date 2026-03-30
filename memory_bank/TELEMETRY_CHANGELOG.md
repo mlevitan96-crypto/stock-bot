@@ -4,6 +4,16 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 ---
 
+## 2026-03-30 — 100-trade informational checkpoint (Alpaca integrity cycle)
+
+- **Added:** Pre-send integrity gate for a **100-trade** session checkpoint (canonical `trade_key` count vs US regular session open): requires **DATA_READY YES**, coverage thresholds, fresh coverage artifact, **strict LEARNING_STATUS ARMED**, clean exit tail probe. If degraded, **one** deferred Telegram per session anchor; when green, sends **`[ALPACA] 100-TRADE CHECKPOINT`** (informational, on-track for 250 messaging).
+- **State:** `state/alpaca_100trade_sent.json` (separate from `alpaca_milestone_250_state.json`).
+- **CLI:** `--send-test-100trade` on `scripts/run_alpaca_telegram_integrity_cycle.py`.
+- **Config:** `checkpoint_100_enabled`, `checkpoint_100_trade_count` in `config/alpaca_telegram_integrity.json`.
+- **Alpaca-only;** no strategy/signal changes.
+
+---
+
 ## 2026-03-30 — Alpaca Telegram + data integrity cycle (systemd)
 
 - **Added:** `telemetry/alpaca_telegram_integrity/` — session-open clock (09:30 ET, weekday-aware), milestone 250 unique `trade_key` since session open, parse latest `ALPACA_TRUTH_WAREHOUSE_COVERAGE_*.md`, throttled subprocess truth warehouse during US RTH, strict `evaluate_completeness` + exit_attribution tail probe, Telegram templates, safe self-heal (mkdir; try-restart failed `alpaca-postclose-deepdive.service` only).
