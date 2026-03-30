@@ -78,8 +78,17 @@ def _blocker(msg: str, detail: str = "") -> None:
 
 
 def _git(args: List[str]) -> Tuple[str, int]:
-    o, e, rc = _sh("git " + " ".join(args), timeout=120)
-    return o + (e or ""), rc
+    try:
+        r = subprocess.run(
+            ["git"] + args,
+            cwd=str(REPO),
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        return (r.stdout or "") + (r.stderr or ""), r.returncode
+    except Exception as e:
+        return str(e), 1
 
 
 def main() -> None:
