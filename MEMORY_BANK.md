@@ -1,6 +1,6 @@
 # MEMORY_BANK.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-03-30 (Truth warehouse DATA_READY baseline; see section 1.2)
+# Version: 2026-03-31 (PnL audit lineage §1.3; truth warehouse §1.2)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -144,6 +144,32 @@ The mission fills missing keys by merging **only unset** vars from, in order: re
 
 **Other scripts** (`scripts/run_alpaca_data_ready_on_droplet.py`, `.sh`, etc.) may exist for legacy or auxiliary checks; **warehouse pass/fail for PnL truth** is defined by the **mission** above and the runbook.
 
+## 1.3 Canonical PnL audit lineage (field → emitter → persistence → join)
+
+**Purpose:** Massive PnL reviews require a **stable contract** for where each audit field is emitted, stored, and joined. This is separate from **DATA_READY** (warehouse mission) but must stay **consistent** with it.
+
+### Canonical docs (committed)
+
+| Path | Role |
+|------|------|
+| `docs/pnl_audit/REQUIRED_FIELDS.md` | Human canonical list of required fields by entity (A–G). |
+| `docs/pnl_audit/LINEAGE_MATRIX.json` | **Machine contract:** one row per field with emitter path, persistence, join keys, failure notes. |
+| `docs/pnl_audit/LINEAGE_MATRIX.md` | Human table + per-field detail (generated from JSON). |
+| `docs/pnl_audit/FIELD_ADDITION_PLAYBOOK.md` | How to add/fix a field without strategy changes. |
+| `docs/pnl_audit/ADVERSARIAL_FINDINGS.md` | Standing red-team traps (dual sources, join fragility, fees). |
+
+### Governance rules
+
+- **`LINEAGE_MATRIX.json` is the contract.** Any telemetry or persistence change that affects PnL audit fields **must** update the matrix (and regenerate `LINEAGE_MATRIX.md` if the table changes).
+- **Broker vs local sources are explicit** in each matrix row (`source_of_truth`, `persistence_location`). **Broker `order.id`** is authoritative for execution joins when local `logs/orders.jsonl` omits `order_id`.
+- **Map integrity check (no penalties):**  
+  `python3 scripts/audit/alpaca_pnl_lineage_map_check.py`  
+  With evidence:  
+  `python3 scripts/audit/alpaca_pnl_lineage_map_check.py --write-evidence`
+- **Full evidence pack (context + SRE verification + copies):**  
+  `python3 scripts/audit/alpaca_pnl_lineage_evidence_bundle.py`  
+  Writes under `reports/daily/<ET-date>/evidence/` (see `ALPACA_PNL_LINEAGE_*` filenames).
+
 ---
 
 # 2. PROJECT ARCHITECTURE OVERVIEW
@@ -245,6 +271,53 @@ Cursor MUST:
 Cursor MUST NOT:
 - bypass safety checks  
 - modify safety logic without explicit instruction  
+
+---
+
+## 3.4 TRUTH GATE (ALPACA / DROPLET DATA)
+Cursor and all Alpaca actions MUST treat droplet execution and canonical data as the Truth Gate:
+- All reports and conclusions require droplet execution and canonical logs/state; no local-only conclusions.
+- Missing required data (e.g. exit_attribution, master_trade_log) = HARD FAILURE; do not proceed.
+- Join coverage below threshold (e.g. direction_readiness, exit-join health) = HARD FAILURE when asserted as readiness.
+- Schema mismatch or unversioned required fields = HARD FAILURE.
+- Only frozen artifacts (e.g. EOD bundle, frozen trade sets) may be used for learning or tuning.
+
+<!-- ALPACA_ATTRIBUTION_TRUTH_CONTRACT_START -->
+## Alpaca attribution truth contract (canonical)
+
+**Governance (CSA):** This subsection is canonical Alpaca attribution material. **Drift** between live emitters, sinks, and this contract is a **governance incident** and must be triaged like a production data-integrity breach.
+
+### Canonical artifact paths (board / audit)
+- `reports/ALPACA_BLOCKER_CLOSURE_PROOF_20260325_0112.md` — blocker closure checklist and compile/git evidence.
+- `reports/ALPACA_OFFLINE_FULL_DATA_AUDIT_20260325_0112.md` — CSA offline full data-path audit (**verdict A required** before profit-contributor / promotion claims that depend on attribution readiness).
+- `reports/ALPACA_DATA_PATH_WIRING_PROOF_20260324_2310.md` — Alpaca REST + FILL payload wiring proof.
+
+Promote newer dated filenames when they supersede the above; keep the same report family names.
+
+### Invariants (non-negotiable)
+1. **Deterministic join keys** on decision and execution records: `decision_event_id`, `canonical_trade_id`, `symbol_normalized`, `time_bucket_id` (rule: `300s|<utc_epoch_floor>` — `telemetry/attribution_emit_keys.py`).
+2. **Entry/exit snapshot parity:** `telemetry/attribution_feature_snapshot.py` — `build_shared_feature_snapshot` (entry/blocked) and `build_exit_snapshot_from_metadata` (exit); persisted `entry_market_context` and `entry_regime_posture` on `StateFiles.POSITION_METADATA` via `main.py` / `AlpacaExecutor._persist_position_metadata`.
+3. **UW decomposition + provenance:** `apply_uw_decomposition_fields` adds component proxies plus `uw_asof_ts`, `uw_ingest_ts`, `uw_staleness_seconds`, `uw_missing_reason`; `uw_composite_score_derived` is **derived only** (no composite-only logging as the sole signal).
+4. **Economics explicit:** `main.py` `log_order` → `telemetry/attribution_emit_keys.attach_paper_economics_defaults` — `fee_excluded_reason` and/or `fee_amount`; `slippage_bps` + `slippage_ref_price_type` vs `slippage_excluded_reason`; decision reference mid stored as `decision_slippage_ref_mid`. **No silent zero fees** — exclusions must be explicit.
+5. **Append-only sinks:** `main.py` `jsonl_write`, `telemetry/signal_context_logger.py`; retention/rotation — `docs/DATA_RETENTION_POLICY.md`.
+6. **CSA offline audit:** run `scripts/alpaca_offline_full_data_audit.py` (Linux/droplet); **verdict A** before offline profit-contributor narratives that depend on attribution readiness.
+7. **Operational rule:** After changes to `main.py` or `telemetry/*` emitters, **restart `stock-bot.service`** so the process loads new code (no hot reload assumption).
+
+### TRUE data path map (Alpaca; module/file names)
+| Stage | Emitter / module | Sink path |
+|-------|------------------|-----------|
+| Trade intent (entered/blocked) | `main.py` `_emit_trade_intent`, `_emit_trade_intent_blocked` | `logs/run.jsonl` (`event_type=trade_intent`) |
+| Exit intent | `main.py` `_emit_exit_intent` | `logs/run.jsonl` (`event_type=exit_intent`) |
+| Signal context (enter/blocked/exit) | `telemetry/signal_context_logger.py` `log_signal_context` | `logs/signal_context.jsonl` |
+| Orders / execution | `main.py` `log_order` | `logs/orders.jsonl` |
+| Blocked would-have | `main.py` `log_blocked_trade` | `state/blocked_trades.jsonl` |
+| UW ingestion | `uw_flow_daemon.py` | `data/uw_flow_cache.json`, `data/uw_flow_cache.log.jsonl`; optional mirror `logs/uw_daemon.jsonl` |
+| UW → decision snapshot | Scoring in `main.py` + `telemetry/attribution_feature_snapshot.py` | Join: `symbol_normalized` + `time_bucket_id` (same bucket rule as attribution keys) |
+| Position state | `main.py` `AlpacaExecutor.mark_open`, `_persist_position_metadata` | `state/position_metadata.json` (`config.registry.StateFiles.POSITION_METADATA`) |
+| Exit attribution v2 | `main.py` `log_exit_attribution` → `src/exit/exit_attribution.py` `append_exit_attribution` | `logs/exit_attribution.jsonl` |
+| Truth / warehouse (read-only extractors) | e.g. `scripts/alpaca_truth_unblock_and_full_pnl_audit_mission.py` | `reports/ALPACA_TRUTH_*`, `ALPACA_EXECUTION_*`, etc. |
+<!-- ALPACA_ATTRIBUTION_TRUTH_CONTRACT_END -->
+
 
 ---
 
