@@ -26,6 +26,11 @@ try:
 except Exception:
     pass
 
+# When false (default), GET / requires HTTP Basic Auth so the browser attaches Authorization
+# to same-origin fetches (/api/positions, header strip, etc.). Set DASHBOARD_ALLOW_PUBLIC_HTML=1
+# to allow unauthenticated HTML (legacy proxies); protected APIs still require auth.
+_DASHBOARD_ALLOW_PUBLIC_HTML = os.getenv("DASHBOARD_ALLOW_PUBLIC_HTML", "").strip().lower() in ("1", "true", "yes")
+
 # Process-start timestamps for /api/version (source of truth for build/version contract)
 _BUILD_TIME_UTC = datetime.now(timezone.utc).isoformat()
 _PROCESS_START_TIME_UTC = _BUILD_TIME_UTC
@@ -104,19 +109,18 @@ else:
     @app.before_request
     def _enforce_basic_auth():  # type: ignore
         try:
-            # Allow unauthenticated GET so the dashboard HTML loads (e.g. proxy not forwarding Authorization on first request).
+            # Public read-only JSON (no secrets). HTML "/" is public only if DASHBOARD_ALLOW_PUBLIC_HTML=1.
+            _public_get = {
+                "/api/direction_banner",
+                "/api/situation",
+                "/api/telemetry_health",
+                "/api/dashboard/data_integrity",
+                "/api/learning_readiness",
+                "/api/profitability_learning",
+                "/api/alpaca_operational_activity",
+            }
             if request.method == "GET" and (
-                request.path == "/"
-                or request.path
-                in (
-                    "/api/direction_banner",
-                    "/api/situation",
-                    "/api/telemetry_health",
-                    "/api/dashboard/data_integrity",
-                    "/api/learning_readiness",
-                    "/api/profitability_learning",
-                    "/api/alpaca_operational_activity",
-                )
+                request.path in _public_get or (_DASHBOARD_ALLOW_PUBLIC_HTML and request.path == "/")
             ):
                 return None
 
@@ -638,8 +642,8 @@ DASHBOARD_HTML = """
     });
     });
     }
-    window.loadDirectionBanner=function(){var el=document.getElementById('direction-banner');if(!el)return;var done=function(d){if(!el)return;var sev=(d&&d.severity)||'info';el.className='direction-banner '+sev;if(!d){el.textContent='Direction status unavailable (timeout or network — retry refresh).';return;}var esc=function(s){if(s==null||s===undefined)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};var msg=esc(d.message||'');var detail=esc(d.detail||'');var link=esc(d.link||'');var html=msg||'(no message)';if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;};var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();done(null);},20000);fetch('/api/direction_banner',Object.assign({},creds,{signal:ac&&ac.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid);done(d);});};
-    window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;var done=function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var x=d.trades_reviewed!=null?d.trades_reviewed:0;var tot=d.trades_reviewed_total!=null?d.trades_reviewed_total:0;var tgt=d.trades_reviewed_target!=null?d.trades_reviewed_target:100;var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Trades reviewed:</span><span class="sit-value">'+x+'/'+tgt+(tot!==x?' <span style="opacity:0.85;">('+tot+' total)</span>':'')+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;};var ac2=typeof AbortController!=='undefined'?new AbortController():null;var tid2=setTimeout(function(){if(ac2)ac2.abort();done(null);},20000);fetch('/api/situation',Object.assign({},creds,{signal:ac2&&ac2.signal})).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){clearTimeout(tid2);done(d);});};
+    window.loadDirectionBanner=function(){var el=document.getElementById('direction-banner');if(!el)return;var done=function(d){if(!el)return;var sev=(d&&d.severity)||'info';el.className='direction-banner '+sev;if(!d){el.textContent='Direction status unavailable (timeout or network — retry refresh).';return;}var esc=function(s){if(s==null||s===undefined)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};var msg=esc(d.message||'');var detail=esc(d.detail||'');var link=esc(d.link||'');var html=msg||'(no message)';if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;};var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();done(null);},35000);fetch('/api/direction_banner',Object.assign({},creds,{signal:ac&&ac.signal})).then(function(r){return r.ok?r.json():Promise.resolve({state:'WAITING',message:'Direction banner unavailable',detail:'HTTP '+r.status,severity:'info'});}).catch(function(){return null;}).then(function(d){clearTimeout(tid);done(d);});};
+    window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;var done=function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var x=d.trades_reviewed!=null?d.trades_reviewed:0;var tot=d.trades_reviewed_total!=null?d.trades_reviewed_total:0;var tgt=d.trades_reviewed_target!=null?d.trades_reviewed_target:100;var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Trades reviewed:</span><span class="sit-value">'+x+'/'+tgt+(tot!==x?' <span style="opacity:0.85;">('+tot+' total)</span>':'')+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;};var ac2=typeof AbortController!=='undefined'?new AbortController():null;var tid2=setTimeout(function(){if(ac2)ac2.abort();done(null);},35000);fetch('/api/situation',Object.assign({},creds,{signal:ac2&&ac2.signal})).then(function(r){return r.ok?r.json():Promise.resolve({error:'HTTP '+r.status});}).catch(function(){return null;}).then(function(d){clearTimeout(tid2);done(d);});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
     setTimeout(function(){loadVersion();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function')loadDirectionBanner();if(typeof loadSituationStrip==='function')loadSituationStrip();setTimeout(function(){if(typeof loadAlpacaOperationalActivity==='function')loadAlpacaOperationalActivity();},500);},0);
     })();
@@ -3012,9 +3016,10 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     disclaimer = (
         "Trades are executing on Alpaca. Data is NOT certified for learning or attribution."
     )
-    tail_lines = 18_000
+    tail_lines = 12_000
+    tail_chunk = 2_500_000
     tail_note = (
-        f"Counts use the last ~{tail_lines} lines per log file (plus up to 4MB read each). "
+        f"Counts use the last ~{tail_lines} lines per log file (plus up to {tail_chunk // 1_000_000}MB read each). "
         "If volume is extreme, figures are a lower bound for the time window."
     )
 
@@ -3028,7 +3033,7 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     fills_h = 0
 
     def _consume_tail(path: Path, handle):
-        for line in _tail_file_lines(path, max_lines=tail_lines, max_chunk_bytes=4_000_000):
+        for line in _tail_file_lines(path, max_lines=tail_lines, max_chunk_bytes=tail_chunk):
             line = line.strip()
             if not line:
                 continue
@@ -3140,14 +3145,41 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
 
 @app.route("/api/alpaca_operational_activity", methods=["GET"])
 def api_alpaca_operational_activity():
-    """Alpaca operational activity from logs (read-only). Always HTTP 200."""
+    """Alpaca operational activity from logs (read-only). Always HTTP 200; bounded wall time."""
+    import concurrent.futures
+
     try:
         h = int(request.args.get("hours", "72"))
     except Exception:
         h = 72
+    root = Path(_DASHBOARD_ROOT)
     try:
-        root = Path(_DASHBOARD_ROOT)
-        return jsonify(_alpaca_operational_activity_payload(root, h)), 200
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(_alpaca_operational_activity_payload, root, h)
+            payload = fut.result(timeout=14)
+        return jsonify(payload), 200
+    except concurrent.futures.TimeoutError:
+        return jsonify(
+            {
+                "ok": True,
+                "state": "PARTIAL",
+                "hours": h,
+                "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+                "disclaimer": "Log scan exceeded time budget (14s); retry or narrow hours=. Worker was not blocked indefinitely.",
+                "scan_note": "Timeout — large JSONL tails can be slow; counts may be incomplete.",
+                "trades_observed": None,
+                "exit_attribution_rows_in_window": None,
+                "unified_exit_rows_in_window": None,
+                "unified_entry_rows_in_window": None,
+                "trade_intent_entered_in_window": None,
+                "last_exit_timestamp_utc": None,
+                "last_entry_timestamp_utc": None,
+                "orders_rows_in_window": None,
+                "fills_seen_heuristic": None,
+                "orders_log": {"state": "PARTIAL", "reason": "scan_timeout"},
+                "does_not_claim": ["learning_certification", "attribution_completeness", "broker_reconciliation"],
+            }
+        ), 200
     except Exception as e:
         return jsonify(
             {
@@ -4057,6 +4089,13 @@ def _get_situation_data_sync():
                 trades_reviewed_total = int(data.get("total_trades") or 0)
         except Exception:
             pass
+        if trades_reviewed == 0 and trades_reviewed_total == 0:
+            try:
+                from src.governance.direction_readiness import count_direction_intel_backed_trades_tail
+
+                trades_reviewed_total, trades_reviewed, _ = count_direction_intel_backed_trades_tail(root)
+            except Exception:
+                pass
         promotion_recommendation, promotion_score, promotion_reasons = "WAIT", None, []
         try:
             comb_path = reports_dir / f"{today}_stock-bot_combined.json"
