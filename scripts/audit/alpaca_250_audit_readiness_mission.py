@@ -81,22 +81,30 @@ def _tail_jsonl(path: Path, n: int = 500) -> List[Dict[str, Any]]:
 
 def _expand_persistence_locations(raw: str) -> List[str]:
     """Turn matrix persistence_location into checkable repo-relative paths (skip broker/API)."""
-    skip_sub = (
-        "broker",
-        "GET ",
-        "activities",
-        "implicit",
-        "alpaca_trade_api",
-        "dashboard_api",
-        "n/a",
-    )
     paths: List[str] = []
     for seg in raw.split("|"):
         seg = seg.strip()
         if not seg:
             continue
+        # Strip matrix notes like "(when logged)", "(injected on append)"
+        seg = re.sub(r"\s*\([^)]*\)\s*$", "", seg).strip()
+        if not seg:
+            continue
         low = seg.lower()
-        if any(s in low for s in skip_sub):
+        if seg.startswith("GET "):
+            continue
+        if low in ("broker", "broker api", "broker rest", "broker clock api", "broker rest order"):
+            continue
+        if "implicit" in low and "paper" in low:
+            continue
+        if "activities fill" in low:
+            continue
+        if "alpaca_trade_api" in low or "dashboard_api" in low or low == "n/a":
+            continue
+        # Pure broker qualifiers without a repo path
+        if low == "broker":
+            continue
+        if "broker api" == low:
             continue
         if seg == "logs/*.jsonl":
             paths.extend(
