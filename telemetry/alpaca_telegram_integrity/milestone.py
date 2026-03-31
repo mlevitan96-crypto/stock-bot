@@ -5,46 +5,14 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
-from src.telemetry.alpaca_trade_key import build_trade_key
+from src.governance.canonical_trade_count import compute_canonical_trade_count
 
 from telemetry.alpaca_telegram_integrity.session_clock import (
     effective_regular_session_open_utc,
     session_anchor_date_et_iso,
 )
-
-
-def _iter_jsonl(path: Path) -> Iterator[dict]:
-    if not path.is_file():
-        return
-    with path.open("r", encoding="utf-8", errors="replace") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                o = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(o, dict):
-                yield o
-
-
-def _parse_exit_epoch(rec: dict) -> Optional[float]:
-    for k in ("exit_ts", "timestamp", "ts", "exit_timestamp"):
-        v = rec.get(k)
-        if not v:
-            continue
-        try:
-            s = str(v).strip().replace("Z", "+00:00")
-            dt = datetime.fromisoformat(s)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt.timestamp()
-        except (TypeError, ValueError):
-            continue
-    return None
 
 
 @dataclass
@@ -173,37 +141,14 @@ def _snapshot_for_floor(
     count_floor_utc_iso: str,
     integrity_armed: bool,
 ) -> MilestoneSnapshot:
-    exit_path = root / "logs" / "exit_attribution.jsonl"
-    keys: Set[str] = set()
-    pnl_sum = 0.0
-    samples: List[str] = []
-    for rec in _iter_jsonl(exit_path):
-        ex = _parse_exit_epoch(rec)
-        if ex is None or ex < floor_epoch:
-            continue
-        sym = rec.get("symbol")
-        side = rec.get("side") or rec.get("position_side")
-        et = rec.get("entry_ts") or rec.get("entry_timestamp")
-        try:
-            tk = build_trade_key(sym, side, et)
-        except Exception:
-            continue
-        if tk in keys:
-            continue
-        keys.add(tk)
-        pnl = rec.get("pnl")
-        if pnl is not None:
-            try:
-                pnl_sum += float(pnl)
-            except (TypeError, ValueError):
-                pass
-        if len(samples) < 5:
-            samples.append(tk)
+    """Same trade_key + era-cut rules as dashboard / audit (`compute_canonical_trade_count`)."""
+    out = compute_canonical_trade_count(root, floor_epoch=floor_epoch, max_samples=5)
+    samples = list(out.get("sample_trade_keys") or [])
     return MilestoneSnapshot(
         session_open_utc_iso=session_open_utc_iso,
         session_anchor_et=session_anchor_et,
-        unique_closed_trades=len(keys),
-        realized_pnl_sum_usd=round(pnl_sum, 2),
+        unique_closed_trades=int(out.get("total_trades_post_era") or 0),
+        realized_pnl_sum_usd=float(out.get("realized_pnl_sum_usd") or 0.0),
         sample_trade_keys=samples,
         counting_basis=counting_basis,
         count_floor_utc_iso=count_floor_utc_iso,
