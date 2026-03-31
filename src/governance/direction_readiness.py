@@ -79,6 +79,59 @@ def count_direction_intel_backed_trades(
     return total_trades, telemetry_trades, pct_telemetry
 
 
+def _tail_jsonl_lines(path: Path, *, max_lines: int, max_chunk_bytes: int) -> list:
+    """Last max_lines non-empty lines from a JSONL file without reading the whole file."""
+    if not path.is_file():
+        return []
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            size = path.stat().st_size
+            chunk = min(max_chunk_bytes, size)
+            if size > chunk:
+                f.seek(max(0, size - chunk))
+                f.readline()
+            lines = [ln.strip() for ln in f.read().splitlines() if ln.strip()]
+        return lines[-max_lines:] if len(lines) > max_lines else lines
+    except Exception:
+        return []
+
+
+def count_direction_intel_backed_trades_tail(
+    base_dir: Path | None = None,
+    sample_size: int | None = None,
+    *,
+    max_chunk_bytes: int = 6_000_000,
+) -> Tuple[int, int, float]:
+    """
+    Same semantics as count_direction_intel_backed_trades but scans only a tail chunk of
+    exit_attribution.jsonl (safe for large files / dashboard).
+    """
+    base = (base_dir or _repo_root()).resolve()
+    exit_path = base / "logs" / "exit_attribution.jsonl"
+    n = sample_size if sample_size is not None else READINESS_SAMPLE_SIZE
+    if not exit_path.is_file():
+        return 0, 0, 0.0
+    margin = max(n + 50, 200)
+    lines = _tail_jsonl_lines(exit_path, max_lines=margin, max_chunk_bytes=max_chunk_bytes)
+    recent = lines[-n:] if len(lines) > n else lines
+    total_trades = len(recent)
+    telemetry_trades = 0
+    for line in recent:
+        try:
+            rec = json.loads(line)
+            if not isinstance(rec, dict):
+                continue
+            embed = rec.get("direction_intel_embed")
+            if isinstance(embed, dict):
+                snapshot = embed.get("intel_snapshot_entry")
+                if isinstance(snapshot, dict) and snapshot:
+                    telemetry_trades += 1
+        except Exception:
+            continue
+    pct_telemetry = (100.0 * telemetry_trades / total_trades) if total_trades else 0.0
+    return total_trades, telemetry_trades, pct_telemetry
+
+
 def is_direction_ready(
     telemetry_trades: int,
     pct_telemetry: float,

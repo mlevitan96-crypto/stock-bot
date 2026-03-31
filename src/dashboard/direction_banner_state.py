@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -25,11 +26,13 @@ def get_direction_banner_state(base_dir: Path | None = None) -> Dict[str, Any]:
     blocked_md = base / "reports" / "board" / "DIRECTION_REPLAY_BLOCKED_SYNTHETIC.md"
 
     telemetry_trades = 0
+    total_trades = 0
     ready = False
     try:
         if readiness_path.exists():
             data = json.loads(readiness_path.read_text(encoding="utf-8"))
             telemetry_trades = int(data.get("telemetry_trades") or 0)
+            total_trades = int(data.get("total_trades") or 0)
             ready = data.get("ready") is True
     except Exception:
         pass
@@ -43,12 +46,24 @@ def get_direction_banner_state(base_dir: Path | None = None) -> Dict[str, Any]:
 
     status = (replay_status.get("status") or "").strip().upper()
 
+    from src.governance.direction_readiness import READINESS_SAMPLE_SIZE, count_direction_intel_backed_trades_tail
+
     # A) WAITING
     if not ready:
+        if telemetry_trades == 0 and total_trades == 0:
+            try:
+                total_trades, telemetry_trades, _ = count_direction_intel_backed_trades_tail(base)
+            except Exception:
+                pass
+        detail = f"Telemetry-backed trades: {telemetry_trades}/{READINESS_SAMPLE_SIZE}"
+        if total_trades:
+            detail += f" · last {total_trades} exits in window"
+        if not readiness_path.exists():
+            detail += " · (live tail; run direction readiness cron for persisted state)"
         return {
             "state": "WAITING",
             "message": "Directional intelligence accumulating",
-            "detail": f"Telemetry-backed trades: {telemetry_trades}/100",
+            "detail": detail,
             "severity": "info",
         }
 
@@ -96,4 +111,3 @@ def get_direction_banner_state(base_dir: Path | None = None) -> Dict[str, Any]:
         "detail": "100 telemetry-backed trades reached; replay will run on next check",
         "severity": "info",
     }
-}
