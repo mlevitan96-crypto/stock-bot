@@ -643,7 +643,7 @@ DASHBOARD_HTML = """
     });
     }
     window.loadDirectionBanner=function(){var el=document.getElementById('direction-banner');if(!el)return;var done=function(d){if(!el)return;var sev=(d&&d.severity)||'info';el.className='direction-banner '+sev;if(!d){el.textContent='Direction status unavailable (timeout or network — retry refresh).';return;}var esc=function(s){if(s==null||s===undefined)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};var msg=esc(d.message||'');var detail=esc(d.detail||'');var link=esc(d.link||'');var html=msg||'(no message)';if(detail){html+=' <span style="opacity:0.9;">'+detail+'</span>';}if(link){html+=' <a href="'+link+'" target="_blank" rel="noopener">View report</a>';}el.innerHTML=html;};var ac=typeof AbortController!=='undefined'?new AbortController():null;var tid=setTimeout(function(){if(ac)ac.abort();done(null);},35000);fetch('/api/direction_banner',Object.assign({},creds,{signal:ac&&ac.signal})).then(function(r){return r.ok?r.json():Promise.resolve({state:'WAITING',message:'Direction banner unavailable',detail:'HTTP '+r.status,severity:'info'});}).catch(function(){return null;}).then(function(d){clearTimeout(tid);done(d);});};
-    window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;var done=function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var x=d.trades_reviewed!=null?d.trades_reviewed:0;var tot=d.trades_reviewed_total!=null?d.trades_reviewed_total:0;var tgt=d.trades_reviewed_target!=null?d.trades_reviewed_target:100;var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Trades reviewed:</span><span class="sit-value">'+x+'/'+tgt+(tot!==x?' <span style="opacity:0.85;">('+tot+' total)</span>':'')+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;};var ac2=typeof AbortController!=='undefined'?new AbortController():null;var tid2=setTimeout(function(){if(ac2)ac2.abort();done(null);},35000);fetch('/api/situation',Object.assign({},creds,{signal:ac2&&ac2.signal})).then(function(r){return r.ok?r.json():Promise.resolve({error:'HTTP '+r.status});}).catch(function(){return null;}).then(function(d){clearTimeout(tid2);done(d);});};
+    window.loadSituationStrip=function(){var el=document.getElementById('situation-strip');if(!el)return;var done=function(d){if(!el)return;if(!d||d.error){el.innerHTML='<span class="sit-label">Situation</span><span class="sit-value">—</span>';return;}var n=d.total_trades_post_era!=null?d.total_trades_post_era:0;var nm=(d.next_trade_milestone!=null&&d.next_trade_milestone!==undefined)?String(d.next_trade_milestone):'—';var rm=(d.remaining_to_next_milestone!=null&&d.remaining_to_next_milestone!==undefined)?String(d.remaining_to_next_milestone):'—';var rec=(d.promotion_recommendation||'WAIT').toUpperCase();var score=d.promotion_score;var reasons=d.promotion_reasons||[];var gov=d.governance_joined_count;var closed=d.closed_trades_count!=null?d.closed_trades_count:0;var open=d.open_positions_count;var recCls=rec==='PROMOTE'?'promote':rec==='DO NOT PROMOTE'?'dnp':'wait';var promoHtml='<span class="promo-badge '+recCls+'">'+rec+(score!=null?' '+score+'/100':'')+'</span>';if(reasons.length){promoHtml+=' <span style="opacity:0.85;">('+reasons.slice(0,2).join('; ')+')</span>';}var h='<span class="sit-label">Total trades (post-era):</span><span class="sit-value">'+n+'</span> <span class="sit-label">Next milestone:</span><span class="sit-value">'+nm+'</span> <span class="sit-label">Remaining:</span><span class="sit-value">'+rm+'</span>';h+=' <span class="sit-label">Promotion:</span> '+promoHtml;if(gov!=null){h+=' <span class="sit-label">Governance (joined):</span><span class="sit-value">'+gov+'</span>';}h+=' <span class="sit-label">Closed (90d):</span><span class="sit-value">'+closed+'</span>';h+=' <span class="sit-label">Open:</span><span class="sit-value">'+(open!=null?open:'—')+'</span>';el.innerHTML=h;};var ac2=typeof AbortController!=='undefined'?new AbortController():null;var tid2=setTimeout(function(){if(ac2)ac2.abort();done(null);},35000);fetch('/api/situation',Object.assign({},creds,{signal:ac2&&ac2.signal})).then(function(r){return r.ok?r.json():Promise.resolve({error:'HTTP '+r.status});}).catch(function(){return null;}).then(function(d){clearTimeout(tid2);done(d);});};
     try{document.body.setAttribute('data-js','1');}catch(e){}
     setTimeout(function(){loadVersion();if(typeof loadTopStrip==='function')loadTopStrip();if(typeof loadDirectionBanner==='function')loadDirectionBanner();if(typeof loadSituationStrip==='function')loadSituationStrip();setTimeout(function(){if(typeof loadAlpacaOperationalActivity==='function')loadAlpacaOperationalActivity();},500);},0);
     })();
@@ -3362,7 +3362,7 @@ def api_direction_banner():
 @app.route("/api/situation", methods=["GET"])
 def api_situation():
     """
-    At-a-glance situation: trades reviewed (direction X/100), promotion proposal, closed/open counts.
+    At-a-glance situation: canonical post-era closed-trade count + milestones, promotion, closed/open counts.
     Feeds the dashboard situation strip so operators see current state and where we are going for profit.
     """
     try:
@@ -3380,6 +3380,9 @@ def api_situation():
             "trades_reviewed": 0,
             "trades_reviewed_total": 0,
             "trades_reviewed_target": 100,
+            "total_trades_post_era": 0,
+            "next_trade_milestone": None,
+            "remaining_to_next_milestone": None,
             "promotion_recommendation": "WAIT",
             "promotion_score": None,
             "promotion_reasons": [],
@@ -4141,10 +4144,26 @@ def _get_situation_data_sync():
                     open_positions_count = len([k for k in data if k and not str(k).startswith("_")])
         except Exception:
             pass
+        total_post_era = 0
+        next_ms = None
+        rem_ms = None
+        try:
+            from src.governance.canonical_trade_count import compute_canonical_trade_count
+
+            ctc = compute_canonical_trade_count(root, floor_epoch=None)
+            total_post_era = int(ctc.get("total_trades_post_era") or 0)
+            nm = ctc.get("next_milestone")
+            next_ms = int(nm) if nm is not None else None
+            rem_ms = int(ctc.get("remaining_to_next_milestone") or 0)
+        except Exception:
+            pass
         return {
             "trades_reviewed": trades_reviewed,
             "trades_reviewed_total": trades_reviewed_total,
             "trades_reviewed_target": 100,
+            "total_trades_post_era": total_post_era,
+            "next_trade_milestone": next_ms,
+            "remaining_to_next_milestone": rem_ms,
             "promotion_recommendation": promotion_recommendation,
             "promotion_score": promotion_score,
             "promotion_reasons": promotion_reasons,
@@ -4153,7 +4172,16 @@ def _get_situation_data_sync():
             "open_positions_count": open_positions_count,
         }
     except Exception:
-        return {"trades_reviewed": 0, "trades_reviewed_total": 0, "promotion_recommendation": "WAIT", "closed_trades_count": 0, "open_positions_count": None}
+        return {
+            "trades_reviewed": 0,
+            "trades_reviewed_total": 0,
+            "total_trades_post_era": 0,
+            "next_trade_milestone": None,
+            "remaining_to_next_milestone": None,
+            "promotion_recommendation": "WAIT",
+            "closed_trades_count": 0,
+            "open_positions_count": None,
+        }
 
 
 def _escape_html(s):
@@ -4183,9 +4211,15 @@ def _render_initial_situation_html(data):
     """Render situation strip HTML for server-side first paint. Never returns 'Loading...'."""
     if not data or data.get("error"):
         return '<span class="sit-label">Situation</span><span class="sit-value">—</span>'
-    x = data.get("trades_reviewed", 0) or 0
-    tot = data.get("trades_reviewed_total", 0) or 0
-    tgt = data.get("trades_reviewed_target", 100) or 100
+    n = data.get("total_trades_post_era")
+    if n is None:
+        n = 0
+    next_m = data.get("next_trade_milestone")
+    if next_m is None:
+        next_m = "—"
+    rem = data.get("remaining_to_next_milestone")
+    if rem is None:
+        rem = "—"
     rec = ((data.get("promotion_recommendation") or "WAIT") or "WAIT").upper()
     score = data.get("promotion_score")
     reasons = data.get("promotion_reasons") or []
@@ -4196,10 +4230,16 @@ def _render_initial_situation_html(data):
     promo = '<span class="promo-badge ' + rec_cls + '">' + rec + ((' ' + str(score) + '/100') if score is not None else '') + "</span>"
     if reasons:
         promo += ' <span style="opacity:0.85;">(' + _escape_html("; ".join(reasons[:2])) + ")</span>"
-    h = '<span class="sit-label">Trades reviewed:</span><span class="sit-value">' + str(x) + '/' + str(tgt)
-    if tot != x:
-        h += ' <span style="opacity:0.85;">(' + str(tot) + ' total)</span>'
-    h += '</span> <span class="sit-label">Promotion:</span> ' + promo
+    h = (
+        '<span class="sit-label">Total trades (post-era):</span><span class="sit-value">'
+        + str(n)
+        + '</span> <span class="sit-label">Next milestone:</span><span class="sit-value">'
+        + str(next_m)
+        + '</span> <span class="sit-label">Remaining:</span><span class="sit-value">'
+        + str(rem)
+        + "</span>"
+    )
+    h += ' <span class="sit-label">Promotion:</span> ' + promo
     if gov is not None:
         h += ' <span class="sit-label">Governance (joined):</span><span class="sit-value">' + str(gov) + "</span>"
     h += ' <span class="sit-label">Closed (90d):</span><span class="sit-value">' + str(closed) + "</span>"
