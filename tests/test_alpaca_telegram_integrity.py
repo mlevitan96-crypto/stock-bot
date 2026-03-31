@@ -144,15 +144,16 @@ def test_format_100trade_checkpoint_no_false_on_track_when_precheck_fails():
 def test_integrity_armed_zero_until_arm_epoch(tmp_path: Path):
     root = tmp_path
     (root / "logs").mkdir()
-    now = datetime(2026, 3, 30, 15, 0, tzinfo=timezone.utc)
+    # Post config/era_cut.json alpaca.era_cut_ts so learning_excluded_for_exit_record keeps the row.
+    now = datetime(2026, 3, 31, 15, 0, tzinfo=timezone.utc)
     open_iso = effective_regular_session_open_utc(now)
     line = json.dumps(
         {
             "symbol": "ZZZ",
             "side": "LONG",
-            "entry_ts": "2026-03-30T14:00:00+00:00",
+            "entry_ts": "2026-03-31T14:00:00+00:00",
             "exit_ts": open_iso.isoformat(),
-            "trade_id": "open_ZZZ_2026-03-30T14:00:00+00:00",
+            "trade_id": "open_ZZZ_2026-03-31T14:00:00+00:00",
             "pnl": "1.0",
         }
     )
@@ -174,22 +175,21 @@ def test_integrity_armed_zero_until_arm_epoch(tmp_path: Path):
 def test_should_fire_milestone_once_per_session(tmp_path: Path):
     root = tmp_path
     (root / "logs").mkdir()
-    open_iso = effective_regular_session_open_utc(
-        datetime(2026, 3, 30, 15, 0, tzinfo=timezone.utc)
-    )
-    # minimal exit row: need valid trade_key parts
+    now = datetime(2026, 3, 31, 15, 0, tzinfo=timezone.utc)
+    open_iso = effective_regular_session_open_utc(now)
+    # minimal exit row: need valid trade_key parts; entry_ts must be >= era_cut.json
     line = json.dumps(
         {
             "symbol": "ZZZ",
             "side": "LONG",
-            "entry_ts": "2026-03-30T14:00:00+00:00",
+            "entry_ts": "2026-03-31T14:00:00+00:00",
             "exit_ts": open_iso.isoformat(),
-            "trade_id": "open_ZZZ_2026-03-30T14:00:00+00:00",
+            "trade_id": "open_ZZZ_2026-03-31T14:00:00+00:00",
             "pnl": "1.0",
         }
     )
     (root / "logs" / "exit_attribution.jsonl").write_text(line + "\n", encoding="utf-8")
-    snap = count_since_session_open(root, now=datetime(2026, 3, 30, 15, 0, tzinfo=timezone.utc))
+    snap = count_since_session_open(root, now=now)
     st_path = root / "state" / "milestone.json"
     fire, st = should_fire_milestone(root, 1, snap, st_path)
     assert fire is True
