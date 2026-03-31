@@ -1,0 +1,10 @@
+[Unit]
+Description=Alpaca post-close Telegram — weekdays 16:30 America/New_York (30m after NYSE regular close)
+
+[Timer]
+OnCalendar=Mon..Fri 16:30:00 America/New_York
+Persistent=true
+Unit=alpaca-postclose-deepdive.service
+
+[Install]
+WantedBy=timers.target
