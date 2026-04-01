@@ -1,7 +1,8 @@
 # Final verdict — edge dedupe + 250 + Telegram (evidence-only)
 
 **Evidence root:** `reports/daily/2026-04-01/evidence/`  
-**Droplet HEAD:** `0d9ec04088ec28cb15d2995df1fcba7b5736f3a7`  
+**Code fix HEAD (dedupe):** `0d9ec04088ec28cb15d2995df1fcba7b5736f3a7` (verify run on droplet at that rev)  
+**Repo HEAD (evidence commit):** `33a39609`  
 **ET date:** 2026-04-01  
 
 | Question | YES / NO | Evidence |
@@ -16,4 +17,4 @@
 
 - `ALPACA_STRICT_GATE_SNAPSHOT_DEDUP_VERIFY_20260401_191124Z.json` (gate export)
 - `ALPACA_EDGE_DEDUPE_AND_250_CONTEXT.md` (Phase 0)
-- `../2026-04-02/evidence/ALPACA_SRE_EDGE_001_FIX.md` (code change description)
+- `ALPACA_SRE_EDGE_001_FIX.md` (code change description)
