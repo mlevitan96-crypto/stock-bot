@@ -1,0 +1,188 @@
+{
+  "packet_version": "1.0",
+  "generated_at_utc": "2026-04-01T18:57:48Z",
+  "droplet_root": "/root/stock-bot",
+  "source_artifacts": {
+    "gate_snapshot": "reports/daily/2026-04-01/evidence/ALPACA_STRICT_GATE_SNAPSHOT_20260401_185738Z.json",
+    "edge_analysis": "reports/daily/2026-04-01/evidence/ALPACA_STRICT_QUANT_EDGE_ANALYSIS_20260401_185738Z.json",
+    "edge_markdown": "reports/daily/2026-04-01/evidence/ALPACA_STRICT_QUANT_EDGE_ANALYSIS_20260401_185738Z.md"
+  },
+  "gate_status": {
+    "LEARNING_STATUS": "ARMED",
+    "promotable_learning_grade": true,
+    "caveat": "Strict gate ARMED 400/400 complete. Gate strict_cohort_trade_ids len=400 unique=399; duplicate: open_SOFI_2026-04-01T15:25:47.839207+00:00 (x2). Edge script uses set → 399 rows. SRE-EDGE-001: dedupe in gate/export.",
+    "trades_seen": 400,
+    "trades_complete": 400,
+    "trades_incomplete": 0,
+    "strict_cohort_trade_id_count": 400,
+    "edge_analysis_trades_in_cohort": 399
+  },
+  "cohort_counts": {
+    "open_ts_epoch": 1774458080.0,
+    "exit_attribution_rows_analyzed": 399,
+    "long_trades": 279,
+    "short_trades": 120
+  },
+  "pnl_headline": {
+    "sum_pnl_usd": 28.2933,
+    "avg_pnl_usd": 0.0709,
+    "median_pnl_usd": 0.18,
+    "win_rate": 0.5664,
+    "avg_hold_minutes": 65.99,
+    "tail_note": "Largest observed loss ~ -16.8 USD (NIO); largest win ~ +10.8 USD (MRNA) in this rollup."
+  },
+  "strict_runlog_startup_proof": {
+    "log_path": "logs/system_events.jsonl",
+    "event_type": "startup_banner",
+    "subsystem": "telemetry_chain",
+    "sample_line_timestamp": "2026-04-01T18:37:13.944835+00:00",
+    "strict_runlog_effective": true,
+    "strict_runlog_telemetry_enabled": true,
+    "run_jsonl_abspath": "/root/stock-bot/logs/run.jsonl"
+  },
+  "top_winning_slices": [
+    {
+      "slice": "exit_reason:signal_decay(0.85)",
+      "n": 20,
+      "avg_pnl_usd": 1.3805,
+      "mechanism": "V2 decay band correlates with profitable exits when thesis still valid."
+    },
+    {
+      "slice": "exit_reason:signal_decay(0.83)",
+      "n": 22,
+      "avg_pnl_usd": 1.2377,
+      "mechanism": "Similar decay band; high win rate — exits align with favorable drift."
+    },
+    {
+      "slice": "entry_regime:mixed",
+      "n": 358,
+      "avg_pnl_usd": 0.1491,
+      "mechanism": "Labeled regime path captures majority of positive expectancy."
+    },
+    {
+      "slice": "side:LONG",
+      "n": 279,
+      "avg_pnl_usd": 0.1022,
+      "mechanism": "Long book carries aggregate edge in cohort."
+    },
+    {
+      "slice": "exit_reason:signal_decay(0.84)",
+      "n": 28,
+      "avg_pnl_usd": 0.5845,
+      "mechanism": "Mid-high decay exits with strong win rate."
+    }
+  ],
+  "top_losing_slices": [
+    {
+      "slice": "exit_reason:signal_decay(0.93)",
+      "n": 21,
+      "avg_pnl_usd": -1.3555,
+      "mechanism": "High decay score exits often crystallize losses or late giveback."
+    },
+    {
+      "slice": "exit_reason:signal_decay(0.94)",
+      "n": 8,
+      "avg_pnl_usd": -1.6734,
+      "mechanism": "Extreme decay band; toxic conditional expectancy."
+    },
+    {
+      "slice": "exit_reason:signal_decay(0.64)",
+      "n": 10,
+      "avg_pnl_usd": -1.3915,
+      "mechanism": "Low decay + adverse path — exits may fire in chop."
+    },
+    {
+      "slice": "exit_reason:signal_decay(0.65)+flow_reversal",
+      "n": 12,
+      "avg_pnl_usd": -0.6694,
+      "mechanism": "Flow reversal urgency without confirmation — whipsaw exits."
+    },
+    {
+      "slice": "entry_regime:unknown",
+      "n": 41,
+      "avg_pnl_usd": -0.6122,
+      "mechanism": "Missing entry regime telemetry — sizing/gating blind."
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "Q-001",
+      "lever_type": "GATE-IN",
+      "target": "Entries when exit path historically signal_decay(0.83–0.85) AND entry_regime=mixed",
+      "mechanism": "Positive expectancy concentrated in labeled regime and specific decay outcomes.",
+      "action": "Promote size only when entry_regime != unknown and composite agrees; paper A/B +10% size cap on qualifying signals.",
+      "expected_impact": "+3–15 USD/session equivalent at current trade frequency (order-of-magnitude; verify on next 50 trades)",
+      "risk": "Overfit to decay string labels; regime shift.",
+      "confidence": "medium",
+      "owner": "Quant Officer",
+      "verify": "Holdout week: compare PnL and max DD vs control; require ARMED gate throughout."
+    },
+    {
+      "id": "Q-002",
+      "lever_type": "CHANGE_EXIT",
+      "target": "signal_decay(0.93–0.94) buckets",
+      "mechanism": "Same exit family destroys expectancy when fired without path context.",
+      "action": "Add branch: require min hold OR MFE capture OR drawdown-from-peak rule before allowing 0.93+ decay flat exit; tune in replay.",
+      "expected_impact": "Reduce ~28–42 USD cumulative drag if half of toxic exits avoided (backtest-bound)",
+      "risk": "Longer holds increase tail loss in crashes.",
+      "confidence": "medium",
+      "owner": "Quant Officer + CSA",
+      "verify": "Replay 30d with counterfactual exit rule; monitor median hold and worst-case."
+    },
+    {
+      "id": "Q-003",
+      "lever_type": "TELEMETRY",
+      "target": "entry_regime:unknown",
+      "mechanism": "Unknown regime rows underperform mixed by ~0.76 USD/trade average delta.",
+      "action": "Ensure mark_open / metadata always stamps entry_regime; interim GATE-IN: half size when unknown until ARMED telemetry proof.",
+      "expected_impact": "~10–25 USD recovered if unknown bucket behaves like mixed post-fix (provisional)",
+      "risk": "False regime labels could block good trades.",
+      "confidence": "medium",
+      "owner": "SRE + CSA",
+      "verify": "unknown count -> 0 on new closes for 5 sessions; slice PnL improves."
+    },
+    {
+      "id": "Q-004",
+      "lever_type": "CHANGE_EXIT",
+      "target": "flow_reversal combined with mid decay (e.g. 0.65)",
+      "mechanism": "Single-bar reversal sensitivity exits losers with 25% win rate.",
+      "action": "Add confirmation (second signal, min magnitude, or delay N minutes) before flow_reversal forces exit.",
+      "expected_impact": "5–15 USD if 30% fewer false reversal exits",
+      "risk": "Slower exit in true reversals.",
+      "confidence": "low",
+      "owner": "CSA",
+      "verify": "Label reversal exits pre/post rule; compare MAE and PnL."
+    },
+    {
+      "id": "SRE-001",
+      "lever_type": "GUARDRAIL",
+      "target": "Strict chain at close + daily integrity",
+      "mechanism": "Learning-grade requires complete chain every close.",
+      "action": "Keep strict_chain_backfill_before_strict_gate + alert if trades_incomplete>0; add daily generated integrity markdown to evidence/; optional fail-closed on promotion scripts if not ARMED.",
+      "expected_impact": "Prevents silent learning corruption; faster re-arm",
+      "risk": "Operational noise if flaky alerts.",
+      "confidence": "high",
+      "owner": "SRE",
+      "verify": "Inject incomplete trade in staging; alert fires; backfill restores ARMED."
+    },
+    {
+      "id": "Q-005",
+      "lever_type": "SIZE",
+      "target": "SHORT sleeve conditional",
+      "mechanism": "Short expectancy near flat (-0.002 USD/trade) — not primary leak.",
+      "action": "Do not disable shorts; maintain size; revisit only if exit toxicity correlates with short-only path.",
+      "expected_impact": "Preserve optionality; avoid false kill",
+      "risk": "Missed short-specific leak if masked by aggregation.",
+      "confidence": "medium",
+      "owner": "Board / Quant",
+      "verify": "Monthly short-only slice with n>=50."
+    }
+  ],
+  "board_decision_matrix_rows": [
+    {"decision_id": "B-001", "lever_type": "GATE-IN", "target": "Winning decay bands + mixed regime", "action": "SIZE qualifying entries", "confidence": "medium"},
+    {"decision_id": "B-002", "lever_type": "CHANGE_EXIT", "target": "0.93–0.94 decay", "action": "Path-dependent exit branch", "confidence": "medium"},
+    {"decision_id": "B-003", "lever_type": "TELEMETRY", "target": "entry_regime unknown", "action": "Fix stamp + interim half size", "confidence": "medium"},
+    {"decision_id": "B-004", "lever_type": "CHANGE_EXIT", "target": "flow_reversal", "action": "Confirmation delay", "confidence": "low"},
+    {"decision_id": "B-005", "lever_type": "GUARDRAIL", "target": "Integrity", "action": "Daily report + incomplete alert", "confidence": "high"}
+  ]
+}
