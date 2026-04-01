@@ -103,6 +103,28 @@ def _open_epoch_from_trade_id(tid: str, tid_re: Any) -> Optional[float]:
     return _parse_iso_ts(m.group(2))
 
 
+def _dedupe_closed_rows_by_trade_id(closed_rows: List[tuple]) -> Tuple[List[tuple], int]:
+    """
+    SRE-EDGE-001: duplicate exit_attribution.jsonl lines for the same trade_id must not
+    double-count trades_seen, completeness, or strict_cohort_trade_ids.
+
+    Preserves **first-seen order** of trade_id; **last row wins** for (sym, ent, rec) payload.
+    Returns (deduped_rows, number_of_duplicate_rows_removed).
+    """
+    if not closed_rows:
+        return closed_rows, 0
+    before = len(closed_rows)
+    order: List[str] = []
+    by_tid: Dict[str, tuple] = {}
+    for row in closed_rows:
+        tid = str(row[0])
+        if tid not in by_tid:
+            order.append(tid)
+        by_tid[tid] = row
+    out = [by_tid[tid] for tid in order]
+    return out, before - len(out)
+
+
 def _pick_best_entry_decision_made(
     entry_rows: List[dict],
     aliases: Set[str],
@@ -305,6 +327,9 @@ def evaluate_completeness(
         }
         if recent_closes_limit is not None and len(closed) < int(recent_closes_limit):
             postfix_insufficient_closes = True
+
+    _exit_rows_before_trade_id_dedupe = len(closed)
+    closed, _dup_removed = _dedupe_closed_rows_by_trade_id(closed)
 
     reason_hist: Counter = Counter()
     incomplete_ex: List[dict] = []
@@ -521,6 +546,8 @@ def evaluate_completeness(
         "strict_cohort_exclusion_reasons": dict(strict_cohort_exclusion_reasons),
         "excluded_trade_ids_capped": list(excluded_trade_ids_capped),
         "precheck": precheck,
+        "exit_attribution_rows_before_trade_id_dedupe": _exit_rows_before_trade_id_dedupe,
+        "exit_attribution_duplicate_trade_id_rows_removed": _dup_removed,
         "trades_seen": len(closed),
         "trades_complete": complete,
         "trades_incomplete": len(closed) - complete,
