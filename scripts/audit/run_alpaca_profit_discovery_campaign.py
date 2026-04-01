@@ -222,9 +222,12 @@ def run_campaign(root: Path, max_exit: int, max_snap: int, max_blocked: int, max
     }
 
     # Regime / SPI file discovery
-    spi_files = sorted(
-        reports.glob("ALPACA_SPI_SECTION_*.md"), key=lambda p: p.stat().st_mtime, reverse=True
-    )[:5]
+    spi_candidates: List[Path] = []
+    for pat in ("ALPACA_SPI_SECTION_*.md", "ALPACA_SPI_PNL_DISCOVERY_*.md"):
+        spi_candidates.extend(reports.glob(pat))
+        if (reports / "daily").is_dir():
+            spi_candidates.extend((reports / "daily").rglob(pat))
+    spi_files = sorted({p.resolve() for p in spi_candidates if p.is_file()}, key=lambda p: p.stat().st_mtime, reverse=True)[:8]
     inv["latest_spi_md"] = [str(p.relative_to(root)) for p in spi_files]
 
     md0 = [

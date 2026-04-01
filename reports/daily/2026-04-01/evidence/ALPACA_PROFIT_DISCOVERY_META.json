@@ -1,0 +1,8 @@
+{
+  "generated_at_utc": "2026-04-01T20:14:58.092904+00:00",
+  "root": "/root/stock-bot",
+  "session_anchor_et": "2026-04-01",
+  "max_exit_rows_tail": 25000,
+  "max_score_snapshot_tail": 60000,
+  "disclaimer": "Read-only campaign; tail windows are a sample of full history unless noted."
+}
