@@ -514,6 +514,7 @@ def main() -> int:
     if ge250 and n_notifier >= target and not fired_already and not fire:
         corrective = "Inspect `should_fire_milestone` and `alpaca_milestone_250_state.json` for corruption or session_anchor mismatch."
 
+    if_yes_no_fire = reason if should_have == "YES" else "N/A (milestone should not have fired under current rules)"
     (ev / "ALPACA_250_THRESHOLD_FINAL_VERDICT.md").write_text(
         "\n".join(
             [
@@ -521,7 +522,8 @@ def main() -> int:
                 "",
                 f"- **Has the system crossed 250 canonical trades (post-era, no floor)?** **{crossed}**",
                 f"- **Should the 250 milestone have fired (per notifier rules)?** **{should_have}**",
-                f"- **If YES and it did not fire — exact reason:** {reason or 'N/A'}",
+                f"- **If YES and it did not fire — exact reason:** {if_yes_no_fire}",
+                f"- **Why notifier has not fired (operator summary):** {reason}",
                 f"- **Corrective action:** {corrective or 'None required for threshold semantics; verify Telegram credentials and logs if send failed while should_fire was True.'}",
                 "",
             ]
