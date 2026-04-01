@@ -1142,6 +1142,8 @@ def main() -> int:
         if not g.pass_ok:
             blockers.append(f"FAIL {g.name}: {g.value:.2f}% (need >= {g.threshold}%) {g.detail}")
 
+    coverage_data_ready = len(blockers) == 0
+
     # Phase 2 schema + coverage (always)
     schema_path = reports / f"ALPACA_TRUTH_WAREHOUSE_SCHEMA_{tag}.md"
     schema_path.write_text(
@@ -1174,6 +1176,8 @@ def main() -> int:
 
     cov_lines = [
         f"# ALPACA_TRUTH_WAREHOUSE_COVERAGE_{tag}",
+        "",
+        f"DATA_READY: {'YES' if coverage_data_ready else 'NO'}",
         "",
         f"- execution join coverage: **{join_pct:.2f}%**",
         f"- fee computable (fills basis): **{fee_pct:.2f}%**",
@@ -1266,7 +1270,7 @@ def main() -> int:
         "\n".join(exec_cov) + "\n", encoding="utf-8"
     )
 
-    data_ready = len(blockers) == 0
+    data_ready = coverage_data_ready
 
     if not data_ready:
         bp = reports / f"ALPACA_TRUTH_WAREHOUSE_BLOCKERS_{tag}.md"
