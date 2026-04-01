@@ -1,0 +1,94 @@
+## git rev-parse HEAD
+427815acd6a1c3b48d866aa6266c5350c31db3a5
+## date -u
+Wed Apr  1 17:29:03 UTC 2026
+## ET now
+2026-04-01T13:29:03.412980-04:00
+## systemctl stock-bot
+● stock-bot.service - Algorithmic Trading Bot
+     Loaded: loaded (/etc/systemd/system/stock-bot.service; enabled; preset: enabled)
+    Drop-In: /etc/systemd/system/stock-bot.service.d
+             └─override.conf, paper-overlay.conf, truth.conf
+     Active: active (running) since Tue 2026-03-31 21:11:35 UTC; 20h ago
+   Main PID: 1807948 (systemd_start.s)
+      Tasks: 32 (limit: 9483)
+     Memory: 886.8M (peak: 925.3M)
+        CPU: 1h 14min 11.561s
+     CGroup: /system.slice/stock-bot.service
+             ├─1807948 /bin/bash /root/stock-bot/systemd_start.sh
+             ├─1807950 /root/stock-bot/venv/bin/python deploy_supervisor.py
+             ├─1807960 /root/stock-bot/venv/bin/python -u dashboard.py
+             ├─1808026 /root/stock-bot/venv/bin/python -u main.py
+             └─1808043 /root/stock-bot/venv/bin/python heartbeat_keeper.py
+
+Apr 01 17:29:02 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] DEBUG EXITS: LCID using Alpaca P&L: -0.0000% (entry=$9.60, current=$9.60)
+Apr 01 17:29:03 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] 2026-04-01 17:29:03,270 [CACHE-ENRICH] INFO: signal_open_position: evaluated AMD -> 4.0230
+Apr 01 17:29:03 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] 2026-04-01 17:29:03,290 [CACHE-ENRICH] INFO: signal_open_position: evaluated C -> 4.1540
+Apr 01 17:29:03 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] 2026-04-01 17:29:03,309 [CACHE-ENRICH] INFO: signal_open_position: evaluated COIN -> 3.6570
+Apr 01 17:29:03 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] 2026-04-01 17:29:03,328 [CACHE-ENRICH] INFO: signal_open_position: evaluated GM -> 3.8150
+Apr 01 17:29:03 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] 2026-04-01 17:29:03,347 [CACHE-ENRICH] INFO: signal_open_position: evaluated HOOD -> 3.5410
+Apr 01 17:29:03 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] 2026-04-01 17:29:03,365 [CACHE-ENRICH] INFO: signal_open_position: evaluated INTC -> 3.8650
+Apr 01 17:29:03 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] 2026-04-01 17:29:03,383 [CACHE-ENRICH] INFO: signal_open_position: evaluated LCID -> 3.7230
+Apr 01 17:29:03 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] 2026-04-01 17:29:03,401 [CACHE-ENRICH] INFO: signal_open_position: evaluated META -> 3.6050
+Apr 01 17:29:03 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1807950]: [trading-bot] 2026-04-01 17:29:03,420 [CACHE-ENRICH] INFO: signal_open_position: evaluated MRNA -> 3.6870
+## state ls
+total 56M
+drwxr-xr-x  5 root root 4.0K Apr  1 17:29 .
+drwxr-xr-x 47 root root  48K Mar 31 21:11 ..
+-rw-r--r--  1 root root  137 Apr  1 17:28 alpaca_100trade_sent.json
+-rw-r--r--  1 root root   87 Apr  1 17:28 alpaca_milestone_250_state.json
+-rw-r--r--  1 root root   93 Apr  1 17:28 alpaca_milestone_integrity_arm.json
+-rw-r--r--  1 root root  169 Apr  1 17:24 alpaca_positions.json
+-rw-r--r--  1 root root  520 Apr  1 17:28 alpaca_telegram_integrity_cycle.json
+-rw-r--r--  1 root root  119 Mar 30 17:36 bayes_profiles.json
+-rw-r--r--  1 root root  44M Apr  1 17:28 blocked_trades.jsonl
+-rw-r--r--  1 root root 1.1K Apr  1 17:24 bot_heartbeat.json
+-rw-r--r--  1 root root 3.9M Apr  1 00:12 causal_analysis_state.json
+-rw-r--r--  1 root root  130 Mar 30 17:36 champions.json
+-rw-r--r--  1 root root   93 Mar 30 17:36 correlation_snapshot.json
+-rw-r--r--  1 root root   98 Apr  1 13:30 daily_start_equity.json
+-rw-r--r--  1 root root   64 Mar 30 17:36 degraded_mode.json
+-rw-r--r--  1 root root  222 Apr  1 16:39 direction_readiness.json
+-rw-r--r--  1 root root  110 Mar 31 16:38 direction_replay_status.json
+-rw-r--r--  1 root root  699 Mar 30 17:36 eod_rolling_windows_2026-03-30.json
+-rw-r--r--  1 root root 9.5K Mar 31 19:55 execution_failures.jsonl
+-rw-r--r--  1 root root   63 Apr  1 17:24 executor_state.json
+-rw-r--r--  1 root root   43 Apr  1 17:24 fail_counter.json
+-rw-r--r--  1 root root 4.2K Apr  1 02:00 failure_point_monitor.json
+-rw-r--r--  1 root root 8.2K Apr  1 00:12 gate_pattern_learning.json
+-rw-r--r--  1 root root  402 Mar 30 18:26 governor_freezes.json
+-rw-r--r--  1 root root 4.8K Apr  1 13:03 healing_history.jsonl
+-rw-r--r--  1 root root 1.7K Apr  1 17:27 health.json
+drwxr-xr-x  2 root root 4.0K Mar 30 17:30 heartbeats
+-rw-r--r--  1 root root   67 Apr  1 17:24 internal_positions.json
+-rw-r--r--  1 root root  119 Mar 31 16:38 last_droplet_analysis.json
+-rw-r--r--  1 root root 5.7K Apr  1 17:24 last_scores.json
+-rw-r--r--  1 root root  750 Apr  1 00:12 learning_processing_state.json
+-rw-r--r--  1 root root  150 Mar 31 20:46 learning_scheduler_state.json
+drwxr-xr-x  3 root root 4.0K Mar 30 20:43 legacy
+-rw-r--r--  1 root root  202 Apr  1 17:24 logic_stagnation_state.json
+-rw-r--r--  1 root root  107 Mar 30 17:43 macro_gate_state.json
+-rw-r--r--  1 root root  589 Apr  1 17:24 market_context_v2.json
+-rw-------  1 root root  453 Mar 31 19:57 peak_equity.json
+-rw-r--r--  1 root root  687 Apr  1 17:28 pending_fill_scores.json
+-rw-r--r--  1 root root 6.5M Apr  1 17:24 portfolio_state.jsonl
+-rw-r--r--  1 root root 1.2M Apr  1 17:28 position_intel_snapshots.json
+-rw-r--r--  1 root root  66K Apr  1 17:28 position_metadata.json
+-rw-r--r--  1 root root  12K Mar 30 18:26 position_metadata.pre_liquidation.20260330_182621Z.json
+-rw-r--r--  1 root root  86K Mar 30 18:31 position_metadata.pre_liquidation.20260330_183111Z.json
+-rw-r--r--  1 root root  11K Mar 30 18:32 position_metadata.pre_liquidation.20260330_183223Z.json
+-rw-r--r--  1 root root  220 Mar 31 04:27 postclose_watermark.json
+-rw-r--r--  1 root root  122 Apr  1 16:30 regime_detector_state.json
+-rw-r--r--  1 root root  625 Apr  1 17:24 regime_posture_state.json
+-rw-r--r--  1 root root 4.8K Mar 30 17:43 score_telemetry.json
+-rw-r--r--  1 root root  30K Apr  1 17:24 sector_tide_state.json
+-rw-r--r--  1 root root  133 Apr  1 15:56 self_healing_threshold.json
+-rw-r--r--  1 root root 3.6K Mar 30 17:36 signal_correlation_cache.json
+-rw-r--r--  1 root root  134 Apr  1 17:28 signal_funnel_state.json
+-rw-r--r--  1 root root  27K Apr  1 17:28 signal_history.jsonl
+-rw-r--r--  1 root root  102 Apr  1 00:12 signal_pattern_learning.json
+-rw-r--r--  1 root root  17K Apr  1 17:29 signal_strength_cache.json
+-rw-r--r--  1 root root   63 Mar 30 17:36 signal_survivorship_2026-03-30.json
+-rw-r--r--  1 root root 200K Apr  1 02:00 signal_weights.json
+-rw-r--r--  1 root root  30K Apr  1 17:29 smart_poller.json
+-rw-r--r--  1 root root  268 Apr  1 17:26 sre_metrics.json

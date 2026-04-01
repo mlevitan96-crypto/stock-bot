@@ -1,0 +1,333 @@
+{
+  "ROOT": "/root/stock-bot",
+  "OPEN_TS_UTC_EPOCH": 1775050200.0,
+  "EXIT_TS_UTC_EPOCH_MAX": null,
+  "FORWARD_SINCE_UTC_EPOCH": null,
+  "STRICT_EPOCH_START": 1774458080.0,
+  "strict_cohort_entry_era_floor_applied": true,
+  "strict_cohort_excluded_preera_open_count": 4,
+  "strict_cohort_exclusion_reasons": {
+    "PREERA_OPEN": 4
+  },
+  "excluded_trade_ids_capped": [
+    "open_LOW_2026-03-31T19:53:29.220179+00:00",
+    "open_XLI_2026-03-31T19:54:35.991131+00:00",
+    "open_WMT_2026-03-31T19:51:37.987458+00:00",
+    "open_HD_2026-03-31T19:55:29.163680+00:00"
+  ],
+  "precheck": [],
+  "trades_seen": 111,
+  "trades_complete": 0,
+  "trades_incomplete": 111,
+  "reason_histogram": {
+    "live_entry_decision_made_missing_or_blocked": 111,
+    "entry_decision_not_joinable_by_canonical_trade_id": 111,
+    "missing_unified_entry_attribution": 111,
+    "no_orders_rows_with_canonical_trade_id": 111,
+    "missing_exit_intent_for_canonical_trade_id": 111
+  },
+  "incomplete_examples": [
+    {
+      "trade_id": "open_AMD_2026-04-01T13:37:47.001990+00:00",
+      "trade_key": "AMD|LONG|1775050667",
+      "authoritative_join_key": "AMD|LONG|1775050667",
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_C_2026-04-01T13:39:59.115841+00:00",
+      "trade_key": "C|LONG|1775050799",
+      "authoritative_join_key": "C|LONG|1775050799",
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_GM_2026-04-01T13:40:07.368950+00:00",
+      "trade_key": "GM|LONG|1775050807",
+      "authoritative_join_key": "GM|LONG|1775050807",
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_HOOD_2026-04-01T13:38:07.819871+00:00",
+      "trade_key": "HOOD|LONG|1775050687",
+      "authoritative_join_key": "HOOD|LONG|1775050687",
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_INTC_2026-04-01T13:39:42.770076+00:00",
+      "trade_key": "INTC|LONG|1775050782",
+      "authoritative_join_key": "INTC|LONG|1775050782",
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_MRNA_2026-04-01T13:40:41.159970+00:00",
+      "trade_key": "MRNA|LONG|1775050841",
+      "authoritative_join_key": "MRNA|LONG|1775050841",
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_TSLA_2026-04-01T13:39:25.177734+00:00",
+      "trade_key": "TSLA|LONG|1775050765",
+      "authoritative_join_key": "TSLA|LONG|1775050765",
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_NIO_2026-04-01T13:40:26.566742+00:00",
+      "trade_key": "NIO|LONG|1775050826",
+      "authoritative_join_key": "NIO|LONG|1775050826",
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    }
+  ],
+  "code_structural_trade_intent_no_canonical_on_entered": false,
+  "LEARNING_STATUS": "BLOCKED",
+  "learning_fail_closed_reason": "incomplete_trade_chain",
+  "AUTHORITATIVE_JOIN_KEY_RULE": "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).",
+  "legacy_trades_seen": null,
+  "legacy_trades_complete": null,
+  "legacy_trades_incomplete": null,
+  "forward_trades_seen": null,
+  "forward_trades_complete": null,
+  "forward_trades_incomplete": null,
+  "FORWARD_CHAIN_PERFECT": false,
+  "FORWARD_COHORT_VACUOUS": false,
+  "POSTFIX_META": null,
+  "postfix_insufficient_closes": false,
+  "postfix_allow_intent_blocker": false,
+  "LEGACY_DEBT_QUARANTINED_NOTE": null,
+  "incomplete_trade_ids_by_reason": {
+    "live_entry_decision_made_missing_or_blocked": [
+      "open_AMD_2026-04-01T13:37:47.001990+00:00",
+      "open_C_2026-04-01T13:39:59.115841+00:00",
+      "open_GM_2026-04-01T13:40:07.368950+00:00",
+      "open_HOOD_2026-04-01T13:38:07.819871+00:00",
+      "open_INTC_2026-04-01T13:39:42.770076+00:00",
+      "open_MRNA_2026-04-01T13:40:41.159970+00:00",
+      "open_TSLA_2026-04-01T13:39:25.177734+00:00",
+      "open_NIO_2026-04-01T13:40:26.566742+00:00",
+      "open_NVDA_2026-04-01T13:39:10.390777+00:00",
+      "open_SOFI_2026-04-01T13:38:22.163308+00:00"
+    ],
+    "entry_decision_not_joinable_by_canonical_trade_id": [
+      "open_AMD_2026-04-01T13:37:47.001990+00:00",
+      "open_C_2026-04-01T13:39:59.115841+00:00",
+      "open_GM_2026-04-01T13:40:07.368950+00:00",
+      "open_HOOD_2026-04-01T13:38:07.819871+00:00",
+      "open_INTC_2026-04-01T13:39:42.770076+00:00",
+      "open_MRNA_2026-04-01T13:40:41.159970+00:00",
+      "open_TSLA_2026-04-01T13:39:25.177734+00:00",
+      "open_NIO_2026-04-01T13:40:26.566742+00:00",
+      "open_NVDA_2026-04-01T13:39:10.390777+00:00",
+      "open_SOFI_2026-04-01T13:38:22.163308+00:00"
+    ],
+    "missing_unified_entry_attribution": [
+      "open_AMD_2026-04-01T13:37:47.001990+00:00",
+      "open_C_2026-04-01T13:39:59.115841+00:00",
+      "open_GM_2026-04-01T13:40:07.368950+00:00",
+      "open_HOOD_2026-04-01T13:38:07.819871+00:00",
+      "open_INTC_2026-04-01T13:39:42.770076+00:00",
+      "open_MRNA_2026-04-01T13:40:41.159970+00:00",
+      "open_TSLA_2026-04-01T13:39:25.177734+00:00",
+      "open_NIO_2026-04-01T13:40:26.566742+00:00",
+      "open_NVDA_2026-04-01T13:39:10.390777+00:00",
+      "open_SOFI_2026-04-01T13:38:22.163308+00:00"
+    ],
+    "no_orders_rows_with_canonical_trade_id": [
+      "open_AMD_2026-04-01T13:37:47.001990+00:00",
+      "open_C_2026-04-01T13:39:59.115841+00:00",
+      "open_GM_2026-04-01T13:40:07.368950+00:00",
+      "open_HOOD_2026-04-01T13:38:07.819871+00:00",
+      "open_INTC_2026-04-01T13:39:42.770076+00:00",
+      "open_MRNA_2026-04-01T13:40:41.159970+00:00",
+      "open_TSLA_2026-04-01T13:39:25.177734+00:00",
+      "open_NIO_2026-04-01T13:40:26.566742+00:00",
+      "open_NVDA_2026-04-01T13:39:10.390777+00:00",
+      "open_SOFI_2026-04-01T13:38:22.163308+00:00"
+    ],
+    "missing_exit_intent_for_canonical_trade_id": [
+      "open_AMD_2026-04-01T13:37:47.001990+00:00",
+      "open_C_2026-04-01T13:39:59.115841+00:00",
+      "open_GM_2026-04-01T13:40:07.368950+00:00",
+      "open_HOOD_2026-04-01T13:38:07.819871+00:00",
+      "open_INTC_2026-04-01T13:39:42.770076+00:00",
+      "open_MRNA_2026-04-01T13:40:41.159970+00:00",
+      "open_TSLA_2026-04-01T13:39:25.177734+00:00",
+      "open_NIO_2026-04-01T13:40:26.566742+00:00",
+      "open_NVDA_2026-04-01T13:39:10.390777+00:00",
+      "open_SOFI_2026-04-01T13:38:22.163308+00:00"
+    ]
+  },
+  "chain_matrices_sample": [
+    {
+      "trade_id": "open_AMD_2026-04-01T13:37:47.001990+00:00",
+      "symbol": "AMD",
+      "forward_cohort": false,
+      "authoritative_join_key": "AMD|LONG|1775050667",
+      "trade_key_from_exit": "AMD|LONG|1775050667",
+      "alias_sample": [
+        "AMD|LONG|1775050667"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": false,
+        "unified_entry_attribution_present": false,
+        "orders_rows_canonical_trade_id_present": false,
+        "exit_intent_keyed_present": false,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_C_2026-04-01T13:39:59.115841+00:00",
+      "symbol": "C",
+      "forward_cohort": false,
+      "authoritative_join_key": "C|LONG|1775050799",
+      "trade_key_from_exit": "C|LONG|1775050799",
+      "alias_sample": [
+        "C|LONG|1775050799"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": false,
+        "unified_entry_attribution_present": false,
+        "orders_rows_canonical_trade_id_present": false,
+        "exit_intent_keyed_present": false,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_GM_2026-04-01T13:40:07.368950+00:00",
+      "symbol": "GM",
+      "forward_cohort": false,
+      "authoritative_join_key": "GM|LONG|1775050807",
+      "trade_key_from_exit": "GM|LONG|1775050807",
+      "alias_sample": [
+        "GM|LONG|1775050807"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": false,
+        "unified_entry_attribution_present": false,
+        "orders_rows_canonical_trade_id_present": false,
+        "exit_intent_keyed_present": false,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_HOOD_2026-04-01T13:38:07.819871+00:00",
+      "symbol": "HOOD",
+      "forward_cohort": false,
+      "authoritative_join_key": "HOOD|LONG|1775050687",
+      "trade_key_from_exit": "HOOD|LONG|1775050687",
+      "alias_sample": [
+        "HOOD|LONG|1775050687"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": false,
+        "unified_entry_attribution_present": false,
+        "orders_rows_canonical_trade_id_present": false,
+        "exit_intent_keyed_present": false,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_INTC_2026-04-01T13:39:42.770076+00:00",
+      "symbol": "INTC",
+      "forward_cohort": false,
+      "authoritative_join_key": "INTC|LONG|1775050782",
+      "trade_key_from_exit": "INTC|LONG|1775050782",
+      "alias_sample": [
+        "INTC|LONG|1775050782"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": false,
+        "unified_entry_attribution_present": false,
+        "orders_rows_canonical_trade_id_present": false,
+        "exit_intent_keyed_present": false,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id",
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id",
+        "missing_exit_intent_for_canonical_trade_id"
+      ]
+    }
+  ],
+  "chain_matrices_complete_sample": []
+}
