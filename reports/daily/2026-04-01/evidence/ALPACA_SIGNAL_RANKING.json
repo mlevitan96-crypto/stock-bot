@@ -1,0 +1,204 @@
+{
+  "matched_exits_with_snapshot": 63,
+  "signals_ranked": [
+    {
+      "signal": "greeks_gamma",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.143,
+      "mean_pnl_high_component": -0.220455,
+      "mean_pnl_low_component": -0.672412,
+      "delta_mean_pnl": 0.451958,
+      "proxy_contribution_score": 28.4733
+    },
+    {
+      "signal": "market_tide",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": -0.032,
+      "mean_pnl_high_component": -0.177995,
+      "mean_pnl_low_component": -0.54129,
+      "delta_mean_pnl": 0.363296,
+      "proxy_contribution_score": 22.8876
+    },
+    {
+      "signal": "toxicity_penalty",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": -0.193,
+      "mean_pnl_high_component": -0.177995,
+      "mean_pnl_low_component": -0.54129,
+      "delta_mean_pnl": 0.363296,
+      "proxy_contribution_score": 22.8876
+    },
+    {
+      "signal": "event",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.243,
+      "mean_pnl_high_component": -0.355417,
+      "mean_pnl_low_component": -0.44,
+      "delta_mean_pnl": 0.084583,
+      "proxy_contribution_score": 5.3288
+    },
+    {
+      "signal": "flow",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 2.4,
+      "mean_pnl_high_component": -0.366817,
+      "mean_pnl_low_component": -0.05,
+      "delta_mean_pnl": -0.316817,
+      "proxy_contribution_score": -19.9595
+    },
+    {
+      "signal": "calendar",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.0,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "congress",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.0,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "dark_pool",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.186,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "etf_flow",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.043,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "ftd_pressure",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.043,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "insider",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.089,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "institutional",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.0,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "motif_bonus",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.0,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "oi_change",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.05,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "regime",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.009,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "shorts_squeeze",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.0,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "smile",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.005,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "squeeze_score",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.029,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "whale",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.0,
+      "mean_pnl_high_component": -0.356759,
+      "mean_pnl_low_component": 0.0,
+      "delta_mean_pnl": -0.356759,
+      "proxy_contribution_score": -22.4758
+    },
+    {
+      "signal": "iv_rank",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.022,
+      "mean_pnl_high_component": -0.525238,
+      "mean_pnl_low_component": -0.019802,
+      "delta_mean_pnl": -0.505437,
+      "proxy_contribution_score": -31.8425
+    },
+    {
+      "signal": "freshness_factor",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.992,
+      "mean_pnl_high_component": -0.648766,
+      "mean_pnl_low_component": -0.055333,
+      "delta_mean_pnl": -0.593432,
+      "proxy_contribution_score": -37.3862
+    },
+    {
+      "signal": "iv_skew",
+      "n_matched_trades": 63,
+      "median_split_on_contribution": 0.046,
+      "mean_pnl_high_component": -0.807785,
+      "mean_pnl_low_component": 0.3288,
+      "delta_mean_pnl": -1.136585,
+      "proxy_contribution_score": -71.6049
+    }
+  ],
+  "caveat": "Marginal split at median of matched entry-time snapshot contribution; not IV regression; confounded."
+}
