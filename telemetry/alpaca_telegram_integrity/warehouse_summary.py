@@ -30,10 +30,21 @@ _DATA_READY_RE = re.compile(r"DATA_READY:\s*(YES|NO)", re.I)
 
 
 def _latest_coverage_file(reports: Path) -> Optional[Path]:
+    """
+    Newest coverage markdown by mtime — same search roots as
+    scripts/audit/parse_coverage_smoke_check.py (flat reports/ + reports/daily/**).
+    """
     if not reports.is_dir():
         return None
     best: Optional[Tuple[float, Path]] = None
     for p in reports.glob("ALPACA_TRUTH_WAREHOUSE_COVERAGE_*.md"):
+        try:
+            m = p.stat().st_mtime
+        except OSError:
+            continue
+        if best is None or m > best[0]:
+            best = (m, p)
+    for p in reports.glob("daily/**/ALPACA_TRUTH_WAREHOUSE_COVERAGE_*.md"):
         try:
             m = p.stat().st_mtime
         except OSError:
