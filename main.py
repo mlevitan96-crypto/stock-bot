@@ -6879,6 +6879,14 @@ class AlpacaExecutor:
         # Now evaluate all positions
         for symbol, pos_data in positions_to_evaluate.items():
             info = pos_data.get("info", {}) if isinstance(pos_data, dict) else {}
+            if not isinstance(info, dict):
+                log_event(
+                    "exit",
+                    "opens_info_not_dict",
+                    symbol=str(symbol),
+                    info_type=type(info).__name__,
+                )
+                continue
             exit_signals = {}  # Collect all exit signals for this position
             try:
                 # FIX: Handle both offset-naive and offset-aware timestamps

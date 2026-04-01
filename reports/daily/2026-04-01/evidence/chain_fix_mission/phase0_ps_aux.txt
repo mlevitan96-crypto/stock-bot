@@ -1,0 +1,144 @@
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root           1  0.0  0.1  23132 11328 ?        Ss   Feb23  17:36 /usr/lib/systemd/systemd --system --deserialize=89
+root           2  0.0  0.0      0     0 ?        S    Feb23   0:02 [kthreadd]
+root           3  0.0  0.0      0     0 ?        S    Feb23   0:00 [pool_workqueue_release]
+root           4  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-rcu_g]
+root           5  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-rcu_p]
+root           6  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-slub_]
+root           7  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-netns]
+root          10  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/0:0H-events_highpri]
+root          12  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-mm_pe]
+root          13  0.0  0.0      0     0 ?        I    Feb23   0:00 [rcu_tasks_kthread]
+root          14  0.0  0.0      0     0 ?        I    Feb23   0:00 [rcu_tasks_rude_kthread]
+root          15  0.0  0.0      0     0 ?        I    Feb23   0:00 [rcu_tasks_trace_kthread]
+root          16  0.0  0.0      0     0 ?        S    Feb23   0:16 [ksoftirqd/0]
+root          17  0.0  0.0      0     0 ?        I    Feb23  13:44 [rcu_preempt]
+root          18  0.0  0.0      0     0 ?        S    Feb23   0:21 [migration/0]
+root          19  0.0  0.0      0     0 ?        S    Feb23   0:00 [idle_inject/0]
+root          20  0.0  0.0      0     0 ?        S    Feb23   0:00 [cpuhp/0]
+root          21  0.0  0.0      0     0 ?        S    Feb23   0:00 [cpuhp/1]
+root          22  0.0  0.0      0     0 ?        S    Feb23   0:00 [idle_inject/1]
+root          23  0.0  0.0      0     0 ?        S    Feb23   0:19 [migration/1]
+root          24  0.0  0.0      0     0 ?        S    Feb23   0:13 [ksoftirqd/1]
+root          26  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/1:0H-events_highpri]
+root          27  0.0  0.0      0     0 ?        S    Feb23   0:00 [cpuhp/2]
+root          28  0.0  0.0      0     0 ?        S    Feb23   0:00 [idle_inject/2]
+root          29  0.0  0.0      0     0 ?        S    Feb23   0:18 [migration/2]
+root          30  0.0  0.0      0     0 ?        S    Feb23   0:12 [ksoftirqd/2]
+root          32  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/2:0H-events_highpri]
+root          33  0.0  0.0      0     0 ?        S    Feb23   0:00 [cpuhp/3]
+root          34  0.0  0.0      0     0 ?        S    Feb23   0:00 [idle_inject/3]
+root          35  0.0  0.0      0     0 ?        S    Feb23   0:18 [migration/3]
+root          36  0.0  0.0      0     0 ?        S    Feb23   0:14 [ksoftirqd/3]
+root          38  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/3:0H-events_highpri]
+root          39  0.0  0.0      0     0 ?        S    Feb23   0:00 [kdevtmpfs]
+root          40  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-inet_]
+root          41  0.0  0.0      0     0 ?        S    Feb23   0:00 [kauditd]
+root          42  0.0  0.0      0     0 ?        S    Feb23   0:02 [khungtaskd]
+root          43  0.0  0.0      0     0 ?        S    Feb23   0:00 [oom_reaper]
+root          45  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-write]
+root          47  0.0  0.0      0     0 ?        S    Feb23   5:05 [kcompactd0]
+root          48  0.0  0.0      0     0 ?        SN   Feb23   0:00 [ksmd]
+root          50  0.0  0.0      0     0 ?        SN   Feb23   0:00 [khugepaged]
+root          51  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-kinte]
+root          52  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-kbloc]
+root          53  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-blkcg]
+root          54  0.0  0.0      0     0 ?        S    Feb23   0:00 [irq/9-acpi]
+root          56  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-tpm_d]
+root          57  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-ata_s]
+root          58  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-md]
+root          59  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-md_bi]
+root          60  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-edac-]
+root          61  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-devfr]
+root          62  0.0  0.0      0     0 ?        S    Feb23   0:00 [watchdogd]
+root          63  0.0  0.0      0     0 ?        I<   Feb23   0:10 [kworker/0:1H-kblockd]
+root          64  0.0  0.0      0     0 ?        S    Feb23   0:43 [kswapd0]
+root          65  0.0  0.0      0     0 ?        S    Feb23   0:00 [ecryptfs-kthread]
+root          66  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-kthro]
+root          67  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-acpi_]
+root          68  0.0  0.0      0     0 ?        S    Feb23   0:00 [scsi_eh_0]
+root          69  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-scsi_]
+root          70  0.0  0.0      0     0 ?        S    Feb23   0:00 [scsi_eh_1]
+root          71  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-scsi_]
+root          72  0.0  0.0      0     0 ?        S    Feb23   0:00 [scsi_eh_2]
+root          73  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-scsi_]
+root          76  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-mld]
+root          77  0.0  0.0      0     0 ?        I<   Feb23   0:09 [kworker/2:1H-kblockd]
+root          78  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-ipv6_]
+root          85  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-kstrp]
+root          88  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/u9:0]
+root          93  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-crypt]
+root         103  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-charg]
+root         127  0.0  0.0      0     0 ?        I<   Feb23   0:18 [kworker/3:1H-kblockd]
+root         130  0.0  0.0      0     0 ?        I<   Feb23   0:10 [kworker/1:1H-kblockd]
+root         203  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-raid5]
+root         243  0.0  0.0      0     0 ?        S    Feb23   1:12 [jbd2/vda1-8]
+root         244  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-ext4-]
+root         337  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-kmpat]
+root         338  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-kmpat]
+root         452  0.0  0.0      0     0 ?        S    Feb23   0:00 [jbd2/vda16-8]
+root         453  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-ext4-]
+root         872  0.0  0.0   7224  2248 ?        Ss   Feb23   0:13 /usr/sbin/cron -f -P
+message+     873  0.0  0.0  10112  4556 ?        Ss   Feb23   2:13 @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+root         904  0.0  0.0  18964  6728 ?        Ss   Feb23   0:48 /usr/lib/systemd/systemd-logind
+root         963  0.0  0.0   6148  1760 ttyS0    Ss+  Feb23   0:00 /sbin/agetty -o -p -- \u --keep-baud 115200,57600,38400,9600 - vt220
+root         965  0.0  0.0 110012  3440 ?        Ssl  Feb23   0:00 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+root         977  0.0  0.0   6104  1696 tty1     Ss+  Feb23   0:00 /sbin/agetty -o -p -- \u --noclear - linux
+root         989  0.0  0.0  20428  7676 ?        Ss   Feb23   0:00 /usr/lib/systemd/systemd --user --deserialize=8
+root        1004  0.0  0.0  21164  1148 ?        S    Feb23   0:00 (sd-pam)
+root        1054  0.0  0.0      0     0 ?        I<   Feb23   0:00 [kworker/R-tls-s]
+root        1056  0.0  0.0 1012308 4832 ?        Ssl  Feb23   0:00 clawdbot
+root        1086  0.0  5.1 12487144 416168 ?     Sl   Feb23  29:16 clawdbot-gateway
+root      905025  0.0  0.0 1240572  448 ?        Ssl  Mar10   0:10 /opt/digitalocean/bin/droplet-agent
+root     1001912  0.0  0.0  12024  4536 ?        Ss   Mar13   1:54 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+systemd+ 1553641  0.0  0.0  19020  4060 ?        Ss   Mar26   0:01 /usr/lib/systemd/systemd-networkd
+root     1553654  0.1  0.2  42400 16372 ?        S<s  Mar26  16:57 /usr/lib/systemd/systemd-journald
+root     1553658  0.0  0.0      0     0 ?        S    Mar26   0:00 [psimon]
+systemd+ 1553725  0.0  0.0  91028  4396 ?        Ssl  Mar26   0:02 /usr/lib/systemd/systemd-timesyncd
+root     1553813  0.0  0.0  26736  6844 ?        Ss   Mar26   0:01 /usr/lib/systemd/systemd-udevd
+root     1553814  0.0  0.0      0     0 ?        S    Mar26   0:00 [psimon]
+systemd+ 1553881  0.0  0.0  21856  6124 ?        Ss   Mar26   2:54 /usr/lib/systemd/systemd-resolved
+polkitd  1557549  0.0  0.0 308164  5748 ?        Ssl  Mar26   0:17 /usr/lib/polkit-1/polkitd --no-debug
+root     1557550  0.0  0.3 288952 27292 ?        SLsl Mar26   1:12 /sbin/multipathd -d -s
+root     1557555  0.0  0.1 469072  8568 ?        Ssl  Mar26   0:14 /usr/libexec/udisks2/udisksd
+root     1557579  0.0  0.0 392092  6172 ?        Ssl  Mar26   0:00 /usr/sbin/ModemManager
+syslog   1557582  0.0  0.0 222508  5012 ?        Ssl  Mar26   8:23 /usr/sbin/rsyslogd -n -iNONE
+root     1573955  0.0  0.4 2146412 33564 ?       Ssl  Mar26   1:42 /snap/snapd/current/usr/lib/snapd/snapd
+root     1576775  0.0  0.0   2892    92 ?        Ss   Mar26   0:00 /bin/sh /snap/cups/1170/scripts/run-cupsd
+root     1576782  0.0  0.0   2892    92 ?        Ss   Mar26   0:00 /bin/sh /snap/cups/1170/scripts/run-cups-browsed
+root     1576907  0.0  0.0 137228  3000 ?        Sl   Mar26   0:00 cupsd -f -s /var/snap/cups/common/etc/cups/cups-files.conf -c /var/snap/cups/common/etc/cups/cupsd.conf
+root     1576921  0.0  0.0 260192  2764 ?        Sl   Mar26   0:01 cups-browsed -c /var/snap/cups/common/etc/cups/cups-browsed.conf
+root     1580348  0.0  0.0   9412  3916 ?        Ss   Mar26   0:00 /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+root     1580381  0.0  0.0 382812  3148 ?        Ssl  Mar26   0:00 /usr/libexec/at-spi-bus-launcher
+do-agent 1604900  0.0  0.1 1238864 14164 ?       Ssl  Mar27   1:56 /opt/digitalocean/bin/do-agent --syslog
+root     1751296  7.5  1.3 119652 110536 ?       Rs   Mar30 217:56 /root/stock-bot/venv/bin/python /root/stock-bot/uw_flow_daemon.py
+root     1781963  0.0  2.8 873004 235108 ?       Ssl  Mar31   2:04 /usr/bin/python3 /root/stock-bot/dashboard.py
+root     1806493  0.0  0.0      0     0 ?        S    Mar31   0:00 [psimon]
+root     1837290  0.0  0.0      0     0 ?        I    15:40   0:00 [kworker/0:3-events]
+root     1838811  0.0  0.0      0     0 ?        I    16:40   0:00 [kworker/1:2-events]
+root     1839116  0.0  0.1  14844 10536 ?        Ss   16:45   0:00 sshd: root@notty
+root     1839160  0.0  0.0   7740  3544 ?        Ss   16:45   0:00 bash -c bash -lc cat /root/stock-bot/reports/daily/2026-04-01/evidence/ALPACA_250_THRESHOLD_FINAL_VERDICT.md; echo ---; head -100 /root/stock-bot/reports/daily/2026-04-01/evidence/ALPACA_250_MILESTONE_NOTIFIER_STATE.md
+root     1839161  0.0  0.0   6256  1840 ?        S    16:45   0:00 cat
+root     1839779  0.0  0.0      0     0 ?        I    16:55   0:01 [kworker/u8:2-events_power_efficient]
+root     1841424  0.0  0.0      0     0 ?        I    17:25   0:00 [kworker/u8:4-flush-253:0]
+root     1842596  0.0  0.0      0     0 ?        I    17:29   0:00 [kworker/2:2-cgroup_destroy]
+root     1842702  0.0  0.0      0     0 ?        I    17:29   0:00 [kworker/3:3-events]
+root     1842715  0.0  0.0      0     0 ?        I    17:30   0:00 [kworker/2:3-events]
+root     1842741  0.0  0.0      0     0 ?        I    17:31   0:00 [kworker/u8:1-ext4-rsv-conversion]
+root     1842924  0.0  0.0      0     0 ?        I    17:36   0:00 [kworker/u8:0-flush-253:0]
+root     1843028  0.0  0.0      0     0 ?        I    17:40   0:00 [kworker/2:1-events]
+root     1843101  0.0  0.0      0     0 ?        I    17:42   0:00 [kworker/1:0-cgroup_destroy]
+root     1843264  0.0  0.0      0     0 ?        I    17:43   0:00 [kworker/0:0-cgroup_destroy]
+root     1843467  0.0  0.0      0     0 ?        I    17:44   0:00 [kworker/3:1-cgroup_destroy]
+root     1843745  0.0  0.0   7740  3492 ?        Ss   17:45   0:00 /bin/bash /root/stock-bot/systemd_start.sh
+root     1843749  0.6  1.2 564376 98220 ?        Sl   17:45   0:01 /root/stock-bot/venv/bin/python deploy_supervisor.py
+root     1843756  0.4  1.2 404188 103004 ?       Sl   17:45   0:01 /root/stock-bot/venv/bin/python -u dashboard.py
+root     1843819 24.4  5.2 1508888 429140 ?      Sl   17:45   1:01 /root/stock-bot/venv/bin/python -u main.py
+root     1843888  0.9  1.3 391704 107696 ?       Sl   17:45   0:02 /root/stock-bot/venv/bin/python heartbeat_keeper.py
+root     1844160  0.0  0.0      0     0 ?        I    17:45   0:00 [kworker/2:0-cgroup_destroy]
+root     1844265  0.0  0.0      0     0 ?        I    17:46   0:00 [kworker/u8:3-writeback]
+root     1844860  0.0  0.1  15004 10584 ?        Ss   17:48   0:00 sshd: root@notty
+root     1844911  0.0  0.0      0     0 ?        I    17:48   0:00 [kworker/1:1-cgroup_destroy]
+root     1844922  1.2  0.1  14844 10560 ?        Ss   17:49   0:00 sshd: root@notty
+root     1844966  0.0  0.0   7872  3620 ?        Ss   17:49   0:00 bash -lc systemctl status stock-bot --no-pager -l > /root/stock-bot/reports/daily/2026-04-01/evidence/chain_fix_mission/phase0_systemctl_stock_bot.txt 2>&1; ps auxww > /root/stock-bot/reports/daily/2026-04-01/evidence/chain_fix_mission/phase0_ps_aux.txt; journalctl -u stock-bot --since \ 36 hours ago\ --no-pager | tail -n 600 > /root/stock-bot/reports/daily/2026-04-01/evidence/chain_fix_mission/phase0_journal_stock_bot_tail600.txt
+root     1844970  0.0  0.0  11320  4492 ?        R    17:49   0:00 ps auxww

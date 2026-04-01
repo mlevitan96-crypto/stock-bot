@@ -1,0 +1,66 @@
+{
+  "root": "/root/stock-bot",
+  "utc": "2026-04-01T17:46:26.176509+00:00",
+  "self_heal": {
+    "mkdirs": [
+      "logs",
+      "state",
+      "reports",
+      "reports/daily"
+    ],
+    "postclose": "postclose_not_failed"
+  },
+  "coverage_file": "/root/stock-bot/reports/ALPACA_TRUTH_WAREHOUSE_COVERAGE_20260401_1745.md",
+  "coverage_age_hours": 0.01,
+  "strict": {
+    "LEARNING_STATUS": "ARMED",
+    "trades_seen": 111,
+    "trades_incomplete": 0
+  },
+  "exit_probe": {
+    "lines_scanned": 342,
+    "missing": {
+      "symbol": 0,
+      "exit_ts": 0,
+      "trade_id": 0
+    }
+  },
+  "pager_windows": [
+    {
+      "key": "alpaca:post_close",
+      "state": "PENDING",
+      "cause": "before_expect_window"
+    },
+    {
+      "key": "alpaca:direction_readiness",
+      "state": "PASS",
+      "cause": "freshness_ok"
+    }
+  ],
+  "checkpoint_100_precheck_ok": false,
+  "checkpoint_100_precheck_reasons": [
+    "DATA_READY not YES (or unknown)",
+    "DATA_READY reported NO in latest coverage artifact"
+  ],
+  "milestone": {
+    "session_open_utc_iso": "2026-04-01T13:30:00+00:00",
+    "session_anchor_et": "2026-04-01",
+    "unique_closed_trades": 0,
+    "realized_pnl_sum_usd": 0.0,
+    "sample_trade_keys": [],
+    "counting_basis": "integrity_armed",
+    "count_floor_utc_iso": "(not armed \u2014 waiting for green DATA_READY + coverage + strict ARMED + exit probe)",
+    "integrity_armed": false
+  },
+  "milestone_counting_basis": "integrity_armed",
+  "milestone_integrity_arm": {
+    "arm_epoch_utc": null,
+    "armed_at_utc_iso": null,
+    "session_anchor_et": "2026-04-01"
+  },
+  "checkpoint_100_guard_file": "/root/stock-bot/state/alpaca_100trade_sent.json",
+  "integrity_alert_suppressed_cooldown": true,
+  "reasons_evaluated": [
+    "DATA_READY reported NO in latest coverage artifact"
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "ROOT": "/root/stock-bot",
+  "OPEN_TS_UTC_EPOCH": 1774458080.0,
+  "EXIT_TS_UTC_EPOCH_MAX": null,
+  "FORWARD_SINCE_UTC_EPOCH": null,
+  "STRICT_EPOCH_START": 1774458080.0,
+  "strict_cohort_entry_era_floor_applied": true,
+  "strict_cohort_excluded_preera_open_count": 0,
+  "strict_cohort_exclusion_reasons": {},
+  "excluded_trade_ids_capped": [],
+  "precheck": [],
+  "trades_seen": 342,
+  "trades_complete": 342,
+  "trades_incomplete": 0,
+  "reason_histogram": {},
+  "incomplete_examples": [],
+  "code_structural_trade_intent_no_canonical_on_entered": false,
+  "LEARNING_STATUS": "ARMED",
+  "learning_fail_closed_reason": null,
+  "AUTHORITATIVE_JOIN_KEY_RULE": "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).",
+  "legacy_trades_seen": null,
+  "legacy_trades_complete": null,
+  "legacy_trades_incomplete": null,
+  "forward_trades_seen": null,
+  "forward_trades_complete": null,
+  "forward_trades_incomplete": null,
+  "FORWARD_CHAIN_PERFECT": false,
+  "FORWARD_COHORT_VACUOUS": false,
+  "POSTFIX_META": null,
+  "postfix_insufficient_closes": false,
+  "postfix_allow_intent_blocker": false,
+  "LEGACY_DEBT_QUARANTINED_NOTE": null,
+  "incomplete_trade_ids_by_reason": {},
+  "chain_matrices_sample": [],
+  "chain_matrices_complete_sample": [
+    {
+      "trade_id": "open_AAPL_2026-03-30T18:36:02.714483+00:00",
+      "symbol": "AAPL",
+      "forward_cohort": false,
+      "authoritative_join_key": "AAPL|SHORT|1774895762",
+      "trade_key_from_exit": "AAPL|SHORT|1774895762",
+      "alias_sample": [
+        "AAPL|SHORT|1774895762"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": true,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": []
+    },
+    {
+      "trade_id": "open_AMD_2026-03-30T18:38:47.758144+00:00",
+      "symbol": "AMD",
+      "forward_cohort": false,
+      "authoritative_join_key": "AMD|SHORT|1774895927",
+      "trade_key_from_exit": "AMD|SHORT|1774895927",
+      "alias_sample": [
+        "AMD|SHORT|1774895927"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": true,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": []
+    },
+    {
+      "trade_id": "open_BAC_2026-03-30T18:37:18.326243+00:00",
+      "symbol": "BAC",
+      "forward_cohort": false,
+      "authoritative_join_key": "BAC|SHORT|1774895838",
+      "trade_key_from_exit": "BAC|SHORT|1774895838",
+      "alias_sample": [
+        "BAC|SHORT|1774895838"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": true,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": []
+    }
+  ]
+}
