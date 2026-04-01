@@ -389,8 +389,11 @@ class PositionReconcilerV2:
                             pass
                     # Try to preserve existing metadata if available (V4.0: Preserve all fields including regime_modifier and ignition_status)
                     existing_meta = position_metadata.get(symbol, {})
-                    position_metadata[symbol] = {
-                        "entry_ts": existing_meta.get("entry_ts", datetime.utcnow().isoformat() + "Z"),
+                    if not isinstance(existing_meta, dict):
+                        existing_meta = {}
+                    entry_ts_iso = existing_meta.get("entry_ts") or (datetime.utcnow().isoformat() + "Z")
+                    row = {
+                        "entry_ts": entry_ts_iso,
                         "entry_price": pos["avg_entry_price"],
                         "qty": abs(pos["qty"]),
                         "side": pos["side"],
@@ -401,8 +404,32 @@ class PositionReconcilerV2:
                         "regime_modifier": existing_meta.get("regime_modifier", 1.0),  # V4.0: Preserve regime modifier
                         "ignition_status": existing_meta.get("ignition_status", "unknown"),  # V4.0: Preserve ignition status
                         "updated_at": datetime.utcnow().isoformat() + "Z",
-                        "reconciled": True  # Flag to indicate this was created via reconciliation
+                        "reconciled": True,  # Flag to indicate this was created via reconciliation
                     }
+                    for _ak in (
+                        "canonical_trade_id",
+                        "trade_key",
+                        "decision_event_id",
+                        "symbol_normalized",
+                        "time_bucket_id",
+                        "correlation_id",
+                        "variant_id",
+                        "v2",
+                        "composite_version",
+                        "entry_order_id",
+                    ):
+                        if existing_meta.get(_ak) is not None:
+                            row[_ak] = existing_meta[_ak]
+                    if not row.get("canonical_trade_id") and not row.get("trade_key"):
+                        try:
+                            from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+
+                            _ct = build_trade_key(symbol, pos["side"], entry_ts_iso)
+                            row["canonical_trade_id"] = str(_ct)
+                            row["trade_key"] = str(_ct)
+                        except Exception:
+                            pass
+                    position_metadata[symbol] = row
         
         # Save updated metadata
         if position_metadata:

@@ -1805,6 +1805,7 @@ def _emit_exit_intent(
     feature_snapshot_at_exit: Optional[dict] = None,
     thesis_tags_at_exit: Optional[dict] = None,
     thesis_break_reason: Optional[str] = None,
+    exit_attribution_row: Optional[dict] = None,
 ) -> None:
     """Emit exit_intent to logs/run.jsonl. Additive only. Use thesis_break_reason 'unknown' when indeterminable."""
     if not strict_runlog_effective():
@@ -1849,8 +1850,29 @@ def _emit_exit_intent(
             rec["thesis_break_unknown_reason"] = unknown_why
         rec["exit_reason_code"] = br
         try:
+            _exr = exit_attribution_row if isinstance(exit_attribution_row, dict) else {}
+            for _k in (
+                "canonical_trade_id",
+                "trade_key",
+                "trade_id",
+                "decision_event_id",
+                "symbol_normalized",
+                "time_bucket_id",
+            ):
+                if _exr.get(_k) is not None:
+                    rec[_k] = _exr[_k]
+        except Exception:
+            pass
+        try:
             meta = metadata if isinstance(metadata, dict) else {}
-            for _k in ("canonical_trade_id", "decision_event_id", "symbol_normalized", "time_bucket_id"):
+            for _k in (
+                "canonical_trade_id",
+                "trade_key",
+                "trade_id",
+                "decision_event_id",
+                "symbol_normalized",
+                "time_bucket_id",
+            ):
                 if meta.get(_k) is not None:
                     rec[_k] = meta[_k]
         except Exception:
@@ -1859,7 +1881,14 @@ def _emit_exit_intent(
             from telemetry.attribution_emit_keys import get_symbol_attribution_keys
 
             _ak_ex = get_symbol_attribution_keys(symbol)
-            for _k in ("canonical_trade_id", "decision_event_id", "symbol_normalized", "time_bucket_id"):
+            for _k in (
+                "canonical_trade_id",
+                "trade_key",
+                "trade_id",
+                "decision_event_id",
+                "symbol_normalized",
+                "time_bucket_id",
+            ):
                 if rec.get(_k) is None and _ak_ex.get(_k) is not None:
                     rec[_k] = _ak_ex[_k]
         except Exception:
@@ -2471,6 +2500,9 @@ def log_exit_attribution(
     except Exception:
         pass
 
+    # Strict gate: same join keys as exit_attribution.jsonl row (passed to exit_intent below).
+    _exit_row_for_intent: Optional[dict] = None
+
     # v2 exit attribution (append-only, never blocks).
     try:
         from src.exit.exit_attribution import build_exit_attribution_record, append_exit_attribution
@@ -2743,6 +2775,7 @@ def log_exit_attribution(
         except Exception:
             pass
         append_exit_attribution(rec)
+        _exit_row_for_intent = rec
         # CSA every-100-trades: count exit as one trade event (primary trigger)
         try:
             from src.infra.csa_trade_state import record_trade_event
@@ -2825,6 +2858,7 @@ def log_exit_attribution(
             feature_snapshot_at_exit=feature_snapshot_at_exit,
             thesis_tags_at_exit=thesis_tags_at_exit,
             thesis_break_reason=thesis_break_reason,
+            exit_attribution_row=_exit_row_for_intent,
         )
     except Exception:
         pass
@@ -4495,7 +4529,8 @@ class AlpacaExecutor:
             
             # FIX: Use timezone-aware UTC reference to prevent TypeError
             now_aware = datetime.now(timezone.utc)
-            
+            metadata_join_keys_changed = False
+
             for p in positions:
                 symbol = getattr(p, "symbol", "")
                 if not symbol:
@@ -4570,9 +4605,31 @@ class AlpacaExecutor:
                          symbol=symbol, qty=abs(qty), side=side, 
                          entry=avg_entry, current=current_price, age_min=round(age_min, 1),
                          entry_score=entry_score, has_metadata=bool(metadata.get(symbol)))
+
+                # Strict completeness: persist canonical_trade_id when row exists but keys were dropped (e.g. legacy reconcile).
+                try:
+                    md_row = metadata.get(symbol)
+                    if isinstance(md_row, dict) and not md_row.get("canonical_trade_id") and not md_row.get("trade_key"):
+                        from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+
+                        _sk = normalize_side(side)
+                        _ct = build_trade_key(symbol, _sk, entry_ts.isoformat())
+                        md_row = dict(md_row)
+                        md_row["canonical_trade_id"] = _ct
+                        md_row["trade_key"] = _ct
+                        metadata[symbol] = md_row
+                        metadata_join_keys_changed = True
+                except Exception:
+                    pass
             
             if positions:
                 log_event("reconcile", "complete", positions_restored=len(positions))
+            if metadata_join_keys_changed:
+                try:
+                    atomic_write_json(metadata_path, metadata)
+                    log_event("reconcile", "metadata_join_keys_backfilled", note="canonical_trade_id/trade_key")
+                except Exception as e:
+                    log_event("reconcile", "metadata_join_keys_backfill_failed", error=str(e))
         except Exception as e:
             log_event("reconcile", "failed", error=str(e))
     
@@ -7992,19 +8049,24 @@ class AlpacaExecutor:
                 
                 _close_ts = datetime.now(timezone.utc).isoformat()
                 _exit_side = "sell" if str(info.get("side", "buy")).lower() in ("buy", "long") else "buy"
-                log_order(
-                    {
-                        "action": "close_position",
-                        "symbol": symbol,
-                        "reason": close_reason,
-                        "order_id": str(exit_order_id) if exit_order_id else None,
-                        "side": _exit_side,
-                        "filled_qty": int(exit_fill_qty) if exit_fill_qty else None,
-                        "filled_avg_price": float(exit_fill_price) if exit_fill_price else None,
-                        "ts": _close_ts,
-                    }
-                )
-                
+                _meta_pre_close = all_metadata.get(symbol, {}) if isinstance(all_metadata, dict) else {}
+                _close_ev = {
+                    "action": "close_position",
+                    "symbol": symbol,
+                    "reason": close_reason,
+                    "order_id": str(exit_order_id) if exit_order_id else None,
+                    "side": _exit_side,
+                    "filled_qty": int(exit_fill_qty) if exit_fill_qty else None,
+                    "filled_avg_price": float(exit_fill_price) if exit_fill_price else None,
+                    "ts": _close_ts,
+                }
+                if isinstance(_meta_pre_close, dict):
+                    if _meta_pre_close.get("canonical_trade_id"):
+                        _close_ev["canonical_trade_id"] = str(_meta_pre_close["canonical_trade_id"])
+                    if _meta_pre_close.get("trade_key"):
+                        _close_ev["trade_key"] = str(_meta_pre_close["trade_key"])
+                log_order(_close_ev)
+
                 symbol_metadata = all_metadata.get(symbol, {}) if isinstance(all_metadata, dict) else {}
                 # Attach v2 exit intel snapshot for attribution (best-effort).
                 try:
