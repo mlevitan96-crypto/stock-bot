@@ -186,7 +186,8 @@ def evaluate_completeness(
     precheck: List[str] = []
     if not exit_path.is_file():
         precheck.append("missing_exit_attribution_jsonl")
-    if not unified_path.is_file():
+    unified_bf = logs / "strict_backfill_alpaca_unified_events.jsonl"
+    if not unified_path.is_file() and not unified_bf.is_file():
         precheck.append("missing_alpaca_unified_events_jsonl")
     if not orders_path.is_file():
         precheck.append("missing_orders_jsonl")
