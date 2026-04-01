@@ -441,6 +441,10 @@ class Config:
     PHASE2_TELEMETRY_ENABLED = get_env("PHASE2_TELEMETRY_ENABLED", "true").lower() == "true"
     PHASE2_HEARTBEAT_ENABLED = get_env("PHASE2_HEARTBEAT_ENABLED", "true").lower() == "true"
     PHASE2_REQUIRE_SYMBOL_RISK_FEATURES = get_env("PHASE2_REQUIRE_SYMBOL_RISK_FEATURES", "true").lower() == "true"
+    # Strict completeness reads logs/run.jsonl (trade_intent entered, exit_intent, entry_decision_made).
+    # When PHASE2_TELEMETRY_ENABLED is false in .env, these rows were historically suppressed; this flag
+    # keeps emitting them (additive JSONL only; no execution/strategy change). Default true.
+    STRICT_RUNLOG_TELEMETRY_ENABLED = get_env("STRICT_RUNLOG_TELEMETRY_ENABLED", "true").lower() == "true"
     
     # Institutional Remediation Phase 7: kill zombie trades quickly (120 minutes)
     STALE_TRADE_EXIT_MINUTES = get_env("STALE_TRADE_EXIT_MINUTES", 120, int)  # 120 minutes
@@ -707,6 +711,34 @@ def get_position_qty(api, symbol: str) -> int:
     except Exception:
         pass
     return 0
+
+_TELEMETRY_EMIT_SUPPRESSED_LOGGED = False
+
+
+def strict_runlog_effective() -> bool:
+    """True if run.jsonl strict-chain emitters should write (Phase2 and/or strict-runlog override)."""
+    return bool(
+        getattr(Config, "PHASE2_TELEMETRY_ENABLED", True)
+        or getattr(Config, "STRICT_RUNLOG_TELEMETRY_ENABLED", True)
+    )
+
+
+def _log_telemetry_chain_startup_banner() -> None:
+    """One-shot startup proof for CSA/SRE: effective flags + absolute run.jsonl path (no secrets)."""
+    try:
+        run_abs = os.path.abspath(os.path.join(LOG_DIR, "run.jsonl"))
+        log_system_event(
+            "telemetry_chain",
+            "startup_banner",
+            "INFO",
+            phase2_telemetry_enabled=bool(getattr(Config, "PHASE2_TELEMETRY_ENABLED", True)),
+            strict_runlog_telemetry_enabled=bool(getattr(Config, "STRICT_RUNLOG_TELEMETRY_ENABLED", True)),
+            strict_runlog_effective=strict_runlog_effective(),
+            run_jsonl_abspath=run_abs,
+        )
+    except Exception:
+        pass
+
 
 def jsonl_write(name, record):
     # CRITICAL: Use standardized path for attribution log
@@ -1595,7 +1627,21 @@ def _emit_trade_intent(
     opposing_signal_names, gate_summary, final_decision_primary_reason; when blocked, adds
     blocked_reason_code and blocked_reason_details (existing blocked_reason kept for backward compat).
     """
-    if not getattr(Config, "PHASE2_TELEMETRY_ENABLED", True):
+    global _TELEMETRY_EMIT_SUPPRESSED_LOGGED
+    if not strict_runlog_effective():
+        if not _TELEMETRY_EMIT_SUPPRESSED_LOGGED:
+            _TELEMETRY_EMIT_SUPPRESSED_LOGGED = True
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "strict_chain_emit_suppressed",
+                    "ERROR",
+                    reason="phase2_false_and_strict_runlog_false",
+                    phase2_telemetry_enabled=bool(getattr(Config, "PHASE2_TELEMETRY_ENABLED", True)),
+                    strict_runlog_telemetry_enabled=bool(getattr(Config, "STRICT_RUNLOG_TELEMETRY_ENABLED", True)),
+                )
+            except Exception:
+                pass
         return
     try:
         from src.telemetry.alpaca_trade_key import normalize_symbol
@@ -1704,6 +1750,17 @@ def _emit_trade_intent(
                 pass
         jsonl_write("run", rec)
         try:
+            if (decision_outcome or "").lower() == "entered":
+                log_system_event(
+                    "telemetry_chain",
+                    "trade_intent_entered_written",
+                    "INFO",
+                    symbol=str(symbol).upper(),
+                    canonical_trade_id=str(rec.get("canonical_trade_id") or "")[:200],
+                )
+        except Exception:
+            pass
+        try:
             _PHASE2_CYCLE_COUNTS["trade_intent"] += 1
         except Exception:
             pass
@@ -1726,7 +1783,7 @@ def _emit_trade_intent_blocked(
     *,
     intelligence_trace: Optional[dict] = None,
 ) -> None:
-    """Emit trade_intent with decision_outcome=blocked. No-op if PHASE2_TELEMETRY disabled.
+    """Emit trade_intent with decision_outcome=blocked. No-op if strict chain emitters suppressed.
     When intelligence_trace is provided, it must already have final_decision.outcome='blocked'
     and primary_reason set; blocked_reason_code and blocked_reason_details are derived from it.
     """
@@ -1750,7 +1807,7 @@ def _emit_exit_intent(
     thesis_break_reason: Optional[str] = None,
 ) -> None:
     """Emit exit_intent to logs/run.jsonl. Additive only. Use thesis_break_reason 'unknown' when indeterminable."""
-    if not getattr(Config, "PHASE2_TELEMETRY_ENABLED", True):
+    if not strict_runlog_effective():
         return
     try:
         if feature_snapshot_at_exit is None or thesis_tags_at_exit is None:
@@ -1808,6 +1865,16 @@ def _emit_exit_intent(
         except Exception:
             pass
         jsonl_write("run", rec)
+        try:
+            log_system_event(
+                "telemetry_chain",
+                "exit_intent_written",
+                "INFO",
+                symbol=str(symbol).upper(),
+                canonical_trade_id=str(rec.get("canonical_trade_id") or "")[:200],
+            )
+        except Exception:
+            pass
         try:
             _PHASE2_CYCLE_COUNTS["exit_intent"] += 1
         except Exception:
@@ -10478,7 +10545,7 @@ class StrategyEngine:
                                     decision_event_id=_ak_edm.get("decision_event_id"),
                                     time_bucket_id=_ak_edm.get("time_bucket_id"),
                                     symbol_normalized=_ak_edm.get("symbol_normalized"),
-                                    phase2_enabled=getattr(Config, "PHASE2_TELEMETRY_ENABLED", True),
+                                    phase2_enabled=strict_runlog_effective(),
                                 )
                         except Exception as _edm_ex:
                             try:
@@ -13274,6 +13341,7 @@ def run_self_healing_periodic():
 # Start self-healing thread
 if __name__ == "__main__":
     _phase2_confirm_log_sinks()
+    _log_telemetry_chain_startup_banner()
     healing_thread = threading.Thread(target=run_self_healing_periodic, daemon=True, name="SelfHealingMonitor")
     healing_thread.start()
     
