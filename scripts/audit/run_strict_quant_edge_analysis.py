@@ -292,6 +292,9 @@ def _md_report(
     )
     lines.append(f"- **Exit rows matched:** {summary['trades_in_cohort']} (missing exit rows for cohort ids: **{missing}**)")
     lines.append("")
+    if str(gate.get("LEARNING_STATUS") or "").upper() != "ARMED":
+        lines.append("> **INTEGRITY:** Strict gate is not **ARMED**. Treat PnL slices as **forensic only** until chain completeness is restored (run strict backfill / fix live emitters, then re-run).")
+        lines.append("")
     lines.append("## 1. PnL headline (strict cohort)")
     lines.append("")
     lines.append(f"- Sum PnL (USD): **{summary.get('sum_pnl_usd')}**")
