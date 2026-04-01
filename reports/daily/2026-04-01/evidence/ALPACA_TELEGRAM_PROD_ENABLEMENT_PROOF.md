@@ -1,55 +1,36 @@
-# Phase 5 — Telegram governance / prod enablement (droplet)
+# Telegram production enablement — integrity closure (2026-04-01)
 
-## Systemd services (grep: telegram / alpaca / stock-bot)
+## Systemd units with `TELEGRAM_GOVERNANCE_INTEGRITY_ONLY=1` (live `/etc/systemd/system`)
 
-```
-alpaca-forward-truth-contract.service   inactive dead
-alpaca-postclose-deepdive.service       inactive dead
-alpaca-telegram-integrity.service       inactive dead
-stock-bot-dashboard.service             active running
-stock-bot.service                       active running
-```
+Verified via remote `systemctl cat` after `e8133504` deploy:
 
-## Timers (enabled / active)
+- `alpaca-postclose-deepdive.service` — **has** `TELEGRAM_GOVERNANCE_INTEGRITY_ONLY=1`
+- `telegram-failure-detector.service` — **has** `TELEGRAM_GOVERNANCE_INTEGRITY_ONLY=1`
 
-```
-systemctl is-enabled alpaca-postclose-deepdive.timer alpaca-telegram-integrity.timer alpaca-forward-truth-contract.timer
-enabled
-enabled
-enabled
+(`ALPACA_INTEGRITY_CLOSURE_CONTEXT.md` — updated `systemd_cat_*` sections.)
 
-systemctl is-active alpaca-postclose-deepdive.timer alpaca-telegram-integrity.timer
-active
-active
-```
+## Timers / enablement (droplet)
 
-## Unit: integrity cycle
+| Unit | Enabled |
+|------|---------|
+| `alpaca-telegram-integrity.timer` | **enabled** |
+| `telegram-failure-detector.timer` | **disabled** |
+| `alpaca-postclose-deepdive.timer` | **enabled** |
 
-`systemctl cat alpaca-telegram-integrity.service`:
-
-- `ExecStart=/root/stock-bot/venv/bin/python3 /root/stock-bot/scripts/run_alpaca_telegram_integrity_cycle.py`
-
-## Unit: post-close deep dive (also sends Telegram)
-
-`systemctl cat alpaca-postclose-deepdive.service`:
-
-- `ExecStart=/root/stock-bot/venv/bin/python3 /root/stock-bot/scripts/alpaca_postclose_deepdive.py`
-- Unit description explicitly includes **Telegram**.
-
-Repo code `scripts/alpaca_postclose_deepdive.py` calls `send_governance_telegram` for live sends (`script_name="postclose_deepdive"`).
+Post-close and failure-detector **services**, when triggered, inherit **integrity-only** Telegram from their unit files. Integrity timer invokes **integrity service**, which does **not** force global integrity-only — allowlisted `script_name` values still send.
 
 ## Cron
 
-- `crontab -l` / `sudo crontab -l`: **no** lines matching `telegram|alpaca|stock` (empty / no matches).
+`crontab -l` and `/etc/cron.d` grep for `stock-bot` returned **empty** in Phase 0 capture (`ALPACA_INTEGRITY_CLOSURE_CONTEXT.md`).
 
-## `.env` governance keys
+## Allowlist (code)
 
-`grep` for `TELEGRAM_GOVERNANCE`, `STRICT_RUNLOG`, `PHASE2_TELEMETRY` on `/root/stock-bot/.env` returned **no lines** at capture (either unset or keys absent from file).
+`scripts/alpaca_telegram.py` — `_INTEGRITY_ONLY_SCRIPT_NAMES` (checkpoint, milestone, integrity alert, test hooks).
 
-## Verdict: integrity-only Telegram in prod?
+## Residual risk (documented)
 
-**NO** (with current enabled timers).
+Manual runs of board / gate / other scripts **without** `TELEGRAM_GOVERNANCE_INTEGRITY_ONLY=1` in the environment could still call `send_governance_telegram`. Mitigation: optional `.env` global flag (see `ALPACA_TELEGRAM_LOCKDOWN_IMPLEMENTATION.md`).
 
-**Evidence:** `alpaca-postclose-deepdive.timer` is **enabled** and **active**, and its service runs a script that **sends Telegram** independently of the integrity cycle. Therefore Telegram is **not** restricted to the integrity pipeline only.
+## Verdict (systemd / scheduled paths)
 
-**Integrity pipeline:** `alpaca-telegram-integrity.timer` → `run_alpaca_telegram_integrity_cycle.py` (enabled/active).
+**YES** — enabled timers that previously sent from post-close or failure-detector are **gated** so only integrity allowlist can open the API from those units. **NO blocker artifact** required for Phase 4 given scope above.

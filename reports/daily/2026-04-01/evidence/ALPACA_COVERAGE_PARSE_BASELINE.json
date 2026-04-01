@@ -1,6 +1,6 @@
 {
-  "coverage_path": "/root/stock-bot/reports/ALPACA_TRUTH_WAREHOUSE_COVERAGE_20260401_1745.md",
-  "data_ready_yes": false,
+  "coverage_path": "/root/stock-bot/reports/ALPACA_TRUTH_WAREHOUSE_COVERAGE_20260401_1926.md",
+  "data_ready_yes": true,
   "parse_ok": true,
   "execution_join_pct": 100.0
 }
