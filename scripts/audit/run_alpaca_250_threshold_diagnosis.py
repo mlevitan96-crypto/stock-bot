@@ -289,8 +289,11 @@ def main() -> int:
     elif basis == "integrity_armed" and arm_ep is not None:
         floor_epoch = arm_ep
 
-    ordered_floor, stats_floor = _ground_truth_ordered_trades(root, floor_epoch=floor_epoch)
     last_tid = ""
+    if basis == "integrity_armed" and arm_ep is None:
+        ordered_floor, stats_floor = [], {"note": "integrity not armed — no floor; notifier uses 0 trades"}
+    else:
+        ordered_floor, stats_floor = _ground_truth_ordered_trades(root, floor_epoch=floor_epoch)
     if ordered_floor:
         last_tid = str(ordered_floor[-1].get("trade_id") or "")
 
@@ -340,7 +343,7 @@ def main() -> int:
                 f"- **should_fire now:** **{fire}**",
                 f"- **last_count** in returned state: **{ms_st_after_eval.get('last_count')}**",
                 f"- **notifier_last_trade_id_seen** (chronological last in floored set): `{last_tid}`",
-                f"- **Floored trade count (recomputed):** {len(ordered_floor)} (floor_epoch={floor_epoch})",
+                f"- **Floored trade count (recomputed):** {len(ordered_floor)} (floor_epoch={floor_epoch!r})",
                 f"- **Floor stats:** {json.dumps(stats_floor)}",
                 "",
             ]
@@ -486,16 +489,27 @@ def main() -> int:
         reason = "Inconsistent: count >= target but should_fire False — inspect should_fire_milestone state logic / race."
     else:
         should_have = "NO"
-        reason = (
-            f"Ground truth >= 250 but notifier floored count is {n_notifier} (< {target}). "
-            "Milestone uses session/arm floor, not cumulative post-era count."
-        )
-        corrective = (
-            "No strategy change required. For Telegram to fire at 250 **on the floored basis**, "
-            "the session must accumulate 250 closes after the count floor; "
-            "or change `milestone_counting_basis` / policy (governance decision, not done here). "
-            "If a prior send failed, check `TELEGRAM_NOTIFICATION_LOG.md` and re-run send only per governance."
-        )
+        if ge250 and basis == "integrity_armed" and not snap.integrity_armed:
+            reason = (
+                "Ground truth >= 250, but `milestone_counting_basis` is **integrity_armed** and the session is **not armed** "
+                "(arm_epoch unset until DATA_READY + coverage freshness + strict ARMED + exit tail probe pass). "
+                "Notifier count stays **0** until then — independent of cumulative post-era closes."
+            )
+            corrective = (
+                "No strategy change. Let the integrity cycle run green to arm the day, or governance may set "
+                "`milestone_counting_basis` to `session_open` (policy only). Check warehouse coverage / strict gate / exit_probe if arm never arms."
+            )
+        else:
+            reason = (
+                f"Ground truth >= 250 but notifier floored count is {n_notifier} (< {target}). "
+                "Milestone uses session/arm floor, not cumulative post-era count."
+            )
+            corrective = (
+                "No strategy change required. For Telegram to fire at 250 **on the floored basis**, "
+                "the session must accumulate 250 closes after the count floor; "
+                "or change `milestone_counting_basis` / policy (governance decision, not done here). "
+                "If a prior send failed, check `TELEGRAM_NOTIFICATION_LOG.md` and re-run send only per governance."
+            )
 
     if ge250 and n_notifier >= target and not fired_already and not fire:
         corrective = "Inspect `should_fire_milestone` and `alpaca_milestone_250_state.json` for corruption or session_anchor mismatch."
