@@ -1,0 +1,115 @@
+{
+  "generated_at_utc": "2026-04-01T18:47:49Z",
+  "source_run": "droplet:/root/stock-bot/reports/ALPACA_STRICT_QUANT_EDGE_ANALYSIS_20260401_184749Z.json",
+  "LEARNING_STATUS": "BLOCKED",
+  "promotable": false,
+  "confidence_overall": "medium",
+  "notes": "Gate BLOCKED — decisions are forensic/planning only until ARMED. Exit v2 component expectancy was non-discriminative (all keys present on all rows); do not use for KILL.",
+  "decision_rows": [
+    {
+      "signal_or_family": "composite_v2_entry",
+      "direction": "SHORT",
+      "exit_type": "all",
+      "regime_bucket": "mixed",
+      "action": "KEEP",
+      "levers": ["SIZE"],
+      "rationale": "Short expectancy ~flat in cohort; not primary leak vs exit buckets.",
+      "evidence_ref": "by_side SHORT n=120 sum_pnl=-0.23"
+    },
+    {
+      "signal_or_family": "composite_v2_entry",
+      "direction": "LONG",
+      "exit_type": "all",
+      "regime_bucket": "mixed",
+      "action": "KEEP",
+      "levers": [],
+      "rationale": "Long carries positive sum PnL; focus on exit policy not kill long.",
+      "evidence_ref": "by_side LONG n=279 sum_pnl=28.52"
+    },
+    {
+      "signal_or_family": "v2_signal_decay",
+      "direction": "LONG",
+      "exit_type": "signal_decay(0.93)",
+      "regime_bucket": "mixed",
+      "action": "CHANGE_EXIT",
+      "levers": ["CHANGE_EXIT", "GATE"],
+      "rationale": "Negative expectancy n=21 avg=-1.36; tune threshold band or add PnL/path condition.",
+      "evidence_ref": "by_exit_reason signal_decay(0.93)"
+    },
+    {
+      "signal_or_family": "v2_signal_decay",
+      "direction": "LONG",
+      "exit_type": "signal_decay(0.94)",
+      "regime_bucket": "mixed",
+      "action": "CHANGE_EXIT",
+      "levers": ["CHANGE_EXIT", "GATE"],
+      "rationale": "Negative expectancy n=8 avg=-1.67; same family as 0.93.",
+      "evidence_ref": "by_exit_reason signal_decay(0.94)"
+    },
+    {
+      "signal_or_family": "v2_signal_decay+flow_reversal",
+      "direction": "LONG",
+      "exit_type": "signal_decay(0.65)+flow_reversal",
+      "regime_bucket": "mixed",
+      "action": "CHANGE_EXIT",
+      "levers": ["CHANGE_EXIT", "DELAY_ENTRY"],
+      "rationale": "Negative avg with low win rate; reversal may be noisy.",
+      "evidence_ref": "by_exit_reason signal_decay(0.65)+flow_reversal n=12"
+    },
+    {
+      "signal_or_family": "v2_signal_decay",
+      "direction": "LONG",
+      "exit_type": "signal_decay(0.64)",
+      "regime_bucket": "mixed",
+      "action": "CHANGE_EXIT",
+      "levers": ["CHANGE_EXIT"],
+      "rationale": "Strong negative expectancy n=10.",
+      "evidence_ref": "by_exit_reason signal_decay(0.64)"
+    },
+    {
+      "signal_or_family": "v2_signal_decay",
+      "direction": "LONG",
+      "exit_type": "signal_decay(0.83)",
+      "regime_bucket": "mixed",
+      "action": "KEEP",
+      "levers": ["SIZE"],
+      "rationale": "Positive expectancy; scale only after ARMED + regime fragility check.",
+      "evidence_ref": "by_exit_reason signal_decay(0.83) n=22"
+    },
+    {
+      "signal_or_family": "v2_signal_decay",
+      "direction": "LONG",
+      "exit_type": "signal_decay(0.85)",
+      "regime_bucket": "mixed",
+      "action": "KEEP",
+      "levers": ["SIZE"],
+      "rationale": "Positive expectancy n=20.",
+      "evidence_ref": "by_exit_reason signal_decay(0.85)"
+    },
+    {
+      "signal_or_family": "time_exit",
+      "direction": "LONG",
+      "exit_type": "stale_alpha_cutoff",
+      "regime_bucket": "mixed",
+      "action": "CHANGE_EXIT",
+      "levers": ["CHANGE_EXIT"],
+      "rationale": "Some long-hold stale exits are large losers; branch on path/MFE when telemetry exists.",
+      "evidence_ref": "top_losers CVX XOM XLE stale_alpha; bucket stale_alpha 120min n=3"
+    },
+    {
+      "signal_or_family": "all",
+      "direction": "LONG",
+      "exit_type": "all",
+      "regime_bucket": "entry_unknown",
+      "action": "GATE",
+      "levers": ["GATE", "SIZE"],
+      "rationale": "entry_regime unknown n=41 avg=-0.61 vs mixed positive; fix telemetry then re-evaluate.",
+      "evidence_ref": "by_entry_regime unknown"
+    }
+  ],
+  "prerequisites_to_ARM": [
+    "strict_chain_complete: trades_incomplete -> 0 (backfill + live fixes)",
+    "evaluate_completeness LEARNING_STATUS -> ARMED",
+    "re-run run_strict_quant_edge_analysis.py and refresh decision block"
+  ]
+}

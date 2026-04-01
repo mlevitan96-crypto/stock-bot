@@ -205,10 +205,12 @@ Profitable areas must answer:
 | Deliverable | Location |
 |-------------|----------|
 | Framework (this doc) | `docs/ALPACA_MASSIVE_QUANT_EDGE_REVIEW_FRAMEWORK.md` |
+| **Cursor execution block (procedure)** | `docs/ALPACA_STRICT_QUANT_EDGE_CURSOR_EXECUTION_BLOCK.md` |
 | Board edge review summary | `docs/ALPACA_QUANT_EDGE_REVIEW_BOARD_SUMMARY_TEMPLATE.md` |
 | Quant appendix (full tables) | `docs/ALPACA_QUANT_EDGE_REVIEW_APPENDIX_TABLES_SPEC.md` |
 | Decision matrix | `docs/ALPACA_QUANT_EDGE_REVIEW_DECISION_MATRIX_TEMPLATE.md` |
 | Cohort export (generated) | `reports/ALPACA_STRICT_QUANT_EDGE_COHORT.json` |
+| Per-run decision packet (example path) | `reports/daily/YYYY-MM-DD/evidence/ALPACA_STRICT_QUANT_EDGE_DECISION_BLOCK_*Z.md` + `...DECISION_MATRIX_*Z.json` |
 
 ---
 
