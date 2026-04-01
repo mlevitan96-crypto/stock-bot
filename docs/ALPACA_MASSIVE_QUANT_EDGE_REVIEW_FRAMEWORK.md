@@ -1,59 +1,121 @@
-# Alpaca massive quant edge review — root-cause and action framework
+# Massive quant edge review — root cause and action framework (Alpaca)
 
-**Purpose:** Explain *why* we win or lose and *how* we improve. This is a **decision engine**, not a narrative report. Every finding ends in a **concrete lever** or an explicit **no action** classification.
-
-**Scope boundary (non-negotiable):**
-
-| In scope | Out of scope (until noted) |
-|----------|----------------------------|
-| **Strict-scope live trades** — same cohort as `telemetry.alpaca_strict_completeness_gate.evaluate_completeness` for a declared `open_ts_epoch` (typically `STRICT_EPOCH_START` or session policy). | **Warehouse-weighted truth**, execution-join certification, and **DATA_READY** gates — do **not** block this review, but **must not** be cited as authoritative for warehouse-only metrics. |
-| Logs under `logs/` + strict backfill mirrors (`strict_backfill_*`). | Promotion decisions that require **DATA_READY: YES** remain separate. |
-
-**Authoritative join rule:** See `AUTHORITATIVE_JOIN_KEY_RULE` in gate output and `MEMORY_BANK.md` strict era notes. Build all per-trade tables on **`canonical_trade_id` / `trade_key` alias sets**, not “latest fill per symbol.”
+**This is a decision engine, not a report.**
 
 ---
 
-## Review law — WHY ×3 + HOW
+## Purpose
 
-For every loss cluster, drawdown slice, or underperforming bucket:
-
-1. **WHAT** happened (observable fact on strict cohort).  
-2. **WHY** (mechanism linking fact to PnL).  
-3. **WHY** that mechanism exists (policy, threshold, data, market microstructure).  
-4. **HOW** we **kill, gate, flip, size, delay entry, or change exit** — or classify **unexploitable noise** / **telemetry gap**.
-
-**No metric without HOW.** Slides must list: root cause, proposed action, confidence (low/med/high), owner.
+This review exists to explain **why** we are winning or losing and **how** we will get better. It is a **root-cause investigation**, not a reporting exercise. **Every finding must result in a concrete action or an explicit decision to do nothing.**
 
 ---
 
-## Workstream map — repo tooling
+## Scope
 
-| Workstream | Focus | Primary inputs | Existing / planned automation |
-|------------|-------|----------------|------------------------------|
-| **A — Canonical trade_facts** | One row per strict cohort trade; reconcile counts | `exit_attribution.jsonl`, unified exit terminals, `orders.jsonl`, `run.jsonl`, `alpaca_unified_events.jsonl` + `strict_backfill_*` | **`scripts/audit/export_strict_quant_edge_review_cohort.py`** (cohort IDs + reconciliation). Join implementation: extend or pair with `scripts/audit/alpaca_pnl_massive_final_review.py` / session truth JSON. |
-| **B — PnL decomposition** | Alpha vs execution vs giveback vs opportunity cost | Exit context, fees from orders/activities where available, blocked ledger | `scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py` (**excluded** for certification until DATA_READY YES); use **log-native** fees/slippage proxies for strict review. |
-| **C — Directional truth** | Long vs short | `exit_attribution` `side` / `direction`, PnL fields | Custom slice on trade_facts; counterfactual “flip direction” = **synthetic** — label as model-only. |
-| **D — Entry quality** | Good/bad entry × exit quadrants | `entry_decision_made`, `entry_score`, components, time-to-MFE | `telemetry/alpaca_entry_decision_made_emit` audit helpers; entry timestamps from `trade_id` / orders. |
-| **E — Exit attribution** | Normalize exit reasons | `exit_attribution.jsonl`, `close_reason`, V2 exit fields | `src/exit/exit_attribution.py`, `src/exit/exit_score_v2.py`, `scripts/analysis/*exit_edge*`. |
-| **F — Blocked / missed** | Opportunity cost | `logs/blocked_trades.jsonl`, shadow/starvation diagnostics, CI on intents | `scripts/diagnose_shadow_starvation.py`, blocked-bucket coverage (warehouse-adjacent — treat as **hypothesis** until DATA_READY). |
-| **G — CSA signal edge map** | Per-signal expectancy | Normalized `signals` on exit rows, entry snapshots | `src/analysis/alpaca_signal_path_intelligence.py`, `scripts/audit/alpaca_pnl_massive_final_review.py` (SPI sections). |
-| **H — Regime sensitivity** | Vol / trend / time slices | `market_regime`, `direction`, timestamps | Exit row enrichment (`exit_attribution_enrich`); dashboard regime caches. |
-| **I — Ten required axes** | Cross-cutting views | Derived from trade_facts + signal history | Checklist below — each needs a named query or script output. |
-| **J — Decision matrix** | KEEP / KILL / GATE / SIZE | Synthesis of A–I | `docs/ALPACA_QUANT_EDGE_REVIEW_DECISION_MATRIX_TEMPLATE.md` (template). |
+| In scope | Out of scope (for this review cycle) |
+|----------|--------------------------------------|
+| **Authoritative data source: strict-scope live trades only** — same cohort as `telemetry.alpaca_strict_completeness_gate.evaluate_completeness` for a declared `open_ts_epoch` (e.g. `STRICT_EPOCH_START` or session policy). | **Integrity weighting** and **warehouse truth** as *certifying* authority — **excluded until DATA_READY is YES.** |
+| Logs under `logs/` plus strict backfill mirrors (`strict_backfill_*`). | Board or promotion decisions that **require** warehouse certification stay on a separate track. |
+
+**Goal:** Identify **edge**, **anti-edge**, **conditional edge**, **execution leaks**, and **missed opportunity** using strict-log forensics first.
+
+**Authoritative join rule:** Build all per-trade tables on **`canonical_trade_id` / `trade_key`** (and stable `open_SYM_*` trade ids where defined), not “latest fill per symbol.” See gate output `AUTHORITATIVE_JOIN_KEY_RULE` and `MEMORY_BANK.md` strict-era notes.
 
 ---
 
-## Workstream A — trade_facts (acceptance)
+## Review law — WHY WHY WHY HOW
 
-**Required columns (minimum):**
+For **every** loss, drawdown, or underperforming slice, reviewers must answer:
 
-`canonical_trade_id` (or resolved join key), `symbol`, `side`, `quantity`, intent timestamp, fill timestamp, close timestamp, fill price, close price, fees, realized PnL, holding time, MFE, MAE, exit type/reason, signals present, signal strengths, intent→fill latency, slippage estimate, `blocked` + reason.
+| Step | Question |
+|------|----------|
+| **WHAT** | What happened (observable on strict cohort)? |
+| **WHY** | Why did it happen (mechanism)? |
+| **WHY** | Why does that cause exist (policy, threshold, data, structure)? |
+| **HOW** | How do we **fix, gate, flip, size, or remove** it? |
 
-**Acceptance:**  
-`COUNT(*)` **=** `trades_seen` from `evaluate_completeness(root, open_ts_epoch=…)` for the **same** root and epoch.  
-Optional stricter mode: restrict to `complete_trade_ids` only when the question is **chain-certified** attribution (then count = `trades_complete`).
+**No chart, table, or metric is accepted without a HOW answer.**
 
-**Command:**
+---
+
+## Board review rules
+
+All board and quant reviewers must:
+
+- Ask **WHY at least three times** for every material result.
+- Identify the **mechanism**, not the symptom.
+- Demand a **concrete lever** from this set (or justify none):
+  - **Kill** — remove signal, rule, or path
+  - **Gate** — add precondition, quorum, or regime filter
+  - **Flip direction** — invert or separate long vs short policy
+  - **Size up or down** — risk and notional
+  - **Delay entry** — timing / staleness / confirmation
+  - **Change exit logic** — trails, time exits, V2 thresholds, forced flatten
+
+If **no lever** exists, classify explicitly as:
+
+- **Unexploitable noise**, or  
+- **Data gap requiring new telemetry** (open item with owner)
+
+**Every slide must include:**
+
+- Root cause  
+- Proposed action  
+- Confidence level  
+
+---
+
+## Workstream map — A through J
+
+| ID | Name | Focus question | Repo / tooling |
+|----|------|----------------|----------------|
+| **A** | Canonical trade facts | Single source of truth per strict trade; count reconciles | `scripts/audit/export_strict_quant_edge_review_cohort.py`; join / `trade_facts` build (extend with PnL / session scripts as needed) |
+| **B** | PnL decomposition | Where is alpha created and destroyed? | Break into: **signal correctness**, **execution impact**, **exit giveback**, **opportunity cost** (blocked / missed). Log-native fees/slippage when warehouse off. |
+| **C** | Directional truth | Is one side structurally wrong? | Long vs short: win rate, expectancy, tail losses, drawdowns; **counterfactual flip** = model-only, labeled synthetic |
+| **D** | Entry quality | Are entries wrong or are exits failing? | Quadrants: good/bad entry × good/bad exit; time to first profit, MAE, MFE, **MFE capture ratio** |
+| **E** | Exit attribution | Are winners cut early and losers held late? | Normalize: profit taking, stop loss, time-based, forced/defensive, error/guardrail; PnL, giveback, tail by type |
+| **F** | Blocked and missed opportunity | Where is hidden alpha suppressed? | Opportunity cost of blocked trades; over-conservatism; gating errors — **hypothesis** tier if warehouse-dependent |
+| **G** | CSA signal edge map | Which signals drive edge and which destroy it? | Per signal: participation, expectancy present vs absent, directional interaction, exit interaction |
+| **H** | Regime sensitivity | When to size up, down, or stand aside? | Volatility bucket, trend bucket, time of day, day of week |
+| **I** | Required new axes | Ten cross-cutting views (below) | Each view: definition, cohort n, metric, **HOW** if actionable |
+| **J** | Decision matrix | No analysis complete without a decision | **KEEP / KILL / GATE / SIZE** (+ **FLIP / DELAY / EXIT** as lever tags on rows). Template: `docs/ALPACA_QUANT_EDGE_REVIEW_DECISION_MATRIX_TEMPLATE.md` |
+
+---
+
+## Workstream A — Canonical trade_facts
+
+Build a **single `trade_facts` table** (or equivalent Parquet/CSV) containing:
+
+| Field | Notes |
+|-------|--------|
+| `canonical_trade_id` | Resolved strict join key |
+| `symbol` | |
+| `side` | Long or short (normalized) |
+| `quantity` | |
+| `intent_timestamp` | From `trade_intent` / `entry_decision_made` chain |
+| `fill_timestamp` | From `orders.jsonl` / fills |
+| `close_timestamp` | From `exit_attribution.jsonl` |
+| `fill_price` | |
+| `close_price` | |
+| `fees` | Log proxy or broker field; document source |
+| `realized_pnl` | Strict-consistent field |
+| `holding_time` | |
+| `maximum_favorable_excursion` | MFE — **gap** if no bar / high_water path |
+| `maximum_adverse_excursion` | MAE — same |
+| `exit_type_or_reason` | Normalized (Workstream E) |
+| `signals_present` | Set / flags |
+| `signal_strengths` | As available on entry or exit snapshot |
+| `intent_to_fill_latency` | |
+| `slippage_estimate` | Define formula; **gap** if no mid |
+| `blocked` | If applicable to cohort definition |
+| `blocked_reason` | If blocked |
+
+**Acceptance condition:** Trade **count reconciles exactly** to strict **after-fix** totals:
+
+- `COUNT(trade_facts)` **=** `trades_seen` from `evaluate_completeness(root, open_ts_epoch=…)` for the **same** root and epoch (and flags).  
+- When analyzing **chain-complete** trades only: count **=** `trades_complete`.
+
+**Command (cohort IDs + reconciliation):**
 
 ```bash
 PYTHONPATH=. python3 scripts/audit/export_strict_quant_edge_review_cohort.py \
@@ -61,84 +123,104 @@ PYTHONPATH=. python3 scripts/audit/export_strict_quant_edge_review_cohort.py \
   --out-json reports/ALPACA_STRICT_QUANT_EDGE_COHORT.json
 ```
 
-Exit code **1** if cohort list length ≠ `trades_seen` or complete list ≠ `trades_complete`.
+Exit code **1** if list lengths do not match gate counts.
 
 ---
 
-## Workstream I — Ten required views (each must produce a HOW)
+## Workstream I — Required ten views
 
-1. Signal **agreement count** vs PnL.  
-2. Signal **disagreement penalty** (conditional expectancy).  
-3. **Latency** sensitivity (intent→fill, signal staleness buckets).  
-4. **Exit optionality** loss (MFE vs capture).  
-5. **False positive cost** per signal (entries that lose).  
-6. **Win/loss asymmetry** ratio and tail contribution.  
-7. **Loss clustering** in time (serial correlation / regime).  
-8. **Regime transition** trades (first/last hour, vol spike days).  
-9. **Signal persistence** during hold (drift vs entry snapshot).  
-10. **Anti-signal** performance when feature absent (baseline vs conditional).
+Every review must include these **ten axes** (each with a HOW if actionable):
+
+1. Signal **agreement count** versus PnL  
+2. Signal **disagreement penalty**  
+3. **Latency** sensitivity  
+4. **Exit optionality** loss  
+5. **False positive cost** per signal  
+6. **Asymmetry ratio** of wins to losses  
+7. **Loss clustering** in time  
+8. **Regime transition** trades  
+9. **Signal persistence** during holding  
+10. **Anti-signal** performance when signal is absent  
+
+(See `docs/ALPACA_QUANT_EDGE_REVIEW_APPENDIX_TABLES_SPEC.md` — section I1 — for sheet-level specs.)
 
 ---
 
-## Loss review template (copy per cluster)
+## Workstream J — Decision matrix
+
+For **every** signal, exit type, direction, and regime slice, classify:
+
+- **KEEP**  
+- **KILL**  
+- **GATE**  
+- **SIZE**  
+
+Use additional **lever tags** where needed: **FLIP**, **DELAY_ENTRY**, **CHANGE_EXIT**. Rows without a classification are **not** complete.
+
+---
+
+## Loss review template (per cluster)
 
 | Field | Content |
 |-------|---------|
-| **Loss cluster name** | |
-| **Scope** | Strict cohort, date range, filters |
-| **Net PnL impact** | $ and % of cohort |
-| **Frequency** | n trades, % of losers |
-| **WHY L1** | Symptom |
-| **WHY L2** | Mechanism |
-| **WHY L3** | Root cause (policy / threshold / data / structure) |
-| **HOW** | Kill / gate / flip / size / delay / exit change |
-| **Confidence** | Low / med / high |
-| **Owner** | |
+| Loss cluster name | |
+| Scope | Strict cohort, dates, filters |
+| Net PnL impact | $ and % of cohort |
+| Frequency | n trades, % of losers |
+| WHY level one | |
+| WHY level two | |
+| WHY level three | |
+| HOW — specific action | Kill / gate / flip / size / delay / exit / DO_NOTHING |
+| Confidence | Low / med / high |
+| Owner | |
 
 ---
 
-## Success review template
+## Success review (profitable pockets)
+
+Profitable areas must answer:
 
 - **Why does this work?**  
-- **Fragility?** (single regime, thin sample, correlated outliers)  
-- **Regime-dependent?**  
-- **Scalable safely?** (liquidity, capacity, correlation)  
-*Profit without understanding is future loss.*
+- **Is it fragile?**  
+- **Is it regime dependent?**  
+- **Can it be scaled safely?**  
+
+**Profit without understanding is future loss.**
 
 ---
 
 ## Definition of done
 
-- [ ] Root causes for **all major loss clusters** (cover ≥80% of negative PnL or tail risk).  
-- [ ] **Concrete action** or **explicit DO_NOTHING** per finding.  
-- [ ] **Top five profit levers** named (with mechanism).  
-- [ ] **Top five loss leaks** named (with mechanism).  
-- [ ] **Board alignment** on kill / gate / flip / scale for each matrix row.  
-- [ ] **Strict cohort reconciliation** passed (Workstream A acceptance).  
+- [ ] **Root causes** identified for **all major losses** (cover ≥80% of negative PnL or tail risk, or explicitly scoped out with reason).  
+- [ ] **Concrete actions** proposed for **every** finding, or **explicit DO_NOTHING** with classification (noise vs telemetry gap).  
+- [ ] **Top five profit levers** identified (with mechanism).  
+- [ ] **Top five loss leaks** identified (with mechanism).  
+- [ ] **Board alignment** on what to **kill, gate, flip, or scale**.  
+- [ ] **Strict cohort reconciliation** passed (Workstream A).  
 
 ---
 
-## Deliverables (file layout)
+## Deliverables
 
 | Deliverable | Location |
 |-------------|----------|
 | Framework (this doc) | `docs/ALPACA_MASSIVE_QUANT_EDGE_REVIEW_FRAMEWORK.md` |
-| Board summary skeleton | `docs/ALPACA_QUANT_EDGE_REVIEW_BOARD_SUMMARY_TEMPLATE.md` |
-| Quant appendix / table spec | `docs/ALPACA_QUANT_EDGE_REVIEW_APPENDIX_TABLES_SPEC.md` |
-| Decision matrix template | `docs/ALPACA_QUANT_EDGE_REVIEW_DECISION_MATRIX_TEMPLATE.md` |
-| Cohort export | `reports/ALPACA_STRICT_QUANT_EDGE_COHORT.json` (generated) |
+| Board edge review summary | `docs/ALPACA_QUANT_EDGE_REVIEW_BOARD_SUMMARY_TEMPLATE.md` |
+| Quant appendix (full tables) | `docs/ALPACA_QUANT_EDGE_REVIEW_APPENDIX_TABLES_SPEC.md` |
+| Decision matrix | `docs/ALPACA_QUANT_EDGE_REVIEW_DECISION_MATRIX_TEMPLATE.md` |
+| Cohort export (generated) | `reports/ALPACA_STRICT_QUANT_EDGE_COHORT.json` |
 
 ---
 
-## Related scripts (non-exhaustive)
+## Related code (non-exhaustive)
 
-- `scripts/audit/alpaca_pnl_massive_final_review.py` — PnL bundle + SPI-style sections.  
-- `scripts/audit/alpaca_forward_truth_contract_runner.py` — session truth JSON for gates.  
-- `telemetry/alpaca_strict_completeness_gate.py` — strict cohort definition.  
-- `src/analysis/signal_edge_analysis.py` — signal-level edge metrics patterns.  
+- `telemetry/alpaca_strict_completeness_gate.py` — strict cohort definition  
+- `scripts/audit/export_strict_quant_edge_review_cohort.py` — cohort export + reconciliation  
+- `scripts/audit/alpaca_pnl_massive_final_review.py` — PnL bundle / SPI-style sections (use with scope discipline)  
+- `src/exit/exit_attribution.py`, `src/exit/exit_score_v2.py` — exit taxonomy inputs  
 
 ---
 
 ## Governance note
 
-This review **does not** relax strict completeness or warehouse gates. It **consumes** strict cohort truth for **causal** and **operational** levers. When **DATA_READY** becomes YES, re-run decomposition workstreams (B, F warehouse slices) for **reconciliation** with board packets — second pass, not a substitute for strict-log forensics.
+This review **does not** relax strict completeness or DATA_READY warehouse gates. It **consumes** strict cohort truth for **causal** and **operational** levers. When **DATA_READY** becomes YES, re-run decomposition workstreams that depend on warehouse joins for **second-pass reconciliation** with board packets — not as a substitute for strict-log forensics.

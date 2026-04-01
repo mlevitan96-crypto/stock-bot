@@ -1,9 +1,15 @@
 # Decision matrix — template (Workstream J)
 
-**Rule:** Every row ends in **KEEP**, **KILL**, **GATE**, or **SIZE** (or **DEFER** with telemetry ID).
+**Rule:** Every row ends in **KEEP**, **KILL**, **GATE**, or **SIZE**. Use **lever tags** where the primary decision is insufficient:
 
-| Entity | Grain (signal / exit / dir / regime) | Evidence table | Metric (primary) | Root cause (WHY×3) | Decision | Lever detail | Confidence | Owner | Revisit date |
-|--------|--------------------------------------|----------------|------------------|---------------------|----------|--------------|------------|-------|--------------|
+- **FLIP** — directional policy change  
+- **DELAY_ENTRY** — timing / confirmation / staleness  
+- **CHANGE_EXIT** — exit path or threshold change  
+
+**DEFER** is allowed only with a **telemetry ID** (data gap owner + artifact).
+
+| Entity | Grain (signal / exit / dir / regime) | Evidence table | Metric (primary) | Root cause (WHY×3) | Decision | Lever tags + detail | Confidence | Owner | Revisit date |
+|--------|--------------------------------------|----------------|------------------|---------------------|----------|---------------------|------------|-------|--------------|
 | | | | | | | | | | |
 | | | | | | | | | | |
 | | | | | | | | | | |
