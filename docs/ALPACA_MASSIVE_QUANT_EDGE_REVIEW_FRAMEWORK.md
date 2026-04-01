@@ -69,7 +69,7 @@ If **no lever** exists, classify explicitly as:
 
 | ID | Name | Focus question | Repo / tooling |
 |----|------|----------------|----------------|
-| **A** | Canonical trade facts | Single source of truth per strict trade; count reconciles | `scripts/audit/export_strict_quant_edge_review_cohort.py`; join / `trade_facts` build (extend with PnL / session scripts as needed) |
+| **A** | Canonical trade facts | Single source of truth per strict trade; count reconciles | `scripts/audit/export_strict_quant_edge_review_cohort.py`; actionable rollup: `scripts/audit/run_strict_quant_edge_analysis.py` (Markdown + JSON under `reports/`). Full `trade_facts` build still optional. |
 | **B** | PnL decomposition | Where is alpha created and destroyed? | Break into: **signal correctness**, **execution impact**, **exit giveback**, **opportunity cost** (blocked / missed). Log-native fees/slippage when warehouse off. |
 | **C** | Directional truth | Is one side structurally wrong? | Long vs short: win rate, expectancy, tail losses, drawdowns; **counterfactual flip** = model-only, labeled synthetic |
 | **D** | Entry quality | Are entries wrong or are exits failing? | Quadrants: good/bad entry × good/bad exit; time to first profit, MAE, MFE, **MFE capture ratio** |
