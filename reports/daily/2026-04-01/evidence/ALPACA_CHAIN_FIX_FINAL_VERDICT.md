@@ -7,7 +7,7 @@
 | **Coverage DATA_READY** | **NO** — parse smoke **OK** (`parse_ok: true`, `data_ready_yes: false` in `ALPACA_COVERAGE_PARSE_AFTER_FIX.json`) |
 | **Integrity armed (`arm_epoch_utc`)** | **NO** — `milestone_integrity_arm.arm_epoch_utc: null` in full dry-run JSON |
 | **Milestone `unique_closed_trades` floored to 0** | **YES** — expected until integrity arms under `integrity_armed` basis |
-| **Commits** | Chain telemetry + backfill: **`1d80fd43`**. Evidence bundle + `evaluate_exits` non-dict guard: tip of `main` with subject `fix: skip non-dict opens info in evaluate_exits; chain fix evidence 2026-04-01` (run `git log -1 --oneline` after `git pull`). |
+| **Commits** | Chain telemetry + backfill: **`1d80fd43`**. Evidence bundle + `evaluate_exits` non-dict guard: **`e6558205cd8a4fb3abb6ab5cf694e613ed473d67`**. |
 | **Rerun verification** | Droplet: `git pull && sudo systemctl restart stock-bot` → `python3 scripts/alpaca_strict_completeness_gate.py --root /root/stock-bot --audit --open-ts-epoch 1774458080` → `python3 scripts/audit/strict_chain_historical_backfill.py --root /root/stock-bot` (idempotent) → warehouse mission → `parse_coverage_smoke_check.py` → `run_alpaca_telegram_integrity_cycle.py --dry-run`. |
 
 **PASS/FAIL vs mission hard gate**
