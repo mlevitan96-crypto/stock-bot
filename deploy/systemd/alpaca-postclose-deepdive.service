@@ -9,6 +9,8 @@ User=root
 WorkingDirectory=/root/stock-bot
 Environment=TRADING_BOT_ROOT=/root/stock-bot
 EnvironmentFile=-/root/stock-bot/.env
+# After .env: post-close still writes reports; Telegram API blocked here (integrity allowlist only).
+Environment=TELEGRAM_GOVERNANCE_INTEGRITY_ONLY=1
 ExecStart=/root/stock-bot/venv/bin/python3 /root/stock-bot/scripts/alpaca_postclose_deepdive.py
 StandardOutput=journal
 StandardError=journal
