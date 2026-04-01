@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,7 +20,30 @@ from telemetry.alpaca_telegram_integrity.templates import (
     format_integrity_alert,
     format_milestone_250,
 )
-from telemetry.alpaca_telegram_integrity.warehouse_summary import CoverageSummary, parse_coverage_markdown
+from telemetry.alpaca_telegram_integrity.warehouse_summary import (
+    CoverageSummary,
+    load_latest_coverage,
+    parse_coverage_markdown,
+)
+
+
+def test_load_latest_coverage_finds_daily_subdir(tmp_path: Path):
+    """Parity with parse_coverage_smoke_check: reports/daily/** not ignored."""
+    rep = tmp_path / "reports"
+    daily = rep / "daily" / "2026-03-30" / "evidence"
+    daily.mkdir(parents=True)
+    older = rep / "ALPACA_TRUTH_WAREHOUSE_COVERAGE_old.md"
+    newer = daily / "ALPACA_TRUTH_WAREHOUSE_COVERAGE_new.md"
+    older.write_text("DATA_READY: NO\n", encoding="utf-8")
+    time.sleep(0.05)
+    newer.write_text(
+        "execution join coverage: **99%**\nDATA_READY: YES\n",
+        encoding="utf-8",
+    )
+    cov = load_latest_coverage(tmp_path)
+    assert cov.path is not None
+    assert "new.md" in cov.path.name
+    assert cov.data_ready_yes is True
 
 
 def test_parse_coverage_markdown_extracts_pct():
