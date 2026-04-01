@@ -3,7 +3,9 @@
 **Cohort:** Strict-scope live trades, `open_ts_epoch` = ______  
 **Gate snapshot:** `LEARNING_STATUS` = ______ | `trades_seen` = ______ | `trades_complete` = ______  
 **Cohort export:** `reports/ALPACA_STRICT_QUANT_EDGE_COHORT.json` (hash / mtime) ______  
-**Exclusions:** Warehouse / DATA_READY not used for certification this cycle — **YES / NO** (must be YES)
+**Exclusions:** Integrity weighting and warehouse truth excluded as certifying authority until **DATA_READY = YES** — **YES / NO** (must be YES for this packet)
+
+**Board rules (from framework):** Three WHYs to mechanism; every material slide has **root cause**, **proposed action**, **confidence**; no metric without **HOW** (kill / gate / flip / size / delay entry / change exit / noise / telemetry gap).
 
 ---
 

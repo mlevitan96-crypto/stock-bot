@@ -8,27 +8,31 @@ Populate from **trade_facts** (Workstream A). All tables are **strict-scope** un
 
 ## A1. trade_facts (master)
 
+Names below match the **framework** spec; aliases in parentheses are equivalent for tooling.
+
 | Column | Type | Source |
 |--------|------|--------|
 | canonical_trade_id | string | Alias resolution / unified |
 | symbol | string | exit_attribution |
 | side | long/short | Normalized from exit |
 | quantity | float | orders / position |
-| intent_ts | datetime | run.jsonl trade_intent / entry_decision |
-| fill_ts | datetime | orders.jsonl |
-| close_ts | datetime | exit_attribution.timestamp |
-| fill_px | float | orders |
-| close_px | float | exit |
+| intent_timestamp (intent_ts) | datetime | run.jsonl trade_intent / entry_decision_made |
+| fill_timestamp (fill_ts) | datetime | orders.jsonl |
+| close_timestamp (close_ts) | datetime | exit_attribution.timestamp |
+| fill_price (fill_px) | float | orders |
+| close_price (close_px) | float | exit |
 | fees | float | orders / activities (log proxy if warehouse off) |
-| realized_pnl_usd | float | exit_attribution / broker-consistent field |
-| hold_seconds | float | close_ts − fill_ts |
-| mfe_pct | float | Requires bar path or internal high_water — **gap if missing** |
-| mae_pct | float | Same |
-| exit_reason_normalized | enum | Workstream E mapping |
-| signals_json | json | exit row + snapshots |
+| realized_pnl (realized_pnl_usd) | float | exit_attribution / broker-consistent field |
+| holding_time (hold_seconds) | float | close − fill |
+| maximum_favorable_excursion (mfe_pct or mfe_usd) | float | Bar path or internal high_water — **gap if missing** |
+| maximum_adverse_excursion (mae_pct or mae_usd) | float | Same |
+| exit_type_or_reason (exit_reason_normalized) | enum | Workstream E mapping |
+| signals_present | json / flags | Normalized from exit row + snapshots |
+| signal_strengths | json | Per-signal strength where logged |
+| signals_json | json | Optional raw bundle for CSA / G |
 | entry_score | float | entry_decision_made / metadata |
-| intent_to_fill_sec | float | fill_ts − intent_ts |
-| slippage_est | float | Define formula (mid vs fill) — **telemetry gap if no mid** |
+| intent_to_fill_latency (intent_to_fill_sec) | float | fill − intent |
+| slippage_estimate (slippage_est) | float | Define formula (mid vs fill) — **telemetry gap if no mid** |
 | blocked | bool | blocked_trades / intent CI |
 | blocked_reason | string | |
 
@@ -83,7 +87,20 @@ Populate from **trade_facts** (Workstream A). All tables are **strict-scope** un
 
 ## I1. Ten axes (one sheet per axis)
 
-Each sheet: definition SQL/pseudocode, filter, cohort n, primary metric, **HOW** if actionable.
+Required views (framework Workstream I):
+
+1. Signal agreement count vs PnL  
+2. Signal disagreement penalty  
+3. Latency sensitivity  
+4. Exit optionality loss  
+5. False positive cost per signal  
+6. Asymmetry ratio of wins to losses  
+7. Loss clustering in time  
+8. Regime transition trades  
+9. Signal persistence during holding  
+10. Anti-signal performance when signal is absent  
+
+Each sheet: definition (SQL/pseudocode), filter, cohort n, primary metric, **HOW** if actionable.
 
 ---
 
