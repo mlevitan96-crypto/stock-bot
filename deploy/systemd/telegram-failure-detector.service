@@ -9,7 +9,7 @@ User=root
 WorkingDirectory=/root/stock-bot
 Environment=TRADING_BOT_ROOT=/root/stock-bot
 EnvironmentFile=-/root/stock-bot/.env
-# Pager Telegram blocked for single-authority prod; integrity cycle remains allowlisted via its own .env if unset here.
+# Block pager Telegram in prod; alpaca-telegram-integrity.service does not set this (allowlisted script_names still send).
 Environment=TELEGRAM_GOVERNANCE_INTEGRITY_ONLY=1
 ExecStart=/root/stock-bot/venv/bin/python3 /root/stock-bot/scripts/governance/telegram_failure_detector.py
 StandardOutput=journal
