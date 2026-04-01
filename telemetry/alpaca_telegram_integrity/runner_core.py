@@ -1,6 +1,7 @@
 """Single coherent Alpaca integrity + Telegram cycle."""
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 from dataclasses import asdict
@@ -42,6 +43,25 @@ def _root() -> Path:
     if r:
         return Path(r).resolve()
     return Path(__file__).resolve().parents[2]
+
+
+def _apply_strict_chain_backfill(root: Path) -> Dict[str, Any]:
+    """
+    Idempotent repair: append strict_backfill_* from exit_attribution before strict gate.
+    Loaded via importlib so scripts/audit need not be a package.
+    """
+    p = root / "scripts" / "audit" / "strict_chain_historical_backfill.py"
+    if not p.is_file():
+        return {"ok": False, "applied": 0, "error": "strict_chain_historical_backfill.py_missing"}
+    spec = importlib.util.spec_from_file_location("_strict_chain_hist_bf", p)
+    if spec is None or spec.loader is None:
+        return {"ok": False, "applied": 0, "error": "import_spec_failed"}
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    fn = getattr(mod, "apply_strict_chain_backfill", None)
+    if fn is None:
+        return {"ok": False, "applied": 0, "error": "apply_strict_chain_backfill_missing"}
+    return fn(root, dry_run=False, max_trades=5000)
 
 
 def _load_config(root: Path) -> Dict[str, Any]:
@@ -211,6 +231,12 @@ def run_integrity_cycle(
         cov_reasons.append(
             f"stale_or_missing_warehouse_coverage (max_age_h={max_age}, age={cov.age_hours})"
         )
+
+    if cfg.get("strict_chain_backfill_before_strict_gate", True):
+        try:
+            out["strict_chain_backfill"] = _apply_strict_chain_backfill(root)
+        except Exception as e:  # pragma: no cover
+            out["strict_chain_backfill_error"] = str(e)
 
     strict: Dict[str, Any] = {}
     try:
