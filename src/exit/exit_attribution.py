@@ -24,6 +24,8 @@ from src.exit.exit_attribution_enrich import enrich_exit_row
 
 # Allow regression runs to isolate log outputs (prevents polluting droplet logs).
 OUT = Path(os.environ.get("EXIT_ATTRIBUTION_LOG_PATH", "logs/exit_attribution.jsonl"))
+_EXIT_EVENT_LOG = Path(os.environ.get("EXIT_EVENT_LOG_PATH", "logs/exit_event.jsonl"))
+_EXIT_SIGNAL_SNAPSHOT_LOG = Path(os.environ.get("EXIT_SIGNAL_SNAPSHOT_LOG_PATH", "logs/exit_signal_snapshot.jsonl"))
 
 # Schema version for attribution/exit records (docs: ATTRIBUTION_SCHEMA_CANONICAL_V1, ATTRIBUTION_TRUTH_CONTRACT).
 ATTRIBUTION_SCHEMA_VERSION = "1.0.0"
@@ -33,8 +35,34 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def append_exit_event(evt: Dict[str, Any]) -> None:
+    """Append unified EXIT_EVENT to logs/exit_event.jsonl (replay / PnL forensics). Never raises."""
+    try:
+        _EXIT_EVENT_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with _EXIT_EVENT_LOG.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(evt, default=str) + "\n")
+    except Exception:
+        return
+
+
+def append_exit_signal_snapshot(rec: Dict[str, Any]) -> None:
+    """Append one row to logs/exit_signal_snapshot.jsonl. Never raises."""
+    try:
+        _EXIT_SIGNAL_SNAPSHOT_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with _EXIT_SIGNAL_SNAPSHOT_LOG.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, default=str) + "\n")
+    except Exception:
+        return
+
+
 def append_exit_attribution(rec: Dict[str, Any]) -> None:
     try:
+        try:
+            from src.telemetry.strict_chain_guard import record_econ_close_chain_checkpoint
+
+            record_econ_close_chain_checkpoint(rec)
+        except Exception:
+            pass
         OUT.parent.mkdir(parents=True, exist_ok=True)
         # Defensive: if signals are ever passed through, ensure schema correctness.
         if isinstance(rec, dict) and "signals" in rec:
@@ -76,7 +104,7 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
             _side = rec.get("side") or rec.get("direction") or "long"
             _entry_ts = rec.get("entry_timestamp") or ""
             from src.telemetry.alpaca_trade_key import build_trade_key
-            from telemetry.attribution_emit_keys import get_symbol_attribution_keys
+            from src.telemetry.attribution_emit_keys import get_symbol_attribution_keys
 
             _trade_key = rec.get("trade_key") or None
             if not _trade_key and _sym and _entry_ts:
