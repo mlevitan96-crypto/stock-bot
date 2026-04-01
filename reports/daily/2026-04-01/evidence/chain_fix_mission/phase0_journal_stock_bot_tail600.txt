@@ -1,0 +1,600 @@
+Apr 01 17:49:08 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Worker sleeping for 0.0s (target=60.0s, elapsed=88.8s)
+Apr 01 17:49:08 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Worker woke up, stop_evt.is_set()=False
+Apr 01 17:49:08 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Worker loop iteration 4 (iter_count=3)
+Apr 01 17:49:08 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG WORKER: Starting iteration 4
+Apr 01 17:49:08 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG WORKER: About to check market status...
+Apr 01 17:49:08 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG WORKER: is_market_open_now() returned: True
+Apr 01 17:49:08 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG WORKER: Market open check: True (SIMULATE_MARKET_OPEN=False)
+Apr 01 17:49:08 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG WORKER: After market check, market_open=True, about to check if block...
+Apr 01 17:49:08 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Market is OPEN - calling run_once()
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] ✅ DIAGNOSTIC: Alpaca API connected - Buying Power: $158,108.49, Equity: $47,324.17
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:09,137 [CACHE-ENRICH] INFO: State loaded successfully: 24 positions
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:09,155 [CACHE-ENRICH] WARNING: Positions in Alpaca but not in local state: {'COP', 'META', 'XLK', 'CAT'}
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:09,155 [CACHE-ENRICH] INFO: Reconciliation complete: 28 positions from Alpaca
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: About to call run_once() - entering try block
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: run_once() ENTRY
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] ✅ DIAGNOSTIC: Alpaca API connected - Buying Power: $158,108.49, Equity: $47,323.47
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:09,298 [CACHE-ENRICH] INFO: State loaded successfully: 24 positions
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:09,313 [CACHE-ENRICH] WARNING: Positions in Alpaca but not in local state: {'COP', 'META', 'XLK', 'CAT'}
+Apr 01 17:49:09 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:09,314 [CACHE-ENRICH] INFO: Reconciliation complete: 28 positions from Alpaca
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Running autonomous position reconciliation V2...
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Reconciliation V2 - Alpaca: 28 positions, Status: clean, Diffs: 0, Degraded: False
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Polling configured (cache-only mode)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Using centralized UW cache (56 symbols)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for AAPL
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: AAPL: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for MSFT
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: MSFT: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for GOOGL
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: GOOGL: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for AMZN
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: AMZN: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for META
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: META: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for NVDA
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: NVDA: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for TSLA
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: TSLA: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for AMD
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: AMD: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for NFLX
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: NFLX: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for INTC
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: INTC: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for SPY
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: SPY: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for QQQ
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: QQQ: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for IWM
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: IWM: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for DIA
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: DIA: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for XLF
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLF: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for XLE
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLE: 100 normalized, 9 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for XLK
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLK: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for XLV
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLV: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for XLI
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLI: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for XLP
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLP: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for JPM
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: JPM: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for BAC
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: BAC: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for GS
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: GS: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for MS
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: MS: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for C
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: C: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for WFC
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: WFC: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for BLK
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: BLK: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for V
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: V: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for MA
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: MA: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for COIN
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: COIN: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for PLTR
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: PLTR: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for SOFI
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: SOFI: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for HOOD
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: HOOD: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for RIVN
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: RIVN: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for LCID
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: LCID: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for F
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: F: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for GM
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: GM: 100 normalized, 10 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for NIO
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: NIO: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for BA
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: BA: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for CAT
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: CAT: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for XOM
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XOM: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for CVX
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: CVX: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for COP
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: COP: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for SLB
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: SLB: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for JNJ
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: JNJ: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for PFE
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: PFE: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for MRNA
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: MRNA: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for UNH
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: UNH: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for WMT
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: WMT: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for TGT
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: TGT: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for COST
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: COST: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for HD
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: HD: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Found 100 raw trades for LOW
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: LOW: 100 normalized, 11 passed filter
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Cache mode active - composite scoring will run even if flow_trades empty (530 trades from flow, 56 symbols in cache)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Maps built: 53 dark_pool, 53 gamma, 53 net_premium
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Fetched data, clustering 530 trades
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Initial flow_trades clusters=5, use_composite=True
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Running composite scoring for 53 symbols (flow_trades may be empty)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Processing 54 symbols (3 from clusters, 53 from cache)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for HOOD (symbol 1/54)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: HOOD composite_score=4.242
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to HOOD: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to HOOD: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for HOOD: score=5.04, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: HOOD score=5.04
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for BA (symbol 2/54)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: BA composite_score=3.586
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for BA: score=3.59, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: BA score=3.59
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for CAT (symbol 3/54)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: CAT composite_score=3.993
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to CAT: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for CAT: score=4.49, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: CAT score=4.49
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for XLP (symbol 4/54)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLP composite_score=3.496
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to XLP: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:10 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to XLP: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for XLP: score=4.30, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: XLP score=4.30
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for BLK (symbol 5/54)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: BLK composite_score=3.755
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to BLK: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to BLK: +0.50 (count=6, whale_motif=True)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for BLK: score=4.55, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: BLK score=4.55
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for F (symbol 6/54)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: F composite_score=3.580
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to F: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to F: +0.50 (count=6, whale_motif=True)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for F: score=4.38, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: F score=4.38
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for WMT (symbol 7/54)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: WMT composite_score=3.594
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to WMT: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to WMT: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for WMT: score=4.39, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: WMT score=4.39
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for JNJ (symbol 8/54)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: JNJ composite_score=3.414
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to JNJ: +0.30 (sector=Healthcare, count=4)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for JNJ: score=3.71, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: JNJ score=3.71
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for V (symbol 9/54)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: V composite_score=3.538
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to V: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to V: +0.50 (count=6, whale_motif=True)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for V: score=4.34, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: V score=4.34
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for QQQ (symbol 10/54)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: QQQ composite_score=3.530
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to QQQ: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to QQQ: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for QQQ: score=4.33, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: QQQ score=4.33
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for UNH (symbol 11/54)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: UNH composite_score=3.814
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to UNH: +0.30 (sector=Healthcare, count=4)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to UNH: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for UNH: score=4.61, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: UNH score=4.61
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for MRNA (symbol 12/54)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: MRNA composite_score=3.928
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to MRNA: +0.30 (sector=Healthcare, count=4)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to MRNA: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for MRNA: score=4.73, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: MRNA score=4.73
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for GS (symbol 13/54)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: GS composite_score=3.774
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to GS: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:11 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to GS: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for GS: score=4.57, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: GS score=4.57
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for XLI (symbol 14/54)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLI composite_score=3.495
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to XLI: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to XLI: +0.50 (count=6, whale_motif=True)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for XLI: score=4.29, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: XLI score=4.29
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for CVX (symbol 15/54)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: CVX composite_score=3.555
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to CVX: +0.30 (sector=Energy, count=4)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to CVX: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for CVX: score=4.36, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: CVX score=4.36
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for C (symbol 16/54)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: C composite_score=4.067
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to C: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to C: +0.50 (count=6, whale_motif=True)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for C: score=4.87, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: C score=4.87
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for PLTR (symbol 17/54)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: PLTR composite_score=4.173
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to PLTR: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to PLTR: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for PLTR: score=4.97, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: PLTR score=4.97
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for GM (symbol 18/54)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: GM composite_score=4.055
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to GM: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to GM: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for GM: score=4.85, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: GM score=4.85
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for AAPL (symbol 19/54)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: AAPL composite_score=3.563
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to AAPL: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to AAPL: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for AAPL: score=4.36, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: AAPL score=4.36
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for LOW (symbol 20/54)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: LOW composite_score=3.518
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to LOW: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for LOW: score=3.82, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: LOW score=3.82
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for AMZN (symbol 21/54)
+Apr 01 17:49:12 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: AMZN composite_score=3.713
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for AMZN: score=3.71, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: AMZN score=3.71
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for META (symbol 22/54)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: META composite_score=3.853
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to META: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to META: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for META: score=4.65, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: META score=4.65
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for JPM (symbol 23/54)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: JPM composite_score=3.708
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to JPM: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to JPM: +0.50 (count=6, whale_motif=True)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for JPM: score=4.51, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: JPM score=4.51
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for COST (symbol 24/54)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: COST composite_score=3.445
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to COST: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to COST: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for COST: score=4.24, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: COST score=4.24
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for MS (symbol 25/54)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: MS composite_score=3.875
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to MS: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to MS: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for MS: score=4.67, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: MS score=4.67
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for WFC (symbol 26/54)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: WFC composite_score=3.628
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to WFC: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to WFC: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for WFC: score=4.43, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: WFC score=4.43
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for NVDA (symbol 27/54)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: NVDA composite_score=4.127
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to NVDA: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to NVDA: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for NVDA: score=4.93, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: NVDA score=4.93
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for LCID (symbol 28/54)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: LCID composite_score=4.242
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to LCID: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:13 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to LCID: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for LCID: score=5.04, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: LCID score=5.04
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for TSLA (symbol 29/54)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: TSLA composite_score=4.105
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to TSLA: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to TSLA: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for TSLA: score=4.91, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: TSLA score=4.91
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for MSFT (symbol 30/54)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: MSFT composite_score=3.916
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to MSFT: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to MSFT: +0.50 (count=6, whale_motif=True)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for MSFT: score=4.72, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: MSFT score=4.72
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for XLV (symbol 31/54)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLV composite_score=3.494
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to XLV: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for XLV: score=3.79, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: XLV score=3.79
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for XLF (symbol 32/54)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLF composite_score=3.548
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to XLF: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to XLF: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for XLF: score=4.35, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: XLF score=4.35
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for NIO (symbol 33/54)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: NIO composite_score=4.038
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to NIO: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to NIO: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for NIO: score=4.84, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: NIO score=4.84
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for DIA (symbol 34/54)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: DIA composite_score=3.475
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to DIA: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for DIA: score=3.77, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: DIA score=3.77
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Skipping SPXW - not in UW cache
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for NFLX (symbol 35/54)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: NFLX composite_score=3.468
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to NFLX: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for NFLX: score=3.77, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: NFLX score=3.77
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for COP (symbol 36/54)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: COP composite_score=3.752
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to COP: +0.30 (sector=Energy, count=4)
+Apr 01 17:49:14 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to COP: +0.50 (count=6, whale_motif=True)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for COP: score=4.55, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: COP score=4.55
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for TGT (symbol 37/54)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: TGT composite_score=3.898
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to TGT: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to TGT: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for TGT: score=4.70, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: TGT score=4.70
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for COIN (symbol 38/54)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: COIN composite_score=4.189
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to COIN: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to COIN: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for COIN: score=4.99, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: COIN score=4.99
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for PFE (symbol 39/54)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: PFE composite_score=3.697
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to PFE: +0.30 (sector=Healthcare, count=4)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to PFE: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for PFE: score=4.50, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: PFE score=4.50
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for HD (symbol 40/54)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: HD composite_score=3.492
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to HD: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to HD: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for HD: score=4.29, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: HD score=4.29
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for MA (symbol 41/54)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: MA composite_score=2.027
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to MA: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to MA: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for MA: score=2.83, sentiment=BEARISH->bearish, threshold=2.70
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: MA score=2.83
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for SLB (symbol 42/54)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: SLB composite_score=3.737
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to SLB: +0.30 (sector=Energy, count=4)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to SLB: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for SLB: score=4.54, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: SLB score=4.54
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for GOOGL (symbol 43/54)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: GOOGL composite_score=3.452
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to GOOGL: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for GOOGL: score=3.75, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: GOOGL score=3.75
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for XOM (symbol 44/54)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XOM composite_score=3.567
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to XOM: +0.30 (sector=Energy, count=4)
+Apr 01 17:49:15 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to XOM: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for XOM: score=4.37, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: XOM score=4.37
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for SPY (symbol 45/54)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: SPY composite_score=3.435
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to SPY: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for SPY: score=3.73, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: SPY score=3.73
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for INTC (symbol 46/54)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: INTC composite_score=4.105
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to INTC: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to INTC: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for INTC: score=4.91, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: INTC score=4.91
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for XLK (symbol 47/54)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLK composite_score=3.761
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to XLK: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to XLK: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for XLK: score=4.56, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: XLK score=4.56
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for XLE (symbol 48/54)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: XLE composite_score=3.542
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to XLE: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for XLE: score=3.84, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: XLE score=3.84
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for SOFI (symbol 49/54)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: SOFI composite_score=4.240
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to SOFI: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to SOFI: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for SOFI: score=5.04, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: SOFI score=5.04
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for IWM (symbol 50/54)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: IWM composite_score=3.510
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to IWM: +0.30 (sector=ETF, count=10)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for IWM: score=3.81, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: IWM score=3.81
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for BAC (symbol 51/54)
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: BAC composite_score=3.569
+Apr 01 17:49:16 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to BAC: +0.30 (sector=Financial, count=12)
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for BAC: score=3.87, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: BAC score=3.87
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for RIVN (symbol 52/54)
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: RIVN composite_score=4.191
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to RIVN: +0.30 (sector=Consumer, count=10)
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to RIVN: +0.50 (count=6, whale_motif=True)
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for RIVN: score=4.99, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: RIVN score=4.99
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Computing composite score for AMD (symbol 53/54)
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: AMD composite_score=4.260
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Sector Tide boost applied to AMD: +0.30 (sector=Technology, count=10)
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Persistence boost applied to AMD: +0.50 (count=5, whale_motif=True)
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite signal ACCEPTED for AMD: score=5.06, sentiment=BULLISH->bullish, threshold=2.70
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Logged accepted signal to history: AMD score=5.06
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Using ONLY composite-scored clusters (53 clusters with scores), discarding 5 unscored flow_clusters
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite scoring complete: 53 symbols processed, 53 passed gate, 53 composite clusters, 5 flow clusters, 53 total clusters
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Composite filter complete, 53 clusters passed gate
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: Building confirm_map for 53 clusters
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG: About to call decide_and_execute with 53 clusters, regime=mixed
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG decide_and_execute: Processing 53 clusters (sorted by strength), stage=bootstrap
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AMD: Processing cluster - direction=bullish, initial_score=6.02, source=composite_v3
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG HOOD: Processing cluster - direction=bullish, initial_score=5.88, source=composite_v3
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG LCID: Processing cluster - direction=bullish, initial_score=5.88, source=composite_v3
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG SOFI: Processing cluster - direction=bullish, initial_score=5.88, source=composite_v3
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG RIVN: Processing cluster - direction=bullish, initial_score=5.84, source=composite_v3
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG COIN: Processing cluster - direction=bullish, initial_score=5.92, source=composite_v3
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG PLTR: Processing cluster - direction=bullish, initial_score=5.80, source=composite_v3
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG NVDA: Processing cluster - direction=bullish, initial_score=5.86, source=composite_v3
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG TSLA: Processing cluster - direction=bullish, initial_score=5.84, source=composite_v3
+Apr 01 17:49:17 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG INTC: Processing cluster - direction=bullish, initial_score=5.83, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG C: Processing cluster - direction=bullish, initial_score=5.80, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG GM: Processing cluster - direction=bullish, initial_score=5.76, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG NIO: Processing cluster - direction=bullish, initial_score=5.74, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG MRNA: Processing cluster - direction=bullish, initial_score=5.53, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG MSFT: Processing cluster - direction=bullish, initial_score=5.58, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG TGT: Processing cluster - direction=bullish, initial_score=5.49, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG MS: Processing cluster - direction=bullish, initial_score=5.54, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG META: Processing cluster - direction=bullish, initial_score=5.53, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG UNH: Processing cluster - direction=bullish, initial_score=5.40, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG GS: Processing cluster - direction=bullish, initial_score=5.42, source=composite_v3
+Apr 01 17:49:18 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:18,717 [CACHE-ENRICH] WARNING: sleep 3 seconds and retrying https://paper-api.alpaca.markets/v2/account 3 more time(s)...
+Apr 01 17:49:21 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG GS: expectancy=0.5378, should_trade=True, reason=expectancy_passed
+Apr 01 17:49:21 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG GS: PASSED expectancy gate, checking other gates...
+Apr 01 17:49:21 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG GS: PASSED ALL GATES! Calling submit_entry...
+Apr 01 17:49:21 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG GS: Side determined: buy, qty=1, ref_price=862.74
+Apr 01 17:49:22 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG GS: BLOCKED by order_validation: Order $862.74 exceeds max position size $825.00
+Apr 01 17:49:22 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLK: Processing cluster - direction=bullish, initial_score=5.41, source=composite_v3
+Apr 01 17:49:22 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG BLK: Processing cluster - direction=bullish, initial_score=5.42, source=composite_v3
+Apr 01 17:49:22 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG BLK: expectancy=0.5332, should_trade=True, reason=expectancy_passed
+Apr 01 17:49:22 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG BLK: PASSED expectancy gate, checking other gates...
+Apr 01 17:49:22 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:22,270 [CACHE-ENRICH] WARNING: sleep 3 seconds and retrying https://paper-api.alpaca.markets/v2/positions 3 more time(s)...
+Apr 01 17:49:23 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:23,965 [CACHE-ENRICH] INFO: Starting cache enrichment cycle
+Apr 01 17:49:24 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:24,245 [CACHE-ENRICH] INFO: Enriched 53 symbols, updated 0 with computed signals
+Apr 01 17:49:24 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:24,246 [CACHE-ENRICH] INFO: Cache enrichment complete: 53 symbols
+Apr 01 17:49:25 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG BLK: PASSED ALL GATES! Calling submit_entry...
+Apr 01 17:49:25 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG BLK: Side determined: buy, qty=1, ref_price=967.325
+Apr 01 17:49:25 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG BLK: BLOCKED by order_validation: Order $967.33 exceeds max position size $825.00
+Apr 01 17:49:25 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG COP: Processing cluster - direction=bullish, initial_score=5.43, source=composite_v3
+Apr 01 17:49:25 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG SLB: Processing cluster - direction=bullish, initial_score=5.38, source=composite_v3
+Apr 01 17:49:25 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG JPM: Processing cluster - direction=bullish, initial_score=5.37, source=composite_v3
+Apr 01 17:49:25 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG PFE: Processing cluster - direction=bullish, initial_score=5.26, source=composite_v3
+Apr 01 17:49:26 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CAT: Processing cluster - direction=bullish, initial_score=5.33, source=composite_v3
+Apr 01 17:49:26 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:26,042 [CACHE-ENRICH] WARNING: sleep 3 seconds and retrying https://paper-api.alpaca.markets/v2/account 3 more time(s)...
+Apr 01 17:49:28 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [heartbeat-keeper] /root/stock-bot/heartbeat_keeper.py:459: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+Apr 01 17:49:28 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [heartbeat-keeper]   result["_dt"] = datetime.utcnow().isoformat()
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG WFC: Processing cluster - direction=bullish, initial_score=5.25, source=composite_v3
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG WMT: Processing cluster - direction=bullish, initial_score=5.21, source=composite_v3
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG F: Processing cluster - direction=bullish, initial_score=5.22, source=composite_v3
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: Processing cluster - direction=bullish, initial_score=5.18, source=composite_v3
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: expectancy=0.4881, should_trade=True, reason=expectancy_passed
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: PASSED expectancy gate, checking other gates...
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:29,597 [CACHE-ENRICH] WARNING: sleep 3 seconds and retrying https://paper-api.alpaca.markets/v2/positions 3 more time(s)...
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: PASSED ALL GATES! Calling submit_entry...
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: Side determined: buy, qty=3, ref_price=160.14
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: ExecutionRouter selected strategy=twap_slice, spread_bps=20.0
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: Expected entry price computed: 159.98
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: About to call submit_entry with qty=3, side=buy, regime=mixed
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:33,428 [CACHE-ENRICH] WARNING: Trade rejected: XOM buy 3 - portfolio_exposure_exceeds_limit_31.44%_max_30.00%
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: submit_entry completed - res=False, order_type=trade_guard_blocked, entry_status=portfolio_exposure_exceeds_limit_31.44%_max_30.00%, filled_qty=0
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: submit_entry returned None - order submission failed (order_type=trade_guard_blocked, entry_status=portfolio_exposure_exceeds_limit_31.44%_max_30.00%)
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: Processing cluster - direction=bullish, initial_score=5.18, source=composite_v3
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: expectancy=0.4871, should_trade=True, reason=expectancy_passed
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: PASSED expectancy gate, checking other gates...
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: PASSED ALL GATES! Calling submit_entry...
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: Side determined: buy, qty=2, ref_price=254.995
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: ExecutionRouter selected strategy=twap_slice, spread_bps=20.0
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: Expected entry price computed: 254.74
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: About to call submit_entry with qty=2, side=buy, regime=mixed
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:33,996 [CACHE-ENRICH] WARNING: Trade rejected: AAPL buy 2 - portfolio_exposure_exceeds_limit_31.50%_max_30.00%
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: submit_entry completed - res=False, order_type=trade_guard_blocked, entry_status=portfolio_exposure_exceeds_limit_31.50%_max_30.00%, filled_qty=0
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG AAPL: submit_entry returned None - order submission failed (order_type=trade_guard_blocked, entry_status=portfolio_exposure_exceeds_limit_31.50%_max_30.00%)
+Apr 01 17:49:33 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: Processing cluster - direction=bullish, initial_score=5.16, source=composite_v3
+Apr 01 17:49:34 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: expectancy=0.4852, should_trade=True, reason=expectancy_passed
+Apr 01 17:49:34 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: PASSED expectancy gate, checking other gates...
+Apr 01 17:49:34 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:34,076 [CACHE-ENRICH] WARNING: sleep 3 seconds and retrying https://paper-api.alpaca.markets/v2/positions 3 more time(s)...
+Apr 01 17:49:36 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] ✅ DIAGNOSTIC: Alpaca API connected - Buying Power: $158,108.49, Equity: $47,322.32
+Apr 01 17:49:36 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] CRITICAL: Exit checker calling evaluate_exits()
+Apr 01 17:49:36 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:36,920 [CACHE-ENRICH] INFO: signal_open_position: evaluated AMD -> 4.2550
+Apr 01 17:49:36 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:36,939 [CACHE-ENRICH] INFO: signal_open_position: evaluated C -> 4.1180
+Apr 01 17:49:36 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:36,957 [CACHE-ENRICH] INFO: signal_open_position: evaluated CAT -> 3.9880
+Apr 01 17:49:36 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:36,976 [CACHE-ENRICH] INFO: signal_open_position: evaluated COIN -> 4.1850
+Apr 01 17:49:36 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:36,995 [CACHE-ENRICH] INFO: signal_open_position: evaluated COP -> 3.7480
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,013 [CACHE-ENRICH] INFO: signal_open_position: evaluated F -> 3.5740
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,032 [CACHE-ENRICH] INFO: signal_open_position: evaluated GM -> 4.0500
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,051 [CACHE-ENRICH] INFO: signal_open_position: evaluated HOOD -> 4.2360
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,070 [CACHE-ENRICH] INFO: signal_open_position: evaluated INTC -> 4.1010
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,091 [CACHE-ENRICH] INFO: signal_open_position: evaluated JPM -> 3.7590
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,112 [CACHE-ENRICH] INFO: signal_open_position: evaluated LCID -> 4.2370
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,133 [CACHE-ENRICH] INFO: signal_open_position: evaluated META -> 3.8480
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,154 [CACHE-ENRICH] INFO: signal_open_position: evaluated MRNA -> 3.9220
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,171 [CACHE-ENRICH] INFO: signal_open_position: evaluated MS -> 3.9270
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,191 [CACHE-ENRICH] INFO: signal_open_position: evaluated MSFT -> 3.9110
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,210 [CACHE-ENRICH] INFO: signal_open_position: evaluated NIO -> 4.0330
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,229 [CACHE-ENRICH] INFO: signal_open_position: evaluated NVDA -> 4.1220
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,248 [CACHE-ENRICH] INFO: signal_open_position: evaluated PFE -> 3.6930
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,267 [CACHE-ENRICH] INFO: signal_open_position: evaluated PLTR -> 4.1670
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,286 [CACHE-ENRICH] INFO: signal_open_position: evaluated RIVN -> 4.1860
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,306 [CACHE-ENRICH] INFO: signal_open_position: evaluated SLB -> 3.7320
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,324 [CACHE-ENRICH] INFO: signal_open_position: evaluated SOFI -> 4.2350
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,342 [CACHE-ENRICH] INFO: signal_open_position: evaluated TGT -> 3.8930
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,361 [CACHE-ENRICH] INFO: signal_open_position: evaluated TSLA -> 4.1000
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,382 [CACHE-ENRICH] INFO: signal_open_position: evaluated UNH -> 3.8080
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,400 [CACHE-ENRICH] INFO: signal_open_position: evaluated WFC -> 3.6230
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,419 [CACHE-ENRICH] INFO: signal_open_position: evaluated WMT -> 3.5880
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:37,437 [CACHE-ENRICH] INFO: signal_open_position: evaluated XLK -> 3.8110
+Apr 01 17:49:37 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG EXITS: LCID using Alpaca P&L: -0.0016% (entry=$9.60, current=$9.59)
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,176 [CACHE-ENRICH] INFO: signal_open_position: evaluated AMD -> 4.2550
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,195 [CACHE-ENRICH] INFO: signal_open_position: evaluated C -> 4.1180
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,212 [CACHE-ENRICH] INFO: signal_open_position: evaluated CAT -> 3.9870
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,231 [CACHE-ENRICH] INFO: signal_open_position: evaluated COIN -> 4.1840
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,253 [CACHE-ENRICH] INFO: signal_open_position: evaluated COP -> 3.7470
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,274 [CACHE-ENRICH] INFO: signal_open_position: evaluated F -> 3.5740
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,294 [CACHE-ENRICH] INFO: signal_open_position: evaluated GM -> 4.0490
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,315 [CACHE-ENRICH] INFO: signal_open_position: evaluated HOOD -> 4.2360
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,334 [CACHE-ENRICH] INFO: signal_open_position: evaluated INTC -> 4.1010
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,354 [CACHE-ENRICH] INFO: signal_open_position: evaluated JPM -> 3.7580
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,373 [CACHE-ENRICH] INFO: signal_open_position: evaluated LCID -> 4.2360
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,391 [CACHE-ENRICH] INFO: signal_open_position: evaluated META -> 3.8470
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,414 [CACHE-ENRICH] INFO: signal_open_position: evaluated MRNA -> 3.9220
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: PASSED ALL GATES! Calling submit_entry...
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: Side determined: buy, qty=3, ref_price=195.73
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,439 [CACHE-ENRICH] INFO: signal_open_position: evaluated MS -> 3.9260
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,459 [CACHE-ENRICH] INFO: signal_open_position: evaluated MSFT -> 3.9110
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,480 [CACHE-ENRICH] INFO: signal_open_position: evaluated NIO -> 4.0330
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,499 [CACHE-ENRICH] INFO: signal_open_position: evaluated NVDA -> 4.1220
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,519 [CACHE-ENRICH] INFO: signal_open_position: evaluated PFE -> 3.6920
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,545 [CACHE-ENRICH] INFO: signal_open_position: evaluated PLTR -> 4.1670
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,572 [CACHE-ENRICH] INFO: signal_open_position: evaluated RIVN -> 4.1860
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,598 [CACHE-ENRICH] INFO: signal_open_position: evaluated SLB -> 3.7320
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,625 [CACHE-ENRICH] INFO: signal_open_position: evaluated SOFI -> 4.2350
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,646 [CACHE-ENRICH] INFO: signal_open_position: evaluated TGT -> 3.8930
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,669 [CACHE-ENRICH] INFO: signal_open_position: evaluated TSLA -> 4.1000
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,692 [CACHE-ENRICH] INFO: signal_open_position: evaluated UNH -> 3.8080
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,713 [CACHE-ENRICH] INFO: signal_open_position: evaluated WFC -> 3.6220
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,732 [CACHE-ENRICH] INFO: signal_open_position: evaluated WMT -> 3.5880
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:38,754 [CACHE-ENRICH] INFO: signal_open_position: evaluated XLK -> 3.8110
+Apr 01 17:49:38 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG EXITS: LCID using Alpaca P&L: -0.0016% (entry=$9.60, current=$9.59)
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: ExecutionRouter selected strategy=twap_slice, spread_bps=20.0
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: Expected entry price computed: 195.55
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: About to call submit_entry with qty=3, side=buy, regime=mixed
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:39,167 [CACHE-ENRICH] WARNING: Trade rejected: CVX buy 3 - portfolio_exposure_exceeds_limit_31.66%_max_30.00%
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: submit_entry completed - res=False, order_type=trade_guard_blocked, entry_status=portfolio_exposure_exceeds_limit_31.66%_max_30.00%, filled_qty=0
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG CVX: submit_entry returned None - order submission failed (order_type=trade_guard_blocked, entry_status=portfolio_exposure_exceeds_limit_31.66%_max_30.00%)
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: Processing cluster - direction=bullish, initial_score=5.16, source=composite_v3
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: expectancy=0.4835, should_trade=True, reason=expectancy_passed
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: PASSED expectancy gate, checking other gates...
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: PASSED ALL GATES! Calling submit_entry...
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: Side determined: buy, qty=11, ref_price=49.62
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: ExecutionRouter selected strategy=twap_slice, spread_bps=20.0
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: Expected entry price computed: 49.57
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: About to call submit_entry with qty=11, side=buy, regime=mixed
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:39,781 [CACHE-ENRICH] WARNING: Trade rejected: XLF buy 11 - portfolio_exposure_exceeds_limit_31.57%_max_30.00%
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: submit_entry completed - res=False, order_type=trade_guard_blocked, entry_status=portfolio_exposure_exceeds_limit_31.57%_max_30.00%, filled_qty=0
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XLF: submit_entry returned None - order submission failed (order_type=trade_guard_blocked, entry_status=portfolio_exposure_exceeds_limit_31.57%_max_30.00%)
+Apr 01 17:49:39 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG V: Processing cluster - direction=bullish, initial_score=5.16, source=composite_v3

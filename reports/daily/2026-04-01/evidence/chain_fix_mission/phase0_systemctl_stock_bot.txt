@@ -1,0 +1,26 @@
+● stock-bot.service - Algorithmic Trading Bot
+     Loaded: loaded (/etc/systemd/system/stock-bot.service; enabled; preset: enabled)
+    Drop-In: /etc/systemd/system/stock-bot.service.d
+             └─override.conf, paper-overlay.conf, truth.conf
+     Active: active (running) since Wed 2026-04-01 17:45:01 UTC; 4min 28s ago
+   Main PID: 1843745 (systemd_start.s)
+      Tasks: 33 (limit: 9483)
+     Memory: 617.2M (peak: 627.0M)
+        CPU: 1min 6.775s
+     CGroup: /system.slice/stock-bot.service
+             ├─1843745 /bin/bash /root/stock-bot/systemd_start.sh
+             ├─1843749 /root/stock-bot/venv/bin/python deploy_supervisor.py
+             ├─1843756 /root/stock-bot/venv/bin/python -u dashboard.py
+             ├─1843819 /root/stock-bot/venv/bin/python -u main.py
+             └─1843888 /root/stock-bot/venv/bin/python heartbeat_keeper.py
+
+Apr 01 17:49:26 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:26,042 [CACHE-ENRICH] WARNING: sleep 3 seconds and retrying https://paper-api.alpaca.markets/v2/account 3 more time(s)...
+Apr 01 17:49:28 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [heartbeat-keeper] /root/stock-bot/heartbeat_keeper.py:459: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+Apr 01 17:49:28 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [heartbeat-keeper]   result["_dt"] = datetime.utcnow().isoformat()
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG WFC: Processing cluster - direction=bullish, initial_score=5.25, source=composite_v3
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG WMT: Processing cluster - direction=bullish, initial_score=5.21, source=composite_v3
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG F: Processing cluster - direction=bullish, initial_score=5.22, source=composite_v3
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: Processing cluster - direction=bullish, initial_score=5.18, source=composite_v3
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: expectancy=0.4881, should_trade=True, reason=expectancy_passed
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] DEBUG XOM: PASSED expectancy gate, checking other gates...
+Apr 01 17:49:29 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1843749]: [trading-bot] 2026-04-01 17:49:29,597 [CACHE-ENRICH] WARNING: sleep 3 seconds and retrying https://paper-api.alpaca.markets/v2/positions 3 more time(s)...
