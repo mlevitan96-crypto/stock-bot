@@ -1,5 +1,6 @@
 {
   "enabled": true,
+  "strict_chain_backfill_before_strict_gate": true,
   "milestone_counting_basis": "integrity_armed",
   "checkpoint_100_enabled": true,
   "checkpoint_100_trade_count": 100,

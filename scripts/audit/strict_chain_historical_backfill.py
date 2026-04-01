@@ -96,23 +96,34 @@ def _components_from_exit(ex: dict) -> Dict[str, float]:
     return out
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--root", type=Path, default=Path("."))
-    ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--max-trades", type=int, default=5000)
-    args = ap.parse_args()
-    root = args.root.resolve()
+def apply_strict_chain_backfill(
+    root: Path,
+    *,
+    dry_run: bool = False,
+    max_trades: int = 5000,
+) -> Dict[str, Any]:
+    """
+    Idempotent strict_backfill_* repair from exit_attribution.jsonl.
+    Safe for periodic / in-process calls (e.g. integrity cycle before strict gate).
+    Returns metadata dict; does not print (CLI main() prints).
+    """
+    root = root.resolve()
     logs = root / "logs"
-    sys.path.insert(0, str(root))
+    rpath = str(root)
+    if rpath not in sys.path:
+        sys.path.insert(0, rpath)
 
     exit_path = logs / "exit_attribution.jsonl"
     run_bf = logs / "strict_backfill_run.jsonl"
     ord_bf = logs / "strict_backfill_orders.jsonl"
 
     if not exit_path.is_file():
-        print("missing", exit_path)
-        return 1
+        return {
+            "ok": False,
+            "applied": 0,
+            "dry_run": dry_run,
+            "exit_attribution_missing": True,
+        }
 
     have_bf = _load_jsonl_event_types(run_bf, {"entry_decision_made", "trade_intent"})
     have_edm = set(have_bf.get("entry_decision_made", set()))
@@ -130,7 +141,7 @@ def main() -> int:
 
     with exit_path.open(encoding="utf-8", errors="replace") as f:
         for line in f:
-            if applied >= args.max_trades:
+            if applied >= max_trades:
                 break
             line = line.strip()
             if not line:
@@ -204,14 +215,12 @@ def main() -> int:
                 print("skip_build_edm", tid, e)
                 continue
 
-            if args.dry_run:
-                print("would_backfill", tid, tk)
+            if dry_run:
                 applied += 1
                 continue
 
             run_lines: List[dict] = []
 
-            # Intent vs fill mapping (strict alias expansion) when equal still helps auditors; emit self-map if equal
             run_lines.append(
                 {
                     "event_type": "canonical_trade_id_resolved",
@@ -295,7 +304,27 @@ def main() -> int:
             have_ti.add(str(tid))
             applied += 1
 
-    print("backfill_count", applied, "dry_run" if args.dry_run else "applied")
+    return {
+        "ok": True,
+        "applied": applied,
+        "dry_run": dry_run,
+        "exit_attribution_missing": False,
+    }
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--root", type=Path, default=Path("."))
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--max-trades", type=int, default=5000)
+    args = ap.parse_args()
+    meta = apply_strict_chain_backfill(
+        args.root, dry_run=args.dry_run, max_trades=args.max_trades
+    )
+    if meta.get("exit_attribution_missing"):
+        print("missing", args.root.resolve() / "logs" / "exit_attribution.jsonl")
+        return 1
+    print("backfill_count", meta["applied"], "dry_run" if args.dry_run else "applied")
     return 0
 
 
