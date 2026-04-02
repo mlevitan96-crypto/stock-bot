@@ -1,0 +1,13 @@
+[Unit]
+Description=Process paper_exec_pending (PASSIVE_THEN_CROSS worker; paper gateway enforced in script)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/stock-bot
+EnvironmentFile=-/root/stock-bot/.env
+ExecStart=/usr/bin/python3 /root/stock-bot/scripts/paper_exec_mode_worker.py --root /root/stock-bot --once
+User=root
+
+[Install]
+WantedBy=multi-user.target
