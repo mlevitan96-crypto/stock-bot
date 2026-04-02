@@ -41,11 +41,11 @@ def main() -> int:
 
     # --- Phase 0 ---
     chunks: Dict[str, str] = {}
-    chunks["git_head"], _ = _run("git rev-parse HEAD", root)
-    chunks["systemctl_status"], _ = _run("systemctl status stock-bot --no-pager 2>&1 | head -n 80", root)
-    chunks["systemctl_cat"], _ = _run("systemctl cat stock-bot 2>&1", root)
-    chunks["systemctl_show"], _ = _run("systemctl show stock-bot -p Environment -p EnvironmentFiles 2>&1", root)
-    chunks["journal_tail"], _ = _run('journalctl -u stock-bot --since "24 hours ago" --no-pager 2>&1 | tail -n 800', root)
+    _, chunks["git_head"] = _run("git rev-parse HEAD", root)
+    _, chunks["systemctl_status"] = _run("systemctl status stock-bot --no-pager 2>&1 | head -n 80", root)
+    _, chunks["systemctl_cat"] = _run("systemctl cat stock-bot 2>&1", root)
+    _, chunks["systemctl_show"] = _run("systemctl show stock-bot -p Environment -p EnvironmentFiles 2>&1", root)
+    _, chunks["journal_tail"] = _run('journalctl -u stock-bot --since "24 hours ago" --no-pager 2>&1 | tail -n 800', root)
 
     drop_ins = _run("ls /etc/systemd/system/stock-bot.service.d/*.conf 2>/dev/null", root)[1]
     drop_content = ""
