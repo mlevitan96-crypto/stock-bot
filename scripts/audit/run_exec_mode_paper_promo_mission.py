@@ -285,21 +285,25 @@ def main() -> int:
         "arm_b_fill_rate_proxy": round(len(b_filled) / len(b_rows), 6) if b_rows else None,
         "exit_attribution_bucket_even_hour_marketable_proxy": arm_stats(pnl_a, "A_proxy_even_ET_hour"),
         "exit_attribution_bucket_odd_hour_treatment_proxy": arm_stats(pnl_b, "B_proxy_odd_ET_hour"),
-        "caveat": "Exit-attribution A/B buckets use ET hour parity as proxy for schedule; confounding if promo not on full window.",
+        "caveat": "Exit-attribution A/B buckets use ET hour parity as proxy for schedule; valid only when PAPER_EXEC_PROMO_ENABLED ran full window.",
+        "promo_runtime_rows_seen": len(rows),
     }
 
-    # Gates
+    # Gates: only when promo runtime produced JSONL (else parity buckets are not causal A/B).
     fail = False
     fail_reasons: List[str] = []
     br = eval_json.get("arm_b_fill_rate_proxy")
     p05a = eval_json["exit_attribution_bucket_even_hour_marketable_proxy"].get("p05_pnl_per_trade")
     p05b = eval_json["exit_attribution_bucket_odd_hour_treatment_proxy"].get("p05_pnl_per_trade")
-    if len(pnl_b) >= 5 and p05a is not None and p05b is not None and float(p05b) < float(p05a) - 0.5:
-        fail = True
-        fail_reasons.append("B_tail_p05_worse_than_A_by_threshold_0_5")
-    if len(b_rows) >= 5 and br is not None and float(br) < 0.85:
+    promo_runtime = len(rows) >= 1
+    if not promo_runtime:
+        fail_reasons.append("NO_PAPER_EXEC_JSONL_YET_ENABLE_PROMO_AND_RE_RUN")
+    if promo_runtime and len(b_rows) >= 5 and br is not None and float(br) < 0.85:
         fail = True
         fail_reasons.append("B_fill_rate_below_0_85")
+    if promo_runtime and len(pnl_b) >= 5 and p05a is not None and p05b is not None and float(p05b) < float(p05a) - 0.5:
+        fail = True
+        fail_reasons.append("B_tail_p05_worse_than_A_by_threshold_0_5")
     if len(pnl_a) < 3 and len(pnl_b) < 3:
         fail_reasons.append("INSUFFICIENT_EXIT_ROWS_FOR_GATE_NOTE_ONLY")
 
