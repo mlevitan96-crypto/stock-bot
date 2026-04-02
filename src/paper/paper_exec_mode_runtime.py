@@ -196,7 +196,7 @@ def try_paper_exec_ab_entry(
     effective_regime: str,
 ) -> Optional[Tuple[Any, Any, str, int, str]]:
     try:
-        from config import Config
+        from main import Config
     except Exception:
         return None
 
