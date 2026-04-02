@@ -446,6 +446,30 @@ def main() -> int:
         if tp is not None:
             tail_note = f"p05 delta (best - P0): {round(float(tp) - float(p0p05), 6)}"
 
+    ttl_part = ""
+    if best_k and "|ttl=" in str(best_k):
+        ttl_part = str(best_k).split("|ttl=", 1)[-1]
+    if best_k and str(best_k).startswith("P0_MARKETABLE"):
+        action_line = (
+            "**Action:** Keep **P0_MARKETABLE** proxy as default in **paper** replay; no router change — test-day heuristic "
+            f"did not prefer an alternative on `{best_k}`.\n\n"
+            f"**Evidence policy id:** `{best_k}`\n\n"
+        )
+    elif best_k and str(best_k).startswith("P1_PASSIVE_MID") and ttl_part.isdigit():
+        action_line = (
+            f"**Action:** Enable **PASSIVE_MID** with **TTL={ttl_part}** in the **paper** router **only** for symbols in "
+            "`EXEC_MODE_UNIVERSE_TOP20_LAST3D.json` — **offline replay first**; no live executor change until board sign-off.\n\n"
+        )
+    elif best_k and str(best_k).startswith("P2_PASSIVE_THEN_CROSS") and ttl_part.isdigit():
+        action_line = (
+            f"**Action:** Enable **PASSIVE_THEN_CROSS** with **TTL={ttl_part}** in the **paper** router **only** for symbols in "
+            "`EXEC_MODE_UNIVERSE_TOP20_LAST3D.json` — **offline replay first**; no live executor change until board sign-off.\n\n"
+        )
+    else:
+        action_line = (
+            f"**Action:** Review `{best_k}` offline; no automated router lever until policy id is mapped to a paper flag.\n\n"
+        )
+
     verdict_md = [
         "# EXEC_MODE_FINAL_VERDICT\n\n",
         f"- **Best policy (test-day mean PnL heuristic):** `{best_k}`\n",
@@ -453,10 +477,9 @@ def main() -> int:
         f"- **Profit delta / day (approx):** `{delta_day}` USD vs P0 × test-day trade count n={n_day} (heuristic; policies may differ in fill_rate)\n",
         f"- **Tail-risk note:** {tail_note}\n\n",
         "## ONE paper-only action contract\n\n",
-        "**Action:** Enable **PASSIVE_THEN_CROSS** with **TTL=2** in the **paper** router **only** for symbols in "
-        f"`EXEC_MODE_UNIVERSE_TOP20_LAST3D.json` — **offline replay first**; no live executor change until board sign-off.\n\n"
+        action_line,
         "**Kill criteria:** Test-day mean_pnl below P0 by >X USD/trade over two subsequent ET weeks **or** fill_rate < 0.85 "
-        "in paper replay.\n\n"
+        "in paper replay (adjust X with governance).\n\n"
         "**Rollback:** Remove policy flag; revert to marketable proxy; archive this evidence bundle.\n",
     ]
     (ev / "EXEC_MODE_FINAL_VERDICT.md").write_text("".join(verdict_md), encoding="utf-8")
