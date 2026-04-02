@@ -42,8 +42,9 @@ def main() -> int:
     )
     assert ok1 and not r1
 
+    # After first leg gross=300; need new_gross > max_gross_usd (1000) => add >700
     ok2, r2, _ = enforce_paper_caps(
-        intent={"symbol": "MSFT", "side": "long", "intended_notional_usd": 500.0, "ts": t0},
+        intent={"symbol": "MSFT", "side": "long", "intended_notional_usd": 800.0, "ts": t0},
         state=st,
         caps=caps,
     )
