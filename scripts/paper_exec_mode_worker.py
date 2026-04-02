@@ -220,9 +220,8 @@ def run_batch(root: Path) -> int:
         except Exception:
             pass
 
-    from config import Config
+    from main import AlpacaExecutor, Config
     from src.paper.paper_exec_mode_runtime import load_done_pretrade_keys, load_pending_rows, strict_paper_gateway
-    from main import AlpacaExecutor
 
     done_keys = load_done_pretrade_keys()
     pending = load_pending_rows()
