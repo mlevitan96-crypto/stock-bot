@@ -277,6 +277,12 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    for stale in ("PAPER_CAPS_BLOCKER_VERIFY_FAILED.md", "PAPER_EXTENSION_BLOCKER_EVAL_FAILED.md"):
+        try:
+            (ev / stale).unlink(missing_ok=True)
+        except OSError:
+            pass
+
     print(json.dumps({"evidence_dir": str(ev), "ok": True}))
     return 0
 
