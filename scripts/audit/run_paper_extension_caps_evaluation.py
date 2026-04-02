@@ -13,6 +13,7 @@ import argparse
 import importlib.util
 import json
 import os
+import sys
 import statistics
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -295,10 +296,24 @@ def main() -> int:
     ap.add_argument("--evidence-et", required=True)
     ap.add_argument("--root", type=Path, default=REPO)
     ap.add_argument("--log-cap-decisions", action="store_true")
+    ap.add_argument(
+        "--counterfactual-json",
+        type=Path,
+        default=None,
+        help="Override path to BLOCKED_COUNTERFACTUAL_PNL_FULL.json (default: evidence dir)",
+    )
     args = ap.parse_args()
     root = args.root.resolve()
     ev = root / "reports" / "daily" / args.evidence_et / "evidence"
-    cf_path = ev / "BLOCKED_COUNTERFACTUAL_PNL_FULL.json"
+    cf_path = (args.counterfactual_json or (ev / "BLOCKED_COUNTERFACTUAL_PNL_FULL.json")).resolve()
+    if not cf_path.is_file():
+        print(
+            "Missing counterfactual JSON at %s — generate read-only via:\n"
+            "  PYTHONPATH=. python3 scripts/audit/run_blocked_why_pipeline.py --root %s --evidence-et %s"
+            % (cf_path, root, args.evidence_et),
+            file=sys.stderr,
+        )
+        return 2
     bars_path = root / "artifacts" / "market_data" / "alpaca_bars.jsonl"
 
     data = json.loads(cf_path.read_text(encoding="utf-8"))
