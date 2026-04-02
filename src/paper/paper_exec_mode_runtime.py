@@ -1,8 +1,7 @@
 """
 Paper-only execution promo: PASSIVE_THEN_CROSS vs MARKETABLE A/B (hour-sliced).
 
-Called only from AlpacaExecutor.submit_entry when strict paper gateway is on.
-Never call from live paths. Uses executor._submit_order_guarded (paper API only when Config is paper).
+B arm: enqueue pending to state/paper_exec_pending.jsonl (non-blocking); worker completes TTL + cross.
 """
 
 from __future__ import annotations
@@ -10,13 +9,26 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Set, Tuple
 
 _REPO = Path(__file__).resolve().parents[2]
 _LOG_PATH = _REPO / "logs" / "paper_exec_mode_decisions.jsonl"
+_PENDING_PATH = _REPO / "state" / "paper_exec_pending.jsonl"
+_DONE_PATH = _REPO / "state" / "paper_exec_done.jsonl"
+
+
+def pending_path() -> Path:
+    return _PENDING_PATH
+
+
+def done_path() -> Path:
+    return _DONE_PATH
+
+
+def decisions_log_path() -> Path:
+    return _LOG_PATH
 
 
 def _strict_paper_gateway(config: Any) -> bool:
@@ -33,7 +45,11 @@ def _strict_paper_gateway(config: Any) -> bool:
         return False
 
 
-def _fail_closed() -> bool:
+def strict_paper_gateway(config: Any) -> bool:
+    return _strict_paper_gateway(config)
+
+
+def fail_closed() -> bool:
     return os.environ.get("PAPER_EXEC_FAIL_CLOSED", "1").strip() == "1"
 
 
@@ -68,11 +84,6 @@ def _load_universe_symbols() -> Set[str]:
 
 
 def ab_arm_marketable_vs_treatment() -> str:
-    """
-    Fixed schedule: even America/New_York hour -> A (MARKETABLE baseline path).
-    Odd ET hour -> B (PASSIVE_THEN_CROSS).
-    Override: PAPER_EXEC_AB_FORCE=marketable|passive_then_cross
-    """
     force = os.environ.get("PAPER_EXEC_AB_FORCE", "").strip().lower()
     if force in ("marketable", "m", "a"):
         return "MARKETABLE"
@@ -87,12 +98,12 @@ def ab_arm_marketable_vs_treatment() -> str:
     return "MARKETABLE" if (h % 2 == 0) else "PASSIVE_THEN_CROSS"
 
 
-def _pretrade_key(symbol: str, side: str, ts_iso: str, mode: str) -> str:
+def pretrade_key(symbol: str, side: str, ts_iso: str, mode: str) -> str:
     raw = f"{symbol}|{side}|{ts_iso}|{mode}"
     return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
 
-def _append_log(row: Dict[str, Any]) -> None:
+def append_paper_exec_decision(row: Dict[str, Any]) -> None:
     try:
         _LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with _LOG_PATH.open("a", encoding="utf-8") as f:
@@ -101,8 +112,64 @@ def _append_log(row: Dict[str, Any]) -> None:
         pass
 
 
+def append_paper_exec_pending(row: Dict[str, Any]) -> None:
+    try:
+        _PENDING_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _PENDING_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row, default=str) + "\n")
+    except Exception:
+        pass
+
+
+def append_paper_exec_done(row: Dict[str, Any]) -> None:
+    try:
+        _DONE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _DONE_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row, default=str) + "\n")
+    except Exception:
+        pass
+
+
+def load_done_pretrade_keys() -> Set[str]:
+    keys: Set[str] = set()
+    if not _DONE_PATH.is_file():
+        return keys
+    with _DONE_PATH.open("r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                o = json.loads(line)
+                pk = o.get("pretrade_key")
+                if pk:
+                    keys.add(str(pk))
+            except json.JSONDecodeError:
+                continue
+    return keys
+
+
+def load_pending_rows() -> list:
+    rows = []
+    if not _PENDING_PATH.is_file():
+        return rows
+    with _PENDING_PATH.open("r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return rows
+
+
+def _append_log(row: Dict[str, Any]) -> None:
+    append_paper_exec_decision(row)
+
+
 def _decision_close_from_1m_bars(api: Any, symbol: str) -> Optional[Tuple[float, str]]:
-    """Returns (decision_close, bar_ts_iso) using second-to-last completed bar close."""
     try:
         raw = api.get_bars(symbol, "1Min", limit=8)
         df = getattr(raw, "df", None)
@@ -128,10 +195,6 @@ def try_paper_exec_ab_entry(
     entry_score: Optional[float],
     effective_regime: str,
 ) -> Optional[Tuple[Any, Any, str, int, str]]:
-    """
-    Returns None -> caller continues normal submit_entry.
-    Returns tuple -> same as submit_entry success path.
-    """
     try:
         from config import Config
     except Exception:
@@ -165,17 +228,16 @@ def try_paper_exec_ab_entry(
                 "fill_ts": None,
                 "fill_price": None,
                 "cross_event": False,
-                "pretrade_key": _pretrade_key(sym, side, ts0, "A"),
+                "pretrade_key": pretrade_key(sym, side, ts0, "A"),
                 "entry_score": entry_score,
                 "regime": effective_regime,
             }
         )
         return None
 
-    # B: PASSIVE_THEN_CROSS (real limit wait + market cross on Alpaca paper)
     dc = _decision_close_from_1m_bars(executor.api, sym)
     if dc is None:
-        if _fail_closed():
+        if fail_closed():
             _append_log(
                 {
                     "ts": ts0,
@@ -185,7 +247,7 @@ def try_paper_exec_ab_entry(
                     "ab_arm": "B",
                     "ttl": ttl,
                     "error": "no_bars_for_decision_close",
-                    "pretrade_key": _pretrade_key(sym, side, ts0, "B_FAIL"),
+                    "pretrade_key": pretrade_key(sym, side, ts0, "B_FAIL"),
                 }
             )
             return None, None, "paper_exec_fail_closed", 0, "paper_exec_no_bars"
@@ -202,16 +264,10 @@ def try_paper_exec_ab_entry(
     limit_px = normalize_equity_limit_price(decision_close)
     cob = (client_order_id_base or f"pexec-{sym}")[:48]
     lim_cid = f"{cob}-pexec-lim"
+    pk = pretrade_key(sym, side, ts0, "B_PENDING")
 
-    cross_event = False
-    fill_ts: Optional[str] = None
-    fill_price: Optional[float] = None
-    fill_model = "P2_passive"
-    o: Any = None
-    filled_qty = 0
-
+    q_submit = max(1, int(round(float(qty))))
     try:
-        q_submit = max(1, int(round(float(qty))))
         o = executor._submit_order_guarded(
             symbol=sym,
             qty=q_submit,
@@ -220,106 +276,39 @@ def try_paper_exec_ab_entry(
             time_in_force="day",
             limit_price=limit_px,
             client_order_id=lim_cid,
-            caller="paper_exec_mode:passive_limit",
+            caller="paper_exec_mode:passive_limit_enqueue",
             extended_hours=False,
         )
         oid = getattr(o, "id", None) if o is not None else None
         if not oid:
             raise RuntimeError("no_order_id_limit")
 
-        deadline = time.time() + float(ttl * 60)
-        while time.time() < deadline:
-            filled, fq, fp = executor.check_order_filled(oid, max_wait_sec=4.0)
-            if filled and fq > 0 and fp and fp > 0:
-                fill_ts = datetime.now(timezone.utc).isoformat()
-                fill_price = float(fp)
-                filled_qty = int(fq)
-                break
-            time.sleep(3.0)
-
-        if fill_ts:
-            _append_log(
-                {
-                    "ts": ts0,
-                    "symbol": sym,
-                    "side": side,
-                    "mode": "PASSIVE_THEN_CROSS",
-                    "ab_arm": "B",
-                    "ttl": ttl,
-                    "decision_price_ref": f"decision_bar_close:{bar_ts}",
-                    "decision_close": limit_px,
-                    "fill_model": fill_model,
-                    "fill_ts": fill_ts,
-                    "fill_price": fill_price,
-                    "cross_event": False,
-                    "pretrade_key": _pretrade_key(sym, side, ts0, "B_PASSIVE"),
-                    "entry_score": entry_score,
-                    "regime": effective_regime,
-                }
-            )
-            return o, fill_price, "limit", filled_qty, "filled"
-
-        try:
-            executor.api.cancel_order(oid)
-        except Exception:
-            pass
-
-        cross_event = True
-        fill_model = "P2_cross_market"
-        mkt_cid = f"{cob}-pexec-mkt"
-        o2 = executor._submit_order_guarded(
-            symbol=sym,
-            qty=q_submit,
-            side=side,
-            order_type="market",
-            time_in_force="day",
-            client_order_id=mkt_cid,
-            caller="paper_exec_mode:cross_market",
-            extended_hours=False,
-        )
-        oid2 = getattr(o2, "id", None) if o2 is not None else None
-        if not oid2:
-            raise RuntimeError("no_order_id_market")
-        filled, fq, fp = executor.check_order_filled(oid2, max_wait_sec=15.0)
-        if filled and fq > 0 and fp and fp > 0:
-            fill_ts = datetime.now(timezone.utc).isoformat()
-            fill_price = float(fp)
-            filled_qty = int(fq)
-            _append_log(
-                {
-                    "ts": ts0,
-                    "symbol": sym,
-                    "side": side,
-                    "mode": "PASSIVE_THEN_CROSS",
-                    "ab_arm": "B",
-                    "ttl": ttl,
-                    "decision_price_ref": f"decision_bar_close:{bar_ts}",
-                    "decision_close": limit_px,
-                    "fill_model": fill_model,
-                    "fill_ts": fill_ts,
-                    "fill_price": fill_price,
-                    "cross_event": True,
-                    "pretrade_key": _pretrade_key(sym, side, ts0, "B_CROSS"),
-                    "entry_score": entry_score,
-                    "regime": effective_regime,
-                }
-            )
-            return o2, fill_price, "market", filled_qty, "filled"
-
-        _append_log(
+        enq_ts = datetime.now(timezone.utc)
+        deadline = enq_ts + timedelta(minutes=float(ttl))
+        append_paper_exec_pending(
             {
+                "pretrade_key": pk,
                 "ts": ts0,
+                "enqueued_ts": enq_ts.isoformat(),
                 "symbol": sym,
                 "side": side,
-                "mode": "PASSIVE_THEN_CROSS",
+                "qty": q_submit,
+                "ttl_minutes": ttl,
+                "limit_px": limit_px,
+                "order_id": str(oid),
+                "client_order_id_lim": lim_cid,
+                "client_order_id_base": cob,
+                "decision_price_ref": f"decision_bar_close:{bar_ts}",
+                "bars_ref": "1Min_df_iloc_-2_close",
+                "deadline_iso": deadline.isoformat(),
+                "deadline_epoch": deadline.timestamp(),
                 "ab_arm": "B",
-                "ttl": ttl,
-                "error": "market_not_filled",
-                "cross_event": True,
-                "pretrade_key": _pretrade_key(sym, side, ts0, "B_FAIL"),
+                "entry_score": entry_score,
+                "regime": effective_regime,
+                "synthetic": False,
             }
         )
-        return o2, None, "market", 0, "submitted_unfilled"
+        return o, None, "limit", 0, "submitted_unfilled"
     except Exception as e:
         _append_log(
             {
@@ -330,10 +319,9 @@ def try_paper_exec_ab_entry(
                 "ab_arm": "B",
                 "ttl": ttl,
                 "error": str(e)[:500],
-                "cross_event": cross_event,
-                "pretrade_key": _pretrade_key(sym, side, ts0, "B_EXC"),
+                "pretrade_key": pretrade_key(sym, side, ts0, "B_EXC"),
             }
         )
-        if _fail_closed():
+        if fail_closed():
             return None, None, "paper_exec_error", 0, str(e)[:200]
         return None
