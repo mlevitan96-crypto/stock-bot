@@ -287,13 +287,34 @@ def _pnl_usd_session(ex_w: List[dict]) -> Tuple[Optional[float], int]:
     return total, n
 
 
-def _send_telegram(text: str, *, dry_run: bool) -> bool:
+def _telegram_integrity_only_mode() -> bool:
+    """Matches scripts/alpaca_telegram.send_governance_telegram gate (post-close is not allowlisted)."""
+    v = (os.environ.get("TELEGRAM_GOVERNANCE_INTEGRITY_ONLY", "0") or "").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
+def _send_telegram(text: str, *, dry_run: bool) -> Tuple[bool, bool]:
+    """
+    Attempt Telegram send for post-close body.
+
+    Returns (ok_for_process_exit, suppressed_integrity_only).
+    When TELEGRAM_GOVERNANCE_INTEGRITY_ONLY=1 (droplet post-close unit), the API is blocked by
+    policy — treat as success so reports/audit still land and the failure pager does not fire.
+    """
     from scripts.alpaca_telegram import send_governance_telegram
 
     if dry_run:
         print("--- DRY-RUN (no Telegram HTTP) ---\n", text, "\n--- end ---", flush=True)
-        return True
-    return send_governance_telegram(text, script_name="postclose_deepdive")
+        return (True, False)
+    if _telegram_integrity_only_mode():
+        print(
+            "Telegram skipped: TELEGRAM_GOVERNANCE_INTEGRITY_ONLY=1 "
+            "(post-close is not on the integrity allowlist; reports + audit still written).",
+            flush=True,
+        )
+        return (True, True)
+    ok = send_governance_telegram(text, script_name="postclose_deepdive")
+    return (bool(ok), False)
 
 
 def _format_daily_alpaca_telegram(
@@ -569,25 +590,25 @@ def main() -> int:
             no_new_data=True,
             report_names=("no_new_md_refresh", "watermark_unchanged"),
         )
-        ok = _send_telegram(tg_body, dry_run=args.dry_run)
+        ok, suppressed_io = _send_telegram(tg_body, dry_run=args.dry_run)
         if not ok:
             print("STOP — Telegram send failed (verify credentials and requests).", file=sys.stderr)
             return 5
         live_ok = bool(not args.dry_run and ok)
         mh = _message_hash_sha256(tg_body)
-        _append_telegram_audit(
-            rep,
-            {
-                "session_date_et": session_iso,
-                "dry_run": args.dry_run,
-                "dedupe_skip": False,
-                "success": live_ok,
-                "telegram_ok": live_ok,
-                "message_hash": mh,
-                "message_kind": "no_new_data",
-                "no_new_data": True,
-            },
-        )
+        rec_no_new: Dict[str, Any] = {
+            "session_date_et": session_iso,
+            "dry_run": args.dry_run,
+            "dedupe_skip": False,
+            "success": live_ok,
+            "telegram_ok": live_ok,
+            "message_hash": mh,
+            "message_kind": "no_new_data",
+            "no_new_data": True,
+        }
+        if suppressed_io:
+            rec_no_new["telegram_suppressed_integrity_only"] = True
+        _append_telegram_audit(rep, rec_no_new)
         print("no_new_data:", fp_now, flush=True)
         return 0
 
@@ -755,27 +776,27 @@ def main() -> int:
         no_new_data=False,
         report_names=(out_deep.name, out_sum.name),
     )
-    ok = _send_telegram(tg_body, dry_run=args.dry_run)
+    ok, suppressed_io = _send_telegram(tg_body, dry_run=args.dry_run)
     if not ok:
         print("STOP — Telegram send failed (verify credentials and requests).", file=sys.stderr)
         return 5
     live_ok = bool(not args.dry_run and ok)
     mh = _message_hash_sha256(tg_body)
-    _append_telegram_audit(
-        rep,
-        {
-            "session_date_et": session_iso,
-            "dry_run": args.dry_run,
-            "dedupe_skip": False,
-            "success": live_ok,
-            "telegram_ok": live_ok,
-            "message_hash": mh,
-            "message_kind": "full_deepdive",
-            "no_new_data": False,
-            "report_deep": str(out_deep),
-            "report_summary": str(out_sum),
-        },
-    )
+    rec_full: Dict[str, Any] = {
+        "session_date_et": session_iso,
+        "dry_run": args.dry_run,
+        "dedupe_skip": False,
+        "success": live_ok,
+        "telegram_ok": live_ok,
+        "message_hash": mh,
+        "message_kind": "full_deepdive",
+        "no_new_data": False,
+        "report_deep": str(out_deep),
+        "report_summary": str(out_sum),
+    }
+    if suppressed_io:
+        rec_full["telegram_suppressed_integrity_only"] = True
+    _append_telegram_audit(rep, rec_full)
 
     print("ALPACA_POSTCLOSE_DEEPDIVE:", out_deep)
     print("ALPACA_POSTCLOSE_SUMMARY:", out_sum)
