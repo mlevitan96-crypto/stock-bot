@@ -5109,6 +5109,28 @@ class AlpacaExecutor:
             _mock = self._create_mock_order(fake_id, symbol, qty, side, "limit", limit_price or ref_price) if self._create_mock_order else type("_MockOrder", (), {"id": fake_id})()
             return _mock, ref_price, "limit", qty, "dry_run"
 
+        # Paper-only A/B execution promo (PASSIVE_THEN_CROSS vs baseline); gated by env + universe. Never arms for live.
+        try:
+            from src.paper.paper_exec_mode_runtime import try_paper_exec_ab_entry
+
+            _pe_res = try_paper_exec_ab_entry(
+                self,
+                symbol,
+                qty,
+                side,
+                ref_price,
+                client_order_id_base=client_order_id_base,
+                entry_score=entry_score,
+                effective_regime=effective_regime,
+            )
+            if _pe_res is not None:
+                return _pe_res
+        except Exception as _pe_ex:
+            try:
+                log_event("paper_exec_promo", "hook_error", symbol=symbol, error=str(_pe_ex)[:300])
+            except Exception:
+                pass
+
         if limit_price is not None and Config.ENTRY_POST_ONLY:
             for attempt in range(1, Config.ENTRY_MAX_RETRIES + 1):
                 try:
@@ -9565,6 +9587,32 @@ class StrategyEngine:
                                           uw_signal_quality_score=uw_details.get("uw_signal_quality_score") if uw_details else None,
                                           uw_edge_suppression_rate=uw_details.get("uw_edge_suppression_rate") if uw_details else None,
                                           survivorship_adjustment=surv_action or None, variant_id=vid)
+                        # Paper-only: schedule second-chance re-evaluation audit (no orders; env-gated).
+                        try:
+                            if os.environ.get("PAPER_SECOND_CHANCE_DISPLACEMENT") == "1":
+                                from src.paper.second_chance_displacement import record_displacement_block_scheduled
+
+                                _uw_proxy = None
+                                if uw_details and uw_details.get("uw_signal_quality_score") is not None:
+                                    try:
+                                        _uw_proxy = float(uw_details["uw_signal_quality_score"])
+                                    except (TypeError, ValueError):
+                                        _uw_proxy = None
+                                record_displacement_block_scheduled(
+                                    symbol=symbol,
+                                    direction=c.get("direction"),
+                                    score=float(score),
+                                    components=comps,
+                                    displaced_symbol=dc_symbol,
+                                    policy_reason=str(policy_reason or ""),
+                                    decision_price=ref_price_check,
+                                    effective_min_score_at_block=float(min_score),
+                                    market_regime=market_regime,
+                                    challenger_uw_proxy=_uw_proxy,
+                                    variant_id=locals().get("vid"),
+                                )
+                        except Exception:
+                            pass
                         log_signal_to_history(
                             symbol=symbol, direction=direction, raw_score=raw_score, whale_boost=whale_boost,
                             final_score=final_score, atr_multiplier=atr_multiplier or 0.0,
