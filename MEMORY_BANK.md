@@ -2176,6 +2176,14 @@ Replace opaque `blocked_reason` strings with:
 - **Board reasoning:** Board agents should treat regime as modifier-only; ask explicitly about regime health, exit timing health, displacement/capacity health, and attribution vs exit alignment. See `docs/BOARD_REVIEW.md` interpretation notes.
 ---
 
+## Roadmap to Institutional Alpha (>1% Weekly)
+
+- **Pillar 1: Microstructure (OFI).** Capture Order Flow Imbalance and Volume Adjusted Mid-Price (VAMP) to predict 1-minute lead times.
+- **Pillar 2: Mathematical Stationarity.** Implementation of Fractional Differentiation in the ML pipeline to preserve trend memory.
+- **Pillar 3: Adaptive Risk (HMM).** Transition from static stop-losses to Hidden Markov Model regime-aware position sizing.
+
+---
+
 ## Maintenance Log (Infrastructure History)
 
 - **2026-04-03:** Successfully applied Linux Kernel security patches to Alpaca droplet (v6.8.0-100 -> v6.8.0-107). System rebooted and verified bot auto-restart.
