@@ -506,11 +506,13 @@ def evaluate_completeness(
 
     structural = code_structural or any("STRUCTURAL" in str(x) for x in precheck)
     vacuous_zero_trades = len(closed) == 0
+    chain_incomplete = (len(closed) - complete) > 0
+    # Zero closes in the evaluated window (e.g. fresh post-deploy window) must not
+    # force LEARNING_STATUS BLOCKED or integrity ARMED→BLOCKED Telegram noise.
     blocked = (
         bool(precheck)
         or postfix_insufficient_closes
-        or vacuous_zero_trades
-        or (len(closed) - complete) > 0
+        or chain_incomplete
         or structural
     )
 
@@ -525,8 +527,6 @@ def evaluate_completeness(
             learning_fail_closed_reason = "postfix_insufficient_recent_closes"
         elif structural:
             learning_fail_closed_reason = "structural_trade_intent_path"
-        elif vacuous_zero_trades:
-            learning_fail_closed_reason = "NO_POST_DEPLOY_PROOF_YET"
         else:
             learning_fail_closed_reason = "incomplete_trade_chain"
 
@@ -556,6 +556,13 @@ def evaluate_completeness(
         "code_structural_trade_intent_no_canonical_on_entered": code_structural,
         "LEARNING_STATUS": learning_status,
         "learning_fail_closed_reason": learning_fail_closed_reason,
+        "STRICT_WINDOW_ZERO_CLOSES": vacuous_zero_trades,
+        "learning_inform_note": (
+            "Strict window has zero terminal closes; LEARNING_STATUS remains ARMED "
+            "(manual post-deploy proof not required)."
+            if vacuous_zero_trades and learning_status == "ARMED"
+            else None
+        ),
         "AUTHORITATIVE_JOIN_KEY_RULE": AUTHORITATIVE_JOIN_KEY_RULE,
         "legacy_trades_seen": leg_seen if forward_since_epoch is not None else None,
         "legacy_trades_complete": leg_cmp if forward_since_epoch is not None else None,
