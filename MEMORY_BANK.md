@@ -2176,3 +2176,9 @@ Replace opaque `blocked_reason` strings with:
 - **Board reasoning:** Board agents should treat regime as modifier-only; ask explicitly about regime health, exit timing health, displacement/capacity health, and attribution vs exit alignment. See `docs/BOARD_REVIEW.md` interpretation notes.
 ---
 
+## Maintenance Log (Infrastructure History)
+
+- **2026-04-03:** Successfully applied Linux Kernel security patches to Alpaca droplet (v6.8.0-100 -> v6.8.0-107). System rebooted and verified bot auto-restart.
+
+---
+
