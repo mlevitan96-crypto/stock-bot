@@ -87,12 +87,12 @@ class TestStrictCompletenessGate(unittest.TestCase):
             (root / "logs" / "exit_attribution.jsonl").write_text(json.dumps(ex) + "\n", encoding="utf-8")
             (root / "main.py").write_text("_ctid = None\n" + '"canonical_trade_id": _ctid\n', encoding="utf-8")
 
-            r = evaluate_completeness(root, open_ts_epoch=None)
+            r = evaluate_completeness(root, open_ts_epoch=0.0)
             self.assertGreaterEqual(r["trades_incomplete"], 1)
             self.assertIn("LEARNING_STATUS", r)
             self.assertEqual(r["LEARNING_STATUS"], "BLOCKED")
 
-    def test_gate_blocks_vacuous_zero_trades(self):
+    def test_gate_arms_vacuous_zero_trades_no_post_deploy_block(self):
         import tempfile
         from pathlib import Path
 
@@ -109,8 +109,10 @@ class TestStrictCompletenessGate(unittest.TestCase):
 
             r = evaluate_completeness(root, open_ts_epoch=None)
             self.assertEqual(r["trades_seen"], 0)
-            self.assertEqual(r["LEARNING_STATUS"], "BLOCKED")
-            self.assertEqual(r.get("learning_fail_closed_reason"), "NO_POST_DEPLOY_PROOF_YET")
+            self.assertEqual(r["LEARNING_STATUS"], "ARMED")
+            self.assertIsNone(r.get("learning_fail_closed_reason"))
+            self.assertTrue(r.get("STRICT_WINDOW_ZERO_CLOSES"))
+            self.assertIsNotNone(r.get("learning_inform_note"))
 
     def test_strict_gate_resolves_intent_vs_fill_via_canonical_trade_id_resolved(self):
         import json
@@ -190,12 +192,13 @@ class TestStrictCompletenessGate(unittest.TestCase):
             (root / "logs" / "exit_attribution.jsonl").write_text(json.dumps(ex) + "\n", encoding="utf-8")
             (root / "main.py").write_text("# production-shaped main\n", encoding="utf-8")
 
-            r = evaluate_completeness(root, open_ts_epoch=None, audit=True)
+            r = evaluate_completeness(root, open_ts_epoch=0.0, audit=True, collect_complete_trade_ids=True)
             self.assertEqual(r["trades_seen"], 1)
             self.assertEqual(r["trades_complete"], 1)
             self.assertEqual(r["trades_incomplete"], 0)
             self.assertEqual(r["LEARNING_STATUS"], "ARMED")
             self.assertTrue(len(r.get("chain_matrices_complete_sample") or []) >= 1)
+            self.assertEqual(len(r.get("complete_trade_ids") or []), 1)
 
     def test_strict_gate_orders_entry_and_exit_share_canonical(self):
         import json
@@ -274,7 +277,8 @@ class TestStrictCompletenessGate(unittest.TestCase):
             (root / "logs" / "exit_attribution.jsonl").write_text(json.dumps(ex) + "\n", encoding="utf-8")
             (root / "main.py").write_text("# production-shaped main\n", encoding="utf-8")
 
-            r = evaluate_completeness(root, open_ts_epoch=None)
+            # open_ts_epoch=None uses "market open today (ET)" and drops historical fixture rows — pin floor for stability.
+            r = evaluate_completeness(root, open_ts_epoch=0.0)
             self.assertEqual(r["LEARNING_STATUS"], "ARMED")
 
 
@@ -457,7 +461,7 @@ class TestStrictEraEntryCohort(unittest.TestCase):
             self.assertEqual(r["trades_seen"], 1)
             self.assertEqual(r["LEARNING_STATUS"], "ARMED")
 
-    def test_cohort_empty_after_exclusion_trades_seen_zero_blocked(self):
+    def test_cohort_empty_after_exclusion_trades_seen_zero_stays_armed(self):
         import json
         import tempfile
         from pathlib import Path
@@ -485,8 +489,9 @@ class TestStrictEraEntryCohort(unittest.TestCase):
 
             r = evaluate_completeness(root, open_ts_epoch=self.ERA)
             self.assertEqual(r["trades_seen"], 0)
-            self.assertEqual(r["learning_fail_closed_reason"], "NO_POST_DEPLOY_PROOF_YET")
-            self.assertEqual(r["LEARNING_STATUS"], "BLOCKED")
+            self.assertIsNone(r.get("learning_fail_closed_reason"))
+            self.assertEqual(r["LEARNING_STATUS"], "ARMED")
+            self.assertTrue(r.get("STRICT_WINDOW_ZERO_CLOSES"))
 
 
 if __name__ == "__main__":

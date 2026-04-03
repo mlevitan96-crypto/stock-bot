@@ -133,7 +133,7 @@ The mission fills missing keys by merging **only unset** vars from, in order: re
 
 ### Interpretation — what DATA_READY does *not* mean
 
-- **`DATA_READY: YES` is not the same as `LEARNING_STATUS: READY`.** `telemetry/alpaca_strict_completeness_gate.py` (`evaluate_completeness`) can still return **`BLOCKED`** (e.g. `incomplete_trade_chain`, `live_entry_decision_made_missing_or_blocked`) while the warehouse is green. Run both when the question is “promotion / strict panel” vs “PnL packet join coverage.”
+- **`DATA_READY: YES` is not the same as `LEARNING_STATUS: READY`.** `telemetry/alpaca_strict_completeness_gate.py` (`evaluate_completeness`) can still return **`BLOCKED`** (e.g. `incomplete_trade_chain`, `live_entry_decision_made_missing_or_blocked`) while the warehouse is green. Run both when the question is “promotion / strict panel” vs “PnL packet join coverage.” **Vacuous strict window:** zero terminal closes in the evaluated window does **not** set `BLOCKED` or `NO_POST_DEPLOY_PROOF_YET`; `LEARNING_STATUS` stays **`ARMED`** (optional `learning_inform_note` + `STRICT_WINDOW_ZERO_CLOSES` in gate JSON).
 - **Execution join at 100% on paper** can be achieved in part via documented fallbacks (e.g. **economic closure** when order stream alignment is weak). That supports **attribution math**, not a claim that every exit row matched a broker **`order_id`** in logs. Board and CSA language must stay precise.
 - **Baseline for improvement:** Record the **timestamped** `reports/ALPACA_TRUTH_WAREHOUSE_COVERAGE_*.md` and `replay/alpaca_truth_warehouse_*` dirs from the run you treat as baseline; compare future runs to those filenames and %s.
 
