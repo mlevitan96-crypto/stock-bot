@@ -11,7 +11,7 @@ import argparse
 import csv
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -33,6 +33,39 @@ def _parse_ts(ts: Any) -> Optional[datetime]:
         return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
     except Exception:
         return None
+
+
+def _hold_minutes(ctx: Dict[str, Any], rec: Dict[str, Any]) -> Optional[float]:
+    for src in (ctx, rec):
+        if not isinstance(src, dict):
+            continue
+        hm = src.get("hold_minutes")
+        if hm is None:
+            continue
+        try:
+            return float(hm)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _resolve_entry_time(rec: Dict[str, Any], close_ts: datetime) -> datetime:
+    """
+    Prefer context.entry_ts, then record.entry_time, then close_ts - hold_minutes, else close_ts.
+    Entry is never placed after close_ts (clamp skewed clocks).
+    """
+    ctx = rec.get("context") if isinstance(rec.get("context"), dict) else {}
+    et = _parse_ts(ctx.get("entry_ts"))
+    if et is None:
+        et = _parse_ts(rec.get("entry_time"))
+    if et is not None and et > close_ts:
+        et = None
+    if et is not None:
+        return et
+    hm = _hold_minutes(ctx, rec)
+    if hm is not None and hm > 0:
+        return close_ts - timedelta(minutes=hm)
+    return close_ts
 
 
 def _load_closed_trades(base: Path, limit: int) -> List[Dict[str, Any]]:
@@ -70,11 +103,14 @@ def _load_closed_trades(base: Path, limit: int) -> List[Dict[str, Any]]:
 def _flatten_row(rec: Dict[str, Any]) -> Dict[str, str]:
     ctx = rec.get("context") if isinstance(rec.get("context"), dict) else {}
     comps = ctx.get("components") if isinstance(ctx.get("components"), dict) else {}
+    close_ts = rec.get("_ts")
+    entry_dt = _resolve_entry_time(rec, close_ts) if isinstance(close_ts, datetime) else None
     total_score_v = ctx.get("score")
     if total_score_v is None:
         total_score_v = ctx.get("entry_score")
     row: Dict[str, str] = {
         "trade_id": str(rec.get("trade_id") or ""),
+        "entry_time": entry_dt.isoformat() if entry_dt else "",
         "timestamp_utc": rec["_ts"].isoformat() if rec.get("_ts") else "",
         "symbol": str(rec.get("symbol") or ""),
         "pnl_usd": str(rec.get("pnl_usd", "") or ""),
@@ -98,12 +134,28 @@ def main() -> int:
     if not trades:
         print("No closed trades found.", file=sys.stderr)
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text("trade_id,timestamp_utc,symbol,pnl_usd,close_reason\n", encoding="utf-8")
+        args.out.write_text(
+            "trade_id,entry_time,timestamp_utc,symbol,pnl_usd,close_reason\n", encoding="utf-8"
+        )
         return 1
 
     rows = [_flatten_row(t) for t in trades]
+    priority = [
+        "trade_id",
+        "entry_time",
+        "timestamp_utc",
+        "symbol",
+        "pnl_usd",
+        "close_reason",
+        "entry_score",
+        "total_score",
+    ]
+    seen: set[str] = set()
     fieldnames: List[str] = []
-    seen = set()
+    for k in priority:
+        if k in rows[0]:
+            fieldnames.append(k)
+            seen.add(k)
     for r in rows:
         for k in r:
             if k not in seen:
