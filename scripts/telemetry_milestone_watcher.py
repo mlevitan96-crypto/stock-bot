@@ -6,13 +6,13 @@ optionally verify SPI column integrity at the 10-trade gate, Telegram alerts, de
 Alpaca V2 harvester Telegram thresholds (trade rows in entries_and_exits since cutoff): see
 MILESTONE_ALERT_THRESHOLDS = [10, 100, 250]. Ten triggers SPI pass/warn only;
 100/250 use OOS_MILESTONE_STEPS messages (deduped per state key).
-Default cutoff when env/meta unset: 2026-04-07T17:01:00Z (ML era reset); override with
-TELEMETRY_MILESTONE_SINCE_DATE=YYYY-MM-DD.
+Default cutoff: telemetry `STRICT_EPOCH_START` (2026-04-07T17:01:00Z Harvester era). Optional
+TELEMETRY_MILESTONE_SINCE_DATE=YYYY-MM-DD is interpreted as that day 00:00 UTC but never earlier
+than `STRICT_EPOCH_START` (no stale state override — avoids ghost 100/250 alerts).
 
 Env:
   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID — required to send (else logs only).
-  TELEMETRY_MILESTONE_SINCE_DATE — optional YYYY-MM-DD; trade/SPI filter starts that day 00:00 UTC.
-      If unset, uses start of **today UTC**.
+  TELEMETRY_MILESTONE_SINCE_DATE — optional YYYY-MM-DD; floor is max(that day 00:00 UTC, STRICT_EPOCH).
   TELEGRAM_MILESTONE_RESPECT_QUIET_HOURS=1 — if set, use send_governance_telegram (subject to ET window + INTEGRITY_ONLY).
 
 State: data/.milestone_state.json (gitignored via data/ or add pattern if needed)
@@ -43,6 +43,11 @@ try:
 except Exception:
     pass
 
+try:
+    from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START
+except Exception:  # pragma: no cover
+    STRICT_EPOCH_START = 1775581260.0  # 2026-04-07T17:01:00Z
+
 GEMINI_DIR = REPO / "reports" / "Gemini"
 ENTRIES_CSV = GEMINI_DIR / "entries_and_exits.csv"
 SPI_CSV = GEMINI_DIR / "signal_intelligence_spi.csv"
@@ -66,8 +71,9 @@ MILESTONE_100_ML = "alpaca_v2_harvester_100_trades"
 # Canonical trade-count pings (entries_and_exits since cutoff). 10 = SPI integrity only (below).
 MILESTONE_ALERT_THRESHOLDS = [10, 100, 250]
 
-# Default UTC instant for trade/SPI row cutoff (Alpaca ML era reset). Env TELEMETRY_MILESTONE_SINCE_DATE overrides (date at 00:00 UTC).
-_ALPACA_V2_ERA_START_UTC = datetime(2026, 4, 7, 17, 1, 0, tzinfo=timezone.utc)
+def _strict_epoch_datetime_utc() -> datetime:
+    """Single source of truth with strict-gate / canonical trade count (Harvester era)."""
+    return datetime.fromtimestamp(float(STRICT_EPOCH_START), tz=timezone.utc)
 
 # OOS / harvester Telegram milestones (deduped in state by second column).
 OOS_MILESTONE_STEPS: List[Tuple[int, str, str]] = [
@@ -108,22 +114,24 @@ def _save_state(data: Dict[str, Any]) -> None:
 
 
 def _since_datetime_utc() -> datetime:
+    """
+    Never use persisted milestone state to choose the cutoff (that caused pre-epoch rows to count).
+    Env date is optional; effective cutoff is always >= STRICT_EPOCH_START.
+    """
+    floor = _strict_epoch_datetime_utc()
     raw = (os.environ.get("TELEMETRY_MILESTONE_SINCE_DATE") or "").strip()
-    if raw:
-        try:
-            y, m, d = (int(x) for x in raw.split("-", 2))
-            return datetime(y, m, d, tzinfo=timezone.utc)
-        except Exception:
-            print(f"WARN: invalid TELEMETRY_MILESTONE_SINCE_DATE={raw!r}, using today UTC", file=sys.stderr)
-    st = _load_state()
-    meta = st.get("meta") or {}
-    if isinstance(meta, dict) and meta.get("trade_count_since_date"):
-        try:
-            y, m, d = (int(x) for x in str(meta["trade_count_since_date"]).split("-", 2))
-            return datetime(y, m, d, tzinfo=timezone.utc)
-        except Exception:
-            pass
-    return _ALPACA_V2_ERA_START_UTC
+    if not raw:
+        return floor
+    try:
+        y, m, d = (int(x) for x in raw.split("-", 2))
+        env_start = datetime(y, m, d, tzinfo=timezone.utc)
+    except Exception:
+        print(
+            f"WARN: invalid TELEMETRY_MILESTONE_SINCE_DATE={raw!r}, using STRICT_EPOCH_START",
+            file=sys.stderr,
+        )
+        return floor
+    return env_start if env_start >= floor else floor
 
 
 def _parse_ts(s: str) -> Optional[datetime]:
