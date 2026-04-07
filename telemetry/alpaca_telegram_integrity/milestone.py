@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional
 
 from src.governance.canonical_trade_count import compute_canonical_trade_count
 
+from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START as _ML_STRICT_EPOCH_START
+
 from telemetry.alpaca_telegram_integrity.session_clock import (
     effective_regular_session_open_utc,
     session_anchor_date_et_iso,
@@ -98,13 +100,15 @@ def build_milestone_snapshot(
 
     if counting_basis == "session_open":
         open_epoch = open_utc.timestamp()
+        eff_floor = max(float(open_epoch), float(_ML_STRICT_EPOCH_START))
+        floor_iso = datetime.fromtimestamp(eff_floor, tz=timezone.utc).isoformat()
         return _snapshot_for_floor(
             root,
-            floor_epoch=open_epoch,
+            floor_epoch=eff_floor,
             session_open_utc_iso=open_utc.isoformat(),
             session_anchor_et=anchor,
             counting_basis=counting_basis,
-            count_floor_utc_iso=open_utc.isoformat(),
+            count_floor_utc_iso=floor_iso,
             integrity_armed=True,
         )
 
@@ -120,13 +124,14 @@ def build_milestone_snapshot(
             count_floor_utc_iso="(not armed — waiting for green DATA_READY + coverage + strict ARMED + exit probe)",
             integrity_armed=False,
         )
+    eff_arm = max(float(arm_epoch_utc), float(_ML_STRICT_EPOCH_START))
     return _snapshot_for_floor(
         root,
-        floor_epoch=arm_epoch_utc,
+        floor_epoch=eff_arm,
         session_open_utc_iso=open_utc.isoformat(),
         session_anchor_et=anchor,
         counting_basis=counting_basis,
-        count_floor_utc_iso=datetime.fromtimestamp(arm_epoch_utc, tz=timezone.utc).isoformat(),
+        count_floor_utc_iso=datetime.fromtimestamp(eff_arm, tz=timezone.utc).isoformat(),
         integrity_armed=True,
     )
 
@@ -142,7 +147,8 @@ def _snapshot_for_floor(
     integrity_armed: bool,
 ) -> MilestoneSnapshot:
     """Same trade_key + era-cut rules as dashboard / audit (`compute_canonical_trade_count`)."""
-    out = compute_canonical_trade_count(root, floor_epoch=floor_epoch, max_samples=5)
+    eff = max(float(floor_epoch), float(_ML_STRICT_EPOCH_START))
+    out = compute_canonical_trade_count(root, floor_epoch=eff, max_samples=5)
     samples = list(out.get("sample_trade_keys") or [])
     return MilestoneSnapshot(
         session_open_utc_iso=session_open_utc_iso,
