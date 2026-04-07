@@ -133,7 +133,8 @@ def test_format_100trade_checkpoint():
         precheck_ok=True,
         utc_iso="2026-03-30T18:00:00Z",
     )
-    assert "100-TRADE CHECKPOINT" in s
+    assert "Alpaca V2 Harvester" in s
+    assert "100 Trades Completed" in s
     assert "250-trade" in s.lower()
 
 
@@ -168,16 +169,16 @@ def test_format_100trade_checkpoint_no_false_on_track_when_precheck_fails():
 def test_integrity_armed_zero_until_arm_epoch(tmp_path: Path):
     root = tmp_path
     (root / "logs").mkdir()
-    # Post config/era_cut.json alpaca.era_cut_ts so learning_excluded_for_exit_record keeps the row.
-    now = datetime(2026, 3, 31, 15, 0, tzinfo=timezone.utc)
+    # Dates must be on/after STRICT_EPOCH_START (Alpaca V2 era) so ML floor does not zero the count.
+    now = datetime(2026, 4, 8, 15, 0, tzinfo=timezone.utc)
     open_iso = effective_regular_session_open_utc(now)
     line = json.dumps(
         {
             "symbol": "ZZZ",
             "side": "LONG",
-            "entry_ts": "2026-03-31T14:00:00+00:00",
+            "entry_ts": "2026-04-08T14:00:00+00:00",
             "exit_ts": open_iso.isoformat(),
-            "trade_id": "open_ZZZ_2026-03-31T14:00:00+00:00",
+            "trade_id": "open_ZZZ_2026-04-08T14:00:00+00:00",
             "pnl": "1.0",
         }
     )
@@ -199,16 +200,16 @@ def test_integrity_armed_zero_until_arm_epoch(tmp_path: Path):
 def test_should_fire_milestone_once_per_session(tmp_path: Path):
     root = tmp_path
     (root / "logs").mkdir()
-    now = datetime(2026, 3, 31, 15, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 8, 15, 0, tzinfo=timezone.utc)
     open_iso = effective_regular_session_open_utc(now)
-    # minimal exit row: need valid trade_key parts; entry_ts must be >= era_cut.json
+    # minimal exit row: need valid trade_key parts; on/after STRICT_EPOCH_START
     line = json.dumps(
         {
             "symbol": "ZZZ",
             "side": "LONG",
-            "entry_ts": "2026-03-31T14:00:00+00:00",
+            "entry_ts": "2026-04-08T14:00:00+00:00",
             "exit_ts": open_iso.isoformat(),
-            "trade_id": "open_ZZZ_2026-03-31T14:00:00+00:00",
+            "trade_id": "open_ZZZ_2026-04-08T14:00:00+00:00",
             "pnl": "1.0",
         }
     )

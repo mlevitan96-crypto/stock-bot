@@ -24,6 +24,7 @@ DEFAULT_LOG = REPO / "TELEGRAM_NOTIFICATION_LOG.md"
 # (Alpaca integrity cycle + its explicit test hooks). Set on droplet to lock out board/gate/post-close sends.
 _INTEGRITY_ONLY_SCRIPT_NAMES = frozenset(
     {
+        "alpaca_checkpoint_10",
         "alpaca_integrity_test_100trade",
         "alpaca_checkpoint_100",
         "alpaca_checkpoint_100_deferred",
