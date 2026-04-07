@@ -296,6 +296,8 @@ def apply_strict_chain_backfill(
                     composite_score=float(ex.get("entry_score") or ex.get("score") or 0) or None,
                     entry_threshold=None,
                     timestamp=iso,
+                    schema_role="exit_proxy",
+                    is_repair_row=True,
                 )
             except Exception as ex_emit:
                 print("emit_entry_attribution_failed", tid, ex_emit)
