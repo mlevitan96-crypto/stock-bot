@@ -122,6 +122,8 @@ def emit_entry_attribution(
     entry_threshold: Optional[float] = None,
     gates: Optional[Dict[str, Any]] = None,
     timestamp: Optional[str] = None,
+    schema_role: Optional[str] = None,
+    is_repair_row: bool = False,
 ) -> None:
     """Emit one entry_attribution event. Truth: contributions = weight*raw_signal; composite_score asserted; trade_key for join. Never raises."""
     ts = timestamp or _now_iso()
@@ -167,6 +169,10 @@ def emit_entry_attribution(
     base["entry_margin_to_threshold"] = margin
     if gates is not None:
         base["gates"] = {k: {"pass": v.get("pass"), "reason": str(v.get("reason", ""))} for k, v in (gates or {}).items()}
+    if schema_role:
+        base["schema_role"] = str(schema_role)
+    if is_repair_row:
+        base["is_repair_row"] = True
     base["schema_version"] = SCHEMA_VERSION
     entry_issues = validate_entry_attribution(base)
     if entry_issues:
