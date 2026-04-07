@@ -21,6 +21,8 @@ import json
 import os
 import time
 import math
+import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 
@@ -162,7 +164,7 @@ def get_weight(component: str, regime: str = "neutral") -> float:
     # CRITICAL FIX: options_flow uses default weight unless governance overlay down-weights it
     effective_weight: Optional[float] = None
     if component == "options_flow":
-        effective_weight = WEIGHTS_V3.get(component, 2.4)
+        effective_weight = WEIGHTS_V3.get(component, 2.5)
 
     # Try to get regime-aware weight from optimizer (skip for options_flow, already set)
     if effective_weight is None:
@@ -173,7 +175,7 @@ def get_weight(component: str, regime: str = "neutral") -> float:
                 effective_weight = optimizer.entry_model.get_effective_weight(component, regime)
                 # Safety check: Don't let options_flow drop below 1.5 (still too low, but better than 0.6)
                 if component == "options_flow" and effective_weight < 1.5:
-                    effective_weight = WEIGHTS_V3.get(component, 2.4)
+                    effective_weight = WEIGHTS_V3.get(component, 2.5)
             except Exception:
                 effective_weight = None
 
@@ -240,36 +242,17 @@ def get_multiplier(component: str) -> float:
     
     return _cached_multipliers.get(component, 1.0)
 
-# V3 Weights - Full Intelligence Integration (V2 Pipeline)
+# V3 Weights — core reset (streamlined; other components resolve via get_weight -> 0.0)
 WEIGHTS_V3 = {
-    # Core flow signals (original)
-    "options_flow": 2.4,           # Slightly reduced to make room for new signals
-    "dark_pool": 1.3,
-    "insider": 0.5,
-    
-    # V2 features (retained)
-    "iv_term_skew": 0.6,
-    "smile_slope": 0.35,
-    "whale_persistence": 0.7,
-    "event_alignment": 0.4,
-    "toxicity_penalty": -0.9,
-    "temporal_motif": 0.6,  # Increased to favor staircase patterns showing early success
-    "regime_modifier": 0.3,
-    
-    # V3 NEW: Expanded Intelligence Signals
-    "congress": 0.9,               # Politician trading (user says "very valuable")
-    "shorts_squeeze": 0.7,         # Short interest & squeeze potential
-    "institutional": 0.5,          # 13F filings & institutional activity
-    "market_tide": 0.4,            # Options market sentiment
-    "calendar_catalyst": 0.45,     # Earnings/FDA/Economic events
-    "etf_flow": 0.3,               # ETF in/outflows
-    
-    # V2 NEW: Full Intelligence Pipeline (must match SIGNAL_COMPONENTS in main.py)
-    "greeks_gamma": 0.4,           # Gamma/delta exposure for squeeze detection
-    "ftd_pressure": 0.3,           # Fails-to-deliver for squeeze signals
-    "iv_rank": 0.2,                # IV rank for options timing (can be negative)
-    "oi_change": 0.35,             # Open interest changes - institutional positioning
-    "squeeze_score": 0.2,          # Combined squeeze indicator bonus
+    # Core Institutional Intel (High Conviction)
+    "options_flow": 2.5,
+    "dark_pool": 1.5,
+    "greeks_gamma": 1.5,
+    "ftd_pressure": 1.0,
+    # Timing & Structure
+    "iv_term_skew": 0.8,
+    "oi_change": 0.7,
+    "toxicity_penalty": -1.0,
 }
 
 # NOTE: legacy v1/v2 weight tables have been removed (v2-only engine).
@@ -1378,6 +1361,185 @@ def _clamp(x: float, lo: float, hi: float) -> float:
         return float(lo)
 
 
+def _log_uw_v2_intel_failure(symbol: str, stage: str, exc: BaseException) -> None:
+    """Strict visibility for UW v2 intel / cache wiring failures (no silent drops)."""
+    msg = f"{type(exc).__name__}: {exc}"
+    tb = traceback.format_exc()
+    try:
+        log_system_event(
+            "scoring",
+            "uw_v2_uw_intel_failure",
+            "WARN",
+            symbol=str(symbol).upper(),
+            stage=str(stage),
+            error=msg[:800],
+            traceback_tail=tb[-2000:],
+        )
+    except Exception:
+        pass
+    try:
+        err_path = Path("logs") / "uw_error.jsonl"
+        err_path.parent.mkdir(parents=True, exist_ok=True)
+        with err_path.open("a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                        "event_type": "uw_error",
+                        "symbol": str(symbol).upper(),
+                        "stage": str(stage),
+                        "error": msg,
+                        "traceback": tb[-8000:],
+                    },
+                    default=str,
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+
+
+def _load_uw_flow_row_for_intel(symbol: str, enriched_data: Any) -> Dict[str, Any]:
+    """
+    Merge per-symbol UW flow cache row with enriched_data (same source as live entry).
+    Reads data/uw_flow_cache.json when enriched_data is empty or missing keys.
+    """
+    sym = str(symbol).upper()
+    row: Dict[str, Any] = {}
+    if isinstance(enriched_data, dict) and enriched_data:
+        row = dict(enriched_data)
+    try:
+        from utils.state_io import read_json_self_heal
+        from config.registry import CacheFiles
+
+        cache = read_json_self_heal(str(CacheFiles.UW_FLOW_CACHE), default={}, heal=True, mkdir=True)
+        if isinstance(cache, dict):
+            file_row = cache.get(sym)
+            if not isinstance(file_row, dict):
+                file_row = cache.get(symbol)
+            if isinstance(file_row, dict):
+                if not row:
+                    row = dict(file_row)
+                else:
+                    for k, v in file_row.items():
+                        if k not in row or row.get(k) in (None, "", []):
+                            row[k] = v
+                        elif k == "dark_pool" and isinstance(v, dict) and isinstance(row.get("dark_pool"), dict):
+                            if not row.get("dark_pool"):
+                                row["dark_pool"] = v
+    except Exception as ex:
+        _log_uw_v2_intel_failure(symbol, "uw_flow_cache_read", ex)
+    return row
+
+
+def _synthetic_uw_intel_from_flow_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Build premarket_intel-shaped fields from live uw_flow_cache / enriched row."""
+    if not isinstance(row, dict):
+        row = {}
+    tc = int(_to_num(row.get("trade_count", 0)) or 0)
+    conv = _to_num(row.get("conviction", 0.0))
+    flow_strength = _clamp(conv, 0.0, 1.0) if tc > 0 else 0.0
+    dp = row.get("dark_pool", {}) or {}
+    dp_sent = str(dp.get("sentiment", "NEUTRAL") or "NEUTRAL").upper()
+    dp_notional_1h = _to_num(dp.get("total_notional_1h", 0.0) or dp.get("notional_1h", 0.0) or 0.0)
+    dp_notional_total = _to_num(dp.get("total_notional", 0.0) or dp.get("total_premium", 0.0) or 0.0)
+    dp_prem = dp_notional_1h if dp_notional_1h > 0 else dp_notional_total
+    try:
+        scale = max(0.0, dp_prem)
+        dp_mag = 0.2 + 0.8 * min(1.0, scale / 50_000_000.0)
+    except Exception:
+        dp_mag = 0.2
+    if dp_sent == "BULLISH":
+        darkpool_bias = _clamp(dp_mag, -1.0, 1.0)
+    elif dp_sent == "BEARISH":
+        darkpool_bias = _clamp(-dp_mag, -1.0, 1.0)
+    else:
+        darkpool_bias = 0.0
+    sentiment_s = str(row.get("sentiment", "NEUTRAL") or "NEUTRAL").upper()
+    if sentiment_s not in ("BULLISH", "BEARISH", "NEUTRAL"):
+        sentiment_s = "NEUTRAL"
+    er = row.get("earnings_proximity", row.get("earnings_days"))
+    earnings_days = None
+    if er is not None:
+        try:
+            earnings_days = int(er)
+        except (TypeError, ValueError):
+            earnings_days = None
+    sector_alignment = _clamp(_to_num(row.get("sector_alignment", 0.0)), -1.0, 1.0)
+    return {
+        "flow_strength": flow_strength,
+        "darkpool_bias": darkpool_bias,
+        "sentiment": sentiment_s,
+        "earnings_proximity": earnings_days,
+        "sector_alignment": sector_alignment,
+    }
+
+
+def _v2_uw_apply_intel_record(
+    direction: str,
+    srec: Dict[str, Any],
+    uw_cfg: Dict[str, Any],
+    sm: Dict[str, float],
+    r_align: float,
+    align_mult: float,
+    uw_intel_version: str,
+    intel_source: str,
+) -> Tuple[Dict[str, Any], Dict[str, Any], float]:
+    """Apply one intel record to v2 UW adjustments. Returns (uw_inputs, uw_adj, score_delta)."""
+    uw_adj: Dict[str, Any] = {
+        "flow_strength": 0.0,
+        "darkpool_bias": 0.0,
+        "sentiment": 0.0,
+        "earnings_proximity": 0.0,
+        "sector_alignment": 0.0,
+        "regime_alignment": 0.0,
+        "total": 0.0,
+    }
+    flow_strength = _clamp(_to_num(srec.get("flow_strength", 0.0)), 0.0, 1.0)
+    darkpool_bias = _clamp(_to_num(srec.get("darkpool_bias", 0.0)), -1.0, 1.0)
+    sector_alignment = _clamp(_to_num(srec.get("sector_alignment", 0.0)), -1.0, 1.0)
+    sentiment_s = str(srec.get("sentiment", "NEUTRAL") or "NEUTRAL").upper()
+    earnings_prox = srec.get("earnings_proximity")
+    try:
+        earnings_days = int(earnings_prox) if earnings_prox is not None else None
+    except (TypeError, ValueError):
+        earnings_days = None
+
+    w_flow = float(uw_cfg.get("flow_strength_weight", 1.0))
+    w_dp = float(uw_cfg.get("darkpool_bias_weight", 1.0))
+    w_sent = float(uw_cfg.get("sentiment_weight", 1.0))
+    w_earn = float(uw_cfg.get("earnings_proximity_weight", 1.0))
+    w_sector = float(uw_cfg.get("sector_alignment_weight", 1.0))
+    w_regime = float(uw_cfg.get("regime_alignment_weight", 1.0))
+
+    uw_adj["flow_strength"] = float(uw_cfg.get("flow_strength_bonus_max", 0.20)) * float(flow_strength) * float(align_mult) * float(sm.get("flow_weight", 1.0)) * w_flow
+    uw_adj["darkpool_bias"] = float(uw_cfg.get("darkpool_bias_bonus_max", 0.12)) * float(abs(darkpool_bias)) * float(align_mult) * float(sm.get("darkpool_weight", 1.0)) * w_dp
+    if sentiment_s == "BULLISH" and direction == "bullish":
+        uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult) * w_sent
+    elif sentiment_s == "BEARISH" and direction == "bearish":
+        uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult) * w_sent
+
+    pen_days = int(uw_cfg.get("earnings_penalty_days", 3) or 3)
+    if earnings_days is not None and earnings_days <= pen_days:
+        uw_adj["earnings_proximity"] = float(uw_cfg.get("earnings_proximity_penalty_max", -0.12)) * float(align_mult) * float(sm.get("earnings_weight", 1.0)) * w_earn
+
+    uw_adj["sector_alignment"] = float(uw_cfg.get("sector_alignment_bonus_max", 0.12)) * float(max(0.0, sector_alignment)) * float(align_mult) * w_sector
+    uw_adj["regime_alignment"] = float(uw_cfg.get("regime_alignment_bonus_max", 0.08)) * float(max(0.0, r_align)) * float(align_mult) * w_regime
+
+    uw_adj["total"] = float(sum(float(v) for k, v in uw_adj.items() if k != "total"))
+    uw_inputs = {
+        "flow_strength": float(flow_strength),
+        "darkpool_bias": float(darkpool_bias),
+        "sentiment": sentiment_s,
+        "earnings_proximity": earnings_days,
+        "sector_alignment": float(sector_alignment),
+        "regime_alignment": float(r_align),
+        "uw_intel_version": str(uw_intel_version or ""),
+        "uw_intel_source": str(intel_source or ""),
+    }
+    return uw_inputs, uw_adj, float(uw_adj["total"])
+
+
 @global_failure_wrapper("scoring")
 def compute_composite_score_v2(
     symbol: str,
@@ -1622,56 +1784,36 @@ def compute_composite_score_v2(
             pm_syms = pm.get("symbols", {}) if isinstance(pm, dict) else {}
             post_syms = post.get("symbols", {}) if isinstance(post, dict) else {}
             srec = (pm_syms.get(sym) if isinstance(pm_syms, dict) else None) or (post_syms.get(sym) if isinstance(post_syms, dict) else None) or {}
+            intel_source = "premarket_postmarket"
+            uw_intel_version_meta = ""
             if isinstance(srec, dict) and srec:
-                uw_intel_version = str((pm.get("_meta", {}) if isinstance(pm, dict) else {}).get("uw_intel_version") or (post.get("_meta", {}) if isinstance(post, dict) else {}).get("uw_intel_version") or uw_cfg.get("version") or "")
+                uw_intel_version_meta = str(
+                    (pm.get("_meta", {}) if isinstance(pm, dict) else {}).get("uw_intel_version")
+                    or (post.get("_meta", {}) if isinstance(post, dict) else {}).get("uw_intel_version")
+                    or uw_cfg.get("version")
+                    or ""
+                )
+            else:
+                merged_row = _load_uw_flow_row_for_intel(symbol, enriched_data)
+                srec = _synthetic_uw_intel_from_flow_row(merged_row)
+                intel_source = "uw_flow_cache"
+                uw_intel_version_meta = str(uw_cfg.get("version") or "") or "uw_flow_cache"
 
-                flow_strength = _clamp(_to_num(srec.get("flow_strength", 0.0)), 0.0, 1.0)
-                darkpool_bias = _clamp(_to_num(srec.get("darkpool_bias", 0.0)), -1.0, 1.0)
-                sector_alignment = _clamp(_to_num(srec.get("sector_alignment", 0.0)), -1.0, 1.0)
-                sentiment_s = str(srec.get("sentiment", "NEUTRAL") or "NEUTRAL").upper()
-                earnings_prox = srec.get("earnings_proximity")
-                try:
-                    earnings_days = int(earnings_prox) if earnings_prox is not None else None
-                except Exception:
-                    earnings_days = None
-
-                # Apply bounded adjustments
-                # Tuning weights (multipliers; default 1.0)
-                w_flow = float(uw_cfg.get("flow_strength_weight", 1.0))
-                w_dp = float(uw_cfg.get("darkpool_bias_weight", 1.0))
-                w_sent = float(uw_cfg.get("sentiment_weight", 1.0))
-                w_earn = float(uw_cfg.get("earnings_proximity_weight", 1.0))
-                w_sector = float(uw_cfg.get("sector_alignment_weight", 1.0))
-                w_regime = float(uw_cfg.get("regime_alignment_weight", 1.0))
-
-                uw_adj["flow_strength"] = float(uw_cfg.get("flow_strength_bonus_max", 0.20)) * float(flow_strength) * float(align_mult) * float(sm.get("flow_weight", 1.0)) * w_flow
-                uw_adj["darkpool_bias"] = float(uw_cfg.get("darkpool_bias_bonus_max", 0.12)) * float(abs(darkpool_bias)) * float(align_mult) * float(sm.get("darkpool_weight", 1.0)) * w_dp
-                if sentiment_s == "BULLISH" and direction == "bullish":
-                    uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult) * w_sent
-                elif sentiment_s == "BEARISH" and direction == "bearish":
-                    uw_adj["sentiment"] = float(uw_cfg.get("sentiment_bonus_max", 0.10)) * float(align_mult) * w_sent
-
-                # Earnings proximity penalty (risk reduction)
-                pen_days = int(uw_cfg.get("earnings_penalty_days", 3) or 3)
-                if earnings_days is not None and earnings_days <= pen_days:
-                    uw_adj["earnings_proximity"] = float(uw_cfg.get("earnings_proximity_penalty_max", -0.12)) * float(align_mult) * float(sm.get("earnings_weight", 1.0)) * w_earn
-
-                uw_adj["sector_alignment"] = float(uw_cfg.get("sector_alignment_bonus_max", 0.12)) * float(max(0.0, sector_alignment)) * float(align_mult) * w_sector
-                uw_adj["regime_alignment"] = float(uw_cfg.get("regime_alignment_bonus_max", 0.08)) * float(max(0.0, r_align)) * float(align_mult) * w_regime
-
-                uw_adj["total"] = float(sum(float(v) for k, v in uw_adj.items() if k != "total"))
-                uw_inputs = {
-                    "flow_strength": float(flow_strength),
-                    "darkpool_bias": float(darkpool_bias),
-                    "sentiment": sentiment_s,
-                    "earnings_proximity": earnings_days,
-                    "sector_alignment": float(sector_alignment),
-                    "regime_alignment": float(r_align),
-                    "uw_intel_version": uw_intel_version,
-                }
-                # Apply to score
-                score_v2 = _clamp(score_v2 + float(uw_adj["total"]), 0.0, 8.0)
-    except Exception:
+            if isinstance(srec, dict):
+                uw_inputs, uw_adj, uw_delta = _v2_uw_apply_intel_record(
+                    direction,
+                    srec,
+                    uw_cfg,
+                    sm,
+                    r_align,
+                    align_mult,
+                    uw_intel_version_meta,
+                    intel_source,
+                )
+                uw_intel_version = str(uw_inputs.get("uw_intel_version", "") or uw_intel_version_meta)
+                score_v2 = _clamp(score_v2 + uw_delta, 0.0, 8.0)
+    except Exception as ex:
+        _log_uw_v2_intel_failure(symbol, "v2_uw_intel_block", ex)
         uw_inputs = {}
         uw_adj = {
             "flow_strength": 0.0,
@@ -1685,6 +1827,44 @@ def compute_composite_score_v2(
         uw_intel_version = ""
         v2_uw_sector_profile = {}
         v2_uw_regime_profile = {}
+        try:
+            uw_cfg_fb = v2_params.get("uw", {}) if isinstance(v2_params, dict) else {}
+            if isinstance(uw_cfg_fb, dict) and uw_cfg_fb:
+                try:
+                    from src.intel.sector_intel import get_sector_multipliers
+
+                    _sec_fb, sm_fb = get_sector_multipliers(symbol)
+                except Exception:
+                    sm_fb = {
+                        "flow_weight": 1.0,
+                        "darkpool_weight": 1.0,
+                        "earnings_weight": 1.0,
+                        "short_interest_weight": 1.0,
+                    }
+                try:
+                    from src.intel.regime_detector import read_regime_state, regime_alignment_score
+
+                    rs_fb = read_regime_state()
+                    r_lbl_fb = str(rs_fb.get("regime_label", "NEUTRAL") or "NEUTRAL")
+                    r_al_fb = float(regime_alignment_score(r_lbl_fb, direction))
+                except Exception:
+                    r_al_fb = 0.0
+                merged_fb = _load_uw_flow_row_for_intel(symbol, enriched_data)
+                srec_fb = _synthetic_uw_intel_from_flow_row(merged_fb)
+                uw_inputs, uw_adj, uw_delta = _v2_uw_apply_intel_record(
+                    direction,
+                    srec_fb,
+                    uw_cfg_fb,
+                    sm_fb,
+                    r_al_fb,
+                    align_mult,
+                    "uw_flow_cache_recovery",
+                    "uw_flow_cache_recovery",
+                )
+                uw_intel_version = str(uw_inputs.get("uw_intel_version", "") or "uw_flow_cache_recovery")
+                score_v2 = _clamp(score_v2 + uw_delta, 0.0, 8.0)
+        except Exception as ex2:
+            _log_uw_v2_intel_failure(symbol, "v2_uw_intel_recovery_failed", ex2)
 
     # Annotate
     try:

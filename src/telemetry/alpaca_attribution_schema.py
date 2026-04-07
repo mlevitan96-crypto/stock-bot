@@ -41,6 +41,9 @@ def entry_attribution_shape() -> Dict[str, Any]:
         },
         "decision": "",  # OPEN_LONG | OPEN_SHORT | HOLD
         "decision_reason": "",
+        # Optional ML filters: strict-chain backfill uses exit-shaped components as entry proxies.
+        "schema_role": "",  # e.g. "exit_proxy"
+        "is_repair_row": False,
     }
 
 
