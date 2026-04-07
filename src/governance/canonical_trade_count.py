@@ -52,6 +52,41 @@ def _parse_exit_epoch(rec: dict) -> Optional[float]:
     return None
 
 
+def iter_harvester_era_exit_records_for_csv(
+    root: Path,
+    *,
+    floor_epoch: float,
+    as_of_utc: Optional[datetime] = None,
+) -> Iterator[Dict[str, Any]]:
+    """
+    One raw ``exit_attribution.jsonl`` record per unique trade_key, matching
+    ``compute_canonical_trade_count(..., floor_epoch=...)`` inclusion (era cut + exit time floor).
+    Optional ``as_of_utc`` upper bound on exit time (extract run ``end``) so the CSV matches
+    the canonical count at generation time.
+    """
+    as_of = as_of_utc or datetime.now(timezone.utc)
+    as_of_ts = as_of.timestamp()
+    exit_path = root / "logs" / "exit_attribution.jsonl"
+    keys: Set[str] = set()
+    for rec in _iter_exit_attribution(exit_path):
+        if learning_excluded_for_exit_record(rec):
+            continue
+        ex = _parse_exit_epoch(rec)
+        if ex is None or ex < float(floor_epoch) or ex > as_of_ts:
+            continue
+        sym = rec.get("symbol")
+        side = rec.get("side") or rec.get("position_side")
+        et = rec.get("entry_ts") or rec.get("entry_timestamp")
+        try:
+            tk = build_trade_key(sym, side, et)
+        except Exception:
+            continue
+        if tk in keys:
+            continue
+        keys.add(tk)
+        yield rec
+
+
 @dataclass
 class CanonicalTradeCountResult:
     total_trades_post_era: int
