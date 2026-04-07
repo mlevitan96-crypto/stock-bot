@@ -13,8 +13,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import threading
 import time
+import uuid
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -36,15 +38,90 @@ _MAX_BACKOFF_SEC = 120.0
 _INITIAL_BACKOFF_SEC = 1.0
 
 _GLOBAL_MANAGER: Optional["AlpacaStreamManager"] = None
+_singleton_lock = threading.Lock()
+_symbol_providers: List[Callable[[], List[str]]] = []
 
 
 def set_stream_manager(m: Optional["AlpacaStreamManager"]) -> None:
     global _GLOBAL_MANAGER
-    _GLOBAL_MANAGER = m
+    with _singleton_lock:
+        _GLOBAL_MANAGER = m
 
 
 def get_stream_manager() -> Optional["AlpacaStreamManager"]:
-    return _GLOBAL_MANAGER
+    with _singleton_lock:
+        return _GLOBAL_MANAGER
+
+
+def register_stream_symbol_provider(fn: Callable[[], List[str]]) -> None:
+    """Register a callable that returns symbols to subscribe (merged across all engines). Idempotent per function object."""
+    with _singleton_lock:
+        if fn not in _symbol_providers:
+            _symbol_providers.append(fn)
+
+
+def _merged_symbol_provider() -> List[str]:
+    with _singleton_lock:
+        providers = list(_symbol_providers)
+    syms: Set[str] = set()
+    for fn in providers:
+        try:
+            for s in fn() or []:
+                u = str(s).upper().strip()
+                if u and u.isalnum():
+                    syms.add(u)
+        except Exception:
+            continue
+    if not syms:
+        syms.add("SPY")
+    try:
+        max_s = int(os.environ.get("ALPACA_STREAM_MAX_SYMBOLS", "200"))
+    except Exception:
+        max_s = 200
+    max_s = max(1, min(max_s, 500))
+    return sorted(syms)[:max_s]
+
+
+def ensure_alpaca_stream_manager(
+    api_key: str,
+    api_secret: str,
+    *,
+    paper: bool = False,
+    url: Optional[str] = None,
+    bar_maxlen: int = 400,
+) -> Optional["AlpacaStreamManager"]:
+    """
+    Return the process-wide AlpacaStreamManager, creating and starting it once.
+    Multiple StrategyEngine instances must call register_stream_symbol_provider first;
+    symbol lists are merged on each subscribe refresh.
+    """
+    global _GLOBAL_MANAGER
+    with _singleton_lock:
+        if _GLOBAL_MANAGER is not None:
+            return _GLOBAL_MANAGER
+        try:
+            mgr = AlpacaStreamManager(
+                api_key,
+                api_secret,
+                _merged_symbol_provider,
+                paper=paper,
+                url=url,
+                bar_maxlen=bar_maxlen,
+            )
+        except Exception as ex:
+            log.warning("AlpacaStreamManager: cannot construct (%s)", ex)
+            return None
+        _GLOBAL_MANAGER = mgr
+    mgr.start()
+    return mgr
+
+
+def _reset_stream_manager_for_tests() -> None:
+    """Clear singleton state (unit tests only)."""
+    global _GLOBAL_MANAGER
+    with _singleton_lock:
+        _GLOBAL_MANAGER = None
+        _symbol_providers.clear()
 
 
 @dataclass
@@ -182,9 +259,11 @@ class AlpacaStreamManager:
     ) -> None:
         if websockets is None:
             raise RuntimeError("websockets package required; pip install websockets")
+        self.stream_id = uuid.uuid4().hex[:12]
         self._key = (api_key or "").strip()
         self._secret = (api_secret or "").strip()
         self._symbol_provider = symbol_provider
+        self._paper = bool(paper)
         self._url = (url or "").strip() or (_DEFAULT_SANDBOX_URL if paper else _DEFAULT_PROD_URL)
         self.price_cache = PriceCache(maxlen_per_symbol=bar_maxlen)
         self._stop = threading.Event()
@@ -213,6 +292,55 @@ class AlpacaStreamManager:
         self._stop.clear()
         self._thread = threading.Thread(target=self._thread_main, name="alpaca-sip-ws", daemon=True)
         self._thread.start()
+        self._emit_sip_started()
+
+    def _emit_sip_started(self) -> None:
+        """Once per physical stream start (singleton); includes stream_id for log correlation."""
+        try:
+            max_sym = int(os.environ.get("ALPACA_STREAM_MAX_SYMBOLS", "200"))
+        except Exception:
+            max_sym = 200
+        max_sym = max(1, min(max_sym, 500))
+        try:
+            from utils.system_events import log_system_event
+
+            log_system_event(
+                "alpaca_stream",
+                "sip_started",
+                "INFO",
+                stream_id=self.stream_id,
+                url=self.stream_url,
+                paper=self._paper,
+                max_symbols=max_sym,
+            )
+        except Exception:
+            pass
+        try:
+            from datetime import datetime, timezone
+            from pathlib import Path
+
+            p = Path("logs/alpaca_stream.jsonl")
+            p.parent.mkdir(parents=True, exist_ok=True)
+            rec: Dict[str, Any] = {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "msg": "sip_started",
+                "stream_id": self.stream_id,
+                "url": self.stream_url,
+                "paper": self._paper,
+                "max_symbols": max_sym,
+            }
+            try:
+                from strategies.context import get_strategy_id
+
+                sid = get_strategy_id()
+                if sid:
+                    rec["strategy_id"] = sid
+            except ImportError:
+                pass
+            with p.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(rec) + "\n")
+        except Exception:
+            pass
 
     def stop(self) -> None:
         self._stop.set()
