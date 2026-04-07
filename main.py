@@ -8295,7 +8295,10 @@ class StrategyEngine:
         _stream_on = (os.environ.get("ALPACA_STREAM_ENABLED", "1") or "").strip().lower()
         if _stream_on in ("1", "true", "yes", "on"):
             try:
-                from src.alpaca.stream_manager import AlpacaStreamManager, set_stream_manager
+                from src.alpaca.stream_manager import (
+                    ensure_alpaca_stream_manager,
+                    register_stream_symbol_provider,
+                )
 
                 _paper = "paper" in (Config.ALPACA_BASE_URL or "").lower()
                 try:
@@ -8325,22 +8328,13 @@ class StrategyEngine:
                             syms.add(x)
                     return sorted(syms)[:_max_sym]
 
+                register_stream_symbol_provider(_stream_symbol_universe)
                 _url = (os.environ.get("ALPACA_DATA_STREAM_URL") or "").strip() or None
-                self._alpaca_stream = AlpacaStreamManager(
+                self._alpaca_stream = ensure_alpaca_stream_manager(
                     Config.ALPACA_KEY,
                     Config.ALPACA_SECRET,
-                    _stream_symbol_universe,
                     paper=_paper,
                     url=_url,
-                )
-                self._alpaca_stream.start()
-                set_stream_manager(self._alpaca_stream)
-                log_event(
-                    "alpaca_stream",
-                    "sip_started",
-                    url=self._alpaca_stream.stream_url,
-                    paper=_paper,
-                    max_symbols=_max_sym,
                 )
             except Exception as e:
                 log_event("alpaca_stream", "init_failed", error=str(e))
