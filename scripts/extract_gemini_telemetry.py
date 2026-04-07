@@ -18,6 +18,17 @@ OUT_DIR = REPO_ROOT / "reports" / "Gemini"
 LOGS = REPO_ROOT / "logs"
 DATA = REPO_ROOT / "data"
 
+try:
+    from src.governance.canonical_trade_count import (
+        _parse_exit_epoch,
+        iter_harvester_era_exit_records_for_csv,
+    )
+    from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START
+except Exception:  # pragma: no cover
+    iter_harvester_era_exit_records_for_csv = None  # type: ignore
+    _parse_exit_epoch = None  # type: ignore
+    STRICT_EPOCH_START = 1775581260.0
+
 # IPv4 quick redact (for any string fields we serialize)
 _IP_RE = re.compile(
     r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b"
@@ -261,6 +272,29 @@ def rows_from_attribution(path: Path, start: datetime, end: datetime) -> List[Di
         }
         out.append(row)
     return out
+
+
+def exit_attribution_rec_to_entry_row(rec: Dict[str, Any], path: Path) -> Dict[str, Any]:
+    """Build ENTRIES_HEADERS row; timestamp_utc is exit time (canonical harvester semantics)."""
+    ex = _parse_exit_epoch(rec) if _parse_exit_epoch else None
+    dt = datetime.fromtimestamp(ex, tz=timezone.utc) if ex is not None else None
+    snap = rec.get("snapshot") if isinstance(rec.get("snapshot"), dict) else {}
+    pnl = snap.get("pnl")
+    return {
+        "timestamp_utc": dt.isoformat() if dt else "",
+        "source_file": str(path.relative_to(REPO_ROOT)).replace("\\", "/"),
+        "event_kind": "exit_attribution",
+        "symbol": rec.get("symbol") or "",
+        "side": "",
+        "requested_qty": snap.get("qty") or "",
+        "filled_qty": snap.get("qty") or "",
+        "limit_or_intended_price": snap.get("entry_price") or "",
+        "fill_price": snap.get("exit_price") or "",
+        "slippage_bps": "",
+        "realized_pnl_usd": pnl if pnl is not None else "",
+        "trade_id": rec.get("trade_id") or "",
+        "notes": safe_str(rec.get("exit_reason") or rec.get("winner") or ""),
+    }
 
 
 def rows_from_exit_attribution(path: Path, start: datetime, end: datetime) -> List[Dict[str, Any]]:
@@ -842,39 +876,34 @@ def main() -> int:
     start, end = window_48h()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    entry_sources: List[Path] = [
-        DATA / "live_orders.jsonl",
-        LOGS / "orders.jsonl",
-        LOGS / "master_trade_log.jsonl",
-        LOGS / "shadow_trades.jsonl",
-        LOGS / "attribution.jsonl",
-        LOGS / "exit_attribution.jsonl",
-        LOGS / "alpaca_unified_events.jsonl",
-    ]
+    # entries_and_exits.csv: canonical Harvester-era unique closed trades only (STRICT_EPOCH_START
+    # exit floor + era cut + trade_key dedupe). Matches compute_canonical_trade_count row cardinality.
     entries: List[Dict[str, Any]] = []
     blocked: List[Dict[str, Any]] = []
-
-    for p in entry_sources:
-        if not p.is_file():
-            continue
+    exit_path = LOGS / "exit_attribution.jsonl"
+    if iter_harvester_era_exit_records_for_csv is not None and exit_path.is_file():
         try:
-            if p.name == "live_orders.jsonl":
-                entries.extend(rows_from_live_orders(p, start, end))
-            elif p.name == "orders.jsonl":
-                entries.extend(rows_from_orders_jsonl(p, start, end))
-                blocked.extend(rows_blocked_orders(p, start, end))
-            elif p.name == "master_trade_log.jsonl":
-                entries.extend(rows_from_master_trade_log(p, start, end))
-            elif p.name == "shadow_trades.jsonl":
-                entries.extend(rows_from_master_trade_log(p, start, end))
-            elif p.name == "attribution.jsonl":
-                entries.extend(rows_from_attribution(p, start, end))
-            elif p.name == "exit_attribution.jsonl":
-                entries.extend(rows_from_exit_attribution(p, start, end))
-            elif p.name == "alpaca_unified_events.jsonl":
-                entries.extend(rows_from_alpaca_unified(p, start, end))
+            for rec in iter_harvester_era_exit_records_for_csv(
+                REPO_ROOT,
+                floor_epoch=float(STRICT_EPOCH_START),
+                as_of_utc=end,
+            ):
+                entries.append(exit_attribution_rec_to_entry_row(rec, exit_path))
         except Exception:
-            continue
+            entries = []
+    if not entries and exit_path.is_file():
+        # Fallback if imports fail: legacy 48h merge (avoid empty CSV on broken env)
+        try:
+            entries.extend(rows_from_exit_attribution(exit_path, start, end))
+        except Exception:
+            pass
+
+    ord_path = LOGS / "orders.jsonl"
+    if ord_path.is_file():
+        try:
+            blocked.extend(rows_blocked_orders(ord_path, start, end))
+        except Exception:
+            pass
 
     gd = LOGS / "gate_diagnostic.jsonl"
     if gd.is_file():
@@ -997,7 +1026,7 @@ def main() -> int:
 
 ## High-level counts (this batch)
 
-- **Entry/exit / fill related rows (all sources merged):** {n_ent}
+- **Harvester-era unique exit rows (`entries_and_exits.csv`):** {n_ent}
 - **Blocked / rejected rows:** {n_blk}
 - **Rows with numeric realized P&L:** {pnl_n}
 - **Wins (P&L > 0):** {wins}
@@ -1008,9 +1037,8 @@ def main() -> int:
 
 ## Data sources consulted (non-exhaustive)
 
-- `data/live_orders.jsonl`, `logs/orders.jsonl`, `logs/master_trade_log.jsonl`, `logs/shadow_trades.jsonl`
-- `logs/attribution.jsonl`, `logs/exit_attribution.jsonl`, `logs/alpaca_unified_events.jsonl`
-- `logs/gate_diagnostic.jsonl`, `logs/run.jsonl` (trade_intent blocked_reason), `logs/critical_api_failure.log`, `logs/system_events.jsonl`
+- **`entries_and_exits.csv`:** unique closed trades from `logs/exit_attribution.jsonl` only — same rules as `compute_canonical_trade_count` (`STRICT_EPOCH_START` exit floor, era cut, `trade_key` dedupe). No merged fills/orders.
+- **Blocked / other CSVs:** `logs/orders.jsonl` (blocked actions), `logs/gate_diagnostic.jsonl`, `logs/run.jsonl` (trade_intent blocked_reason), `logs/critical_api_failure.log`, `logs/system_events.jsonl`
 - `logs/shadow.jsonl`, `logs/paper_exec_mode_decisions.jsonl`
 - `data/uw_attribution.jsonl`, `logs/uw_attribution.jsonl`, `logs/alpaca_entry_attribution.jsonl`, `logs/score_snapshot.jsonl`, `telemetry/score_snapshot.jsonl`
 
