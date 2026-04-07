@@ -10,6 +10,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from telemetry.alpaca_telegram_integrity import checks
+from telemetry.alpaca_telegram_integrity.checkpoint_10 import (
+    checkpoint_10_state_path,
+    load_checkpoint_10_state,
+    save_checkpoint_10_state,
+)
 from telemetry.alpaca_telegram_integrity.checkpoint_100 import (
     checkpoint_100_state_path,
     load_checkpoint_100_state,
@@ -346,6 +351,31 @@ def run_integrity_cycle(
     out["milestone"] = asdict(snap)
     out["milestone_counting_basis"] = basis
     out["milestone_integrity_arm"] = arm_st if basis == "integrity_armed" else {"basis": "session_open"}
+
+    # --- 10-trade Alpaca V2 harvester ping (once per session_anchor_et) ---
+    cp10_path = checkpoint_10_state_path(root)
+    cp10_on = cfg.get("checkpoint_10_enabled", True)
+    cp10_target = max(1, int(cfg.get("checkpoint_10_trade_count", 10)))
+    st10 = load_checkpoint_10_state(cp10_path)
+    if st10.get("session_anchor_et") != snap.session_anchor_et:
+        st10 = {
+            "session_anchor_et": snap.session_anchor_et,
+            "checkpoint_10_sent": False,
+            "last_count": 0,
+        }
+    st10["last_count"] = snap.unique_closed_trades
+    if cp10_on and snap.unique_closed_trades >= cp10_target and not st10.get("checkpoint_10_sent"):
+        msg10 = (
+            "🟢 [Alpaca V2 Harvester] 10 Trades Reached. New UW Telemetry is Flowing!"
+        )
+        if send_msg(msg10, "alpaca_checkpoint_10"):
+            st10["checkpoint_10_sent"] = True
+            st10["checkpoint_10_sent_at_utc"] = datetime.now(timezone.utc).isoformat()
+            out["checkpoint_10_sent"] = True
+        else:
+            out["checkpoint_10_send_failed"] = True
+    save_checkpoint_10_state(cp10_path, st10)
+    out["checkpoint_10_guard_file"] = str(cp10_path)
 
     st100 = load_checkpoint_100_state(cp100_path)
     if st100.get("session_anchor_et") != snap.session_anchor_et:

@@ -3,9 +3,11 @@
 Telemetry milestone watcher: refresh Gemini CSVs, count trades since reset date,
 optionally verify SPI column integrity at the 10-trade gate, Telegram alerts, deduped state.
 
-Scaling / OOS Telegram thresholds (trade rows in entries_and_exits since cutoff): see
-MILESTONE_ALERT_THRESHOLDS = [10, 50, 100, 150, 250]. Ten triggers SPI pass/warn only;
-50/100/150/250 use OOS_MILESTONE_STEPS messages (deduped per state key).
+Alpaca V2 harvester Telegram thresholds (trade rows in entries_and_exits since cutoff): see
+MILESTONE_ALERT_THRESHOLDS = [10, 100, 250]. Ten triggers SPI pass/warn only;
+100/250 use OOS_MILESTONE_STEPS messages (deduped per state key).
+Default cutoff when env/meta unset: 2026-04-07T17:01:00Z (ML era reset); override with
+TELEMETRY_MILESTONE_SINCE_DATE=YYYY-MM-DD.
 
 Env:
   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID — required to send (else logs only).
@@ -59,32 +61,25 @@ SPI_CORE_COLS = [
 
 MILESTONE_10_OK = "10_trade_checkpoint_passed"
 MILESTONE_10_WARN = "10_trade_data_integrity_warning"
-MILESTONE_100_ML = "100_trade_ml_ready"
+MILESTONE_100_ML = "alpaca_v2_harvester_100_trades"
 
 # Canonical trade-count pings (entries_and_exits since cutoff). 10 = SPI integrity only (below).
-MILESTONE_ALERT_THRESHOLDS = [10, 50, 100, 150, 250]
+MILESTONE_ALERT_THRESHOLDS = [10, 100, 250]
 
-# Out-of-sample / scaling Telegram milestones (deduped in state by second column).
+# Default UTC instant for trade/SPI row cutoff (Alpaca ML era reset). Env TELEMETRY_MILESTONE_SINCE_DATE overrides (date at 00:00 UTC).
+_ALPACA_V2_ERA_START_UTC = datetime(2026, 4, 7, 17, 1, 0, tzinfo=timezone.utc)
+
+# OOS / harvester Telegram milestones (deduped in state by second column).
 OOS_MILESTONE_STEPS: List[Tuple[int, str, str]] = [
-    (
-        50,
-        "equities_oos_50_trades",
-        "🟦 [Equities OOS] 50 trades reached — mid-sample scaling checkpoint.",
-    ),
     (
         100,
         MILESTONE_100_ML,
-        "🔵 100 Trades Completed: Ready for ML Feature Importance Analysis.",
-    ),
-    (
-        150,
-        "equities_oos_150_trades",
-        "🟪 [Equities OOS] 150 trades reached — deep OOS checkpoint before the 250 definitive review.",
+        "🎯 [Alpaca V2 Harvester] 100 Trades Completed! ML data collection on track.",
     ),
     (
         250,
-        "equities_oos_250_trades",
-        "🎯 [Equities OOS] 250 Trades Reached! The Microstructure Edge is ready for its definitive Out-of-Sample Review.",
+        "alpaca_v2_harvester_250_trades",
+        "📊 [Alpaca V2 Harvester] 250-Trade Checkpoint! Ready for ML Model Retraining.",
     ),
 ]
 
@@ -128,8 +123,7 @@ def _since_datetime_utc() -> datetime:
             return datetime(y, m, d, tzinfo=timezone.utc)
         except Exception:
             pass
-    today = datetime.now(timezone.utc).date()
-    return datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
+    return _ALPACA_V2_ERA_START_UTC
 
 
 def _parse_ts(s: str) -> Optional[datetime]:
@@ -288,7 +282,7 @@ def main() -> int:
     def mark(k: str) -> None:
         sent[k] = {"sent_at": datetime.now(timezone.utc).isoformat(), "trade_count": trade_count}
 
-    # --- OOS / scaling milestones (50, 100, 150, 250) — see MILESTONE_ALERT_THRESHOLDS ---
+    # --- OOS / harvester milestones (100, 250) — see MILESTONE_ALERT_THRESHOLDS ---
     for threshold, key, msg in OOS_MILESTONE_STEPS:
         if trade_count >= threshold and not already(key):
             if send_telegram(msg):
@@ -302,7 +296,7 @@ def main() -> int:
         ok, detail = _verify_spi_core_columns_fixed(cutoff, recent_cap=200)
         print(f"SPI integrity: ok={ok} — {detail}", flush=True)
         if ok and not already(MILESTONE_10_OK):
-            msg = "🟢 10-Trade Checkpoint Passed: Telemetry is 100% intact."
+            msg = "🟢 [Alpaca V2 Harvester] 10 Trades Reached. New UW Telemetry is Flowing!"
             if send_telegram(msg):
                 mark(MILESTONE_10_OK)
                 print("Sent 10-trade OK Telegram", flush=True)

@@ -30,10 +30,11 @@ except Exception:  # pragma: no cover - optional during bootstrap
 
 # Forward-only strict learning era (UTC epoch). Used when ``open_ts_epoch`` is set: cohort
 # membership requires position **open** time parsed from ``trade_id`` (open_<SYM>_<ISO>) >= this floor.
-STRICT_EPOCH_START = 1774458080.0  # 2026-03-25T17:01:20Z
+# Reset 2026-04-07: new ML telemetry era (UW cache parity); prior cohort excluded from strict counts.
+STRICT_EPOCH_START = 1775581260.0  # 2026-04-07T17:01:00Z
 
 # Trades opened on/after this UTC instant must have a LIVE `entry_decision_made` row (OK, non-synthetic).
-LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH = datetime(2026, 3, 28, 0, 0, tzinfo=timezone.utc).timestamp()
+LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH = datetime(2026, 4, 7, 17, 1, 0, tzinfo=timezone.utc).timestamp()
 
 AUTHORITATIVE_JOIN_KEY_RULE = (
     "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from "

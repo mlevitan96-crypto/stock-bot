@@ -36,7 +36,9 @@ def format_100trade_checkpoint(
     """Informational only; no operator action."""
     prefix = "[TEST] " if test else ""
     lines = [
-        f"{prefix}[ALPACA] 100-TRADE CHECKPOINT",
+        f"{prefix}🎯 [Alpaca V2 Harvester] 100 Trades Completed! ML data collection on track.",
+        "",
+        f"{prefix}[ALPACA] 100-TRADE CHECKPOINT (detail)",
         "Informational only — no operator action required.",
         f"Trade count ({_counting_label(snap)}): {snap.unique_closed_trades}",
         f"Count floor (UTC): {snap.count_floor_utc_iso}",
@@ -104,7 +106,9 @@ def format_milestone_250(
 ) -> str:
     prefix = "[TEST] " if test else ""
     lines = [
-        f"{prefix}ALPACA 250-TRADE MILESTONE",
+        f"{prefix}📊 [Alpaca V2 Harvester] 250-Trade Checkpoint! Ready for ML Model Retraining.",
+        "",
+        f"{prefix}ALPACA 250-TRADE MILESTONE (detail)",
         f"Counting basis: {snap.counting_basis}",
         f"Count floor (UTC): {snap.count_floor_utc_iso or snap.session_open_utc_iso}",
         f"Session open (UTC): {snap.session_open_utc_iso}",

@@ -88,7 +88,7 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 
 ## 1.1 Alpaca strict learning era (CSA)
 
-- **STRICT_EPOCH_START (UTC epoch seconds):** `1774458080` (`2026-03-25T17:01:20Z`). Canonical: `telemetry/alpaca_strict_completeness_gate.py` (`STRICT_EPOCH_START`).
+- **STRICT_EPOCH_START (UTC epoch seconds):** `1775581260` (`2026-04-07T17:01:00Z`). Canonical: `telemetry/alpaca_strict_completeness_gate.py` (`STRICT_EPOCH_START`). Reset for Alpaca V2 UW telemetry era; prior cohort excluded from strict counts.
 - **Strict cohort (entry-based):** When `evaluate_completeness` is called with `open_ts_epoch` set, terminal closes are kept only if exit time `>= open_ts_epoch`. Among those, a trade is in the strict cohort only if the open instant parsed from `trade_id` (`open_<SYM>_<ISO8601>`) is also `>= open_ts_epoch`. Earlier opens are excluded (`PREERA_OPEN`) and do not count as `trades_seen` or incomplete.
 
 ## 1.2 Alpaca truth warehouse — DATA_READY baseline (do not drift)
@@ -2181,6 +2181,12 @@ Replace opaque `blocked_reason` strings with:
 - **Pillar 1: Microstructure (OFI).** Capture Order Flow Imbalance and Volume Adjusted Mid-Price (VAMP) to predict 1-minute lead times.
 - **Pillar 2: Mathematical Stationarity.** Implementation of Fractional Differentiation in the ML pipeline to preserve trend memory.
 - **Pillar 3: Adaptive Risk (HMM).** Transition from static stop-losses to Hidden Markov Model regime-aware position sizing.
+
+---
+
+## Implementation History
+
+- **2026-04-03:** Migrated Alpaca execution to V5.0 Passive Hunter. Implemented midpoint pegging (NBBO, 1¢ inside spread capped at mid), 2026 decimal enforcement (2 dp if price ≥ $1, 4 dp if < $1), 20 bps spread guard with `spread_too_wide_abort`, and 24/5 overnight routing (`extended_hours` when outside US RTH and `asset.overnight_tradable`). See `main.py` (`v5_compute_limit_price`, `AlpacaExecutor.compute_entry_price`, `submit_entry`).
 
 ---
 
