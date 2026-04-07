@@ -9,11 +9,14 @@ import csv
 import json
 import math
 import re
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 OUT_DIR = REPO_ROOT / "reports" / "Gemini"
 LOGS = REPO_ROOT / "logs"
 DATA = REPO_ROOT / "data"
