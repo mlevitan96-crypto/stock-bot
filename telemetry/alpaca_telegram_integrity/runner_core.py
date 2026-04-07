@@ -461,20 +461,30 @@ def run_integrity_cycle(
         )
         out["test_milestone_sent"] = send_msg(msg, "alpaca_integrity_test_milestone")
     elif fire:
-        msg = format_milestone_250(
-            test=False,
-            snap=snap,
-            data_ready=data_ready_s,
-            strict_status=str(strict.get("LEARNING_STATUS") or ""),
-            spi_rel=spi,
-            reports_hint=reports_hint,
+        # Never send the 250 integrity Telegram before the 100-trade informational checkpoint succeeded.
+        block_250_for_100 = (
+            bool(cp100_on)
+            and snap.unique_closed_trades >= cp100_target
+            and not bool(st100.get("checkpoint_100_info_sent"))
         )
-        if send_msg(msg, "alpaca_milestone_250"):
-            mark_milestone_fired(ms_path, ms_st)
-            out["milestone_fired"] = True
-        else:
-            out["milestone_fire_failed"] = True
+        if block_250_for_100:
+            out["milestone_250_blocked_pending_checkpoint_100"] = True
             save_milestone_state(ms_path, ms_st)
+        else:
+            msg = format_milestone_250(
+                test=False,
+                snap=snap,
+                data_ready=data_ready_s,
+                strict_status=str(strict.get("LEARNING_STATUS") or ""),
+                spi_rel=spi,
+                reports_hint=reports_hint,
+            )
+            if send_msg(msg, "alpaca_milestone_250"):
+                mark_milestone_fired(ms_path, ms_st)
+                out["milestone_fired"] = True
+            else:
+                out["milestone_fire_failed"] = True
+                save_milestone_state(ms_path, ms_st)
     else:
         save_milestone_state(ms_path, ms_st)
 

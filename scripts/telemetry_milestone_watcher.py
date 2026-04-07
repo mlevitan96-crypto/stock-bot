@@ -89,6 +89,27 @@ OOS_MILESTONE_STEPS: List[Tuple[int, str, str]] = [
     ),
 ]
 
+# Keys cleared when harvester CSV cutoff changes (epoch / env clamp) so 250 cannot skip 100.
+_OOS_HARVESTER_SENT_KEYS = (MILESTONE_100_ML, "alpaca_v2_harvester_250_trades")
+
+
+def _maybe_reset_oos_milestones_on_harvester_floor_change(
+    state: Dict[str, Any], cutoff: datetime
+) -> None:
+    """If the effective CSV cutoff changed, drop 100/250 OOS sent flags (stale vs new STRICT_EPOCH)."""
+    meta = state.setdefault("meta", {})
+    cur = cutoff.isoformat()
+    prev = meta.get("harvester_count_floor_utc")
+    sent = state.setdefault("milestones_sent", {})
+    if prev is not None and prev != cur:
+        for k in _OOS_HARVESTER_SENT_KEYS:
+            sent.pop(k, None)
+        print(
+            f"telemetry_milestone_watcher: cleared OOS harvester flags (floor {prev!r} -> {cur!r})",
+            flush=True,
+        )
+    meta["harvester_count_floor_utc"] = cur
+
 
 def _load_state() -> Dict[str, Any]:
     if not STATE_PATH.is_file():
@@ -282,6 +303,7 @@ def main() -> int:
     print(f"entries_and_exits rows since cutoff: {trade_count}", flush=True)
 
     state = _load_state()
+    _maybe_reset_oos_milestones_on_harvester_floor_change(state, cutoff)
     sent: Dict[str, Any] = state["milestones_sent"]
 
     def already(k: str) -> bool:
@@ -292,6 +314,14 @@ def main() -> int:
 
     # --- OOS / harvester milestones (100, 250) — see MILESTONE_ALERT_THRESHOLDS ---
     for threshold, key, msg in OOS_MILESTONE_STEPS:
+        if key == "alpaca_v2_harvester_250_trades" and not already(MILESTONE_100_ML):
+            if trade_count >= threshold:
+                print(
+                    "telemetry_milestone_watcher: skip 250 OOS Telegram until 100-trade OOS was sent "
+                    f"(trade_count={trade_count})",
+                    flush=True,
+                )
+            continue
         if trade_count >= threshold and not already(key):
             if send_telegram(msg):
                 mark(key)
