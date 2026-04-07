@@ -126,7 +126,7 @@ The mission fills missing keys by merging **only unset** vars from, in order: re
 - **Channels:** Subscribes to **`trades`** (`T`=`t`) and **`bars`** (minute aggregates, `T`=`b` / `u` for updated bars). Legacy “AM” naming maps to the **`bars`** channel.
 - **Symbol universe (whitelist):** Union of **open positions**, **`uw_flow_cache`** keys (non-`_`), **`SPY`**, and **`ALPACA_STREAM_EXTRA_SYMBOLS`** (comma-separated), capped by **`ALPACA_STREAM_MAX_SYMBOLS`** (default **200**, max **500**). Does **not** bypass strict learning-era rules elsewhere (stream is market-data only).
 - **Bar reads:** `main.fetch_bars_safe` tries the in-memory **`PriceCache`** first for **`1Min`** when the stream is enabled and the latest bar update is within **`ALPACA_STREAM_BAR_MAX_AGE_SEC`** (default **60**); otherwise **`REST.get_bars`**. If both fail, logs **`CRITICAL_DATA_STALE`** to **`logs/system_events.jsonl`** (subsystem **`data`**).
-- **Env:** **`ALPACA_STREAM_ENABLED`** default **`1`** (set **`0`** to disable). Optional **`ALPACA_DATA_STREAM_URL`** override. Dependency: **`websockets`** (see **`requirements.txt`**).
+- **Env:** **`ALPACA_STREAM_ENABLED`** default **`1`** (set **`0`** to disable). Optional **`ALPACA_DATA_STREAM_URL`** override. Dependency: **`websockets`** pinned **`>=9,<11`** with **`alpaca-trade-api`** (see **`requirements.txt`**).
 - **After deploy:** `pip install -r requirements.txt` (or `pip install websockets`) on the droplet venv, then **`sudo systemctl restart stock-bot`**. Look for **`alpaca_stream` / `sip_started`** in run logs.
 
 ### Gates and defaults (paper vs live)
