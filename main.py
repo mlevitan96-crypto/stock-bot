@@ -18,6 +18,7 @@ import random
 import signal
 import threading
 import traceback
+from types import SimpleNamespace
 # Optional: requests is used in some execution / telemetry paths. Keep import non-blocking for local audit runs.
 _MISSING_REQUESTS_LIB = False
 try:
@@ -4084,13 +4085,51 @@ _atr_cache = {}
 def fetch_bars_safe(api, symbol: str, timeframe: str = "1Min", limit: int = 100):
     """
     Safe bar fetch with stale-bar guard.
+    Hybrid: for 1Min bars, prefer SIP WebSocket ring buffer (AlpacaStreamManager) when fresh;
+    otherwise REST.get_bars. If both miss, emit CRITICAL_DATA_STALE (system_events).
     Contract:
     - On exception: logs (via wrapper) and returns None.
     - On stale bars: logs WARN and returns None.
     """
-    bars = api.get_bars(symbol, timeframe, limit=limit)
-    df = getattr(bars, "df", None)
+    bars = None
+    if timeframe == "1Min":
+        try:
+            from src.alpaca.stream_manager import get_stream_manager
+
+            mgr = get_stream_manager()
+            if mgr is not None:
+                try:
+                    max_age_sec = float(os.environ.get("ALPACA_STREAM_BAR_MAX_AGE_SEC", "60"))
+                except Exception:
+                    max_age_sec = 60.0
+                cdf = mgr.price_cache.get_fresh_bars_df(
+                    symbol, int(limit), max_age_sec=max_age_sec
+                )
+                if cdf is not None and len(cdf) > 0:
+                    bars = SimpleNamespace(df=cdf)
+        except Exception:
+            bars = None
+
+    if bars is None:
+        try:
+            bars = api.get_bars(symbol, timeframe, limit=limit)
+        except Exception:
+            bars = None
+
+    df = getattr(bars, "df", None) if bars is not None else None
     if df is None or len(df) == 0:
+        try:
+            log_system_event(
+                subsystem="data",
+                event_type="CRITICAL_DATA_STALE",
+                severity="CRITICAL",
+                symbol=str(symbol).upper(),
+                timeframe=timeframe,
+                limit=int(limit),
+                detail="sip_stream_cache_and_rest_empty_or_failed",
+            )
+        except Exception:
+            pass
         return None
     try:
         last_bar_ts = df.index[-1]
@@ -8250,6 +8289,61 @@ class StrategyEngine:
         except Exception as e:
             log_event("state_manager", "initialization_failed", error=str(e))
             self.state_manager = None
+
+        # Optional: Alpaca SIP WebSocket (v2/sip) + PriceCache — hybrid with REST in fetch_bars_safe.
+        self._alpaca_stream = None
+        _stream_on = (os.environ.get("ALPACA_STREAM_ENABLED", "1") or "").strip().lower()
+        if _stream_on in ("1", "true", "yes", "on"):
+            try:
+                from src.alpaca.stream_manager import AlpacaStreamManager, set_stream_manager
+
+                _paper = "paper" in (Config.ALPACA_BASE_URL or "").lower()
+                try:
+                    _max_sym = int(os.environ.get("ALPACA_STREAM_MAX_SYMBOLS", "200"))
+                except Exception:
+                    _max_sym = 200
+                _max_sym = max(1, min(_max_sym, 500))
+
+                def _stream_symbol_universe():
+                    syms = {"SPY"}
+                    try:
+                        for p in self.executor.api.list_positions() or []:
+                            sym = getattr(p, "symbol", None)
+                            if sym:
+                                syms.add(str(sym).upper())
+                    except Exception:
+                        pass
+                    try:
+                        for k in self.uw_flow_cache.keys():
+                            if k and not str(k).startswith("_"):
+                                syms.add(str(k).upper())
+                    except Exception:
+                        pass
+                    for part in (os.environ.get("ALPACA_STREAM_EXTRA_SYMBOLS") or "").split(","):
+                        x = str(part).strip().upper()
+                        if x:
+                            syms.add(x)
+                    return sorted(syms)[:_max_sym]
+
+                _url = (os.environ.get("ALPACA_DATA_STREAM_URL") or "").strip() or None
+                self._alpaca_stream = AlpacaStreamManager(
+                    Config.ALPACA_KEY,
+                    Config.ALPACA_SECRET,
+                    _stream_symbol_universe,
+                    paper=_paper,
+                    url=_url,
+                )
+                self._alpaca_stream.start()
+                set_stream_manager(self._alpaca_stream)
+                log_event(
+                    "alpaca_stream",
+                    "sip_started",
+                    url=self._alpaca_stream.stream_url,
+                    paper=_paper,
+                    max_symbols=_max_sym,
+                )
+            except Exception as e:
+                log_event("alpaca_stream", "init_failed", error=str(e))
 
     def score_cluster(self, cluster: dict, confirm_score: float, gex: dict, market_regime: str = "mixed") -> float:
         safe_cluster = normalize_cluster(cluster)

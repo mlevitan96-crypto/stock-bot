@@ -120,6 +120,15 @@ PYTHONPATH=. python3 scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.p
 
 The mission fills missing keys by merging **only unset** vars from, in order: repo **`/root/stock-bot/.env`**, then **`/root/.alpaca_env`**. It accepts **`ALPACA_KEY` / `ALPACA_SECRET`** as well as **`APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`**. If `.alpaca_env` is Telegram-only, Alpaca keys must come from **`.env`** (same as `stock-bot.service` **EnvironmentFile**).
 
+### Real-time stock data (SIP WebSocket + REST hybrid)
+
+- **Implementation:** `src/alpaca/stream_manager.py` — `AlpacaStreamManager` connects to **`wss://stream.data.alpaca.markets/v2/sip`** (production) or **`wss://stream.data.sandbox.alpaca.markets/v2/sip`** when **`ALPACA_BASE_URL`** is paper-shaped. Uses the same **key/secret** as REST. Docs: [Real-time Stock Data](https://docs.alpaca.markets/docs/real-time-stock-pricing-data).
+- **Channels:** Subscribes to **`trades`** (`T`=`t`) and **`bars`** (minute aggregates, `T`=`b` / `u` for updated bars). Legacy “AM” naming maps to the **`bars`** channel.
+- **Symbol universe (whitelist):** Union of **open positions**, **`uw_flow_cache`** keys (non-`_`), **`SPY`**, and **`ALPACA_STREAM_EXTRA_SYMBOLS`** (comma-separated), capped by **`ALPACA_STREAM_MAX_SYMBOLS`** (default **200**, max **500**). Does **not** bypass strict learning-era rules elsewhere (stream is market-data only).
+- **Bar reads:** `main.fetch_bars_safe` tries the in-memory **`PriceCache`** first for **`1Min`** when the stream is enabled and the latest bar update is within **`ALPACA_STREAM_BAR_MAX_AGE_SEC`** (default **60**); otherwise **`REST.get_bars`**. If both fail, logs **`CRITICAL_DATA_STALE`** to **`logs/system_events.jsonl`** (subsystem **`data`**).
+- **Env:** **`ALPACA_STREAM_ENABLED`** default **`1`** (set **`0`** to disable). Optional **`ALPACA_DATA_STREAM_URL`** override. Dependency: **`websockets`** (see **`requirements.txt`**).
+- **After deploy:** `pip install -r requirements.txt` (or `pip install websockets`) on the droplet venv, then **`sudo systemctl restart stock-bot`**. Look for **`alpaca_stream` / `sip_started`** in run logs.
+
 ### Gates and defaults (paper vs live)
 
 - **Coverage windows (override via env):** `ALPACA_TRUTH_CONTEXT_WINDOW_SEC` and `ALPACA_TRUTH_EXECUTION_WINDOW_SEC` default **7200** seconds (exit ↔ signal context, exit ↔ order/fill proximity).
