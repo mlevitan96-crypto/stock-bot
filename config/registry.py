@@ -204,6 +204,9 @@ class LogFiles:
     MASTER_TRADE_LOG = Directories.LOGS / "master_trade_log.jsonl"
     EXIT_ATTRIBUTION = Directories.LOGS / "exit_attribution.jsonl"
 
+    # Entry-time composite + components at broker submit (join: entry_order_id on exit rows).
+    ENTRY_SNAPSHOTS = Directories.LOGS / "entry_snapshots.jsonl"
+
 
 class ConfigFiles:
     """All configuration files."""
@@ -216,11 +219,11 @@ class ConfigFiles:
 class Thresholds:
     """All tunable thresholds - centralized defaults with env override."""
     
-    MIN_EXEC_SCORE = get_env("MIN_EXEC_SCORE", 2.5, float)  # 2.5: lowered per blocked-trade expectancy analysis (reversible via env)
+    MIN_EXEC_SCORE = get_env("MIN_EXEC_SCORE", 3.2, float)  # Core reset: align with main.Config default
     MAX_CONCURRENT_POSITIONS = get_env("MAX_CONCURRENT_POSITIONS", 16, int)  # Increased from 12 - was capacity constrained
     MAX_NEW_POSITIONS_PER_CYCLE = 6
     
-    TRAILING_STOP_PCT = get_env("TRAILING_STOP_PCT", 0.015, float)
+    TRAILING_STOP_PCT = get_env("TRAILING_STOP_PCT", 0.035, float)
     PROFIT_SCALE_PCT = get_env("PROFIT_SCALE_PCT", 0.02, float)
     # TIME EXIT: Allow institutional signals time to develop
     # Updated 2025-12-11 per forensic audit: 90min was too aggressive ("scalp or die")
@@ -235,7 +238,8 @@ class Thresholds:
     DISPLACEMENT_MAX_PNL_PCT = get_env("DISPLACEMENT_MAX_PNL_PCT", 0.01, float)  # Was 0.5%, now 1%
     DISPLACEMENT_SCORE_ADVANTAGE = get_env("DISPLACEMENT_SCORE_ADVANTAGE", 2.0, float)  # Was 1.0, now 2.0
     DISPLACEMENT_COOLDOWN_HOURS = get_env("DISPLACEMENT_COOLDOWN_HOURS", 6, int)  # Was 4h, now 6h
-    
+    DISPLACEMENT_MIN_HOLD_SECONDS = get_env("DISPLACEMENT_MIN_HOLD_SECONDS", 3600, int)  # 1h — policy gate default
+
     POSITION_SIZE_USD = get_env("POSITION_SIZE_USD", 500, float)
     MAX_THEME_NOTIONAL_USD = get_env("MAX_THEME_NOTIONAL_USD", 50000, float)
     
