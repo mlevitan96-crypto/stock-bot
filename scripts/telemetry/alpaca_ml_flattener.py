@@ -30,6 +30,9 @@ from utils.era_cut import learning_excluded_for_exit_record  # noqa: E402
 TID_RE = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
 ML_BLOB_KEYS = ("entry_uw", "v2_exit_components", "direction_intel_embed")
 
+# Wide join: last composite_calculated for symbol with ts in [entry - lookback, entry].
+SCOREFLOW_LOOKBACK_SEC_DEFAULT = 4 * 3600
+
 
 def _parse_iso_ts(raw: Any) -> Optional[float]:
     if raw is None:
@@ -126,27 +129,43 @@ def _load_scoring_composite_index(
     out: Dict[str, Tuple[List[float], List[Dict[str, Any]], List[float]]] = {}
     for sym, rows in by_sym.items():
         rows.sort(key=lambda x: x[0])
-        ts_list = [x[0] for x in rows]
-        comps = [x[1] for x in rows]
-        scores = [x[2] for x in rows]
+        merged: List[Tuple[float, Dict[str, Any], float]] = []
+        for t, c, s in rows:
+            if merged and merged[-1][0] == t:
+                merged[-1] = (t, c, s)  # same-ts: last line wins
+            else:
+                merged.append((t, c, s))
+        ts_list = [x[0] for x in merged]
+        comps = [x[1] for x in merged]
+        scores = [x[2] for x in merged]
         out[sym] = (ts_list, comps, scores)
     return out
 
 
-def _nearest_composite_at_or_before(
+def _last_known_composite_wide(
     index: Dict[str, Tuple[List[float], List[Dict[str, Any]], List[float]]],
     symbol: str,
     entry_epoch: Optional[float],
+    lookback_sec: float = SCOREFLOW_LOOKBACK_SEC_DEFAULT,
 ) -> Tuple[Optional[float], Optional[Dict[str, Any]], Optional[float]]:
+    """
+    Last Known Score: newest composite_calculated with ts <= entry_epoch and
+    entry_epoch - ts <= lookback_sec (default 4h). Ignores snapshots older than the window.
+    """
     if entry_epoch is None:
         return None, None, None
     sym = symbol.upper().strip()
+    if not sym:
+        return None, None, None
     bucket = index.get(sym)
     if not bucket:
         return None, None, None
     ts_list, comps, scores = bucket
-    i = bisect_right(ts_list, entry_epoch) - 1
+    lo = float(entry_epoch) - float(lookback_sec)
+    i = bisect_right(ts_list, float(entry_epoch)) - 1
     if i < 0:
+        return None, None, None
+    if ts_list[i] < lo:
         return None, None, None
     return ts_list[i], comps[i], scores[i]
 
@@ -207,10 +226,23 @@ def _base_trade_fields(rec: dict) -> Dict[str, Any]:
     }
 
 
+def _entry_epoch_for_scoring(rec: dict, row: Dict[str, Any]) -> Optional[float]:
+    """Prefer entry_ts on row, then raw record timestamps, then open instant from trade_id."""
+    t = _parse_iso_ts(row.get("entry_ts"))
+    if t is not None:
+        return t
+    t = _parse_iso_ts(rec.get("entry_ts") or rec.get("entry_timestamp"))
+    if t is not None:
+        return t
+    return _open_epoch_from_trade_id(rec.get("trade_id"))
+
+
 def build_rows(
     root: Path,
     floor_epoch: float,
     scoring_index: Optional[Dict[str, Tuple[List[float], List[Dict[str, Any]], List[float]]]],
+    *,
+    scoreflow_lookback_sec: float = SCOREFLOW_LOOKBACK_SEC_DEFAULT,
 ) -> List[Dict[str, Any]]:
     exit_path = root / "logs" / "exit_attribution.jsonl"
     raw = list(_iter_jsonl(exit_path))
@@ -220,7 +252,12 @@ def build_rows(
         if not _filter_strict_cohort(rec, floor_epoch):
             continue
         row: Dict[str, Any] = _base_trade_fields(rec)
-        entry_epoch = _parse_iso_ts(row.get("entry_ts"))
+        entry_epoch = _entry_epoch_for_scoring(rec, row)
+        sym_join = (
+            str(rec.get("symbol_normalized") or rec.get("symbol") or row.get("symbol") or "")
+            .upper()
+            .strip()
+        )
 
         for blob_key in ML_BLOB_KEYS:
             blob = rec.get(blob_key)
@@ -230,15 +267,19 @@ def build_rows(
                 row.update(_prefix_mlf(flat, stem))
 
         if scoring_index:
-            _ts_c, comp, tot = _nearest_composite_at_or_before(
-                scoring_index, str(row.get("symbol") or ""), entry_epoch
+            _ts_c, comp, tot = _last_known_composite_wide(
+                scoring_index, sym_join, entry_epoch, lookback_sec=scoreflow_lookback_sec
             )
-            if comp:
+            row["mlf_scoreflow_lookback_sec_applied"] = scoreflow_lookback_sec
+            if _ts_c is not None:
+                row["mlf_scoreflow_snapshot_ts_epoch"] = _ts_c
+                row["mlf_scoreflow_snapshot_age_sec"] = (
+                    float(entry_epoch) - float(_ts_c) if entry_epoch is not None else ""
+                )
+            if comp is not None and isinstance(comp, dict):
                 row.update(_prefix_mlf(_flatten_leaves(comp), "scoreflow_components"))
             if tot is not None and tot == tot:  # not NaN
                 row["mlf_scoreflow_total_score"] = tot
-            if _ts_c is not None:
-                row["mlf_scoreflow_snapshot_ts_epoch"] = _ts_c
         out.append(row)
     return out
 
@@ -284,6 +325,12 @@ def main() -> int:
         action="store_true",
         help="Skip logs/scoring_flow.jsonl composite join.",
     )
+    ap.add_argument(
+        "--scoreflow-lookback-sec",
+        type=float,
+        default=float(SCOREFLOW_LOOKBACK_SEC_DEFAULT),
+        help="Max age (seconds) of last composite before entry_ts (default: 14400 = 4h).",
+    )
     args = ap.parse_args()
     root = args.root.resolve()
     out_path = (args.out or (root / "reports" / "Gemini" / "alpaca_ml_cohort_flat.csv")).resolve()
@@ -292,7 +339,12 @@ def main() -> int:
     scoring_path = root / "logs" / "scoring_flow.jsonl"
     scoring_index = None if args.no_scoring_flow else _load_scoring_composite_index(scoring_path)
 
-    rows = build_rows(root, args.floor_epoch, scoring_index)
+    rows = build_rows(
+        root,
+        args.floor_epoch,
+        scoring_index,
+        scoreflow_lookback_sec=args.scoreflow_lookback_sec,
+    )
     headers = _collect_headers(rows)
 
     with out_path.open("w", encoding="utf-8", newline="") as f:
@@ -301,7 +353,22 @@ def main() -> int:
         for r in rows:
             w.writerow({h: r.get(h, "") for h in headers})
 
-    print(f"wrote {len(rows)} rows -> {out_path}")
+    n = len(rows)
+    if n and scoring_index is not None:
+        tot_col = "mlf_scoreflow_total_score"
+        with_snap = sum(1 for r in rows if r.get("mlf_scoreflow_snapshot_ts_epoch") not in (None, ""))
+        with_tot = sum(
+            1
+            for r in rows
+            if r.get(tot_col) not in (None, "")
+            and str(r.get(tot_col)).strip() != ""
+        )
+        print(
+            f"scoreflow_snapshot_coverage_pct: {100.0 * with_snap / n:.2f} ({with_snap}/{n}) "
+            f"[last-known composite within {args.scoreflow_lookback_sec:.0f}s before entry]"
+        )
+        print(f"scoreflow_total_score_populated_pct: {100.0 * with_tot / n:.2f} ({with_tot}/{n})")
+    print(f"wrote {n} rows -> {out_path}")
     print(f"floor_epoch={args.floor_epoch} STRICT_EPOCH_START={STRICT_EPOCH_START}")
     return 0
 
