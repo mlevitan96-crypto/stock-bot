@@ -4477,7 +4477,7 @@ class AlpacaExecutor:
         
         # Submit real order (guard has already passed - this is the final network call)
         if order_type == "limit" and limit_price is not None:
-            return self.api.submit_order(
+            o = self.api.submit_order(
                 symbol=symbol,
                 qty=qty,
                 side=side,
@@ -4488,7 +4488,7 @@ class AlpacaExecutor:
                 **kwargs
             )
         else:
-            return self.api.submit_order(
+            o = self.api.submit_order(
                 symbol=symbol,
                 qty=qty,
                 side=side,
@@ -4497,6 +4497,15 @@ class AlpacaExecutor:
                 client_order_id=client_order_id,
                 **kwargs
             )
+        try:
+            from telemetry.entry_snapshot_logger import try_append_entry_snapshot
+
+            try_append_entry_snapshot(
+                self, symbol, side, qty, o, client_order_id, caller
+            )
+        except Exception:
+            pass
+        return o
     
     def _safe_reconcile(self, max_retries=3):
         """Safely reconcile positions with retry and exponential backoff."""
@@ -4850,6 +4859,7 @@ class AlpacaExecutor:
         *,
         entry_score: float = None,
         market_regime: str = None,
+        entry_components=None,
     ):
         """
         Submit entry order with spread watchdog and regime-aware execution.
@@ -4860,6 +4870,7 @@ class AlpacaExecutor:
         
         Self-healing: All orders must pass trade_guard before submission.
         """
+        self._pending_entry_snapshot = None
         # Logging upgrade: mandatory metadata integrity
         # We never enter a new position without a positive score (scoring exists to only enter when we have edge).
         # - entry_score must exist and be positive
@@ -5147,6 +5158,13 @@ class AlpacaExecutor:
                 log_event("submit_entry", "audit_dry_run_log_failed", symbol=symbol, error=str(e))
             _mock = self._create_mock_order(fake_id, symbol, qty, side, "limit", limit_price or ref_price) if self._create_mock_order else type("_MockOrder", (), {"id": fake_id})()
             return _mock, ref_price, "limit", qty, "dry_run"
+
+        self._pending_entry_snapshot = {
+            "entry_score": float(entry_score),
+            "components": dict(entry_components) if isinstance(entry_components, dict) else {},
+            "market_regime": str(effective_regime),
+            "trade_id": None,
+        }
 
         # Paper-only A/B execution promo (PASSIVE_THEN_CROSS vs baseline); gated by env + universe. Never arms for live.
         try:
@@ -10426,6 +10444,7 @@ class StrategyEngine:
                         client_order_id_base=client_order_id_base,
                         entry_score=score,
                         market_regime=market_regime,
+                        entry_components=comps if isinstance(comps, dict) else {},
                     )
                     print(f"DEBUG {symbol}: submit_entry completed - res={res is not None}, order_type={order_type}, entry_status={entry_status}, filled_qty={filled_qty}", flush=True)
                     
