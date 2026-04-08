@@ -147,27 +147,34 @@ def _last_known_composite_wide(
     symbol: str,
     entry_epoch: Optional[float],
     lookback_sec: float = SCOREFLOW_LOOKBACK_SEC_DEFAULT,
-) -> Tuple[Optional[float], Optional[Dict[str, Any]], Optional[float]]:
+    *,
+    allow_unbounded_fallback: bool = True,
+) -> Tuple[Optional[float], Optional[Dict[str, Any]], Optional[float], str]:
     """
     Last Known Score: newest composite_calculated with ts <= entry_epoch and
-    entry_epoch - ts <= lookback_sec (default 4h). Ignores snapshots older than the window.
+    entry_epoch - ts <= lookback_sec (default 4h).
+
+    If ``allow_unbounded_fallback`` and nothing falls in the window, use the newest
+    composite still <= entry (may be older than lookback). Tier is recorded on the row.
     """
     if entry_epoch is None:
-        return None, None, None
+        return None, None, None, "none"
     sym = symbol.upper().strip()
     if not sym:
-        return None, None, None
+        return None, None, None, "none"
     bucket = index.get(sym)
     if not bucket:
-        return None, None, None
+        return None, None, None, "none"
     ts_list, comps, scores = bucket
     lo = float(entry_epoch) - float(lookback_sec)
     i = bisect_right(ts_list, float(entry_epoch)) - 1
     if i < 0:
-        return None, None, None
-    if ts_list[i] < lo:
-        return None, None, None
-    return ts_list[i], comps[i], scores[i]
+        return None, None, None, "none"
+    if ts_list[i] >= lo:
+        return ts_list[i], comps[i], scores[i], "4h_window"
+    if allow_unbounded_fallback:
+        return ts_list[i], comps[i], scores[i], "unbounded_fallback"
+    return None, None, None, "none"
 
 
 def _dedupe_exit_rows(rows: List[dict]) -> List[dict]:
@@ -243,6 +250,7 @@ def build_rows(
     scoring_index: Optional[Dict[str, Tuple[List[float], List[Dict[str, Any]], List[float]]]],
     *,
     scoreflow_lookback_sec: float = SCOREFLOW_LOOKBACK_SEC_DEFAULT,
+    scoreflow_unbounded_fallback: bool = True,
 ) -> List[Dict[str, Any]]:
     exit_path = root / "logs" / "exit_attribution.jsonl"
     raw = list(_iter_jsonl(exit_path))
@@ -267,10 +275,15 @@ def build_rows(
                 row.update(_prefix_mlf(flat, stem))
 
         if scoring_index:
-            _ts_c, comp, tot = _last_known_composite_wide(
-                scoring_index, sym_join, entry_epoch, lookback_sec=scoreflow_lookback_sec
+            _ts_c, comp, tot, tier = _last_known_composite_wide(
+                scoring_index,
+                sym_join,
+                entry_epoch,
+                lookback_sec=scoreflow_lookback_sec,
+                allow_unbounded_fallback=scoreflow_unbounded_fallback,
             )
             row["mlf_scoreflow_lookback_sec_applied"] = scoreflow_lookback_sec
+            row["mlf_scoreflow_join_tier"] = tier
             if _ts_c is not None:
                 row["mlf_scoreflow_snapshot_ts_epoch"] = _ts_c
                 row["mlf_scoreflow_snapshot_age_sec"] = (
@@ -329,7 +342,12 @@ def main() -> int:
         "--scoreflow-lookback-sec",
         type=float,
         default=float(SCOREFLOW_LOOKBACK_SEC_DEFAULT),
-        help="Max age (seconds) of last composite before entry_ts (default: 14400 = 4h).",
+        help="Preferred max age (seconds) of last composite before entry (default: 14400 = 4h).",
+    )
+    ap.add_argument(
+        "--no-scoreflow-unbounded-fallback",
+        action="store_true",
+        help="If set, do not use older-than-lookback composites when nothing falls in the 4h window.",
     )
     args = ap.parse_args()
     root = args.root.resolve()
@@ -344,6 +362,7 @@ def main() -> int:
         args.floor_epoch,
         scoring_index,
         scoreflow_lookback_sec=args.scoreflow_lookback_sec,
+        scoreflow_unbounded_fallback=not args.no_scoreflow_unbounded_fallback,
     )
     headers = _collect_headers(rows)
 
@@ -363,9 +382,13 @@ def main() -> int:
             if r.get(tot_col) not in (None, "")
             and str(r.get(tot_col)).strip() != ""
         )
+        in_4h = sum(1 for r in rows if r.get("mlf_scoreflow_join_tier") == "4h_window")
+        fb = sum(1 for r in rows if r.get("mlf_scoreflow_join_tier") == "unbounded_fallback")
         print(
             f"scoreflow_snapshot_coverage_pct: {100.0 * with_snap / n:.2f} ({with_snap}/{n}) "
-            f"[last-known composite within {args.scoreflow_lookback_sec:.0f}s before entry]"
+            f"[prefer last-known within {args.scoreflow_lookback_sec:.0f}s; "
+            f"4h_tier={in_4h} fallback_tier={fb}; unbounded_fallback="
+            f"{'off' if args.no_scoreflow_unbounded_fallback else 'on'}]"
         )
         print(f"scoreflow_total_score_populated_pct: {100.0 * with_tot / n:.2f} ({with_tot}/{n})")
     print(f"wrote {n} rows -> {out_path}")
