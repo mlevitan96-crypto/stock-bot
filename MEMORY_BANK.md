@@ -328,7 +328,7 @@ Promote newer dated filenames when they supersede the above; keep the same repor
 |-------|------------------|-----------|
 | Trade intent (entered/blocked) | `main.py` `_emit_trade_intent`, `_emit_trade_intent_blocked` | `logs/run.jsonl` (`event_type=trade_intent`) |
 | Exit intent | `main.py` `_emit_exit_intent` | `logs/run.jsonl` (`event_type=exit_intent`) |
-| Signal context (enter/blocked/exit) | `telemetry/signal_context_logger.py` `log_signal_context` | `logs/signal_context.jsonl` |
+| Signal context (enter/blocked/exit) | `telemetry/signal_context_logger.py` `log_signal_context` | **`logs/signal_context.jsonl` — DEPRECATED / dead-pipe for ML** (may be empty on production hosts; do **not** depend on it for Harvester or XGBoost features) |
 | Orders / execution | `main.py` `log_order` | `logs/orders.jsonl` |
 | Blocked would-have | `main.py` `log_blocked_trade` | `state/blocked_trades.jsonl` |
 | UW ingestion | `uw_flow_daemon.py` | `data/uw_flow_cache.json`, `data/uw_flow_cache.log.jsonl`; optional mirror `logs/uw_daemon.jsonl` |
@@ -336,6 +336,20 @@ Promote newer dated filenames when they supersede the above; keep the same repor
 | Position state | `main.py` `AlpacaExecutor.mark_open`, `_persist_position_metadata` | `state/position_metadata.json` (`config.registry.StateFiles.POSITION_METADATA`) |
 | Exit attribution v2 | `main.py` `log_exit_attribution` → `src/exit/exit_attribution.py` `append_exit_attribution` | `logs/exit_attribution.jsonl` |
 | Truth / warehouse (read-only extractors) | e.g. `scripts/alpaca_truth_unblock_and_full_pnl_audit_mission.py` | `reports/ALPACA_TRUTH_*`, `ALPACA_EXECUTION_*`, etc. |
+
+### Machine learning telemetry — denormalized canonical (Harvester)
+
+**Adopted architecture (2026-04-08):** Alpaca ML training and offline analytics use **denormalized payloads**, not a monolithic per-trade log and **not** `signal_context.jsonl`.
+
+1. **Primary sink — `logs/exit_attribution.jsonl`:** Each closed-trade row carries rich JSON suitable for flattening: e.g. **`entry_uw`**, **`exit_uw`**, **`v2_exit_components`**, **`direction_intel_embed`** (entry/exit intel snapshots and deltas), **`entry_regime`**, **`composite_version`**, **`variant_id`**, quality metrics, and join keys (`trade_id`, `trade_key`, `canonical_trade_id`). This is the **canonical source of ML-ready trade facts** for the Harvester era when relational `signal_context` is absent.
+
+2. **Secondary sink — `logs/scoring_flow.jsonl`:** Time-series **`composite_calculated`** lines (per symbol) hold **UW/composite component breakdown** (flow, dark_pool, greeks_gamma, etc.). ML pipelines should **merge by symbol and time** (e.g. last composite at or before `entry_ts` for that trade), not by `trade_id` in the log line.
+
+3. **Harvester phase:** **ACTIVE.** Cohort filtering for strict-era learning uses **`STRICT_EPOCH_START`** in `telemetry/alpaca_strict_completeness_gate.py` (open time from `trade_id` / entry instant). **100-trade milestone data** and subsequent closes in that era remain **intact inside these payloads**; emptiness of `signal_context.jsonl` does **not** imply loss of ML features for that cohort.
+
+4. **Training export:** **`scripts/telemetry/alpaca_ml_flattener.py`** writes **`reports/Gemini/alpaca_ml_cohort_flat.csv`** — flattened `mlf_*` feature columns plus base trade fields for XGBoost and similar tools.
+
+5. **Invariant (ML):** Do not assert “missing `signal_context`” as a missing-feature incident for Harvester without checking **`exit_attribution`** embeds and **`scoring_flow`** join coverage separately.
 <!-- ALPACA_ATTRIBUTION_TRUTH_CONTRACT_END -->
 
 
