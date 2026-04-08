@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Flatten Alpaca Harvester-era exit_attribution.jsonl (+ scoring_flow composite join) for ML training.
+Flatten Alpaca Harvester-era exit_attribution.jsonl for ML training.
+
+Joins entry-time composite/features from logs/entry_snapshots.jsonl on entry_order_id (primary);
+falls back to logs/scoring_flow.jsonl wide join when no snapshot exists.
 
 Reads closed trades with open instant strictly on/after STRICT_EPOCH_START, dedupes by trade_id
 (last row wins), flattens nested ML blobs with mlf_* column prefix, writes CSV.
@@ -100,6 +103,28 @@ def _flatten_leaves(obj: Any, prefix: str = "") -> Dict[str, Any]:
 
 def _prefix_mlf(flat: Dict[str, Any], stem: str) -> Dict[str, Any]:
     return {f"mlf_{stem}_{k}": v for k, v in flat.items()}
+
+
+def _load_entry_snapshots_by_order(path: Path) -> Dict[str, dict]:
+    """Last row wins per Alpaca order_id (join key = exit_attribution.entry_order_id)."""
+    by_oid: Dict[str, dict] = {}
+    for r in _iter_jsonl(path):
+        if (r.get("msg") or "") != "entry_snapshot":
+            continue
+        oid = str(r.get("order_id") or "").strip()
+        if not oid or oid.upper().startswith("AUDIT-DRYRUN"):
+            continue
+        by_oid[oid] = r
+    return by_oid
+
+
+def _snapshot_join_keys(rec: dict) -> List[str]:
+    keys: List[str] = []
+    for k in ("entry_order_id", "entry_orderId"):
+        v = rec.get(k)
+        if v is not None and str(v).strip():
+            keys.append(str(v).strip())
+    return keys
 
 
 def _load_scoring_composite_index(
@@ -248,6 +273,7 @@ def build_rows(
     root: Path,
     floor_epoch: float,
     scoring_index: Optional[Dict[str, Tuple[List[float], List[Dict[str, Any]], List[float]]]],
+    entry_snap_index: Optional[Dict[str, dict]] = None,
     *,
     scoreflow_lookback_sec: float = SCOREFLOW_LOOKBACK_SEC_DEFAULT,
     scoreflow_unbounded_fallback: bool = True,
@@ -267,6 +293,13 @@ def build_rows(
             .strip()
         )
 
+        snap: Optional[dict] = None
+        if entry_snap_index:
+            for ek in _snapshot_join_keys(rec):
+                snap = entry_snap_index.get(ek)
+                if snap:
+                    break
+
         for blob_key in ML_BLOB_KEYS:
             blob = rec.get(blob_key)
             if isinstance(blob, dict) and blob:
@@ -274,13 +307,37 @@ def build_rows(
                 stem = blob_key.replace(".", "_")
                 row.update(_prefix_mlf(flat, stem))
 
-        if scoring_index:
+        row["mlf_ml_feature_source"] = "none"
+        if snap:
+            row["mlf_ml_feature_source"] = "entry_snapshot"
+            row["mlf_scoreflow_join_tier"] = "entry_snapshot"
+            row["mlf_scoreflow_lookback_sec_applied"] = scoreflow_lookback_sec
+            tss = _parse_iso_ts(snap.get("timestamp_utc"))
+            if tss is not None:
+                row["mlf_scoreflow_snapshot_ts_epoch"] = tss
+                row["mlf_scoreflow_snapshot_age_sec"] = (
+                    float(entry_epoch) - float(tss) if entry_epoch is not None else ""
+                )
+            comp = snap.get("components")
+            if isinstance(comp, dict) and comp:
+                row.update(_prefix_mlf(_flatten_leaves(comp), "scoreflow_components"))
+            tot_raw = snap.get("composite_score")
+            try:
+                tot = float(tot_raw) if tot_raw is not None else float("nan")
+            except (TypeError, ValueError):
+                tot = float("nan")
+            if tot == tot:
+                row["mlf_scoreflow_total_score"] = tot
+        elif scoring_index:
             _ts_c, comp, tot, tier = _last_known_composite_wide(
                 scoring_index,
                 sym_join,
                 entry_epoch,
                 lookback_sec=scoreflow_lookback_sec,
                 allow_unbounded_fallback=scoreflow_unbounded_fallback,
+            )
+            row["mlf_ml_feature_source"] = (
+                "scoreflow_wide" if tier not in (None, "none") else "none"
             )
             row["mlf_scoreflow_lookback_sec_applied"] = scoreflow_lookback_sec
             row["mlf_scoreflow_join_tier"] = tier
@@ -339,6 +396,11 @@ def main() -> int:
         help="Skip logs/scoring_flow.jsonl composite join.",
     )
     ap.add_argument(
+        "--no-entry-snapshots",
+        action="store_true",
+        help="Skip logs/entry_snapshots.jsonl (use only scoring_flow wide join).",
+    )
+    ap.add_argument(
         "--scoreflow-lookback-sec",
         type=float,
         default=float(SCOREFLOW_LOOKBACK_SEC_DEFAULT),
@@ -357,10 +419,18 @@ def main() -> int:
     scoring_path = root / "logs" / "scoring_flow.jsonl"
     scoring_index = None if args.no_scoring_flow else _load_scoring_composite_index(scoring_path)
 
+    entry_snap_path = root / "logs" / "entry_snapshots.jsonl"
+    entry_snap_index = (
+        None
+        if args.no_entry_snapshots
+        else _load_entry_snapshots_by_order(entry_snap_path)
+    )
+
     rows = build_rows(
         root,
         args.floor_epoch,
         scoring_index,
+        entry_snap_index,
         scoreflow_lookback_sec=args.scoreflow_lookback_sec,
         scoreflow_unbounded_fallback=not args.no_scoreflow_unbounded_fallback,
     )
@@ -373,8 +443,15 @@ def main() -> int:
             w.writerow({h: r.get(h, "") for h in headers})
 
     n = len(rows)
-    if n and scoring_index is not None:
+    if n:
         tot_col = "mlf_scoreflow_total_score"
+        from_snap = sum(1 for r in rows if r.get("mlf_ml_feature_source") == "entry_snapshot")
+        from_sf = sum(1 for r in rows if r.get("mlf_ml_feature_source") == "scoreflow_wide")
+        if entry_snap_index is not None:
+            print(
+                f"entry_snapshot_join_pct: {100.0 * from_snap / n:.2f} ({from_snap}/{n}) "
+                f"[primary: logs/entry_snapshots.jsonl on entry_order_id]"
+            )
         with_snap = sum(1 for r in rows if r.get("mlf_scoreflow_snapshot_ts_epoch") not in (None, ""))
         with_tot = sum(
             1
@@ -384,12 +461,14 @@ def main() -> int:
         )
         in_4h = sum(1 for r in rows if r.get("mlf_scoreflow_join_tier") == "4h_window")
         fb = sum(1 for r in rows if r.get("mlf_scoreflow_join_tier") == "unbounded_fallback")
-        print(
-            f"scoreflow_snapshot_coverage_pct: {100.0 * with_snap / n:.2f} ({with_snap}/{n}) "
-            f"[prefer last-known within {args.scoreflow_lookback_sec:.0f}s; "
-            f"4h_tier={in_4h} fallback_tier={fb}; unbounded_fallback="
-            f"{'off' if args.no_scoreflow_unbounded_fallback else 'on'}]"
-        )
+        es_tier = sum(1 for r in rows if r.get("mlf_scoreflow_join_tier") == "entry_snapshot")
+        if scoring_index is not None or entry_snap_index is not None:
+            print(
+                f"scoreflow_snapshot_coverage_pct: {100.0 * with_snap / n:.2f} ({with_snap}/{n}) "
+                f"[entry_snapshot_tier={es_tier}; wide 4h_tier={in_4h} fallback_tier={fb}; "
+                f"scoreflow_lookback={args.scoreflow_lookback_sec:.0f}s; unbounded_fallback="
+                f"{'off' if args.no_scoreflow_unbounded_fallback else 'on'}; scoreflow_wide_rows={from_sf}]"
+            )
         print(f"scoreflow_total_score_populated_pct: {100.0 * with_tot / n:.2f} ({with_tot}/{n})")
     print(f"wrote {n} rows -> {out_path}")
     print(f"floor_epoch={args.floor_epoch} STRICT_EPOCH_START={STRICT_EPOCH_START}")

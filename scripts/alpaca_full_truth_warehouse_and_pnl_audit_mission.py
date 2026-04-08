@@ -884,6 +884,7 @@ def main() -> int:
         "logs/alpaca_exit_attribution.jsonl",
         "logs/alpaca_unified_events.jsonl",
         "logs/signal_context.jsonl",
+        "logs/entry_snapshots.jsonl",
         "logs/run.jsonl",
         "logs/score_snapshot.jsonl",
         "state/blocked_trades.jsonl",
