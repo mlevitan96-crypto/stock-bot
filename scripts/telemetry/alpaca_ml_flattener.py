@@ -239,6 +239,7 @@ def build_rows(
                 row["mlf_scoreflow_total_score"] = tot
             if _ts_c is not None:
                 row["mlf_scoreflow_snapshot_ts_epoch"] = _ts_c
+        out.append(row)
     return out
 
 
