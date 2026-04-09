@@ -4,16 +4,18 @@ Alpaca market-data WebSocket (v2/sip or v2/iex) + thread-safe bar cache.
 Spec: https://docs.alpaca.markets/docs/real-time-stock-pricing-data
 - URL: built from ``ALPACA_BASE_URL`` (paper vs live) + feed segment; optional ``ALPACA_DATA_STREAM_URL``
   override; host overridable via ``ALPACA_STREAM_DATA_HOST_*`` env vars.
-- Auth: {"action":"auth","key":...,"secret":...}
+- Handshake: ``APCA-API-KEY-ID`` / ``APCA-API-SECRET-KEY`` headers (Trading API) plus JSON
+  ``{"action":"auth","key":...,"secret":...}`` per Alpaca streaming docs.
 - Subscribe minute aggregates via JSON key "bars" (messages T=="b"); trades via "trades" (T=="t").
 
 Feed selection: ``src.alpaca.stream_feed`` resolves primary/secondary feeds from GET /v2/account
 (``data_tier`` when present), env ``ALPACA_STREAM_FEED``, or ``ALPACA_STREAM_FEED_TRY_ORDER``.
-On WebSocket auth errors 402/403/409, fail over from primary to alternate feed before giving up.
+On WebSocket auth errors 402/409 (and similar subscription errors), fail over from primary to alternate feed before giving up.
 """
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -35,6 +37,7 @@ except ImportError:  # pragma: no cover
 from src.alpaca.stream_feed import (
     FEED_IEX,
     FEED_SIP,
+    alpaca_market_data_ws_handshake_headers,
     alpaca_trading_environment,
     auth_error_allows_feed_failover,
     alternate_market_data_feed,
@@ -458,17 +461,32 @@ class AlpacaStreamManager:
             out.add("SPY")
         return sorted(out)
 
+    def _alpaca_md_websocket_connect(self, url: str, *, key: str, secret: str):
+        """Open Alpaca market-data WebSocket with documented Trading API auth headers."""
+        hdrs = alpaca_market_data_ws_handshake_headers(key, secret)
+        options: Dict[str, Any] = {
+            "ping_interval": 20,
+            "ping_timeout": 20,
+            "close_timeout": 5,
+            "max_size": 2**23,
+        }
+        sig = inspect.signature(websockets.connect)
+        if "additional_headers" in sig.parameters:
+            return websockets.connect(url, additional_headers=hdrs, **options)
+        if "extra_headers" in sig.parameters:
+            return websockets.connect(url, extra_headers=hdrs, **options)
+        log.warning(
+            "websockets.connect has no additional_headers/extra_headers; "
+            "Alpaca MD stream may return 402 — upgrade websockets",
+        )
+        return websockets.connect(url, **options)
+
     async def _run_loop(self) -> None:
         backoff = _INITIAL_BACKOFF_SEC
         while not self._stop.is_set():
             try:
-                async with websockets.connect(
-                    self._url,
-                    ping_interval=20,
-                    ping_timeout=20,
-                    close_timeout=5,
-                    max_size=2**23,
-                ) as ws:
+                hk, hs = strip_alpaca_credentials(self._key, self._secret)
+                async with self._alpaca_md_websocket_connect(self._url, key=hk, secret=hs) as ws:
                     backoff = _INITIAL_BACKOFF_SEC
                     await self._consume_connection(ws)
             except asyncio.CancelledError:  # pragma: no cover
@@ -584,6 +602,15 @@ class AlpacaStreamManager:
             if o.get("T") == "success" and "authenticated" in str(o.get("msg", "")).lower():
                 return True
             if o.get("T") == "error":
+                code = o.get("code")
+                try:
+                    code_i = int(code) if code is not None else None
+                except (TypeError, ValueError):
+                    code_i = None
+                msg_l = str(o.get("msg", "") or "").lower()
+                # Header-based auth can complete before JSON auth; duplicate JSON auth returns 403.
+                if code_i == 403 and "authenticated" in msg_l:
+                    return True
                 self._last_error = str(o.get("msg") or o)
                 return False
         return False
