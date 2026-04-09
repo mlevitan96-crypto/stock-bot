@@ -354,13 +354,21 @@ def build_rows(
                     float(entry_epoch) - float(_ts_c) if entry_epoch is not None else ""
                 )
             comp_norm = normalize_composite_components_for_ml(comp if isinstance(comp, dict) else {})
-            if tier not in (None, "none"):
-                row.update(_prefix_mlf(_flatten_leaves(comp_norm), "scoreflow_components"))
+            row.update(_prefix_mlf(_flatten_leaves(comp_norm), "scoreflow_components"))
             if tot is not None and tot == tot:  # not NaN
                 row["mlf_scoreflow_total_score"] = tot
-            elif tier not in (None, "none"):
+            else:
                 row["mlf_scoreflow_total_score"] = round(sum(comp_norm.values()), 6)
                 row["mlf_scoreflow_total_score_imputed"] = 1
+        else:
+            # No entry_snapshot row and no scoring_flow index (or index miss): finite neutral
+            # scoreflow vector — strict ML gate needs numeric columns; flag for downstream filters.
+            comp_norm = normalize_composite_components_for_ml({})
+            row.update(_prefix_mlf(_flatten_leaves(comp_norm), "scoreflow_components"))
+            row["mlf_scoreflow_total_score"] = 0.0
+            row["mlf_scoreflow_total_score_imputed"] = 1
+            row["mlf_scoreflow_features_neutral_no_join"] = 1
+            row.setdefault("mlf_scoreflow_join_tier", "none")
         out.append(row)
     return out
 
