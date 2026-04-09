@@ -27,7 +27,11 @@ async def _run(*, feed: str) -> int:
     except Exception:
         pass
     from config.registry import get_alpaca_trading_credentials
-    from src.alpaca.stream_feed import alpaca_trading_environment, stream_data_ws_url
+    from src.alpaca.stream_feed import (
+        alpaca_market_data_ws_handshake_headers,
+        alpaca_trading_environment,
+        stream_data_ws_url,
+    )
 
     try:
         import websockets
@@ -50,13 +54,18 @@ async def _run(*, feed: str) -> int:
     print()
 
     async def inner() -> tuple[bool, str]:
-        async with websockets.connect(
-            url,
-            ping_interval=20,
-            ping_timeout=20,
-            close_timeout=5,
-            max_size=2**23,
-        ) as ws:
+        import inspect
+
+        hdrs = alpaca_market_data_ws_handshake_headers(key, secret)
+        opts = dict(ping_interval=20, ping_timeout=20, close_timeout=5, max_size=2**23)
+        sig = inspect.signature(websockets.connect)
+        if "additional_headers" in sig.parameters:
+            cm = websockets.connect(url, additional_headers=hdrs, **opts)
+        elif "extra_headers" in sig.parameters:
+            cm = websockets.connect(url, extra_headers=hdrs, **opts)
+        else:
+            cm = websockets.connect(url, **opts)
+        async with cm as ws:
             raw0 = await asyncio.wait_for(ws.recv(), timeout=HANDSHAKE_TIMEOUT_SEC)
             await ws.send(json.dumps({"action": "auth", "key": key, "secret": secret}))
             raw1 = await asyncio.wait_for(ws.recv(), timeout=HANDSHAKE_TIMEOUT_SEC)
@@ -65,8 +74,16 @@ async def _run(*, feed: str) -> int:
                 data = json.loads(raw1)
                 items = data if isinstance(data, list) else [data]
                 for o in items:
-                    if isinstance(o, dict) and o.get("T") == "success":
-                        if "authenticated" in str(o.get("msg", "")).lower():
+                    if not isinstance(o, dict):
+                        continue
+                    if o.get("T") == "success" and "authenticated" in str(o.get("msg", "")).lower():
+                        ok = True
+                    if o.get("T") == "error":
+                        try:
+                            ci = int(o.get("code")) if o.get("code") is not None else None
+                        except (TypeError, ValueError):
+                            ci = None
+                        if ci == 403 and "authenticated" in str(o.get("msg", "")).lower():
                             ok = True
             except json.JSONDecodeError:
                 pass
