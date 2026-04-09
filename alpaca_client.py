@@ -16,6 +16,7 @@ Self-healing behavior:
 
 import os
 import time
+import math
 import logging
 import alpaca_trade_api as tradeapi
 from typing import Dict, List, Optional, Any, Tuple
@@ -112,6 +113,59 @@ class AlpacaClient:
         
         return ErrorType.UNKNOWN, f"Unknown error: {error}"
     
+    def _validate_coerced_numeric(
+        self, field: str, value: Any, contract_name: str
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Alpaca SDK / broker payloads sometimes return equity, cash, etc. as decimal strings.
+        Coerce str -> float for validation; fail closed (critical log) if unparsable or non-finite.
+        """
+        if isinstance(value, bool):
+            return False, f"Field {field} has wrong type: bool not allowed for numeric contract"
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                logger.critical(
+                    "Alpaca %s contract: field %r is non-finite (%r) — compatibility fails; do not trade.",
+                    contract_name,
+                    field,
+                    value,
+                )
+                return False, f"Field {field} is non-finite: {value!r}"
+            return True, None
+        if isinstance(value, str):
+            s = value.strip().replace(",", "")
+            if not s:
+                logger.critical(
+                    "Alpaca %s contract: field %r is empty — cannot parse; compatibility fails; do not trade.",
+                    contract_name,
+                    field,
+                )
+                return False, f"Field {field} empty string cannot be parsed as numeric"
+            try:
+                parsed = float(s)
+            except ValueError:
+                logger.critical(
+                    "Alpaca %s contract: field %r is non-numeric string %r — compatibility fails; do not trade.",
+                    contract_name,
+                    field,
+                    value,
+                )
+                return False, f"Field {field} non-numeric string: {value!r}"
+            if not math.isfinite(parsed):
+                logger.critical(
+                    "Alpaca %s contract: field %r parses to non-finite float — do not trade.",
+                    contract_name,
+                    field,
+                )
+                return False, f"Field {field} parses to non-finite value"
+            logger.info(
+                "Alpaca %s contract: coerced string field %r to float for validation (API drift tolerance).",
+                contract_name,
+                field,
+            )
+            return True, None
+        return False, f"Field {field} has wrong type: {type(value)} expected int/float or numeric string"
+    
     def _validate_contract(self, data: Any, contract_name: str) -> Tuple[bool, Optional[str]]:
         """
         Validate response against contract.
@@ -150,6 +204,12 @@ class AlpacaClient:
         for field, expected_type in field_types.items():
             if hasattr(data, field):
                 value = getattr(data, field)
+                spec = expected_type if isinstance(expected_type, tuple) else (expected_type,)
+                if all(t in (int, float) for t in spec):
+                    ok, err = self._validate_coerced_numeric(field, value, contract_name)
+                    if not ok:
+                        return False, err
+                    continue
                 if not isinstance(value, expected_type):
                     return False, f"Field {field} has wrong type: {type(value)} expected {expected_type}"
         
