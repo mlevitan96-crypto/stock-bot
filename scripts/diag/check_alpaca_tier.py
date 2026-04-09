@@ -33,20 +33,10 @@ except Exception:
     pass
 
 
-def _pick_credentials() -> tuple[str, str]:
-    key = (
-        os.environ.get("ALPACA_KEY")
-        or os.environ.get("ALPACA_API_KEY")
-        or os.environ.get("APCA_API_KEY_ID")
-        or ""
-    )
-    secret = (
-        os.environ.get("ALPACA_SECRET")
-        or os.environ.get("ALPACA_API_SECRET")
-        or os.environ.get("APCA_API_SECRET_KEY")
-        or ""
-    )
-    return key.strip(), secret.strip()
+def _pick_credentials() -> tuple[str, str, str]:
+    from config.registry import get_alpaca_trading_credentials
+
+    return get_alpaca_trading_credentials()
 
 
 def _whitespace_audit(names: tuple[str, ...]) -> None:
@@ -89,10 +79,7 @@ def main() -> int:
         stream_data_ws_url,
     )
 
-    key, secret = _pick_credentials()
-    base = (os.environ.get("ALPACA_BASE_URL") or os.environ.get("APCA_API_BASE_URL") or "").strip()
-    if not base:
-        base = "https://paper-api.alpaca.markets"
+    key, secret, base = _pick_credentials()
 
     if not args.no_whitespace_audit:
         _whitespace_audit(
