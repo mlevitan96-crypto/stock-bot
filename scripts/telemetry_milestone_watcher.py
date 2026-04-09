@@ -1,19 +1,31 @@
 #!/usr/bin/env python3
 """
-Telemetry milestone watcher: refresh Gemini CSVs, count trades since reset date,
-optionally verify SPI column integrity at the 10-trade gate, Telegram alerts, deduped state.
+Telemetry milestone watcher: refresh Gemini CSVs, rebuild strict ML flat cohort, Telegram milestones.
 
-Alpaca V2 harvester Telegram thresholds (trade rows in entries_and_exits since cutoff): see
-MILESTONE_ALERT_THRESHOLDS = [10, 100, 250]. Ten triggers SPI pass/warn only;
-100/250 use OOS_MILESTONE_STEPS messages (deduped per state key).
+**Milestone counter = strict ML-ready Z** (not gross executions): rows must pass
+`ml.alpaca_cohort_train.load_and_filter` with `strict_scoreflow` — finite `realized_pnl_usd` and
+all `mlf_scoreflow_components_*` plus `mlf_scoreflow_total_score`, with entry time on/after the
+effective cutoff. Implemented via `strict_ml_ready_count_since_cutoff` after
+`scripts/telemetry/alpaca_ml_flattener.py` writes `reports/Gemini/alpaca_ml_cohort_flat.csv`.
+
+Telegram milestone thresholds (Z only): 50, 100, 150, 200, 250 (deduped per state key).
+
+**Zero-tolerance tripwire:** last 3 deduped closes in `logs/exit_attribution.jsonl` must carry
+finite PnL and `entry_uw.earnings_proximity` / `entry_uw.sentiment_score`; otherwise a high-priority
+Telegram fires (see `telemetry/alpaca_zero_tolerance_tripwire.py`).
+
+SPI CSV columns are logged as a diagnostic only (no Telegram SPI gate).
+
 Default cutoff: telemetry `STRICT_EPOCH_START` (2026-04-07T17:01:00Z Harvester era). Optional
 TELEMETRY_MILESTONE_SINCE_DATE=YYYY-MM-DD is interpreted as that day 00:00 UTC but never earlier
-than `STRICT_EPOCH_START` (no stale state override — avoids ghost 100/250 alerts).
+than `STRICT_EPOCH_START` (no stale state override — avoids ghost milestone alerts).
 
 Env:
   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID — required to send (else logs only).
   TELEMETRY_MILESTONE_SINCE_DATE — optional YYYY-MM-DD; floor is max(that day 00:00 UTC, STRICT_EPOCH).
   TELEGRAM_MILESTONE_RESPECT_QUIET_HOURS=1 — if set, use send_governance_telegram (subject to ET window + INTEGRITY_ONLY).
+  EXIT_ATTRIBUTION_LOG_PATH — optional override for zero-tolerance tripwire (default logs/exit_attribution.jsonl).
+  ZERO_TOLERANCE_ALERT_COOLDOWN_SEC — seconds between repeat Telegram for the same degradation detail (default 1800).
 
 State: data/.milestone_state.json (gitignored via data/ or add pattern if needed)
 
@@ -27,6 +39,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -50,9 +63,22 @@ except Exception:  # pragma: no cover
 
 GEMINI_DIR = REPO / "reports" / "Gemini"
 ENTRIES_CSV = GEMINI_DIR / "entries_and_exits.csv"
+FLAT_CSV = GEMINI_DIR / "alpaca_ml_cohort_flat.csv"
 SPI_CSV = GEMINI_DIR / "signal_intelligence_spi.csv"
 STATE_PATH = REPO / "data" / ".milestone_state.json"
 EXTRACT_SCRIPT = REPO / "scripts" / "extract_gemini_telemetry.py"
+FLATTENER_SCRIPT = REPO / "scripts" / "telemetry" / "alpaca_ml_flattener.py"
+
+_SRC = REPO / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+from ml.alpaca_cohort_train import strict_ml_ready_count_since_cutoff  # noqa: E402
+
+from telemetry.alpaca_zero_tolerance_tripwire import (  # noqa: E402
+    DEGRADATION_TELEGRAM,
+    default_exit_attribution_path,
+    evaluate_last_n_exit_quality,
+)
 
 SPI_CORE_COLS = [
     "component_options_flow",
@@ -64,48 +90,55 @@ SPI_CORE_COLS = [
     "component_toxicity_penalty",
 ]
 
-MILESTONE_10_OK = "10_trade_checkpoint_passed"
-MILESTONE_10_WARN = "10_trade_data_integrity_warning"
-MILESTONE_100_ML = "alpaca_v2_harvester_100_trades"
-
-# Canonical trade-count pings (entries_and_exits since cutoff). 10 = SPI integrity only (below).
-MILESTONE_ALERT_THRESHOLDS = [10, 100, 250]
-
 def _strict_epoch_datetime_utc() -> datetime:
     """Single source of truth with strict-gate / canonical trade count (Harvester era)."""
     return datetime.fromtimestamp(float(STRICT_EPOCH_START), tz=timezone.utc)
 
-# OOS / harvester Telegram milestones (deduped in state by second column).
-OOS_MILESTONE_STEPS: List[Tuple[int, str, str]] = [
+# Strict ML-ready Z milestones only (deduped in state by key). Order enforced: lower before higher.
+STRICT_ML_Z_MILESTONES: List[Tuple[int, str, str]] = [
+    (
+        50,
+        "strict_ml_z_50",
+        "🎯 [Alpaca ML Cohort] 50 strict ML-ready trades (Z). Gold-standard rows only — not gross executions.",
+    ),
     (
         100,
-        MILESTONE_100_ML,
-        "🎯 [Alpaca V2 Harvester] 100 Trades Completed! ML data collection on track.",
+        "strict_ml_z_100",
+        "🎯 [Alpaca ML Cohort] 100 strict ML-ready trades (Z). ML data collection on track.",
+    ),
+    (
+        150,
+        "strict_ml_z_150",
+        "📈 [Alpaca ML Cohort] 150 strict ML-ready trades (Z).",
+    ),
+    (
+        200,
+        "strict_ml_z_200",
+        "📈 [Alpaca ML Cohort] 200 strict ML-ready trades (Z).",
     ),
     (
         250,
-        "alpaca_v2_harvester_250_trades",
-        "📊 [Alpaca V2 Harvester] 250-Trade Checkpoint! Ready for ML Model Retraining.",
+        "strict_ml_z_250",
+        "📊 [Alpaca ML Cohort] 250 strict ML-ready trades (Z). Checkpoint for ML retrain readiness.",
     ),
 ]
 
-# Keys cleared when harvester CSV cutoff changes (epoch / env clamp) so 250 cannot skip 100.
-_OOS_HARVESTER_SENT_KEYS = (MILESTONE_100_ML, "alpaca_v2_harvester_250_trades")
+_STRICT_Z_SENT_KEYS = tuple(k for _, k, _ in STRICT_ML_Z_MILESTONES)
 
 
-def _maybe_reset_oos_milestones_on_harvester_floor_change(
+def _maybe_reset_strict_z_milestones_on_harvester_floor_change(
     state: Dict[str, Any], cutoff: datetime
 ) -> None:
-    """If the effective CSV cutoff changed, drop 100/250 OOS sent flags (stale vs new STRICT_EPOCH)."""
+    """If the effective cutoff changed, drop strict-Z Telegram sent flags (stale vs new floor)."""
     meta = state.setdefault("meta", {})
     cur = cutoff.isoformat()
     prev = meta.get("harvester_count_floor_utc")
     sent = state.setdefault("milestones_sent", {})
     if prev is not None and prev != cur:
-        for k in _OOS_HARVESTER_SENT_KEYS:
+        for k in _STRICT_Z_SENT_KEYS:
             sent.pop(k, None)
         print(
-            f"telemetry_milestone_watcher: cleared OOS harvester flags (floor {prev!r} -> {cur!r})",
+            f"telemetry_milestone_watcher: cleared strict-Z milestone flags (floor {prev!r} -> {cur!r})",
             flush=True,
         )
     meta["harvester_count_floor_utc"] = cur
@@ -181,6 +214,23 @@ def run_extract() -> Tuple[int, str]:
         return 1, str(e)
 
 
+def run_ml_flattener() -> Tuple[int, str]:
+    """Rebuild alpaca_ml_cohort_flat.csv; return (exit_code, tail)."""
+    cmd = [sys.executable, str(FLATTENER_SCRIPT), "--root", str(REPO)]
+    try:
+        p = subprocess.run(
+            cmd,
+            cwd=str(REPO),
+            capture_output=True,
+            text=True,
+            timeout=900,
+        )
+        out = (p.stdout or "") + ("\n" + p.stderr if p.stderr else "")
+        return p.returncode, out[-4000:]
+    except Exception as e:
+        return 1, str(e)
+
+
 def count_entries_since(cutoff: datetime) -> int:
     if not ENTRIES_CSV.is_file():
         return 0
@@ -245,6 +295,30 @@ def _verify_spi_core_columns_fixed(cutoff: datetime, recent_cap: int) -> Tuple[b
     return True, f"checked {len(recent)} recent SPI rows (>= cutoff), all 7 core columns numeric"
 
 
+def _zero_tolerance_should_send(state: Dict[str, Any], detail: str) -> bool:
+    """Resend on new failure detail immediately; repeat identical detail only after cooldown."""
+    raw = (os.environ.get("ZERO_TOLERANCE_ALERT_COOLDOWN_SEC") or "1800").strip() or "1800"
+    try:
+        cooldown = float(raw)
+    except ValueError:
+        cooldown = 1800.0
+    zt = state.setdefault("zero_tolerance", {})
+    now = time.time()
+    prev_t = zt.get("last_alert_epoch")
+    prev_d = zt.get("last_detail")
+    if prev_t is None:
+        return True
+    if detail != prev_d:
+        return True
+    return (now - float(prev_t)) >= cooldown
+
+
+def _zero_tolerance_mark_sent(state: Dict[str, Any], detail: str) -> None:
+    zt = state.setdefault("zero_tolerance", {})
+    zt["last_alert_epoch"] = time.time()
+    zt["last_detail"] = detail
+
+
 def send_telegram(text: str) -> bool:
     if (os.environ.get("TELEGRAM_MILESTONE_RESPECT_QUIET_HOURS") or "").strip().lower() in (
         "1",
@@ -299,53 +373,92 @@ def main() -> int:
     if ex_code != 0:
         print(ex_tail, file=sys.stderr)
 
-    trade_count = count_entries_since(cutoff)
-    print(f"entries_and_exits rows since cutoff: {trade_count}", flush=True)
+    flat_code, flat_tail = run_ml_flattener()
+    print(f"alpaca_ml_flattener.py exit={flat_code}", flush=True)
+    if flat_code != 0:
+        print(flat_tail, file=sys.stderr)
+
+    gross_entries = count_entries_since(cutoff)
+    print(f"entries_and_exits rows since cutoff (diagnostic gross): {gross_entries}", flush=True)
+
+    z_count = 0
+    z_meta: Dict[str, Any] = {}
+    if FLAT_CSV.is_file():
+        try:
+            z_count, z_meta = strict_ml_ready_count_since_cutoff(
+                FLAT_CSV,
+                cutoff,
+                feature_mode="strict_scoreflow",
+            )
+        except SystemExit as e:
+            print(f"strict_ml_ready_count_since_cutoff failed: {e}", file=sys.stderr, flush=True)
+        except Exception as e:
+            print(f"strict_ml_ready_count_since_cutoff error: {e}", file=sys.stderr, flush=True)
+    else:
+        print(f"WARN: flat cohort missing at {FLAT_CSV} — Z=0", flush=True)
+
+    print(
+        f"strict ML-ready Z since cutoff: {z_count} "
+        f"(all-time strict in CSV: {z_meta.get('strict_ml_ready_all_time_in_csv', '?')})",
+        flush=True,
+    )
 
     state = _load_state()
-    _maybe_reset_oos_milestones_on_harvester_floor_change(state, cutoff)
+    _maybe_reset_strict_z_milestones_on_harvester_floor_change(state, cutoff)
     sent: Dict[str, Any] = state["milestones_sent"]
 
     def already(k: str) -> bool:
         return bool(sent.get(k))
 
     def mark(k: str) -> None:
-        sent[k] = {"sent_at": datetime.now(timezone.utc).isoformat(), "trade_count": trade_count}
+        sent[k] = {
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "strict_ml_z": z_count,
+            "gross_entries_since_cutoff": gross_entries,
+        }
 
-    # --- OOS / harvester milestones (100, 250) — see MILESTONE_ALERT_THRESHOLDS ---
-    for threshold, key, msg in OOS_MILESTONE_STEPS:
-        if key == "alpaca_v2_harvester_250_trades" and not already(MILESTONE_100_ML):
-            if trade_count >= threshold:
-                print(
-                    "telemetry_milestone_watcher: skip 250 OOS Telegram until 100-trade OOS was sent "
-                    f"(trade_count={trade_count})",
-                    flush=True,
-                )
+    # --- Strict Z milestones (50 … 250); lower keys must send before higher ---
+    for threshold, key, msg in STRICT_ML_Z_MILESTONES:
+        if z_count < threshold or already(key):
             continue
-        if trade_count >= threshold and not already(key):
-            if send_telegram(msg):
-                mark(key)
-                print(f"Sent {threshold}-trade OOS/scaling Telegram ({key})", flush=True)
-            else:
-                print(f"{threshold}-trade Telegram not sent (credentials or HTTP)", flush=True)
+        blocked = False
+        for t2, k2, _ in STRICT_ML_Z_MILESTONES:
+            if t2 < threshold and not already(k2):
+                blocked = True
+                break
+        if blocked:
+            print(
+                f"telemetry_milestone_watcher: skip Z>={threshold} Telegram until lower strict milestones sent "
+                f"(z_count={z_count})",
+                flush=True,
+            )
+            continue
+        if send_telegram(msg):
+            mark(key)
+            print(f"Sent strict-Z {threshold} Telegram ({key})", flush=True)
+        else:
+            print(f"strict-Z {threshold} Telegram not sent (credentials or HTTP)", flush=True)
 
-    # --- 10-trade SPI gate ---
-    if trade_count >= 10:
-        ok, detail = _verify_spi_core_columns_fixed(cutoff, recent_cap=200)
-        print(f"SPI integrity: ok={ok} — {detail}", flush=True)
-        if ok and not already(MILESTONE_10_OK):
-            msg = "🟢 [Alpaca V2 Harvester] 10 Trades Reached. New UW Telemetry is Flowing!"
-            if send_telegram(msg):
-                mark(MILESTONE_10_OK)
-                print("Sent 10-trade OK Telegram", flush=True)
-        elif not ok and not already(MILESTONE_10_WARN):
-            msg = "🔴 Data Integrity Warning: Blank columns detected in SPI CSV!"
-            if send_telegram(msg):
-                mark(MILESTONE_10_WARN)
-                print("Sent 10-trade WARN Telegram", flush=True)
+    # --- SPI diagnostic only (no Telegram) ---
+    if z_count >= 10 and SPI_CSV.is_file():
+        spi_ok, spi_detail = _verify_spi_core_columns_fixed(cutoff, recent_cap=200)
+        print(f"SPI integrity (diagnostic only): ok={spi_ok} — {spi_detail}", flush=True)
+
+    # --- Zero-tolerance: last 3 exits must have PnL + UW earnings/sentiment ---
+    exit_path = default_exit_attribution_path(REPO)
+    zt_ok, zt_detail = evaluate_last_n_exit_quality(exit_path, n=3)
+    print(f"zero_tolerance_last_3: ok={zt_ok} detail={zt_detail}", flush=True)
+    if not zt_ok and _zero_tolerance_should_send(state, zt_detail):
+        if send_telegram(DEGRADATION_TELEGRAM):
+            _zero_tolerance_mark_sent(state, zt_detail)
+            print("Sent zero-tolerance degradation Telegram", flush=True)
+        else:
+            print("zero-tolerance Telegram not sent (credentials or HTTP)", flush=True)
 
     state["meta"]["last_run_utc"] = datetime.now(timezone.utc).isoformat()
-    state["meta"]["last_trade_count_since_cutoff"] = trade_count
+    state["meta"]["last_strict_ml_z_since_cutoff"] = z_count
+    state["meta"]["last_gross_entries_since_cutoff"] = gross_entries
+    state["meta"]["last_z_meta"] = {k: z_meta.get(k) for k in ("dropped_missing_pnl", "dropped_feature_nan", "gross_rows", "kept") if k in z_meta}
     state["meta"]["cutoff_utc"] = cutoff.isoformat()
     _save_state(state)
     return 0
