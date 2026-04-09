@@ -47,6 +47,13 @@ def run_scenario(runner) -> Dict:
     results["tests"].append(test4_result)
     if test4_result["status"] == "FAIL":
         results["status"] = "FAIL"
+
+    # Test 5: Numeric string coercion (Alpaca API drift: equity as str)
+    print("  Test 5: Numeric string coercion for account fields...")
+    test5_result = test_numeric_string_coercion(runner)
+    results["tests"].append(test5_result)
+    if test5_result["status"] == "FAIL":
+        results["status"] = "FAIL"
     
     return results
 
@@ -179,6 +186,40 @@ def test_type_mismatch(runner) -> Dict:
         test_result["message"] = f"Test execution failed: {e}"
         test_result["details"] = str(e)
     
+    return test_result
+
+
+def test_numeric_string_coercion(runner) -> Dict:
+    """Broker may return equity/cash as decimal strings; contract should accept them."""
+    test_result = {
+        "name": "Numeric string coercion (account)",
+        "status": "UNKNOWN",
+        "message": "",
+        "details": "",
+    }
+    try:
+        from alpaca_client import AlpacaClient
+
+        class MockAccount:
+            def __init__(self):
+                self.equity = "100,000.50"
+                self.buying_power = "95000.00"
+                self.cash = "5000"
+                self.portfolio_value = "100000.5"
+
+        client = AlpacaClient("test_key", "test_secret", "https://test.url")
+        is_valid, error = client._validate_contract(MockAccount(), "account")
+        if is_valid:
+            test_result["status"] = "PASS"
+            test_result["message"] = "String numeric account fields accepted"
+        else:
+            test_result["status"] = "FAIL"
+            test_result["message"] = f"String numeric fields rejected: {error}"
+            test_result["details"] = error or ""
+    except Exception as e:
+        test_result["status"] = "FAIL"
+        test_result["message"] = f"Test execution failed: {e}"
+        test_result["details"] = str(e)
     return test_result
 
 
