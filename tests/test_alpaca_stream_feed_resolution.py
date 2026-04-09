@@ -31,7 +31,8 @@ def test_alpaca_trading_environment_from_base_url():
 def test_stream_data_ws_url_from_trading_base_url():
     u_paper = stream_data_ws_url(feed=FEED_SIP, trading_base_url="https://paper-api.alpaca.markets")
     assert u_paper.endswith(f"/v2/{FEED_SIP}")
-    assert "sandbox" in u_paper
+    assert "sandbox" not in u_paper
+    assert "stream.data.alpaca.markets" in u_paper
     u_live = stream_data_ws_url(feed=FEED_IEX, trading_base_url="https://api.alpaca.markets")
     assert u_live.endswith(f"/v2/{FEED_IEX}")
     assert "sandbox" not in u_live
@@ -40,7 +41,13 @@ def test_stream_data_ws_url_from_trading_base_url():
 def test_stream_data_ws_url_legacy_paper_flag():
     assert stream_data_ws_url(paper=False, feed=FEED_SIP).endswith(f"/v2/{FEED_SIP}")
     assert stream_data_ws_url(paper=True, feed=FEED_IEX).endswith(f"/v2/{FEED_IEX}")
-    assert "sandbox" in stream_data_ws_url(paper=True, feed=FEED_SIP)
+    assert "sandbox" not in stream_data_ws_url(paper=True, feed=FEED_SIP)
+
+
+def test_stream_data_ws_url_sandbox_env(monkeypatch):
+    monkeypatch.setenv("ALPACA_MARKET_DATA_STREAM_SANDBOX", "1")
+    u = stream_data_ws_url(feed=FEED_SIP, trading_base_url="https://paper-api.alpaca.markets")
+    assert "sandbox" in u
 
 
 def test_auth_error_triggers_failover_sip_only():

@@ -1,9 +1,9 @@
 """
 Resolve Alpaca market-data WebSocket feed and host from Trading API base URL + account tier.
 
-- **Host** is derived from ``ALPACA_BASE_URL`` (paper-api → sandbox stream host, api.alpaca.markets → live).
-  Override with ``ALPACA_STREAM_DATA_HOST_SANDBOX``, ``ALPACA_STREAM_DATA_HOST_LIVE``, or
-  ``ALPACA_STREAM_DATA_HOST`` when the base URL is non-standard.
+- **Host** for retail accounts: Alpaca Market Data FAQ directs **regular users** (paper **or** live trading
+  API) to ``stream.data.alpaca.markets``. ``stream.data.sandbox.alpaca.markets`` is for broker sandbox;
+  opt in with ``ALPACA_MARKET_DATA_STREAM_SANDBOX=1``. Override host anytime with ``ALPACA_STREAM_DATA_HOST``.
 - **Feed** path segment (Alpaca wire names) comes from ``GET /v2/account`` tier when present,
   else ``ALPACA_STREAM_FEED`` or ``ALPACA_STREAM_FEED_TRY_ORDER`` (comma-separated).
 
@@ -88,23 +88,29 @@ def market_data_stream_host(
     """
     Returns (websocket_hostname, environment_label).
 
-    Host defaults are Alpaca's documented endpoints; override via env without code changes:
-    ``ALPACA_STREAM_DATA_HOST_SANDBOX``, ``ALPACA_STREAM_DATA_HOST_LIVE``, ``ALPACA_STREAM_DATA_HOST``.
+    Retail **paper** and **live** trading keys both use the **production** market-data cluster
+    (``stream.data.alpaca.markets``) per Alpaca docs; paper only changes ``paper-api`` for orders,
+    not the MD WebSocket host.
+
+    Set ``ALPACA_MARKET_DATA_STREAM_SANDBOX=1`` to use ``stream.data.sandbox.alpaca.markets`` (broker/testing).
+    ``ALPACA_STREAM_DATA_HOST`` overrides everything.
     """
-    env_label = alpaca_trading_environment(trading_base_url)
+    from config.registry import get_env_bool
+
+    _ = paper_fallback  # API compatibility; host no longer tied to this flag
     sandbox_host = (os.environ.get("ALPACA_STREAM_DATA_HOST_SANDBOX") or "stream.data.sandbox.alpaca.markets").strip()
     live_host = (os.environ.get("ALPACA_STREAM_DATA_HOST_LIVE") or "stream.data.alpaca.markets").strip()
     explicit = (os.environ.get("ALPACA_STREAM_DATA_HOST") or "").strip()
-
-    if env_label == "paper":
-        return sandbox_host, "paper"
-    if env_label == "live":
-        return live_host, "live"
     if explicit:
         return explicit, "custom_host_env"
-    if paper_fallback:
-        return sandbox_host, "paper_fallback"
-    return live_host, "live_fallback"
+    if get_env_bool("ALPACA_MARKET_DATA_STREAM_SANDBOX", False):
+        return sandbox_host, "sandbox_md"
+    trade_env = alpaca_trading_environment(trading_base_url)
+    if trade_env == "paper":
+        return live_host, "paper_trading_production_md"
+    if trade_env == "live":
+        return live_host, "live_trading_production_md"
+    return live_host, "unknown_base_production_md_fallback"
 
 
 def stream_data_ws_url(
@@ -116,9 +122,11 @@ def stream_data_ws_url(
     """
     Build ``wss://<host>/v2/<feed>``.
 
-    If ``trading_base_url`` is non-empty, host is inferred from it (preferred).
-    Otherwise ``paper`` selects sandbox vs live host (legacy).
+    If ``trading_base_url`` is non-empty, host follows ``market_data_stream_host`` (production MD by default).
+    Without it, uses production MD unless ``ALPACA_MARKET_DATA_STREAM_SANDBOX=1``.
     """
+    from config.registry import get_env_bool
+
     seg = normalize_feed_segment(feed) or FEED_IEX
     tb = (trading_base_url or "").strip()
     if tb:
@@ -126,7 +134,7 @@ def stream_data_ws_url(
     else:
         sandbox_host = (os.environ.get("ALPACA_STREAM_DATA_HOST_SANDBOX") or "stream.data.sandbox.alpaca.markets").strip()
         live_host = (os.environ.get("ALPACA_STREAM_DATA_HOST_LIVE") or "stream.data.alpaca.markets").strip()
-        host = sandbox_host if paper else live_host
+        host = sandbox_host if get_env_bool("ALPACA_MARKET_DATA_STREAM_SANDBOX", False) else live_host
     return f"wss://{host}/v2/{seg}"
 
 
