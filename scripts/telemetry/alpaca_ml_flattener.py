@@ -28,6 +28,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START  # noqa: E402
+from telemetry.ml_scoreflow_contract import (  # noqa: E402
+    mlf_scoreflow_component_column_names,
+    normalize_composite_components_for_ml,
+)
 from utils.era_cut import learning_excluded_for_exit_record  # noqa: E402
 
 TID_RE = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
@@ -319,8 +323,8 @@ def build_rows(
                     float(entry_epoch) - float(tss) if entry_epoch is not None else ""
                 )
             comp = snap.get("components")
-            if isinstance(comp, dict) and comp:
-                row.update(_prefix_mlf(_flatten_leaves(comp), "scoreflow_components"))
+            comp_norm = normalize_composite_components_for_ml(comp if isinstance(comp, dict) else {})
+            row.update(_prefix_mlf(_flatten_leaves(comp_norm), "scoreflow_components"))
             tot_raw = snap.get("composite_score")
             try:
                 tot = float(tot_raw) if tot_raw is not None else float("nan")
@@ -328,6 +332,9 @@ def build_rows(
                 tot = float("nan")
             if tot == tot:
                 row["mlf_scoreflow_total_score"] = tot
+            else:
+                row["mlf_scoreflow_total_score"] = round(sum(comp_norm.values()), 6)
+                row["mlf_scoreflow_total_score_imputed"] = 1
         elif scoring_index:
             _ts_c, comp, tot, tier = _last_known_composite_wide(
                 scoring_index,
@@ -346,10 +353,14 @@ def build_rows(
                 row["mlf_scoreflow_snapshot_age_sec"] = (
                     float(entry_epoch) - float(_ts_c) if entry_epoch is not None else ""
                 )
-            if comp is not None and isinstance(comp, dict):
-                row.update(_prefix_mlf(_flatten_leaves(comp), "scoreflow_components"))
+            comp_norm = normalize_composite_components_for_ml(comp if isinstance(comp, dict) else {})
+            if tier not in (None, "none"):
+                row.update(_prefix_mlf(_flatten_leaves(comp_norm), "scoreflow_components"))
             if tot is not None and tot == tot:  # not NaN
                 row["mlf_scoreflow_total_score"] = tot
+            elif tier not in (None, "none"):
+                row["mlf_scoreflow_total_score"] = round(sum(comp_norm.values()), 6)
+                row["mlf_scoreflow_total_score_imputed"] = 1
         out.append(row)
     return out
 
@@ -434,7 +445,14 @@ def main() -> int:
         scoreflow_lookback_sec=args.scoreflow_lookback_sec,
         scoreflow_unbounded_fallback=not args.no_scoreflow_unbounded_fallback,
     )
-    headers = _collect_headers(rows)
+    headers = list(_collect_headers(rows))
+    # Strict ML cohort (alpaca_cohort_train) allowlist — always present in header even if 0 rows.
+    for _c in mlf_scoreflow_component_column_names():
+        if _c not in headers:
+            headers.append(_c)
+    for _t in ("mlf_scoreflow_total_score", "mlf_scoreflow_total_score_imputed"):
+        if _t not in headers:
+            headers.append(_t)
 
     with out_path.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=headers, extrasaction="ignore")

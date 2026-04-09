@@ -43,15 +43,29 @@ def _finite_scalar(v: Any) -> bool:
 def _pick_feature_columns(headers: Sequence[str], mode: str) -> List[str]:
     h = list(headers)
     if mode == "strict_scoreflow":
-        cols = [x for x in h if x.startswith("mlf_scoreflow_components_")]
-        cols = sorted(cols)
+        from telemetry.ml_scoreflow_contract import mlf_scoreflow_component_column_names
+
+        # Allowlist only canonical v2 composite keys (avoids sparse union columns from nested drift).
+        cols = [c for c in mlf_scoreflow_component_column_names() if c in h]
+        missing = set(mlf_scoreflow_component_column_names()) - set(cols)
+        if missing:
+            raise SystemExit(
+                "CSV missing canonical scoreflow columns (re-run alpaca_ml_flattener): "
+                + ", ".join(sorted(missing)[:8])
+                + ("…" if len(missing) > 8 else "")
+            )
         if "mlf_scoreflow_total_score" not in h:
             raise SystemExit("CSV missing mlf_scoreflow_total_score")
         return ["mlf_scoreflow_total_score"] + cols
     if mode == "strict_entry_snapshot":
-        # Rows that were filled from entry_snapshots.jsonl use same mlf_scoreflow_* column names.
-        cols = [x for x in h if x.startswith("mlf_scoreflow_components_")]
-        return ["mlf_scoreflow_total_score"] + sorted(cols)
+        from telemetry.ml_scoreflow_contract import mlf_scoreflow_component_column_names
+
+        cols = [c for c in mlf_scoreflow_component_column_names() if c in h]
+        if len(cols) < len(mlf_scoreflow_component_column_names()):
+            raise SystemExit("CSV missing canonical scoreflow columns for strict_entry_snapshot")
+        if "mlf_scoreflow_total_score" not in h:
+            raise SystemExit("CSV missing mlf_scoreflow_total_score")
+        return ["mlf_scoreflow_total_score"] + cols
     raise SystemExit(f"Unknown --feature-mode: {mode}")
 
 
@@ -143,6 +157,9 @@ def load_and_filter(
         "kept": 0,
     }
 
+    if not rows:
+        return headers, [], stats
+
     if "realized_pnl_usd" not in headers:
         raise SystemExit("CSV missing realized_pnl_usd (required label)")
 
@@ -208,6 +225,10 @@ def main() -> int:
     print(f"dropped_join_tier_mismatch: {stats['dropped_join_tier']}")
     print(f"dropped_incomplete_or_nonfinite_features: {stats['dropped_feature_nan']}")
     print(f"ML_READY_ROWS: {stats['kept']}")
+
+    if stats["gross_rows"] == 0:
+        print("gross_rows=0 — empty cohort CSV; nothing to validate.")
+        return 0
 
     if stats["kept"] == 0:
         print("No rows passed strict filter; abort.", file=sys.stderr)
