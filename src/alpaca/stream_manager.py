@@ -2,13 +2,14 @@
 Alpaca market-data WebSocket (v2/sip or v2/iex) + thread-safe bar cache.
 
 Spec: https://docs.alpaca.markets/docs/real-time-stock-pricing-data
-- URL: wss://stream.data.alpaca.markets/v2/{sip|iex} (production; sandbox host for paper)
+- URL: built from ``ALPACA_BASE_URL`` (paper vs live) + feed segment; optional ``ALPACA_DATA_STREAM_URL``
+  override; host overridable via ``ALPACA_STREAM_DATA_HOST_*`` env vars.
 - Auth: {"action":"auth","key":...,"secret":...}
 - Subscribe minute aggregates via JSON key "bars" (messages T=="b"); trades via "trades" (T=="t").
 
-Feed selection: ``src.alpaca.stream_feed`` resolves ``sip`` vs ``iex`` from GET /v2/account
-(``data_tier`` when present), env ``ALPACA_STREAM_FEED``, or defaults to ``sip`` with automatic
-failover to ``iex`` on WebSocket auth errors 402/409.
+Feed selection: ``src.alpaca.stream_feed`` resolves primary/secondary feeds from GET /v2/account
+(``data_tier`` when present), env ``ALPACA_STREAM_FEED``, or ``ALPACA_STREAM_FEED_TRY_ORDER``.
+On WebSocket auth errors 402/403/409, fail over from primary to alternate feed before giving up.
 """
 from __future__ import annotations
 
@@ -32,21 +33,33 @@ except ImportError:  # pragma: no cover
     websockets = None  # type: ignore
 
 from src.alpaca.stream_feed import (
-    auth_error_triggers_sip_to_iex_failover,
+    FEED_IEX,
+    FEED_SIP,
+    alpaca_trading_environment,
+    auth_error_allows_feed_failover,
+    alternate_market_data_feed,
     feed_name_from_stream_url,
+    market_data_stream_host,
+    normalize_feed_segment,
     resolve_stream_feed,
     stream_data_ws_url,
     strip_alpaca_credentials,
+    swap_stream_url_feed,
 )
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_PROD_URL = "wss://stream.data.alpaca.markets/v2/sip"
-_DEFAULT_SANDBOX_URL = "wss://stream.data.sandbox.alpaca.markets/v2/sip"
+def _key_id_prefix(key: str) -> str:
+    k = (key or "").strip()
+    if len(k) >= 8:
+        return f"{k[:8]}…"
+    if len(k) >= 4:
+        return f"{k[:4]}…"
+    return "(unset_or_short)"
 
 
-class _FailoverToIex(Exception):
-    """Internal: reconnect immediately on iex after SIP auth failure."""
+class _FailoverToAlternateFeed(Exception):
+    """Internal: reconnect immediately on alternate feed after primary auth failure."""
 
 _SUBSCRIBE_CHUNK = 40
 _MAX_BACKOFF_SEC = 120.0
@@ -280,26 +293,64 @@ class AlpacaStreamManager:
         self.stream_id = uuid.uuid4().hex[:12]
         self._key, self._secret = strip_alpaca_credentials(api_key, api_secret)
         self._symbol_provider = symbol_provider
-        self._paper = bool(paper)
         tb = (trading_base_url or os.environ.get("ALPACA_BASE_URL") or "").strip()
         if not tb:
             tb = "https://paper-api.alpaca.markets" if paper else "https://api.alpaca.markets"
         self._trading_base_url = tb
+        env_from_url = alpaca_trading_environment(tb)
+        if env_from_url == "paper":
+            self._paper = True
+        elif env_from_url == "live":
+            self._paper = False
+        else:
+            self._paper = bool(paper)
+        if env_from_url in ("paper", "live") and bool(paper) != self._paper:
+            log.warning(
+                "AlpacaStreamManager: paper=%s disagrees with ALPACA_BASE_URL environment=%s; using URL-derived mode.",
+                paper,
+                env_from_url,
+            )
+        self._stream_host, self._environment_label = market_data_stream_host(
+            self._trading_base_url,
+            paper_fallback=self._paper,
+        )
         self._failover_applied = False
         self._logged_iex_auth_dead: bool = False
         self._stream_resolve_meta: Dict[str, Any] = {}
+        self._primary_feed: str = FEED_SIP
+        self._secondary_feed: Optional[str] = FEED_IEX
+        self._explicit_ws_url = False
         explicit_url = (url or os.environ.get("ALPACA_DATA_STREAM_URL") or "").strip()
         if explicit_url:
+            self._explicit_ws_url = True
             self._url = explicit_url
             self._feed_name = feed_name_from_stream_url(explicit_url)
             if self._feed_name == "unknown":
                 ulow = explicit_url.lower()
-                self._feed_name = "sip" if "/sip" in ulow else "iex"
+                self._feed_name = FEED_SIP if f"/{FEED_SIP}" in ulow else FEED_IEX
+            self._primary_feed = normalize_feed_segment(self._feed_name) or self._feed_name
+            self._secondary_feed = alternate_market_data_feed(self._primary_feed)
+            self._stream_resolve_meta = {
+                "source": "ALPACA_DATA_STREAM_URL",
+                "trading_environment": env_from_url,
+                "stream_data_host": self._stream_host,
+                "stream_host_resolution": self._environment_label,
+            }
         else:
-            feed, meta = resolve_stream_feed(self._key, self._secret, trading_base_url=self._trading_base_url)
+            primary, secondary, meta = resolve_stream_feed(
+                self._key, self._secret, trading_base_url=self._trading_base_url
+            )
             self._stream_resolve_meta = dict(meta)
-            self._feed_name = feed
-            self._url = stream_data_ws_url(paper=paper, feed=feed)
+            self._stream_resolve_meta["stream_data_host"] = self._stream_host
+            self._stream_resolve_meta["stream_host_resolution"] = self._environment_label
+            self._primary_feed = primary
+            self._secondary_feed = secondary
+            self._feed_name = primary
+            self._url = stream_data_ws_url(
+                trading_base_url=self._trading_base_url,
+                feed=primary,
+                paper=self._paper,
+            )
         self.price_cache = PriceCache(maxlen_per_symbol=bar_maxlen)
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -351,6 +402,7 @@ class AlpacaStreamManager:
                 url=self.stream_url,
                 feed=self._feed_name,
                 paper=self._paper,
+                trading_environment=self._environment_label,
                 max_symbols=max_sym,
             )
         except Exception:
@@ -368,6 +420,7 @@ class AlpacaStreamManager:
                 "url": self.stream_url,
                 "feed": self._feed_name,
                 "paper": self._paper,
+                "trading_environment": self._environment_label,
                 "max_symbols": max_sym,
             }
             try:
@@ -420,7 +473,7 @@ class AlpacaStreamManager:
                     await self._consume_connection(ws)
             except asyncio.CancelledError:  # pragma: no cover
                 break
-            except _FailoverToIex:
+            except _FailoverToAlternateFeed:
                 backoff = _INITIAL_BACKOFF_SEC
                 continue
             except Exception as ex:
@@ -445,23 +498,52 @@ class AlpacaStreamManager:
         )
         raw1 = await ws.recv()
         if not self._check_auth_success(raw1):
-            if (
+            can_failover = (
                 not self._failover_applied
-                and auth_error_triggers_sip_to_iex_failover(raw1, current_feed=self._feed_name)
-            ):
+                and self._secondary_feed is not None
+                and self._feed_name == self._primary_feed
+            )
+            if auth_error_allows_feed_failover(raw1, can_try_alternate=can_failover):
                 log.warning(
-                    "SIP feed unauthorized. Failing over to IEX (Free Tier) data.",
+                    "Alpaca market-data WebSocket auth failed on primary feed=%s "
+                    "(trading_environment=%s url=%s key_id_prefix=%s raw=%r). "
+                    "Failing over to alternate feed=%s.",
+                    self._primary_feed,
+                    self._environment_label,
+                    self._url,
+                    _key_id_prefix(self._key),
+                    raw1[:400],
+                    self._secondary_feed,
                 )
                 self._failover_applied = True
-                self._feed_name = "iex"
-                self._url = stream_data_ws_url(paper=self._paper, feed="iex")
-                raise _FailoverToIex()
-            if self._failover_applied and self._feed_name == "iex" and not self._logged_iex_auth_dead:
+                self._feed_name = self._secondary_feed or self._feed_name
+                if self._explicit_ws_url and self._secondary_feed:
+                    self._url = swap_stream_url_feed(self._url, self._secondary_feed)
+                else:
+                    self._url = stream_data_ws_url(
+                        trading_base_url=self._trading_base_url,
+                        feed=self._feed_name,
+                        paper=self._paper,
+                    )
+                raise _FailoverToAlternateFeed()
+            log.warning(
+                "Alpaca market-data WebSocket auth rejected (trading_environment=%s feed=%s url=%s key_id_prefix=%s raw=%r).",
+                self._environment_label,
+                self._feed_name,
+                self._url,
+                _key_id_prefix(self._key),
+                raw1[:400],
+            )
+            if self._failover_applied and not self._logged_iex_auth_dead:
                 self._logged_iex_auth_dead = True
                 log.critical(
-                    "Alpaca market-data WebSocket auth failed on IEX after SIP failover (402/409). "
-                    "This is not a SIP-only issue: verify ALPACA_KEY/ALPACA_SECRET match the account, "
-                    "market data streaming is enabled for the account, and paper vs live stream host matches Alpaca docs.",
+                    "Alpaca market-data WebSocket auth failed on alternate feed=%s after primary failover "
+                    "(trading_environment=%s url=%s key_id_prefix=%s). "
+                    "Verify ALPACA_KEY/ALPACA_SECRET, ALPACA_BASE_URL vs stream host, and market-data streaming entitlement.",
+                    self._feed_name,
+                    self._environment_label,
+                    self._url,
+                    _key_id_prefix(self._key),
                 )
             raise RuntimeError(f"{self._feed_name.upper()} auth failed: {raw1[:500]!r}")
 

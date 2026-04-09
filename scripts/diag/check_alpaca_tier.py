@@ -82,9 +82,11 @@ def main() -> int:
 
     from src.alpaca.stream_feed import (
         account_data_tier_label,
+        alpaca_trading_environment,
         fetch_alpaca_account,
         preferred_feed_from_data_tier,
         resolve_stream_feed,
+        stream_data_ws_url,
     )
 
     key, secret = _pick_credentials()
@@ -106,6 +108,8 @@ def main() -> int:
         print()
 
     print(f"Trading API base URL: {base}")
+    _tenv = alpaca_trading_environment(base)
+    print(f"  trading_environment (from URL): {_tenv!r}")
     if not key or not secret:
         print("ERROR: Missing ALPACA_KEY/ALPACA_SECRET (after strip).")
         return 2
@@ -133,9 +137,15 @@ def main() -> int:
     else:
         print("  preferred_feed_from_data_tier -> None (unknown tier string; bot defaults sip+iex failover)")
 
-    feed, meta = resolve_stream_feed(key, secret, trading_base_url=base)
+    primary, secondary, meta = resolve_stream_feed(key, secret, trading_base_url=base)
     print("--- resolve_stream_feed (env ALPACA_STREAM_FEED overrides tier) ---")
-    print(f"  chosen feed: {feed!r}")
+    print(f"  primary feed: {primary!r}")
+    print(f"  secondary (failover) feed: {secondary!r}")
+    _paper_fb = _tenv == "paper" or (_tenv == "unknown" and "paper-api" in base.lower())
+    print(
+        f"  resolved WebSocket URL (primary): "
+        f"{stream_data_ws_url(trading_base_url=base, feed=primary, paper=_paper_fb)!r}"
+    )
     print(f"  meta: {json.dumps(meta, default=str)}")
 
     print("--- account keys matching tier|subscription|sip|data|market ---")
