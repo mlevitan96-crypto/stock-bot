@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-09T14:37:15Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory was missing. Created during governance run. All other expected top-level dirs present: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/, reports/audit/."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "moltbot/ directory exists with 5 active Python modules: sentinel.py, promotion_discipline.py, board.py, orchestrator.py, memory_evolution.py. Additionally, 3 molt-related scripts found in scripts/: run_molt_workflow.py, run_openclaw_molt_synthesis.py, run_molt_intelligence_expansion.py. scripts/sre/run_sre_anomaly_scan.py references 'clawdbot' in governance check logic. MEMORY_BANK.md documents moltbot/ as legitimate learning workflow — may require governance decision on whether these should remain or be removed."
+    }
+  ],
+  "slack_sent": false
+}
