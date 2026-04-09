@@ -26,7 +26,8 @@ async def main() -> int:
     import websockets
 
     k, s, _ = get_alpaca_trading_credentials()
-    url = "wss://stream.data.sandbox.alpaca.markets/v2/test"
+    # Retail keys authenticate to production MD cluster (FAQ); /v2/test works outside RTH.
+    url = "wss://stream.data.alpaca.markets/v2/test"
     hdrs = alpaca_market_data_ws_handshake_headers(k, s)
     opts = dict(ping_interval=20, ping_timeout=20, close_timeout=5, max_size=2**23)
     sig = inspect.signature(websockets.connect)
