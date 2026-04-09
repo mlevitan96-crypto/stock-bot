@@ -31,6 +31,18 @@ def strip_alpaca_credentials(api_key: Optional[str], api_secret: Optional[str]) 
     return normalize_alpaca_key_secret(api_key, api_secret)
 
 
+def alpaca_market_data_ws_handshake_headers(api_key: str, api_secret: str) -> list[tuple[str, str]]:
+    """
+    HTTP headers for the WebSocket **handshake** (Trading API).
+
+    Alpaca documents authenticating the market-data stream with the same headers as REST
+    (``APCA-API-KEY-ID`` / ``APCA-API-SECRET-KEY``) in addition to the JSON auth message.
+    Some environments reject JSON-only auth with 402; supplying these headers fixes that.
+    """
+    k, s = strip_alpaca_credentials(api_key, api_secret)
+    return [("APCA-API-KEY-ID", k), ("APCA-API-SECRET-KEY", s)]
+
+
 def normalize_feed_segment(name: Optional[str]) -> Optional[str]:
     n = (name or "").strip().lower()
     if n in (FEED_SIP, FEED_IEX):
@@ -288,7 +300,8 @@ def feed_name_from_stream_url(url: str) -> str:
 def auth_error_allows_feed_failover(auth_raw: str, *, can_try_alternate: bool) -> bool:
     """
     True if WebSocket auth response indicates auth/subscription rejection and an alternate feed may help.
-    Alpaca: 402 auth failed, 403 forbidden, 409 insufficient subscription.
+    Alpaca: 402 auth failed, 409 insufficient subscription.
+    (403 "already authenticated" after duplicate auth is handled as success in the stream manager.)
     """
     if not can_try_alternate:
         return False
@@ -308,11 +321,11 @@ def auth_error_allows_feed_failover(auth_raw: str, *, can_try_alternate: bool) -
         except (TypeError, ValueError):
             code_i = None
         msg = str(o.get("msg", "") or "").lower()
-        if code_i in (402, 403, 409):
+        if code_i in (402, 409):
             return True
         if "insufficient subscription" in msg or "not available in your subscription" in msg:
             return True
-        if code_i in (402, 403) and "auth" in msg:
+        if code_i == 402 and "auth" in msg:
             return True
     return False
 
