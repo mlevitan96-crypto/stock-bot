@@ -107,6 +107,7 @@ def strict_ml_ready_count_since_cutoff(
     *,
     feature_mode: str = "strict_scoreflow",
     require_join_tier: str | None = None,
+    skip_neutral_no_join: bool = False,
 ) -> Tuple[int, Dict[str, Any]]:
     """
     Count strict ML-ready rows (same filter as load_and_filter) with entry time >= cutoff_utc.
@@ -119,6 +120,7 @@ def strict_ml_ready_count_since_cutoff(
         path,
         feature_mode=feature_mode,
         require_join_tier=require_join_tier,
+        skip_neutral_no_join=skip_neutral_no_join,
     )
     z_since = 0
     for row in kept:
@@ -140,6 +142,7 @@ def load_and_filter(
     *,
     feature_mode: str,
     require_join_tier: str | None = None,
+    skip_neutral_no_join: bool = False,
 ) -> Tuple[List[str], List[Dict[str, str]], Dict[str, int]]:
     """
     Returns (headers, kept_rows, stats).
@@ -153,6 +156,7 @@ def load_and_filter(
         "gross_rows": len(rows),
         "dropped_missing_pnl": 0,
         "dropped_join_tier": 0,
+        "dropped_neutral_no_join": 0,
         "dropped_feature_nan": 0,
         "kept": 0,
     }
@@ -174,6 +178,13 @@ def load_and_filter(
             if (row.get("mlf_scoreflow_join_tier") or "").strip() != require_join_tier:
                 stats["dropped_join_tier"] += 1
                 continue
+        if skip_neutral_no_join and str(row.get("mlf_scoreflow_features_neutral_no_join") or "").strip() in (
+            "1",
+            "true",
+            "True",
+        ):
+            stats["dropped_neutral_no_join"] += 1
+            continue
         bad = False
         for c in feat_cols:
             if not _finite_scalar(row.get(c)):
@@ -215,7 +226,12 @@ def main() -> int:
         return 1
 
     require_tier = "entry_snapshot" if args.feature_mode == "strict_entry_snapshot" else None
-    headers, kept, stats = load_and_filter(path, feature_mode=args.feature_mode, require_join_tier=require_tier)
+    headers, kept, stats = load_and_filter(
+        path,
+        feature_mode=args.feature_mode,
+        require_join_tier=require_tier,
+        skip_neutral_no_join=False,
+    )
 
     print("=== Alpaca cohort strict gold-standard ingestion ===")
     print(f"csv: {path}")
@@ -223,6 +239,7 @@ def main() -> int:
     print(f"gross_rows: {stats['gross_rows']}")
     print(f"dropped_missing_or_nonfinite_pnl: {stats['dropped_missing_pnl']}")
     print(f"dropped_join_tier_mismatch: {stats['dropped_join_tier']}")
+    print(f"dropped_neutral_no_join_flag: {stats['dropped_neutral_no_join']}")
     print(f"dropped_incomplete_or_nonfinite_features: {stats['dropped_feature_nan']}")
     print(f"ML_READY_ROWS: {stats['kept']}")
 
