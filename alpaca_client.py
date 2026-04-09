@@ -42,11 +42,9 @@ class AlpacaClient:
     def __init__(self, api_key: str, api_secret: str, base_url: str):
         """
         Initialize Alpaca client.
-        
-        Args:
-            api_key: Alpaca API key
-            api_secret: Alpaca API secret
-            base_url: Alpaca API base URL
+
+        Prefer ``config.registry.get_alpaca_trading_credentials()`` (or ``main.Config``) so REST
+        and the market-data WebSocket share the same resolved key/secret/base.
         """
         self.api_key = api_key
         self.api_secret = api_secret

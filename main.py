@@ -88,7 +88,7 @@ from position_reconciliation_loop import run_position_reconciliation_loop
 
 from config.registry import (
     Directories, CacheFiles, StateFiles, LogFiles, ConfigFiles, Thresholds, APIConfig,
-    read_json, atomic_write_json, append_jsonl
+    read_json, atomic_write_json, append_jsonl, get_alpaca_trading_credentials,
 )
 # CRITICAL: Standardized data path - MUST be used by all components (main.py, friday_eow_audit.py, dashboard.py)
 ATTRIBUTION_LOG_PATH = LogFiles.ATTRIBUTION
@@ -342,11 +342,12 @@ def get_env(name, default=None, cast=None):
         return val
 
 class Config:
-    # Secrets
+    # Secrets — canonical resolver (ALPACA_* + API_* + APCA_* aliases, strip + optional quotes)
+    _ALPACA_K, _ALPACA_S, _ALPACA_B = get_alpaca_trading_credentials()
     UW_API_KEY = get_env("UW_API_KEY")
-    ALPACA_KEY = get_env("ALPACA_KEY")
-    ALPACA_SECRET = get_env("ALPACA_SECRET")
-    ALPACA_BASE_URL = get_env("ALPACA_BASE_URL", APIConfig.ALPACA_BASE_URL)
+    ALPACA_KEY = _ALPACA_K or None
+    ALPACA_SECRET = _ALPACA_S or None
+    ALPACA_BASE_URL = _ALPACA_B
 
     # Runtime
     # v2-only engine is paper-only (hard invariant). Canonical: TRADING_MODE=PAPER or ALPACA_BASE_URL contains "paper".
@@ -8349,8 +8350,8 @@ class StrategyEngine:
                 register_stream_symbol_provider(_stream_symbol_universe)
                 _url = (os.environ.get("ALPACA_DATA_STREAM_URL") or "").strip() or None
                 self._alpaca_stream = ensure_alpaca_stream_manager(
-                    (Config.ALPACA_KEY or "").strip(),
-                    (Config.ALPACA_SECRET or "").strip(),
+                    Config.ALPACA_KEY or "",
+                    Config.ALPACA_SECRET or "",
                     paper=_paper,
                     url=_url,
                     trading_base_url=(Config.ALPACA_BASE_URL or "").strip() or None,
