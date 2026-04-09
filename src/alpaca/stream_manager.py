@@ -286,6 +286,7 @@ class AlpacaStreamManager:
             tb = "https://paper-api.alpaca.markets" if paper else "https://api.alpaca.markets"
         self._trading_base_url = tb
         self._failover_applied = False
+        self._logged_iex_auth_dead: bool = False
         self._stream_resolve_meta: Dict[str, Any] = {}
         explicit_url = (url or os.environ.get("ALPACA_DATA_STREAM_URL") or "").strip()
         if explicit_url:
@@ -455,6 +456,13 @@ class AlpacaStreamManager:
                 self._feed_name = "iex"
                 self._url = stream_data_ws_url(paper=self._paper, feed="iex")
                 raise _FailoverToIex()
+            if self._failover_applied and self._feed_name == "iex" and not self._logged_iex_auth_dead:
+                self._logged_iex_auth_dead = True
+                log.critical(
+                    "Alpaca market-data WebSocket auth failed on IEX after SIP failover (402/409). "
+                    "This is not a SIP-only issue: verify ALPACA_KEY/ALPACA_SECRET match the account, "
+                    "market data streaming is enabled for the account, and paper vs live stream host matches Alpaca docs.",
+                )
             raise RuntimeError(f"{self._feed_name.upper()} auth failed: {raw1[:500]!r}")
 
         self._last_auth_ok.set()
