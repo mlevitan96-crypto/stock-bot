@@ -17,11 +17,15 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+_TID_RE = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
 
 
 def _finite_scalar(v: Any) -> bool:
@@ -49,6 +53,72 @@ def _pick_feature_columns(headers: Sequence[str], mode: str) -> List[str]:
         cols = [x for x in h if x.startswith("mlf_scoreflow_components_")]
         return ["mlf_scoreflow_total_score"] + sorted(cols)
     raise SystemExit(f"Unknown --feature-mode: {mode}")
+
+
+def _entry_epoch_from_flat_row(row: Dict[str, str]) -> Optional[float]:
+    """Best-effort entry time as Unix epoch (UTC) for flat CSV rows."""
+    raw = (row.get("strict_open_epoch_utc") or "").strip()
+    if raw:
+        try:
+            return float(raw)
+        except ValueError:
+            pass
+    tid = str(row.get("trade_id") or "").strip()
+    m = _TID_RE.match(tid)
+    if m:
+        try:
+            s = m.group(2).replace("Z", "+00:00")
+            dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except Exception:
+            pass
+    et = (row.get("entry_ts") or "").strip()
+    if et:
+        try:
+            s = et.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except Exception:
+            pass
+    return None
+
+
+def strict_ml_ready_count_since_cutoff(
+    path: Path,
+    cutoff_utc: datetime,
+    *,
+    feature_mode: str = "strict_scoreflow",
+    require_join_tier: str | None = None,
+) -> Tuple[int, Dict[str, Any]]:
+    """
+    Count strict ML-ready rows (same filter as load_and_filter) with entry time >= cutoff_utc.
+    Telegram milestone watcher uses this Z count — not gross executions.
+    """
+    if cutoff_utc.tzinfo is None:
+        cutoff_utc = cutoff_utc.replace(tzinfo=timezone.utc)
+    cutoff_ts = cutoff_utc.timestamp()
+    _headers, kept, stats = load_and_filter(
+        path,
+        feature_mode=feature_mode,
+        require_join_tier=require_join_tier,
+    )
+    z_since = 0
+    for row in kept:
+        ep = _entry_epoch_from_flat_row(row)
+        if ep is None or ep < cutoff_ts:
+            continue
+        z_since += 1
+    meta: Dict[str, Any] = {
+        **stats,
+        "strict_ml_ready_since_cutoff": z_since,
+        "strict_ml_ready_all_time_in_csv": stats["kept"],
+        "cutoff_utc": cutoff_utc.isoformat(),
+    }
+    return z_since, meta
 
 
 def load_and_filter(
