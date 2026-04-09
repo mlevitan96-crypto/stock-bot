@@ -383,6 +383,27 @@ def _sign_from_sentiment(sent: str) -> int:
     if sent == "BEARISH": return -1
     return 0
 
+
+# Matches uw_flow_daemon._normalize_calendar_for_composite default when no earnings window is known.
+UW_EARNINGS_NO_DATA_SENTINEL = 999
+
+
+def _merge_uw_intel_record(partial: Any, fallback: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Premarket/postmarket rows often omit earnings/sentiment. Fill only missing or blank
+    fields from synthetic flow-cache intel (no silent nulls for ML export).
+    """
+    out = dict(fallback) if isinstance(fallback, dict) else {}
+    if not isinstance(partial, dict) or not partial:
+        return out
+    for k, v in partial.items():
+        if v is None:
+            continue
+        if isinstance(v, str) and not str(v).strip():
+            continue
+        out[k] = v
+    return out
+
 def _load_expanded_intel() -> Dict:
     """Load expanded intelligence from central cache"""
     try:
@@ -1458,6 +1479,7 @@ def _synthetic_uw_intel_from_flow_row(row: Dict[str, Any]) -> Dict[str, Any]:
     sentiment_s = str(row.get("sentiment", "NEUTRAL") or "NEUTRAL").upper()
     if sentiment_s not in ("BULLISH", "BEARISH", "NEUTRAL"):
         sentiment_s = "NEUTRAL"
+    # Top-level keys (legacy) + nested calendar from uw_flow_daemon (days_to_earnings).
     er = row.get("earnings_proximity", row.get("earnings_days"))
     earnings_days = None
     if er is not None:
@@ -1465,6 +1487,16 @@ def _synthetic_uw_intel_from_flow_row(row: Dict[str, Any]) -> Dict[str, Any]:
             earnings_days = int(er)
         except (TypeError, ValueError):
             earnings_days = None
+    if earnings_days is None:
+        cal = row.get("calendar") if isinstance(row.get("calendar"), dict) else {}
+        dte = cal.get("days_to_earnings") if isinstance(cal, dict) else None
+        if dte is not None:
+            try:
+                earnings_days = int(dte)
+            except (TypeError, ValueError):
+                earnings_days = None
+    if earnings_days is None:
+        earnings_days = int(UW_EARNINGS_NO_DATA_SENTINEL)
     sector_alignment = _clamp(_to_num(row.get("sector_alignment", 0.0)), -1.0, 1.0)
     return {
         "flow_strength": flow_strength,
@@ -1499,11 +1531,15 @@ def _v2_uw_apply_intel_record(
     darkpool_bias = _clamp(_to_num(srec.get("darkpool_bias", 0.0)), -1.0, 1.0)
     sector_alignment = _clamp(_to_num(srec.get("sector_alignment", 0.0)), -1.0, 1.0)
     sentiment_s = str(srec.get("sentiment", "NEUTRAL") or "NEUTRAL").upper()
+    if sentiment_s not in ("BULLISH", "BEARISH", "NEUTRAL"):
+        sentiment_s = "NEUTRAL"
     earnings_prox = srec.get("earnings_proximity")
     try:
         earnings_days = int(earnings_prox) if earnings_prox is not None else None
     except (TypeError, ValueError):
         earnings_days = None
+    if earnings_days is None:
+        earnings_days = int(UW_EARNINGS_NO_DATA_SENTINEL)
 
     w_flow = float(uw_cfg.get("flow_strength_weight", 1.0))
     w_dp = float(uw_cfg.get("darkpool_bias_weight", 1.0))
@@ -1531,7 +1567,8 @@ def _v2_uw_apply_intel_record(
         "flow_strength": float(flow_strength),
         "darkpool_bias": float(darkpool_bias),
         "sentiment": sentiment_s,
-        "earnings_proximity": earnings_days,
+        "sentiment_score": float(_sign_from_sentiment(sentiment_s)),
+        "earnings_proximity": int(earnings_days),
         "sector_alignment": float(sector_alignment),
         "regime_alignment": float(r_align),
         "uw_intel_version": str(uw_intel_version or ""),
@@ -1783,10 +1820,17 @@ def compute_composite_score_v2(
             sym = str(symbol).upper()
             pm_syms = pm.get("symbols", {}) if isinstance(pm, dict) else {}
             post_syms = post.get("symbols", {}) if isinstance(post, dict) else {}
-            srec = (pm_syms.get(sym) if isinstance(pm_syms, dict) else None) or (post_syms.get(sym) if isinstance(post_syms, dict) else None) or {}
+            merged_row = _load_uw_flow_row_for_intel(symbol, enriched_data)
+            synthetic_intel = _synthetic_uw_intel_from_flow_row(merged_row)
+            pm_rec = pm_syms.get(sym) if isinstance(pm_syms, dict) else None
+            post_rec = post_syms.get(sym) if isinstance(post_syms, dict) else None
+            partial_intel = pm_rec if isinstance(pm_rec, dict) and pm_rec else (
+                post_rec if isinstance(post_rec, dict) and post_rec else {}
+            )
             intel_source = "premarket_postmarket"
             uw_intel_version_meta = ""
-            if isinstance(srec, dict) and srec:
+            if isinstance(partial_intel, dict) and partial_intel:
+                srec = _merge_uw_intel_record(partial_intel, synthetic_intel)
                 uw_intel_version_meta = str(
                     (pm.get("_meta", {}) if isinstance(pm, dict) else {}).get("uw_intel_version")
                     or (post.get("_meta", {}) if isinstance(post, dict) else {}).get("uw_intel_version")
@@ -1794,8 +1838,7 @@ def compute_composite_score_v2(
                     or ""
                 )
             else:
-                merged_row = _load_uw_flow_row_for_intel(symbol, enriched_data)
-                srec = _synthetic_uw_intel_from_flow_row(merged_row)
+                srec = synthetic_intel
                 intel_source = "uw_flow_cache"
                 uw_intel_version_meta = str(uw_cfg.get("version") or "") or "uw_flow_cache"
 
@@ -1930,7 +1973,8 @@ def compute_composite_score_v2(
                     "flow_strength": (uw_inputs.get("flow_strength", 0.0) if isinstance(uw_inputs, dict) else 0.0),
                     "darkpool_bias": (uw_inputs.get("darkpool_bias", 0.0) if isinstance(uw_inputs, dict) else 0.0),
                     "sentiment": (uw_inputs.get("sentiment", "NEUTRAL") if isinstance(uw_inputs, dict) else "NEUTRAL"),
-                    "earnings_proximity": (uw_inputs.get("earnings_proximity") if isinstance(uw_inputs, dict) else None),
+                    "sentiment_score": (uw_inputs.get("sentiment_score", 0.0) if isinstance(uw_inputs, dict) else 0.0),
+                    "earnings_proximity": (uw_inputs.get("earnings_proximity") if isinstance(uw_inputs, dict) else int(UW_EARNINGS_NO_DATA_SENTINEL)),
                     "sector_alignment": (uw_inputs.get("sector_alignment", 0.0) if isinstance(uw_inputs, dict) else 0.0),
                     "regime_alignment": (uw_inputs.get("regime_alignment", (v2_uw_regime_profile or {}).get("alignment", 0.0)) if isinstance(uw_inputs, dict) else (v2_uw_regime_profile or {}).get("alignment", 0.0)),
                 },
