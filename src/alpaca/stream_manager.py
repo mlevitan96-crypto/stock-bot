@@ -493,9 +493,9 @@ class AlpacaStreamManager:
         raw0 = await ws.recv()
         self._dispatch_messages(raw0)
 
-        await ws.send(
-            json.dumps({"action": "auth", "key": self._key, "secret": self._secret})
-        )
+        # Re-sanitize at handshake (defense in depth vs .env drift or caller mutation)
+        auth_key, auth_secret = strip_alpaca_credentials(self._key, self._secret)
+        await ws.send(json.dumps({"action": "auth", "key": auth_key, "secret": auth_secret}))
         raw1 = await ws.recv()
         if not self._check_auth_success(raw1):
             can_failover = (
