@@ -1,11 +1,14 @@
 """
-Resolve Alpaca market-data WebSocket feed (sip vs iex) from Trading API account + env.
+Resolve Alpaca market-data WebSocket feed and host from Trading API base URL + account tier.
 
-GET /v2/account is used as the operator-facing source of truth. Field names vary; we read
-``data_tier`` when present and scan a few aliases. If absent, the stream manager defaults to
-``sip`` and fails over to ``iex`` on auth errors 402/409 (see ``auth_error_triggers_sip_to_iex_failover``).
+- **Host** is derived from ``ALPACA_BASE_URL`` (paper-api → sandbox stream host, api.alpaca.markets → live).
+  Override with ``ALPACA_STREAM_DATA_HOST_SANDBOX``, ``ALPACA_STREAM_DATA_HOST_LIVE``, or
+  ``ALPACA_STREAM_DATA_HOST`` when the base URL is non-standard.
+- **Feed** path segment (Alpaca wire names) comes from ``GET /v2/account`` tier when present,
+  else ``ALPACA_STREAM_FEED`` or ``ALPACA_STREAM_FEED_TRY_ORDER`` (comma-separated).
 
-Credentials are stripped the same way as the WebSocket client (``key.strip()``, ``secret.strip()``).
+``AlpacaStreamManager`` fails over to the alternate feed on WebSocket auth errors 402/403/409 when
+the first feed in the pair fails (subscription / auth).
 """
 from __future__ import annotations
 
@@ -14,10 +17,111 @@ import os
 import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional, Tuple
+from urllib.parse import urlparse
+
+# Alpaca Market Data WebSocket v2 path segments (broker API contract).
+FEED_SIP = "sip"
+FEED_IEX = "iex"
 
 
 def strip_alpaca_credentials(api_key: Optional[str], api_secret: Optional[str]) -> Tuple[str, str]:
     return (api_key or "").strip(), (api_secret or "").strip()
+
+
+def normalize_feed_segment(name: Optional[str]) -> Optional[str]:
+    n = (name or "").strip().lower()
+    if n in (FEED_SIP, FEED_IEX):
+        return n
+    return None
+
+
+def alternate_market_data_feed(feed: str) -> Optional[str]:
+    f = normalize_feed_segment(feed)
+    if f == FEED_SIP:
+        return FEED_IEX
+    if f == FEED_IEX:
+        return FEED_SIP
+    return None
+
+
+def alpaca_trading_environment(trading_base_url: str) -> str:
+    """
+    Classify trading REST base URL as paper vs live (for stream host selection).
+    Returns one of: paper, live, unknown.
+    """
+    tu = (trading_base_url or "").strip().lower()
+    if not tu:
+        return "unknown"
+    try:
+        host = (urlparse(tu).hostname or "").lower()
+    except Exception:
+        host = ""
+    if not host:
+        return "unknown"
+    if host == "paper-api.alpaca.markets" or host.startswith("paper-api."):
+        return "paper"
+    if host == "api.alpaca.markets":
+        return "live"
+    return "unknown"
+
+
+def market_data_stream_host(
+    trading_base_url: str,
+    *,
+    paper_fallback: bool = False,
+) -> Tuple[str, str]:
+    """
+    Returns (websocket_hostname, environment_label).
+
+    Host defaults are Alpaca's documented endpoints; override via env without code changes:
+    ``ALPACA_STREAM_DATA_HOST_SANDBOX``, ``ALPACA_STREAM_DATA_HOST_LIVE``, ``ALPACA_STREAM_DATA_HOST``.
+    """
+    env_label = alpaca_trading_environment(trading_base_url)
+    sandbox_host = (os.environ.get("ALPACA_STREAM_DATA_HOST_SANDBOX") or "stream.data.sandbox.alpaca.markets").strip()
+    live_host = (os.environ.get("ALPACA_STREAM_DATA_HOST_LIVE") or "stream.data.alpaca.markets").strip()
+    explicit = (os.environ.get("ALPACA_STREAM_DATA_HOST") or "").strip()
+
+    if env_label == "paper":
+        return sandbox_host, "paper"
+    if env_label == "live":
+        return live_host, "live"
+    if explicit:
+        return explicit, "custom_host_env"
+    if paper_fallback:
+        return sandbox_host, "paper_fallback"
+    return live_host, "live_fallback"
+
+
+def stream_data_ws_url(
+    *,
+    feed: str,
+    trading_base_url: Optional[str] = None,
+    paper: bool = False,
+) -> str:
+    """
+    Build ``wss://<host>/v2/<feed>``.
+
+    If ``trading_base_url`` is non-empty, host is inferred from it (preferred).
+    Otherwise ``paper`` selects sandbox vs live host (legacy).
+    """
+    seg = normalize_feed_segment(feed) or FEED_IEX
+    tb = (trading_base_url or "").strip()
+    if tb:
+        host, _ = market_data_stream_host(tb, paper_fallback=paper)
+    else:
+        sandbox_host = (os.environ.get("ALPACA_STREAM_DATA_HOST_SANDBOX") or "stream.data.sandbox.alpaca.markets").strip()
+        live_host = (os.environ.get("ALPACA_STREAM_DATA_HOST_LIVE") or "stream.data.alpaca.markets").strip()
+        host = sandbox_host if paper else live_host
+    return f"wss://{host}/v2/{seg}"
+
+
+def swap_stream_url_feed(url: str, new_feed: str) -> str:
+    """Same host and /v2/ prefix; replace final path segment (for failover when URL was explicit)."""
+    seg = normalize_feed_segment(new_feed) or new_feed.strip().lower()
+    u = (url or "").strip().rstrip("/")
+    if "/v2/" in u:
+        return u.rsplit("/", 1)[0] + f"/{seg}"
+    return f"{u}/v2/{seg}"
 
 
 def fetch_alpaca_account(
@@ -79,7 +183,7 @@ def account_data_tier_label(account: Optional[Dict[str, Any]]) -> Optional[str]:
 def preferred_feed_from_data_tier(tier: Optional[str]) -> Optional[str]:
     """
     Map API tier string to ``sip`` or ``iex`` when unambiguous.
-    Returns None if unknown (caller may default to sip + failover).
+    Returns None if unknown (caller uses try-order).
     """
     if not tier:
         return None
@@ -95,14 +199,29 @@ def preferred_feed_from_data_tier(tier: Optional[str]) -> Optional[str]:
         "paid",
         "enterprise",
     ):
-        return "sip"
+        return FEED_SIP
     if t in ("basic", "free", "iex", "starter", "standard_lite", "lite"):
-        return "iex"
+        return FEED_IEX
     if "premium" in t or "professional" in t or "sip" in t:
-        return "sip"
+        return FEED_SIP
     if "basic" in t or "iex" in t or "free" in t:
-        return "iex"
+        return FEED_IEX
     return None
+
+
+def _feeds_from_try_order_string(order_str: str) -> Tuple[str, str]:
+    parts = [normalize_feed_segment(p) for p in order_str.split(",")]
+    seen: list[str] = []
+    for p in parts:
+        if p and p not in seen:
+            seen.append(p)
+    if len(seen) >= 2:
+        return seen[0], seen[1]
+    if len(seen) == 1:
+        alt = alternate_market_data_feed(seen[0])
+        if alt:
+            return seen[0], alt
+    return FEED_SIP, FEED_IEX
 
 
 def resolve_stream_feed(
@@ -111,20 +230,24 @@ def resolve_stream_feed(
     *,
     trading_base_url: str,
     env_feed_override: Optional[str] = None,
-) -> Tuple[str, Dict[str, Any]]:
+) -> Tuple[str, Optional[str], Dict[str, Any]]:
     """
-    Returns (feed, meta) where feed is ``sip`` or ``iex``.
+    Returns (primary_feed, secondary_feed, meta).
 
     Precedence:
-    1. ``env_feed_override`` or env ``ALPACA_STREAM_FEED`` if set to sip|iex
-    2. Trading API account tier mapping when ``data_tier`` (or alias) is recognized
-    3. Default ``sip`` (legacy) — ``AlpacaStreamManager`` fails over to ``iex`` on 402/409
+    1. ``env_feed_override`` or env ``ALPACA_STREAM_FEED`` if set to a single known feed → alternate is the other feed
+    2. Trading API ``data_tier`` (or alias) when it maps to a feed → alternate is the other feed
+    3. Env ``ALPACA_STREAM_FEED_TRY_ORDER`` (comma-separated, default ``sip,iex``)
     """
-    meta: Dict[str, Any] = {"source": "default_sip_with_iex_failover"}
+    meta: Dict[str, Any] = {"source": "try_order"}
+    meta["trading_environment"] = alpaca_trading_environment(trading_base_url)
+
     ovr = (env_feed_override or os.environ.get("ALPACA_STREAM_FEED") or "").strip().lower()
-    if ovr in ("sip", "iex"):
-        meta.update({"source": "env", "ALPACA_STREAM_FEED": ovr, "data_tier": None})
-        return ovr, meta
+    single = normalize_feed_segment(ovr)
+    if single:
+        alt = alternate_market_data_feed(single)
+        meta.update({"source": "env", "ALPACA_STREAM_FEED": single, "data_tier": None})
+        return single, alt, meta
 
     acct, err = fetch_alpaca_account(api_key, api_secret, trading_base_url)
     meta["account_fetch_error"] = err
@@ -134,41 +257,37 @@ def resolve_stream_feed(
         meta["data_tier"] = tier
         pf = preferred_feed_from_data_tier(tier)
         if pf:
+            alt = alternate_market_data_feed(pf)
             meta["source"] = "api_data_tier"
-            return pf, meta
+            return pf, alt, meta
         meta["data_tier_note"] = (
-            "data_tier field missing or unrecognized in /v2/account — using sip with iex failover on auth error"
+            "data_tier missing or unrecognized in /v2/account — using ALPACA_STREAM_FEED_TRY_ORDER"
         )
     else:
         meta["data_tier"] = None
-        meta["data_tier_note"] = "account fetch failed — using sip with iex failover on auth error"
+        meta["data_tier_note"] = "account fetch failed — using ALPACA_STREAM_FEED_TRY_ORDER"
 
-    return "sip", meta
-
-
-def stream_data_ws_url(*, paper: bool, feed: str) -> str:
-    feed = (feed or "iex").strip().lower()
-    if feed not in ("sip", "iex"):
-        feed = "iex"
-    host = "stream.data.sandbox.alpaca.markets" if paper else "stream.data.alpaca.markets"
-    return f"wss://{host}/v2/{feed}"
+    try_order = (os.environ.get("ALPACA_STREAM_FEED_TRY_ORDER") or f"{FEED_SIP},{FEED_IEX}").strip()
+    meta["ALPACA_STREAM_FEED_TRY_ORDER"] = try_order
+    a, b = _feeds_from_try_order_string(try_order)
+    return a, b, meta
 
 
 def feed_name_from_stream_url(url: str) -> str:
     u = (url or "").rstrip("/").lower()
-    if u.endswith("/sip"):
-        return "sip"
-    if u.endswith("/iex"):
-        return "iex"
+    if u.endswith(f"/{FEED_SIP}"):
+        return FEED_SIP
+    if u.endswith(f"/{FEED_IEX}"):
+        return FEED_IEX
     return "unknown"
 
 
-def auth_error_triggers_sip_to_iex_failover(auth_raw: str, *, current_feed: str) -> bool:
+def auth_error_allows_feed_failover(auth_raw: str, *, can_try_alternate: bool) -> bool:
     """
-    True if WebSocket auth response indicates SIP/subscription rejection and we should retry on iex.
-    Alpaca codes: 402 auth failed, 409 insufficient subscription (wrong feed for plan).
+    True if WebSocket auth response indicates auth/subscription rejection and an alternate feed may help.
+    Alpaca: 402 auth failed, 403 forbidden, 409 insufficient subscription.
     """
-    if (current_feed or "").lower() != "sip":
+    if not can_try_alternate:
         return False
     try:
         data = json.loads(auth_raw)
@@ -186,10 +305,18 @@ def auth_error_triggers_sip_to_iex_failover(auth_raw: str, *, current_feed: str)
         except (TypeError, ValueError):
             code_i = None
         msg = str(o.get("msg", "") or "").lower()
-        if code_i in (402, 409):
+        if code_i in (402, 403, 409):
             return True
         if "insufficient subscription" in msg or "not available in your subscription" in msg:
             return True
-        if code_i == 402 and "auth" in msg:
+        if code_i in (402, 403) and "auth" in msg:
             return True
     return False
+
+
+def auth_error_triggers_sip_to_iex_failover(auth_raw: str, *, current_feed: str) -> bool:
+    """Backward-compatible: SIP-only failover check (tests)."""
+    return auth_error_allows_feed_failover(
+        auth_raw,
+        can_try_alternate=(normalize_feed_segment(current_feed) == FEED_SIP),
+    )
