@@ -2202,6 +2202,12 @@ def log_exit_attribution(
                 for _k in ("canonical_trade_id", "decision_event_id", "symbol_normalized", "time_bucket_id", "entry_ts"):
                     if metadata.get(_k) is None and _row_pmd.get(_k) is not None:
                         metadata[_k] = _row_pmd[_k]
+                # Preserve v2 UW context from disk when in-memory metadata lost it (reconcile / race).
+                _dv2 = _row_pmd.get("v2")
+                if isinstance(_dv2, dict) and _dv2:
+                    _mv2 = metadata.get("v2")
+                    if not isinstance(_mv2, dict) or not (_mv2.get("v2_uw_inputs") or {}):
+                        metadata["v2"] = {**(_mv2 if isinstance(_mv2, dict) else {}), **_dv2}
     except Exception:
         pass
 
@@ -2524,6 +2530,23 @@ def log_exit_attribution(
 
         entry_regime = str(entry_reg_prof.get("regime_label") or meta.get("market_regime") or context.get("market_regime") or "NEUTRAL")
         exit_regime = str(exit_reg_prof.get("regime_label") or v2_exit.get("now_regime_label") or context.get("market_regime") or "NEUTRAL")
+
+        # ML / zero-tolerance: never emit empty entry_uw when UW cache can reconstruct v2_uw_inputs.
+        try:
+            from src.exit.entry_uw_backfill import entry_uw_has_finite_ml_telemetry, try_backfill_v2_uw_inputs
+
+            if not entry_uw_has_finite_ml_telemetry(entry_uw):
+                _bf = try_backfill_v2_uw_inputs(symbol, entry_regime)
+                if _bf:
+                    entry_uw = {**dict(entry_uw or {}), **_bf}
+                    log_event(
+                        "data_integrity",
+                        "entry_uw_backfilled_at_exit",
+                        symbol=str(symbol).upper(),
+                        keys=list(_bf.keys())[:12],
+                    )
+        except Exception:
+            pass
 
         v2_exit_score = float(v2_exit.get("v2_exit_score") or 0.0)
         v2_exit_components = v2_exit.get("v2_exit_components", {}) if isinstance(v2_exit.get("v2_exit_components"), dict) else {}

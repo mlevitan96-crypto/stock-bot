@@ -417,9 +417,30 @@ class PositionReconcilerV2:
                         "v2",
                         "composite_version",
                         "entry_order_id",
+                        "entry_market_context",
+                        "entry_regime_posture",
+                        "alpha_signature",
+                        "strategy_id",
                     ):
                         if existing_meta.get(_ak) is not None:
                             row[_ak] = existing_meta[_ak]
+                    # Never ship empty v2_uw_inputs when UW cache can hydrate (telemetry / ML density).
+                    try:
+                        _v2 = row.get("v2")
+                        _uw = (_v2 or {}).get("v2_uw_inputs") if isinstance(_v2, dict) else None
+                        if not isinstance(_uw, dict) or not _uw:
+                            from src.exit.entry_uw_backfill import try_backfill_v2_uw_inputs
+
+                            _bf = try_backfill_v2_uw_inputs(
+                                symbol, str(row.get("market_regime") or "NEUTRAL")
+                            )
+                            if _bf:
+                                _base = dict(_v2) if isinstance(_v2, dict) else {}
+                                _base["v2_uw_inputs"] = _bf
+                                row["v2"] = _base
+                                row.setdefault("composite_version", "v2")
+                    except Exception:
+                        pass
                     if not row.get("canonical_trade_id") and not row.get("trade_key"):
                         try:
                             from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
@@ -430,6 +451,10 @@ class PositionReconcilerV2:
                         except Exception:
                             pass
                     position_metadata[symbol] = row
+                # Carry v2 into executor opens for any code path that reads memory before disk flush.
+                _final = position_metadata.get(symbol)
+                if isinstance(_final, dict) and isinstance(_final.get("v2"), dict) and _final["v2"]:
+                    executor_opens[symbol]["v2"] = _final["v2"]
         
         # Save updated metadata
         if position_metadata:
