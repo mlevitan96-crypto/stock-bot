@@ -8349,10 +8349,11 @@ class StrategyEngine:
                 register_stream_symbol_provider(_stream_symbol_universe)
                 _url = (os.environ.get("ALPACA_DATA_STREAM_URL") or "").strip() or None
                 self._alpaca_stream = ensure_alpaca_stream_manager(
-                    Config.ALPACA_KEY,
-                    Config.ALPACA_SECRET,
+                    (Config.ALPACA_KEY or "").strip(),
+                    (Config.ALPACA_SECRET or "").strip(),
                     paper=_paper,
                     url=_url,
+                    trading_base_url=(Config.ALPACA_BASE_URL or "").strip() or None,
                 )
             except Exception as e:
                 log_event("alpaca_stream", "init_failed", error=str(e))

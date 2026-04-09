@@ -1,12 +1,14 @@
 """
-Alpaca consolidated SIP WebSocket (v2/sip) + thread-safe bar cache.
+Alpaca market-data WebSocket (v2/sip or v2/iex) + thread-safe bar cache.
 
 Spec: https://docs.alpaca.markets/docs/real-time-stock-pricing-data
-- URL: wss://stream.data.alpaca.markets/v2/sip (production)
+- URL: wss://stream.data.alpaca.markets/v2/{sip|iex} (production; sandbox host for paper)
 - Auth: {"action":"auth","key":...,"secret":...}
 - Subscribe minute aggregates via JSON key "bars" (messages T=="b"); trades via "trades" (T=="t").
 
-AM (aggregate minute) in legacy naming maps to the "bars" channel / bar schema (T=="b").
+Feed selection: ``src.alpaca.stream_feed`` resolves ``sip`` vs ``iex`` from GET /v2/account
+(``data_tier`` when present), env ``ALPACA_STREAM_FEED``, or defaults to ``sip`` with automatic
+failover to ``iex`` on WebSocket auth errors 402/409.
 """
 from __future__ import annotations
 
@@ -29,10 +31,23 @@ try:
 except ImportError:  # pragma: no cover
     websockets = None  # type: ignore
 
+from src.alpaca.stream_feed import (
+    auth_error_triggers_sip_to_iex_failover,
+    feed_name_from_stream_url,
+    resolve_stream_feed,
+    stream_data_ws_url,
+    strip_alpaca_credentials,
+)
+
 log = logging.getLogger(__name__)
 
 _DEFAULT_PROD_URL = "wss://stream.data.alpaca.markets/v2/sip"
 _DEFAULT_SANDBOX_URL = "wss://stream.data.sandbox.alpaca.markets/v2/sip"
+
+
+class _FailoverToIex(Exception):
+    """Internal: reconnect immediately on iex after SIP auth failure."""
+
 _SUBSCRIBE_CHUNK = 40
 _MAX_BACKOFF_SEC = 120.0
 _INITIAL_BACKOFF_SEC = 1.0
@@ -88,6 +103,7 @@ def ensure_alpaca_stream_manager(
     *,
     paper: bool = False,
     url: Optional[str] = None,
+    trading_base_url: Optional[str] = None,
     bar_maxlen: int = 400,
 ) -> Optional["AlpacaStreamManager"]:
     """
@@ -106,6 +122,7 @@ def ensure_alpaca_stream_manager(
                 _merged_symbol_provider,
                 paper=paper,
                 url=url,
+                trading_base_url=trading_base_url,
                 bar_maxlen=bar_maxlen,
             )
         except Exception as ex:
@@ -244,7 +261,7 @@ class PriceCache:
 
 class AlpacaStreamManager:
     """
-    Background asyncio WebSocket client: SIP v2, auth + subscribe trades + minute bars.
+    Background asyncio WebSocket client: market data v2 (sip or iex), auth + subscribe trades + minute bars.
     """
 
     def __init__(
@@ -255,16 +272,33 @@ class AlpacaStreamManager:
         *,
         url: Optional[str] = None,
         paper: bool = False,
+        trading_base_url: Optional[str] = None,
         bar_maxlen: int = 400,
     ) -> None:
         if websockets is None:
             raise RuntimeError("websockets package required; pip install websockets")
         self.stream_id = uuid.uuid4().hex[:12]
-        self._key = (api_key or "").strip()
-        self._secret = (api_secret or "").strip()
+        self._key, self._secret = strip_alpaca_credentials(api_key, api_secret)
         self._symbol_provider = symbol_provider
         self._paper = bool(paper)
-        self._url = (url or "").strip() or (_DEFAULT_SANDBOX_URL if paper else _DEFAULT_PROD_URL)
+        tb = (trading_base_url or os.environ.get("ALPACA_BASE_URL") or "").strip()
+        if not tb:
+            tb = "https://paper-api.alpaca.markets" if paper else "https://api.alpaca.markets"
+        self._trading_base_url = tb
+        self._failover_applied = False
+        self._stream_resolve_meta: Dict[str, Any] = {}
+        explicit_url = (url or os.environ.get("ALPACA_DATA_STREAM_URL") or "").strip()
+        if explicit_url:
+            self._url = explicit_url
+            self._feed_name = feed_name_from_stream_url(explicit_url)
+            if self._feed_name == "unknown":
+                ulow = explicit_url.lower()
+                self._feed_name = "sip" if "/sip" in ulow else "iex"
+        else:
+            feed, meta = resolve_stream_feed(self._key, self._secret, trading_base_url=self._trading_base_url)
+            self._stream_resolve_meta = dict(meta)
+            self._feed_name = feed
+            self._url = stream_data_ws_url(paper=paper, feed=feed)
         self.price_cache = PriceCache(maxlen_per_symbol=bar_maxlen)
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -274,6 +308,10 @@ class AlpacaStreamManager:
     @property
     def stream_url(self) -> str:
         return self._url
+
+    @property
+    def stream_feed(self) -> str:
+        return self._feed_name
 
     @property
     def last_auth_ok(self) -> bool:
@@ -290,11 +328,11 @@ class AlpacaStreamManager:
         if self._thread and self._thread.is_alive():
             return
         self._stop.clear()
-        self._thread = threading.Thread(target=self._thread_main, name="alpaca-sip-ws", daemon=True)
+        self._thread = threading.Thread(target=self._thread_main, name="alpaca-md-ws", daemon=True)
         self._thread.start()
-        self._emit_sip_started()
+        self._emit_stream_started()
 
-    def _emit_sip_started(self) -> None:
+    def _emit_stream_started(self) -> None:
         """Once per physical stream start (singleton); includes stream_id for log correlation."""
         try:
             max_sym = int(os.environ.get("ALPACA_STREAM_MAX_SYMBOLS", "200"))
@@ -306,10 +344,11 @@ class AlpacaStreamManager:
 
             log_system_event(
                 "alpaca_stream",
-                "sip_started",
+                "stream_started",
                 "INFO",
                 stream_id=self.stream_id,
                 url=self.stream_url,
+                feed=self._feed_name,
                 paper=self._paper,
                 max_symbols=max_sym,
             )
@@ -323,9 +362,10 @@ class AlpacaStreamManager:
             p.parent.mkdir(parents=True, exist_ok=True)
             rec: Dict[str, Any] = {
                 "ts": datetime.now(timezone.utc).isoformat(),
-                "msg": "sip_started",
+                "msg": "stream_started",
                 "stream_id": self.stream_id,
                 "url": self.stream_url,
+                "feed": self._feed_name,
                 "paper": self._paper,
                 "max_symbols": max_sym,
             }
@@ -379,10 +419,18 @@ class AlpacaStreamManager:
                     await self._consume_connection(ws)
             except asyncio.CancelledError:  # pragma: no cover
                 break
+            except _FailoverToIex:
+                backoff = _INITIAL_BACKOFF_SEC
+                continue
             except Exception as ex:
                 self._last_auth_ok.clear()
                 self._last_error = str(ex)
-                log.warning("Alpaca SIP WebSocket disconnected: %s (reconnect in %.1fs)", ex, backoff)
+                log.warning(
+                    "Alpaca %s WebSocket disconnected: %s (reconnect in %.1fs)",
+                    self._feed_name.upper(),
+                    ex,
+                    backoff,
+                )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2.0, _MAX_BACKOFF_SEC)
 
@@ -396,7 +444,18 @@ class AlpacaStreamManager:
         )
         raw1 = await ws.recv()
         if not self._check_auth_success(raw1):
-            raise RuntimeError(f"SIP auth failed: {raw1[:500]!r}")
+            if (
+                not self._failover_applied
+                and auth_error_triggers_sip_to_iex_failover(raw1, current_feed=self._feed_name)
+            ):
+                log.warning(
+                    "SIP feed unauthorized. Failing over to IEX (Free Tier) data.",
+                )
+                self._failover_applied = True
+                self._feed_name = "iex"
+                self._url = stream_data_ws_url(paper=self._paper, feed="iex")
+                raise _FailoverToIex()
+            raise RuntimeError(f"{self._feed_name.upper()} auth failed: {raw1[:500]!r}")
 
         self._last_auth_ok.set()
         self._last_error = None
