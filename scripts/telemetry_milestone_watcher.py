@@ -389,6 +389,8 @@ def main() -> int:
                 FLAT_CSV,
                 cutoff,
                 feature_mode="strict_scoreflow",
+                # Telegram Z = trades with real snapshot or scoreflow join, not neutral padding only.
+                skip_neutral_no_join=True,
             )
         except SystemExit as e:
             print(f"strict_ml_ready_count_since_cutoff failed: {e}", file=sys.stderr, flush=True)
@@ -458,7 +460,17 @@ def main() -> int:
     state["meta"]["last_run_utc"] = datetime.now(timezone.utc).isoformat()
     state["meta"]["last_strict_ml_z_since_cutoff"] = z_count
     state["meta"]["last_gross_entries_since_cutoff"] = gross_entries
-    state["meta"]["last_z_meta"] = {k: z_meta.get(k) for k in ("dropped_missing_pnl", "dropped_feature_nan", "gross_rows", "kept") if k in z_meta}
+    state["meta"]["last_z_meta"] = {
+        k: z_meta.get(k)
+        for k in (
+            "dropped_missing_pnl",
+            "dropped_neutral_no_join",
+            "dropped_feature_nan",
+            "gross_rows",
+            "kept",
+        )
+        if k in z_meta
+    }
     state["meta"]["cutoff_utc"] = cutoff.isoformat()
     _save_state(state)
     return 0
