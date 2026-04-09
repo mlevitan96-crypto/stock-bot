@@ -50,7 +50,7 @@ def test_auth_error_triggers_failover_sip_only():
 
 
 def test_auth_error_allows_failover_any_feed_when_enabled():
-    raw = json.dumps([{"T": "error", "code": 403, "msg": "auth failed"}])
+    raw = json.dumps([{"T": "error", "code": 402, "msg": "auth failed"}])
     assert auth_error_allows_feed_failover(raw, can_try_alternate=True) is True
     assert auth_error_allows_feed_failover(raw, can_try_alternate=False) is False
 
