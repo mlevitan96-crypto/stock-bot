@@ -14,7 +14,7 @@ Last Updated: 2025-11-28
 
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, TypeVar, Union
+from typing import Any, Dict, Optional, Tuple, TypeVar, Union
 
 T = TypeVar('T')
 
@@ -28,6 +28,53 @@ def get_env(key: str, default: T = None, cast: type = str) -> Union[T, str]:
         return cast(val) if cast != str else val
     except (ValueError, TypeError):
         return default
+
+
+def _strip_surrounding_quotes(val: str) -> str:
+    """Remove one layer of surrounding single/double quotes from .env-style values."""
+    v = val.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        return v[1:-1].strip()
+    return v
+
+
+def get_alpaca_trading_credentials() -> Tuple[str, str, str]:
+    """
+    Canonical Alpaca identity for REST and market-data WebSocket (same env resolution).
+
+    Resolution order matches ``scripts/diag/check_alpaca_tier.py`` / operator docs:
+    key: ALPACA_KEY → ALPACA_API_KEY → APCA_API_KEY_ID
+    secret: ALPACA_SECRET → ALPACA_API_SECRET → APCA_API_SECRET_KEY
+    base URL: ALPACA_BASE_URL → APCA_API_BASE_URL → paper default
+
+    All values are stripped; optional surrounding quotes on key/secret are removed.
+    """
+    raw_key = (
+        os.getenv("ALPACA_KEY")
+        or os.getenv("ALPACA_API_KEY")
+        or os.getenv("APCA_API_KEY_ID")
+        or ""
+    )
+    raw_secret = (
+        os.getenv("ALPACA_SECRET")
+        or os.getenv("ALPACA_API_SECRET")
+        or os.getenv("APCA_API_SECRET_KEY")
+        or ""
+    )
+    raw_base = (
+        os.getenv("ALPACA_BASE_URL")
+        or os.getenv("APCA_API_BASE_URL")
+        or "https://paper-api.alpaca.markets"
+    )
+    key = _strip_surrounding_quotes(str(raw_key))
+    secret = _strip_surrounding_quotes(str(raw_secret))
+    base = str(raw_base).strip().rstrip("/")
+    return key, secret, base
+
+
+def normalize_alpaca_key_secret(key: Optional[str], secret: Optional[str]) -> Tuple[str, str]:
+    """Strip whitespace and optional surrounding quotes (for values passed in from callers)."""
+    return _strip_surrounding_quotes(str(key or "")), _strip_surrounding_quotes(str(secret or ""))
 
 
 def get_env_bool(key: str, default: bool = False) -> bool:
@@ -353,10 +400,11 @@ class APIConfig:
     
     @classmethod
     def get_alpaca_headers(cls) -> dict:
-        """Get Alpaca API headers."""
+        """Get Alpaca API headers (same canonical credentials as REST / WebSocket)."""
+        k, s, _ = get_alpaca_trading_credentials()
         return {
-            "APCA-API-KEY-ID": os.getenv("ALPACA_API_KEY") or os.getenv("ALPACA_KEY", ""),
-            "APCA-API-SECRET-KEY": os.getenv("ALPACA_API_SECRET") or os.getenv("ALPACA_SECRET", "")
+            "APCA-API-KEY-ID": k,
+            "APCA-API-SECRET-KEY": s,
         }
     
     @classmethod

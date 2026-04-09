@@ -25,7 +25,10 @@ FEED_IEX = "iex"
 
 
 def strip_alpaca_credentials(api_key: Optional[str], api_secret: Optional[str]) -> Tuple[str, str]:
-    return (api_key or "").strip(), (api_secret or "").strip()
+    """Delegate to registry so REST and WebSocket use identical normalization."""
+    from config.registry import normalize_alpaca_key_secret
+
+    return normalize_alpaca_key_secret(api_key, api_secret)
 
 
 def normalize_feed_segment(name: Optional[str]) -> Optional[str]:
