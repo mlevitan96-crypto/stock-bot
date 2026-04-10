@@ -5,7 +5,7 @@ import importlib.util
 import json
 import os
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -41,6 +41,34 @@ from telemetry.alpaca_telegram_integrity.warehouse_summary import (
     load_latest_coverage,
     run_warehouse_mission,
 )
+
+
+def _integrity_alert_us_equity_window_meta(now_utc: Optional[datetime] = None) -> Dict[str, Any]:
+    """
+    Regular session 09:30–16:00 ET plus 1h post-close grace → allow Telegram integrity alerts
+    only Mon–Fri when 09:30 <= local time < 17:00 US/Eastern (pytz).
+    """
+    import pytz
+
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
+    if now_utc.tzinfo is None:
+        now_utc = now_utc.replace(tzinfo=timezone.utc)
+    et = pytz.timezone("US/Eastern")
+    now_et = now_utc.astimezone(et)
+    wd = int(now_et.weekday())
+    # Mon=0 .. Fri=4; weekend suppressed
+    t = now_et.time()
+    open_et = time(9, 30)
+    end_et = time(17, 0)  # exclusive: grace through 16:59:59
+    within = wd < 5 and open_et <= t < end_et
+    return {
+        "timezone": "US/Eastern",
+        "now_et_iso": now_et.isoformat(),
+        "weekday_et": wd,
+        "within_integrity_alert_window": within,
+        "window_et": "Mon–Fri 09:30–17:00 ET (RTH + 1h grace, end exclusive)",
+    }
 
 
 def _root() -> Path:
@@ -498,20 +526,30 @@ def run_integrity_cycle(
         )
         out["test_integrity_sent"] = send_msg(msg, "alpaca_integrity_test_alert")
     elif reasons:
-        reg_key = "strict_regression" if reg_reasons else "integrity_general"
-        use_cd = cd_reg if reg_reasons else cd
-        if checks.cooldown_ok(st, reg_key, use_cd):
-            msg = format_integrity_alert(
-                test=False,
-                reasons=reasons,
-                last_good=st.get("last_good"),
-                action="Inspect logs, rerun truth warehouse mission, review strict gate output; see MEMORY_BANK section 1.2.",
-            )
-            if send_msg(msg, "alpaca_data_integrity"):
-                checks.touch_cooldown(st, reg_key)
-                out["integrity_alert_sent"] = True
+        win_meta = _integrity_alert_us_equity_window_meta()
+        out["integrity_alert_market_window"] = win_meta
+        bypass_hours = os.environ.get("ALPACA_INTEGRITY_ALERT_IGNORE_MARKET_HOURS", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        if not bypass_hours and not win_meta.get("within_integrity_alert_window"):
+            out["integrity_alert_suppressed_off_hours"] = True
         else:
-            out["integrity_alert_suppressed_cooldown"] = True
+            reg_key = "strict_regression" if reg_reasons else "integrity_general"
+            use_cd = cd_reg if reg_reasons else cd
+            if checks.cooldown_ok(st, reg_key, use_cd):
+                msg = format_integrity_alert(
+                    test=False,
+                    reasons=reasons,
+                    last_good=st.get("last_good"),
+                    action="Inspect logs, rerun truth warehouse mission, review strict gate output; see MEMORY_BANK section 1.2.",
+                )
+                if send_msg(msg, "alpaca_data_integrity"):
+                    checks.touch_cooldown(st, reg_key)
+                    out["integrity_alert_sent"] = True
+            else:
+                out["integrity_alert_suppressed_cooldown"] = True
 
     # Update last_good when healthy
     if not reasons and cov.execution_join_pct is not None:
