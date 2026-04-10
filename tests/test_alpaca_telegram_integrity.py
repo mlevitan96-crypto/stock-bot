@@ -14,7 +14,10 @@ from telemetry.alpaca_telegram_integrity.milestone import (
     should_fire_milestone,
 )
 from telemetry.alpaca_telegram_integrity.session_clock import effective_regular_session_open_utc
-from telemetry.alpaca_telegram_integrity.runner_core import _checkpoint_100_integrity_ok
+from telemetry.alpaca_telegram_integrity.runner_core import (
+    _checkpoint_100_integrity_ok,
+    _integrity_alert_us_equity_window_meta,
+)
 from telemetry.alpaca_telegram_integrity.templates import (
     format_100trade_checkpoint,
     format_integrity_alert,
@@ -83,6 +86,33 @@ def test_format_milestone_250_no_crash():
     )
     assert "TEST" in s
     assert "250" in s
+
+
+def test_integrity_alert_window_weekday_inside_rth_plus_grace():
+    # 2026-04-06 is Monday (US/Eastern); 18:00Z ≈ 14:00 EDT → inside [09:30, 17:00)
+    utc = datetime(2026, 4, 6, 18, 0, tzinfo=timezone.utc)
+    m = _integrity_alert_us_equity_window_meta(utc)
+    assert m["within_integrity_alert_window"] is True
+
+
+def test_integrity_alert_window_weekend_suppressed():
+    utc = datetime(2026, 4, 11, 18, 0, tzinfo=timezone.utc)  # Saturday
+    m = _integrity_alert_us_equity_window_meta(utc)
+    assert m["within_integrity_alert_window"] is False
+
+
+def test_integrity_alert_window_before_open_suppressed():
+    # Monday 2026-04-06 13:29Z = 09:29 EDT → before 09:30
+    utc = datetime(2026, 4, 6, 13, 29, tzinfo=timezone.utc)
+    m = _integrity_alert_us_equity_window_meta(utc)
+    assert m["within_integrity_alert_window"] is False
+
+
+def test_integrity_alert_window_after_grace_suppressed():
+    # Monday 2026-04-06 21:00Z = 17:00 EDT → end exclusive
+    utc = datetime(2026, 4, 6, 21, 0, tzinfo=timezone.utc)
+    m = _integrity_alert_us_equity_window_meta(utc)
+    assert m["within_integrity_alert_window"] is False
 
 
 def test_format_integrity_alert_no_crash():
