@@ -60,7 +60,7 @@ except Exception:
         return False
     setattr(_dotenv, "load_dotenv", load_dotenv)
     sys.modules["dotenv"] = _dotenv  # type: ignore
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 # Optional: Flask import (non-blocking for local structural audits).
 _MISSING_FLASK = False
@@ -394,7 +394,7 @@ class Config:
     CONFIRM_DARKPOOL_W = float(get_env("CONFIRM_DARKPOOL_W", "0.25"))
     CONFIRM_NET_PREMIUM_W = float(get_env("CONFIRM_NET_PREMIUM_W", "0.25"))
     CONFIRM_VOL_W = float(get_env("CONFIRM_VOL_W", "0.1"))
-    MIN_EXEC_SCORE = float(get_env("MIN_EXEC_SCORE", "2.5"))  # 2.5: lowered per blocked-trade expectancy analysis (reversible via env)
+    MIN_EXEC_SCORE = float(get_env("MIN_EXEC_SCORE", "1.6"))  # Expectancy score floor; live value usually from systemd (MIN_EXEC_SCORE). Default 1.6 (~50% below prior 3.2 droplet norm).
 
     # Confirmation thresholds
     DARKPOOL_OFFLIT_MIN = float(get_env("DARKPOOL_OFFLIT_MIN", "1000000"))
@@ -1796,6 +1796,59 @@ def _emit_trade_intent_blocked(
         decision_outcome="blocked", blocked_reason=blocked_reason,
         intelligence_trace=intelligence_trace,
     )
+
+
+def _emit_trade_intent_blocked_trace(
+    symbol: str,
+    direction: Optional[str],
+    score: float,
+    comps: Optional[dict],
+    c: dict,
+    market_regime: str,
+    engine: object,
+    *,
+    blocked_reason: str,
+    final_primary: str,
+    failed_gate: str,
+    failed_reason: Optional[str] = None,
+    prior_gates_pass: Optional[Tuple[str, ...]] = None,
+) -> None:
+    """Emit trade_intent blocked with a minimal intelligence_trace (strict run.jsonl chain)."""
+    _prior = prior_gates_pass if prior_gates_pass is not None else ("score_gate",)
+    try:
+        _trace = None
+        try:
+            from telemetry.decision_intelligence_trace import (
+                append_gate_result,
+                build_initial_trace,
+                set_final_decision,
+            )
+
+            _dir = direction if direction is not None else c.get("direction")
+            _side = "buy" if (str(_dir or "").lower() == "bullish") else "sell"
+            _comps = comps if isinstance(comps, dict) else {}
+            _trace = build_initial_trace(
+                symbol, _side, float(score), _comps, c, None, None, engine
+            )
+            for g in _prior:
+                append_gate_result(_trace, g, True)
+            append_gate_result(_trace, failed_gate, False, failed_reason or blocked_reason)
+            set_final_decision(_trace, "blocked", final_primary, [])
+        except Exception:
+            pass
+        _emit_trade_intent_blocked(
+            symbol,
+            c.get("direction"),
+            float(score),
+            comps if isinstance(comps, dict) else {},
+            c,
+            market_regime,
+            engine,
+            blocked_reason,
+            intelligence_trace=_trace,
+        )
+    except Exception:
+        pass
 
 
 def _emit_exit_intent(
@@ -8684,7 +8737,7 @@ class StrategyEngine:
                     append_score_snapshot(
                         symbol=symbol,
                         composite_score=float(c.get("composite_score", 0) or 0),
-                        expectancy_floor=float(getattr(Config, "MIN_EXEC_SCORE", 2.5)),
+                        expectancy_floor=float(getattr(Config, "MIN_EXEC_SCORE", 1.6)),
                         composite_gate_pass=True,
                         expectancy_gate_pass=False,
                         block_reason=_defer_reason,
@@ -8784,8 +8837,26 @@ class StrategyEngine:
                     decision="Blocked: regime_gate",
                     metadata={"regime": market_regime}
                 )
+                try:
+                    _comps_rg = (c.get("composite_meta") or {}).get("components") or {}
+                    _emit_trade_intent_blocked_trace(
+                        symbol,
+                        direction,
+                        float(score),
+                        _comps_rg,
+                        c,
+                        market_regime,
+                        self,
+                        blocked_reason="regime_blocked",
+                        final_primary="regime_blocked",
+                        failed_gate="regime_gate",
+                        failed_reason="regime_blocked",
+                        prior_gates_pass=(),
+                    )
+                except Exception:
+                    pass
                 continue
-            
+
             # V4.0: PORTFOLIO CONCENTRATION GATE - Block bullish entries if >70% long-delta
             # BULLETPROOF: Only block if we actually have positions AND delta is calculated correctly
             # Safeguard: Always allow trading if no positions exist (net_delta_pct = 0.0)
@@ -8814,15 +8885,73 @@ class StrategyEngine:
                     decision="Blocked: concentration_limit",
                     metadata={"net_delta_pct": net_delta_pct}
                 )
+                try:
+                    _comps_cg = (
+                        comps
+                        if "comps" in locals() and isinstance(comps, dict)
+                        else (c.get("composite_meta") or {}).get("components") or {}
+                    )
+                    _emit_trade_intent_blocked_trace(
+                        symbol,
+                        direction,
+                        float(score),
+                        _comps_cg,
+                        c,
+                        market_regime,
+                        self,
+                        blocked_reason="concentration_gate",
+                        final_primary="concentration_gate",
+                        failed_gate="risk_gate",
+                        failed_reason="concentration_gate",
+                        prior_gates_pass=("score_gate",),
+                    )
+                except Exception:
+                    pass
                 continue
-            
+
             if Config.ENABLE_THEME_RISK:
                 violations = correlated_exposure_guard(open_positions, self.theme_map, Config.MAX_THEME_NOTIONAL_USD)
                 sym_theme = self.theme_map.get(symbol, "general")
                 if sym_theme in violations:
                     log_event("gate", "theme_exposure_blocked", symbol=symbol, theme=sym_theme, notional=violations[sym_theme], gate_type="theme_gate", signal_type=c.get("signal_type", "UNKNOWN"))
+                    try:
+                        _comps_th = (
+                            comps
+                            if "comps" in locals() and isinstance(comps, dict)
+                            else (c.get("composite_meta") or {}).get("components") or {}
+                        )
+                        _rp_th = ref_price_check if "ref_price_check" in locals() else 0.0
+                        log_blocked_trade(
+                            symbol,
+                            "theme_exposure_blocked",
+                            score,
+                            direction=c.get("direction"),
+                            decision_price=_rp_th,
+                            components=_comps_th,
+                            theme=sym_theme,
+                            notional=violations[sym_theme],
+                            market_context=market_ctx,
+                            composite_meta=c.get("composite_meta"),
+                            first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                        )
+                        _emit_trade_intent_blocked_trace(
+                            symbol,
+                            direction,
+                            float(score),
+                            _comps_th,
+                            c,
+                            market_regime,
+                            self,
+                            blocked_reason="theme_exposure_blocked",
+                            final_primary="theme_exposure_blocked",
+                            failed_gate="risk_gate",
+                            failed_reason="theme_exposure_blocked",
+                            prior_gates_pass=("score_gate",),
+                        )
+                    except Exception:
+                        pass
                     continue
-            
+
             # PRIORITIZE COMPOSITE SCORE: If cluster has pre-calculated composite_score, always use it
             # NOTE: raw_score, whale_boost, final_score already initialized above before gate checks
             if "composite_score" in c and cluster_source in ("composite", "composite_v3") and score > 0.0:
@@ -8905,6 +9034,24 @@ class StrategyEngine:
                 ref_price = self.executor.get_last_trade(symbol)
                 if ref_price <= 0:
                     log_event("sizing", "bad_ref_price", symbol=symbol, ref_price=ref_price)
+                    try:
+                        _comps_br = comps if isinstance(comps, dict) else {}
+                        _emit_trade_intent_blocked_trace(
+                            symbol,
+                            direction,
+                            float(score),
+                            _comps_br,
+                            c,
+                            market_regime,
+                            self,
+                            blocked_reason="bad_ref_price",
+                            final_primary="other",
+                            failed_gate="sizing_gate",
+                            failed_reason="bad_ref_price",
+                            prior_gates_pass=("score_gate",),
+                        )
+                    except Exception:
+                        pass
                     continue
                 # V5.0: Dynamic & Conviction-Based Position Sizing
                 try:
@@ -8959,6 +9106,24 @@ class StrategyEngine:
                 ref_price = self.executor.get_last_trade(symbol)
                 if ref_price <= 0:
                     log_event("sizing", "bad_ref_price", symbol=symbol, ref_price=ref_price)
+                    try:
+                        _comps_br2 = comps if isinstance(comps, dict) else {}
+                        _emit_trade_intent_blocked_trace(
+                            symbol,
+                            direction,
+                            float(score),
+                            _comps_br2,
+                            c,
+                            market_regime,
+                            self,
+                            blocked_reason="bad_ref_price",
+                            final_primary="other",
+                            failed_gate="sizing_gate",
+                            failed_reason="bad_ref_price",
+                            prior_gates_pass=("score_gate",),
+                        )
+                    except Exception:
+                        pass
                     continue
                 # V5.0: Dynamic & Conviction-Based Position Sizing
                 try:
@@ -9019,6 +9184,24 @@ class StrategyEngine:
                 ref_price = self.executor.get_last_trade(symbol)
                 if ref_price <= 0:
                     log_event("sizing", "bad_ref_price", symbol=symbol, ref_price=ref_price)
+                    try:
+                        _comps_br3 = (c.get("composite_meta") or {}).get("components") or {}
+                        _emit_trade_intent_blocked_trace(
+                            symbol,
+                            direction,
+                            float(score),
+                            _comps_br3,
+                            c,
+                            market_regime,
+                            self,
+                            blocked_reason="bad_ref_price",
+                            final_primary="other",
+                            failed_gate="sizing_gate",
+                            failed_reason="bad_ref_price",
+                            prior_gates_pass=("score_gate",),
+                        )
+                    except Exception:
+                        pass
                     continue
                 # V5.0: Dynamic & Conviction-Based Position Sizing
                 try:
@@ -9064,8 +9247,36 @@ class StrategyEngine:
                 # Only enforce entry gate if UW flow cache has data for this symbol
                 if uw_flow and uw_flow.get("conviction", 0.0) > 0:
                     if not uw_entry_gate(uw_cluster_data):
+                        try:
+                            log_blocked_trade(
+                                symbol,
+                                "uw_entry_gate",
+                                float(score),
+                                direction=c.get("direction"),
+                                decision_price=float(self.executor.get_last_trade(symbol) or 0.0),
+                                components=comps if isinstance(comps, dict) else {},
+                                market_context=market_ctx,
+                                composite_meta=c.get("composite_meta"),
+                                first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                            )
+                            _emit_trade_intent_blocked_trace(
+                                symbol,
+                                direction,
+                                float(score),
+                                comps if isinstance(comps, dict) else {},
+                                c,
+                                market_regime,
+                                self,
+                                blocked_reason="uw_entry_gate",
+                                final_primary="other",
+                                failed_gate="uw_entry_gate",
+                                failed_reason="uw_entry_gate",
+                                prior_gates_pass=("score_gate",),
+                            )
+                        except Exception:
+                            pass
                         continue
-            
+
             # UW conviction-based sizing (if cache populated)
             if uw_flow:
                 uw_sentiment = uw_flow.get("sentiment", "")
@@ -9102,8 +9313,25 @@ class StrategyEngine:
             actual_notional = qty * ref_price_check
             if actual_notional < Config.MIN_NOTIONAL_USD:
                 log_event("sizing", "min_notional_floor_reject", symbol=symbol, qty=qty, notional=round(actual_notional, 2), min_required=Config.MIN_NOTIONAL_USD)
+                try:
+                    _emit_trade_intent_blocked_trace(
+                        symbol,
+                        direction,
+                        float(score),
+                        comps if isinstance(comps, dict) else {},
+                        c,
+                        market_regime,
+                        self,
+                        blocked_reason="min_notional_floor",
+                        final_primary="other",
+                        failed_gate="sizing_gate",
+                        failed_reason="min_notional_floor",
+                        prior_gates_pass=("score_gate",),
+                    )
+                except Exception:
+                    pass
                 continue
-            
+
             # V3.3: POSITION FLIPPING - Close opposite direction positions
             # If we have a SHORT and signal is BULLISH (or vice versa), close the opposite position
             signal_direction = c.get("direction", "").lower() if c.get("direction") else ""
@@ -9215,8 +9443,38 @@ class StrategyEngine:
                             decision="Blocked: max_one_position_per_symbol",
                             metadata={"normalized_symbol": normalized_symbol, "existing_side": existing_side}
                         )
+                        try:
+                            log_blocked_trade(
+                                symbol,
+                                "max_one_position_per_symbol",
+                                float(score),
+                                direction=c.get("direction"),
+                                decision_price=ref_price_check if "ref_price_check" in locals() else 0.0,
+                                components=comps if isinstance(comps, dict) else {},
+                                market_context=market_ctx,
+                                composite_meta=c.get("composite_meta"),
+                                first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                                normalized_symbol=normalized_symbol,
+                                existing_side=existing_side,
+                            )
+                            _emit_trade_intent_blocked_trace(
+                                symbol,
+                                direction,
+                                float(score),
+                                comps if isinstance(comps, dict) else {},
+                                c,
+                                market_regime,
+                                self,
+                                blocked_reason="max_one_position_per_symbol",
+                                final_primary="max_one_position_per_symbol",
+                                failed_gate="capacity_gate",
+                                failed_reason="max_one_position_per_symbol",
+                                prior_gates_pass=("score_gate",),
+                            )
+                        except Exception:
+                            pass
                         continue
-            
+
             # Capture ATR multiplier if available (for signal history)
             if 'atr_mult' in locals() and atr_mult is not None:
                 atr_multiplier = atr_mult
@@ -9258,7 +9516,7 @@ class StrategyEngine:
                 composite_exec_score = float(score)
             except (TypeError, ValueError):
                 composite_exec_score = float(c.get("composite_score", 0.0))
-            expectancy_floor = float(getattr(Config, "MIN_EXEC_SCORE", 3.0))
+            expectancy_floor = float(getattr(Config, "MIN_EXEC_SCORE", 1.6))
             score_floor_breach = (composite_exec_score < expectancy_floor)
             
             expectancy = v32.ExpectancyGate.calculate_expectancy(
@@ -9458,8 +9716,26 @@ class StrategyEngine:
                     decision=f"Rejected: expectancy_gate",
                     metadata={"expectancy": expectancy, "reason": gate_reason, "stage": system_stage}
                 )
+                try:
+                    _gr = str(gate_reason or "expectancy_blocked")
+                    _emit_trade_intent_blocked_trace(
+                        symbol,
+                        direction,
+                        float(score),
+                        comps if isinstance(comps, dict) else {},
+                        c,
+                        market_regime,
+                        self,
+                        blocked_reason=f"expectancy_blocked:{_gr}",
+                        final_primary=_gr,
+                        failed_gate="expectancy_gate",
+                        failed_reason=_gr,
+                        prior_gates_pass=("score_gate",),
+                    )
+                except Exception:
+                    pass
                 continue
-            
+
             print(f"DEBUG {symbol}: PASSED expectancy gate, checking other gates...", flush=True)
             
             # V3.2.1: Check cycle position limit
@@ -9493,6 +9769,23 @@ class StrategyEngine:
                         "max_allowed": MAX_NEW_POSITIONS_PER_CYCLE,
                     }
                 )
+                try:
+                    _emit_trade_intent_blocked_trace(
+                        symbol,
+                        direction,
+                        float(score),
+                        comps if isinstance(comps, dict) else {},
+                        c,
+                        market_regime,
+                        self,
+                        blocked_reason="max_new_positions_per_cycle",
+                        final_primary="max_new_positions_per_cycle",
+                        failed_gate="capacity_gate",
+                        failed_reason="max_new_positions_per_cycle",
+                        prior_gates_pass=("score_gate", "expectancy_gate"),
+                    )
+                except Exception:
+                    pass
                 continue
             
             # Stage-aware score gate (more lenient in bootstrap for learning)
@@ -9882,6 +10175,23 @@ class StrategyEngine:
                                 "max": max_pos,
                             }
                         )
+                        try:
+                            _emit_trade_intent_blocked_trace(
+                                symbol,
+                                direction,
+                                float(score),
+                                comps if isinstance(comps, dict) else {},
+                                c,
+                                market_regime,
+                                self,
+                                blocked_reason="max_positions_reached",
+                                final_primary="max_positions_reached",
+                                failed_gate="capacity_gate",
+                                failed_reason="max_positions_reached",
+                                prior_gates_pass=("score_gate", "expectancy_gate"),
+                            )
+                        except Exception:
+                            pass
                         continue
                     # allow_burst: fall through and place order (capacity exceeded by variant policy)
             if not self.executor.can_open_symbol(symbol):
@@ -9910,6 +10220,23 @@ class StrategyEngine:
                     decision="Blocked: duplicate_signal",
                     metadata={"reason": "symbol_on_cooldown"}
                 )
+                try:
+                    _emit_trade_intent_blocked_trace(
+                        symbol,
+                        direction,
+                        float(score),
+                        comps if isinstance(comps, dict) else {},
+                        c,
+                        market_regime,
+                        self,
+                        blocked_reason="symbol_on_cooldown",
+                        final_primary="symbol_on_cooldown",
+                        failed_gate="capacity_gate",
+                        failed_reason="symbol_on_cooldown",
+                        prior_gates_pass=("score_gate", "expectancy_gate"),
+                    )
+                except Exception:
+                    pass
                 continue
             
             # RISK MANAGEMENT: Check exposure limits before placing order
@@ -9962,6 +10289,23 @@ class StrategyEngine:
                                 decision="Blocked: exposure_limit",
                                 metadata={"reason": symbol_reason}
                             )
+                            try:
+                                _emit_trade_intent_blocked_trace(
+                                    symbol,
+                                    direction,
+                                    float(score),
+                                    comps if isinstance(comps, dict) else {},
+                                    c,
+                                    market_regime,
+                                    self,
+                                    blocked_reason="symbol_exposure_limit",
+                                    final_primary="symbol_exposure_limit",
+                                    failed_gate="risk_gate",
+                                    failed_reason=str(symbol_reason or "symbol_exposure_limit"),
+                                    prior_gates_pass=("score_gate", "expectancy_gate", "capacity_gate"),
+                                )
+                            except Exception:
+                                pass
                             continue
                     
                     sector_safe, sector_reason = check_sector_exposure(current_positions, account_equity)
@@ -9987,6 +10331,23 @@ class StrategyEngine:
                             decision="Blocked: exposure_limit",
                             metadata={"reason": sector_reason}
                         )
+                        try:
+                            _emit_trade_intent_blocked_trace(
+                                symbol,
+                                direction,
+                                float(score),
+                                comps if isinstance(comps, dict) else {},
+                                c,
+                                market_regime,
+                                self,
+                                blocked_reason="sector_exposure_limit",
+                                final_primary="sector_exposure_limit",
+                                failed_gate="risk_gate",
+                                failed_reason=str(sector_reason or "sector_exposure_limit"),
+                                prior_gates_pass=("score_gate", "expectancy_gate", "capacity_gate"),
+                            )
+                        except Exception:
+                            pass
                         continue
             except ImportError:
                 # Risk management not available - continue without exposure checks
@@ -10062,7 +10423,24 @@ class StrategyEngine:
                             pass
                         except Exception as e:
                             log_event("logic_stagnation", "error", error=str(e))
-                        
+
+                        try:
+                            _emit_trade_intent_blocked_trace(
+                                symbol,
+                                direction,
+                                float(score),
+                                comps if isinstance(comps, dict) else {},
+                                c,
+                                market_regime,
+                                self,
+                                blocked_reason="momentum_ignition_filter",
+                                final_primary="momentum_ignition_filter",
+                                failed_gate="momentum_gate",
+                                failed_reason=str(block_reason or "momentum_ignition_filter"),
+                                prior_gates_pass=("score_gate", "expectancy_gate", "capacity_gate", "risk_gate"),
+                            )
+                        except Exception:
+                            pass
                         continue
                 else:
                     ignition_status = "passed"
@@ -10111,10 +10489,56 @@ class StrategyEngine:
                         decision="Blocked: market_closed",
                         metadata={"market_open": False},
                     )
+                    try:
+                        _emit_trade_intent_blocked_trace(
+                            symbol,
+                            direction,
+                            float(score),
+                            comps if isinstance(comps, dict) else {},
+                            c,
+                            market_regime,
+                            self,
+                            blocked_reason="market_closed",
+                            final_primary="market_closed",
+                            failed_gate="session_gate",
+                            failed_reason="market_closed",
+                            prior_gates_pass=(
+                                "score_gate",
+                                "expectancy_gate",
+                                "capacity_gate",
+                                "risk_gate",
+                                "momentum_gate",
+                            ),
+                        )
+                    except Exception:
+                        pass
                     continue
             except Exception:
                 # If market check fails, fail safe by blocking entry (prevents accidental after-hours orders).
                 log_event("gate", "market_hours_check_failed_block_entry", symbol=symbol, side=side, score=score)
+                try:
+                    _emit_trade_intent_blocked_trace(
+                        symbol,
+                        direction,
+                        float(score),
+                        comps if isinstance(comps, dict) else {},
+                        c,
+                        market_regime,
+                        self,
+                        blocked_reason="market_closed",
+                        final_primary="market_closed",
+                        failed_gate="session_gate",
+                        failed_reason="market_hours_check_failed",
+                        prior_gates_pass=(
+                            "score_gate",
+                            "expectancy_gate",
+                            "capacity_gate",
+                            "risk_gate",
+                            "momentum_gate",
+                        ),
+                    )
+                except Exception:
+                    pass
                 continue
 
             # Guardrail: price sanity (block extreme gaps / invalid prices).
@@ -10124,6 +10548,30 @@ class StrategyEngine:
                 px = float(ref_price_check or 0.0)
                 if (not _math.isfinite(px)) or px <= 0:
                     log_event("gate", "price_sanity_blocked_invalid_price", symbol=symbol, price=ref_price_check, side=side)
+                    try:
+                        _emit_trade_intent_blocked_trace(
+                            symbol,
+                            direction,
+                            float(score),
+                            comps if isinstance(comps, dict) else {},
+                            c,
+                            market_regime,
+                            self,
+                            blocked_reason="price_sanity_invalid",
+                            final_primary="other",
+                            failed_gate="execution_gate",
+                            failed_reason="price_sanity_invalid",
+                            prior_gates_pass=(
+                                "score_gate",
+                                "expectancy_gate",
+                                "capacity_gate",
+                                "risk_gate",
+                                "momentum_gate",
+                                "session_gate",
+                            ),
+                        )
+                    except Exception:
+                        pass
                     continue
 
                 # Best-effort gap check vs prior daily close.
@@ -10149,6 +10597,30 @@ class StrategyEngine:
                             side=side,
                             score=score,
                         )
+                        try:
+                            _emit_trade_intent_blocked_trace(
+                                symbol,
+                                direction,
+                                float(score),
+                                comps if isinstance(comps, dict) else {},
+                                c,
+                                market_regime,
+                                self,
+                                blocked_reason="price_sanity_gap",
+                                final_primary="other",
+                                failed_gate="execution_gate",
+                                failed_reason="price_sanity_gap",
+                                prior_gates_pass=(
+                                    "score_gate",
+                                    "expectancy_gate",
+                                    "capacity_gate",
+                                    "risk_gate",
+                                    "momentum_gate",
+                                    "session_gate",
+                                ),
+                            )
+                        except Exception:
+                            pass
                         continue
             except Exception:
                 # If price sanity check errors, fail open (don't block trading due to telemetry failures).
@@ -10197,6 +10669,30 @@ class StrategyEngine:
                         decision=f"Rejected: {order_error}",
                         metadata={"validation_error": order_error}
                     )
+                    try:
+                        _emit_trade_intent_blocked_trace(
+                            symbol,
+                            direction,
+                            float(score),
+                            comps if isinstance(comps, dict) else {},
+                            c,
+                            market_regime,
+                            self,
+                            blocked_reason="order_validation_failed",
+                            final_primary="risk_exceeded",
+                            failed_gate="risk_gate",
+                            failed_reason=str(order_error or "order_validation_failed"),
+                            prior_gates_pass=(
+                                "score_gate",
+                                "expectancy_gate",
+                                "capacity_gate",
+                                "momentum_gate",
+                                "session_gate",
+                                "execution_gate",
+                            ),
+                        )
+                    except Exception:
+                        pass
                     continue
             except ImportError:
                 # Risk management not available - continue without validation
@@ -10240,6 +10736,30 @@ class StrategyEngine:
                         else:
                             print(f"DEBUG {symbol}: ERROR - Cannot get valid price for {symbol}, skipping order", flush=True)
                             log_order({"symbol": symbol, "qty": qty, "side": side, "error": "invalid_price_data", "bid": bid, "ask": ask})
+                            try:
+                                _emit_trade_intent_blocked_trace(
+                                    symbol,
+                                    direction,
+                                    float(score),
+                                    comps if isinstance(comps, dict) else {},
+                                    c,
+                                    market_regime,
+                                    self,
+                                    blocked_reason="invalid_nbbo",
+                                    final_primary="other",
+                                    failed_gate="execution_gate",
+                                    failed_reason="invalid_price_data",
+                                    prior_gates_pass=(
+                                        "score_gate",
+                                        "expectancy_gate",
+                                        "capacity_gate",
+                                        "risk_gate",
+                                        "momentum_gate",
+                                        "session_gate",
+                                    ),
+                                )
+                            except Exception:
+                                pass
                             continue
                     spread_bps = ((ask - bid) / bid * 10000) if bid > 0 else 100
                     # Get toxicity score and execution failure count
