@@ -102,7 +102,8 @@ def build_snapshot_record(
     side: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build canonical snapshot record. Redact account/order IDs. timestamp_utc override for harness.
-    For EXIT_DECISION/EXIT_FILL, pass entry_timestamp_utc and trade_id=live:SYMBOL:entry_ts for deterministic joins."""
+    For EXIT_DECISION/EXIT_FILL, pass ``entry_timestamp_utc`` and prefer ``trade_key`` /
+    ``canonical_trade_id`` (``build_trade_key``) on the record; ``trade_id=live:...`` is deprecated."""
     if lifecycle_event not in LIFECYCLE_EVENTS:
         lifecycle_event = "ENTRY_DECISION"
     if mode not in MODES:

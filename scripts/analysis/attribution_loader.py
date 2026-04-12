@@ -8,7 +8,9 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
 
 
 def _day_utc(ts: Any) -> str:
@@ -76,11 +78,12 @@ def load_joined_closed_trades(
     """
     Load attribution and exit_attribution, join on trade_id (primary) or symbol+entry_ts_bucket (fallback).
 
-    Join key definition:
-    - Primary: trade_id. Entry (attribution): trade_id like "open_SYMBOL_<entry_ts_iso>". Exit (exit_attribution):
-      must carry same trade_id so entry_by_trade_id[ex["trade_id"]] finds the entry.
-    - Fallback: key = symbol|entry_ts_bucket(ts). Entry: attr_entry_key(r) uses context.entry_ts or r.entry_ts/ts.
-      Exit: exit_key(ex) uses ex.entry_timestamp or ex.entry_ts. Bucket = first 19 chars of ts string (Z/+00:00 stripped).
+    Join key definition (prefer canonical ``build_trade_key`` / ``trade_key`` end-to-end):
+    - Primary: ``trade_key`` or ``canonical_trade_id`` on the exit row matching entry context
+      (``context.trade_key`` / ``context.canonical_trade_id``) when present.
+    - Secondary: ``trade_id`` (``open_SYMBOL_<iso>``) on entry vs exit ``trade_id`` / ``decision_id``.
+    - **Deprecated fallback:** ``symbol|entry_ts_bucket`` (19-char prefix) when ids are missing — may
+      collide; prefer populating ``trade_key`` on both sides.
 
     Expected fields:
     - Attribution (entry): type=attribution, trade_id startswith "open_", context.entry_ts, context.entry_score,
@@ -95,10 +98,9 @@ def load_joined_closed_trades(
     exit_all = load_jsonl(exit_attribution_path)
 
     # Entry records: type=attribution, trade_id open_* (entry events), context with entry_ts.
-    # Phase 8: trade_id as primary join when present; fallback to (symbol, entry_ts_bucket) with quality_flags=["join_fallback"].
-    # Contract: only entries with trade_id starting with "open_" are indexed in entry_by_trade_id; other formats fall back to key join.
     entry_by_key: Dict[str, Dict[str, Any]] = {}
     entry_by_trade_id: Dict[str, Dict[str, Any]] = {}
+    entry_by_canonical: Dict[str, Dict[str, Any]] = {}
     for r in attr_all:
         if r.get("type") != "attribution":
             continue
@@ -120,6 +122,32 @@ def load_joined_closed_trades(
         if k not in entry_by_key:
             entry_by_key[k] = entry_data
         entry_by_trade_id[tid] = entry_data
+        entry_canon: Optional[str] = None
+        for ck in (ctx.get("trade_key"), ctx.get("canonical_trade_id")):
+            if ck and str(ck).strip():
+                s = str(ck).strip()
+                parts = s.split("|")
+                if len(parts) >= 3:
+                    try:
+                        int(parts[-1])
+                        entry_canon = s
+                        break
+                    except ValueError:
+                        pass
+        if entry_canon is None:
+            sym = (r.get("symbol") or "").upper()
+            ets = ctx.get("entry_ts") or r.get("ts") or r.get("timestamp")
+            if sym and ets:
+                try:
+                    entry_canon = build_trade_key(
+                        sym,
+                        normalize_side(ctx.get("side") or r.get("side") or "buy"),
+                        ets,
+                    )
+                except Exception:
+                    entry_canon = None
+        if entry_canon:
+            entry_by_canonical[entry_canon] = entry_data
 
     def in_range(r: Dict[str, Any], ts_keys: Tuple[str, ...] = ("timestamp", "ts")) -> bool:
         ts = None
@@ -146,13 +174,43 @@ def load_joined_closed_trades(
         if not k:
             continue
         tid = ex.get("trade_id") or ex.get("decision_id")
-        entry = entry_by_trade_id.get(str(tid or "")) if tid else None
-        used_trade_id = bool(entry)
+        exit_canon: Optional[str] = None
+        for ck in (ex.get("trade_key"), ex.get("canonical_trade_id")):
+            if ck and str(ck).strip():
+                s = str(ck).strip()
+                parts = s.split("|")
+                if len(parts) >= 3:
+                    try:
+                        int(parts[-1])
+                        exit_canon = s
+                        break
+                    except ValueError:
+                        pass
+        if exit_canon is None:
+            sym_ex = (ex.get("symbol") or "").upper()
+            ets_ex = ex.get("entry_timestamp") or ex.get("entry_ts")
+            if sym_ex and ets_ex:
+                try:
+                    exit_canon = build_trade_key(
+                        sym_ex,
+                        normalize_side(ex.get("position_side") or ex.get("side") or "buy"),
+                        ets_ex,
+                    )
+                except Exception:
+                    exit_canon = None
+        entry = entry_by_canonical.get(exit_canon) if exit_canon else None
+        used_canonical = bool(entry)
+        used_trade_id = False
+        if not entry and tid:
+            entry = entry_by_trade_id.get(str(tid))
+            used_trade_id = bool(entry)
         if not entry:
             entry = entry_by_key.get(k)
         row: Dict[str, Any] = dict(ex)
         row["_join_key"] = k
-        if not used_trade_id and (entry or k):
+        if used_canonical:
+            row["quality_flags"] = list(row.get("quality_flags") or []) + ["join_canonical_trade_key"]
+        elif not used_trade_id and (entry or k):
             row["quality_flags"] = list(row.get("quality_flags") or []) + ["join_fallback"]
         if entry:
             row["entry_score"] = entry.get("entry_score")

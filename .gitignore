@@ -11,12 +11,14 @@ __pycache__/
 venv/
 .venv/
 
-# Cursor (except automations governance suite)
+# Cursor (except automations governance suite and shared agent rules)
 .cursor/
 !.cursor/automations/
 !.cursor/automations/**
+!.cursor/rules/
+!.cursor/rules/**
 
-# Logs
+# Logs (runtime; symlink may point to persistent volume — see scripts/ops/mount_alpaca_telemetry_to_volume.sh)
 *.log
 
 # State files
@@ -28,6 +30,9 @@ feature_store/
 
 # UW cache corruption artifacts
 data/uw_flow_cache.json.corrupted*.json
+
+# Telemetry milestone watcher dedupe state (droplet/local)
+data/.milestone_state.json
 
 # Exports (runtime artifacts)
 exports/
@@ -71,8 +76,9 @@ artifacts/alpaca_replay_lab_smoke/
 reports/bars/
 reports/bars_droplet_*/
 
-# Fetched bar data (regeneratable)
+# Fetched bar data (regeneratable; keep off git — use volume + symlink for durability)
 data/bars/
+data/bars_cache/
 
 # Timestamped Cursor/board run outputs (regeneratable)
 reports/*/*_202*Z/

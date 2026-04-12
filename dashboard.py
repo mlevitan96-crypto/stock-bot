@@ -6590,12 +6590,17 @@ def api_health_status():
                 except:
                     continue
         
-        # Market status
-        from datetime import datetime, timezone, timedelta
+        # Market status (NYSE regular session, America/New_York — matches sre_monitoring)
+        from datetime import datetime, timezone
+        from zoneinfo import ZoneInfo
+
         now_utc = datetime.now(timezone.utc)
-        now_et = now_utc.astimezone(timezone(timedelta(hours=-5)))
-        market_open = (now_et.weekday() < 5 and 
-                      now_et.replace(hour=9, minute=30) <= now_et <= now_et.replace(hour=16, minute=0))
+        now_et = now_utc.astimezone(ZoneInfo("America/New_York"))
+        market_open = now_et.weekday() < 5 and (
+            now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+            <= now_et
+            <= now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+        )
         market_status = "market_open" if market_open else "market_closed"
         
         return jsonify({
