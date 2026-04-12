@@ -673,7 +673,13 @@ def _uw_feature_float(uf: Dict[str, Any], *keys: str) -> Optional[float]:
 
 
 def spi_row_components(comps: Any) -> Dict[str, str]:
-    """Map engine `components` JSON to core SPI columns plus passive shadow features for ML."""
+    """
+    Map ``uw_composite_v2`` ``components`` (and merged snapshot blobs) to SPI columns.
+
+    Canonical keys: ``iv_skew``, ``oi_change``, ``toxicity_penalty``. Older rows may only
+    have ``iv_term_skew`` for skew; ``component_get`` tries aliases in order. Missing
+    keys resolve to ``0.0`` in ``spi_row_components_resolved``.
+    """
     if not isinstance(comps, dict):
         comps = {}
     core = {
@@ -797,7 +803,17 @@ def rows_uw_attribution_main(path: Path, start: datetime, end: datetime) -> List
             "decision": rec.get("decision") or "",
             "source_tag": rec.get("source") or rec.get("version") or "",
         }
-        row.update(spi_row_components_resolved(comps))
+        contrib = rec.get("contributions") if isinstance(rec.get("contributions"), dict) else {}
+        raw_sig = rec.get("raw_signals") if isinstance(rec.get("raw_signals"), dict) else {}
+        uf = rec.get("uw_features") if isinstance(rec.get("uw_features"), dict) else {}
+        row.update(
+            spi_row_components_resolved(
+                comps,
+                contributions=contrib,
+                raw_signals=raw_sig,
+                uw_features=uf,
+            )
+        )
         out.append(row)
     return out
 
