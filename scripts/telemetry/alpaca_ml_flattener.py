@@ -2,8 +2,12 @@
 """
 Flatten Alpaca Harvester-era exit_attribution.jsonl for ML training.
 
-Joins entry-time composite/features from logs/entry_snapshots.jsonl on entry_order_id (primary);
-falls back to logs/scoring_flow.jsonl wide join when no snapshot exists.
+Joins entry-time composite/features from logs/entry_snapshots.jsonl using the **canonical**
+``build_trade_key`` (``trade_key`` / ``canonical_trade_id`` on exit or snapshot, else derived
+from symbol + side + entry timestamp) **before** ``entry_order_id``. Legacy order-id-only joins
+remain as fallback when canonical keys are missing on historical rows.
+
+Falls back to logs/scoring_flow.jsonl wide join when no snapshot exists.
 
 Reads closed trades with open instant strictly on/after STRICT_EPOCH_START, dedupes by trade_id
 (last row wins), flattens nested ML blobs with mlf_* column prefix, writes CSV.
@@ -33,6 +37,7 @@ from telemetry.ml_scoreflow_contract import (  # noqa: E402
     normalize_composite_components_for_ml,
 )
 from utils.era_cut import learning_excluded_for_exit_record  # noqa: E402
+from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side  # noqa: E402
 
 TID_RE = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
 ML_BLOB_KEYS = ("entry_uw", "v2_exit_components", "direction_intel_embed")
@@ -109,21 +114,78 @@ def _prefix_mlf(flat: Dict[str, Any], stem: str) -> Dict[str, Any]:
     return {f"mlf_{stem}_{k}": v for k, v in flat.items()}
 
 
-def _load_entry_snapshots_by_order(path: Path) -> Dict[str, dict]:
-    """Last row wins per Alpaca order_id (join key = exit_attribution.entry_order_id)."""
-    by_oid: Dict[str, dict] = {}
+def _snapshot_canonical_trade_key_from_row(r: dict) -> Optional[str]:
+    """Derive ``symbol|LONG|SHORT|epoch`` from snapshot row when possible (matches exit rows)."""
+    for k in ("trade_key", "canonical_trade_id"):
+        v = str(r.get(k) or "").strip()
+        if v and v.count("|") >= 2:
+            parts = v.split("|")
+            if len(parts) >= 3:
+                try:
+                    int(parts[-1])
+                    return v
+                except ValueError:
+                    pass
+    tid = str(r.get("trade_id") or "").strip()
+    m = TID_RE.match(tid)
+    if not m:
+        return None
+    sym = m.group(1)
+    iso = m.group(2)
+    try:
+        return build_trade_key(sym, normalize_side(r.get("side") or "buy"), iso)
+    except Exception:
+        return None
+
+
+def _load_entry_snapshot_indexes(path: Path) -> Dict[str, Dict[str, dict]]:
+    """
+    Last row wins per key. Indexes:
+      - ``by_trade_key``: canonical ``build_trade_key`` (preferred for ML join).
+      - ``by_order``: Alpaca ``order_id`` (fallback for legacy rows).
+    """
+    by_order: Dict[str, dict] = {}
+    by_trade_key: Dict[str, dict] = {}
     for r in _iter_jsonl(path):
         if (r.get("msg") or "") != "entry_snapshot":
             continue
         oid = str(r.get("order_id") or "").strip()
-        if not oid or oid.upper().startswith("AUDIT-DRYRUN"):
-            continue
-        by_oid[oid] = r
-    return by_oid
+        if oid and not oid.upper().startswith("AUDIT-DRYRUN"):
+            by_order[oid] = r
+        ck = _snapshot_canonical_trade_key_from_row(r)
+        if ck:
+            by_trade_key[ck] = r
+    return {"by_order": by_order, "by_trade_key": by_trade_key}
 
 
-def _snapshot_join_keys(rec: dict) -> List[str]:
+def _canonical_trade_key_for_exit_row(rec: dict) -> Optional[str]:
+    for k in ("trade_key", "canonical_trade_id"):
+        v = str(rec.get(k) or "").strip()
+        if v and v.count("|") >= 2:
+            parts = v.split("|")
+            if len(parts) >= 3:
+                try:
+                    int(parts[-1])
+                    return v
+                except ValueError:
+                    pass
+    sym = str(rec.get("symbol_normalized") or rec.get("symbol") or "").upper().strip()
+    ets = rec.get("entry_ts") or rec.get("entry_timestamp")
+    side = rec.get("position_side") or rec.get("side") or "long"
+    if sym and ets:
+        try:
+            return build_trade_key(sym, normalize_side(side), ets)
+        except Exception:
+            return None
+    return None
+
+
+def _exit_row_snapshot_lookup_keys(rec: dict) -> List[str]:
+    """Lookup order: canonical trade key first, then broker entry order ids."""
     keys: List[str] = []
+    ck = _canonical_trade_key_for_exit_row(rec)
+    if ck:
+        keys.append(ck)
     for k in ("entry_order_id", "entry_orderId"):
         v = rec.get(k)
         if v is not None and str(v).strip():
@@ -277,7 +339,7 @@ def build_rows(
     root: Path,
     floor_epoch: float,
     scoring_index: Optional[Dict[str, Tuple[List[float], List[Dict[str, Any]], List[float]]]],
-    entry_snap_index: Optional[Dict[str, dict]] = None,
+    entry_snap_index: Optional[Dict[str, Dict[str, dict]]] = None,
     *,
     scoreflow_lookback_sec: float = SCOREFLOW_LOOKBACK_SEC_DEFAULT,
     scoreflow_unbounded_fallback: bool = True,
@@ -298,10 +360,18 @@ def build_rows(
         )
 
         snap: Optional[dict] = None
+        snap_match: Optional[str] = None
         if entry_snap_index:
-            for ek in _snapshot_join_keys(rec):
-                snap = entry_snap_index.get(ek)
-                if snap:
+            by_tk = entry_snap_index.get("by_trade_key") or {}
+            by_o = entry_snap_index.get("by_order") or {}
+            for ek in _exit_row_snapshot_lookup_keys(rec):
+                if ek in by_tk:
+                    snap = by_tk[ek]
+                    snap_match = "canonical_trade_key"
+                    break
+                if ek in by_o:
+                    snap = by_o[ek]
+                    snap_match = "entry_order_id"
                     break
 
         for blob_key in ML_BLOB_KEYS:
@@ -315,6 +385,8 @@ def build_rows(
         if snap:
             row["mlf_ml_feature_source"] = "entry_snapshot"
             row["mlf_scoreflow_join_tier"] = "entry_snapshot"
+            if snap_match:
+                row["mlf_entry_snapshot_match"] = snap_match
             row["mlf_scoreflow_lookback_sec_applied"] = scoreflow_lookback_sec
             tss = _parse_iso_ts(snap.get("timestamp_utc"))
             if tss is not None:
@@ -442,7 +514,7 @@ def main() -> int:
     entry_snap_index = (
         None
         if args.no_entry_snapshots
-        else _load_entry_snapshots_by_order(entry_snap_path)
+        else _load_entry_snapshot_indexes(entry_snap_path)
     )
 
     rows = build_rows(
@@ -474,9 +546,11 @@ def main() -> int:
         from_snap = sum(1 for r in rows if r.get("mlf_ml_feature_source") == "entry_snapshot")
         from_sf = sum(1 for r in rows if r.get("mlf_ml_feature_source") == "scoreflow_wide")
         if entry_snap_index is not None:
+            by_ck = sum(1 for r in rows if r.get("mlf_entry_snapshot_match") == "canonical_trade_key")
+            by_oid = sum(1 for r in rows if r.get("mlf_entry_snapshot_match") == "entry_order_id")
             print(
                 f"entry_snapshot_join_pct: {100.0 * from_snap / n:.2f} ({from_snap}/{n}) "
-                f"[primary: logs/entry_snapshots.jsonl on entry_order_id]"
+                f"[canonical_trade_key={by_ck}, entry_order_id_fallback={by_oid}]"
             )
         with_snap = sum(1 for r in rows if r.get("mlf_scoreflow_snapshot_ts_epoch") not in (None, ""))
         with_tot = sum(
