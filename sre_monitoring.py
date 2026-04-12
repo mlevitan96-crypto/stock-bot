@@ -18,8 +18,13 @@ import json
 import time
 import requests
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover - Python 3.9+ stdlib
+    ZoneInfo = None  # type: ignore[misc, assignment]
 from dataclasses import dataclass, field
 
 DATA_DIR = Path("data")
@@ -60,29 +65,25 @@ class SREMonitoringEngine:
         self.watchlist = ["AAPL", "MSFT", "NVDA", "QQQ", "SPY", "TSLA"]  # Default, should come from config
         
     def is_market_open(self) -> Tuple[bool, str]:
-        """Check if US market is currently open (9:30 AM - 4:00 PM ET)."""
+        """NYSE regular session in America/New_York: Mon–Fri 09:30–16:00 inclusive (DST-aware)."""
         try:
+            if ZoneInfo is None:
+                return False, "market_status_error: zoneinfo_unavailable"
             now_utc = datetime.now(timezone.utc)
-            # EST is UTC-5, EDT is UTC-4. Use UTC-5 as default (EST)
-            # More accurate: check if DST is in effect
-            now_et = now_utc.astimezone(timezone(timedelta(hours=-5)))  # EST/EDT approximation
-            
-            # Check if weekday (Monday=0, Sunday=6)
-            if now_et.weekday() >= 5:  # Saturday or Sunday
+            now_et = now_utc.astimezone(ZoneInfo("America/New_York"))
+
+            if now_et.weekday() >= 5:
                 return False, "market_closed_weekend"
-            
-            # Market hours: 9:30 AM - 4:00 PM ET
+
             market_open_time = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
             market_close_time = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
-            
+
             if market_open_time <= now_et <= market_close_time:
                 return True, "market_open"
-            elif now_et < market_open_time:
+            if now_et < market_open_time:
                 return False, "market_closed_pre_market"
-            else:
-                return False, "market_closed_after_hours"
+            return False, "market_closed_after_hours"
         except Exception as e:
-            # Fallback: assume market closed if we can't determine
             return False, f"market_status_error: {str(e)}"
     
     def get_last_order_timestamp(self) -> Optional[float]:
