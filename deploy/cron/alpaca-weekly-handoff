@@ -1,4 +1,4 @@
-# Alpaca Wednesday handoff — Mon–Wed ET summary + decile Markdown + Cursor prompt → Telegram.
+# Alpaca Wednesday handoff: Mon-Wed ET summary + decile Markdown + Cursor prompt -> Telegram.
 # Install: sudo cp deploy/cron/alpaca-weekly-handoff /etc/cron.d/alpaca-weekly-handoff
 #          sudo chmod 644 /etc/cron.d/alpaca-weekly-handoff
 # Log: /var/log/alpaca_handoff.log (create if missing: sudo touch /var/log/alpaca_handoff.log && sudo chown root:root)
