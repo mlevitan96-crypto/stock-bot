@@ -32,6 +32,8 @@ _INTEGRITY_ONLY_SCRIPT_NAMES = frozenset(
         "alpaca_milestone_250",
         "alpaca_integrity_test_alert",
         "alpaca_data_integrity",
+        "sre_maintenance",  # operator one-off: scripts/alpaca_telegram.py after-hours / maintenance pings
+        "alpaca_weekly_handoff",  # Wednesday performance + Cursor prompt (CRON_TZ=America/New_York)
     }
 )
 
@@ -130,3 +132,25 @@ def _append_log(log_path: Path, script_name: str, error: str) -> None:
             f.write(line)
     except Exception:
         pass
+
+
+if __name__ == "__main__":
+    import argparse
+
+    try:
+        from dotenv import load_dotenv
+
+        for env_path in (REPO / ".env", Path("/root/.alpaca_env")):
+            try:
+                load_dotenv(env_path)
+            except OSError:
+                pass
+    except Exception:
+        pass
+
+    ap = argparse.ArgumentParser(description="Send one Telegram via governance helper (uses env credentials).")
+    ap.add_argument("--message", required=True, help="Message body")
+    ap.add_argument("--script-name", default="sre_heartbeat", help="Label for logs / integrity-only allowlist")
+    args = ap.parse_args()
+    ok = send_governance_telegram(args.message, script_name=args.script_name)
+    raise SystemExit(0 if ok else 1)
