@@ -58,10 +58,17 @@ def append_score_snapshot(
         if _snap_debug:
             print(f"SCORE_SNAPSHOT_DEBUG: append_score_snapshot path={path_abs!s}", flush=True)
         now = datetime.now(timezone.utc)
+        try:
+            from telemetry.attribution_emit_keys import time_bucket_id_utc
+
+            _tbid = time_bucket_id_utc(now)
+        except Exception:
+            _tbid = None
         rec = {
             "ts": int(now.timestamp()),
             "ts_iso": now.isoformat(),
             "symbol": symbol,
+            "time_bucket_id": _tbid,
             "decision_id": decision_id,
             "trade_id": trade_id,
             "composite_score": _sanitize(composite_score),

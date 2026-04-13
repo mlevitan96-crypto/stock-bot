@@ -63,6 +63,68 @@ def _parse_ts_any(v: Any) -> Optional[float]:
         return None
 
 
+def _parse_time_bucket_epoch_floor(tb: Any) -> Optional[int]:
+    """Canonical join key from time_bucket_id, e.g. '300s|1744564800' → 1744564800 (UTC floor)."""
+    if tb is None:
+        return None
+    s = str(tb).strip()
+    if "|" not in s:
+        return None
+    try:
+        return int(s.split("|", 1)[1])
+    except (ValueError, IndexError):
+        return None
+
+
+def _sym_bucket_from_row(sym: str, row: dict, *ts_keys: str) -> Optional[Tuple[str, int]]:
+    """(SYMBOL, 300s UTC epoch floor). Prefer time_bucket_id; else first parseable ts among ts_keys."""
+    sym_u = str(sym or "").strip().upper()
+    if not sym_u:
+        return None
+    flo = _parse_time_bucket_epoch_floor(row.get("time_bucket_id"))
+    if flo is not None:
+        return (sym_u, flo)
+    for k in ts_keys:
+        tsb = _parse_ts_any(row.get(k))
+        if tsb is not None:
+            return (sym_u, int(tsb // 300) * 300)
+    return None
+
+
+def _score_snapshot_has_block_boundary_detail(s: dict) -> bool:
+    """
+    True when this score_snapshot row should count as blocked/near-miss boundary telemetry.
+
+    score_snapshot_writer uses gates.{composite_gate_pass, expectancy_gate_pass, block_reason} with
+    bool/str values — NOT nested {pass: bool}. The legacy mission check treated every gate value as
+    truthy for 'pass', so gated snapshots (incl. uw_defer / expectancy fail) never incremented
+    blocked_buckets → 0% blocked_boundary_coverage with thousands of eval rows.
+    """
+    if s.get("uw_deferred"):
+        return True
+    st = (s.get("candidate_status") or "").strip().upper()
+    if st in ("DEFERRED", "BLOCKED", "VETOED", "REJECTED"):
+        return True
+    if s.get("defer_reason"):
+        return True
+    if s.get("block_reason"):
+        return True
+    g = s.get("gates")
+    if isinstance(g, dict):
+        if g.get("block_reason"):
+            return True
+        cgp = g.get("composite_gate_pass")
+        if cgp is False:
+            return True
+        egp = g.get("expectancy_gate_pass")
+        if egp is False:
+            return True
+        for v in g.values():
+            if isinstance(v, dict) and v.get("pass") is False:
+                return True
+    return False
+
+
 def _exit_ts_seconds(ex: dict) -> Optional[float]:
     """Prefer canonical exit time; exit_attribution uses exit_ts for economic close."""
     return _parse_ts_any(
@@ -1068,43 +1130,31 @@ def main() -> int:
     decision_events = len(snapshots) + len(intents)
     blocked_intents = [it for it in intents if (it.get("decision_outcome") or "").lower() == "blocked"]
     # Near-miss / veto logging: count unique 5-minute buckets (symbol) with any block signal.
-    def _bucket(sym: str, ts: float) -> Tuple[str, int]:
-        return (sym.upper(), int(ts // 300) * 300)
-
     blocked_buckets: set[Tuple[str, int]] = set()
     for b in blocked:
-        tsb = _parse_ts_any(b.get("timestamp") or b.get("ts"))
-        sym = (b.get("symbol") or "").upper()
-        if tsb and sym:
-            blocked_buckets.add(_bucket(sym, tsb))
+        bk = _sym_bucket_from_row(str(b.get("symbol") or ""), b, "timestamp", "ts")
+        if bk:
+            blocked_buckets.add(bk)
     for it in blocked_intents:
-        tsb = _parse_ts_any(it.get("ts") or it.get("timestamp"))
-        sym = (it.get("symbol") or "").upper()
-        if tsb and sym:
-            blocked_buckets.add(_bucket(sym, tsb))
+        bk = _sym_bucket_from_row(str(it.get("symbol") or ""), it, "ts", "timestamp")
+        if bk:
+            blocked_buckets.add(bk)
     for s in snapshots:
-        g = s.get("gates") or {}
-        gated = s.get("block_reason") or any(
-            not (v.get("pass") if isinstance(v, dict) else True) for v in (g.values() if isinstance(g, dict) else [])
-        )
-        if not gated:
+        if not _score_snapshot_has_block_boundary_detail(s):
             continue
-        tsb = _parse_ts_any(s.get("ts") or s.get("ts_iso"))
-        sym = (s.get("symbol") or "").upper()
-        if tsb and sym:
-            blocked_buckets.add(_bucket(sym, tsb))
+        bk = _sym_bucket_from_row(str(s.get("symbol") or ""), s, "ts", "ts_iso")
+        if bk:
+            blocked_buckets.add(bk)
 
     eval_buckets: set[Tuple[str, int]] = set()
     for s in snapshots:
-        tsb = _parse_ts_any(s.get("ts") or s.get("ts_iso"))
-        sym = (s.get("symbol") or "").upper()
-        if tsb and sym:
-            eval_buckets.add(_bucket(sym, tsb))
+        bk = _sym_bucket_from_row(str(s.get("symbol") or ""), s, "ts", "ts_iso")
+        if bk:
+            eval_buckets.add(bk)
     for it in intents:
-        tsb = _parse_ts_any(it.get("ts") or it.get("timestamp"))
-        sym = (it.get("symbol") or "").upper()
-        if tsb and sym:
-            eval_buckets.add(_bucket(sym, tsb))
+        bk = _sym_bucket_from_row(str(it.get("symbol") or ""), it, "ts", "timestamp")
+        if bk:
+            eval_buckets.add(bk)
 
     boundary_with_block_detail = len(blocked_buckets & eval_buckets) if eval_buckets else 0
     blocked_ratio = 100.0 * boundary_with_block_detail / max(len(eval_buckets), 1) if eval_buckets else 0.0
