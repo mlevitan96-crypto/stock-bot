@@ -198,7 +198,15 @@ def get_weight(component: str, regime: str = "neutral") -> float:
         effective_weight = effective_weight * (1.0 + delta)
         effective_weight = max(0.25, min(2.5, effective_weight))
 
-    return effective_weight
+    # Passive ML harvest (etf_flow, squeeze_score): cap until offline ML validates uplift.
+    if component in ("etf_flow", "squeeze_score"):
+        try:
+            cap = float(os.environ.get("UW_PASSIVE_ML_WEIGHT_CAP", "0.06") or 0.06)
+        except (TypeError, ValueError):
+            cap = 0.06
+        effective_weight = min(float(effective_weight if effective_weight is not None else 0.0), cap)
+
+    return float(effective_weight)
 
 def get_all_current_weights() -> Dict[str, float]:
     """Get all current weights (adaptive merged with defaults)"""
