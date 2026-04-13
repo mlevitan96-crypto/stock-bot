@@ -37,18 +37,50 @@ except ImportError:
     stats = None  # type: ignore
 
 
-# Ten canonical families — substring match on lower-cased column name (first match wins).
+# Ten canonical families — substring match on lower-cased column name (first matching group wins).
+# Order matters: e.g. ``etf_flow`` column names contain ``flow`` — ETF must appear before FLOW.
+# Keys in cohort JSONL are flattened ``snap_*`` / ``euw_*`` / ``xuw_*`` (see prepare_training_data.py).
 ALPHA10_GROUPS: List[Tuple[str, Tuple[str, ...]]] = [
-    ("OFI", ("ofi", "order_flow", "orderflow", "delta_volume")),
+    (
+        "OFI",
+        (
+            "ftd_pressure",
+            "ftd",
+            "institutional",
+            "motif_bonus",
+            "motif",
+            "ofi",
+            "order_flow",
+            "orderflow",
+            "delta_volume",
+        ),
+    ),
     ("GEX", ("gex", "gamma_exposure", "greeks_gamma", "dealer_gamma", "charm")),
-    ("VAMP", ("vamp", "volume_at", "vwap_dev", "vwap")),
-    ("HMM", ("hmm", "regime_id", "regime_state", "markov", "hidden_state")),
-    ("FLOW", ("flow", "whale", "sweep", "urgency", "conviction")),
-    ("DARK", ("dark_pool", "darkpool", "dp_", "block_net")),
+    ("VAMP", ("freshness", "market_tide", "vamp", "volume_at", "vwap_dev", "vwap", "tide")),
+    (
+        "HMM",
+        ("hmm", "regime_id", "regime_state", "markov", "hidden_state", "regime", "calendar"),
+    ),
+    # Before FLOW so ``snap_etf_flow`` / ``etf_flow`` do not match the generic ``flow`` token.
+    ("ETF", ("etf_flow", "etf_", "sector_etf", "sector_alignment", "risk_on")),
+    ("FLOW", ("shorts_squeeze", "squeeze_score", "squeeze", "shorts", "whale", "sweep", "urgency", "conviction", "flow_strength", "flow")),
+    ("DARK", ("dark_pool", "darkpool", "darkpool_bias", "dp_", "block_net")),
     ("IV_SK", ("iv_", "skew", "smile", "percentile_iv", "iv_rank")),
-    ("ETF", ("etf_", "etf_flow", "sector_etf", "risk_on")),
     ("OI", ("oi_", "open_interest", "net_oi")),
-    ("SENT", ("sentiment", "toxicity", "x_news", "congress_", "insider")),
+    (
+        "SENT",
+        (
+            "sentiment",
+            "sentiment_score",
+            "toxicity",
+            "x_news",
+            "congress_",
+            "congress",
+            "insider",
+            "event",
+            "earnings",
+        ),
+    ),
 ]
 
 
@@ -103,6 +135,20 @@ def _build_matrix(rows: List[dict], keys: Sequence[str]) -> Tuple[np.ndarray, np
     return mat, y, list(keys)
 
 
+def _nanmean_axis1_safe(block: np.ndarray) -> np.ndarray:
+    """Mean along axis=1 ignoring NaNs; rows with no finite values → NaN (no RuntimeWarning)."""
+    if block.ndim != 2:
+        raise ValueError("expected 2d array")
+    if block.shape[1] == 0:
+        return np.full(block.shape[0], np.nan, dtype=float)
+    sums = np.nansum(block, axis=1)
+    counts = np.sum(np.isfinite(block), axis=1).astype(float)
+    out = np.full(block.shape[0], np.nan, dtype=float)
+    nz = counts > 0
+    out[nz] = sums[nz] / counts[nz]
+    return out
+
+
 def _zscore_cols(X: np.ndarray) -> np.ndarray:
     out = np.array(X, dtype=float, copy=True)
     for j in range(out.shape[1]):
@@ -125,13 +171,15 @@ def _algo_aggregate_matrix(Xz: np.ndarray, key_groups: List[int]) -> np.ndarray:
         if not idx:
             continue
         block = Xz[:, idx]
-        A[:, g] = np.nanmean(block, axis=1)
+        A[:, g] = _nanmean_axis1_safe(block)
     return A
 
 
 def _cluster_meta(A: np.ndarray, combo: Tuple[int, ...]) -> np.ndarray:
+    if not combo:
+        return np.full(A.shape[0], np.nan, dtype=float)
     cols = A[:, list(combo)]
-    return np.nanmean(cols, axis=1)
+    return _nanmean_axis1_safe(cols)
 
 
 def _biserial(y: np.ndarray, s: np.ndarray) -> Tuple[float, float]:
