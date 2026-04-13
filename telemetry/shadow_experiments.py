@@ -58,6 +58,14 @@ def run_shadow_variants(
     out["variants_run"] = [v.get("name") or "?" for v in variants]
     regime = live_context.get("market_regime") or live_context.get("regime") or "mixed"
     engine = live_context.get("engine")
+    cycle_time_bucket_id = live_context.get("time_bucket_id")
+    if not cycle_time_bucket_id:
+        try:
+            from telemetry.attribution_emit_keys import time_bucket_id_utc
+
+            cycle_time_bucket_id = time_bucket_id_utc()
+        except Exception:
+            cycle_time_bucket_id = None
 
     for v in variants:
         name = v.get("name") or "unknown"
@@ -127,6 +135,7 @@ def run_shadow_variants(
             rec = {
                 "event_type": "shadow_variant_decision",
                 "variant_name": name,
+                "time_bucket_id": cycle_time_bucket_id,
                 "symbol": symbol,
                 "side": side,
                 "would_enter": would_enter,
@@ -146,6 +155,7 @@ def run_shadow_variants(
         sum_rec = {
             "event_type": "shadow_variant_summary",
             "variant_name": name,
+            "time_bucket_id": cycle_time_bucket_id,
             "candidates_considered": len(candidates),
             "would_enter_count": would_enter_count,
             "would_exit_count": would_exit_count,
