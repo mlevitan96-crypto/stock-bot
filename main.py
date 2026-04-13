@@ -1137,6 +1137,24 @@ def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = No
                     record[k] = v
         except Exception:
             pass
+    if record.get("feature_snapshot") is None and isinstance(signals, dict):
+        try:
+            from telemetry.attribution_feature_snapshot import build_shared_feature_snapshot
+
+            _enr = {"symbol": symbol, "score": score, "composite_score": score}
+            _enr.update(signals)
+            _mc = market_context if isinstance(market_context, dict) else {}
+            _snap_blk = build_shared_feature_snapshot(
+                _enr,
+                _mc if isinstance(_mc, dict) else {},
+                {},
+                snapshot_stage="blocked",
+                comps_fallback=components if isinstance(components, dict) else None,
+            )
+            if _snap_blk:
+                record["feature_snapshot"] = _snap_blk
+        except Exception:
+            pass
     blocked_path = os.path.join("state", "blocked_trades.jsonl")
     os.makedirs(os.path.dirname(blocked_path), exist_ok=True)
     with open(blocked_path, "a", encoding="utf-8") as f:
@@ -1215,57 +1233,6 @@ def log_exit_hold_longer(symbol: str, side: str, exit_reason: str, exit_price: f
     try:
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
-    except Exception:
-        pass
-    # Signal context capture (read-only): full signal state at block for profitability learning.
-    try:
-        from telemetry.signal_context_logger import (
-            log_signal_context, default_threshold,
-            confidence_bucket_from_score,
-        )
-        mode = "paper" if getattr(Config, "PAPER_TRADING", True) else "live"
-        comps = components or signals or {}
-        sig_dict = {"uw_components": comps if isinstance(comps, dict) else {}, "final_score": score}
-        if isinstance(signals, dict):
-            sig_dict.update({k: v for k, v in signals.items() if k not in ("uw_components",)})
-        composite_meta = kw.get("composite_meta")
-        first_signal_ts_utc = kw.get("first_signal_ts_utc")
-        signal_contributions = None
-        v2_adj = (composite_meta or {}).get("v2_adjustments") or {}
-        uw_adj = (composite_meta or {}).get("v2_uw_adjustments") or {}
-        base_score = (composite_meta or {}).get("base_score")
-        if composite_meta is not None:
-            signal_contributions = {
-                "technical": base_score,
-                "vol": (v2_adj.get("vol_bonus") or 0) + (v2_adj.get("low_vol_penalty") or 0) + (v2_adj.get("beta_bonus") or 0),
-                "uw": (v2_adj.get("uw_bonus") or 0) + (uw_adj.get("total") or 0),
-                "regime": (v2_adj.get("regime_align_bonus") or 0) + (v2_adj.get("regime_misalign_penalty") or 0),
-                "sector": uw_adj.get("sector_alignment"),
-            }
-        entry_delay_seconds = None
-        if first_signal_ts_utc:
-            try:
-                entry_ts = datetime.now(timezone.utc)
-                first_ts = datetime.fromisoformat(str(first_signal_ts_utc).replace("Z", "+00:00"))
-                if first_ts.tzinfo is None:
-                    first_ts = first_ts.replace(tzinfo=timezone.utc)
-                entry_delay_seconds = (entry_ts - first_ts).total_seconds()
-            except Exception:
-                pass
-        log_signal_context(
-            symbol=symbol,
-            mode=mode,
-            decision="blocked",
-            decision_reason=reason,
-            pnl_usd=None,
-            signals=sig_dict,
-            final_score=score,
-            threshold=default_threshold(),
-            signal_contributions=signal_contributions,
-            confidence_bucket=confidence_bucket_from_score(score),
-            first_signal_ts_utc=first_signal_ts_utc,
-            entry_delay_seconds=entry_delay_seconds,
-        )
     except Exception:
         pass
 
@@ -8631,10 +8598,17 @@ class StrategyEngine:
         if getattr(Config, "SHADOW_EXPERIMENTS_ENABLED", False):
             try:
                 from telemetry.shadow_experiments import run_shadow_variants
+                try:
+                    from telemetry.attribution_emit_keys import time_bucket_id_utc as _tb_shadow_utc
+
+                    _tb_shadow = _tb_shadow_utc()
+                except Exception:
+                    _tb_shadow = None
                 live_ctx = {
                     "market_regime": market_regime,
                     "regime": market_regime,
                     "engine": self,
+                    "time_bucket_id": _tb_shadow,
                 }
                 sh_out = run_shadow_variants(
                     live_ctx,
