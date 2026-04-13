@@ -71,6 +71,9 @@ def try_append_entry_snapshot(
             "qty": qty,
             "caller": caller,
         }
+        ph = pending.get("passive_uw_harvest")
+        if isinstance(ph, dict) and ph:
+            rec["passive_uw_harvest"] = ph
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
     except Exception:

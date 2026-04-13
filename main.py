@@ -5236,11 +5236,41 @@ class AlpacaExecutor:
             _mock = self._create_mock_order(fake_id, symbol, qty, side, "limit", limit_price or ref_price) if self._create_mock_order else type("_MockOrder", (), {"id": fake_id})()
             return _mock, ref_price, "limit", qty, "dry_run"
 
+        passive_uw_harvest: dict = {}
+        try:
+            uw_c = read_json(CacheFiles.UW_FLOW_CACHE, default={}) or {}
+            row = uw_c.get(str(symbol or "").upper().strip(), {})
+            if not isinstance(row, dict):
+                row = {}
+
+            def _thin_uw(d, max_keys: int = 32):
+                if not isinstance(d, dict):
+                    return {}
+                out = {}
+                for i, (k, v) in enumerate(d.items()):
+                    if i >= max_keys:
+                        break
+                    try:
+                        json.dumps(v, default=str)
+                        out[str(k)] = v
+                    except Exception:
+                        out[str(k)] = str(v)[:400]
+                return out
+
+            passive_uw_harvest = {
+                "greek_exposure": _thin_uw(row.get("greek_exposure") or {}),
+                "etf_flow": _thin_uw(row.get("etf_flow") or {}),
+                "squeeze_score": _thin_uw(row.get("squeeze_score") or {}),
+            }
+        except Exception:
+            passive_uw_harvest = {}
+
         self._pending_entry_snapshot = {
             "entry_score": float(entry_score),
             "components": dict(entry_components) if isinstance(entry_components, dict) else {},
             "market_regime": str(effective_regime),
             "trade_id": None,
+            "passive_uw_harvest": passive_uw_harvest,
         }
 
         # Paper-only A/B execution promo (PASSIVE_THEN_CROSS vs baseline); gated by env + universe. Never arms for live.
