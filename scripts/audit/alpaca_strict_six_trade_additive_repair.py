@@ -341,6 +341,11 @@ def main() -> int:
         action="store_true",
         help="Shorthand: repair DISPLACEMENT_20260413_TIDS (XLV/XLI/GOOGL/F)",
     )
+    ap.add_argument(
+        "--force-repair",
+        action="store_true",
+        help="Append repair rows even if strict_backfill_run already has this strict_backfill_trade_id (fixes partial/stale backfill)",
+    )
     args = ap.parse_args()
     root = args.root.resolve()
     logs = root / "logs"
@@ -377,7 +382,7 @@ def main() -> int:
                 break
             round_planned: List[Tuple[str, dict]] = []
             for tid in tids:
-                if _already_done(run_bf, tid):
+                if not args.force_repair and _already_done(run_bf, tid):
                     continue
                 batch = build_lines_for_trade(root, tid)
                 if not batch:
@@ -406,7 +411,7 @@ def main() -> int:
     else:
         if not args.trade_ids.strip() and not args.displacement_2026_04_13:
             for tid in TARGET_TRADE_IDS:
-                if _already_done(run_bf, tid):
+                if not args.force_repair and _already_done(run_bf, tid):
                     continue
                 batch = build_lines_for_trade(root, tid)
                 if not batch:
@@ -419,7 +424,7 @@ def main() -> int:
 
     if args.displacement_2026_04_13:
         for tid in DISPLACEMENT_20260413_TIDS:
-            if _already_done(run_bf, tid):
+            if not args.force_repair and _already_done(run_bf, tid):
                 continue
             batch = build_lines_for_trade(root, tid)
             if not batch:
@@ -429,7 +434,7 @@ def main() -> int:
 
     if args.trade_ids.strip():
         for tid in [x.strip() for x in args.trade_ids.split(",") if x.strip()]:
-            if _already_done(run_bf, tid):
+            if not args.force_repair and _already_done(run_bf, tid):
                 continue
             batch = build_lines_for_trade(root, tid)
             if not batch:
