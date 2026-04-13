@@ -4564,6 +4564,27 @@ class AlpacaExecutor:
             print(f"❌ DIAGNOSTIC: Alpaca API connection test FAILED: {e}", flush=True)
             log_event("alpaca_api", "connection_test_failed", error=str(e))
             # Don't fail initialization, but log the error
+
+        # Live Whale v1 (Alpha-10): load once for shadow inference; never blocks trading if load fails.
+        self._live_whale_engine = None
+        try:
+            from src.ml.inference_engine import LiveModelEngine
+
+            self._live_whale_engine = LiveModelEngine()
+            if self._live_whale_engine.available:
+                log_event(
+                    "alpaca_executor",
+                    "live_whale_engine_ready",
+                    feature_n=int(self._live_whale_engine.feature_count),
+                )
+            else:
+                log_event(
+                    "alpaca_executor",
+                    "live_whale_engine_disabled",
+                    error=self._live_whale_engine.load_error,
+                )
+        except Exception as e:
+            log_event("alpaca_executor", "live_whale_engine_init_failed", error=str(e))
         
         # Defer reconciliation to avoid crash during market open API latency
         if not defer_reconcile:
@@ -5453,6 +5474,41 @@ class AlpacaExecutor:
             }
         except Exception:
             passive_uw_harvest = {}
+
+        # Shadow only: ML score for observability (console + run.jsonl). Does not gate or trigger trades.
+        try:
+            eng = getattr(self, "_live_whale_engine", None)
+            if eng is not None and getattr(eng, "available", False):
+                from src.exit.entry_uw_backfill import try_backfill_v2_uw_inputs
+                from src.ml.inference_engine import build_live_whale_feature_dict
+
+                entry_uw_ml = try_backfill_v2_uw_inputs(symbol, str(effective_regime))
+                feat_dict = build_live_whale_feature_dict(
+                    entry_components,
+                    entry_uw=entry_uw_ml if isinstance(entry_uw_ml, dict) else None,
+                )
+                ml_shadow_score = eng.predict_proba_sync(feat_dict)
+                if ml_shadow_score is not None:
+                    print(
+                        f"[live_whale_shadow] symbol={symbol} live_whale_shadow_score={ml_shadow_score:.6f}",
+                        flush=True,
+                    )
+                    try:
+                        jsonl_write(
+                            "run",
+                            {
+                                "msg": "live_whale_shadow",
+                                "symbol": symbol,
+                                "side": side,
+                                "live_whale_shadow_score": float(ml_shadow_score),
+                                "shadow_only": True,
+                                "market_regime": str(effective_regime),
+                            },
+                        )
+                    except Exception:
+                        pass
+        except Exception as e:
+            log_event("submit_entry", "live_whale_shadow_error", symbol=symbol, error=str(e))
 
         self._pending_entry_snapshot = {
             "entry_score": float(entry_score),
