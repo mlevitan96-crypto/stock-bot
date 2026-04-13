@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stock Bot · Command Center</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --good: #3fb950;
+      --warn: #d29922;
+      --bad: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .conn {
+      font-size: 0.8rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+    .conn.reconnecting { color: var(--warn); }
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      padding: 0 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .tabs button {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 0.65rem 1rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      border-bottom: 2px solid transparent;
+    }
+    .tabs button:hover { color: var(--text); }
+    .tabs button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    main {
+      flex: 1;
+      padding: 1rem 1.25rem 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .panel {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .panel.active { display: flex; }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+    .kpi {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .kpi.governance {
+      grid-column: 1 / -1;
+      border-color: var(--accent);
+      background: linear-gradient(135deg, #161b22 0%, #1a2332 100%);
+    }
+    .kpi label {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .kpi .val { font-size: 1.35rem; font-weight: 600; }
+    .kpi .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .card h2 { margin: 0 0 0.75rem; font-size: 0.95rem; font-weight: 600; }
+    .chart-wrap { position: relative; height: 260px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.45rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 500; }
+    .muted { color: var(--muted); font-size: 0.85rem; }
+    .btn {
+      background: var(--accent);
+      color: #0d1117;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+    .status-dot.ok { background: var(--good); }
+    .status-dot.degraded { background: var(--warn); }
+    .status-dot.unknown { background: var(--bad); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Command Center</h1>
+      <div id="connStatus" class="conn" aria-live="polite"></div>
+    </header>
+    <nav class="tabs" role="tablist">
+      <button type="button" role="tab" id="tab-cc" class="active" aria-selected="true">Command Center</button>
+      <button type="button" role="tab" id="tab-vault" aria-selected="false">Execution Vault</button>
+    </nav>
+    <main>
+      <section id="panel-cc" class="panel active" role="tabpanel">
+        <div class="kpi-row">
+          <div class="kpi governance" id="kpiGovernance">
+            <label>Governance · strict cohort</label>
+            <div class="val" id="kpiStrictN">—</div>
+            <div class="sub"><span id="kpiDataReady">DATA_READY: —</span> · floor <span id="kpiFloor">—</span></div>
+          </div>
+          <div class="kpi">
+            <label>Health</label>
+            <div class="val" id="kpiHealth"><span class="status-dot unknown"></span>—</div>
+            <div class="sub" id="kpiHealthSub">—</div>
+          </div>
+          <div class="kpi">
+            <label>Open positions</label>
+            <div class="val" id="kpiOpenCount">—</div>
+            <div class="sub" id="kpiDayPnl">Day P&amp;L —</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h2>Rolling P&amp;L (5d)</h2>
+            <div class="chart-wrap"><canvas id="pnlChart"></canvas></div>
+          </div>
+          <div class="card">
+            <h2>Open book</h2>
+            <div style="max-height: 280px; overflow: auto;">
+              <table>
+                <thead><tr><th>Symbol</th><th>Qty</th><th>P&amp;L</th><th>Score</th></tr></thead>
+                <tbody id="openTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="panel-vault" class="panel" role="tabpanel" hidden>
+        <p class="muted">Historical closed trades load only when you open this tab.</p>
+        <p><button type="button" class="btn" id="vaultRefresh">Load / refresh closed trades</button></p>
+        <div class="card">
+          <h2>Closed trades <span class="muted" id="vaultMeta"></span></h2>
+          <div style="max-height: 480px; overflow: auto;">
+            <table>
+              <thead>
+                <tr><th>Time</th><th>Symbol</th><th>P&amp;L</th><th>Reason</th><th>Strict</th></tr>
+              </thead>
+              <tbody id="vaultTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
