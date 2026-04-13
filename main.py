@@ -3000,6 +3000,13 @@ def log_exit_attribution(
             record_trade_event("executed")
         except Exception:
             pass
+        # Shadow march milestones (600 / 750 / 1000 canonical trades) — persisted state, Telegram once each.
+        try:
+            from telemetry.alpaca_shadow_trade_milestones import maybe_notify_canonical_trade_milestones
+
+            maybe_notify_canonical_trade_milestones(_REPO_ROOT)
+        except Exception:
+            pass
         # Signal context capture (read-only): full signal state at exit for profitability learning.
         try:
             from telemetry.signal_context_logger import log_signal_context, default_threshold, confidence_bucket_from_score
