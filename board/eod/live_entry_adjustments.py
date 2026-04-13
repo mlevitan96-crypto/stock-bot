@@ -97,6 +97,67 @@ def apply_survivorship_to_score(symbol: str, composite_score: float, base: Path 
     return composite_score, ""
 
 
+def _uw_live_quality_fallback_enabled() -> bool:
+    return os.environ.get("UW_LIVE_QUALITY_FALLBACK", "1").strip().lower() in ("1", "true", "yes")
+
+
+def _uw_quality_from_live_flow_cache(symbol: str, base: Path, max_age_sec: float = 21600.0) -> float | None:
+    """
+    When uw_root_cause has no passing score for this symbol, derive one from data/uw_flow_cache.json
+    (conviction / flow_trades). Used so attempt_repair (EOD attribution recompute) does not deadlock
+    live trading when the daemon cache is healthy but board/eod/out is cold or pool-averaged low.
+    """
+    if not _uw_live_quality_fallback_enabled():
+        return None
+    sym = str(symbol or "").strip().upper()
+    if not sym:
+        return None
+    path = base / "data" / "uw_flow_cache.json"
+    if not path.exists():
+        return None
+    try:
+        row = json.loads(path.read_text(encoding="utf-8")).get(sym)
+    except Exception:
+        return None
+    if not isinstance(row, dict):
+        return None
+    ts = row.get("_last_update")
+    if ts is not None:
+        try:
+            if time.time() - float(ts) > max_age_sec:
+                return None
+        except (TypeError, ValueError):
+            return None
+    conv = 0.0
+    try:
+        from uw_enrichment_v2 import _derive_conviction_from_flow_trades
+
+        conv, _sent = _derive_conviction_from_flow_trades(row.get("flow_trades") or [])
+    except Exception:
+        conv = 0.0
+    if conv <= 0.0 and row.get("conviction") is not None:
+        try:
+            conv = float(row.get("conviction") or 0.0)
+        except (TypeError, ValueError):
+            conv = 0.0
+    if conv <= 0.0:
+        return None
+    low = UW_QUALITY_PRE_FILTER_MIN + 0.02
+    mapped = min(0.95, max(low, 0.18 + conv * 0.75))
+    return round(mapped, 4)
+
+
+def _apply_live_cache_quality_fallback(symbol: str, base: Path, use_quality: float | None) -> tuple[float | None, dict[str, Any]]:
+    patch: dict[str, Any] = {}
+    if use_quality is not None and use_quality >= UW_QUALITY_PRE_FILTER_MIN:
+        return use_quality, patch
+    live_q = _uw_quality_from_live_flow_cache(symbol, base)
+    if live_q is not None and live_q >= UW_QUALITY_PRE_FILTER_MIN:
+        patch["uw_live_cache_quality_fallback"] = True
+        return live_q, patch
+    return use_quality, patch
+
+
 def load_uw_root_cause_latest(base: Path | None = None) -> dict[str, Any]:
     """Load latest uw_root_cause from board/eod/out/<latest_date>/uw_root_cause.json."""
     base = base or REPO_ROOT
@@ -185,6 +246,8 @@ def apply_uw_to_score(
                 cand_quality = float(cand_quality)
             break
     use_quality = cand_quality if cand_quality is not None else (float(quality) if quality is not None else None)
+    use_quality, _fb = _apply_live_cache_quality_fallback(symbol, base, use_quality)
+    details.update(_fb)
 
     # Paper/live: passthrough preserves composite score so composite-approved clusters can reach expectancy gate and trade.
     # Read at call time so .env / env is respected even when module was imported before load_dotenv.
@@ -256,6 +319,8 @@ def apply_uw_to_score(
                                 cand_quality = float(cand_quality)
                             break
                     use_quality = cand_quality if cand_quality is not None else (float(quality) if quality is not None else None)
+                    use_quality, _fb2 = _apply_live_cache_quality_fallback(symbol, base, use_quality)
+                    details.update(_fb2)
                     if use_quality is not None and use_quality >= UW_QUALITY_PRE_FILTER_MIN:
                         details["uw_repaired"] = True
                         # Fall through to normal delta logic below (no return here)
@@ -354,8 +419,8 @@ def apply_uw_to_score(
         _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "rejected": True, "quality": use_quality, "threshold": UW_QUALITY_PRE_FILTER_MIN})
         return float("-inf"), details
 
-    if quality is not None:
-        q = float(quality)
+    if use_quality is not None:
+        q = float(use_quality)
         details["uw_signal_quality_score"] = q
         if q >= 0.6:
             delta += UW_QUALITY_BOOST_STRONG
@@ -383,7 +448,7 @@ def apply_uw_to_score(
     if delta != 0 or details:
         if delta != 0:
             details["delta"] = delta
-        _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "delta": delta, "score_before": composite_score, "score_after": out, "quality": quality, "edge_realization": real, "edge_suppression": supp, "details": details})
+        _append_jsonl(UW_ADJUSTMENTS_LOG, {"symbol": symbol, "delta": delta, "score_before": composite_score, "score_after": out, "quality": use_quality, "edge_realization": real, "edge_suppression": supp, "details": details})
     return out, details
 
 
