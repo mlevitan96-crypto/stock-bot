@@ -1,7 +1,7 @@
 # MEMORY_BANK.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-09 (Alpaca equity contract coercion; self-healing supervisor skeleton; §1.0)
-# Last Updated: 2026-04-09
+# Version: 2026-04-13 (Droplet 4vCPU/8GB canon; truth-warehouse DATA_READY; §1.0)
+# Last Updated: 2026-04-13 (Droplet resize to 4 AMD vCPUs / 8GB RAM; warehouse classifier fix → DATA_READY YES)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -91,7 +91,10 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 
 - **Phase / status:** **Alpaca V2 Harvester** with **hardened entry snapshots** — same paper / **V5.0 Passive Hunter** execution as before; **additive** telemetry now captures **full composite components at broker submit** in `logs/entry_snapshots.jsonl` so ML features are **100% dense at entry** (join on `entry_order_id`) instead of relying only on post-hoc `scoring_flow` time-window joins (~31% historical coverage on some hosts).
 - **Milestones (Telegram):** **`scripts/telemetry_milestone_watcher.py`** advances **only** the **strict ML cohort Z count** — not gross `entries_and_exits` rows. Z means: after **`scripts/telemetry/alpaca_ml_flattener.py`** builds **`reports/Gemini/alpaca_ml_cohort_flat.csv`**, a row counts only if it passes **`ml.alpaca_cohort_train.load_and_filter`** (`strict_scoreflow`: finite **`realized_pnl_usd`**, all **`mlf_scoreflow_components_*`** + **`mlf_scoreflow_total_score`**) **and** entry time is on/after the watcher cutoff (**`max(TELEMETRY_MILESTONE_SINCE_DATE` 00:00 UTC, `STRICT_EPOCH_START`)**). Telegram thresholds: **50, 100, 150, 200, 250** (deduped keys in **`data/.milestone_state.json`**; lower milestone must send before higher). SPI CSV checks are **stdout diagnostic only** (no SPI Telegram gate).
-- **Zero-tolerance SRE guard (cross-firm standard):** Same watcher (module **`telemetry/alpaca_zero_tolerance_tripwire.py`**) evaluates the **last 3 deduped** closes in **`logs/exit_attribution.jsonl`**. If any row lacks finite PnL (**`realized_pnl_usd` or `pnl`**), or **`entry_uw.earnings_proximity`** / **`entry_uw.sentiment_score`** are missing or non-finite, send immediately: **`🚨 [ALPACA DATA DEGRADATION] UW telemetry or PnL missing in recent stock trades. Pipeline leaking.`** Repeat alerts for the **same** failure detail are rate-limited by **`ZERO_TOLERANCE_ALERT_COOLDOWN_SEC`** (default 1800s); a **new** detail triggers immediately. Fewer than 3 deduped closes → skip (no false alarm on greenfield).
+- **Zero-tolerance SRE guard (cross-firm standard):** Same watcher (module **`telemetry/alpaca_zero_tolerance_tripwire.py`**) evaluates the **last 3 deduped** closes in **`logs/exit_attribution.jsonl`**. If any row lacks finite PnL (**`realized_pnl_usd` or `pnl`**), or **`entry_uw.earnings_proximity`** / **`entry_uw.sentiment_score`** are missing or non-finite, send immediately: **`🚨 [ALPACA DATA DEGRADATION] UW telemetry or PnL missing in recent stock trades. Pipeline leaking.`** Repeat alerts for the **same** failure detail are rate-limited by **`ZERO_TOLERANCE_ALERT_COOLDOWN_SEC`** (default 1800s); a **new** detail triggers immediately. Fewer than 3 deduped closes → skip (no false alarm on greenfield). **This tripwire does not inspect `MIN_EXEC_SCORE` or composite at entry** — lowering the score floor (e.g. to 1.6) does **not** by itself cause degradation alerts; false positives would only come from missing exit PnL or missing/non-finite `entry_uw` on recent closes.
+- **Calibration gate / Harvester cohort (operational reality — 2026-04-09):** **Calibration gate failed:** ML retrain on the **~400-trade Harvester** strict cohort did **not** promote; **edge decay was driven by execution vetoes and portfolio constraints**, not by feature-engine failure (see forensic audits: blocked expectancy replay, 360 audit).
+- **Score floor override (operational — 2026-04-09):** **`MIN_EXEC_SCORE`** was reduced from **3.2 → 1.6** on the droplet via systemd drop-in **`/etc/systemd/system/stock-bot.service.d/zzz-min-exec-score.conf`** (merged `Environment=MIN_EXEC_SCORE=1.6`), after blocked-trade replay showed **`expectancy_blocked:score_floor_breach`** cohort positive under the toy bar-replay assumptions. **Rollback:** remove or supersede that drop-in, `daemon-reload`, restart **`stock-bot.service`**.
+- **Current primary volume blocker (operational — 2026-04-09):** **`displacement_blocked`** — portfolio **capacity saturation** and opportunity **displacement** dominate blocked volume vs score-floor vetoes at scale; expect more displacement decisions as lower scores fill slots (see **`main.py` `find_displacement_candidate`** — score-ranked tiers + age/P&L gates for legacy path).
 - **Self-healing supervisor (Kraken port — skeleton):** **`src/self_healing_supervisor.py`** is a **non-wired** architectural stub toward Kraken-style quarantine / SAFE MODE (rate limits) / orphan cleanup. Integration into **`main.py`** / **`deploy_supervisor.py`** is **not** active until a follow-on change; use **`get_self_healing_supervisor()`** only from future call sites.
 - **Canonical logs:** `logs/exit_attribution.jsonl` (closed trades), **`logs/entry_snapshots.jsonl`** (entry-time composite + components at submit), `logs/run.jsonl`, `logs/signal_context.jsonl`, plus warehouse/replay outputs under `reports/` and `replay/` per §1.2.
 - **Harvester exports (Gemini / board tooling):** `reports/Gemini/entries_and_exits.csv`, `reports/Gemini/signal_intelligence_spi.csv` — generated by **`scripts/extract_gemini_telemetry.py`** (Harvester-era rows only when extractor applies the strict epoch floor). **Flat ML cohort CSV:** `reports/Gemini/alpaca_ml_cohort_flat.csv` from the flattener (feeds Z counting).
@@ -132,9 +135,12 @@ PYTHONPATH=. python3 scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.p
 
 The mission fills missing keys by merging **only unset** vars from, in order: repo **`/root/stock-bot/.env`**, then **`/root/.alpaca_env`**. It accepts **`ALPACA_KEY` / `ALPACA_SECRET`** as well as **`APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`**. If `.alpaca_env` is Telegram-only, Alpaca keys must come from **`.env`** (same as `stock-bot.service` **EnvironmentFile**).
 
-### Real-time stock data (SIP WebSocket + REST hybrid)
+### Real-time stock data (SIP WebSocket + REST hybrid) — April 2026 architecture
 
-- **Implementation:** `src/alpaca/stream_manager.py` — `AlpacaStreamManager` connects to **`wss://stream.data.alpaca.markets/v2/sip`** (production) or **`wss://stream.data.sandbox.alpaca.markets/v2/sip`** when **`ALPACA_BASE_URL`** is paper-shaped. Uses the same **key/secret** as REST. Docs: [Real-time Stock Data](https://docs.alpaca.markets/docs/real-time-stock-pricing-data).
+- **Unified production stream (live and paper):** Alpaca market-data WebSocket for **retail paper and live** uses the **same production** host. The URL must be **`wss://stream.data.alpaca.markets/v2/{feed}`** where `{feed}` is **`sip`** or **`iex`** (per subscription / entitlements). **Do not** point paper trading at a separate “sandbox” market-data host for stream auth.
+- **The sandbox stream trap:** **`stream.data.sandbox.alpaca.markets`** is **not** valid for typical retail paper accounts used with **`paper-api.alpaca.markets`**. Using it causes a **`402 Auth Failed`** loop on the WebSocket. Code: `src/alpaca/stream_feed.py`, `src/alpaca/stream_manager.py` — production stream host unless an explicit opt-in (e.g. **`ALPACA_MARKET_DATA_STREAM_SANDBOX=1`**) is documented for special cases.
+- **Entitlements vs REST:** Alpaca **trading** REST can succeed while **stream** auth fails if **market data streaming** is not enabled in the Alpaca dashboard for that **key set**, or the account lacks the right data subscription for the chosen **`sip` / `iex`** feed.
+- **Implementation:** `AlpacaStreamManager` / stream feed use the **unified** production URL above with the same **key/secret** as REST (plus documented WS handshake headers where applicable). Docs: [Real-time Stock Data](https://docs.alpaca.markets/docs/real-time-stock-pricing-data).
 - **Channels:** Subscribes to **`trades`** (`T`=`t`) and **`bars`** (minute aggregates, `T`=`b` / `u` for updated bars). Legacy “AM” naming maps to the **`bars`** channel.
 - **Symbol universe (whitelist):** Union of **open positions**, **`uw_flow_cache`** keys (non-`_`), **`SPY`**, and **`ALPACA_STREAM_EXTRA_SYMBOLS`** (comma-separated), capped by **`ALPACA_STREAM_MAX_SYMBOLS`** (default **200**, max **500**). Does **not** bypass strict learning-era rules elsewhere (stream is market-data only).
 - **Bar reads:** `main.fetch_bars_safe` tries the in-memory **`PriceCache`** first for **`1Min`** when the stream is enabled and the latest bar update is within **`ALPACA_STREAM_BAR_MAX_AGE_SEC`** (default **60**); otherwise **`REST.get_bars`**. If both fail, logs **`CRITICAL_DATA_STALE`** to **`logs/system_events.jsonl`** (subsystem **`data`**).
@@ -351,7 +357,7 @@ Promote newer dated filenames when they supersede the above; keep the same repor
 
 4. **Wide join policy (scoring_flow → training CSV, fallback only):** When no entry snapshot matches, ML feature extraction uses a **4-hour “Last Known Score” lookback** as the **preferred** match: the **most recent** `composite_calculated` for the trade symbol with **`ts <= entry_anchor`** and **`entry_anchor - ts <= 14400` seconds** (override via `--scoreflow-lookback-sec`). If **no** row falls in that window but an **older** composite exists with **`ts <= entry_anchor`**, the flattener **falls back** to it by default (disable with `--no-scoreflow-unbounded-fallback`); **`mlf_scoreflow_join_tier`** is **`4h_window`**, **`unbounded_fallback`**, or **`none`**. **Entry anchor** resolves in order: `entry_ts` on the exit row → `entry_timestamp` → open instant parsed from `trade_id` (`open_<SYM>_<ISO>`). Join key prefers **`symbol_normalized`** then **`symbol`**. Duplicate timestamps in `scoring_flow` for the same symbol are **coalesced** (last line wins). Exported fields include **`mlf_scoreflow_total_score`**, **`mlf_scoreflow_components_*`**, **`mlf_scoreflow_snapshot_ts_epoch`**, **`mlf_scoreflow_snapshot_age_sec`**, **`mlf_scoreflow_lookback_sec_applied`**.
 
-5. **Harvester phase:** **ACTIVE.** Cohort filtering for strict-era learning uses **`STRICT_EPOCH_START`** in `telemetry/alpaca_strict_completeness_gate.py` (open time from `trade_id` / entry instant). **100-trade milestone data** and subsequent closes in that era remain **intact inside these payloads**; emptiness of `signal_context.jsonl` does **not** imply loss of ML features for that cohort.
+5. **Harvester phase:** **ACTIVE.** Cohort filtering for strict-era learning uses **`STRICT_EPOCH_START`** in `telemetry/alpaca_strict_completeness_gate.py` (open time from `trade_id` / entry instant). **100-trade milestone data** and subsequent closes in that era remain **intact inside these payloads**; emptiness of `signal_context.jsonl` does **not** imply loss of ML features for that cohort. **Truth-warehouse / Telegram DATA_READY (2026-04-13):** **`DATA_READY: YES`** after fixing the **blocked-boundary classifier** in `scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py` (score_snapshot `gates.*` booleans and `uw_deferred` were previously mis-read, yielding **0%** blocked-boundary coverage); droplet audit achieved **96.57%** blocked/near-miss bucket coverage with execution/fees/slippage joins still at **100%**. Score snapshots now emit **`time_bucket_id`** for deterministic 5m joins (`score_snapshot_writer.py`).
 
 6. **Training export:** **`scripts/telemetry/alpaca_ml_flattener.py`** writes **`reports/Gemini/alpaca_ml_cohort_flat.csv`** — flattened `mlf_*` feature columns plus base trade fields for XGBoost and similar tools. The script prints **`entry_snapshot_join_pct`**, **`scoreflow_snapshot_coverage_pct`**, and **`scoreflow_total_score_populated_pct`** after each run for SRE verification. **`--no-entry-snapshots`** forces legacy scoring_flow-only behavior.
 
@@ -1178,11 +1184,11 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 - **Alpaca-specific context:** Market type: US equities (session-based). Validation windows: trade-count and session-based. Metrics: expectancy, PnL/day, capital efficiency, slippage, drawdown. Ledger path: `state/governance_experiment_1_hypothesis_ledger_alpaca.json`.
 - **Alpaca Data Sources (canonical — live bot writes here):** Closed-trade count and PnL MUST use the same paths the live bot writes to. **canonical_closed_trade_log_path:** `logs/exit_attribution.jsonl` (v2 equity exits; one line per closed trade). **Secondary:** `logs/attribution.jsonl` (closed trades with PnL/close_reason; filter out `trade_id` starting with `open_`). **Fallback:** `logs/master_trade_log.jsonl` (records with `exit_ts` set = closed trade). Paths are relative to repo root (e.g. `/root/stock-bot` on droplet). Config registry: `config.registry.LogFiles.EXIT_ATTRIBUTION`, `LogFiles.ATTRIBUTION`, `LogFiles.MASTER_TRADE_LOG`. If these paths change, update `scripts/experiment_1_status_check_alpaca.py` and this section.
 
-#### Alpaca droplet — live operational canon (last SSH read-only verify snapshot: 2026-03-28; re-verify after material infra changes)
+#### Alpaca droplet — live operational canon (last material infra update: 2026-04-13 — **4 AMD vCPUs / 8GB RAM**; re-verify after future changes)
 - **Goals:** Single source of operational truth for the **live Alpaca equity droplet**; align scripts and operators on paths, units, and secrets **without** implying trading or deploy authorization from this text.
 - **Constraints:** This canon is descriptive. It does not replace CSA/SRE review artifacts, hypothesis ledger rules, or SPI non-prescriptive outputs. When host configuration changes, re-run a read-only audit and update this subsection + evidence under `reports/daily/<ET-date>/evidence/`.
 - **SSH (canonical):** Prefer `Host alpaca` in `~/.ssh/config` resolving to **`104.236.102.57`**; **`droplet_config.json`** is the repo anchor (`use_ssh_config: true`, `username: root`, **`project_dir: /root/stock-bot`**). Scripted path: **`droplet_client.py`** (Paramiko). **Never** use **`147.182.255.165`** for stock-bot.
-- **Hostname (verified):** `ubuntu-s-1vcpu-2gb-nyc3-01-alpaca`.
+- **Compute (production — verified 2026-04-13):** **4 AMD vCPUs / 8GB RAM** (institutional-grade resize). **Hostname (legacy DigitalOcean slug, unchanged):** `ubuntu-s-1vcpu-2gb-nyc3-01-alpaca` — do not infer vCPU/RAM from the name alone.
 - **Canonical repo root on this droplet:** **`/root/stock-bot` only** — present and active. **`/root/stock-bot-current`** and **`/root/trading-bot-current`** were **not present** at verify; tools such as `scripts/diagnose_cron_and_git.py` may still probe those paths first — do not assume they exist on every host.
 - **Python:** Trading stack **`/root/stock-bot/venv`** (Python **3.12.3**). **`stock-bot-dashboard.service`** runs **`/usr/bin/python3 /root/stock-bot/dashboard.py`** (not the venv interpreter).
 - **systemd — core active units (verified):**
@@ -1228,7 +1234,7 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 - **Rules:** Scenario experiments are NOT truth experiments. They do NOT gate execution. They do NOT write to canonical ledgers (e.g. `state/governance_experiment_1_hypothesis_ledger_alpaca.json`). They exist to generate ranked hypotheses for future experiment selection.
 - **Registry:** `docs/SCENARIO_EXPERIMENT_REGISTRY_ALPACA.md` — scenario_id, description, parameters varied, data source, output path, status.
 - **Runner:** `scripts/scenario_lab/run_scenario_batch.py` — load historical/shadow logs; apply alternative entry/exit/sizing/session logic; run in parallel (--workers N); write only to `reports/scenario_lab/<scenario_id>_<DATE>.json`. No broker writes; no execution hooks; no ledger writes.
-- **CPU utilization:** Scenario lab is SAFE TO SCALE. May use up to (cpu_count - 1) workers. Must remain read-only.
+- **CPU utilization (droplet — 2026-04-13):** Production Alpaca host is **4 AMD vCPUs / 8GB RAM**. Scenario lab is **SAFE TO SCALE** and remains **read-only**. With four vCPUs it is now reasonable to run parallel analysis **on the droplet** with up to **`--workers 3`** while leaving headroom for **`stock-bot`**, **`uw-flow-daemon`**, and the OS. The generic cap **(cpu_count − 1)** workers still applies (**3** on this host when fully utilizing spare cores — prefer **`--workers 3`** over saturating all four).
 - **Summary reports:** `reports/scenario_lab/SCENARIO_SUMMARY_<DATE>.md` — scenario ranking, CSA_REVIEW (why misleading, fragile assumptions), SRE_REVIEW (data completeness, replay fidelity, failure modes). Scenario outputs feed future experiment selection; Experiment #1 remains the single canonical truth source.
 
 ### Alpaca Fast-Lane (25-trade shadow) — DEPRECATED for V2 Harvester operations
@@ -1255,8 +1261,10 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 ### Alpaca Telegram Governance — IMPLEMENTED
 - **Helper:** `scripts/alpaca_telegram.py` — `send_governance_telegram(text, log_path=None, script_name=...)`. Uses TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID; on failure appends to `TELEGRAM_NOTIFICATION_LOG.md` (repo root); never raises. **Integration:** Tier 1/2/3, convergence, promotion gate, heartbeat scripts accept `--telegram`; after successful run they send a one-line summary; failures do not block (exit 0). Plan: `docs/ALPACA_PHASE6_TELEGRAM_PLAN.md`. CSA/SRE: ACCEPT/OK.
 - **Quiet hours (default on):** Governance sends (including `telegram_failure_detector` pager, integrity cycle, post-close helper, tier summaries) **do not call the Telegram API** on **Saturday/Sunday America/New_York** or on **weekdays before 07:00 ET or from 21:00 ET onward** — no message and **no** new line in `TELEGRAM_NOTIFICATION_LOG.md` for that attempt. **Disable** for 24/7 sends (e.g. E2E): `TELEGRAM_GOVERNANCE_RESPECT_MARKET_HOURS=0` in `.env` or unit `Environment`. **Optional window:** `TELEGRAM_GOVERNANCE_ET_SEND_START_HOUR` (default 7), `TELEGRAM_GOVERNANCE_ET_SEND_END_HOUR` (default 21, end exclusive). **SRE note:** `TELEGRAM_NOTIFICATION_LOG.md` lines showing **HTTP 404** from `api.telegram.org` almost always mean an **invalid or revoked `TELEGRAM_BOT_TOKEN`** (confirm with @BotFather); fix credentials on the droplet, then `scripts/sync_telegram_to_dotenv.py` if systemd loads `.env` only.
-- **Telegram on droplet:** Vars live in `/root/.alpaca_env` or venv; E2E runner sources both and runs `scripts/sync_telegram_to_dotenv.py` to write into `.env` for systemd. See ARCHITECTURE_AND_OPERATIONS § Telegram.
-- **Where TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set on droplet (do not hunt again):** (1) **Canonical:** `/root/.alpaca_env` — used by cron and manual runs; always `source /root/.alpaca_env` (or `source /root/stock-bot/.env`) before running any script that sends Telegram (e.g. DATA_READY pipeline, E2E audit, fast-lane). (2) `/root/stock-bot/.env` — loaded by systemd for `stock-bot.service`; if you add vars to `.alpaca_env` only, run `source /root/.alpaca_env; python3 scripts/sync_telegram_to_dotenv.py` to copy into `.env`. (3) Venv does not store them; they are in the **environment** after you source `.alpaca_env` or `.env`. For DATA_READY on droplet: `cd /root/stock-bot && ./scripts/run_alpaca_data_ready_on_droplet.sh` (script sources `/root/.alpaca_env` when present) or `source /root/.alpaca_env && PYTHONPATH=. python scripts/run_alpaca_data_ready_on_droplet.py`.
+- **Telegram & cross-environment sync (April 2026):** **Dual locations** are normal on the droplet: **`/root/stock-bot/.env`** ( **`EnvironmentFile`** for **`stock-bot.service`** and dashboard units) and **`/root/.alpaca_env`** ( **cron**, **milestones**, and many **manual** one-shots). **Alpaca trading keys** and **Telegram** vars often exist in **both**; drifting copies cause “works in cron but not systemd” (or vice versa).
+- **Sync tool:** Whenever **`/root/.alpaca_env`** is updated (or Telegram vars are fixed there first), **always** run **`scripts/sync_telegram_to_dotenv.py`** so **`systemd`** inherits the correct **`TELEGRAM_BOT_TOKEN`** / **`TELEGRAM_CHAT_ID`** (and related copies into **`.env`** per script behavior). Typical pattern: `cd /root/stock-bot && set -a && source /root/.alpaca_env && set +a && venv/bin/python3 scripts/sync_telegram_to_dotenv.py` (adjust venv path if needed).
+- **Telegram on droplet:** Vars live in `/root/.alpaca_env` or after sourcing `.env`; E2E runner sources both and runs `scripts/sync_telegram_to_dotenv.py` to write into `.env` for systemd. See ARCHITECTURE_AND_OPERATIONS § Telegram.
+- **Where TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set on droplet (do not hunt again):** (1) **`/root/.alpaca_env`** — used by cron and manual runs; always `source /root/.alpaca_env` (or `source /root/stock-bot/.env`) before running any script that sends Telegram (e.g. DATA_READY pipeline, E2E audit, fast-lane). (2) **`/root/stock-bot/.env`** — loaded by systemd for `stock-bot.service`; if you add vars to **`.alpaca_env` only**, run **`source /root/.alpaca_env` then `python3 scripts/sync_telegram_to_dotenv.py`** so systemd’s **`.env`** stays authoritative. (3) Venv does not store them; they are in the **environment** after you source `.alpaca_env` or `.env`. For DATA_READY on droplet: `cd /root/stock-bot && ./scripts/run_alpaca_data_ready_on_droplet.sh` (script sources `/root/.alpaca_env` when present) or `source /root/.alpaca_env && PYTHONPATH=. python scripts/run_alpaca_data_ready_on_droplet.py`.
 
 ### Telegram Notification Authority (production)
 - **Canonical Alpaca production sender package:** `telemetry/alpaca_telegram_integrity/` — invoked by `scripts/run_alpaca_telegram_integrity_cycle.py` (systemd timer). This is the **intended** sole source of **automated** milestone + data-integrity Telegram for Alpaca.
@@ -1405,17 +1413,31 @@ Ensure `~/.ssh/config` has a `Host alpaca` block that resolves to `104.236.102.5
 
 ## 6.4 CREDENTIALS & ENVIRONMENT
 
-### Credentials Location
-**CRITICAL:** Alpaca API credentials are stored in:
-- `/root/stock-bot/.env`
+### Strict format (systemd / `EnvironmentFile`)
+**CRITICAL:** `systemd` **`EnvironmentFile`** entries must look exactly like **`KEY=VALUE`** lines in **`/root/stock-bot/.env`**:
+- **MUST NOT** use `export ` prefixes on lines systemd reads from the file.
+- **MUST NOT** add **trailing spaces** after the value or around `=`.
+- **MUST NOT** wrap values in **surrounding quotes** in the file (unless your tooling explicitly requires otherwise — the droplet canon is unquoted `KEY=value`).
 
-The `.env` file contains:
-- `ALPACA_KEY=...` - Alpaca API key
-- `ALPACA_SECRET=...` - Alpaca API secret
-- `ALPACA_BASE_URL=...` - Alpaca API base URL (default: https://paper-api.alpaca.markets)
-- `UW_API_KEY=...` - Unusual Whales API key
-- `DASHBOARD_USER=...` - Dashboard HTTP Basic Auth username (email)
-- `DASHBOARD_PASS=...` - Dashboard HTTP Basic Auth password (rotate as needed)
+Malformed or partial files cause **supervisor exit** and a **`stock-bot.service` restart / crash loop** (`journalctl` will show missing required keys).
+
+### Required variables (partial `.env` = crash loop)
+**CRITICAL:** **`/root/stock-bot/.env`** must be **complete** for supervisor boot, dashboard auth, and governance — not Alpaca-only.
+
+| Variable | Requirement |
+|----------|-------------|
+| **`ALPACA_KEY`** | Alpaca API key ID — **exactly 20 characters** (e.g. `PK…`). |
+| **`ALPACA_SECRET`** | Alpaca secret — **exactly 40 characters**. |
+| **`ALPACA_BASE_URL`** | Trading **REST** base URL only — e.g. **`https://paper-api.alpaca.markets`** or live equivalent. **No** **`/v2`** suffix on this variable. |
+| **`UW_API_KEY`** | Unusual Whales API key — **required for supervisor boot** (`deploy_supervisor.py` / `systemd_start.sh` fail-closed if missing or empty). |
+| **`DASHBOARD_USER`** / **`DASHBOARD_PASS`** | Dashboard **HTTP Basic Auth** — **required** for the live dashboard and for **`scripts/dashboard_verify_all_tabs.py`** (source `.env` before running). |
+| **`TELEGRAM_BOT_TOKEN`** / **`TELEGRAM_CHAT_ID`** | **Required for governance** Telegram sends (integrity cycle, milestones, notifier paths that use the helper). |
+
+### Credentials location (canonical file)
+**CRITICAL:** Production secrets for **`stock-bot.service`** live in:
+- **`/root/stock-bot/.env`**
+
+See **Telegram & cross-environment sync** under **Alpaca Telegram Governance** for **`/root/.alpaca_env`** and cron/manual runs — both locations must stay consistent when Telegram or Alpaca vars change.
 
 ### Credential Loading
 - The systemd service (`stock-bot.service`) automatically loads credentials via `EnvironmentFile=/root/stock-bot/.env`
@@ -1424,8 +1446,21 @@ The `.env` file contains:
 
 ### Important Notes
 - **DO NOT** commit `.env` file to git (it's in `.gitignore`)
-- **DO NOT** modify `.env` file contents during migrations
+- **DO NOT** truncate or overwrite `.env` with templates or empty placeholders — see **SRE recovery playbook** below if keys must be recovered.
 - Credentials are loaded automatically by systemd service
+
+### SRE recovery playbook — memory scraping (April 2026)
+**When:** **`/root/stock-bot/.env`** was accidentally **truncated** or overwritten but long-lived daemons may still hold the old environment in RAM.
+
+**Principle:** **Do not assume secrets are gone** until you have checked **live process environments** on the droplet.
+
+**Discovery command (high-signal; redact output in chat logs):**
+```bash
+grep -z -a 'UW_API_KEY' /proc/*/environ 2>/dev/null | tr '\0' '\n'
+```
+Repeat with **`DASHBOARD_USER`**, **`DASHBOARD_PASS`**, or other key names. Prefer identifying the owning PID first (e.g. **`uw_flow_daemon.py`** often still has **`UW_API_KEY`** and dashboard vars), then merge **only** the missing lines into **`/root/stock-bot/.env`** with **`chmod 600`**. **Operational helper (optional, repo):** `scripts/_sre_recover_env_from_uw_flow.py` — reads **`uw_flow_daemon`** environ and appends missing keys.
+
+**After recovery:** `sudo systemctl restart stock-bot`, then run **`scripts/dashboard_verify_all_tabs.py`** with `.env` sourced.
 
 ---
 
@@ -1524,7 +1559,7 @@ Ensure the Alpaca dashboard remains a truthful trust surface and cannot silently
   ```bash
   python3 -u scripts/dashboard_verify_all_tabs.py --json-out <path>.json
   ```
-- **Pass condition:** exit code 0 and all tabs HTTP 200 (currently 23/23)
+- **Pass condition:** exit code 0 and all tabs HTTP 200 (currently 25/25)
 
 ### Canonical proof location
 - Droplet proof bundle: reports/audit/ALPACA_DASHBOARD_DROPLET_PROOF_<TS>.md
@@ -2215,6 +2250,7 @@ Replace opaque `blocked_reason` strings with:
 
 ## Implementation History
 
+- **2026-04-13 (SRE — droplet + truth warehouse):** Alpaca production droplet resized to **4 AMD vCPUs / 8GB RAM** (`MEMORY_BANK.md` canon updated). **Telegram / ML harvester integrity:** full-truth warehouse mission reports **`DATA_READY: YES`** with **96.57%** blocked-boundary coverage (was fail-closed at **0%** due to mission-side misclassification of `score_snapshot` gate rows — fixed in `scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py`; `score_snapshot_writer.py` stamps **`time_bucket_id`**). **`repair_failed_defer`** structural fix for UW pre-filter shipped earlier same window (`board/eod/live_entry_adjustments.py`, `board/eod/root_cause.py`).
 - **2026-04-08 (Alpaca V2 Harvester — SRE / telemetry):** **100-trade milestone** reached in the Harvester era with **100% execution-join / data-integrity** on the audited strict cohort; ops tracking **250** for ML scale-up. **Telemetry hardening:** `STRICT_EPOCH_START` reset to **2026-04-07T17:01:00Z** (new ML telemetry era; prior cohort excluded from strict counts — `telemetry/alpaca_strict_completeness_gate.py`). **Milestone latching:** `scripts/telemetry_milestone_watcher.py` clamps CSV cutoffs to the strict epoch (no pre-epoch milestone spam), resets OOS sent-flags on floor change so **250 cannot skip 100**, and `scripts/extract_gemini_telemetry.py` enforces the same floor for `entries_and_exits.csv`. **Live data:** Alpaca **SIP WebSocket** stream with REST fallback (`src/alpaca/stream_manager.py`), singleton `AlpacaStreamManager`, **`websockets` pinned <11** for `alpaca-trade-api`. **Paper promos:** env-gated **PASSIVE_THEN_CROSS** pending queue + workers (non-blocking vs baseline). **Governance / audits:** strict quant edge report, paper capital caps missions, integrity-closure and profit-discovery campaign scripts under `scripts/audit/`; post-deploy manual proof requirement relaxed where it caused **ARMED→BLOCKED** downtime; Telegram **integrity-only** mode exit 0 when post-close sends are blocked. **Canonical trade count** alignment: dashboard strip + milestone parity + droplet diagnosis scripts (`compute_canonical_trade_count`, `scripts/telemetry_sync_milestone_state.py` for `.milestone_state.json` sync when needed).
 - **2026-04-03:** Migrated Alpaca execution to V5.0 Passive Hunter. Implemented midpoint pegging (NBBO, 1¢ inside spread capped at mid), 2026 decimal enforcement (2 dp if price ≥ $1, 4 dp if < $1), 20 bps spread guard with `spread_too_wide_abort`, and 24/5 overnight routing (`extended_hours` when outside US RTH and `asset.overnight_tradable`). See `main.py` (`v5_compute_limit_price`, `AlpacaExecutor.compute_entry_price`, `submit_entry`).
 
@@ -2222,6 +2258,7 @@ Replace opaque `blocked_reason` strings with:
 
 ## Maintenance Log (Infrastructure History)
 
+- **2026-04-13:** Production Alpaca droplet upgraded to **4 AMD vCPUs / 8GB RAM**; `MEMORY_BANK.md` operational canon + Scenario Lab CPU guidance updated. Truth-warehouse **`DATA_READY: YES`** at **96.57%** blocked-boundary coverage logged (classifier/join fix + `time_bucket_id` on score snapshots).
 - **2026-04-08:** `MEMORY_BANK.md` updated for **Alpaca V2 Harvester** phase, milestone/epoch telemetry truth, and pruned Fast-Lane as non-primary ops (doc sync; pull on droplet after `git push`).
 - **2026-04-03:** Successfully applied Linux Kernel security patches to Alpaca droplet (v6.8.0-100 -> v6.8.0-107). System rebooted and verified bot auto-restart.
 
