@@ -8,6 +8,10 @@
   let pollTimer = null;
   let pnlChart = null;
   let vaultLoaded = false;
+  /** @type {{ t: number, equity: number, src?: string }[]} */
+  let equityTrail = [];
+  let rollingHistoryFetched = false;
+  let lastChartSig = "";
 
   const moneyFmt = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -82,13 +86,92 @@
     }
   }
 
-  function numericFromPoint(p) {
-    if (p && typeof p === "object") {
-      if (typeof p.cumulative_pnl === "number") return p.cumulative_pnl;
-      if (typeof p.pnl === "number") return p.pnl;
-      if (typeof p.y === "number") return p.y;
+  function equityFromRollingPoint(p) {
+    if (!p || typeof p !== "object") return null;
+    var keys = [
+      "equity",
+      "portfolio_value",
+      "account_equity",
+      "total_value",
+      "net_liquidation",
+      "cumulative_pnl",
+      "pnl",
+      "y",
+    ];
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (typeof p[k] === "number" && !Number.isNaN(p[k])) return p[k];
+      if (p[k] != null && p[k] !== "" && !Number.isNaN(Number(p[k]))) return Number(p[k]);
     }
     return null;
+  }
+
+  function mergeSamplesFromRollingJson(points) {
+    if (!Array.isArray(points)) return;
+    for (var i = 0; i < points.length; i++) {
+      var p = points[i];
+      var eq = equityFromRollingPoint(p);
+      if (eq === null) continue;
+      var tsRaw = p.ts || p.timestamp || "";
+      var t = tsRaw ? Date.parse(tsRaw) : NaN;
+      if (Number.isNaN(t)) continue;
+      var found = -1;
+      for (var j = 0; j < equityTrail.length; j++) {
+        if (Math.abs(equityTrail[j].t - t) < 500) {
+          found = j;
+          break;
+        }
+      }
+      if (found >= 0) equityTrail[found] = { t: t, equity: eq, src: "rolling_file" };
+      else equityTrail.push({ t: t, equity: eq, src: "rolling_file" });
+    }
+    equityTrail.sort(function (a, b) {
+      return a.t - b.t;
+    });
+    while (equityTrail.length > 4000) equityTrail.shift();
+  }
+
+  function appendLivePortfolioEquity(totalValue) {
+    var y = Number(totalValue);
+    if (Number.isNaN(y)) return;
+    var t = Date.now();
+    var last = equityTrail[equityTrail.length - 1];
+    if (last && last.src === "live_poll" && t - last.t < 3500 && last.equity === y) return;
+    equityTrail.push({ t: t, equity: y, src: "live_poll" });
+    while (equityTrail.length > 4000) equityTrail.shift();
+  }
+
+  async function ensureRollingHistoryOnce() {
+    if (rollingHistoryFetched) return;
+    rollingHistoryFetched = true;
+    try {
+      var r = await safeFetch("/api/rolling_pnl_5d");
+      if (r.ok && r.data && Array.isArray(r.data.points)) mergeSamplesFromRollingJson(r.data.points);
+    } catch (_) {}
+  }
+
+  function hydrateTrailFromSession() {
+    try {
+      var raw = sessionStorage.getItem("equityTrailV1");
+      if (!raw) return;
+      var arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) {
+        equityTrail = arr
+          .filter(function (x) {
+            return x && typeof x.t === "number" && typeof x.equity === "number";
+          })
+          .map(function (x) {
+            return { t: x.t, equity: x.equity, src: x.src || "session" };
+          });
+      }
+    } catch (_) {}
+  }
+
+  function persistTrailSession() {
+    try {
+      var tail = equityTrail.slice(-800);
+      sessionStorage.setItem("equityTrailV1", JSON.stringify(tail));
+    } catch (_) {}
   }
 
   function topNumericKeys(obj, maxN) {
@@ -220,48 +303,82 @@
     return "—";
   }
 
-  function renderPnlChart(points) {
-    const canvas = el("pnlChart");
+  function renderEquityChart() {
+    var canvas = el("pnlChart");
     if (!canvas || typeof Chart === "undefined") return;
 
-    const list = Array.isArray(points) ? points : [];
-    const labels = list.map(function (_, i) {
-      return String(i + 1);
+    var series = equityTrail.slice().sort(function (a, b) {
+      return a.t - b.t;
     });
-    const vals = list.map(function (p) {
-      const v = numericFromPoint(p);
-      return typeof v === "number" && !Number.isNaN(v) ? v : 0;
-    });
-    const last = vals.length ? vals[vals.length - 1] : 0;
-    const pos = last >= 0;
-    const lineMain = pos ? "#39d353" : "#ff6b6b";
-    const fillTop = pos ? "rgba(57, 211, 83, 0.22)" : "rgba(255, 107, 107, 0.18)";
-    const fillBot = "rgba(13, 17, 23, 0)";
+    if (series.length === 0) {
+      destroyPnlChart();
+      lastChartSig = "";
+      return;
+    }
 
-    destroyPnlChart();
-    const ctx2 = canvas.getContext("2d");
+    var anchor = series[0].equity;
+    var lastEq = series[series.length - 1].equity;
+    /** @type {string[]} */
+    var labels = series.map(function (pt, idx) {
+      try {
+        var d = new Date(pt.t);
+        if (idx === 0 || idx === series.length - 1 || idx % Math.ceil(series.length / 12 || 1) === 0) {
+          return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+        }
+        return "";
+      } catch (_) {
+        return String(idx + 1);
+      }
+    });
+    var vals = series.map(function (pt) {
+      return pt.equity;
+    });
+
+    if (vals.length === 1) {
+      labels = [labels[0] || "start", "now"];
+      vals = [vals[0], vals[0]];
+    }
+
+    var above = lastEq >= anchor;
+    var lineMain = above ? "#39d353" : "#ff6b6b";
+    var fillTop = above ? "rgba(57, 211, 83, 0.24)" : "rgba(255, 107, 107, 0.2)";
+    var fillBot = "rgba(13, 17, 23, 0)";
+    var sig = labels.join("\u0001") + "|" + vals.join(",");
+
+    var ctx2 = canvas.getContext("2d");
     if (!ctx2) return;
 
-    let gradientFill = fillTop;
+    var gradientFill = fillTop;
     try {
-      const g = ctx2.createLinearGradient(0, 0, 0, canvas.height || 200);
+      var g = ctx2.createLinearGradient(0, 0, 0, canvas.clientHeight || 220);
       g.addColorStop(0, fillTop);
       g.addColorStop(1, fillBot);
       gradientFill = g;
     } catch (_) {}
 
+    if (pnlChart && sig === lastChartSig) {
+      pnlChart.data.labels = labels;
+      pnlChart.data.datasets[0].data = vals;
+      pnlChart.data.datasets[0].borderColor = lineMain;
+      pnlChart.data.datasets[0].backgroundColor = gradientFill;
+      pnlChart.update("none");
+      return;
+    }
+    lastChartSig = sig;
+
+    destroyPnlChart();
     pnlChart = new Chart(ctx2, {
       type: "line",
       data: {
         labels: labels,
         datasets: [
           {
-            label: "Cumulative P&L",
+            label: "Equity (USD)",
             data: vals,
             borderColor: lineMain,
             backgroundColor: gradientFill,
             fill: true,
-            tension: 0.2,
+            tension: 0.25,
             pointRadius: 0,
             borderWidth: 2,
           },
@@ -275,10 +392,12 @@
           line: {
             segment: {
               borderColor: function (seg) {
-                const y0 = seg.p0.parsed.y;
-                const y1 = seg.p1.parsed.y;
-                if (y0 >= 0 && y1 >= 0) return "#39d353";
-                if (y0 < 0 && y1 < 0) return "#ff6b6b";
+                var y0 = seg.p0.parsed.y;
+                var y1 = seg.p1.parsed.y;
+                var m0 = y0 >= anchor;
+                var m1 = y1 >= anchor;
+                if (m0 && m1) return "#39d353";
+                if (!m0 && !m1) return "#ff6b6b";
                 return "#d29922";
               },
             },
@@ -289,14 +408,15 @@
           tooltip: {
             callbacks: {
               label: function (ctx) {
-                const v = ctx.parsed.y;
-                return formatMoney(v);
+                var v = ctx.parsed.y;
+                var vsAnchor = v >= anchor ? "≥ anchor" : "< anchor";
+                return formatMoney(v) + " (" + vsAnchor + ")";
               },
             },
           },
         },
         scales: {
-          x: { ticks: { color: "#8b949e", maxTicksLimit: 8 }, grid: { color: "#30363d" } },
+          x: { ticks: { color: "#8b949e", maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: "#30363d" } },
           y: {
             ticks: {
               color: "#8b949e",
@@ -428,18 +548,26 @@
         dp.textContent = formatMoney(v);
       }
 
-      const pts = m.data.rolling_pnl_last_points;
-      if (pts && pts.length) renderPnlChart(pts);
+      var pts = m.data.rolling_pnl_last_points;
+      if (pts && pts.length) mergeSamplesFromRollingJson(pts);
     } else {
       allOk = false;
     }
 
+    await ensureRollingHistoryOnce();
+
     const p = await safeFetch("/open_positions?limit=50");
     if (p.ok && p.data) {
       renderOpenRows(p.data.positions);
+      if (p.data.total_value != null && p.data.total_value !== "") {
+        appendLivePortfolioEquity(p.data.total_value);
+      }
     } else {
       allOk = false;
     }
+
+    renderEquityChart();
+    persistTrailSession();
 
     setConn(allOk, allOk ? "" : "Reconnecting…");
   }
@@ -609,6 +737,7 @@
     if (ev.key === "Escape") closeTradeModal();
   });
 
+  hydrateTrailFromSession();
   void pollCommandCenter();
   startPoll();
 })();
