@@ -12,6 +12,7 @@ import json
 import subprocess
 import threading
 import secrets
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -44,7 +45,7 @@ except Exception:
     print("WARNING: Flask not installed in this environment; dashboard endpoints cannot be simulated locally.", flush=True)
 
 try:
-    from flask import Flask, render_template_string, jsonify, Response, request
+    from flask import Flask, render_template_string, jsonify, Response, request, send_from_directory
 except Exception:
     _FLASK_AVAILABLE = False
     # Provide a minimal stub so `import dashboard` works for local audits.
@@ -54,6 +55,9 @@ except Exception:
     def jsonify(obj=None, **kwargs):  # type: ignore
         return obj if obj is not None else kwargs
     def render_template_string(*args, **kwargs):  # type: ignore
+        return ""
+
+    def send_from_directory(*args, **kwargs):  # type: ignore
         return ""
 
     class _DummyApp:
@@ -150,6 +154,34 @@ else:
 
 _alpaca_api = None
 _registry_loaded = False
+
+# Short-lived memoization for hot dashboard reads (bounded polling load).
+_DASH_TTL_SEC = 5.0
+_dash_ttl_store: dict[str, tuple[float, object]] = {}
+
+
+def _dash_cache_get(key: str, builder):
+    now = time.monotonic()
+    ent = _dash_ttl_store.get(key)
+    if ent is not None and (now - ent[0]) < _DASH_TTL_SEC:
+        return ent[1]
+    val = builder()
+    _dash_ttl_store[key] = (now, val)
+    return val
+
+
+def _dash_parse_limit(default: int = 50, cap: int = 500) -> int:
+    try:
+        raw = request.args.get("limit", default=default, type=int)  # type: ignore[union-attr]
+    except Exception:
+        return default
+    if raw is None:
+        return default
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(n, cap))
 
 def lazy_load_dependencies():
     """Load heavy dependencies in background after server starts."""
@@ -4249,113 +4281,70 @@ def _render_initial_situation_html(data):
 
 @app.route("/")
 def index():
-    """Serve dashboard with banner, situation, and Learning tab pre-rendered so they never show Loading."""
-    try:
-        banner_state = _get_banner_state_sync()
-        situation_data = _get_situation_data_sync()
-        banner_html, banner_severity = _render_initial_banner_html(banner_state)
-        situation_html = _render_initial_situation_html(situation_data)
-    except Exception:
-        banner_html = "Direction status unavailable"
-        banner_severity = "info"
-        situation_html = '<span class="sit-label">Situation</span><span class="sit-value">—</span>'
-
-    root = Path(_DASHBOARD_ROOT)
-    learning_html = ""
-    try:
-        run_ts = datetime.now(timezone.utc).isoformat()
-        deployed_commit = "unknown"
-        try:
-            import subprocess
-            r = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=root,
-                capture_output=True,
-                text=True,
-                timeout=2,
-            )
-            if r.returncode == 0 and r.stdout:
-                deployed_commit = r.stdout.strip()[:12]
-        except Exception:
-            pass
-        try:
-            payload = _get_learning_readiness_payload(root, run_ts, deployed_commit)
-        except Exception:
-            payload = _learning_readiness_safe_payload(
-                error="Server-side render failed",
-                error_code="RENDER",
-                run_ts=run_ts,
-                deployed_commit=deployed_commit,
-            )
-        learning_html = _render_learning_readiness_html(payload)
-    except Exception:
-        learning_html = (
-            '<div class="stat-card"><p>Learning &amp; Readiness could not be pre-loaded.</p>'
-            '<button type="button" onclick="if(typeof loadLearningReadiness===\'function\')loadLearningReadiness();">Load now</button></div>'
+    """Serve the SPA shell from disk (no Jinja / server-side HTML assembly)."""
+    static_dir = _DASHBOARD_ROOT / "static"
+    index_path = static_dir / "index.html"
+    if not index_path.is_file():
+        return Response(
+            "Dashboard UI missing: create static/index.html",
+            503,
+            mimetype="text/plain; charset=utf-8",
         )
+    return send_from_directory(str(static_dir), "index.html", mimetype="text/html; charset=utf-8")
 
-    profitability_html = ""
+
+def _health_payload():
+    """Build /health JSON (cached for a few seconds to absorb polling)."""
     try:
-        pl_payload = _get_profitability_learning_payload(root)
-        profitability_html = _render_profitability_learning_html(pl_payload)
-    except Exception:
-        profitability_html = (
-            '<div class="stat-card"><p>Profitability &amp; Learning could not be pre-loaded.</p>'
-            '<button type="button" onclick="if(typeof loadProfitabilityLearning===\'function\')loadProfitabilityLearning();">Load now</button></div>'
-        )
-
-    html = (
-        DASHBOARD_HTML.replace("__BANNER_SEV__", banner_severity)
-        .replace("__BANNER_HTML__", banner_html)
-        .replace("__SITUATION_HTML__", situation_html)
-        .replace("__LEARNING_READINESS_HTML__", learning_html)
-        .replace("__PROFITABILITY_LEARNING_HTML__", profitability_html)
-    )
-    return Response(html, mimetype="text/html; charset=utf-8")
-
-@app.route("/health")
-def health():
-    """Health check endpoint - checks actual system health"""
-    try:
-        # Get real health status from SRE monitoring
         from sre_monitoring import get_sre_health
+
         sre_health = get_sre_health()
         overall_health = sre_health.get("overall_health", "unknown")
-        
-        # Check if bot process is running
-        import subprocess
+
         bot_running = False
         try:
             result = subprocess.run(
                 ["pgrep", "-f", "python.*main.py"],
                 capture_output=True,
-                timeout=2
+                timeout=2,
             )
             bot_running = result.returncode == 0
-        except:
+        except Exception:
             pass
-        
-        return jsonify({
-            "status": "healthy" if overall_health == "healthy" and bot_running else "degraded",
-            "overall_health": overall_health,
-            "bot_running": bot_running,
-            "timestamp": datetime.utcnow().isoformat(),
-            "dependencies_loaded": _registry_loaded,
-            "alpaca_connected": _alpaca_api is not None,
-            "sre_health": {
-                "market_open": sre_health.get("market_open", False),
-                "last_order": sre_health.get("last_order", {}),
-            }
-        })
+
+        return (
+            {
+                "status": "healthy" if overall_health == "healthy" and bot_running else "degraded",
+                "overall_health": overall_health,
+                "bot_running": bot_running,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "dependencies_loaded": _registry_loaded,
+                "alpaca_connected": _alpaca_api is not None,
+                "sre_health": {
+                    "market_open": sre_health.get("market_open", False),
+                    "last_order": sre_health.get("last_order", {}),
+                },
+            },
+            200,
+        )
     except Exception as e:
-        # Fallback if SRE monitoring fails
-        return jsonify({
-            "status": "unknown",
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat(),
-            "dependencies_loaded": _registry_loaded,
-            "alpaca_connected": _alpaca_api is not None
-        }), 500
+        return (
+            {
+                "status": "unknown",
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "dependencies_loaded": _registry_loaded,
+                "alpaca_connected": _alpaca_api is not None,
+            },
+            500,
+        )
+
+
+@app.route("/health")
+def health():
+    """Health check endpoint - checks actual system health"""
+    payload, code = _dash_cache_get("health_v1", _health_payload)
+    return jsonify(payload), code
 
 
 @app.route("/api/version", methods=["GET"])
@@ -4733,33 +4722,53 @@ def _api_positions_impl():
     }
 
 
+def _positions_cached_fetch():
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        future = ex.submit(_api_positions_impl)
+        return future.result(timeout=8)
+
+
 @app.route("/api/positions")
+@app.route("/open_positions", methods=["GET"])
 def api_positions():
     """Positions endpoint with 8s timeout so dashboard never blocks other tabs."""
     import concurrent.futures
+
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            future = ex.submit(_api_positions_impl)
-            result = future.result(timeout=8)
-        return jsonify(result)
+        result = _dash_cache_get("positions_bundle_v1", _positions_cached_fetch)
     except concurrent.futures.TimeoutError:
-        return jsonify({
-            "positions": [],
-            "total_value": 0,
-            "unrealized_pnl": 0,
-            "day_pnl": 0,
-            "missed_alpha_usd": 0,
-            "error": "Request timed out (8s). You can switch tabs.",
-        })
+        return jsonify(
+            {
+                "positions": [],
+                "total_value": 0,
+                "unrealized_pnl": 0,
+                "day_pnl": 0,
+                "missed_alpha_usd": 0,
+                "error": "Request timed out (8s). You can switch tabs.",
+            }
+        )
     except Exception as e:
-        return jsonify({
-            "positions": [],
-            "total_value": 0,
-            "unrealized_pnl": 0,
-            "day_pnl": 0,
-            "missed_alpha_usd": 0,
-            "error": str(e),
-        })
+        return jsonify(
+            {
+                "positions": [],
+                "total_value": 0,
+                "unrealized_pnl": 0,
+                "day_pnl": 0,
+                "missed_alpha_usd": 0,
+                "error": str(e),
+            }
+        )
+
+    limit = _dash_parse_limit(default=50, cap=200)
+    out = dict(result)
+    plist = out.get("positions") or []
+    if isinstance(plist, list) and len(plist) > limit:
+        out["positions"] = plist[:limit]
+    out["limit_applied"] = limit
+    out["positions_total_before_limit"] = len(plist) if isinstance(plist, list) else 0
+    return jsonify(out)
 
 
 @app.route("/api/pnl/reconcile", methods=["GET"])
@@ -5104,48 +5113,67 @@ def _load_stock_closed_trades(max_days=90, max_attribution_lines=10000, max_tele
     return out[:500]
 
 
+def _stockbot_closed_trades_bundle():
+    """
+    Full closed-trades payload (cached); per-request ?limit= slices without re-reading logs.
+    """
+    trades = _load_stock_closed_trades()
+    gate = None
+    gate_err = None
+    try:
+        from telemetry.alpaca_strict_completeness_gate import (
+            STRICT_EPOCH_START,
+            evaluate_completeness,
+        )
+
+        gate = evaluate_completeness(
+            Path(_DASHBOARD_ROOT), open_ts_epoch=STRICT_EPOCH_START, audit=False
+        )
+    except Exception as e:
+        gate_err = str(e)
+    asg = None
+    if gate:
+        asg = {
+            "LEARNING_STATUS": gate.get("LEARNING_STATUS"),
+            "learning_fail_closed_reason": gate.get("learning_fail_closed_reason"),
+            "trades_seen": gate.get("trades_seen"),
+            "trades_complete": gate.get("trades_complete"),
+            "trades_incomplete": gate.get("trades_incomplete"),
+            "STRICT_EPOCH_START": gate.get("STRICT_EPOCH_START"),
+        }
+    for t in trades:
+        t["strict_alpaca_chain"] = _strict_alpaca_chain_badge(t.get("trade_id"), gate, gate_err)
+    return {
+        "closed_trades": trades,
+        "response_generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "alpaca_strict_summary": asg,
+        "alpaca_strict_eval_error": gate_err,
+    }
+
+
 @app.route("/api/stockbot/closed_trades", methods=["GET"])
+@app.route("/closed_trades", methods=["GET"])
 def api_stockbot_closed_trades():
     """
     Closed trades for equity cohort: strategy_id, option_phase, option_type, strike, expiry, etc.
     Legacy options-strategy rows are excluded from the merged list.
     """
     try:
-        trades = _load_stock_closed_trades()
-        gate = None
-        gate_err = None
-        try:
-            from telemetry.alpaca_strict_completeness_gate import (
-                STRICT_EPOCH_START,
-                evaluate_completeness,
-            )
-
-            gate = evaluate_completeness(
-                Path(_DASHBOARD_ROOT), open_ts_epoch=STRICT_EPOCH_START, audit=False
-            )
-        except Exception as e:
-            gate_err = str(e)
-        asg = None
-        if gate:
-            asg = {
-                "LEARNING_STATUS": gate.get("LEARNING_STATUS"),
-                "learning_fail_closed_reason": gate.get("learning_fail_closed_reason"),
-                "trades_seen": gate.get("trades_seen"),
-                "trades_complete": gate.get("trades_complete"),
-                "trades_incomplete": gate.get("trades_incomplete"),
-                "STRICT_EPOCH_START": gate.get("STRICT_EPOCH_START"),
-            }
-        for t in trades:
-            t["strict_alpaca_chain"] = _strict_alpaca_chain_badge(
-                t.get("trade_id"), gate, gate_err
-            )
+        base = _dash_cache_get("stockbot_closed_trades_v1", _stockbot_closed_trades_bundle)
+        limit = _dash_parse_limit(default=50, cap=500)
+        trades = base.get("closed_trades") or []
+        if not isinstance(trades, list):
+            trades = []
+        sliced = trades[:limit]
         return jsonify(
             {
-                "closed_trades": trades,
-                "count": len(trades),
-                "response_generated_at_utc": datetime.now(timezone.utc).isoformat(),
-                "alpaca_strict_summary": asg,
-                "alpaca_strict_eval_error": gate_err,
+                "closed_trades": sliced,
+                "count": len(sliced),
+                "count_total_loaded": len(trades),
+                "limit_applied": limit,
+                "response_generated_at_utc": base.get("response_generated_at_utc"),
+                "alpaca_strict_summary": base.get("alpaca_strict_summary"),
+                "alpaca_strict_eval_error": base.get("alpaca_strict_eval_error"),
             }
         ), 200
     except Exception as e:
@@ -5180,17 +5208,16 @@ def api_stockbot_fast_lane_ledger():
 @app.route("/api/closed_positions")
 def api_closed_positions():
     try:
-        from pathlib import Path
-        import csv
-        from io import StringIO
-        
         closed = []
         state_file = (_DASHBOARD_ROOT / "state" / "closed_positions.json").resolve()
         if state_file.exists():
             data = json.loads(state_file.read_text())
             closed = data if isinstance(data, list) else data.get("positions", [])
-        
-        return jsonify({"closed_positions": closed[-50:]})
+
+        limit = _dash_parse_limit(default=50, cap=500)
+        if isinstance(closed, list) and len(closed) > limit:
+            closed = closed[-limit:]
+        return jsonify({"closed_positions": closed, "limit_applied": limit})
     except Exception as e:
         return jsonify({"closed_positions": [], "error": str(e)})
 
@@ -6434,25 +6461,103 @@ def api_executive_summary():
         }), 200  # Return 200 so frontend can display error
 
 
+def _rolling_pnl_5d_build():
+    path = (_DASHBOARD_ROOT / "reports" / "state" / "rolling_pnl_5d.jsonl").resolve()
+    if not path.exists():
+        return {"points": [], "window": "5d", "source": "unified_exits"}
+    points = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            points.append(json.loads(line))
+        except Exception:
+            continue
+    return {"points": points, "window": "5d", "source": "unified_exits"}
+
+
 @app.route("/api/rolling_pnl_5d", methods=["GET"])
 def api_rolling_pnl_5d():
     """Return 5-day rolling PnL series from reports/state/rolling_pnl_5d.jsonl. No smoothing; gaps visible."""
     try:
-        path = (_DASHBOARD_ROOT / "reports" / "state" / "rolling_pnl_5d.jsonl").resolve()
-        if not path.exists():
-            return jsonify({"points": [], "window": "5d", "source": "unified_exits"}), 200
-        points = []
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                points.append(json.loads(line))
-            except Exception:
-                continue
-        return jsonify({"points": points, "window": "5d", "source": "unified_exits"}), 200
+        data = _dash_cache_get("rolling_pnl_5d_v1", _rolling_pnl_5d_build)
+        return jsonify(data), 200
     except Exception as e:
         return jsonify({"points": [], "window": "5d", "error": str(e)}), 200
+
+
+def _metrics_payload():
+    """Aggregated governance / KPI JSON for the SPA (cached)."""
+    root = Path(_DASHBOARD_ROOT)
+    out: dict = {"timestamp_utc": datetime.now(timezone.utc).isoformat()}
+    try:
+        from src.governance.canonical_trade_count import compute_canonical_trade_count
+        from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START
+
+        floor = float(STRICT_EPOCH_START)
+        c = compute_canonical_trade_count(root, floor_epoch=floor)
+        out["strict_cohort_n"] = c.get("total_trades_post_era")
+        out["strict_realized_pnl_sum_usd"] = c.get("realized_pnl_sum_usd")
+        out["strict_floor_epoch_utc"] = c.get("floor_epoch_utc")
+        out["strict_trades_to_250"] = c.get("trades_to_250")
+        out["strict_next_milestone"] = c.get("next_milestone")
+    except Exception as e:
+        out["strict_cohort_error"] = str(e)
+
+    try:
+        reps = root / "reports"
+        best: Optional[Path] = None
+        best_name = ""
+        if reps.is_dir():
+            for p in reps.glob("ALPACA_TRUTH_WAREHOUSE_COVERAGE_*.md"):
+                if p.name > best_name:
+                    best_name = p.name
+                    best = p
+        if best is not None and best.exists():
+            txt = best.read_text(encoding="utf-8", errors="replace")[:8000]
+            out["data_ready_report"] = best.name
+            if "DATA_READY: YES" in txt:
+                out["DATA_READY"] = True
+            elif "DATA_READY: NO" in txt:
+                out["DATA_READY"] = False
+            else:
+                out["DATA_READY"] = None
+        else:
+            out["DATA_READY"] = None
+            out["data_ready_report"] = None
+    except Exception as e:
+        out["data_ready_error"] = str(e)
+
+    try:
+        roll = _dash_cache_get("rolling_pnl_5d_v1", _rolling_pnl_5d_build)
+        pts = roll.get("points") or []
+        if isinstance(pts, list) and len(pts) > 40:
+            out["rolling_pnl_last_points"] = pts[-40:]
+        else:
+            out["rolling_pnl_last_points"] = pts
+    except Exception as e:
+        out["rolling_pnl_error"] = str(e)
+
+    try:
+        pos = _dash_cache_get("positions_bundle_v1", _positions_cached_fetch)
+        plist = pos.get("positions") or []
+        out["open_position_count"] = len(plist) if isinstance(plist, list) else 0
+        out["day_pnl_usd"] = pos.get("day_pnl")
+    except Exception as e:
+        out["positions_snapshot_error"] = str(e)
+
+    return out
+
+
+@app.route("/metrics", methods=["GET"])
+def api_metrics():
+    """Light aggregated metrics for dashboard polling (TTL-cached)."""
+    try:
+        payload = _dash_cache_get("metrics_bundle_v1", _metrics_payload)
+        return jsonify(payload), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "timestamp_utc": datetime.now(timezone.utc).isoformat()}), 500
 
 
 @app.route("/api/health_status", methods=["GET"])
