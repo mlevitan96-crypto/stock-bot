@@ -327,11 +327,37 @@ def time_range_for_path(path: Path, sample: int = 2000) -> Tuple[Optional[str], 
 # ---------------------------------------------------------------------------
 
 
-def load_exits_window(root: Path, t0: float, t1: float) -> List[dict]:
-    paths = [
+def _exit_attribution_candidate_paths(root: Path) -> List[Path]:
+    """
+    Legacy logs + Canonical Truth Root (CTR) mirror.
+
+    When TRUTH_ROUTER_ENABLED=1, the bot mirrors exit rows under STOCKBOT_TRUTH_ROOT/exits/
+    while still attempting logs/exit_attribution.jsonl. After a ``logs/*.jsonl`` purge, the
+    symlink or CTR file may be the only copy until the next terminal close recreates the log.
+    """
+    paths: List[Path] = [
         root / "logs" / "exit_attribution.jsonl",
         root / "logs" / "alpaca_exit_attribution.jsonl",
     ]
+    tr = (os.environ.get("STOCKBOT_TRUTH_ROOT") or "").strip()
+    if tr:
+        paths.append(Path(tr) / "exits" / "exit_attribution.jsonl")
+    else:
+        paths.append(Path("/var/lib/stock-bot/truth/exits/exit_attribution.jsonl"))
+    # De-dupe while preserving order
+    out: List[Path] = []
+    seen_p: set[str] = set()
+    for p in paths:
+        key = str(p.resolve()) if p.exists() else str(p)
+        if key in seen_p:
+            continue
+        seen_p.add(key)
+        out.append(p)
+    return out
+
+
+def load_exits_window(root: Path, t0: float, t1: float) -> List[dict]:
+    paths = _exit_attribution_candidate_paths(root)
     rows: List[dict] = []
     seen: set[str] = set()
     for p in paths:
@@ -1095,7 +1121,11 @@ def main() -> int:
                 ci_ok += 1
     ci_pct = 100.0 * ci_ok / max(ci_total, 1) if ci_total else 100.0
 
-    gate_results.append(GateResult("blocked_boundary_coverage", blocked_ratio >= 50.0, blocked_ratio, 50.0))
+    try:
+        _blocked_min = float(os.getenv("ALPACA_TRUTH_BLOCKED_BOUNDARY_MIN_PCT", "50") or "50")
+    except (TypeError, ValueError):
+        _blocked_min = 50.0
+    gate_results.append(GateResult("blocked_boundary_coverage", blocked_ratio >= _blocked_min, blocked_ratio, _blocked_min))
     gate_results.append(GateResult("ci_reason_blocked", ci_pct >= 95.0, ci_pct, 95.0))
 
     uw_rows = load_uw_daemon(root, t0, t1, args.max_compute)
