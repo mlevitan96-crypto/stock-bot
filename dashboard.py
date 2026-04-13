@@ -74,6 +74,8 @@ except Exception:
 else:
     print("[Dashboard] Starting Flask app...", flush=True)
     app = Flask(__name__)
+    # Static SPA / send_from_directory: avoid default immutable caching hints in downstream caches.
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
     def _load_dotenv_if_available() -> None:
         """
@@ -151,6 +153,23 @@ else:
         except Exception:
             # Fail closed on unexpected auth errors.
             return _unauthorized_response()
+
+    @app.after_request
+    def _disable_cache_for_dashboard_ui(response):  # type: ignore
+        """Defeat browser/CDN caching for HTML and JS so dashboard UI updates are visible immediately."""
+        try:
+            path = getattr(request, "path", "") or ""
+            ct = (response.headers.get("Content-Type") or "").lower()
+            ui_path = path == "/" or path.startswith("/static/")
+            ui_ct = "text/html" in ct or "javascript" in ct
+            if ui_path or ui_ct:
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+        except Exception:
+            pass
+        return response
+
 
 _alpaca_api = None
 _registry_loaded = False
