@@ -79,8 +79,11 @@
     }
     main {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
       padding: 1rem 1.25rem 2rem;
-      max-width: 1400px;
+      max-width: 100%;
       margin: 0 auto;
       width: 100%;
     }
@@ -88,6 +91,8 @@
       display: none;
       flex-direction: column;
       gap: 1rem;
+      flex: 1;
+      min-height: 0;
     }
     .panel.active { display: flex; }
     .kpi-row {
@@ -116,14 +121,6 @@
     }
     .kpi .val { font-size: 1.35rem; font-weight: 600; }
     .kpi .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-    @media (max-width: 900px) {
-      .grid-2 { grid-template-columns: 1fr; }
-    }
     .card {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -131,7 +128,32 @@
       padding: 1rem;
     }
     .card h2 { margin: 0 0 0.75rem; font-size: 0.95rem; font-weight: 600; }
-    .chart-wrap { position: relative; height: 260px; }
+    .chart-wrap {
+      position: relative;
+      min-height: 220px;
+      height: clamp(220px, 28vh, 400px);
+      width: 100%;
+    }
+    .chart-card-full {
+      width: 100%;
+    }
+    .open-book-card {
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: max(52vh, 420px);
+    }
+    .open-book-body {
+      flex: 1;
+      min-height: 50vh;
+      overflow: auto;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .open-book-card .signal-chips {
+      max-width: none;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -271,29 +293,30 @@
             <div class="sub" id="kpiDayPnlWrap">Day P&amp;L <span id="kpiDayPnl">—</span></div>
           </div>
         </div>
-        <div class="grid-2">
-          <div class="card">
-            <h2>Rolling P&amp;L (5d)</h2>
-            <div class="chart-wrap"><canvas id="pnlChart"></canvas></div>
-          </div>
-          <div class="card">
-            <h2>Open book</h2>
-            <div style="max-height: 280px; overflow: auto;">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Symbol</th>
-                    <th>Qty</th>
-                    <th>P&amp;L</th>
-                    <th>P&amp;L %</th>
-                    <th>Entry signals</th>
-                    <th>Composite</th>
-                    <th>Entry</th>
-                  </tr>
-                </thead>
-                <tbody id="openTableBody"></tbody>
-              </table>
-            </div>
+        <div class="card chart-card-full">
+          <h2>Wallet equity <span class="muted" style="font-weight:400">(absolute · broker total_value)</span></h2>
+          <p class="muted" style="margin:0 0 0.5rem;font-size:0.78rem;">
+            History merges <code>/metrics</code> rolling snapshots and <code>/api/rolling_pnl_5d</code> when present; each poll appends live portfolio value. Earliest point in view anchors green/red vs current.
+          </p>
+          <div class="chart-wrap"><canvas id="pnlChart" aria-label="Equity chart"></canvas></div>
+        </div>
+        <div class="card open-book-card">
+          <h2>Open book</h2>
+          <div class="open-book-body">
+            <table>
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Qty</th>
+                  <th>P&amp;L</th>
+                  <th>P&amp;L %</th>
+                  <th>Entry signals</th>
+                  <th>Composite</th>
+                  <th>Entry</th>
+                </tr>
+              </thead>
+              <tbody id="openTableBody"></tbody>
+            </table>
           </div>
         </div>
       </section>
