@@ -1590,6 +1590,8 @@ def _emit_trade_intent(
     blocked_reason: Optional[str] = None,
     intelligence_trace: Optional[dict] = None,
     canonical_trade_id_override: Optional[str] = None,
+    trade_key_override: Optional[str] = None,
+    trade_id_open: Optional[str] = None,
 ) -> None:
     """Emit trade_intent to logs/run.jsonl (feature_snapshot + thesis_tags). Additive only.
     When intelligence_trace is provided, adds intent_id, intelligence_trace, active_signal_names,
@@ -1692,7 +1694,9 @@ def _emit_trade_intent(
             rec["entry_intent_synthetic"] = False
             rec["entry_intent_source"] = "live_runtime"
         if _ctid:
-            rec["trade_key"] = str(_ctid)
+            rec["trade_key"] = str(trade_key_override or _ctid)
+        if trade_id_open:
+            rec["trade_id"] = str(trade_id_open)
         if (decision_outcome or "").lower() in ("entered", "blocked") and not intelligence_trace:
             try:
                 log_system_event(
@@ -1736,6 +1740,175 @@ def _emit_trade_intent(
     except Exception as e:
         try:
             log_event("telemetry", "trade_intent_emit_failed", symbol=symbol, error=str(e))
+        except Exception:
+            pass
+
+
+def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_reason_tag: str) -> None:
+    """
+    Before a broker close/flip, append strict-chain rows so exits join without manual backfill:
+    ``canonical_trade_id_resolved`` (LONG intent canonical -> SHORT/LONG exit ``trade_key``),
+    contract ``entry_decision_made``, and ``trade_intent(entered)`` with ``trade_id`` = ``open_*``.
+
+    Safe to no-op when strict runlog is off, symbol unknown, or position snapshot is missing.
+    """
+    if not strict_runlog_effective():
+        return
+    try:
+        symu = str(symbol).upper().strip()
+        if not symu or symu == "?":
+            return
+        info: Optional[dict] = None
+        try:
+            opens = getattr(executor, "opens", None)
+            if isinstance(opens, dict):
+                info = opens.get(symbol) or opens.get(symu)
+        except Exception:
+            info = None
+        if not isinstance(info, dict):
+            try:
+                from config.registry import StateFiles, load_metadata_with_lock
+
+                mp = StateFiles.POSITION_METADATA
+                if mp.exists():
+                    md = load_metadata_with_lock(mp)
+                    info = md.get(symbol) if isinstance(md.get(symbol), dict) else md.get(symu)
+            except Exception:
+                info = None
+        if not isinstance(info, dict):
+            return
+
+        # Align entry instant and open_* trade_id with ``log_exit_attribution``:
+        # context["entry_ts"] is ``entry_dt.isoformat()`` (aware UTC, preserves subseconds).
+        # ``build_trade_key`` floors to whole seconds internally.
+        entry_ts_raw = info.get("ts") or info.get("entry_ts")
+        entry_dt: Optional[datetime] = None
+        if isinstance(entry_ts_raw, datetime):
+            entry_dt = entry_ts_raw.astimezone(timezone.utc)
+        elif entry_ts_raw:
+            try:
+                s = str(entry_ts_raw).strip().replace("Z", "+00:00")
+                entry_dt = datetime.fromisoformat(s)
+                if entry_dt.tzinfo is None:
+                    entry_dt = entry_dt.replace(tzinfo=timezone.utc)
+                else:
+                    entry_dt = entry_dt.astimezone(timezone.utc)
+            except Exception:
+                entry_dt = None
+        if entry_dt is None:
+            return
+
+        from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+
+        trade_id_open = f"open_{symu}_{entry_dt.isoformat()}"
+        open_side_raw = str(info.get("side") or "buy").lower()
+        open_norm = normalize_side("buy" if open_side_raw == "buy" else "sell")
+        exit_norm = "SHORT" if open_norm == "LONG" else "LONG"
+        intent_canonical = str(info.get("canonical_trade_id") or "").strip()
+        if not intent_canonical:
+            intent_canonical = build_trade_key(symu, open_norm, entry_dt)
+        fill_trade_key = build_trade_key(symu, exit_norm, entry_dt)
+
+        entry_score = float(info.get("entry_score") or 0.0) or 4.0
+        comps = info.get("components") if isinstance(info.get("components"), dict) else {}
+        cluster_dir = "bullish" if open_norm == "LONG" else "bearish"
+        c = {
+            "direction": cluster_dir,
+            "composite_meta": {
+                "policy_id": close_reason_tag,
+                "attribution_policy": close_reason_tag,
+                "components": dict(comps) if comps else {"close_chain": 1.0},
+            },
+        }
+        side_order = "buy" if open_norm == "LONG" else "sell"
+
+        try:
+            from telemetry.decision_intelligence_trace import append_gate_result, build_initial_trace, set_final_decision
+
+            _trace = build_initial_trace(symu, side_order, entry_score, comps or {}, c, None, None, executor)
+            append_gate_result(_trace, "score_gate", True)
+            set_final_decision(_trace, "entered", close_reason_tag, [])
+        except Exception:
+            _trace = None
+
+        from telemetry.attribution_emit_keys import get_symbol_attribution_keys
+
+        _ak: Dict[str, Any] = {}
+        try:
+            _ak = get_symbol_attribution_keys(symu) or {}
+            jsonl_write(
+                "run",
+                {
+                    "event_type": "canonical_trade_id_resolved",
+                    "symbol": symu,
+                    "canonical_trade_id_intent": str(intent_canonical),
+                    "canonical_trade_id_fill": str(fill_trade_key),
+                    "decision_event_id": _ak.get("decision_event_id"),
+                    "symbol_normalized": _ak.get("symbol_normalized") or symu,
+                    "time_bucket_id": _ak.get("time_bucket_id"),
+                    "close_truth_chain_reason": close_reason_tag,
+                },
+            )
+        except Exception:
+            pass
+
+        if _trace:
+            try:
+                from telemetry.alpaca_entry_decision_made_emit import emit_entry_decision_made
+
+                emit_entry_decision_made(
+                    jsonl_write,
+                    symbol=symu,
+                    side=side_order,
+                    score=entry_score,
+                    comps=comps or {},
+                    cluster=c,
+                    intelligence_trace=_trace,
+                    canonical_trade_id=str(intent_canonical),
+                    trade_id_open=trade_id_open,
+                    decision_event_id=_ak.get("decision_event_id"),
+                    time_bucket_id=_ak.get("time_bucket_id"),
+                    symbol_normalized=str(_ak.get("symbol_normalized") or symu),
+                    phase2_enabled=strict_runlog_effective(),
+                )
+            except Exception:
+                pass
+
+            try:
+                _emit_trade_intent(
+                    symbol=symu,
+                    side=side_order,
+                    score=entry_score,
+                    comps=comps or {},
+                    cluster=c,
+                    market_regime=str(info.get("market_regime") or "unknown"),
+                    engine=executor,
+                    displacement_context={"kind": "position_close_preflight", "reason": close_reason_tag},
+                    decision_outcome="entered",
+                    blocked_reason=None,
+                    intelligence_trace=_trace,
+                    canonical_trade_id_override=str(intent_canonical),
+                    trade_key_override=str(fill_trade_key),
+                    trade_id_open=trade_id_open,
+                )
+            except Exception:
+                pass
+            try:
+                jsonl_write(
+                    "run",
+                    {
+                        "event_type": "exit_intent",
+                        "symbol": symu,
+                        "canonical_trade_id": str(intent_canonical),
+                        "trade_key": str(fill_trade_key),
+                        "thesis_break_reason": f"preflight_close_chain:{close_reason_tag}",
+                    },
+                )
+            except Exception:
+                pass
+    except Exception as e:
+        try:
+            log_event("telemetry", "close_truth_chain_emit_failed", symbol=str(symbol), error=str(e)[:400])
         except Exception:
             pass
 
@@ -4787,10 +4960,12 @@ class AlpacaExecutor:
             time.sleep(0.2)
         return False, 0, 0.0
 
-    def close_position_with_retries(self, symbol: str, *, max_attempts: int = 3):
+    def close_position_with_retries(self, symbol: str, *, max_attempts: int = 3, close_reason_tag: str = "close_position_api"):
         """
         Close a position with retries and first-class exit failure logging.
         Contract: never raises; logs every failure permanently.
+
+        ``close_reason_tag`` feeds strict-chain preflight telemetry (displacement_close, position_flip_close, …).
         """
         # AUDIT_MODE: Safety check - no live closes in audit mode
         audit_mode = os.getenv("AUDIT_MODE", "").strip().lower() in ("1", "true", "yes")
@@ -4808,9 +4983,14 @@ class AlpacaExecutor:
         for attempt in range(1, int(max_attempts) + 1):
             try:
                 try:
-                    return self.api.close_position(symbol, cancel_orders=True)
+                    _ord = self.api.close_position(symbol, cancel_orders=True)
                 except TypeError:
-                    return self.api.close_position(symbol)
+                    _ord = self.api.close_position(symbol)
+                try:
+                    _emit_close_or_flip_strict_truth_chain(self, symbol, close_reason_tag=close_reason_tag)
+                except Exception:
+                    pass
+                return _ord
             except Exception as e:
                 log_system_event(
                     subsystem="exit",
@@ -4850,9 +5030,14 @@ class AlpacaExecutor:
             _mock = type("_MockOrder", (), {"id": fake_id})()
             return _mock
         try:
-            return self.api.close_position(symbol, cancel_orders=True)
+            _ord_once = self.api.close_position(symbol, cancel_orders=True)
         except TypeError:
-            return self.api.close_position(symbol)
+            _ord_once = self.api.close_position(symbol)
+        try:
+            _emit_close_or_flip_strict_truth_chain(self, symbol, close_reason_tag="close_position_api_once")
+        except Exception:
+            pass
+        return _ord_once
 
     def compute_entry_price(self, symbol: str, side: str):
         bid, ask = self.get_nbbo(symbol)
@@ -6280,7 +6465,7 @@ class AlpacaExecutor:
             try:
                 # Contract: closes should succeed even if qty is reserved by open orders.
                 # Prefer canceling open orders as part of close (safe fallback for older SDKs).
-                close_order = self.close_position_with_retries(symbol, max_attempts=3)
+                close_order = self.close_position_with_retries(symbol, max_attempts=3, close_reason_tag="displacement_close")
                 if close_order is None:
                     raise RuntimeError("close_position_with_retries failed")
                 exit_order_id = getattr(close_order, "id", None)
@@ -6670,6 +6855,11 @@ class AlpacaExecutor:
                 return False
             close_qty = max(1, int(abs(current_qty) * fraction))
             exit_side = "sell" if side == "buy" else "buy"
+            # Strict runlog: same truth-chain preflight as full closes (join keys before partial exit submit).
+            try:
+                _emit_close_or_flip_strict_truth_chain(self, symbol, close_reason_tag="scale_out_partial")
+            except Exception:
+                pass
             o = self._submit_order_guarded(symbol=symbol, qty=close_qty, side=exit_side, order_type="market", time_in_force="day", caller="_scale_out_partial")
             log_order({"action": "scale_out", "symbol": symbol, "qty": close_qty, "fraction": fraction})
             return True
@@ -9397,7 +9587,7 @@ class StrategyEngine:
                         position_closed = False
                         try:
                             # Contract: closes should succeed even if qty is reserved by open orders.
-                            self.executor.close_position_with_retries(symbol, max_attempts=3)
+                            self.executor.close_position_with_retries(symbol, max_attempts=3, close_reason_tag="position_flip_close")
                             log_event("position_flip", "close_position_api_called", symbol=symbol)
                             
                             # CRITICAL: Verify position was actually closed
