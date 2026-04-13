@@ -162,36 +162,28 @@ def flatten_and_reset(*, timeout_sec: int = 60) -> int:
     except Exception as e:
         log_event("exit", "forced_flatten_cancel_all_orders_failed", error=str(e))
 
-    # Submit closes.
+    # Submit closes (strict runlog: bridged closes via AlpacaExecutor, not raw REST).
     for r in rows:
         qty_signed = r.qty if r.side == "long" else -r.qty
-        for attempt in range(1, 4):
-            try:
-                try:
-                    close_order = executor.api.close_position(r.symbol, cancel_orders=True)
-                except TypeError:
-                    close_order = executor.api.close_position(r.symbol)
-                oid = getattr(close_order, "id", None)
-                log_event(
-                    "exit",
-                    "forced_flatten",
-                    symbol=r.symbol,
-                    qty=qty_signed,
-                    attempt=attempt,
-                    order_id=str(oid) if oid else None,
-                )
-                break
-            except Exception as e:
-                log_event(
-                    "exit",
-                    "forced_flatten",
-                    symbol=r.symbol,
-                    qty=qty_signed,
-                    attempt=attempt,
-                    error=str(e),
-                )
-                if attempt < 3:
-                    time.sleep(float(2**attempt))
+        close_order = executor.close_position_with_retries(
+            r.symbol, max_attempts=3, close_reason_tag="forced_flatten"
+        )
+        oid = getattr(close_order, "id", None) if close_order is not None else None
+        if close_order is not None:
+            log_event(
+                "exit",
+                "forced_flatten",
+                symbol=r.symbol,
+                qty=qty_signed,
+                order_id=str(oid) if oid else None,
+            )
+        else:
+            log_event(
+                "exit",
+                "forced_flatten_close_failed",
+                symbol=r.symbol,
+                qty=qty_signed,
+            )
 
     # Poll until flat or timeout.
     start = time.time()
