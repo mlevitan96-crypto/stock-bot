@@ -15,6 +15,7 @@ import argparse
 import json
 import re
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -28,6 +29,14 @@ TARGET_TRADE_IDS = [
     "open_HOOD_2026-03-26T15:51:38.174449+00:00",
     "open_LCID_2026-03-26T15:51:38.396698+00:00",
     "open_CAT_2026-03-26T16:34:40.245664+00:00",
+]
+
+# 2026-04-13 displacement cohort (LONG canonical vs SHORT exit trade_key) — repair via --trade-ids.
+DISPLACEMENT_20260413_TIDS = [
+    "open_XLV_2026-04-13T17:14:43.441459+00:00",
+    "open_XLI_2026-04-13T17:14:43.441444+00:00",
+    "open_GOOGL_2026-04-13T17:14:41.689810+00:00",
+    "open_F_2026-04-13T17:14:41.376334+00:00",
 ]
 
 TID_RE = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
@@ -130,11 +139,16 @@ def build_lines_for_trade(root: Path, tid: str) -> List[dict]:
 
     sys.path.insert(0, str(REPO))
     from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+    from telemetry.alpaca_entry_decision_made_emit import build_entry_decision_made_record
 
     side = normalize_side(ex.get("side") or ex.get("direction") or "long")
     tk_fb = build_trade_key(sym, side, entry_rest)
     tk = str(ux.get("trade_key") or tk_fb)
     ct = str(ux.get("canonical_trade_id") or ex.get("canonical_trade_id") or tk)
+
+    # Displacement / flip-to-short exit: exit_attribution ``side`` may be the close leg, not the open.
+    if ct and tk and str(ct) != str(tk):
+        side = "LONG"
 
     exit_dt = _parse_iso(ex.get("timestamp"))
 
@@ -148,8 +162,83 @@ def build_lines_for_trade(root: Path, tid: str) -> List[dict]:
 
     lines: List[dict] = []
 
+    # Displacement / side-flip: LONG entry canonical must alias to SHORT exit trade_key for strict joins.
+    if ct and tk and str(ct) != str(tk):
+        lines.append(
+            {
+                "event_type": "canonical_trade_id_resolved",
+                "symbol": sym.upper(),
+                "canonical_trade_id_intent": str(ct),
+                "canonical_trade_id_fill": str(tk),
+                "timestamp": ts_entered,
+                "strict_backfilled": True,
+                "strict_backfill_trade_id": tid,
+                "strict_backfill_note": "bridge LONG intent canonical to exit trade_key",
+            }
+        )
+
     # Orders index uses canonical_trade_id on the row; gate seed is unified trade_key first — use tk on synthetic order.
     order_canonical_for_row = tk
+
+    try:
+        sc_raw = ex.get("entry_score")
+        if sc_raw is None:
+            sc_raw = ex.get("score")
+        score_f = float(sc_raw) if sc_raw is not None else 4.0
+    except (TypeError, ValueError):
+        score_f = 4.0
+    comps: Dict[str, Any] = {}
+    raw_c = ex.get("components")
+    if isinstance(raw_c, dict):
+        for k, v in raw_c.items():
+            try:
+                if isinstance(v, (int, float)):
+                    comps[str(k)] = float(v)
+            except (TypeError, ValueError):
+                continue
+    if not comps:
+        comps = {"repair_proxy": max(0.01, min(score_f, 20.0))}
+    deid = str(uuid.uuid4())
+    tb = f"300s|{int(entry_dt.timestamp())}"
+    intel = {
+        "intent_id": deid,
+        "symbol": sym.upper(),
+        "ts": ts_entered,
+        "signal_layers": {
+            "alpha_signals": [
+                {
+                    "name": "strict_repair",
+                    "value": 1.0,
+                    "score": 1.0,
+                    "direction": "bullish",
+                    "confidence": 0.5,
+                }
+            ]
+        },
+    }
+    edm = build_entry_decision_made_record(
+        symbol=sym.upper(),
+        side="buy" if side == "LONG" else "sell",
+        score=score_f,
+        comps=comps,
+        cluster={
+            "direction": "bullish" if side == "LONG" else "bearish",
+            "composite_meta": {
+                "policy_id": "displacement_strict_repair_v1",
+                "attribution_policy": "displacement_strict_repair_v1",
+                "components": comps,
+            },
+        },
+        intelligence_trace=intel,
+        canonical_trade_id=str(ct),
+        trade_id_open=str(tid),
+        decision_event_id=deid,
+        time_bucket_id=tb,
+        symbol_normalized=sym.upper(),
+    )
+    edm["ts"] = ts_entered
+    # Must pass audit_entry_decision_made_row_ok (no strict_backfill_* on EDM rows).
+    lines.append(edm)
 
     lines.append(
         {
@@ -158,6 +247,7 @@ def build_lines_for_trade(root: Path, tid: str) -> List[dict]:
             "symbol": sym.upper(),
             "canonical_trade_id": ct,
             "trade_key": tk,
+            "trade_id": str(tid),
             "timestamp": ts_entered,
             "strict_backfilled": True,
             "strict_backfill_trade_id": tid,
@@ -240,6 +330,17 @@ def main() -> int:
         metavar="N",
         help="Max internal flush rounds for --repair-all-incomplete-in-era (default 8)",
     )
+    ap.add_argument(
+        "--trade-ids",
+        type=str,
+        default="",
+        help="Comma-separated open_* trade_ids to repair (overrides default TARGET_TRADE_IDS unless empty)",
+    )
+    ap.add_argument(
+        "--displacement-2026-04-13",
+        action="store_true",
+        help="Shorthand: repair DISPLACEMENT_20260413_TIDS (XLV/XLI/GOOGL/F)",
+    )
     args = ap.parse_args()
     root = args.root.resolve()
     logs = root / "logs"
@@ -303,7 +404,21 @@ def main() -> int:
             )
         )
     else:
-        for tid in TARGET_TRADE_IDS:
+        if not args.trade_ids.strip() and not args.displacement_2026_04_13:
+            for tid in TARGET_TRADE_IDS:
+                if _already_done(run_bf, tid):
+                    continue
+                batch = build_lines_for_trade(root, tid)
+                if not batch:
+                    print("skip (missing exit/unified):", tid, file=sys.stderr)
+                    continue
+                planned.extend([(tid, x) for x in batch])
+
+    if repair_all_applied:
+        return 0
+
+    if args.displacement_2026_04_13:
+        for tid in DISPLACEMENT_20260413_TIDS:
             if _already_done(run_bf, tid):
                 continue
             batch = build_lines_for_trade(root, tid)
@@ -312,8 +427,15 @@ def main() -> int:
                 continue
             planned.extend([(tid, x) for x in batch])
 
-    if repair_all_applied:
-        return 0
+    if args.trade_ids.strip():
+        for tid in [x.strip() for x in args.trade_ids.split(",") if x.strip()]:
+            if _already_done(run_bf, tid):
+                continue
+            batch = build_lines_for_trade(root, tid)
+            if not batch:
+                print("skip (missing exit/unified):", tid, file=sys.stderr)
+                continue
+            planned.extend([(tid, x) for x in batch])
 
     if args.dry_run or not args.apply:
         print(json.dumps({"dry_run": True, "lines_count": len(planned)}, indent=2))
