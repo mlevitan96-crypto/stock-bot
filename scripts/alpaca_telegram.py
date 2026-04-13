@@ -34,6 +34,11 @@ _INTEGRITY_ONLY_SCRIPT_NAMES = frozenset(
         "alpaca_data_integrity",
         "sre_maintenance",  # operator one-off: scripts/alpaca_telegram.py after-hours / maintenance pings
         "alpaca_weekly_handoff",  # Wednesday performance + Cursor prompt (CRON_TZ=America/New_York)
+        # Live Whale shadow ML (main.py) — engine failure + canonical trade milestones
+        "alpaca_ml_engine_failure",
+        "alpaca_shadow_milestone_600",
+        "alpaca_shadow_milestone_750",
+        "alpaca_shadow_milestone_1000",
     }
 )
 
