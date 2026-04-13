@@ -5224,10 +5224,47 @@ class AlpacaExecutor:
                         out[str(k)] = str(v)[:400]
                 return out
 
+            def _oi_change_for_snapshot(raw: Any) -> dict:
+                """UW cache `oi_change`: daemon stores aggregated dict; legacy rows may be a raw contract list."""
+                if isinstance(raw, dict):
+                    if any(k in raw for k in ("net_oi_change", "call_oi_change", "put_oi_change", "aggregation")):
+
+                        def _f(k: str, default: float = 0.0) -> float:
+                            v = raw.get(k)
+                            if v is None:
+                                return default
+                            try:
+                                return float(v)
+                            except (TypeError, ValueError):
+                                return default
+
+                        ac = raw.get("aggregated_contracts")
+                        try:
+                            ac_i = int(ac) if ac is not None else 0
+                        except (TypeError, ValueError):
+                            ac_i = 0
+                        return {
+                            "net_oi_change": _f("net_oi_change", 0.0),
+                            "call_oi_change": _f("call_oi_change", 0.0),
+                            "put_oi_change": _f("put_oi_change", 0.0),
+                            "aggregated_contracts": ac_i,
+                            "aggregation": raw.get("aggregation"),
+                        }
+                    return _thin_uw(raw, max_keys=48)
+                if isinstance(raw, list):
+                    try:
+                        from src.uw.oi_change_aggregate import aggregate_uw_stock_oi_change_list
+
+                        return aggregate_uw_stock_oi_change_list(raw) or {}
+                    except Exception:
+                        return {}
+                return {}
+
             passive_uw_harvest = {
                 "greek_exposure": _thin_uw(row.get("greek_exposure") or {}),
                 "etf_flow": _thin_uw(row.get("etf_flow") or {}),
                 "squeeze_score": _thin_uw(row.get("squeeze_score") or {}),
+                "oi_change": _oi_change_for_snapshot(row.get("oi_change")),
             }
         except Exception:
             passive_uw_harvest = {}
