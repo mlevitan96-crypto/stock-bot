@@ -6,6 +6,10 @@ Continuously polls Unusual Whales API and populates uw_flow_cache.json.
 This is the ONLY component that should make UW API calls.
 
 Uses SmartPoller to optimize API usage based on data freshness requirements.
+
+Board cadence (2026): intraday cycles sleep at least UW_DAEMON_MIN_LOOP_SLEEP_SEC (default 300s)
+to respect ~40k requests/day. Tier-1 static (insider, congress, slow FTD detail) is refreshed by
+scripts/run_premarket_intel.py (cron via scripts/install_premarket_cron_on_droplet.py).
 """
 
 import os
@@ -146,7 +150,7 @@ def debug_log(location, message, data=None, hypothesis_id=None):
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from config.registry import CacheFiles, Directories, StateFiles, read_json, atomic_write_json, append_jsonl
+    from config.registry import CacheFiles, Directories, LogFiles, StateFiles, read_json, atomic_write_json, append_jsonl
     # Test debug_log immediately after imports
     try:
         debug_log("uw_flow_daemon.py:imports", "Imports successful", {}, "H1")
@@ -162,6 +166,26 @@ except Exception as e:
     except:
         pass
     raise
+
+
+def _mirror_uw_daemon_cycle_heartbeat(cycle: int) -> None:
+    """Append-only mirror to logs/uw_daemon.jsonl for runtime visibility (no strategy impact)."""
+    if os.getenv("ALPACA_UW_DAEMON_JSONL_MIRROR", "1").strip().lower() in ("0", "false", "no", "off"):
+        return
+    try:
+        append_jsonl(
+            LogFiles.UW_DAEMON,
+            {
+                "event": "uw_flow_cycle",
+                "cycle": cycle,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "ts": int(time.time()),
+                "source": "uw_flow_daemon",
+            },
+        )
+    except Exception:
+        pass
+
 
 # UW OpenAPI catalog (official docs).
 try:
@@ -538,11 +562,16 @@ class UWClient:
         return result
     
     def get_oi_change(self, ticker: str) -> Dict:
-        """Get open interest changes for a ticker."""
+        """Get ticker-level OI change aggregates (UW returns a list of contracts)."""
         raw = self._get(f"/api/stock/{ticker}/oi-change")
-        data = raw.get("data", {})
-        if isinstance(data, list) and len(data) > 0:
-            data = data[0]
+        data = raw.get("data", raw)
+        if isinstance(data, list):
+            try:
+                from src.uw.oi_change_aggregate import aggregate_uw_stock_oi_change_list
+
+                return aggregate_uw_stock_oi_change_list(data)
+            except Exception:
+                return {}
         return data if isinstance(data, dict) else {}
     
     def get_etf_flow(self, ticker: str) -> Dict:
@@ -569,6 +598,14 @@ class UWClient:
         """Get fails-to-deliver data for a ticker."""
         raw = self._get(f"/api/shorts/{ticker}/ftds")
         data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
+        return data if isinstance(data, dict) else {}
+
+    def get_short_interest_float(self, ticker: str) -> Dict:
+        """Short interest + float (squeeze / structural positioning)."""
+        raw = self._get(f"/api/shorts/{ticker}/interest-float")
+        data = raw.get("data", raw)
         if isinstance(data, list) and len(data) > 0:
             data = data[0]
         return data if isinstance(data, dict) else {}
@@ -657,30 +694,27 @@ class SmartPoller:
         # - Market-sensitive endpoints are polled ONLY during market hours (9:30-16:00 ET)
         # - Slow endpoints keep cadence outside hours (insider/calendar/congress/institutional)
         #
-        # With the default ~53 tickers, these settings target ~13.5k calls/day during market hours
-        # (staying under the 15,000/day quota with buffer).
+        # Board: 5-minute tiered intraday cadence + ~40k requests/day budget.
+        # Full daemon loop additionally sleeps UW_DAEMON_MIN_LOOP_SLEEP_SEC (default 300s).
+        # Tier-1 static (insider, congress, slow FTD) is refreshed by scripts/run_premarket_intel.py.
         self.intervals = {
-            "option_flow": 150,        # 2.5 min: Most critical data, poll frequently
-            "dark_pool_levels": 900,   # 15 min: Important but less time-sensitive
-            "greek_exposure": 3600,    # 60 min: Detailed exposure (changes slowly)
-            "greeks": 3600,            # 60 min: Basic greeks (changes slowly)
-            "top_net_impact": 600,     # 10 min: Market-wide, poll moderately
+            "option_flow": 300,        # 5 min: align with tiered loop
+            "dark_pool_levels": 300,   # 5 min
+            "greek_exposure": 300,     # 5 min passive ML harvest (also merged into greeks)
+            "greeks": 300,             # 5 min
+            "short_interest_float": 300,  # passive squeeze_score harvest (shorts interest-float)
+            "top_net_impact": 600,     # 10 min: Market-wide
             "market_tide": 600,        # 10 min: Market-wide sentiment
-            # Slow-moving endpoints (quota optimization)
-            "insider": 86400,         # 24h: Insider is not real-time (poll daily)
-            "calendar": 604800,       # 7d baseline: Calendar updates infrequently (dynamic override near events)
-            "oi_change": 900,         # 15 min: OI changes per ticker
-            "etf_flow": 3600,         # 60 min: ETF flows per ticker
-            "iv_rank": 3600,          # 60 min: IV rank per ticker
-            "shorts_ftds": 7200,      # 120 min: FTD data changes slowly
-            "max_pain": 1800,         # 30 min: Max pain per ticker
-            # Congress/institutional (official OpenAPI endpoints; slow cadence)
-            "congress_recent_trades": 86400,
+            "calendar": 604800,        # 7d baseline (dynamic override near events)
+            "oi_change": 300,          # 5 min
+            "etf_flow": 300,           # 5 min passive ML harvest
+            "iv_rank": 600,
+            "shorts_ftds": 86400,      # daily: FTD refreshed in premarket_intel job
+            "max_pain": 600,
             "institutional_ownership": 86400,
         }
         # Endpoints that should NOT be slowed down 3x outside market hours.
-        # WHY: Daily/weekly jobs should keep their cadence even when market is closed.
-        self._offhours_exempt = {"insider", "calendar", "congress_recent_trades", "institutional_ownership"}
+        self._offhours_exempt = {"calendar", "institutional_ownership"}
         self.last_call = self._load_state()
     
     def _load_state(self) -> dict:
@@ -729,6 +763,7 @@ class SmartPoller:
                 "dark_pool_levels",
                 "greek_exposure",
                 "greeks",
+                "short_interest_float",
                 "top_net_impact",
                 "market_tide",
                 "oi_change",
@@ -1243,7 +1278,11 @@ class UWFlowDaemon:
                         cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
                         existing_greeks = cache.get(ticker, {}).get("greeks", {})
                         existing_greeks.update(gex_data)  # Merge with existing greeks data
-                        self._update_cache(ticker, {"greeks": existing_greeks})
+                        # Passive ML: retain raw gamma-exposure snapshot alongside merged greeks
+                        self._update_cache(
+                            ticker,
+                            {"greeks": existing_greeks, "greek_exposure": dict(gex_data)},
+                        )
                         print(f"[UW-DAEMON] Updated greek_exposure for {ticker}: {len(gex_data)} fields", flush=True)
                     else:
                         print(f"[UW-DAEMON] greek_exposure for {ticker}: API returned empty", flush=True)
@@ -1311,6 +1350,21 @@ class UWFlowDaemon:
                     # Store empty on error too
                     self._update_cache(ticker, {"etf_flow": {}})
             
+            # Passive ML: short interest / float → squeeze_score-shaped blob (does not replace synthetic engine)
+            if self.poller.should_poll(f"short_interest_float:{ticker}"):
+                try:
+                    print(f"[UW-DAEMON] Polling short_interest_float for {ticker}...", flush=True)
+                    raw_si = self.client.get_short_interest_float(ticker)
+                    squeeze_blob = self._normalize_squeeze_from_interest_float(raw_si)
+                    self._update_cache(ticker, {"squeeze_score": squeeze_blob})
+                    if squeeze_blob.get("signals", 0):
+                        print(f"[UW-DAEMON] Updated squeeze_score harvest for {ticker}: signals={squeeze_blob.get('signals')}", flush=True)
+                    else:
+                        print(f"[UW-DAEMON] short_interest_float for {ticker}: neutral/empty", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching short_interest_float for {ticker}: {e}", flush=True)
+                    self._update_cache(ticker, {"squeeze_score": {}})
+            
             # Poll IV rank (per-ticker)
             if self.poller.should_poll(f"iv_rank:{ticker}"):
                 try:
@@ -1377,19 +1431,8 @@ class UWFlowDaemon:
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
                     self._update_cache(ticker, {"max_pain": {}})
             
-            # Poll insider (per-ticker)
-            if self.poller.should_poll(f"insider:{ticker}"):
-                try:
-                    print(f"[UW-DAEMON] Polling insider for {ticker}...", flush=True)
-                    insider_data = self.client.get_insider(ticker)
-                    if insider_data:
-                        self._update_cache(ticker, {"insider": insider_data})
-                        print(f"[UW-DAEMON] Updated insider for {ticker}: {len(str(insider_data))} bytes", flush=True)
-                    else:
-                        print(f"[UW-DAEMON] insider for {ticker}: API returned empty", flush=True)
-                except Exception as e:
-                    print(f"[UW-DAEMON] Error fetching insider for {ticker}: {e}", flush=True)
-            
+            # Insider is Tier-1 static: refreshed by scripts/run_premarket_intel.py (not intraday daemon).
+
             # Poll calendar (per-ticker)
             # Calendar is slow-moving; dynamically accelerate polling near the next event.
             calendar_interval = None
@@ -1625,6 +1668,33 @@ class UWFlowDaemon:
             "top_holder_pct": round(top1, 4),
             "top5_holder_pct": round(top5, 4),
             "sample": t_items[:3],
+        }
+
+    def _normalize_squeeze_from_interest_float(self, raw: Any) -> Dict[str, Any]:
+        """Map shorts interest-float payload to squeeze_score-shaped dict for cache + ML."""
+        row = raw if isinstance(raw, dict) else {}
+        sip = float(
+            row.get("short_interest_percent")
+            or row.get("short_interest_pct")
+            or row.get("short_percent")
+            or row.get("short_interest")
+            or 0.0
+        )
+        dtc = float(row.get("days_to_cover") or row.get("days_to_cover_ratio") or 0.0)
+        signals = 0
+        if sip >= 15.0:
+            signals += 1
+        if dtc >= 5.0:
+            signals += 1
+        if sip >= 25.0 and dtc >= 3.0:
+            signals += 1
+        return {
+            "signals": int(signals),
+            "short_interest_pct": sip,
+            "days_to_cover": dtc,
+            "high_squeeze_potential": bool(sip >= 35.0 and dtc >= 5.0),
+            "setup": "INTEREST_FLOAT",
+            "source": "uw_short_interest_float",
         }
 
     def _normalize_ftd_for_composite(self, raw: Any) -> Dict[str, Any]:
@@ -1977,25 +2047,25 @@ class UWFlowDaemon:
                             import traceback
                             safe_print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}")
 
-                    # Poll congress recent trades (market-wide) and distribute to tickers.
-                    try:
-                        self._poll_congress_recent_trades_global(force_first=first_poll)
-                    except Exception as e:
-                        safe_print(f"[UW-DAEMON] Error polling congress_recent_trades: {e}")
-                    
-                    # Poll each ticker (optimized delay for rate limit efficiency)
+                    # Congress is Tier-1 static: refreshed by scripts/run_premarket_intel.py (not intraday daemon).
+
+                    # Poll each ticker (optimized delay for rate limit safety)
+                    _tick_sleep = float(os.getenv("UW_DAEMON_INTER_TICKER_SLEEP_SEC", "0.5") or 0.5)
                     for ticker in self.tickers:
                         if not self.running:
                             break
                         self._poll_ticker(ticker)
-                        # 1.5s delay: balances speed with rate limit safety
-                        # With 53 tickers: ~80 seconds per full cycle at 1.5s delay
-                        time.sleep(1.5)
+                        time.sleep(max(0.05, _tick_sleep))
                     
                     # Clear first_poll flag after first cycle
                     if first_poll:
                         first_poll = False
                         safe_print("[UW-DAEMON] Completed first poll cycle - all endpoints attempted")
+
+                    try:
+                        _mirror_uw_daemon_cycle_heartbeat(cycle)
+                    except Exception:
+                        pass
                     
                     # Log cycle completion
                     if cycle % 10 == 0:
@@ -2028,7 +2098,9 @@ class UWFlowDaemon:
                         # #region agent log
                         debug_log("uw_flow_daemon.py:run", "Normal sleep", {"cycle": cycle}, "H2")
                         # #endregion
-                        time.sleep(30)  # Normal: Check every 30 seconds
+                        # Board: minimum 5 minutes between full intraday cycles (40k RPD budget).
+                        _loop_sleep = int(os.getenv("UW_DAEMON_MIN_LOOP_SLEEP_SEC", "300") or 300)
+                        time.sleep(max(300, _loop_sleep))
                 
                 except KeyboardInterrupt:
                     safe_print("[UW-DAEMON] Keyboard interrupt received")
