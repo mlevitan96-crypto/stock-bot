@@ -129,6 +129,12 @@ def build_uw_root_cause(base: Path, date_str: str, window_days: int = 7) -> dict
             expressed_edge += 1
         if d["blocked_count"] > 0 or (reasons and "signal_decay" in str(reasons[-1]).lower() and realized_pnl < 0):
             suppressed += 1
+        # Same component as global aggregate mean; live_entry_adjustments reads per-symbol
+        # uw_signal_quality_score from the candidate row (was missing → always fell back to global).
+        wr_c = max(0, win_rate)
+        sc_c = max(0, min(5, entry_score))
+        pnl_norm_c = max(-1, min(1, (realized_pnl or 0) / 100.0)) if realized_pnl else 0
+        sym_uw_quality = round(sc_c * wr_c * (1 + pnl_norm_c * 0.2), 4)
         candidates.append({
             "symbol": sym,
             "entry_score": entry_score,
@@ -138,17 +144,13 @@ def build_uw_root_cause(base: Path, date_str: str, window_days: int = 7) -> dict
             "exit_reason_distribution": dict(exit_dist),
             "decay_trigger_count": d["decay_count"],
             "blocked_count": d["blocked_count"],
+            "uw_signal_quality_score": sym_uw_quality,
         })
 
     uw_signal_quality_score = 0.0
     if candidates:
         # Weighted: entry_score * win_rate * (1 + pnl_normalized)
-        components = []
-        for c in candidates:
-            wr = max(0, c["win_rate"])
-            sc = max(0, min(5, c["entry_score"]))
-            pnl_norm = max(-1, min(1, (c["realized_pnl"] or 0) / 100.0)) if c["realized_pnl"] else 0
-            components.append(sc * wr * (1 + pnl_norm * 0.2))
+        components = [float(c["uw_signal_quality_score"]) for c in candidates]
         uw_signal_quality_score = round(sum(components) / len(components), 4) if components else 0.0
 
     uw_edge_realization_rate = round(expressed_edge / total_candidates, 4) if total_candidates else 0.0
