@@ -66,7 +66,45 @@ def _mock_intel(sym: str) -> Dict[str, Any]:
         "sentiment": "BULLISH",
         "earnings_proximity": 3,
         "sector_alignment": 0.1,
+        "tier1_static": {"congress_summary": {"recent_count": 0, "buys": 0, "sells": 0, "conviction_boost": 0.0, "source": "mock"}},
     }
+
+
+def _congress_summary_for_symbol(sym: str, items: List[Any]) -> Dict[str, Any]:
+    hits = []
+    for r in items or []:
+        if not isinstance(r, dict):
+            continue
+        t = str(r.get("ticker") or r.get("symbol") or r.get("ticker_symbol") or "").upper()
+        if t == sym:
+            hits.append(r)
+    buys = sells = 0
+    for r in hits:
+        side = str(r.get("type") or r.get("tx_type") or r.get("action") or r.get("side") or "").lower()
+        if "sell" in side:
+            sells += 1
+        elif "buy" in side:
+            buys += 1
+    return {
+        "recent_count": len(hits),
+        "buys": buys,
+        "sells": sells,
+        "conviction_boost": 0.0,
+        "source": "premarket_intel",
+        "sample": hits[:5],
+    }
+
+
+def _insider_summary(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {}
+    data = payload.get("data")
+    if isinstance(data, dict):
+        core = {k: data[k] for k in list(data.keys())[:24]}
+        return {"source": "premarket_intel", "shape": "dict", "core": core}
+    if isinstance(data, list) and data:
+        return {"source": "premarket_intel", "shape": "list", "len": len(data), "head": data[:3]}
+    return {"source": "premarket_intel", "shape": "empty"}
 
 
 def main() -> int:
@@ -83,6 +121,24 @@ def main() -> int:
 
     uw_cfg = (COMPOSITE_WEIGHTS_V2.get("uw") or {}) if isinstance(COMPOSITE_WEIGHTS_V2, dict) else {}
     uw_ver = str(uw_cfg.get("version", ""))
+
+    congress_items: List[Any] = []
+    if (not mock) and syms:
+        try:
+            cg = uw_get(
+                "/api/congress/recent-trades",
+                params={"limit": 500},
+                cache_policy={
+                    "ttl_seconds": 3600,
+                    "endpoint_name": "congress_recent_global",
+                    "max_calls_per_day": 800,
+                },
+            )
+            congress_items = cg.get("data") or []
+            if not isinstance(congress_items, list):
+                congress_items = []
+        except Exception:
+            congress_items = []
 
     symbols: Dict[str, Any] = {}
     for sym in syms:
@@ -135,16 +191,55 @@ def main() -> int:
             flow_strength = 0.0
             darkpool_bias = 0.0
 
+        tier1_static: Dict[str, Any] = {}
+        if not mock:
+            tier1_static["congress_summary"] = _congress_summary_for_symbol(sym, congress_items)
+            try:
+                ins = uw_get(
+                    f"/api/insider/{sym}",
+                    params=None,
+                    cache_policy={
+                        "ttl_seconds": 86_400,
+                        "endpoint_name": "insider_tier1",
+                        "max_calls_per_day": 20_000,
+                    },
+                )
+                tier1_static["insider_summary"] = _insider_summary(ins if isinstance(ins, dict) else {})
+            except Exception as e:
+                tier1_static["insider_summary"] = {"source": "premarket_intel", "error": str(e)[:200]}
+            try:
+                ftd = uw_get(
+                    f"/api/shorts/{sym}/ftds",
+                    params=None,
+                    cache_policy={
+                        "ttl_seconds": 86_400,
+                        "endpoint_name": "ftds_tier1",
+                        "max_calls_per_day": 20_000,
+                    },
+                )
+                rows = ftd.get("data") if isinstance(ftd.get("data"), list) else []
+                tier1_static["ftd"] = {"row_count": len(rows), "sample": rows[:5], "source": "premarket_intel"}
+            except Exception as e:
+                tier1_static["ftd"] = {"source": "premarket_intel", "error": str(e)[:200]}
+        else:
+            tier1_static = {"tier": "mock"}
+
         symbols[sym] = {
             "flow_strength": float(round(flow_strength, 6)),
             "darkpool_bias": float(round(darkpool_bias, 6)),
             "sentiment": "NEUTRAL",
             "earnings_proximity": None,
             "sector_alignment": 0.0,
+            "tier1_static": tier1_static,
         }
 
     out = {
-        "_meta": {"ts": datetime.now(timezone.utc).isoformat(), "uw_intel_version": uw_ver, "mode": mode},
+        "_meta": {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "uw_intel_version": uw_ver,
+            "mode": mode,
+            "tier1_static": True,
+        },
         "symbols": symbols,
         "market": {},
     }
