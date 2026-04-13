@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const POLL_MS = 5000;
+  const POLL_MS = 60000;
   const FETCH_OPTS = { credentials: "include", headers: { Accept: "application/json" } };
 
   const el = (id) => document.getElementById(id);
