@@ -42,6 +42,12 @@ def _load_telemetry() -> Dict:
                 data = json.load(f)
                 # Merge with defaults
                 _telemetry_state.update(data)
+                # json.load returns plain dicts — restore defaultdict(int) counters or += raises KeyError.
+                for _k in ("missing_intel", "neutral_defaults", "core_features_missing"):
+                    if _k in _telemetry_state and isinstance(_telemetry_state[_k], dict):
+                        _dd = defaultdict(int)
+                        _dd.update(_telemetry_state[_k])
+                        _telemetry_state[_k] = _dd
                 # Ensure all required keys exist
                 for key in ["scores", "components", "missing_intel", "defaulted_conviction", 
                            "decay_factors", "neutral_defaults", "core_features_missing"]:

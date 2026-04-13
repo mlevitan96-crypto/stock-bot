@@ -496,6 +496,26 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     enriched_symbol["calendar"] = data.get("calendar", {})
     enriched_symbol["congress"] = data.get("congress", {})
     enriched_symbol["institutional"] = data.get("institutional", {})
+    # Tier-1 static (congress/insider) may live only in state/premarket_intel.json when intraday daemon omits them.
+    try:
+        from utils.state_io import read_json_self_heal
+
+        _pm = read_json_self_heal("state/premarket_intel.json", default={}, heal=True, mkdir=True)
+        _row = (_pm.get("symbols") or {}).get(str(symbol).upper(), {}) if isinstance(_pm, dict) else {}
+        _t1 = _row.get("tier1_static") if isinstance(_row, dict) else None
+        if isinstance(_t1, dict):
+            _cs = _t1.get("congress_summary")
+            if isinstance(_cs, dict) and ("recent_count" in _cs) and not enriched_symbol.get("congress"):
+                enriched_symbol["congress"] = _cs
+            _ins = _t1.get("insider_summary")
+            if isinstance(_ins, dict) and _ins.get("core") and not enriched_symbol.get("insider"):
+                enriched_symbol["insider"] = _ins["core"]
+            elif isinstance(_ins, dict) and isinstance(_ins.get("head"), list) and _ins["head"] and not enriched_symbol.get("insider"):
+                h0 = _ins["head"][0]
+                if isinstance(h0, dict):
+                    enriched_symbol["insider"] = h0
+    except Exception:
+        pass
     # Contract: cache wiring must match UW daemon keys.
     # UW daemon stores fails-to-deliver / shorts endpoint under `ftd_pressure` (not `ftd`).
     enriched_symbol["shorts"] = (
@@ -508,6 +528,8 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     enriched_symbol["iv_rank"] = data.get("iv_rank", {})
     enriched_symbol["oi_change"] = data.get("oi_change", {})
     enriched_symbol["etf_flow"] = data.get("etf_flow", {})
+    if isinstance(data.get("greek_exposure"), dict) and data.get("greek_exposure"):
+        enriched_symbol["greek_exposure"] = data.get("greek_exposure")
 
     # STRUCTURAL UPGRADE (log-only): attach per-symbol volatility/beta features if available.
     # These fields are additive; composite v3 does not consume them yet.
@@ -534,8 +556,10 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
         enriched_symbol["beta_vs_spy"] = float(enriched_symbol.get("beta_vs_spy", 0.0) or 0.0)
     
     # SYNTHETIC SQUEEZE ENGINE: Compute if official squeeze data is missing
-    squeeze_data = data.get("squeeze_score", {})
-    if not squeeze_data or not squeeze_data.get("signals", 0):
+    squeeze_data = data.get("squeeze_score", {}) if isinstance(data.get("squeeze_score"), dict) else {}
+    if squeeze_data.get("source") == "uw_short_interest_float":
+        enriched_symbol["squeeze_score"] = squeeze_data
+    elif not squeeze_data or not squeeze_data.get("signals", 0):
         synthetic_squeeze = _compute_synthetic_squeeze(enriched_symbol, data)
         if synthetic_squeeze:
             enriched_symbol["squeeze_score"] = synthetic_squeeze
