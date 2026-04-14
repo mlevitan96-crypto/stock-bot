@@ -7270,7 +7270,9 @@ class AlpacaExecutor:
                     position_side = "LONG"
                 strength, evaluated, skip_reason = evaluate_signal_for_symbol(sym, signal_context)
                 if evaluated:
-                    now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
+                    # Do not assign to `now_iso` — that name is the module-level UTC timestamp helper
+                    # and shadowing it breaks later `now_iso()` calls in this same function (e.g. B2 suppress path).
+                    signal_eval_ts_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
                     log_system_event(
                         "signals",
                         "signal_strength_evaluated",
@@ -7279,7 +7281,7 @@ class AlpacaExecutor:
                         position_side=position_side,
                         signal_strength=round(strength, 4),
                         evaluation_context="open_position_refresh",
-                        timestamp=now_iso,
+                        timestamp=signal_eval_ts_iso,
                     )
                     prev_entry = existing.get(sym) if isinstance(existing.get(sym), dict) else None
                     prev_strength = None
@@ -7303,7 +7305,7 @@ class AlpacaExecutor:
                     signal_cache_updates[sym] = {
                         "signal_strength": strength,
                         "position_side": position_side,
-                        "evaluated_at": now_iso,
+                        "evaluated_at": signal_eval_ts_iso,
                         "prev_signal_strength": prev_strength,
                         "prev_evaluated_at": prev_evaluated_at,
                         "signal_delta": signal_delta,
@@ -7322,7 +7324,7 @@ class AlpacaExecutor:
                         signal_delta=signal_delta,
                         signal_trend=signal_trend,
                         evaluation_context="open_position_refresh",
-                        timestamp=now_iso,
+                        timestamp=signal_eval_ts_iso,
                         event_schema_version=SIGNAL_TREND_SCHEMA_VERSION,
                     )
                 else:
