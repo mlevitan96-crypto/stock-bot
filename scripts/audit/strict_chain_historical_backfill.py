@@ -71,6 +71,55 @@ def _load_jsonl_event_types(path: Path, types: Set[str], tail_mb: int = 80) -> D
     return out
 
 
+def _canonical_trade_ids_seen_in_orders(logs: Path, ord_bf: Path, *, tail_mb: int = 48) -> Set[str]:
+    """
+    Union of canonical_trade_id values from strict_backfill_orders + tail of orders.jsonl.
+    Used to detect live run_intent/EDM without a matching order row (restart / TWAP / logger gap).
+    """
+    out: Set[str] = set()
+    for path in (ord_bf,):
+        if not path.is_file():
+            continue
+        try:
+            for line in path.open(encoding="utf-8", errors="replace"):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    o = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                c = o.get("canonical_trade_id")
+                if c:
+                    out.add(str(c))
+        except OSError:
+            pass
+    primary = logs / "orders.jsonl"
+    if not primary.is_file():
+        return out
+    try:
+        size = primary.stat().st_size
+        start = max(0, size - tail_mb * 1024 * 1024)
+        with primary.open("rb") as fh:
+            fh.seek(start)
+            if start > 0:
+                fh.readline()
+            for raw in fh:
+                line = raw.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                try:
+                    o = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                c = o.get("canonical_trade_id")
+                if c:
+                    out.add(str(c))
+    except OSError:
+        pass
+    return out
+
+
 def _components_from_exit(ex: dict) -> Dict[str, float]:
     raw = ex.get("components") if isinstance(ex.get("components"), dict) else {}
     out: Dict[str, float] = {}
@@ -136,7 +185,10 @@ def apply_strict_chain_backfill(
     from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
     from telemetry.alpaca_entry_decision_made_emit import build_entry_decision_made_record
 
+    orders_ct = _canonical_trade_ids_seen_in_orders(logs, ord_bf, tail_mb=48)
+
     applied = 0
+    orders_only_applied = 0
     now_iso = datetime.now(timezone.utc).isoformat()
 
     with exit_path.open(encoding="utf-8", errors="replace") as f:
@@ -157,8 +209,6 @@ def apply_strict_chain_backfill(
             m = TID_RE.match(str(tid))
             if not m:
                 continue
-            if str(tid) in have_edm and str(tid) in have_ti:
-                continue
 
             ts_rest = m.group(2)
             iso = ts_rest if "T" in ts_rest else ts_rest.replace(" ", "T")
@@ -172,6 +222,33 @@ def apply_strict_chain_backfill(
                 continue
             tk = str(tk)
             ct = str(ex.get("canonical_trade_id") or tk)
+
+            # Live path already emitted EDM + entered trade_intent, but orders logger missed the key
+            # (common after restarts / partial submit paths). Append additive order row only.
+            if str(tid) in have_edm and str(tid) in have_ti:
+                if ct in orders_ct:
+                    continue
+                if dry_run:
+                    applied += 1
+                    orders_only_applied += 1
+                    continue
+                ord_rec = {
+                    "type": "order",
+                    "symbol": sym,
+                    "side": "buy" if sk.upper() == "LONG" else "sell",
+                    "status": "filled",
+                    "canonical_trade_id": ct,
+                    "trade_key": tk,
+                    "action": "strict_chain_orders_only_backfill",
+                    "trade_id": str(tid),
+                }
+                ord_bf.parent.mkdir(parents=True, exist_ok=True)
+                with ord_bf.open("a", encoding="utf-8") as out:
+                    out.write(json.dumps({"ts": now_iso, **ord_rec}, default=str) + "\n")
+                orders_ct.add(ct)
+                applied += 1
+                orders_only_applied += 1
+                continue
 
             comps = _components_from_exit(ex)
             cluster: Dict[str, Any] = {
@@ -309,6 +386,7 @@ def apply_strict_chain_backfill(
     return {
         "ok": True,
         "applied": applied,
+        "orders_only_applied": orders_only_applied,
         "dry_run": dry_run,
         "exit_attribution_missing": False,
     }
