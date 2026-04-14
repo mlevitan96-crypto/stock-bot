@@ -293,6 +293,50 @@ def _filter_strict_cohort(rec: dict, floor_epoch: float) -> bool:
     return oep >= float(floor_epoch)
 
 
+def _apply_exit_quality_pct_fields(rec: dict, row: Dict[str, Any]) -> None:
+    """
+    Top-level ML targets from ``exit_quality_metrics`` (truth from ``compute_exit_quality_metrics``).
+
+    Stored JSON may use ``mfe`` / ``mae`` (price units) or ``mfe_pct`` / ``mae_pct`` when present.
+    We always emit ``exit_mfe_pct`` and ``exit_mae_pct`` as **percent of entry price** when
+    ``entry_price`` is available; otherwise fall back to raw scalar (legacy rows).
+    """
+    eqm = rec.get("exit_quality_metrics")
+    if not isinstance(eqm, dict):
+        return
+    mfe_raw = eqm.get("mfe_pct")
+    if mfe_raw is None:
+        mfe_raw = eqm.get("mfe")
+    mae_raw = eqm.get("mae_pct")
+    if mae_raw is None:
+        mae_raw = eqm.get("mae")
+    ep = row.get("entry_price")
+    if ep in (None, ""):
+        ep = rec.get("entry_price")
+    try:
+        epf = float(ep) if ep not in (None, "") else None
+    except (TypeError, ValueError):
+        epf = None
+    if mfe_raw is not None and str(mfe_raw).strip() != "":
+        try:
+            mf = float(mfe_raw)
+            if epf and epf > 0:
+                row["exit_mfe_pct"] = round(mf / epf * 100.0, 6)
+            else:
+                row["exit_mfe_pct"] = round(mf, 6)
+        except (TypeError, ValueError):
+            pass
+    if mae_raw is not None and str(mae_raw).strip() != "":
+        try:
+            ma = float(mae_raw)
+            if epf and epf > 0:
+                row["exit_mae_pct"] = round(abs(ma) / epf * 100.0, 6)
+            else:
+                row["exit_mae_pct"] = round(abs(ma), 6)
+        except (TypeError, ValueError):
+            pass
+
+
 def _base_trade_fields(rec: dict) -> Dict[str, Any]:
     side = rec.get("position_side") or rec.get("side") or ""
     pnl = rec.get("pnl")
@@ -381,6 +425,8 @@ def build_rows(
                 stem = blob_key.replace(".", "_")
                 row.update(_prefix_mlf(flat, stem))
 
+        _apply_exit_quality_pct_fields(rec, row)
+
         row["mlf_ml_feature_source"] = "none"
         if snap:
             row["mlf_ml_feature_source"] = "entry_snapshot"
@@ -461,6 +507,8 @@ def _collect_headers(rows: List[Dict[str, Any]]) -> List[str]:
         "variant_id",
         "composite_version",
         "strict_open_epoch_utc",
+        "exit_mfe_pct",
+        "exit_mae_pct",
     ]
     extras = sorted({k for r in rows for k in r.keys() if k not in base})
     return base + extras
