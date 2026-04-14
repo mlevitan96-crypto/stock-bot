@@ -118,7 +118,8 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
                 except Exception:
                     _trade_key = f"{str(_sym).upper()}|LONG|0"
             _ak = get_symbol_attribution_keys(_sym)
-            _canon = rec.get("canonical_trade_id") or _ak.get("canonical_trade_id") or _trade_key
+            # Prefer row ``trade_key`` (entry_ts-aligned) over a stale persisted canonical.
+            _canon = rec.get("trade_key") or rec.get("canonical_trade_id") or _ak.get("canonical_trade_id") or _trade_key
             _pnl = rec.get("pnl")
             emit_exit_attribution(
                 trade_id=trade_id,
