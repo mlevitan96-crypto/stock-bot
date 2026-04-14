@@ -58,12 +58,9 @@ def _load_jsonl_event_types(path: Path, types: Set[str], tail_mb: int = 80) -> D
                 except json.JSONDecodeError:
                     continue
                 et = o.get("event_type")
-                if et == "entry_decision_made" and o.get("trade_id"):
-                    out[et].add(str(o["trade_id"]))
-                if et == "trade_intent" and o.get("trade_id"):
-                    out.setdefault("trade_intent", set()).add(str(o["trade_id"]))
-                if et == "exit_intent" and o.get("trade_id"):
-                    out.setdefault("exit_intent", set()).add(str(o["trade_id"]))
+                tid = o.get("trade_id")
+                if et in out and tid:
+                    out[et].add(str(tid))
         for t in types:
             out.setdefault(t, set())
     except OSError:
