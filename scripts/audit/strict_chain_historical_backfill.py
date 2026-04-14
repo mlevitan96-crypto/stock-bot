@@ -139,10 +139,13 @@ def _iter_jsonl_tail_dicts(path: Path, *, tail_mb: int) -> Iterator[dict]:
         return
 
 
-def _load_unified_entry_canonical_by_trade_id(logs: Path, *, tail_mb: int = 120) -> Dict[str, str]:
+def _load_unified_entry_canonical_by_trade_id(logs: Path, *, tail_mb: int = 512) -> Dict[str, str]:
     """
     Last-seen ``canonical_trade_id`` (or ``trade_key``) per ``trade_id`` on
     ``alpaca_entry_attribution``, in gate order: primary unified then strict backfill unified.
+
+    Uses a large tail because ``alpaca_unified_events.jsonl`` can grow quickly; a small tail
+    drops same-day ``alpaca_entry_attribution`` rows and breaks displacement intent→fill bridges.
     """
     out: Dict[str, str] = {}
     for basename in ("alpaca_unified_events.jsonl", "strict_backfill_alpaca_unified_events.jsonl"):
