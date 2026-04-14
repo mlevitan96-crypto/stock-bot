@@ -4645,15 +4645,20 @@ def _api_positions_impl():
                 gap_flags.append("v2_block_missing")
             if not entry_reason_raw:
                 gap_flags.append("entry_reason_missing")
+        # Capital at entry (notional): |qty| × avg_entry_price (same units as Alpaca position fields).
+        _qty_abs = abs(float(p.qty))
+        _avg_entry = float(p.avg_entry_price)
+        _total_outlay = round(_qty_abs * _avg_entry, 2)
         pos_list.append({
             "symbol": symbol,
             "side": "long" if float(p.qty) > 0 else "short",
-            "qty": abs(float(p.qty)),
-            "avg_entry_price": float(p.avg_entry_price),
+            "qty": _qty_abs,
+            "avg_entry_price": _avg_entry,
             "current_price": float(p.current_price),
             "market_value": abs(float(p.market_value)),
             "unrealized_pnl": float(p.unrealized_pl),
             "unrealized_pnl_pct": float(p.unrealized_plpc) * 100,
+            "total_outlay": _total_outlay,
             "entry_score": float(entry_score),
             "metadata_instrumented": metadata_instrumented,
             "metadata_reconciled_repair_only": metadata_reconciled_only,
