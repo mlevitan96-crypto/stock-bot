@@ -224,6 +224,15 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path, default=REPO_ROOT / "reports" / "Gemini")
     ap.add_argument("--cv", type=int, default=5)
     ap.add_argument("--random-state", type=int, default=42)
+    ap.add_argument(
+        "--export-alpha10",
+        type=Path,
+        default=None,
+        help=(
+            "Train RandomForestRegressor (entry-only features, same pipeline as arena) on all fit rows "
+            "and write a joblib bundle (model + feature_names + impute_medians + meta). Exits after export."
+        ),
+    )
     args = ap.parse_args()
 
     csv_path = args.csv.resolve()
@@ -253,6 +262,39 @@ def main() -> int:
 
     X, y, _ = _build_xy(rows, feat_cols, y_list)
     X, feat_cols = _drop_sparse_features(X, feat_cols)
+
+    if args.export_alpha10:
+        try:
+            import joblib  # type: ignore
+        except ImportError:
+            print("Need joblib for --export-alpha10 (install scikit-learn stack).", file=sys.stderr)
+            return 1
+        medians = np.nanmedian(X.astype(np.float64), axis=0)
+        rf = RandomForestRegressor(
+            n_estimators=200,
+            max_depth=12,
+            min_samples_leaf=3,
+            random_state=args.random_state,
+            n_jobs=-1,
+        )
+        rf.fit(X, y)
+        out_path = args.export_alpha10.resolve()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        bundle = {
+            "model": rf,
+            "feature_names": list(feat_cols),
+            "impute_medians": [float(x) for x in medians.tolist()],
+            "target": target_name,
+            "target_resolution_note": resolution_note,
+            "csv": str(csv_path),
+            "n_rows_fit": int(X.shape[0]),
+            "n_features": int(X.shape[1]),
+            "kind": "alpha10_rf_mfe_bundle_v1",
+        }
+        joblib.dump(bundle, out_path)
+        print(json.dumps({k: v for k, v in bundle.items() if k != "model"}, indent=2))
+        print(f"\nWrote Alpha10 bundle: {out_path}")
+        return 0
 
     kf = KFold(n_splits=min(args.cv, len(y)), shuffle=True, random_state=args.random_state)
 
