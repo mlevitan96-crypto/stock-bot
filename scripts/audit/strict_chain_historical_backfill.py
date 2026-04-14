@@ -19,7 +19,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 TID_RE = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
 
@@ -117,6 +117,154 @@ def _canonical_trade_ids_seen_in_orders(logs: Path, ord_bf: Path, *, tail_mb: in
     return out
 
 
+def _iter_jsonl_tail_dicts(path: Path, *, tail_mb: int) -> Iterator[dict]:
+    if not path.is_file():
+        return
+    try:
+        size = path.stat().st_size
+        start = max(0, size - tail_mb * 1024 * 1024)
+        with path.open("rb") as fh:
+            fh.seek(start)
+            if start > 0:
+                fh.readline()
+            for raw in fh:
+                line = raw.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+    except OSError:
+        return
+
+
+def _load_unified_entry_canonical_by_trade_id(logs: Path, *, tail_mb: int = 120) -> Dict[str, str]:
+    """
+    Last-seen ``canonical_trade_id`` (or ``trade_key``) per ``trade_id`` on
+    ``alpaca_entry_attribution``, in gate order: primary unified then strict backfill unified.
+    """
+    out: Dict[str, str] = {}
+    for basename in ("alpaca_unified_events.jsonl", "strict_backfill_alpaca_unified_events.jsonl"):
+        for o in _iter_jsonl_tail_dicts(logs / basename, tail_mb=tail_mb):
+            if o.get("event_type") != "alpaca_entry_attribution":
+                continue
+            tid = o.get("trade_id")
+            if not tid:
+                continue
+            c = o.get("canonical_trade_id") or o.get("trade_key")
+            if c:
+                out[str(tid)] = str(c)
+    return out
+
+
+def _load_canonical_trade_id_resolved_pairs(
+    logs: Path, run_bf: Path, *, tail_mb_run: int = 96
+) -> Set[Tuple[str, str]]:
+    """(intent_canonical, fill_canonical) edges already present (idempotency)."""
+    pairs: Set[Tuple[str, str]] = set()
+    if run_bf.is_file():
+        try:
+            for line in run_bf.open(encoding="utf-8", errors="replace"):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    o = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if o.get("event_type") != "canonical_trade_id_resolved":
+                    continue
+                ci = o.get("canonical_trade_id_intent")
+                cf = o.get("canonical_trade_id_fill")
+                if ci and cf:
+                    pairs.add((str(ci), str(cf)))
+        except OSError:
+            pass
+    for o in _iter_jsonl_tail_dicts(logs / "run.jsonl", tail_mb=tail_mb_run):
+        if o.get("event_type") != "canonical_trade_id_resolved":
+            continue
+        ci = o.get("canonical_trade_id_intent")
+        cf = o.get("canonical_trade_id_fill")
+        if ci and cf:
+            pairs.add((str(ci), str(cf)))
+    return pairs
+
+
+def _apply_intent_fill_alias_backfills(
+    exit_path: Path,
+    run_bf: Path,
+    unified_entry_ct: Dict[str, str],
+    orders_ct: Set[str],
+    resolver_pairs: Set[Tuple[str, str]],
+    *,
+    dry_run: bool,
+    now_iso: str,
+) -> int:
+    """
+    Strict gate expands aliases via ``canonical_trade_id_resolved`` (undirected).
+    Bridge epoch / displacement rows can log unified entry under one canonical and
+    exit+orders under another; without an edge, ``missing_unified_entry_attribution`` fires.
+    """
+    from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+
+    written = 0
+    with exit_path.open(encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                ex = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            tid = ex.get("trade_id")
+            sym = (ex.get("symbol") or "").strip().upper()
+            if not tid or not sym:
+                continue
+            m = TID_RE.match(str(tid))
+            if not m:
+                continue
+            ts_rest = m.group(2)
+            iso = ts_rest if "T" in ts_rest else ts_rest.replace(" ", "T")
+            if iso.endswith("Z"):
+                iso = iso[:-1] + "+00:00"
+            side_raw = ex.get("side") or ex.get("direction") or "long"
+            sk = normalize_side(side_raw)
+            try:
+                tk = ex.get("trade_key") or build_trade_key(sym, sk, iso)
+            except Exception:
+                continue
+            tk = str(tk)
+            ct = str(ex.get("canonical_trade_id") or tk)
+            if ct not in orders_ct:
+                continue
+            uc = unified_entry_ct.get(str(tid))
+            if not uc or str(uc) == str(ct):
+                continue
+            pair = (str(uc), str(ct))
+            if pair in resolver_pairs:
+                continue
+            if dry_run:
+                written += 1
+                continue
+            row = {
+                "ts": now_iso,
+                "event_type": "canonical_trade_id_resolved",
+                "symbol": sym,
+                "canonical_trade_id_intent": str(uc),
+                "canonical_trade_id_fill": str(ct),
+                "trade_id": str(tid),
+                "action": "strict_chain_intent_fill_alias_backfill",
+            }
+            run_bf.parent.mkdir(parents=True, exist_ok=True)
+            with run_bf.open("a", encoding="utf-8") as out:
+                out.write(json.dumps(row, default=str) + "\n")
+            resolver_pairs.add(pair)
+            written += 1
+    return written
+
+
 def _components_from_exit(ex: dict) -> Dict[str, float]:
     raw = ex.get("components") if isinstance(ex.get("components"), dict) else {}
     out: Dict[str, float] = {}
@@ -183,6 +331,7 @@ def apply_strict_chain_backfill(
     from telemetry.alpaca_entry_decision_made_emit import build_entry_decision_made_record
 
     orders_ct = _canonical_trade_ids_seen_in_orders(logs, ord_bf, tail_mb=48)
+    unified_entry_ct = _load_unified_entry_canonical_by_trade_id(logs)
 
     applied = 0
     orders_only_applied = 0
@@ -380,10 +529,22 @@ def apply_strict_chain_backfill(
             have_ti.add(str(tid))
             applied += 1
 
+    resolver_pairs = _load_canonical_trade_id_resolved_pairs(logs, run_bf)
+    alias_bridge_applied = _apply_intent_fill_alias_backfills(
+        exit_path,
+        run_bf,
+        unified_entry_ct,
+        orders_ct,
+        resolver_pairs,
+        dry_run=dry_run,
+        now_iso=now_iso,
+    )
+
     return {
         "ok": True,
         "applied": applied,
         "orders_only_applied": orders_only_applied,
+        "alias_bridge_applied": alias_bridge_applied,
         "dry_run": dry_run,
         "exit_attribution_missing": False,
     }
@@ -401,7 +562,15 @@ def main() -> int:
     if meta.get("exit_attribution_missing"):
         print("missing", args.root.resolve() / "logs" / "exit_attribution.jsonl")
         return 1
-    print("backfill_count", meta["applied"], "dry_run" if args.dry_run else "applied")
+    print(
+        "backfill_count",
+        meta["applied"],
+        "orders_only",
+        meta.get("orders_only_applied", 0),
+        "alias_bridge",
+        meta.get("alias_bridge_applied", 0),
+        "dry_run" if args.dry_run else "applied",
+    )
     return 0
 
 
