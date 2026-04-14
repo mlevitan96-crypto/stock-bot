@@ -438,7 +438,7 @@
     const rows = Array.isArray(positions) ? positions : [];
     if (!rows.length) {
       const tr = document.createElement("tr");
-      tr.innerHTML = '<td colspan="7" class="muted">No open positions</td>';
+      tr.innerHTML = '<td colspan="8" class="muted">No open positions</td>';
       tbody.appendChild(tr);
       return;
     }
@@ -448,6 +448,13 @@
       tr.className = "data-row";
       const sym = p.symbol != null ? String(p.symbol) : "—";
       const qty = p.qty != null ? String(p.qty) : "—";
+      var outlayRaw =
+        p.total_outlay != null && p.total_outlay !== ""
+          ? p.total_outlay
+          : p.qty != null && p.avg_entry_price != null
+            ? Number(p.qty) * Number(p.avg_entry_price)
+            : null;
+      const outlay = formatMoney(outlayRaw);
       const up = p.unrealized_pnl;
       const pct = p.unrealized_pnl_pct;
       const comp = compositeLabel(p);
@@ -459,6 +466,8 @@
         escapeHtml(sym) +
         "</td><td>" +
         escapeHtml(qty) +
+        "</td><td>" +
+        escapeHtml(outlay) +
         "</td><td>" +
         spanMoney(up) +
         "</td><td>" +
