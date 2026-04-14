@@ -1836,6 +1836,58 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
         _ak: Dict[str, Any] = {}
         try:
             _ak = get_symbol_attribution_keys(symu) or {}
+        except Exception:
+            _ak = {}
+        # When entry_ts advances under the same broker lot (displacement / reconcile) the
+        # per-symbol attribution key can still be the **fill-era** id while strict preflight
+        # uses the new ``intent_canonical``. Bridge fill-era -> current so strict joins see
+        # orders + unified entry rows under one alias set (SRE: WMT incomplete_trade_chain 2026-04-14).
+        _prior_sym_ct = str(_ak.get("canonical_trade_id") or "").strip()
+        if (
+            _prior_sym_ct
+            and intent_canonical
+            and _prior_sym_ct != str(intent_canonical)
+            and _prior_sym_ct != str(fill_trade_key)
+        ):
+            try:
+                jsonl_write(
+                    "run",
+                    {
+                        "event_type": "canonical_trade_id_resolved",
+                        "symbol": symu,
+                        "canonical_trade_id_intent": _prior_sym_ct,
+                        "canonical_trade_id_fill": str(intent_canonical),
+                        "decision_event_id": _ak.get("decision_event_id"),
+                        "symbol_normalized": _ak.get("symbol_normalized") or symu,
+                        "time_bucket_id": _ak.get("time_bucket_id"),
+                        "close_truth_chain_reason": f"{close_reason_tag}:broker_epoch_bridge",
+                    },
+                )
+            except Exception:
+                pass
+            try:
+                from src.telemetry.alpaca_attribution_emitter import emit_entry_attribution
+
+                _raw_br = dict(comps) if comps else {"close_chain": 1.0}
+                _w_br = {k: 1.0 for k in _raw_br}
+                _contrib_br = {k: float(v) if isinstance(v, (int, float)) else 0.0 for k, v in _raw_br.items()}
+                emit_entry_attribution(
+                    trade_id=trade_id_open,
+                    symbol=symu,
+                    side="LONG" if open_norm == "LONG" else "SHORT",
+                    decision="OPEN_LONG" if open_norm == "LONG" else "OPEN_SHORT",
+                    decision_reason=f"strict_chain_epoch_bridge:{close_reason_tag}",
+                    trade_key=str(intent_canonical),
+                    raw_signals=_raw_br,
+                    weights=_w_br,
+                    contributions=_contrib_br,
+                    composite_score=float(entry_score),
+                    timestamp=entry_dt.isoformat(),
+                    schema_role="strict_chain_epoch_bridge",
+                )
+            except Exception:
+                pass
+        try:
             jsonl_write(
                 "run",
                 {
@@ -2990,6 +3042,12 @@ def log_exit_attribution(
                 )
             if not rec.get("canonical_trade_id") and rec.get("trade_key"):
                 rec["canonical_trade_id"] = rec["trade_key"]
+            # Stale ``canonical_trade_id`` from disk merge (pre-displacement broker era) must not
+            # diverge from ``trade_key`` derived from ``entry_ts`` — breaks strict exit_intent joins.
+            if rec.get("trade_key") and rec.get("canonical_trade_id") and str(rec["canonical_trade_id"]) != str(
+                rec["trade_key"]
+            ):
+                rec["canonical_trade_id"] = str(rec["trade_key"])
         except Exception:
             pass
         append_exit_attribution(rec)
