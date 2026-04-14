@@ -11299,6 +11299,109 @@ class StrategyEngine:
                     except Exception:
                         pass
 
+                # Alpha 10: RF predicted exit_mfe_pct gate (fail-open inside gate module).
+                try:
+                    from src.alpha10_gate import check_alpha10_mfe_gate
+
+                    _mc_a10 = market_ctx if isinstance(market_ctx, dict) else {}
+                    _rp_a10 = getattr(self, "regime_posture_v2", None) or {}
+                    if not isinstance(_rp_a10, dict):
+                        _rp_a10 = {}
+                    _risk_a10 = getattr(self, "symbol_risk_features", None) or {}
+                    if not isinstance(_risk_a10, dict):
+                        _risk_a10 = {}
+                    try:
+                        from config.registry import StateFiles, read_json
+                        if not _risk_a10 and hasattr(StateFiles, "SYMBOL_RISK_FEATURES"):
+                            _p_r = getattr(StateFiles, "SYMBOL_RISK_FEATURES", None)
+                            if _p_r and getattr(_p_r, "exists", lambda: False)():
+                                _risk_a10 = read_json(_p_r, default={}) or {}
+                    except Exception:
+                        pass
+                    _a10_ok, _a10_reason, _a10_pred = check_alpha10_mfe_gate(
+                        symbol=symbol,
+                        side=side,
+                        score=float(score),
+                        comps=comps if isinstance(comps, dict) else {},
+                        cluster=c if isinstance(c, dict) else {},
+                        market_context=_mc_a10,
+                        regime_posture=_rp_a10,
+                        symbol_risk=_risk_a10,
+                        api=getattr(self.executor, "api", None),
+                    )
+                    if not _a10_ok and _a10_reason:
+                        print(
+                            f"DEBUG {symbol}: BLOCKED - Alpha10 MFE gate ({_a10_reason} pred={_a10_pred})",
+                            flush=True,
+                        )
+                        try:
+                            _tr_a10 = None
+                            try:
+                                from telemetry.decision_intelligence_trace import (
+                                    append_gate_result,
+                                    build_initial_trace,
+                                    set_final_decision,
+                                )
+
+                                _tr_a10 = build_initial_trace(
+                                    symbol, side, score, comps or {}, c, None, None, self
+                                )
+                                append_gate_result(_tr_a10, "score_gate", True)
+                                append_gate_result(_tr_a10, "capacity_gate", True)
+                                append_gate_result(_tr_a10, "risk_gate", True)
+                                append_gate_result(_tr_a10, "momentum_gate", True)
+                                append_gate_result(_tr_a10, "directional_gate", True)
+                                append_gate_result(_tr_a10, "alpha10_mfe_gate", False, _a10_reason)
+                                set_final_decision(_tr_a10, "blocked", _a10_reason, [])
+                            except Exception:
+                                pass
+                            _emit_trade_intent_blocked(
+                                symbol,
+                                c.get("direction"),
+                                score,
+                                comps or {},
+                                c,
+                                market_regime,
+                                self,
+                                _a10_reason,
+                                intelligence_trace=_tr_a10,
+                            )
+                        except Exception:
+                            pass
+                        log_event(
+                            "gate",
+                            _a10_reason,
+                            symbol=symbol,
+                            score=score,
+                            alpha10_pred_mfe=_a10_pred,
+                        )
+                        log_blocked_trade(
+                            symbol,
+                            _a10_reason,
+                            score,
+                            direction=c.get("direction"),
+                            decision_price=ref_price_check,
+                            components=comps,
+                            market_context=market_ctx,
+                            composite_meta=c.get("composite_meta"),
+                            first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                        )
+                        log_signal_to_history(
+                            symbol=symbol,
+                            direction=direction,
+                            raw_score=raw_score,
+                            whale_boost=whale_boost,
+                            final_score=final_score,
+                            atr_multiplier=atr_multiplier or 0.0,
+                            momentum_pct=momentum_pct,
+                            momentum_required_pct=momentum_required_pct,
+                            decision=f"Blocked: {_a10_reason}",
+                            metadata={"reason": _a10_reason, "alpha10_pred_mfe": _a10_pred},
+                        )
+                        continue
+                except Exception:
+                    pass
+
                 # client_order_id_base already generated above (and includes correlation_id).
                 
                 # Signal snapshot (observability-only): ENTRY_DECISION before placing order
