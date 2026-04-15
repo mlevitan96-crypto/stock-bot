@@ -22,6 +22,39 @@ from utils.signal_normalization import normalize_signals
 from src.exit.exit_attribution_enrich import enrich_exit_row
 
 
+def merge_composite_components_at_entry(metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Build the entry-time UW / v2 composite component dict for exit rows and audits.
+
+    ``metadata['v2']`` historically held only ``v2_uw_inputs`` / profiles, while
+    ``greeks_gamma`` and ``market_tide`` live under ``compute_composite_score_v2``'s
+    ``components`` — which were also stored at ``metadata['components']`` for ML,
+    but were not copied into ``v2``. Merge top-level ``components``, optional
+    ``v2['feature_snapshot']``, then ``v2['components']`` so later keys win (UW v2
+    snapshot is authoritative on overlap).
+    """
+    meta = metadata if isinstance(metadata, dict) else {}
+    v2 = meta.get("v2") if isinstance(meta.get("v2"), dict) else {}
+    top = meta.get("components") if isinstance(meta.get("components"), dict) else {}
+    fs = v2.get("feature_snapshot") if isinstance(v2.get("feature_snapshot"), dict) else {}
+    v2c = v2.get("components") if isinstance(v2.get("components"), dict) else {}
+    merged: Dict[str, Any] = {}
+    merged.update(top)
+    merged.update(fs)
+    merged.update(v2c)
+    return merged
+
+
+def _telemetry_alert(subsystem: str, event_type: str, severity: str, **fields: Any) -> None:
+    """SRE visibility for exit-path I/O failures; must never raise."""
+    try:
+        from utils.system_events import log_system_event
+
+        log_system_event(subsystem, event_type, severity, **fields)
+    except Exception:
+        pass
+
+
 # Allow regression runs to isolate log outputs (prevents polluting droplet logs).
 OUT = Path(os.environ.get("EXIT_ATTRIBUTION_LOG_PATH", "logs/exit_attribution.jsonl"))
 _EXIT_EVENT_LOG = Path(os.environ.get("EXIT_EVENT_LOG_PATH", "logs/exit_event.jsonl"))
@@ -41,7 +74,14 @@ def append_exit_event(evt: Dict[str, Any]) -> None:
         _EXIT_EVENT_LOG.parent.mkdir(parents=True, exist_ok=True)
         with _EXIT_EVENT_LOG.open("a", encoding="utf-8") as f:
             f.write(json.dumps(evt, default=str) + "\n")
-    except Exception:
+    except Exception as e:
+        _telemetry_alert(
+            "exit_attribution",
+            "append_exit_event_failed",
+            "WARN",
+            symbol=str((evt or {}).get("symbol") or "") or None,
+            details={"error": str(e)[:400]},
+        )
         return
 
 
@@ -51,7 +91,14 @@ def append_exit_signal_snapshot(rec: Dict[str, Any]) -> None:
         _EXIT_SIGNAL_SNAPSHOT_LOG.parent.mkdir(parents=True, exist_ok=True)
         with _EXIT_SIGNAL_SNAPSHOT_LOG.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
-    except Exception:
+    except Exception as e:
+        _telemetry_alert(
+            "exit_attribution",
+            "append_exit_signal_snapshot_failed",
+            "WARN",
+            symbol=str(rec.get("symbol") or "") or None,
+            details={"error": str(e)[:400]},
+        )
         return
 
 
@@ -61,8 +108,14 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
             from src.telemetry.strict_chain_guard import record_econ_close_chain_checkpoint
 
             record_econ_close_chain_checkpoint(rec)
-        except Exception:
-            pass
+        except Exception as e:
+            _telemetry_alert(
+                "exit_attribution",
+                "econ_close_chain_checkpoint_failed",
+                "WARN",
+                symbol=str(rec.get("symbol") or "") or None,
+                details={"error": str(e)[:400]},
+            )
         OUT.parent.mkdir(parents=True, exist_ok=True)
         # Defensive: if signals are ever passed through, ensure schema correctness.
         if isinstance(rec, dict) and "signals" in rec:
@@ -71,8 +124,14 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
         # MODE/STRATEGY/REGIME ENRICHMENT (governance-grade bucketing)
         try:
             rec = enrich_exit_row(rec, position=None, order=None, context=None)
-        except Exception:
-            pass
+        except Exception as e:
+            _telemetry_alert(
+                "exit_attribution",
+                "enrich_exit_row_failed",
+                "WARN",
+                symbol=str(rec.get("symbol") or "") or None,
+                details={"error": str(e)[:400]},
+            )
         with OUT.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
         # Canonical exit attribution (dominant + margins + snapshot)
@@ -121,6 +180,15 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
             # Prefer row ``trade_key`` (entry_ts-aligned) over a stale persisted canonical.
             _canon = rec.get("trade_key") or rec.get("canonical_trade_id") or _ak.get("canonical_trade_id") or _trade_key
             _pnl = rec.get("pnl")
+            _fees_raw = rec.get("fees_usd")
+            if _fees_raw is None:
+                _fees_raw = rec.get("fee_usd")
+            if _fees_raw is None:
+                _fees_raw = rec.get("commission_usd")
+            try:
+                _fees_emit = abs(float(_fees_raw)) if _fees_raw is not None else 0.0
+            except (TypeError, ValueError):
+                _fees_emit = 0.0
             emit_exit_attribution(
                 trade_id=trade_id,
                 symbol=_sym,
@@ -130,7 +198,7 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
                 canonical_trade_id=str(_canon) if _canon is not None else None,
                 terminal_close=True,
                 realized_pnl_usd=float(_pnl) if _pnl is not None else None,
-                fees_usd=0.0,
+                fees_usd=float(_fees_emit),
                 entry_time_iso=_entry_ts,
                 side=_side,
                 exit_components_raw=dict(v2_comp),
@@ -155,15 +223,34 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
                     error=str(ex)[:500],
                     traceback_tail=tb_tail,
                 )
-            except Exception:
-                pass
+            except Exception as e2:
+                _telemetry_alert(
+                    "exit_attribution",
+                    "unified_exit_emit_learning_blocker_failed",
+                    "WARN",
+                    symbol=sym_fb,
+                    details={"error": str(e2)[:400]},
+                )
         # CTR mirror (Phase 1: when TRUTH_ROUTER_ENABLED=1)
         try:
             from src.infra.truth_router import append_jsonl as ctr_append
             ctr_append("exits/exit_attribution.jsonl", rec, expected_max_age_sec=600)
-        except Exception:
-            pass
-    except Exception:
+        except Exception as e:
+            _telemetry_alert(
+                "exit_attribution",
+                "truth_router_exit_attribution_mirror_failed",
+                "WARN",
+                symbol=str(rec.get("symbol") or "") or None,
+                details={"error": str(e)[:400]},
+            )
+    except Exception as e:
+        _telemetry_alert(
+            "exit_attribution",
+            "append_exit_attribution_outer_failed",
+            "ERROR",
+            symbol=str((rec or {}).get("symbol") or "") or None,
+            details={"error": str(e)[:500]},
+        )
         return
 
 
