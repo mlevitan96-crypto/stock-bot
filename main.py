@@ -218,10 +218,10 @@ def build_composite_close_reason(exit_signals: dict) -> str:
         else:
             reasons.append("trail_stop")
     
-    # Signal decay
+    # Signal decay (only when decay actually contributed to the exit decision; avoids attribution gaslighting)
     signal_decay = exit_signals.get("signal_decay")
-    if signal_decay is not None and signal_decay < 1.0:
-        reasons.append(f"signal_decay({signal_decay:.2f})")
+    if exit_signals.get("signal_decay_exit") and signal_decay is not None and float(signal_decay) < 1.0:
+        reasons.append(f"signal_decay({float(signal_decay):.2f})")
     
     # Flow reversal
     if exit_signals.get("flow_reversal"):
@@ -229,6 +229,8 @@ def build_composite_close_reason(exit_signals: dict) -> str:
     
     # Profit target
     profit_target = exit_signals.get("profit_target")
+    if profit_target is None and exit_signals.get("profit_target_075"):
+        profit_target = 0.0075
     if profit_target is not None and profit_target > 0:
         reasons.append(f"profit_target({int(profit_target*100)}%)")
     
@@ -308,6 +310,29 @@ from monitoring_guards import (
 # Load .env from repo root so env vars (e.g. ENTRY_THRESHOLD_BASE, DISABLE_ADAPTIVE_WEIGHTS) are set even when cwd differs (e.g. systemd).
 _REPO_ROOT = Path(__file__).resolve().parent
 load_dotenv(_REPO_ROOT / ".env")
+
+# Optional evidence-based exit bands from MFE/MAE sweep (reloaded when file mtime changes).
+_MFE_MAE_OVERLAY_CACHE: Optional[Dict[str, Any]] = None
+_MFE_MAE_OVERLAY_MTIME: float = 0.0
+
+
+def _mfe_mae_exit_overlay_apply() -> Dict[str, Any]:
+    global _MFE_MAE_OVERLAY_CACHE, _MFE_MAE_OVERLAY_MTIME
+    try:
+        p = _REPO_ROOT / "config" / "overlays" / "mfe_mae_exit_overlay.json"
+        if not p.is_file():
+            return {}
+        m = p.stat().st_mtime
+        if _MFE_MAE_OVERLAY_CACHE is not None and m == _MFE_MAE_OVERLAY_MTIME:
+            return _MFE_MAE_OVERLAY_CACHE
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        apply_obj = raw.get("apply") if isinstance(raw.get("apply"), dict) else raw
+        _MFE_MAE_OVERLAY_CACHE = dict(apply_obj or {})
+        _MFE_MAE_OVERLAY_MTIME = m
+        return _MFE_MAE_OVERLAY_CACHE
+    except Exception:
+        return {}
+
 
 # Paper-mode intelligence overrides (CONFIG-ONLY, paper-only). Apply before Config.
 try:
@@ -738,6 +763,51 @@ def _log_telemetry_chain_startup_banner() -> None:
             strict_runlog_effective=strict_runlog_effective(),
             run_jsonl_abspath=run_abs,
         )
+        # SRE/journalctl proof line (systemd captures stdout).
+        try:
+            _a11_en = os.environ.get("ALPHA11_FLOW_GATE_ENABLED", "1").strip().lower() in ("1", "true", "yes", "on")
+            _a11_min = os.environ.get("ALPHA11_MIN_FLOW_STRENGTH", "0.985").strip()
+            print(
+                f"ALPHA11_FLOW_GATE initialized enabled={_a11_en} min_flow_strength={_a11_min}",
+                flush=True,
+            )
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
+def _rotate_jsonl_file(path_str: str, max_bytes: int, backup_count: int) -> None:
+    """When ``path_str`` exceeds ``max_bytes``, rotate to ``{name}.1`` … ``.{backup_count}`` (drop oldest)."""
+    try:
+        p = Path(path_str)
+        if not p.is_file() or max_bytes <= 0 or backup_count <= 0:
+            return
+        if p.stat().st_size < max_bytes:
+            return
+        last = p.parent / f"{p.name}.{backup_count}"
+        if last.is_file():
+            try:
+                last.unlink()
+            except OSError:
+                pass
+        for i in range(backup_count - 1, 0, -1):
+            src = p.parent / f"{p.name}.{i}"
+            dst = p.parent / f"{p.name}.{i + 1}"
+            if src.is_file():
+                try:
+                    if dst.is_file():
+                        dst.unlink()
+                    src.rename(dst)
+                except OSError:
+                    pass
+        dst1 = p.parent / f"{p.name}.1"
+        if dst1.is_file():
+            try:
+                dst1.unlink()
+            except OSError:
+                pass
+        p.rename(dst1)
     except Exception:
         pass
 
@@ -748,6 +818,14 @@ def jsonl_write(name, record):
         path = str(ATTRIBUTION_LOG_PATH)
     else:
         path = os.path.join(LOG_DIR, f"{name}.jsonl")
+    # Retention: large run.jsonl rotations (SRE: strict gate / ML continuity on droplet).
+    if name == "run":
+        try:
+            _mb = int(os.environ.get("RUN_JSONL_ROTATE_MAX_BYTES", str(500 * 1024 * 1024)) or 0)
+            _bc = int(os.environ.get("RUN_JSONL_ROTATE_BACKUP_COUNT", "30") or 0)
+            _rotate_jsonl_file(path, _mb, _bc)
+        except Exception:
+            pass
     # Multi-strategy: inject strategy_id from context when available
     try:
         from strategies.context import get_strategy_id
@@ -1566,13 +1644,69 @@ def log_order(event: dict):
                     _row = _md.get(_sk) if isinstance(_md.get(_sk), dict) else _md.get(sym)
                     if isinstance(_row, dict) and _row.get("canonical_trade_id"):
                         ev["canonical_trade_id"] = _row["canonical_trade_id"]
-            except Exception:
-                pass
+            except Exception as _e_ord_md:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "log_order_metadata_canonical_failed",
+                        "WARN",
+                        symbol=str(sym).upper() if sym else None,
+                        details={"error": str(_e_ord_md)[:400]},
+                    )
+                except Exception:
+                    pass
+        # Strict gate: orders.jsonl is indexed by canonical_trade_id only — derive from live
+        # position open (entry_ts + side) when still missing (stale or pre-fill rows).
+        if sym and not ev.get("canonical_trade_id"):
+            try:
+                from config.registry import StateFiles, load_metadata_with_lock
+                from datetime import datetime as _dt_ord
+                from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _ns_ord
+
+                _mp2 = StateFiles.POSITION_METADATA
+                if _mp2.exists():
+                    _md2 = load_metadata_with_lock(_mp2)
+                    _sk2 = str(sym).strip().upper()
+                    _r2 = _md2.get(_sk2) if isinstance(_md2.get(_sk2), dict) else _md2.get(sym)
+                    if isinstance(_r2, dict):
+                        _etr = _r2.get("ts") or _r2.get("entry_ts")
+                        if _etr:
+                            if isinstance(_etr, _dt_ord):
+                                _ed = _etr.astimezone(timezone.utc) if _etr.tzinfo else _etr.replace(tzinfo=timezone.utc)
+                            else:
+                                _ed = _dt_ord.fromisoformat(str(_etr).strip().replace("Z", "+00:00"))
+                                if _ed.tzinfo is None:
+                                    _ed = _ed.replace(tzinfo=timezone.utc)
+                                else:
+                                    _ed = _ed.astimezone(timezone.utc)
+                            _os = str(_r2.get("side") or "buy").lower()
+                            _norm = _ns_ord("buy" if _os in ("buy", "long") else "sell")
+                            ev["canonical_trade_id"] = build_trade_key(_sk2, _norm, _ed)
+            except Exception as _e_ord_btk:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "log_order_build_trade_key_failed",
+                        "WARN",
+                        symbol=str(sym).upper() if sym else None,
+                        details={"error": str(_e_ord_btk)[:400]},
+                    )
+                except Exception:
+                    pass
         if sym:
             merge_attribution_keys_into_record(sym, ev, overwrite=False)
         ev = attach_paper_economics_defaults(ev)
-    except Exception:
-        pass
+    except Exception as _e_log_order:
+        try:
+            log_system_event(
+                "telemetry_chain",
+                "log_order_enrichment_failed",
+                "ERROR",
+                symbol=str(ev.get("symbol") or "").upper() or None,
+                details={"error": str(_e_log_order)[:500]},
+            )
+        except Exception:
+            pass
     jsonl_write("orders", {"type": "order", **ev})
 
 
@@ -1778,10 +1912,29 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
         if not isinstance(info, dict):
             return
 
+        # Disk metadata is the stable lot identity; ``executor.opens`` can carry a drifting
+        # ``canonical_trade_id`` / clock (SRE: NVDA displacement_close strict join 2026-04-15).
+        md_pos: Dict[str, Any] = {}
+        try:
+            from config.registry import StateFiles, load_metadata_with_lock
+
+            _mp0 = StateFiles.POSITION_METADATA
+            if _mp0.exists():
+                _md_all0 = load_metadata_with_lock(_mp0)
+                _row0 = _md_all0.get(symbol) if isinstance(_md_all0.get(symbol), dict) else _md_all0.get(symu)
+                if isinstance(_row0, dict):
+                    md_pos = _row0
+        except Exception:
+            md_pos = {}
+
         # Align entry instant and open_* trade_id with ``log_exit_attribution``:
         # context["entry_ts"] is ``entry_dt.isoformat()`` (aware UTC, preserves subseconds).
         # ``build_trade_key`` floors to whole seconds internally.
+        # Subsecond parity with ``open_{SYM}_{entry_ts}`` trade_ids: always derive entry_dt
+        # from ``executor.opens`` when present; disk metadata is used only for canonical id.
         entry_ts_raw = info.get("ts") or info.get("entry_ts")
+        if not entry_ts_raw:
+            entry_ts_raw = md_pos.get("entry_ts") or md_pos.get("ts")
         entry_dt: Optional[datetime] = None
         if isinstance(entry_ts_raw, datetime):
             entry_dt = entry_ts_raw.astimezone(timezone.utc)
@@ -1798,13 +1951,37 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
         if entry_dt is None:
             return
 
-        from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+        from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side, normalize_symbol
+
+        def _open_leg_canonical_matches(sym: str, open_norm_side: str, ct: str) -> bool:
+            t = (ct or "").strip()
+            if not t or str(t).upper().startswith("BLOCKED|"):
+                return False
+            parts = t.split("|")
+            if len(parts) != 3:
+                return False
+            if normalize_symbol(parts[0]) != sym:
+                return False
+            if normalize_side(parts[1]) != open_norm_side:
+                return False
+            try:
+                int(parts[2])
+            except ValueError:
+                return False
+            return True
 
         trade_id_open = f"open_{symu}_{entry_dt.isoformat()}"
         open_side_raw = str(info.get("side") or "buy").lower()
         open_norm = normalize_side("buy" if open_side_raw == "buy" else "sell")
         exit_norm = "SHORT" if open_norm == "LONG" else "LONG"
-        intent_canonical = str(info.get("canonical_trade_id") or "").strip()
+        intent_canonical = ""
+        for _cand in (
+            str(md_pos.get("canonical_trade_id") or "").strip(),
+            str(info.get("canonical_trade_id") or "").strip(),
+        ):
+            if _open_leg_canonical_matches(symu, open_norm, _cand):
+                intent_canonical = _cand
+                break
         if not intent_canonical:
             intent_canonical = build_trade_key(symu, open_norm, entry_dt)
         fill_trade_key = build_trade_key(symu, exit_norm, entry_dt)
@@ -1828,8 +2005,18 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
             _trace = build_initial_trace(symu, side_order, entry_score, comps or {}, c, None, None, executor)
             append_gate_result(_trace, "score_gate", True)
             set_final_decision(_trace, "entered", close_reason_tag, [])
-        except Exception:
+        except Exception as _e_trace:
             _trace = None
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "strict_truth_chain_intelligence_trace_build_failed",
+                    "WARN",
+                    symbol=symu,
+                    details={"error": str(_e_trace)[:400]},
+                )
+            except Exception:
+                pass
 
         from telemetry.attribution_emit_keys import get_symbol_attribution_keys
 
@@ -1863,8 +2050,17 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
                         "close_truth_chain_reason": f"{close_reason_tag}:broker_epoch_bridge",
                     },
                 )
-            except Exception:
-                pass
+            except Exception as _e_bridge_jsonl:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "strict_truth_chain_broker_epoch_bridge_jsonl_failed",
+                        "WARN",
+                        symbol=symu,
+                        details={"error": str(_e_bridge_jsonl)[:400]},
+                    )
+                except Exception:
+                    pass
             try:
                 from src.telemetry.alpaca_attribution_emitter import emit_entry_attribution
 
@@ -1885,8 +2081,17 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
                     timestamp=entry_dt.isoformat(),
                     schema_role="strict_chain_epoch_bridge",
                 )
-            except Exception:
-                pass
+            except Exception as _e_bridge_emit:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "strict_truth_chain_epoch_bridge_unified_emit_failed",
+                        "WARN",
+                        symbol=symu,
+                        details={"error": str(_e_bridge_emit)[:400]},
+                    )
+                except Exception:
+                    pass
         try:
             jsonl_write(
                 "run",
@@ -1901,8 +2106,17 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
                     "close_truth_chain_reason": close_reason_tag,
                 },
             )
-        except Exception:
-            pass
+        except Exception as _e_res_jsonl:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "strict_truth_chain_canonical_resolved_jsonl_failed",
+                    "ERROR",
+                    symbol=symu,
+                    details={"error": str(_e_res_jsonl)[:400]},
+                )
+            except Exception:
+                pass
 
         if _trace:
             try:
@@ -1923,8 +2137,17 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
                     symbol_normalized=str(_ak.get("symbol_normalized") or symu),
                     phase2_enabled=strict_runlog_effective(),
                 )
-            except Exception:
-                pass
+            except Exception as _e_edm2:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "strict_truth_chain_entry_decision_made_failed",
+                        "ERROR",
+                        symbol=symu,
+                        details={"error": str(_e_edm2)[:500]},
+                    )
+                except Exception:
+                    pass
 
             try:
                 _emit_trade_intent(
@@ -1940,11 +2163,22 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
                     blocked_reason=None,
                     intelligence_trace=_trace,
                     canonical_trade_id_override=str(intent_canonical),
-                    trade_key_override=str(fill_trade_key),
+                    # Align trade_intent.trade_key with open-leg canonical so strict gate aliases
+                    # (seeded from unified exit) join without relying on intent<->fill opposite-side edges.
+                    trade_key_override=str(intent_canonical),
                     trade_id_open=trade_id_open,
                 )
-            except Exception:
-                pass
+            except Exception as _e_ti:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "strict_truth_chain_trade_intent_entered_failed",
+                        "ERROR",
+                        symbol=symu,
+                        details={"error": str(_e_ti)[:500]},
+                    )
+                except Exception:
+                    pass
             try:
                 jsonl_write(
                     "run",
@@ -1952,12 +2186,21 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
                         "event_type": "exit_intent",
                         "symbol": symu,
                         "canonical_trade_id": str(intent_canonical),
-                        "trade_key": str(fill_trade_key),
+                        "trade_key": str(intent_canonical),
                         "thesis_break_reason": f"preflight_close_chain:{close_reason_tag}",
                     },
                 )
-            except Exception:
-                pass
+            except Exception as _e_ei:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "strict_truth_chain_preflight_exit_intent_write_failed",
+                        "ERROR",
+                        symbol=symu,
+                        details={"error": str(_e_ei)[:400]},
+                    )
+                except Exception:
+                    pass
     except Exception as e:
         try:
             log_event("telemetry", "close_truth_chain_emit_failed", symbol=str(symbol), error=str(e)[:400])
@@ -2423,6 +2666,9 @@ def log_exit_attribution(
     exit_regime_decision: str = "normal",
     exit_regime_reason: str = "",
     exit_regime_context: Optional[dict] = None,
+    strict_chain_executor: Any = None,
+    fees_usd: Optional[float] = None,
+    exit_slippage_bps: Optional[float] = None,
 ):
     """
     Log complete exit attribution with actual P&L for ML learning.
@@ -2453,8 +2699,17 @@ def log_exit_attribution(
                     _mv2 = metadata.get("v2")
                     if not isinstance(_mv2, dict) or not (_mv2.get("v2_uw_inputs") or {}):
                         metadata["v2"] = {**(_mv2 if isinstance(_mv2, dict) else {}), **_dv2}
-    except Exception:
-        pass
+    except Exception as _e_pmd_exit:
+        try:
+            log_system_event(
+                "telemetry_chain",
+                "exit_attribution_position_metadata_merge_failed",
+                "WARN",
+                symbol=str(symbol).upper(),
+                details={"error": str(_e_pmd_exit)[:400]},
+            )
+        except Exception:
+            pass
 
     entry_price = info.get("entry_price", 0.0)
     entry_qty = info.get("qty", 1)
@@ -2479,8 +2734,17 @@ def log_exit_attribution(
                     entry_ts = parsed_ts.replace(tzinfo=timezone.utc)
                 else:
                     entry_ts = parsed_ts.astimezone(timezone.utc)
-        except:
-            pass
+        except Exception as _e_meta_ts:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "exit_attribution_metadata_entry_ts_parse_failed",
+                    "WARN",
+                    symbol=str(symbol).upper(),
+                    details={"error": str(_e_meta_ts)[:400]},
+                )
+            except Exception:
+                pass
     
     # FIX: Normalize entry_ts to aware UTC for safe arithmetic
     if hasattr(entry_ts, 'tzinfo') and entry_ts.tzinfo is None:
@@ -2549,8 +2813,17 @@ def log_exit_attribution(
                 side=pos_side,
                 notes=[f"exit:{close_reason}"],
             )
-    except Exception:
-        pass
+    except Exception as _e_exit_snap:
+        try:
+            log_system_event(
+                "telemetry_chain",
+                "exit_attribution_signal_snapshot_failed",
+                "WARN",
+                symbol=str(symbol).upper(),
+                details={"error": str(_e_exit_snap)[:400]},
+            )
+        except Exception:
+            pass
     # Attribution integrity: normalize position side and correct P&L if needed.
     # WHY: Production saw sign flips when 'side' is 'long'/'short' rather than 'buy'/'sell'.
     # HOW TO VERIFY: grep logs/attribution.jsonl for 'attribution_pnl_corrected' (should be rare, only anomalies).
@@ -2750,15 +3023,28 @@ def log_exit_attribution(
                 "source": "live",
                 }
             )
-    except Exception:
-        pass
+    except Exception as _e_mtl_early:
+        try:
+            log_system_event(
+                "telemetry_chain",
+                "exit_attribution_master_trade_early_block_failed",
+                "WARN",
+                symbol=str(symbol).upper(),
+                details={"error": str(_e_mtl_early)[:400]},
+            )
+        except Exception:
+            pass
 
     # Strict gate: same join keys as exit_attribution.jsonl row (passed to exit_intent below).
     _exit_row_for_intent: Optional[dict] = None
 
     # v2 exit attribution (append-only, never blocks).
     try:
-        from src.exit.exit_attribution import build_exit_attribution_record, append_exit_attribution
+        from src.exit.exit_attribution import (
+            append_exit_attribution,
+            build_exit_attribution_record,
+            merge_composite_components_at_entry,
+        )
 
         meta = metadata if isinstance(metadata, dict) else {}
         v2_entry = meta.get("v2", {}) if isinstance(meta.get("v2"), dict) else {}
@@ -2790,8 +3076,17 @@ def log_exit_attribution(
                         symbol=str(symbol).upper(),
                         keys=list(_bf.keys())[:12],
                     )
-        except Exception:
-            pass
+        except Exception as _e_uw_bf:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "exit_attribution_entry_uw_backfill_failed",
+                    "WARN",
+                    symbol=str(symbol).upper(),
+                    details={"error": str(_e_uw_bf)[:400]},
+                )
+            except Exception:
+                pass
 
         v2_exit_score = float(v2_exit.get("v2_exit_score") or 0.0)
         v2_exit_components = v2_exit.get("v2_exit_components", {}) if isinstance(v2_exit.get("v2_exit_components"), dict) else {}
@@ -2829,8 +3124,17 @@ def log_exit_attribution(
                 qty=float(context.get("qty") or 1),
                 side=str(info.get("side") or "buy"),
             )
-        except Exception:
-            pass
+        except Exception as _e_eqm:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "exit_attribution_exit_quality_metrics_failed",
+                    "WARN",
+                    symbol=str(symbol).upper(),
+                    details={"error": str(_e_eqm)[:400]},
+                )
+            except Exception:
+                pass
 
         variant_id = (metadata or {}).get("variant_id") or (info or {}).get("variant_id") if isinstance(metadata, dict) or isinstance(info, dict) else None
         # B2_live_paper: tag exits when B2 is active in PAPER mode for attribution (CSA_TRADE_100_20260306-002808).
@@ -2839,6 +3143,29 @@ def log_exit_attribution(
         # Join key: exit record must carry entry trade_id so attribution_loader can match by trade_id (primary) or symbol|entry_ts_bucket (fallback).
         entry_ts_iso_attr = str(context.get("entry_ts") or "")
         open_trade_id = f"open_{str(symbol).upper()}_{entry_ts_iso_attr}" if entry_ts_iso_attr else None
+        # Ultra-fast / displacement: strict preflight may not have persisted before broker close.
+        # Re-run close truth chain while position context is still in executor.opens / metadata.
+        if strict_chain_executor is not None and strict_runlog_effective() and open_trade_id:
+            try:
+                _cr_ul = str(close_reason or "").lower()
+                _need_preflight = ("displac" in _cr_ul) or (hold_minutes < (10.0 / 60.0))
+                if _need_preflight:
+                    _emit_close_or_flip_strict_truth_chain(
+                        strict_chain_executor,
+                        str(symbol),
+                        close_reason_tag="exit_attribution_ultrafast_preflight",
+                    )
+            except Exception as _e_preflt:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "exit_attribution_ultrafast_preflight_failed",
+                        "WARN",
+                        symbol=str(symbol).upper(),
+                        details={"error": str(_e_preflt)[:400]},
+                    )
+                except Exception:
+                    pass
         # Directional intelligence telemetry (exit snapshot + deltas; no behavior change). Computed once for rec and evt.
         _direction_intel_embed = None
         try:
@@ -2891,6 +3218,10 @@ def log_exit_attribution(
             entry_order_id=str(entry_order_id) if entry_order_id else None,
             exit_ts=exit_ts_iso,
         )
+        if fees_usd is not None:
+            rec["fees_usd"] = float(fees_usd)
+        if exit_slippage_bps is not None:
+            rec["exit_slippage_bps"] = float(exit_slippage_bps)
         # Truth-warehouse join: duplicate broker order id under order_id (mission gate).
         if exit_order_id:
             rec["order_id"] = str(exit_order_id)
@@ -2904,10 +3235,15 @@ def log_exit_attribution(
             )
             from src.exit.exit_attribution import append_exit_signal_snapshot, append_exit_event
 
-            composite_at_entry = float(info.get("entry_score") or v2_entry.get("score") or 0.0)
+            composite_at_entry = float(
+                info.get("entry_score")
+                or v2_entry.get("score")
+                or meta.get("entry_score")
+                or 0.0
+            )
             now_v2 = (v2_exit.get("now_v2") or {}) if isinstance(v2_exit.get("now_v2"), dict) else {}
             composite_at_exit = float(v2_exit.get("now_v2_score") or now_v2.get("score") or 0.0)
-            composite_components_entry = dict(v2_entry.get("components") or v2_entry.get("feature_snapshot") or {})
+            composite_components_entry = merge_composite_components_at_entry(meta)
             composite_components_exit = dict(now_v2.get("components") or now_v2.get("feature_snapshot") or {})
 
             exit_components_granular = build_exit_components_granular(
@@ -3011,10 +3347,28 @@ def log_exit_attribution(
                     "exit_reason": str(close_reason or ""),
                     "source": "live",
                 })
+            except Exception as _e_mtl:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "exit_attribution_master_trade_log_failed",
+                        "WARN",
+                        symbol=str(symbol).upper(),
+                        details={"error": str(_e_mtl)[:400]},
+                    )
+                except Exception:
+                    pass
+        except Exception as _e_exit_tel:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "exit_attribution_exit_telemetry_block_failed",
+                    "ERROR",
+                    symbol=str(symbol).upper(),
+                    details={"error": str(_e_exit_tel)[:500]},
+                )
             except Exception:
                 pass
-        except Exception:
-            pass
         rec["direction_intel_embed"] = _direction_intel_embed if _direction_intel_embed else {}
         # Canonical top-level fields for replay and readiness
         _side = str(context.get("side") or "buy").lower()
@@ -3027,29 +3381,80 @@ def log_exit_attribution(
         rec["side"] = _side
         rec["position_side"] = _pos_side
         try:
+            from datetime import datetime as _dt_live
             from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _nsx
 
             _pmd_r = metadata if isinstance(metadata, dict) else {}
-            if _pmd_r.get("canonical_trade_id"):
-                rec["canonical_trade_id"] = str(_pmd_r["canonical_trade_id"])
-            if _pmd_r.get("trade_key"):
-                rec["trade_key"] = str(_pmd_r["trade_key"])
-            elif entry_ts_iso_attr:
-                rec["trade_key"] = build_trade_key(
-                    symbol,
-                    _nsx("buy" if _side == "buy" else "sell"),
-                    entry_ts_iso_attr,
+            _live_trade_key: Optional[str] = None
+            if entry_ts_iso_attr:
+                try:
+                    _ts_l = entry_ts_iso_attr.strip().replace("Z", "+00:00")
+                    _ed_live = _dt_live.fromisoformat(_ts_l)
+                    if _ed_live.tzinfo is None:
+                        _ed_live = _ed_live.replace(tzinfo=timezone.utc)
+                    else:
+                        _ed_live = _ed_live.astimezone(timezone.utc)
+                    _open_norm_live = _nsx("buy" if _side == "buy" else "sell")
+                    _live_trade_key = build_trade_key(symbol, _open_norm_live, _ed_live)
+                except Exception:
+                    _live_trade_key = None
+            if _live_trade_key:
+                # Authoritative join keys: current position open instant + side. Do not trust disk
+                # metadata canonical_trade_id/trade_key when they disagree (strict gate alias mismatch).
+                _meta_ct = str(_pmd_r.get("canonical_trade_id") or "").strip()
+                _meta_tk = str(_pmd_r.get("trade_key") or "").strip()
+                if _meta_ct and _meta_ct != _live_trade_key:
+                    try:
+                        log_event(
+                            "data_integrity",
+                            "exit_attribution_canonical_coerced_from_stale_metadata",
+                            symbol=str(symbol).upper(),
+                            metadata_canonical=_meta_ct[:120],
+                            live_trade_key=_live_trade_key[:120],
+                        )
+                    except Exception:
+                        pass
+                if _meta_tk and _meta_tk != _live_trade_key:
+                    try:
+                        log_event(
+                            "data_integrity",
+                            "exit_attribution_trade_key_coerced_from_stale_metadata",
+                            symbol=str(symbol).upper(),
+                            metadata_trade_key=_meta_tk[:120],
+                            live_trade_key=_live_trade_key[:120],
+                        )
+                    except Exception:
+                        pass
+                rec["trade_key"] = _live_trade_key
+                rec["canonical_trade_id"] = _live_trade_key
+            else:
+                if _pmd_r.get("canonical_trade_id"):
+                    rec["canonical_trade_id"] = str(_pmd_r["canonical_trade_id"])
+                if _pmd_r.get("trade_key"):
+                    rec["trade_key"] = str(_pmd_r["trade_key"])
+                elif entry_ts_iso_attr:
+                    rec["trade_key"] = build_trade_key(
+                        symbol,
+                        _nsx("buy" if _side == "buy" else "sell"),
+                        entry_ts_iso_attr,
+                    )
+                if not rec.get("canonical_trade_id") and rec.get("trade_key"):
+                    rec["canonical_trade_id"] = rec["trade_key"]
+                if rec.get("trade_key") and rec.get("canonical_trade_id") and str(rec["canonical_trade_id"]) != str(
+                    rec["trade_key"]
+                ):
+                    rec["canonical_trade_id"] = str(rec["trade_key"])
+        except Exception as _e_exit_keys:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "exit_attribution_canonical_trade_key_block_failed",
+                    "ERROR",
+                    symbol=str(symbol).upper(),
+                    details={"error": str(_e_exit_keys)[:500]},
                 )
-            if not rec.get("canonical_trade_id") and rec.get("trade_key"):
-                rec["canonical_trade_id"] = rec["trade_key"]
-            # Stale ``canonical_trade_id`` from disk merge (pre-displacement broker era) must not
-            # diverge from ``trade_key`` derived from ``entry_ts`` — breaks strict exit_intent joins.
-            if rec.get("trade_key") and rec.get("canonical_trade_id") and str(rec["canonical_trade_id"]) != str(
-                rec["trade_key"]
-            ):
-                rec["canonical_trade_id"] = str(rec["trade_key"])
-        except Exception:
-            pass
+            except Exception:
+                pass
         append_exit_attribution(rec)
         _exit_row_for_intent = rec
         # CSA every-100-trades: count exit as one trade event (primary trigger)
@@ -3101,10 +3506,28 @@ def log_exit_attribution(
                 confidence_bucket=confidence_bucket_from_score(float(v2_exit_score)),
                 counterfactual=counterfactual,
             )
+        except Exception as _e_sigctx:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "exit_attribution_signal_context_failed",
+                    "WARN",
+                    symbol=str(symbol).upper(),
+                    details={"error": str(_e_sigctx)[:400]},
+                )
+            except Exception:
+                pass
+    except Exception as _e_exit_attr_main:
+        try:
+            log_system_event(
+                "telemetry_chain",
+                "exit_attribution_v2_block_failed",
+                "CRITICAL",
+                symbol=str(symbol).upper(),
+                details={"error": str(_e_exit_attr_main)[:800]},
+            )
         except Exception:
             pass
-    except Exception:
-        pass
     
     # DATA INTEGRITY CHECK: Verify log was written successfully
     try:
@@ -5041,10 +5464,70 @@ class AlpacaExecutor:
                         return True, filled_qty, filled_avg_price
                 elif status in ["canceled", "expired", "rejected"]:
                     return False, 0, 0.0
-            except Exception:
-                pass
+            except Exception as _e_poll:
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "check_order_filled_get_order_failed",
+                        "WARN",
+                        details={"order_id": str(order_id)[:64], "error": str(_e_poll)[:300]},
+                    )
+                except Exception:
+                    pass
             time.sleep(0.2)
         return False, 0, 0.0
+
+    def _alpaca_order_fees_and_slippage_bps(self, order_id: str, filled_avg_price: float) -> Tuple[float, Optional[float]]:
+        """Best-effort commission/regulatory fees and limit-vs-fill slippage (bps) for ML exit rows."""
+        api = getattr(self, "api", None)
+        if not order_id or api is None:
+            return 0.0, None
+        try:
+            o = api.get_order(str(order_id))
+        except Exception as e:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "alpaca_get_order_economics_failed",
+                    "WARN",
+                    details={"order_id": str(order_id)[:64], "error": str(e)[:300]},
+                )
+            except Exception:
+                pass
+            return 0.0, None
+        total = 0.0
+        for attr in ("commission", "sec_fee", "taf_fee", "regulatory_fee"):
+            raw = getattr(o, attr, None)
+            if raw is None or raw == "":
+                continue
+            try:
+                total += abs(float(raw))
+            except (TypeError, ValueError):
+                pass
+        raw_fees = getattr(o, "fees", None)
+        if isinstance(raw_fees, (list, tuple)):
+            for item in raw_fees:
+                amt = None
+                if isinstance(item, dict):
+                    amt = item.get("amount") or item.get("fee")
+                else:
+                    amt = getattr(item, "amount", None) or getattr(item, "fee", None)
+                if amt is not None:
+                    try:
+                        total += abs(float(amt))
+                    except (TypeError, ValueError):
+                        pass
+        slip_bps: Optional[float] = None
+        try:
+            lp = getattr(o, "limit_price", None)
+            fp = float(filled_avg_price or 0.0)
+            if lp is not None and str(lp).strip() and fp > 0:
+                lpf = float(lp)
+                if lpf > 0:
+                    slip_bps = abs(fp - lpf) / lpf * 10000.0
+        except (TypeError, ValueError):
+            slip_bps = None
+        return float(total), slip_bps
 
     def close_position_with_retries(self, symbol: str, *, max_attempts: int = 3, close_reason_tag: str = "close_position_api"):
         """
@@ -5074,8 +5557,17 @@ class AlpacaExecutor:
                     _ord = self.api.close_position(symbol)
                 try:
                     _emit_close_or_flip_strict_truth_chain(self, symbol, close_reason_tag=close_reason_tag)
-                except Exception:
-                    pass
+                except Exception as _e_ctc:
+                    try:
+                        log_system_event(
+                            "telemetry_chain",
+                            "close_position_strict_preflight_emit_failed",
+                            "ERROR",
+                            symbol=str(symbol).upper(),
+                            details={"error": str(_e_ctc)[:500], "close_reason_tag": str(close_reason_tag)},
+                        )
+                    except Exception:
+                        pass
                 return _ord
             except Exception as e:
                 log_system_event(
@@ -5121,8 +5613,17 @@ class AlpacaExecutor:
             _ord_once = self.api.close_position(symbol)
         try:
             _emit_close_or_flip_strict_truth_chain(self, symbol, close_reason_tag="close_position_api_once")
-        except Exception:
-            pass
+        except Exception as _e_ctc_once:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "close_position_api_once_strict_preflight_failed",
+                    "ERROR",
+                    symbol=str(symbol).upper(),
+                    details={"error": str(_e_ctc_once)[:500]},
+                )
+            except Exception:
+                pass
         return _ord_once
 
     def compute_entry_price(self, symbol: str, side: str):
@@ -6654,8 +7155,18 @@ class AlpacaExecutor:
             try:
                 all_metadata = load_metadata_with_lock(metadata_path) if metadata_path.exists() else {}
                 symbol_metadata = all_metadata.get(symbol, {})
-            except:
+            except Exception as _e_disp_md:
                 symbol_metadata = {}
+                try:
+                    log_system_event(
+                        "telemetry_chain",
+                        "execute_displacement_position_metadata_load_failed",
+                        "WARN",
+                        symbol=str(symbol).upper(),
+                        details={"error": str(_e_disp_md)[:400]},
+                    )
+                except Exception:
+                    pass
             
             # Build composite close reason for displacement
             displacement_signals = {
@@ -6674,8 +7185,52 @@ class AlpacaExecutor:
             
             # Only attribute exits when we have executed fill fields.
             if exit_fill_price > 0 and exit_fill_qty > 0:
+                # Strict truth chain: displacement closes must hit orders.jsonl with the same
+                # canonical_trade_id as alpaca_exit_attribution (SRE: GOOGL incomplete_trade_chain 2026-04-15).
+                # Normal exit loops log close_position here; execute_displacement previously skipped that.
+                _close_ts_dc = datetime.now(timezone.utc).isoformat()
+                _open_side_raw_dc = str(info.get("side", "buy")).lower()
+                _exit_side_dc = "sell" if _open_side_raw_dc in ("buy", "long") else "buy"
+                _md_canon = dict(symbol_metadata) if isinstance(symbol_metadata, dict) else {}
+                _strict_canon_dc = ""
+                try:
+                    from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side
+
+                    _etr = info.get("ts") or _md_canon.get("entry_ts")
+                    if isinstance(_etr, datetime):
+                        _edt_dc = _etr.astimezone(timezone.utc) if _etr.tzinfo else _etr.replace(tzinfo=timezone.utc)
+                    else:
+                        _edt_dc = datetime.fromisoformat(str(_etr).strip().replace("Z", "+00:00"))
+                        if _edt_dc.tzinfo is None:
+                            _edt_dc = _edt_dc.replace(tzinfo=timezone.utc)
+                        else:
+                            _edt_dc = _edt_dc.astimezone(timezone.utc)
+                    _on_dc = normalize_side("buy" if _open_side_raw_dc in ("buy", "long") else "sell")
+                    _strict_canon_dc = build_trade_key(str(symbol).upper(), _on_dc, _edt_dc)
+                except Exception:
+                    _strict_canon_dc = ""
+                if not _strict_canon_dc:
+                    _strict_canon_dc = str(_md_canon.get("canonical_trade_id") or "").strip()
+                _close_ev_dc: Dict[str, Any] = {
+                    "action": "close_position",
+                    "symbol": symbol,
+                    "reason": close_reason,
+                    "order_id": str(exit_order_id) if exit_order_id else None,
+                    "side": _exit_side_dc,
+                    "filled_qty": int(exit_fill_qty),
+                    "filled_avg_price": float(exit_fill_price),
+                    "ts": _close_ts_dc,
+                    "close_reason_tag": "displacement_close",
+                }
+                if _strict_canon_dc:
+                    _close_ev_dc["canonical_trade_id"] = _strict_canon_dc
+                    _close_ev_dc["trade_key"] = _strict_canon_dc
+                log_order(_close_ev_dc)
                 # Data integrity: ensure high_water available for exit_quality_metrics (giveback)
                 info["high_water"] = self.high_water.get(symbol, info.get("high_water") or entry_price)
+                _disp_fees, _disp_slip = (0.0, None)
+                if exit_order_id:
+                    _disp_fees, _disp_slip = self._alpaca_order_fees_and_slippage_bps(str(exit_order_id), float(exit_fill_price))
                 log_exit_attribution(
                     symbol=symbol,
                     info=info,
@@ -6684,6 +7239,9 @@ class AlpacaExecutor:
                     metadata=symbol_metadata,
                     exit_qty=exit_fill_qty,
                     exit_order_id=str(exit_order_id) if exit_order_id else None,
+                    strict_chain_executor=self,
+                    fees_usd=_disp_fees,
+                    exit_slippage_bps=_disp_slip,
                 )
             else:
                 log_event(
@@ -7833,9 +8391,8 @@ class AlpacaExecutor:
                 decay_ratio = current_composite_score / entry_score
                 # BULLETPROOF: Clamp decay ratio to [0, 1] range
                 decay_ratio = max(0.0, min(1.0, decay_ratio))
-                if decay_ratio < 1.0:
-                    exit_signals["signal_decay"] = decay_ratio
-            
+                # Do not set exit_signals["signal_decay"] here — it pollutes composite close_reason unless decay exits.
+
             exit_signals["flow_reversal"] = flow_reversal
             
             # --- AUDIT DEC 2025: Manual Regime Safety Override ---
@@ -7989,7 +8546,8 @@ class AlpacaExecutor:
             # PROFIT-TAKING ACCELERATION: Tighten trailing stop to 0.5% after 30 minutes of profitability
             # Refined stale exit based on backtest: Alpha Decay is 303 minutes but P&L is flat at 90 minutes
             # Move trailing stop to 0.5% after first 30 minutes if position is profitable
-            trailing_stop_pct = Config.TRAILING_STOP_PCT
+            _mfe_ov = _mfe_mae_exit_overlay_apply()
+            trailing_stop_pct = float(_mfe_ov.get("trailing_stop_pct", Config.TRAILING_STOP_PCT))
             profit_acceleration_active = False
             
             if age_min >= 30 and pnl_pct > 0:  # 30 minutes and profitable
@@ -8025,11 +8583,11 @@ class AlpacaExecutor:
             # Regime-aware (modifier only): BEAR = cut losers faster (-0.8%), let winners run longer (1.0% target)
             regime_exit = (current_regime_global or "").upper()
             if regime_exit == "BEAR":
-                stop_loss_pct = -0.008   # -0.8% in BEAR: cut losers faster
-                profit_target_decimal = 0.01   # 1.0% in BEAR: let winners run longer
+                stop_loss_pct = float(_mfe_ov.get("stop_loss_pct_bear", -0.008))
+                profit_target_decimal = float(_mfe_ov.get("profit_target_decimal_bear", 0.01))
             else:
-                stop_loss_pct = -0.01    # -1.0% default
-                profit_target_decimal = 0.0075  # 0.75% default
+                stop_loss_pct = float(_mfe_ov.get("stop_loss_pct_default", -0.01))
+                profit_target_decimal = float(_mfe_ov.get("profit_target_decimal_default", 0.0075))
             pnl_pct_decimal = pnl_pct / 100.0  # Convert percentage to decimal
             stop_loss_hit = pnl_pct_decimal <= stop_loss_pct
             
@@ -8130,6 +8688,7 @@ class AlpacaExecutor:
                     exit_signals["signal_decay_ratio"] = round(decay_ratio, 2)
             if profit_target_hit:
                 exit_signals["profit_target_075"] = True
+                exit_signals["profit_target"] = float(profit_target_decimal)
 
             # Root-cause: exit regimes (fire_sale / let_it_breathe)
             exit_regime = "normal"
@@ -8150,8 +8709,15 @@ class AlpacaExecutor:
                 if exit_regime == "fire_sale":
                     signal_decay_exit = True
                     exit_signals["signal_decay_exit"] = True
+                    if decay_ratio is None and entry_score and current_composite:
+                        try:
+                            decay_ratio = float(current_composite) / float(entry_score)
+                            decay_ratio = max(0.0, min(1.0, decay_ratio))
+                        except Exception:
+                            decay_ratio = None
                     if decay_ratio is not None:
                         exit_signals["signal_decay_ratio"] = round(decay_ratio, 2)
+                        exit_signals["signal_decay"] = round(decay_ratio, 2)
                     exit_signals["exit_regime"] = "fire_sale"
                     exit_signals["exit_regime_reason"] = exit_regime_reason
                 elif exit_regime == "let_it_breathe":
@@ -8563,7 +9129,40 @@ class AlpacaExecutor:
                     "filled_avg_price": float(exit_fill_price) if exit_fill_price else None,
                     "ts": _close_ts,
                 }
-                if isinstance(_meta_pre_close, dict):
+                _strict_canon_exit = ""
+                try:
+                    from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _ns_exit
+
+                    _etr_x = info.get("ts") if isinstance(info.get("ts"), datetime) else None
+                    if _etr_x is None and isinstance(_meta_pre_close, dict):
+                        _raw_ets = _meta_pre_close.get("entry_ts") or _meta_pre_close.get("ts")
+                        if isinstance(_raw_ets, datetime):
+                            _etr_x = _raw_ets
+                        elif _raw_ets:
+                            _etr_x = datetime.fromisoformat(str(_raw_ets).strip().replace("Z", "+00:00"))
+                            if _etr_x.tzinfo is None:
+                                _etr_x = _etr_x.replace(tzinfo=timezone.utc)
+                            else:
+                                _etr_x = _etr_x.astimezone(timezone.utc)
+                    if _etr_x is not None:
+                        if getattr(_etr_x, "tzinfo", None) is None:
+                            _etr_x = _etr_x.replace(tzinfo=timezone.utc)
+                        else:
+                            _etr_x = _etr_x.astimezone(timezone.utc)
+                        _os_raw = str(info.get("side", "buy")).lower()
+                        _strict_canon_exit = build_trade_key(
+                            str(symbol).upper(),
+                            _ns_exit("buy" if _os_raw in ("buy", "long") else "sell"),
+                            _etr_x,
+                        )
+                except Exception:
+                    _strict_canon_exit = ""
+                if not _strict_canon_exit and isinstance(_meta_pre_close, dict) and _meta_pre_close.get("canonical_trade_id"):
+                    _strict_canon_exit = str(_meta_pre_close["canonical_trade_id"]).strip()
+                if _strict_canon_exit:
+                    _close_ev["canonical_trade_id"] = _strict_canon_exit
+                    _close_ev["trade_key"] = _strict_canon_exit
+                elif isinstance(_meta_pre_close, dict):
                     if _meta_pre_close.get("canonical_trade_id"):
                         _close_ev["canonical_trade_id"] = str(_meta_pre_close["canonical_trade_id"])
                     if _meta_pre_close.get("trade_key"):
@@ -8576,8 +9175,17 @@ class AlpacaExecutor:
                     sm = dict(symbol_metadata) if isinstance(symbol_metadata, dict) else {}
                     sm["v2_exit"] = exit_intel_by_symbol.get(str(symbol).upper(), {})
                     symbol_metadata = sm
-                except Exception:
-                    pass
+                except Exception as _e_v2exit_merge:
+                    try:
+                        log_system_event(
+                            "telemetry_chain",
+                            "close_position_v2_exit_metadata_merge_failed",
+                            "WARN",
+                            symbol=str(symbol).upper(),
+                            details={"error": str(_e_v2exit_merge)[:400]},
+                        )
+                    except Exception:
+                        pass
                 # Alpha discovery: build exit snapshot + thesis tags for exit_intent
                 _ex_snap = _ex_tags = None
                 _ex_break = "flow_reversal" if flow_reversal else None
@@ -8599,13 +9207,28 @@ class AlpacaExecutor:
                     _ex_snap, _ex_tags = build_exit_snapshot_from_metadata(
                         symbol, info if isinstance(info, dict) else {}, symbol_metadata if isinstance(symbol_metadata, dict) else {}
                     )
-                except Exception:
+                except Exception as _e_ex_snap:
                     _ex_snap = _ex_tags = None
+                    try:
+                        log_system_event(
+                            "telemetry_chain",
+                            "close_position_exit_snapshot_from_metadata_failed",
+                            "WARN",
+                            symbol=str(symbol).upper(),
+                            details={"error": str(_e_ex_snap)[:400]},
+                        )
+                    except Exception:
+                        pass
                 # Only log exit attribution when we have executed fill fields.
                 if exit_fill_price > 0 and exit_fill_qty > 0:
                     # Data integrity: ensure high_water available for exit_quality_metrics (giveback)
                     info["high_water"] = self.high_water.get(symbol, info.get("high_water") or entry_price)
                     regime, regime_reason, regime_ctx = exit_regime_info.get(symbol, ("normal", "", {}))
+                    _close_fees, _close_slip = (0.0, None)
+                    if exit_order_id:
+                        _close_fees, _close_slip = self._alpaca_order_fees_and_slippage_bps(
+                            str(exit_order_id), float(exit_fill_price)
+                        )
                     log_exit_attribution(
                         symbol=symbol,
                         info=info,
@@ -8621,6 +9244,9 @@ class AlpacaExecutor:
                         exit_regime_decision=regime,
                         exit_regime_reason=regime_reason,
                         exit_regime_context=regime_ctx,
+                        strict_chain_executor=self,
+                        fees_usd=_close_fees,
+                        exit_slippage_bps=_close_slip,
                     )
                 if "signal_decay" in (close_reason or "").lower():
                     try:
@@ -8631,8 +9257,17 @@ class AlpacaExecutor:
                             exit_price=exit_fill_price if exit_fill_price > 0 else decision_exit_price,
                             exit_ts=now_iso(),
                         )
-                    except Exception:
-                        pass
+                    except Exception as _e_hold_log:
+                        try:
+                            log_system_event(
+                                "telemetry_chain",
+                                "close_position_log_exit_hold_longer_failed",
+                                "WARN",
+                                symbol=str(symbol).upper(),
+                                details={"error": str(_e_hold_log)[:400]},
+                            )
+                        except Exception:
+                            pass
                 if not (exit_fill_price > 0 and exit_fill_qty > 0):
                     log_event(
                         "data_integrity",
@@ -11404,6 +12039,90 @@ class StrategyEngine:
                 except Exception:
                     pass
 
+                # Alpha 11: minimum entry UW flow_strength (Quant 163-cohort floor).
+                try:
+                    from src.alpha11_gate import check_alpha11_flow_strength_gate
+
+                    _cm_a11 = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else {}
+                    _a11_ok, _a11_reason, _a11_fs = check_alpha11_flow_strength_gate(
+                        symbol=symbol,
+                        composite_result=composite_result if isinstance(composite_result, dict) else None,
+                        composite_meta=_cm_a11,
+                    )
+                    if not _a11_ok and _a11_reason:
+                        print(
+                            f"DEBUG {symbol}: BLOCKED - Alpha11 flow gate ({_a11_reason} flow_strength={_a11_fs})",
+                            flush=True,
+                        )
+                        try:
+                            _tr_a11 = None
+                            try:
+                                from telemetry.decision_intelligence_trace import (
+                                    append_gate_result,
+                                    build_initial_trace,
+                                    set_final_decision,
+                                )
+
+                                _tr_a11 = build_initial_trace(
+                                    symbol, side, score, comps or {}, c, None, None, self
+                                )
+                                append_gate_result(_tr_a11, "score_gate", True)
+                                append_gate_result(_tr_a11, "capacity_gate", True)
+                                append_gate_result(_tr_a11, "risk_gate", True)
+                                append_gate_result(_tr_a11, "momentum_gate", True)
+                                append_gate_result(_tr_a11, "directional_gate", True)
+                                append_gate_result(_tr_a11, "alpha10_mfe_gate", True)
+                                append_gate_result(_tr_a11, "alpha11_flow_gate", False, _a11_reason)
+                                set_final_decision(_tr_a11, "blocked", _a11_reason, [])
+                            except Exception:
+                                pass
+                            _emit_trade_intent_blocked(
+                                symbol,
+                                c.get("direction"),
+                                score,
+                                comps or {},
+                                c,
+                                market_regime,
+                                self,
+                                _a11_reason,
+                                intelligence_trace=_tr_a11,
+                            )
+                        except Exception:
+                            pass
+                        log_event(
+                            "gate",
+                            _a11_reason,
+                            symbol=symbol,
+                            score=score,
+                            alpha11_flow_strength=_a11_fs,
+                        )
+                        log_blocked_trade(
+                            symbol,
+                            _a11_reason,
+                            score,
+                            direction=c.get("direction"),
+                            decision_price=ref_price_check,
+                            components=comps,
+                            market_context=market_ctx,
+                            composite_meta=c.get("composite_meta"),
+                            first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                        )
+                        log_signal_to_history(
+                            symbol=symbol,
+                            direction=direction,
+                            raw_score=raw_score,
+                            whale_boost=whale_boost,
+                            final_score=final_score,
+                            atr_multiplier=atr_multiplier or 0.0,
+                            momentum_pct=momentum_pct,
+                            momentum_required_pct=momentum_required_pct,
+                            decision=f"Blocked: {_a11_reason}",
+                            metadata={"reason": _a11_reason, "alpha11_flow_strength": _a11_fs},
+                        )
+                        continue
+                except Exception:
+                    pass
+
                 # client_order_id_base already generated above (and includes correlation_id).
                 
                 # Signal snapshot (observability-only): ENTRY_DECISION before placing order
@@ -11610,12 +12329,18 @@ class StrategyEngine:
                     v2_context_for_metadata = {}
                     try:
                         if isinstance(composite_result, dict):
+                            _v2_comps = composite_result.get("components")
+                            if not isinstance(_v2_comps, dict):
+                                _v2_comps = {}
                             v2_context_for_metadata = {
                                 "v2_inputs": composite_result.get("v2_inputs") if isinstance(composite_result.get("v2_inputs"), dict) else {},
                                 "v2_uw_inputs": composite_result.get("v2_uw_inputs") if isinstance(composite_result.get("v2_uw_inputs"), dict) else {},
                                 "v2_uw_sector_profile": composite_result.get("v2_uw_sector_profile") if isinstance(composite_result.get("v2_uw_sector_profile"), dict) else {},
                                 "v2_uw_regime_profile": composite_result.get("v2_uw_regime_profile") if isinstance(composite_result.get("v2_uw_regime_profile"), dict) else {},
                                 "uw_intel_version": composite_result.get("uw_intel_version", ""),
+                                # Persist UW v2 composite slices (greeks_gamma, market_tide, flow, …) for exit_attribution / Alpha 11 audits.
+                                "components": dict(_v2_comps),
+                                "score": float(composite_result.get("score") or 0.0),
                             }
                     except Exception:
                         v2_context_for_metadata = {}
@@ -15473,42 +16198,41 @@ def load_metadata_with_lock(path: Path) -> dict:
     # BULLETPROOF: Safe load with corruption handling
     if not path.exists():
         return {}
-    
+
     try:
-        with open(path, 'r') as f:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_SH)
             try:
-                data = json.load(f)
-                # BULLETPROOF: Validate structure (must be dict)
-                if not isinstance(data, dict):
-                    # Corrupted - return empty dict (self-healing will happen in caller)
-                    log_event("metadata", "corrupted_structure", path=str(path), data_type=str(type(data)))
-                    return {}
-                return data
-            except (json.JSONDecodeError, UnicodeDecodeError) as parse_err:
-                # Self-healing: Backup and reset corrupted file
-                log_event("metadata", "parse_error", path=str(path), error=str(parse_err), error_type=type(parse_err).__name__)
-                # Release lock before healing
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                try:
-                    backup_path = path.with_suffix(f".corrupted.{int(time.time())}.json")
-                    path.rename(backup_path)
-                    atomic_write_json(path, {})
-                    log_event("metadata", "self_healed", path=str(path), backup=str(backup_path))
-                except Exception as heal_err:
-                    log_event("metadata", "heal_failed", path=str(path), error=str(heal_err))
-                return {}  # Return empty dict (fail open)
+                raw = f.read()
             finally:
                 try:
                     fcntl.flock(f.fileno(), fcntl.LOCK_UN)
                 except Exception:
-                    pass  # Lock may already be released
+                    pass
+        if not raw.strip():
+            return {}
+        try:
+            data = json.loads(raw)
+        except (json.JSONDecodeError, UnicodeDecodeError) as parse_err:
+            log_event("metadata", "parse_error", path=str(path), error=str(parse_err), error_type=type(parse_err).__name__)
+            try:
+                backup_path = path.with_suffix(f".corrupted.{int(time.time())}.json")
+                path.rename(backup_path)
+                atomic_write_json(path, {})
+                log_event("metadata", "self_healed", path=str(path), backup=str(backup_path))
+            except Exception as heal_err:
+                log_event("metadata", "heal_failed", path=str(path), error=str(heal_err))
+            return {}
+        if not isinstance(data, dict):
+            log_event("metadata", "corrupted_structure", path=str(path), data_type=str(type(data)))
+            return {}
+        return data
     except (IOError, OSError) as io_err:
         log_event("metadata", "io_error", path=str(path), error=str(io_err))
-        return {}  # Fail open - return empty dict
+        return {}
     except Exception as e:
         log_event("metadata", "load_error", path=str(path), error=str(e), error_type=type(e).__name__)
-        return {}  # Fail open - return empty dict
+        return {}
 
 def continuous_position_health_check():
     """
