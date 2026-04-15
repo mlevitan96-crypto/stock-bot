@@ -1,7 +1,7 @@
 # MEMORY_BANK.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-14 (Alpha 10 MFE threshold 0.17 forward-test; §1.0)
-# Last Updated: 2026-04-14 (droplet `ALPHA10_MIN_MFE_PCT=0.17`; MEMORY_BANK + exit-engine context)
+# Version: 2026-04-15 (Alpaca strict ML ARMED + exit telemetry hardening; §1.0)
+# Last Updated: 2026-04-15 (SRE: displacement ID inheritance, economics on exit rows, run.jsonl rotation defaults)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -107,6 +107,12 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 
 - **STRICT_EPOCH_START (UTC epoch seconds):** `1775581260` (`2026-04-07T17:01:00Z`). Canonical: `telemetry/alpaca_strict_completeness_gate.py` (`STRICT_EPOCH_START`). Reset for Alpaca V2 UW telemetry era; prior cohort excluded from strict counts.
 - **Strict cohort (entry-based):** When `evaluate_completeness` is called with `open_ts_epoch` set, terminal closes are kept only if exit time `>= open_ts_epoch`. Among those, a trade is in the strict cohort only if the open instant parsed from `trade_id` (`open_<SYM>_<ISO8601>`) is also `>= open_ts_epoch`. Earlier opens are excluded (`PREERA_OPEN`) and do not count as `trades_seen` or incomplete.
+
+### 1.1.1 Alpaca ML pipeline readiness — displacement IDs, telemetry economics, run log rotation (2026-04-15)
+
+- **Displacement ID inheritance (strict truth chain):** `_emit_close_or_flip_strict_truth_chain` and related close paths were hardened so **`canonical_trade_id` / `trade_key` stay aligned with live position reality** — derived from **open instant + normalized side** (`build_trade_key`) and **`POSITION_METADATA`** merges, so **intent**, **`orders.jsonl`**, **`exit_intent`**, and **`exit_attribution.jsonl`** do not **split identities** across displacement closes, market fallback, or API-error retries. Displacement exits additionally call **`log_order`** with the same keys before **`log_exit_attribution`** so broker-order rows join the strict gate.
+- **Telemetry logging and economics (ML-ready exits):** Silent **`except` / pass** on attribution and JSONL write paths in **`main.py`** (e.g. **`log_order`**, **`log_exit_attribution`**, **`close_position_*`**, strict-chain **`jsonl_write`**) were replaced or supplemented with **`log_system_event`** so SRE sees failures instead of silent telemetry loss. **`AlpacaExecutor._alpaca_order_fees_and_slippage_bps`** re-fetches the filled **`Order`** and records **commission / regulatory fee fields when present**, plus **limit vs fill slippage (bps)** when **`limit_price`** exists; values flow into **`log_exit_attribution`** → **`exit_attribution.jsonl`** (`fees_usd`, `exit_slippage_bps`) and into **`src/exit/exit_attribution.py`** unified **`emit_exit_attribution`** (no longer hard-zero fees when the row carries economics).
+- **Run JSONL rotation (strict window retention):** Defaults in **`main.py`** — **`RUN_JSONL_ROTATE_MAX_BYTES`** default **500MB**, **`RUN_JSONL_ROTATE_BACKUP_COUNT`** default **30** — so stitched / strict daily **`run.jsonl`** history survives long enough for **`telemetry/alpaca_strict_completeness_gate.py`** cohort joins without premature truncation (overridable via environment).
 
 ## 1.2 Alpaca truth warehouse — DATA_READY baseline (do not drift)
 
