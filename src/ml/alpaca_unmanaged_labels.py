@@ -35,6 +35,27 @@ _ET = ZoneInfo("America/New_York")
 _RTH_OPEN = time(9, 30)
 _RTH_CLOSE = time(16, 0)  # 4:00 PM ET — inclusive minute window through 15:59 bar; 16:00 is session end cap
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_DOTENV_LOADED = False
+
+
+def _load_repo_env_if_present() -> None:
+    """
+    systemd loads ``/root/stock-bot/.env`` for ``stock-bot.service``, but SSH/cron ``python3 -m``
+    runs often do not. Populate process env from repo ``.env`` before Alpaca Data API calls.
+    """
+    global _DOTENV_LOADED
+    if _DOTENV_LOADED:
+        return
+    _DOTENV_LOADED = True
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    p = _REPO_ROOT / ".env"
+    if p.is_file():
+        load_dotenv(p, override=False)
+
 
 def _parse_entry_ts(raw: Any) -> Optional[datetime]:
     if raw is None:
@@ -208,6 +229,8 @@ def merge_unmanaged_labels_into_csv(
     csv_out = csv_out.resolve()
     if not csv_in.is_file():
         raise FileNotFoundError(str(csv_in))
+
+    _load_repo_env_if_present()
 
     with csv_in.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
