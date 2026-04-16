@@ -16,6 +16,23 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 REPO = Path(__file__).resolve().parents[2]
+_DOTENV_LOADED = False
+
+
+def _ensure_dotenv_for_data_api() -> None:
+    """CLI/cron often run without systemd EnvironmentFile; load repo ``.env`` once."""
+    global _DOTENV_LOADED
+    if _DOTENV_LOADED:
+        return
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        _DOTENV_LOADED = True
+        return
+    p = REPO / ".env"
+    if p.is_file():
+        load_dotenv(p, override=False)
+    _DOTENV_LOADED = True
 
 
 def _data_base_url() -> str:
@@ -40,8 +57,8 @@ def _headers() -> Dict[str, str]:
         or ""
     )
     return {
-        "APCA-API-KEY-ID": key,
-        "APCA-API-SECRET-KEY": secret,
+        "APCA-API-KEY-ID": str(key).strip(),
+        "APCA-API-SECRET-KEY": str(secret).strip(),
     }
 
 
@@ -84,6 +101,7 @@ def fetch_bars_for_range(
     (sip, iex, otc, boats). Many accounts lack SIP; without ``feed=iex`` the API can return 403
     and labels would see empty bars.
     """
+    _ensure_dotenv_for_data_api()
     sym_upper = (symbol or "").strip().upper()
     start_str = start.strftime("%Y-%m-%dT%H:%M:%SZ")
     end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -118,16 +136,19 @@ def fetch_bars_for_range(
             raw_list = _bars_list_for_symbol(bars_map, sym_upper)
             out: List[Dict[str, Any]] = []
             for bar in raw_list:
-                out.append(
-                    {
-                        "t": bar.get("t"),
-                        "o": float(bar.get("o", 0)),
-                        "h": float(bar.get("h", 0)),
-                        "l": float(bar.get("l", 0)),
-                        "c": float(bar.get("c", 0)),
-                        "v": int(bar.get("v", 0)),
-                    }
-                )
+                try:
+                    out.append(
+                        {
+                            "t": bar.get("t"),
+                            "o": float(bar.get("o") or 0),
+                            "h": float(bar.get("h") or 0),
+                            "l": float(bar.get("l") or 0),
+                            "c": float(bar.get("c") or 0),
+                            "v": int(bar.get("v") or 0),
+                        }
+                    )
+                except (TypeError, ValueError):
+                    continue
             if rate_limit_safe:
                 time.sleep(0.25)
             if out:
