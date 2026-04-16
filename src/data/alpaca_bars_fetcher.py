@@ -26,8 +26,19 @@ def _data_base_url() -> str:
 
 
 def _headers() -> Dict[str, str]:
-    key = os.getenv("ALPACA_API_KEY") or os.getenv("ALPACA_KEY", "")
-    secret = os.getenv("ALPACA_SECRET_KEY") or os.getenv("ALPACA_API_SECRET") or os.getenv("ALPACA_SECRET", "")
+    key = (
+        os.getenv("ALPACA_API_KEY")
+        or os.getenv("APCA-API-KEY-ID")
+        or os.getenv("ALPACA_KEY")
+        or ""
+    )
+    secret = (
+        os.getenv("ALPACA_SECRET_KEY")
+        or os.getenv("APCA-API-SECRET-KEY")
+        or os.getenv("ALPACA_API_SECRET")
+        or os.getenv("ALPACA_SECRET")
+        or ""
+    )
     return {
         "APCA-API-KEY-ID": key,
         "APCA-API-SECRET-KEY": secret,
