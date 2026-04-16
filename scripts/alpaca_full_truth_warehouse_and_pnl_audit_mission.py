@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
+import heapq
 import json
 import math
 import os
@@ -109,6 +110,14 @@ def _score_snapshot_has_block_boundary_detail(s: dict) -> bool:
         return True
     if s.get("block_reason"):
         return True
+    pre = s.get("composite_pre_norm")
+    post = s.get("composite_post_norm")
+    if pre is not None and post is not None:
+        try:
+            if abs(float(pre) - float(post)) > 1e-9:
+                return True
+        except (TypeError, ValueError):
+            pass
     g = s.get("gates")
     if isinstance(g, dict):
         if g.get("block_reason"):
@@ -242,6 +251,31 @@ def stream_jsonl(path: Path) -> Iterator[dict]:
                     yield r
     except OSError:
         return
+
+
+def _heap_k_largest_ts_in_window(
+    path: Path,
+    t0: float,
+    t1: float,
+    k: int,
+    ts_getter,
+) -> List[dict]:
+    """Keep up to k rows with the largest timestamps in [t0, t1] (O(n log k)); favors recent joins vs first-N cap bias."""
+    if k <= 0 or not path.is_file():
+        return []
+    h: List[Tuple[float, int, dict]] = []
+    seq = 0
+    for r in stream_jsonl(path):
+        ts = ts_getter(r)
+        if ts is None or ts < t0 or ts > t1:
+            continue
+        seq += 1
+        item: Tuple[float, int, dict] = (float(ts), seq, r)
+        if len(h) < k:
+            heapq.heappush(h, item)
+        elif float(ts) > h[0][0]:
+            heapq.heapreplace(h, item)
+    return [t[2] for t in sorted(h, key=lambda x: (x[0], x[1]))]
 
 
 def file_stat(path: Path) -> Dict[str, Any]:
@@ -437,29 +471,26 @@ def load_exits_window(root: Path, t0: float, t1: float) -> List[dict]:
 
 def load_orders_window(root: Path, t0: float, t1: float, max_compute: bool) -> List[dict]:
     out: List[dict] = []
-    cap = 500_000 if max_compute else 80_000
+    cap = 500_000 if max_compute else 200_000
     for r in stream_jsonl(root / "logs" / "orders.jsonl"):
         ts = _parse_ts_any(r.get("ts") or r.get("timestamp"))
         if ts is not None and (ts < t0 or ts > t1):
             continue
         out.append(r)
-        if len(out) >= cap:
-            break
+    if len(out) > cap:
+        out.sort(key=lambda d: float(_parse_ts_any(d.get("ts") or d.get("timestamp")) or 0.0))
+        out = out[-cap:]
     return out
 
 
 def load_unified_window(root: Path, t0: float, t1: float, max_compute: bool) -> List[dict]:
-    out: List[dict] = []
-    cap = 300_000 if max_compute else 50_000
+    cap = 400_000 if max_compute else 150_000
     p = root / "logs" / "alpaca_unified_events.jsonl"
-    for r in stream_jsonl(p):
-        ts = _parse_ts_any(r.get("timestamp") or r.get("ts"))
-        if ts is not None and (ts < t0 or ts > t1):
-            continue
-        out.append(r)
-        if len(out) >= cap:
-            break
-    return out
+
+    def _ts(r: dict) -> Optional[float]:
+        return _parse_ts_any(r.get("timestamp") or r.get("ts"))
+
+    return _heap_k_largest_ts_in_window(p, t0, t1, cap, _ts)
 
 
 def order_row_to_normalized(r: dict, source: str) -> dict:
@@ -570,16 +601,22 @@ def build_execution_tables(
 
 
 def index_signal_context(root: Path, t0: float, t1: float, max_compute: bool) -> List[Tuple[float, str, dict]]:
+    p = root / "logs" / "signal_context.jsonl"
+    if not p.is_file():
+        return []
+    cap = 300_000 if max_compute else 150_000
+
+    def _ts(r: dict) -> Optional[float]:
+        return _parse_ts_any(r.get("ts") or r.get("timestamp"))
+
+    raw = _heap_k_largest_ts_in_window(p, t0, t1, cap, _ts)
     rows: List[Tuple[float, str, dict]] = []
-    cap = 200_000 if max_compute else 40_000
-    for r in stream_jsonl(root / "logs" / "signal_context.jsonl"):
-        ts = _parse_ts_any(r.get("ts") or r.get("timestamp"))
-        if ts is None or ts < t0 or ts > t1:
+    for r in raw:
+        ts = _ts(r)
+        if ts is None:
             continue
         sym = (r.get("symbol") or "").upper()
-        rows.append((ts, sym, r))
-        if len(rows) >= cap:
-            break
+        rows.append((float(ts), sym, r))
     rows.sort(key=lambda x: x[0])
     return rows
 
@@ -638,31 +675,40 @@ def ref_price_from_context(r: Optional[dict]) -> Optional[float]:
 
 
 def load_run_trade_intents(root: Path, t0: float, t1: float, max_compute: bool) -> List[dict]:
-    out: List[dict] = []
-    cap = 150_000 if max_compute else 30_000
-    for r in stream_jsonl(root / "logs" / "run.jsonl"):
+    p = root / "logs" / "run.jsonl"
+    cap = 200_000 if max_compute else 80_000
+
+    def _pred_ts(r: dict) -> Optional[float]:
         if (r.get("event_type") or r.get("event")) != "trade_intent":
-            continue
-        ts = _parse_ts_any(r.get("ts") or r.get("timestamp"))
+            return None
+        return _parse_ts_any(r.get("ts") or r.get("timestamp"))
+
+    # trade_intent rows: keep newest cap in window (boundary gate uses recent buckets).
+    if not p.is_file():
+        return []
+    h: List[Tuple[float, int, dict]] = []
+    seq = 0
+    for r in stream_jsonl(p):
+        ts = _pred_ts(r)
         if ts is None or ts < t0 or ts > t1:
             continue
-        out.append(r)
-        if len(out) >= cap:
-            break
-    return out
+        seq += 1
+        item = (float(ts), seq, r)
+        if len(h) < cap:
+            heapq.heappush(h, item)
+        elif float(ts) > h[0][0]:
+            heapq.heapreplace(h, item)
+    return [x[2] for x in sorted(h, key=lambda x: (x[0], x[1]))]
 
 
 def load_score_snapshots(root: Path, t0: float, t1: float, max_compute: bool) -> List[dict]:
-    out: List[dict] = []
-    cap = 200_000 if max_compute else 40_000
-    for r in stream_jsonl(root / "logs" / "score_snapshot.jsonl"):
-        ts = _parse_ts_any(r.get("ts") or r.get("ts_iso"))
-        if ts is None or ts < t0 or ts > t1:
-            continue
-        out.append(r)
-        if len(out) >= cap:
-            break
-    return out
+    p = root / "logs" / "score_snapshot.jsonl"
+    cap = 300_000 if max_compute else 120_000
+
+    def _ts(r: dict) -> Optional[float]:
+        return _parse_ts_any(r.get("ts") or r.get("ts_iso"))
+
+    return _heap_k_largest_ts_in_window(p, t0, t1, cap, _ts)
 
 
 def load_blocked(root: Path, t0: float, t1: float, max_compute: bool) -> List[dict]:
@@ -1136,6 +1182,16 @@ def main() -> int:
         if bk:
             blocked_buckets.add(bk)
     for it in blocked_intents:
+        bk = _sym_bucket_from_row(str(it.get("symbol") or ""), it, "ts", "timestamp")
+        if bk:
+            blocked_buckets.add(bk)
+    # Entered intents still carry gate_summary — counts as decision-boundary telemetry for overlap.
+    for it in intents:
+        if (it.get("decision_outcome") or "").lower() != "entered":
+            continue
+        gs = it.get("gate_summary")
+        if not isinstance(gs, dict) or not gs:
+            continue
         bk = _sym_bucket_from_row(str(it.get("symbol") or ""), it, "ts", "timestamp")
         if bk:
             blocked_buckets.add(bk)
