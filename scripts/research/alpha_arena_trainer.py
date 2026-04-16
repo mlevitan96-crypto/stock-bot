@@ -416,7 +416,7 @@ def main() -> int:
 
     (args.out_dir / "alpha_arena_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     (args.out_dir / "shap_mean_abs_ranking.json").write_text(
-        json.dumps({"top": top_features[:10], "meta": shap_path}, indent=2),
+        json.dumps({"top": top_features[:50], "meta": shap_path}, indent=2),
         encoding="utf-8",
     )
 
