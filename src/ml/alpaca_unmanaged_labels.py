@@ -25,6 +25,7 @@ import collections
 import csv
 import json
 import math
+import os
 import sys
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
@@ -47,14 +48,15 @@ def _load_repo_env_if_present() -> None:
     global _DOTENV_LOADED
     if _DOTENV_LOADED:
         return
-    _DOTENV_LOADED = True
     try:
         from dotenv import load_dotenv
     except ImportError:
+        _DOTENV_LOADED = True
         return
     p = _REPO_ROOT / ".env"
     if p.is_file():
         load_dotenv(p, override=False)
+    _DOTENV_LOADED = True  # one attempt per process (even if .env missing)
 
 
 def _parse_entry_ts(raw: Any) -> Optional[datetime]:
@@ -261,7 +263,12 @@ def merge_unmanaged_labels_into_csv(
         except Exception:
             cache[(sym, d_et)] = []
 
-    stats: Dict[str, Any] = {"rows": len(rows), "prefetch_keys": len(cache), "errors": 0}
+    stats: Dict[str, Any] = {
+        "rows": len(rows),
+        "prefetch_keys": len(cache),
+        "errors": 0,
+        "env_ALPACA_KEY_present": bool(os.getenv("ALPACA_KEY") or os.getenv("ALPACA_API_KEY")),
+    }
 
     for r in rows:
         sym = (r.get(symbol_col) or "").strip().upper()
