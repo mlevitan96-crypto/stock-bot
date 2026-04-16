@@ -139,7 +139,8 @@ def fetch_bars_for_range(
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", errors="replace")[:400]
             last_err = f"HTTP {e.code} feed={feed} {body}"
-            if e.code == 403 and feed == "sip" and "iex" in feeds:
+            # SIP is subscription-gated; some accounts also see 401 on sip before iex succeeds.
+            if feed == "sip" and "iex" in feeds and e.code in (401, 403):
                 continue
             break
         except Exception as e:
