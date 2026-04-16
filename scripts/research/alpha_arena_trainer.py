@@ -264,13 +264,23 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path, default=REPO_ROOT / "reports" / "Gemini")
     ap.add_argument("--cv", type=int, default=5)
     ap.add_argument("--random-state", type=int, default=42)
-    ap.add_argument(
+    ex = ap.add_mutually_exclusive_group()
+    ex.add_argument(
         "--export-alpha10",
         type=Path,
         default=None,
         help=(
             "Train RandomForestRegressor (entry-only features, same pipeline as arena) on all fit rows "
             "and write a joblib bundle (model + feature_names + impute_medians + meta). Exits after export."
+        ),
+    )
+    ex.add_argument(
+        "--export-paper-ml-gate",
+        action="store_true",
+        help=(
+            "Train RandomForestRegressor on all fit rows (same leakage/sparse pipeline as arena) and write "
+            "models/paper_ml_gate/alpaca_eod_model.joblib plus models/paper_ml_gate/manifest.json. "
+            "Exits after export."
         ),
     )
     args = ap.parse_args()
@@ -334,6 +344,55 @@ def main() -> int:
         joblib.dump(bundle, out_path)
         print(json.dumps({k: v for k, v in bundle.items() if k != "model"}, indent=2))
         print(f"\nWrote Alpha10 bundle: {out_path}")
+        return 0
+
+    if args.export_paper_ml_gate:
+        try:
+            import joblib  # type: ignore
+        except ImportError:
+            print("Need joblib for --export-paper-ml-gate (install scikit-learn stack).", file=sys.stderr)
+            return 1
+        medians = np.nanmedian(X.astype(np.float64), axis=0)
+        rf = RandomForestRegressor(
+            n_estimators=200,
+            max_depth=12,
+            min_samples_leaf=3,
+            random_state=args.random_state,
+            n_jobs=-1,
+        )
+        rf.fit(X, y)
+        gate_dir = REPO_ROOT / "models" / "paper_ml_gate"
+        gate_dir.mkdir(parents=True, exist_ok=True)
+        joblib_path = gate_dir / "alpaca_eod_model.joblib"
+        bundle = {
+            "model": rf,
+            "feature_names": list(feat_cols),
+            "impute_medians": [float(x) for x in medians.tolist()],
+            "target": target_name,
+            "target_resolution_note": resolution_note,
+            "csv": str(csv_path),
+            "n_rows_fit": int(X.shape[0]),
+            "n_features": int(X.shape[1]),
+            "kind": "paper_ml_gate_rf_eod_bundle_v1",
+        }
+        joblib.dump(bundle, joblib_path)
+        manifest = {
+            "kind": bundle["kind"],
+            "joblib": str(joblib_path.relative_to(REPO_ROOT)).replace("\\", "/"),
+            "target": target_name,
+            "target_resolution_note": resolution_note,
+            "csv": str(csv_path),
+            "n_rows_fit": bundle["n_rows_fit"],
+            "n_features": bundle["n_features"],
+            "random_state": int(args.random_state),
+            "feature_names": list(feat_cols),
+        }
+        manifest_path = gate_dir / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        print(json.dumps({k: v for k, v in manifest.items() if k != "feature_names"}, indent=2))
+        print(f"n_feature_names={len(feat_cols)} (listed in manifest.json)")
+        print(f"\nWrote paper ML gate bundle: {joblib_path}")
+        print(f"Wrote manifest: {manifest_path}")
         return 0
 
     kf = KFold(n_splits=min(args.cv, len(y)), shuffle=True, random_state=args.random_state)
