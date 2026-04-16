@@ -669,6 +669,39 @@ def ref_price_from_context(r: Optional[dict]) -> Optional[float]:
     return None
 
 
+def _paper_fill_price_proxy_for_exit(ex: dict, orders_norm: List[dict]) -> Optional[float]:
+    """Nearest orders.jsonl fill price for same symbol near exit_ts (paper slippage/snapshot computability)."""
+    sym = (ex.get("symbol") or "").upper()
+    ts_ex = _exit_ts_seconds(ex)
+    if not sym or ts_ex is None:
+        return None
+    win = _truth_execution_time_window_sec()
+    best_d = 1e30
+    best_px: Optional[float] = None
+    for o in orders_norm:
+        if (o.get("symbol") or "").upper() != sym:
+            continue
+        ts_o = _parse_ts_any(o.get("ts"))
+        if ts_o is None:
+            continue
+        d = abs(ts_o - ts_ex)
+        if d > win:
+            continue
+        px = o.get("price") or o.get("filled_avg_price")
+        if px is None:
+            continue
+        try:
+            pxf = float(px)
+        except (TypeError, ValueError):
+            continue
+        if pxf <= 0:
+            continue
+        if d < best_d:
+            best_d = d
+            best_px = pxf
+    return best_px
+
+
 # ---------------------------------------------------------------------------
 # Run.jsonl / blocked / snapshots for decision boundary
 # ---------------------------------------------------------------------------
@@ -1113,7 +1146,13 @@ def main() -> int:
         ts = _exit_ts_seconds(ex)
         c = nearest_context(ctx_index, sym, ts, _ctx_win)
         ref = ref_price_from_context(c)
-        fp = ex.get("avg_exit_price") or ex.get("exit_price") or ex.get("price")
+        fp = (
+            ex.get("avg_exit_price")
+            or ex.get("exit_price")
+            or ex.get("price")
+            or ex.get("fill_price")
+            or ex.get("filled_avg_price")
+        )
         try:
             fpf = float(fp) if fp is not None else None
         except (TypeError, ValueError):
@@ -1125,6 +1164,10 @@ def main() -> int:
                     fpf = ep2
             except (TypeError, ValueError):
                 pass
+        if (fpf is None or fpf <= 0) and _paper_broker_env():
+            px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm)
+            if px2 is not None and px2 > 0:
+                fpf = px2
         # Paper: use executed exit fill as reference when context missing or has no quote (slippage vs self = 0; gate = computability).
         if ref is None and fpf is not None and fpf > 0 and _paper_broker_env():
             ref = fpf
@@ -1141,17 +1184,30 @@ def main() -> int:
             continue
         if _paper_broker_env():
             try:
-                expx = float(ex.get("exit_price") or 0)
+                expx = float(
+                    ex.get("exit_price")
+                    or ex.get("avg_exit_price")
+                    or ex.get("price")
+                    or ex.get("fill_price")
+                    or ex.get("filled_avg_price")
+                    or 0
+                )
             except (TypeError, ValueError):
                 expx = 0.0
             if expx > 0:
                 snap_ok += 1
             else:
+                _snap_added = False
                 try:
                     if float(ex.get("entry_price") or 0) > 0:
                         snap_ok += 1
+                        _snap_added = True
                 except (TypeError, ValueError):
                     pass
+                if not _snap_added:
+                    px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm)
+                    if px2 is not None and px2 > 0:
+                        snap_ok += 1
     snap_pct = 100.0 * snap_ok / max(len(exits_dated), 1) if exits_dated else 100.0
 
     symbols_traded = sorted({(e.get("symbol") or "").upper() for e in exits if e.get("symbol")})
