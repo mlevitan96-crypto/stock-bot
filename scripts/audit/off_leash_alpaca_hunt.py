@@ -122,8 +122,17 @@ def _journal_hunt(unit: str, lines: int) -> Dict[str, Any]:
             "ERROR": re.compile(r"\bERROR\b", re.I),
             "WARN": re.compile(r"\bWARN(ING)?\b", re.I),
             "timeout": re.compile(r"timeout|timed out", re.I),
-            "429": re.compile(r"\b429\b|rate.?limit|too many requests", re.I),
-            "SIP": re.compile(r"\bsip\b|stream.*auth|402|market.?data", re.I),
+            # Avoid matching sub-second timestamps like ",429 " in log lines.
+            "429": re.compile(
+                r"(?:\bHTTP\s*/?1\.1\s+429\b|status[^\n]{0,24}\b429\b|"
+                r"rate\s*limit|too\s+many\s+requests|uw_rate_limit|http_status[^\n]*429)",
+                re.I,
+            ),
+            "SIP": re.compile(
+                r"\bsip\b|wss://stream\.data\.alpaca|market-data.*402|"
+                r"CRITICAL_DATA_STALE|stream.*auth\s*fail",
+                re.I,
+            ),
             "PDT": re.compile(r"\bpdt\b|pattern day", re.I),
             "wash": re.compile(r"wash.?sale|wash sale", re.I),
             "ghost": re.compile(r"close_position.*None|returned None|unhandled", re.I),
