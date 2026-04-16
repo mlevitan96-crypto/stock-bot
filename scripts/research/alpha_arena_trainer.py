@@ -102,8 +102,16 @@ def _resolve_target_column(
         for row in rows:
             v = _finite_float(row.get(requested))
             ys.append(v if v is not None else float("nan"))
-        if sum(1 for x in ys if math.isfinite(x)) >= max(10, len(rows) // 10):
+        finite = sum(1 for x in ys if math.isfinite(x))
+        thr = max(10, len(rows) // 10)
+        if finite >= thr:
             return requested, "column_present_in_csv", ys
+        if requested.startswith("target_ret_"):
+            raise SystemExit(
+                f"Target column {requested!r} exists in the CSV but only {finite} finite values "
+                f"(need >= {thr}). Refusing to fall back to a different target. "
+                f"For RTH labels, check Alpaca Data API access (SIP vs IEX feed) and label_*_reason columns."
+            )
 
     for cand in _MFE_CANDIDATES:
         if cand in hset:
@@ -167,7 +175,7 @@ def _feature_columns(headers: Sequence[str], target: str) -> List[str]:
             continue
         if _is_leaky_exit_feature(h, target):
             continue
-        if h.startswith("mlf_") or h == "strict_open_epoch_utc":
+        if h.startswith("mlf_") or h.startswith("uw_") or h == "strict_open_epoch_utc":
             out.append(h)
     return out
 
@@ -336,6 +344,12 @@ def main() -> int:
 
     winner = max(cv_scores, key=lambda k: cv_scores[k])
     winner_est = models[winner]
+    from sklearn.base import clone
+
+    mae_scores = cross_val_score(
+        clone(winner_est), X, y, cv=kf, scoring="neg_mean_absolute_error", n_jobs=-1
+    )
+    winner_cv_mae_mean = float(-np.mean(mae_scores))
     winner_est.fit(X, y)
 
     shap_path = {}
@@ -395,6 +409,8 @@ def main() -> int:
         "cv_scores_by_model": cv_scores,
         "winner_model": winner,
         "winner_cv_r2_mean": cv_scores[winner],
+        "winner_cv_mae_mean": winner_cv_mae_mean,
+        "winner_cv_mae_note": "same KFold folds, scoring=neg_mean_absolute_error, sklearn inverts sign",
         "importance_method": shap_path.get("engine", "unknown"),
     }
 
