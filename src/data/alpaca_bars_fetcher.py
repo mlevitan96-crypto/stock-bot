@@ -36,10 +36,25 @@ def _ensure_dotenv_for_data_api() -> None:
 
 
 def _data_base_url() -> str:
-    base = os.getenv("ALPACA_BASE_URL", "")
-    if "sandbox" in base.lower() or "paper" in base.lower():
-        return os.getenv("ALPACA_DATA_URL", "https://data.sandbox.alpaca.markets").rstrip("/")
-    return os.getenv("ALPACA_DATA_URL", "https://data.alpaca.markets").rstrip("/")
+    """
+    Alpaca Market Data v2 host selection.
+
+    ``ALPACA_DATA_URL`` always wins when set.
+
+    **Paper trading** (``paper-api``) still typically authenticates to **live** ``data.alpaca.markets``
+    with the same API keys. Routing *paper* trading base URLs to ``data.sandbox`` caused silent 401s
+    for most droplets. We only default to sandbox data when the broker base URL clearly contains
+    ``sandbox`` or when ``ALPACA_USE_SANDBOX_DATA=1``.
+    """
+    explicit = (os.getenv("ALPACA_DATA_URL") or "").strip()
+    if explicit:
+        return explicit.rstrip("/")
+    if (os.getenv("ALPACA_USE_SANDBOX_DATA") or "").strip().lower() in ("1", "true", "yes"):
+        return "https://data.sandbox.alpaca.markets"
+    base = os.getenv("ALPACA_BASE_URL", "").lower()
+    if "sandbox" in base:
+        return "https://data.sandbox.alpaca.markets"
+    return "https://data.alpaca.markets"
 
 
 def _headers() -> Dict[str, str]:
