@@ -6076,6 +6076,31 @@ class AlpacaExecutor:
         except Exception as e:
             log_event("submit_entry", "live_whale_shadow_error", symbol=symbol, error=str(e))
 
+        # Shadow Brain (paper ML gate): telemetry-only EOD return estimate — no sizing / gating.
+        try:
+            from src.ml.alpaca_shadow_scorer import try_log_shadow_ml_eod_prediction
+
+            try_log_shadow_ml_eod_prediction(
+                self,
+                symbol,
+                side,
+                entry_components,
+                float(entry_score),
+                str(effective_regime or ""),
+                log_event=log_event,
+                jsonl_write=jsonl_write,
+            )
+        except Exception as _ml_ex:
+            try:
+                log_event(
+                    "submit_entry",
+                    "alpaca_shadow_ml_hook_error",
+                    symbol=symbol,
+                    error=str(_ml_ex)[:400],
+                )
+            except Exception:
+                pass
+
         self._pending_entry_snapshot = {
             "entry_score": float(entry_score),
             "components": dict(entry_components) if isinstance(entry_components, dict) else {},
