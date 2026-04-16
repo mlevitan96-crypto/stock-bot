@@ -21,6 +21,7 @@ CLI (merge into flat cohort CSV without removing columns):
 from __future__ import annotations
 
 import argparse
+import collections
 import csv
 import json
 import math
@@ -237,7 +238,7 @@ def merge_unmanaged_labels_into_csv(
         except Exception:
             cache[(sym, d_et)] = []
 
-    stats = {"rows": len(rows), "prefetch_keys": len(cache), "errors": 0}
+    stats: Dict[str, Any] = {"rows": len(rows), "prefetch_keys": len(cache), "errors": 0}
 
     for r in rows:
         sym = (r.get(symbol_col) or "").strip().upper()
@@ -260,6 +261,19 @@ def merge_unmanaged_labels_into_csv(
         r["label_60m_reason"] = str(lab.get("label_60m_reason") or "")
         r["label_eod_reason"] = str(lab.get("label_eod_reason") or "")
         r["label_session_date_et"] = str(lab.get("label_session_date_et") or "")
+
+    def _finite_csv_cell(raw: Any) -> bool:
+        try:
+            v = float(raw or "")
+        except (TypeError, ValueError):
+            return False
+        return math.isfinite(v)
+
+    stats["finite_target_ret_60m_rth"] = sum(1 for r in rows if _finite_csv_cell(r.get("target_ret_60m_rth")))
+    stats["finite_target_ret_eod_rth"] = sum(1 for r in rows if _finite_csv_cell(r.get("target_ret_eod_rth")))
+    stats["label_eod_reason_top"] = collections.Counter(
+        str(r.get("label_eod_reason") or "") for r in rows
+    ).most_common(5)
 
     if dry_run:
         return stats
