@@ -1,0 +1,10 @@
+[Unit]
+Description=Alpaca Shadow ML milestone watcher (ml_expected_eod_return Telegram)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/stock-bot
+EnvironmentFile=-/root/stock-bot/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/root/stock-bot/venv/bin/python /root/stock-bot/scripts/audit/alpaca_shadow_ml_milestone_watcher.py
