@@ -337,6 +337,70 @@ def _apply_exit_quality_pct_fields(rec: dict, row: Dict[str, Any]) -> None:
             pass
 
 
+def _uw_gamma_skew_and_tide(entry_uw: Any) -> Tuple[float, float]:
+    """
+    First-class columns for options-flow / tide (ALP-UW-003).
+
+    ``uw_gamma_skew`` prefers ``greeks_gamma`` (UW v2 composite component), then ``iv_skew``.
+    ``uw_tide_score`` maps ``market_tide``. Missing values -> (0.0, 0.0) so strict ML gates
+    still see finite numerics; nested ``entry_uw`` / ``components`` / ``v2`` blobs are scanned.
+    """
+    z = 0.0
+    if not isinstance(entry_uw, dict):
+        return z, z
+
+    def _scalar(v: Any) -> Optional[float]:
+        if v is None or isinstance(v, bool):
+            return None
+        if isinstance(v, (int, float)):
+            try:
+                x = float(v)
+                return x if x == x and abs(x) < 1e308 else None
+            except (TypeError, ValueError):
+                return None
+        if isinstance(v, dict):
+            for kk in ("score", "value", "tide", "net", "gamma", "skew", "composite"):
+                if kk in v:
+                    s = _scalar(v.get(kk))
+                    if s is not None:
+                        return s
+            return None
+        try:
+            x = float(v)
+            return x if x == x else None
+        except (TypeError, ValueError):
+            return None
+
+    def _pick(d: Any) -> Tuple[Optional[float], Optional[float]]:
+        if not isinstance(d, dict):
+            return None, None
+        g = _scalar(d.get("greeks_gamma"))
+        if g is None:
+            g = _scalar(d.get("iv_skew"))
+        t = _scalar(d.get("market_tide"))
+        return g, t
+
+    g_out, t_out = _pick(entry_uw)
+    comp = entry_uw.get("components")
+    if isinstance(comp, dict):
+        g2, t2 = _pick(comp)
+        if g_out is None:
+            g_out = g2
+        if t_out is None:
+            t_out = t2
+    v2 = entry_uw.get("v2")
+    if isinstance(v2, dict):
+        for subk in ("components", "feature_snapshot"):
+            sub = v2.get(subk)
+            if isinstance(sub, dict):
+                g2, t2 = _pick(sub)
+                if g_out is None:
+                    g_out = g2
+                if t_out is None:
+                    t_out = t2
+    return (float(g_out) if g_out is not None else z, float(t_out) if t_out is not None else z)
+
+
 def _base_trade_fields(rec: dict) -> Dict[str, Any]:
     side = rec.get("position_side") or rec.get("side") or ""
     pnl = rec.get("pnl")
@@ -424,6 +488,10 @@ def build_rows(
                 flat = _flatten_leaves(blob)
                 stem = blob_key.replace(".", "_")
                 row.update(_prefix_mlf(flat, stem))
+
+        _g_uc, _t_uc = _uw_gamma_skew_and_tide(rec.get("entry_uw"))
+        row["uw_gamma_skew"] = _g_uc
+        row["uw_tide_score"] = _t_uc
 
         _apply_exit_quality_pct_fields(rec, row)
 
@@ -581,6 +649,9 @@ def main() -> int:
     for _t in ("mlf_scoreflow_total_score", "mlf_scoreflow_total_score_imputed"):
         if _t not in headers:
             headers.append(_t)
+    for _u in ("uw_gamma_skew", "uw_tide_score"):
+        if _u not in headers:
+            headers.append(_u)
 
     with out_path.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=headers, extrasaction="ignore")
