@@ -33,6 +33,7 @@ data/uw_flow_cache.json.corrupted*.json
 
 # Telemetry milestone watcher dedupe state (droplet/local)
 data/.milestone_state.json
+data/.alpaca_shadow_ml_milestone_state.json
 
 # Exports (runtime artifacts)
 exports/
@@ -64,6 +65,7 @@ Thumbs.db
 
 # Model/cache artifacts
 *.pkl
+models/paper_ml_gate/*.joblib
 
 # Backtest run outputs (regeneratable)
 backtests/30d_*/
