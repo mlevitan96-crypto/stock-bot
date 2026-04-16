@@ -9,6 +9,9 @@ populated from ``exit_quality_metrics``.
 **Leakage guard:** any feature column whose name contains ``exit_`` (except the target) or starts
 with ``mlf_v2_exit_`` is dropped so we do not regress MFE from exit-state telemetry.
 
+**Chronology guard:** raw epoch / ISO timestamp telemetry columns (``CHRONO_LEAK_FEATURE_NAMES`` and
+``mlf_*`` ``*_ts`` / ``*_timestamp`` / ``*ts_epoch*``) are never used as features.
+
 If the requested target column is still missing, this script defaults to a **derived** lower-bound proxy:
 
   ``derived_favorable_move_pct`` — max(0, favorable price move %) from entry/exit/side
@@ -40,6 +43,33 @@ _MFE_CANDIDATES = (
     "mlf_exit_quality_mfe",
     "mfe_pct_so_far",
 )
+
+# Raw clock / trade-open surfaces — must never enter CV as regressors (chronological leakage).
+CHRONO_LEAK_FEATURE_NAMES: frozenset[str] = frozenset(
+    {
+        "strict_open_epoch_utc",
+        "mlf_scoreflow_snapshot_ts_epoch",
+        "mlf_direction_intel_embed_intel_snapshot_entry_regime_posture_ts",
+        "mlf_direction_intel_embed_intel_snapshot_entry_timestamp",
+        "mlf_direction_intel_embed_intel_snapshot_exit_regime_posture_ts",
+        "mlf_direction_intel_embed_intel_snapshot_exit_timestamp",
+    }
+)
+
+
+def _is_chrono_leak_feature(name: str) -> bool:
+    if not name:
+        return False
+    if name in CHRONO_LEAK_FEATURE_NAMES:
+        return True
+    low = name.lower()
+    if "ts_epoch" in low:
+        return True
+    if low.endswith("_timestamp"):
+        return True
+    if low.endswith("_ts") and low.startswith("mlf_"):
+        return True
+    return False
 
 
 def _finite_float(x: Any) -> Optional[float]:
@@ -175,7 +205,9 @@ def _feature_columns(headers: Sequence[str], target: str) -> List[str]:
             continue
         if _is_leaky_exit_feature(h, target):
             continue
-        if h.startswith("mlf_") or h.startswith("uw_") or h == "strict_open_epoch_utc":
+        if _is_chrono_leak_feature(h):
+            continue
+        if h.startswith("mlf_") or h.startswith("uw_") or h.startswith("mlx_"):
             out.append(h)
     return out
 
@@ -266,7 +298,7 @@ def main() -> int:
 
     feat_cols = _feature_columns(headers, target_name)
     if len(feat_cols) < 4:
-        raise SystemExit("Too few mlf_* feature columns.")
+        raise SystemExit("Too few feature columns (need mlf_/uw_/mlx_* after leakage filters).")
 
     X, y, _ = _build_xy(rows, feat_cols, y_list)
     X, feat_cols = _drop_sparse_features(X, feat_cols)
@@ -394,6 +426,7 @@ def main() -> int:
         shap_path["engine"] = "sklearn_permutation_importance_r2"
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    chrono_dropped = sorted(h for h in headers if _is_chrono_leak_feature(h))
     report = {
         "csv": str(csv_path),
         "n_rows_total": len(rows),
@@ -402,6 +435,8 @@ def main() -> int:
         "target_requested": args.target_col,
         "target_resolved": target_name,
         "target_resolution_note": resolution_note,
+        "chrono_leak_features_dropped": chrono_dropped,
+        "chrono_leak_policy": "CHRONO_LEAK_FEATURE_NAMES + mlf_* *_ts / *_timestamp / *ts_epoch*",
         "entry_only_leak_filter": "drop columns containing exit_ (except target) or starting with mlf_v2_exit_; skip exit_mae_pct, holding_time_minutes, realized_pnl_usd",
         "realized_pnl_column": "realized_pnl_usd",
         "cv_folds": int(kf.n_splits),
