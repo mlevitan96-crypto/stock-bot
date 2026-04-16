@@ -41,3 +41,13 @@ def test_uw_nested_components(flattener_mod):
 def test_uw_missing_defaults_zero(flattener_mod):
     g, t = flattener_mod._uw_gamma_skew_and_tide({})
     assert g == 0.0 and t == 0.0
+
+
+def test_uw_scoreflow_components_shadows_slim_entry_uw(flattener_mod):
+    """entry_uw from exit_attribution is v2_uw_inputs (flow/dp/sentiment) — gamma/tide come from composite."""
+    eu = {"flow_strength": 0.5, "sentiment_score": 0.1}
+    comp = {"greeks_gamma": 0.21, "market_tide": -0.09}
+    merged = {**eu, "components": comp}
+    g, t = flattener_mod._uw_gamma_skew_and_tide(merged)
+    assert g == pytest.approx(0.21)
+    assert t == pytest.approx(-0.09)

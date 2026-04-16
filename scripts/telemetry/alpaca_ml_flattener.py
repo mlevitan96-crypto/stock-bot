@@ -489,13 +489,10 @@ def build_rows(
                 stem = blob_key.replace(".", "_")
                 row.update(_prefix_mlf(flat, stem))
 
-        _g_uc, _t_uc = _uw_gamma_skew_and_tide(rec.get("entry_uw"))
-        row["uw_gamma_skew"] = _g_uc
-        row["uw_tide_score"] = _t_uc
-
         _apply_exit_quality_pct_fields(rec, row)
 
         row["mlf_ml_feature_source"] = "none"
+        comp_norm: Dict[str, float]
         if snap:
             row["mlf_ml_feature_source"] = "entry_snapshot"
             row["mlf_scoreflow_join_tier"] = "entry_snapshot"
@@ -555,6 +552,19 @@ def build_rows(
             row["mlf_scoreflow_total_score_imputed"] = 1
             row["mlf_scoreflow_features_neutral_no_join"] = 1
             row.setdefault("mlf_scoreflow_join_tier", "none")
+
+        # v2_uw_inputs (entry_uw) does not include greeks_gamma / market_tide; those live on the
+        # entry-time composite components (scoreflow join). Merge so first-class UW columns match
+        # mlf_scoreflow_components_greeks_gamma / mlf_scoreflow_components_market_tide.
+        merged_uw: Dict[str, Any] = {}
+        eu = rec.get("entry_uw")
+        if isinstance(eu, dict) and eu:
+            merged_uw = dict(eu)
+        merged_uw["components"] = comp_norm
+        _g_uc, _t_uc = _uw_gamma_skew_and_tide(merged_uw)
+        row["uw_gamma_skew"] = _g_uc
+        row["uw_tide_score"] = _t_uc
+
         out.append(row)
     return out
 
