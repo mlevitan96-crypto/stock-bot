@@ -3,7 +3,7 @@
 Pre-Market Health Check Script
 Verifies UW socket connection and Alpaca SIP data feed 15 minutes before market open.
 Ensures Momentum Ignition Filter has high-fidelity data from the first second of trading.
-Authoritative Source: MEMORY_BANK.md
+Authoritative Source: MEMORY_BANK_ALPACA.md
 """
 
 import sys

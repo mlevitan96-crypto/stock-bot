@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 REPO = Path(__file__).resolve().parents[1]
-MEMORY_BANK = REPO / "MEMORY_BANK.md"
+MEMORY_BANK = REPO / "MEMORY_BANK_ALPACA.md"
 
 REQUIRED_SECTIONS = [
     "GOLDEN WORKFLOW",

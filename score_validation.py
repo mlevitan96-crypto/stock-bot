@@ -5,7 +5,7 @@ Automated Score Validation - Sanity Check Post-Scoring
 Implements sanity checks after composite scoring to detect 0.00 score bugs.
 Logs CRITICAL_LOGIC_EXCEPTION and attempts to re-initialize weights.
 
-Authoritative Source: MEMORY_BANK.md
+Authoritative Source: MEMORY_BANK_ALPACA.md
 """
 
 import json

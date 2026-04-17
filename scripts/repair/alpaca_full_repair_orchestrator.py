@@ -174,7 +174,7 @@ def main() -> int:
     mb_diff = ev / f"ALPACA_FULL_REPAIR_MEMORY_BANK_DIFF_{ts}.md"
     try:
         diff = subprocess.run(
-            ["git", "diff", "--no-color", "MEMORY_BANK.md", "memory_bank/TELEMETRY_CHANGELOG.md"],
+            ["git", "diff", "--no-color", "MEMORY_BANK_ALPACA.md", "memory_bank/TELEMETRY_CHANGELOG.md"],
             cwd=str(REPO),
             capture_output=True,
             text=True,
