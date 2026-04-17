@@ -75,7 +75,12 @@ def try_append_entry_snapshot(
         if isinstance(ph, dict) and ph:
             rec["passive_uw_harvest"] = ph
         # Pillar 1 — microstructure alpha (telemetry-only; no execution gates).
-        for _k in ("ofi_l1_roll_60s_sum", "ofi_l1_roll_300s_sum"):
+        for _k in (
+            "ofi_l1_roll_60s_sum",
+            "ofi_l1_roll_300s_sum",
+            "shadow_vamp_limit_price",
+            "shadow_vamp_mid",
+        ):
             if _k in pending:
                 try:
                     rec[_k] = float(pending[_k])
