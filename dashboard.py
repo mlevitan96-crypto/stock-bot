@@ -3,7 +3,7 @@
 Position Dashboard - Fast Start Version
 Binds port 5000 immediately, then lazy-loads heavy dependencies.
 
-IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK.md
+IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK_ALPACA.md
 """
 
 import os
@@ -82,7 +82,7 @@ else:
         Best-effort: load `/root/stock-bot/.env` so manual dashboard starts inherit secrets.
 
         WHY:
-        - MEMORY_BANK.md allows manual `nohup python3 dashboard.py ...` starts.
+        - MEMORY_BANK_ALPACA.md allows manual `nohup python3 dashboard.py ...` starts.
         - The dashboard auth contract requires DASHBOARD_USER/PASS, which are stored in `/root/stock-bot/.env`.
         """
         try:

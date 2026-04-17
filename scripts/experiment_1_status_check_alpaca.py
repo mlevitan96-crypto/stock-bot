@@ -7,7 +7,7 @@ alert readiness, days elapsed, and prints a summary. No execution changes,
 no risk scaling, no deploy authorization use.
 
 This script MUST use the same trade log path(s) the live bot writes to.
-If those paths change, update here and in MEMORY_BANK.md "Alpaca Data Sources".
+If those paths change, update here and in MEMORY_BANK_ALPACA.md "Alpaca Data Sources".
 
 Optional: --droplet runs the same checks using live data from the droplet
 (via SSH). Requires droplet_config.json or DROPLET_* env vars.

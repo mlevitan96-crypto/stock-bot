@@ -1,7 +1,7 @@
 # ALPACA GOVERNANCE CONTEXT BLOCK
 # (Meta Governance + Alpaca Stock Bot)
 # This block is authoritative for Alpaca only.
-# It must not reference Kraken or any crypto-bot concepts.
+# It must stay scoped to Alpaca US equities only (no other execution venues).
 
 ===========================================================
 SECTION A — GOVERNANCE RULES (AUTHORITATIVE)
@@ -217,7 +217,7 @@ Cursor must treat this section as ground truth and update it only when changes a
 | Capacity | `MAX_OPEN_POSITIONS` and per-symbol/per-sector caps in `main.py` |
 | Governance runner | **No** `scripts/run_governance_full.py`. Canonical processes: **EOD** `board/eod/run_stock_quant_officer_eod.py`; **Learning workflow** `scripts/run_molt_on_droplet.sh`; **comparison** `scripts/governance/compare_backtest_runs.py`; **AI governance chair** `moltbot/agents/governance_chair.py` (`run_governance_chair`) |
 | Daily report / governance index | `reports/GOVERNANCE_DISCOVERY_INDEX.md`; governance comparison outputs: `reports/governance_comparison/` |
-| Memory Bank | `MEMORY_BANK.md` (root) |
+| Memory Bank | `MEMORY_BANK_ALPACA.md` (root) |
 | Attribution truth contract | `docs/ATTRIBUTION_TRUTH_CONTRACT.md`; canonical schema `docs/ATTRIBUTION_SCHEMA_CANONICAL_V1.md`; code: `src/exit/exit_attribution.py` (`ATTRIBUTION_SCHEMA_VERSION`), `schema/attribution_v1.py`, `schema/contract_validation.py` |
 | Data feed health contract | `scripts/data_feed_health_contract.py` → `reports/data_integrity/DATA_FEED_HEALTH_CONTRACT.md` and `.json` |
 | Lifecycle events schema (gate + shadow) | `docs/ALPACA_LIFECYCLE_EVENTS_SCHEMA.md`; validator: `scripts/validate_lifecycle_events_schema.py` |
@@ -239,7 +239,7 @@ Cursor must focus adversarial review here and propose/implement concrete fixes.
 
 **C1. Venue isolation**
 
-- **Status:** No Kraken/crypto-only checks, symbols, or data paths found in Alpaca code. Only `venue: "alpaca"` and a comment in `scripts/entry_intelligence_parity_audit.py` that "None are crypto-specific for stock-bot."
+- **Status:** No non-Alpaca venue checks, symbols, or data paths found in Alpaca code. Only `venue: "alpaca"` and a comment in `scripts/entry_intelligence_parity_audit.py` that "None are crypto-specific for stock-bot."
 - **Action:** Add venue guards only if cross-venue logic is introduced (e.g. `if venue != "alpaca": return` or config-driven branch). No code change required until then.
 
 ---

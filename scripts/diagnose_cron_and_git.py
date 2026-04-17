@@ -46,7 +46,6 @@ REQUIRED_SCRIPTS = [
 ]
 OPTIONAL_SCRIPTS = [
     "scripts/run_stock_bot_workflow.py",
-    "scripts/run_wheel_strategy.py",
 ]
 
 
@@ -336,10 +335,10 @@ def install_crontab(lines: list[str], existing: str) -> tuple[bool, str]:
 # -----------------------------------------------------------------------------
 
 def update_memory_bank(root: Path, data: dict) -> tuple[bool, str]:
-    """Append/update a diagnostic section in MEMORY_BANK.md."""
-    mb = root / "MEMORY_BANK.md"
+    """Append/update a diagnostic section in MEMORY_BANK_ALPACA.md."""
+    mb = root / "MEMORY_BANK_ALPACA.md"
     if not mb.exists():
-        return False, "MEMORY_BANK.md not found"
+        return False, "MEMORY_BANK_ALPACA.md not found"
 
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     section = f"""

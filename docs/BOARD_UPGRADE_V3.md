@@ -156,7 +156,7 @@ V3 mandates appended to `.cursorrules`:
 - `docs/BOARD_UPGRADE_V3.md` — This document (full V3 architecture)
 - `docs/REGIME_DETECTION.md` — Regime pipeline and modifier-only contract (regime never gates)
 - `docs/CAPACITY_AND_DISPLACEMENT.md` — Displacement/capacity policy and monitoring (regime-aware, non-gating)
-- `MEMORY_BANK.md` — Updated with multi-day entry and remediation summary
+- `MEMORY_BANK_ALPACA.md` — Updated with multi-day entry and remediation summary
 
 ## Testing
 To test V3 Board Review:

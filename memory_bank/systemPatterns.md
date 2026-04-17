@@ -30,6 +30,6 @@ Cross-cutting architecture and data-integrity patterns for the stock-bot repo (A
 
 ## Related canonical docs
 
-- `MEMORY_BANK.md` §1.2 — Alpaca truth warehouse baseline and droplet command.  
+- `MEMORY_BANK_ALPACA.md` §1.2 — Alpaca truth warehouse baseline and droplet command.  
 - `docs/DATA_READY_RUNBOOK.md` — operator order of operations.  
 - `src/infra/truth_router.py` — CTR append contract.

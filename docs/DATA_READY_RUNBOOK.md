@@ -1,6 +1,6 @@
 # DATA_READY runbook — Alpaca truth warehouse & strict cohort
 
-**Canon (anti-drift):** `MEMORY_BANK.md` section **1.2** — Alpaca truth warehouse / `DATA_READY` baseline, keys, gates, and what YES does *not* imply vs strict learning.
+**Canon (anti-drift):** `MEMORY_BANK_ALPACA.md` section **1.2** — Alpaca truth warehouse / `DATA_READY` baseline, keys, gates, and what YES does *not* imply vs strict learning.
 
 **Premise:** Profitability work needs **honest telemetry**. This runbook ties **CSA** (truth / contracts), **SRE** (droplet execution + keys), and **Quant** (coverage metrics you can trade on) to the same commands.
 

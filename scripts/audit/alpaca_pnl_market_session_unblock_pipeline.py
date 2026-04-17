@@ -2,7 +2,7 @@
 """
 Pin ET market session, build demo fixture (or use droplet root), run forward truth, alignment, bundle exports.
 All report artifacts → reports/daily/<session-date-et>/evidence/; canonical DAILY_* via assembler.
-Signal Path Intelligence (SPI) is emitted when `alpaca_pnl_massive_final_review.py` runs on the same cohort (see MEMORY_BANK.md).
+Signal Path Intelligence (SPI) is emitted when `alpaca_pnl_massive_final_review.py` runs on the same cohort (see MEMORY_BANK_ALPACA.md).
 """
 from __future__ import annotations
 
