@@ -6262,12 +6262,28 @@ class AlpacaExecutor:
             except Exception:
                 pass
 
+        ofi_roll_60 = 0.0
+        ofi_roll_300 = 0.0
+        try:
+            from src.alpaca.stream_manager import get_stream_manager
+
+            _md_m = get_stream_manager()
+            _ot = getattr(_md_m, "ofi_tracker", None) if _md_m is not None else None
+            if _ot is not None:
+                _sym_u = str(symbol or "").upper().strip()
+                if _sym_u:
+                    ofi_roll_60, ofi_roll_300 = _ot.rolling_sums(_sym_u)
+        except Exception:
+            pass
+
         self._pending_entry_snapshot = {
             "entry_score": float(entry_score),
             "components": dict(entry_components) if isinstance(entry_components, dict) else {},
             "market_regime": str(effective_regime),
             "trade_id": None,
             "passive_uw_harvest": passive_uw_harvest,
+            "ofi_l1_roll_60s_sum": float(ofi_roll_60),
+            "ofi_l1_roll_300s_sum": float(ofi_roll_300),
         }
 
         # Paper-only A/B execution promo (PASSIVE_THEN_CROSS vs baseline); gated by env + universe. Never arms for live.
