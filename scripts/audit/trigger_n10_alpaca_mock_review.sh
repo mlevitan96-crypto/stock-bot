@@ -10,6 +10,11 @@ PY="${PYTHON:-python3}"
 echo "[n10] flattener -> reports/Gemini/alpaca_ml_cohort_flat.csv"
 "$PY" scripts/telemetry/alpaca_ml_flattener.py --root "$ROOT"
 
+echo "[n10] UW×macro interaction expand -> reports/Gemini/alpaca_ml_cohort_flat_UW_IX.csv"
+"$PY" scripts/telemetry/alpaca_ml_interaction_expand.py \
+  --in-csv "${ROOT}/reports/Gemini/alpaca_ml_cohort_flat.csv" \
+  --out-csv "${ROOT}/reports/Gemini/alpaca_ml_cohort_flat_UW_IX.csv"
+
 SRC_IX="${ROOT}/reports/Gemini/alpaca_ml_cohort_flat_UW_IX.csv"
 STRESS="${ROOT}/reports/Gemini/_n10_stress_ml_col.csv"
 if [[ ! -f "$SRC_IX" ]]; then
