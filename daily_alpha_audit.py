@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Daily Alpha Audit - Specialist Tier Monitoring
-Authoritative Source: MEMORY_BANK.md
+Authoritative Source: MEMORY_BANK_ALPACA.md
 
 Generates daily performance reports (Mon-Thu post-market close) with:
 - Win rates for RISK_ON vs MIXED regimes
@@ -454,7 +454,7 @@ def generate_daily_alpha_audit(target_date: Optional[datetime] = None) -> Dict[s
         "report_date": target_date.strftime("%Y-%m-%d"),
         "report_timestamp": datetime.now(timezone.utc).isoformat(),
         "report_type": "daily_alpha_audit",
-        "authoritative_source": "MEMORY_BANK.md",
+        "authoritative_source": "MEMORY_BANK_ALPACA.md",
         
         "today_summary": {
             "total_trades": total_trades,

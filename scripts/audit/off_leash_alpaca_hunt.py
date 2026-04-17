@@ -3,7 +3,7 @@
 Off-Leash Alpaca Red Team Hunt (production / droplet).
 
 No prescriptive checklist-only pass: scans journal, process RSS/threads, JSONL health,
-and keyword surfaces in run/system_events for friction signals. See MEMORY_BANK.md
+and keyword surfaces in run/system_events for friction signals. See MEMORY_BANK_ALPACA.md
 for canonical paths (logs/exit_attribution.jsonl, stock-bot.service, etc.).
 
 Usage:

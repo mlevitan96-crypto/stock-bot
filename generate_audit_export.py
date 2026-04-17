@@ -23,7 +23,7 @@ def main():
         "# Full System Audit - Core Files Export",
         f"**Generated:** {datetime.now().strftime('%Y-%m-%d')}",
         "**Purpose:** Complete concatenation of core system files for audit and review",
-        "**Authoritative Source:** MEMORY_BANK.md",
+        "**Authoritative Source:** MEMORY_BANK_ALPACA.md",
         "",
         "This document contains the complete source code for the five core system files required for the full system audit.",
         "",

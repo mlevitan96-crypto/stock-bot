@@ -148,7 +148,7 @@ def _latest_session_date(rows_list: List[List[dict]]) -> Optional[date]:
 
 def _verify_memory_bank(path: Path) -> Tuple[bool, str]:
     if not path.exists():
-        return False, "MEMORY_BANK.md missing"
+        return False, "MEMORY_BANK_ALPACA.md missing"
     t = path.read_text(encoding="utf-8", errors="replace")
     if MB_START not in t or MB_END not in t:
         return False, "canonical markers missing"
@@ -406,7 +406,7 @@ def main() -> int:
     state_dir.mkdir(parents=True, exist_ok=True)
     wm_path = state_dir / "postclose_watermark.json"
 
-    mb_path = root / "MEMORY_BANK.md"
+    mb_path = root / "MEMORY_BANK_ALPACA.md"
     mb_ok, mb_msg = _verify_memory_bank(mb_path)
     if not mb_ok:
         print("STOP — Memory Bank:", mb_msg, file=sys.stderr)
