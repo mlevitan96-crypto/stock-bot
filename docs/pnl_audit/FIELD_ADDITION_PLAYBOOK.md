@@ -5,7 +5,7 @@ Use when a **required audit field** is missing, wrong, or not joinable. **No str
 ## 1. Identify the gap
 
 - Compare failing audit row to `docs/pnl_audit/LINEAGE_MATRIX.json`.
-- Run: `python3 scripts/audit/alpaca_pnl_lineage_map_check.py` (see `MEMORY_BANK.md`).
+- Run: `python3 scripts/audit/alpaca_pnl_lineage_map_check.py` (see `MEMORY_BANK_ALPACA.md`).
 
 ## 2. Choose emitter
 
@@ -35,7 +35,7 @@ Use when a **required audit field** is missing, wrong, or not joinable. **No str
 
 1. Edit `docs/pnl_audit/LINEAGE_MATRIX.json` (add/change row).
 2. Regenerate human table:  
-   `python3 -c "..."`  (same snippet as in `MEMORY_BANK.md` for `LINEAGE_MATRIX.md`)  
+   `python3 -c "..."`  (same snippet as in `MEMORY_BANK_ALPACA.md` for `LINEAGE_MATRIX.md`)  
    or manually edit `docs/pnl_audit/LINEAGE_MATRIX.md`.
 3. Update `docs/pnl_audit/REQUIRED_FIELDS.md` if the canonical field set changed.
 
@@ -58,4 +58,4 @@ Write under `reports/daily/<ET-date>/evidence/`:
 
 ## 8. Governance
 
-- **MEMORY_BANK.md** must stay aligned: matrix is law; broker vs local sources explicit per row.
+- **MEMORY_BANK_ALPACA.md** must stay aligned: matrix is law; broker vs local sources explicit per row.

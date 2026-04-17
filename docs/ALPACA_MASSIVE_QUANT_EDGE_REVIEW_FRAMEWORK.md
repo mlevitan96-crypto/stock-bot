@@ -19,7 +19,7 @@ This review exists to explain **why** we are winning or losing and **how** we wi
 
 **Goal:** Identify **edge**, **anti-edge**, **conditional edge**, **execution leaks**, and **missed opportunity** using strict-log forensics first.
 
-**Authoritative join rule:** Build all per-trade tables on **`canonical_trade_id` / `trade_key`** (and stable `open_SYM_*` trade ids where defined), not “latest fill per symbol.” See gate output `AUTHORITATIVE_JOIN_KEY_RULE` and `MEMORY_BANK.md` strict-era notes.
+**Authoritative join rule:** Build all per-trade tables on **`canonical_trade_id` / `trade_key`** (and stable `open_SYM_*` trade ids where defined), not “latest fill per symbol.” See gate output `AUTHORITATIVE_JOIN_KEY_RULE` and `MEMORY_BANK_ALPACA.md` strict-era notes.
 
 ---
 

@@ -1,6 +1,6 @@
 # Stock-Bot: Architecture & Operations Reference
 
-**Source:** MEMORY_BANK.md, droplet client, and repo config. No secrets.  
+**Source:** MEMORY_BANK_ALPACA.md, droplet client, and repo config. No secrets.  
 **Droplet-derived:** Live status and branch info obtained via `DropletClient` where required.
 
 ---
@@ -40,7 +40,7 @@ USER → CURSOR → GITHUB → DROPLET → GITHUB → CURSOR → USER
 | UW ingestion | `uw_flow_daemon.py` |
 | Health     | `heartbeat_keeper.py` |
 | Risk       | `risk_management.py` |
-| Strategies | `strategies/equity_strategy.py`, `strategies/wheel_strategy.py` |
+| Strategies | `strategies/equity_strategy.py` |
 
 Canonical repo layout: **`reports/repo_audit/CANONICAL_REPO_STRUCTURE.md`**.
 
@@ -153,4 +153,4 @@ For latest backtest artifacts and re-runs: `scripts/run_alpaca_backtest_orchestr
 
 ---
 
-*Generated from MEMORY_BANK.md and droplet client. For deployment steps and SSH config, see MEMORY_BANK Section 6 and `droplet_config.example.json`.*
+*Generated from MEMORY_BANK_ALPACA.md and droplet client. For deployment steps and SSH config, see MEMORY_BANK Section 6 and `droplet_config.example.json`.*

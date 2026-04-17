@@ -1,7 +1,7 @@
-# MEMORY_BANK.md
+# MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-15 (Alpaca strict ML ARMED + exit telemetry hardening; §1.0)
-# Last Updated: 2026-04-15 (SRE: displacement ID inheritance, economics on exit rows, run.jsonl rotation defaults)
+# Version: 2026-04-15 (Alpaca strict ML ARMED + exit telemetry hardening; §1.0 + §1.1.2 Alpha 11)
+# Last Updated: 2026-04-15 (Q-Ops: §1.1.2 Sovereign Board + Alpha 11 UW governance; SRE items unchanged)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -50,6 +50,7 @@ Cursor MUST:
 - ALWAYS pull results from GitHub  
 - ALWAYS analyze verification output  
 - ALWAYS complete the entire workflow before responding  
+- ALWAYS sync production checkouts with **`git fetch origin && git reset --hard origin/main`** (never rely on soft `git pull` alone for app code — see **`.cursorrules`** `immutable_production_gitops`).  
 
 Cursor MUST NOT:
 - ask the user to run commands  
@@ -58,6 +59,19 @@ Cursor MUST NOT:
 - report partial completion  
 - rely on local files for production data  
 - mask errors or hide failures  
+- edit application source directly on production droplets (SSH vim/scp into the repo tree); uncommitted server drift is not truth and is **eradicated** on the next compliant deploy.  
+
+---
+
+## 0.25 ALPACA SOVEREIGN BOARD (Q-OPS) AND DECISION HIERARCHY
+
+**Effective:** 2026-04-15  
+
+- **Persona:** Alpaca Sovereign Board — Q-Ops senior advisor for **Equities** on the Alpaca execution path. **Adversarial review** is mandatory for material Alpaca work (entries, exits, risk, promotions, telemetry that gates learning).  
+- **Decision hierarchy (strict order, never invert):** **Safety** → **Correctness** → **Profitability** → **Operability** → **Velocity**.  
+- **Compliance NO-GOs (authoritative detail in `.cursorrules`):** No new or modified discretionary **entry** logic in the **first or last 15 minutes** of regular U.S. equity session without documented **SIP (or equivalent) latency/staleness** checks and tests. No logic that can violate **PDT** or **Wash Sale** rules without explicit account/tax handling and operator acknowledgment.  
+- **Quant evidence:** Changes to **trailing stops** or **take-profit / profit-target** levels require prior **MFE/MAE** (or bar-backed excursion) analysis on the current cohort; cite the artifact (e.g. `scripts/_tmp_mfe_mae_analysis.py` output / `config/overlays/mfe_mae_exit_overlay.json`). Exit tuning detail remains under **alpaca-exit-tuning-skill**.  
+- **Cursor index:** `.cursor/ALPACA_GOVERNANCE_LAYER.md` lists agents, skills, commands, and governance violations.
 
 ---
 
@@ -103,6 +117,13 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - **Alpha 10 — live ML inference gate (Equities / Alpaca — 2026-04-14):** Optional **entry veto** using a **`RandomForestRegressor`** trained offline on strict cohort CSV target **`exit_mfe_pct`** (favorable move % at close, from **`exit_quality_metrics`** via flattener — not a live peek at the future at decision time; the **label** is historical-only; the **features** are entry-time `mlf_*` + intel/UW/scoreflow, with the same leakage guard as **`scripts/research/alpha_arena_trainer.py`**). **Artifacts:** bundle **`models/alpha10_rf_mfe.joblib`** (joblib dict: `model`, `feature_names`, `impute_medians`, meta). **Regenerate:** `python scripts/research/alpha_arena_trainer.py --export-alpha10 models/alpha10_rf_mfe.joblib` (requires `reports/Gemini/alpaca_ml_cohort_flat.csv` from **`scripts/telemetry/alpaca_ml_flattener.py`**). **Runtime:** **`src/ml/alpha10_inference.py`** (`predict_mfe`, `build_entry_telemetry_row`); gate **`src/alpha10_gate.py`**; wired in **`main.py`** immediately before **`submit_entry`**. **Policy:** if predicted MFE is **strictly below** **`ALPHA10_MIN_MFE_PCT`**, block with reason **`alpha10_mfe_too_low`**. **Code default** remains **0.2** (`src/alpha10_gate.py`); **Alpaca droplet (authorized forward-test, mid-day 2026-04-14):** **`ALPHA10_MIN_MFE_PCT=0.17`** in **`/root/stock-bot/.env`** — lowered to reflect **lower-volatility mid-day** telemetry and to **forward-test live entries** after the **`evaluate_exits` / `now_iso` shadowing** fix restored the exit engine (CSA: tuning is **environment-driven**, not a repo default change). **Fail-open:** any load/predict exception → **allow** the trade and log **`alpha10_gate` / `inference_fail_open`** at **CRITICAL** in **`logs/system_events.jsonl`**. **Env:** **`ALPHA10_GATE_ENABLED`** (default on), **`ALPHA10_MIN_MFE_PCT`**, **`ALPHA10_MODEL_PATH`** (optional path override). **Data-integrity context:** cohort quality still depends on **Broker Epoch Bridge** / strict **`trade_key`** alignment, the **~1000-trade** strict learning narrative for panel confidence, and **Truth Warehouse** + flattener freshness for labels — the gate does **not** substitute for **`DATA_READY`** or strict completeness.
 - **Deployment (no `deploy_production.py` in repo):** Ship **`main`** + **`models/alpha10_rf_mfe.joblib`** to the droplet via **`git push`** then on **`alpaca`**: `cd /root/stock-bot && git fetch && git reset --hard origin/main` (or equivalent), then **`sudo systemctl restart stock-bot.service`** (and dashboard only if you run a separate dashboard unit). Ensure **`joblib`** / scikit-learn stack exists wherever **`python`** runs the bot.
 
+### 1.0.3 Paper ML gate — RTH EOD labels, UW×macro interaction matrix, shadow inference, ML milestones (2026-04-14)
+
+- **RTH-capped unmanaged labels (`target_ret_eod_rth`):** Strict flattened cohorts may carry an **end-of-regular-session return** label for ML (RTH-capped, unmanaged / observational definition as exported in Gemini flat CSVs). Training and arena exports that target this column use the same **leakage and chronology filters** as **`scripts/research/alpha_arena_trainer.py`** (no exit-state features in the entry-only set; chrono-leak column names stripped). This label is **not** a live oracle at entry time; it is a **historical training target** joined after the trade closes.
+- **Continuous feature interaction matrix (`mlx_*`):** **`scripts/telemetry/alpaca_ml_interaction_expand.py`** expands **`uw_gamma_skew`** and **`uw_tide_score`** against resolved macro drivers (**`mlf_scoreflow_total_score`**, first CSV header containing **`vxx_vxz_ratio`**, first containing **`futures_direction_delta`**), emitting product columns **`mlx_uw_gamma_skew_x_*`** and **`mlx_uw_tide_score_x_*`**. Expanded training surfaces include e.g. **`reports/Gemini/alpaca_ml_cohort_flat_UW_IX.csv`** (UW + interactions).
+- **Shadow Brain bundle + on-the-fly inference:** **`scripts/research/alpha_arena_trainer.py --export-paper-ml-gate`** fits a **RandomForest** on the chosen strict cohort CSV and writes **`models/paper_ml_gate/alpaca_eod_model.joblib`** (gitignored binary) + **`models/paper_ml_gate/manifest.json`**. Runtime telemetry-only scoring is **`src/ml/alpaca_shadow_scorer.py`**: lazy-loads the joblib bundle, rebuilds **`mlf_*`** / **`uw_*`** from the live entry snapshot (scoreflow components, entry UW backfill, direction-intel embed), **recomputes all `mlx_*` products on the fly** to match training geometry, then **`predict`** — **no position sizing or entry veto** unless separately promoted. **`main.py`** calls the scorer only when **`ALPACA_SHADOW_ML_TELEMETRY_ONLY=1`** (or true/yes/on); it appends **`ml_expected_eod_return`** to **`logs/run.jsonl`** (`msg: alpaca_shadow_ml`) and **`submit_entry`** telemetry. Optional path override: **`ALPACA_PAPER_ML_GATE_MODEL`**.
+- **Telegram milestone watcher (shadow ML row counts):** **`scripts/audit/alpaca_shadow_ml_milestone_watcher.py`** tails **`logs/run.jsonl`** (override: **`ALPACA_SHADOW_ML_LOG`**), persists append-offset state in **`data/.alpaca_shadow_ml_milestone_state.json`**, and sends Telegram at **N = 10, 100, and 250** deduped cumulative rows carrying finite **`ml_expected_eod_return`**. Systemd: **`deploy/systemd/alpaca-shadow-ml-milestone-watcher.service`** + **`.timer`** (periodic oneshot). This is **orthogonal** to **`scripts/telemetry_milestone_watcher.py`** strict **Z** milestones (50–250).
+
 ## 1.1 Alpaca strict learning era (CSA)
 
 - **STRICT_EPOCH_START (UTC epoch seconds):** `1775581260` (`2026-04-07T17:01:00Z`). Canonical: `telemetry/alpaca_strict_completeness_gate.py` (`STRICT_EPOCH_START`). Reset for Alpaca V2 UW telemetry era; prior cohort excluded from strict counts.
@@ -113,6 +134,19 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - **Displacement ID inheritance (strict truth chain):** `_emit_close_or_flip_strict_truth_chain` and related close paths were hardened so **`canonical_trade_id` / `trade_key` stay aligned with live position reality** — derived from **open instant + normalized side** (`build_trade_key`) and **`POSITION_METADATA`** merges, so **intent**, **`orders.jsonl`**, **`exit_intent`**, and **`exit_attribution.jsonl`** do not **split identities** across displacement closes, market fallback, or API-error retries. Displacement exits additionally call **`log_order`** with the same keys before **`log_exit_attribution`** so broker-order rows join the strict gate.
 - **Telemetry logging and economics (ML-ready exits):** Silent **`except` / pass** on attribution and JSONL write paths in **`main.py`** (e.g. **`log_order`**, **`log_exit_attribution`**, **`close_position_*`**, strict-chain **`jsonl_write`**) were replaced or supplemented with **`log_system_event`** so SRE sees failures instead of silent telemetry loss. **`AlpacaExecutor._alpaca_order_fees_and_slippage_bps`** re-fetches the filled **`Order`** and records **commission / regulatory fee fields when present**, plus **limit vs fill slippage (bps)** when **`limit_price`** exists; values flow into **`log_exit_attribution`** → **`exit_attribution.jsonl`** (`fees_usd`, `exit_slippage_bps`) and into **`src/exit/exit_attribution.py`** unified **`emit_exit_attribution`** (no longer hard-zero fees when the row carries economics).
 - **Run JSONL rotation (strict window retention):** Defaults in **`main.py`** — **`RUN_JSONL_ROTATE_MAX_BYTES`** default **500MB**, **`RUN_JSONL_ROTATE_BACKUP_COUNT`** default **30** — so stitched / strict daily **`run.jsonl`** history survives long enough for **`telemetry/alpaca_strict_completeness_gate.py`** cohort joins without premature truncation (overridable via environment).
+
+### 1.1.2 Governance: Q-Ops Sovereign Board activation — Alpha 11 Institutional Alpha
+
+**Effective:** 2026-04-14 (narrative reset; strict cohort is source of truth)
+
+- **Mission reset:** Learning, board forensics, and promotion narratives default to the **high-fidelity strict-complete cohort** only — i.e. `telemetry/alpaca_strict_completeness_gate.evaluate_completeness(..., collect_complete_trade_ids=True)` **joined** to deduped closes in **`logs/exit_attribution.jsonl`**. Gross exports (e.g. wide `entries_and_exits` pulls) are **supporting** evidence, not the primary panel when they disagree with strict completeness.
+- **Decision hierarchy (hardcoded, never invert):** **Safety** → **Correctness** → **Profitability** → **Operability** → **Velocity** (same order as **`.cursorrules`** `decision_hierarchy` and **§0.25**).
+- **Personas (roles, not separate processes):**
+  - **Q-Ops Sovereign Board (primary):** Adversarial **NO-GO until proven** stance on material Alpaca changes; owns compliance/session-edge/SIP evidence and strict-ledger correctness.
+  - **AI Board (Section 2 charter):** Advisory synthesis; **cannot** override Safety/Correctness or compliance NO-GOs.
+  - **Operator / CSA:** Execution of deploy, env, and acknowledged risk acceptance.
+- **Alpha 11 — Institutional Alpha (UW lane):** Phase label for **institutional telemetry** wired into entries/exits: persisted **`entry_uw` / `exit_uw`**, composite confirmation (incl. **flow**, **gamma/GEX regime**, **dark pool** where enabled), plus **`uw_flow_cache`** / **`uw_flow_daemon`** HTTP refresh paths. **Unusual Whales MCP** (when connected in Cursor — e.g. **Market Tide**, **Spot GEX**, **Dark Pool** tools) is the **board / research overlay** for macro and cross-sectional context; it does **not** replace droplet **`exit_attribution`** rows or strict gate membership.
+- **Cohort DNA audit (automated):** Run on the droplet with production logs — `PYTHONPATH=. python3 scripts/_tmp_alpha11_163_good_stuff_audit.py --root /root/stock-bot --out-json reports/alpha11_163_good_stuff_audit.json` — to summarize win/loss splits, **MFE%** cliffs from **`exit_quality_metrics`**, and attribution-family sums on the **strict-complete** set only.
 
 ## 1.2 Alpaca truth warehouse — DATA_READY baseline (do not drift)
 
@@ -137,7 +171,7 @@ PYTHONPATH=. python3 scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.p
 ```
 
 - **Never** treat a one-off **scp** copy of the mission script as source of truth; droplet **`main`** must match GitHub or metrics drift without review.
-- After **`main.py`** or exit-path changes: **`sudo systemctl restart stock-bot`** so new logging is live. If the supervisor/dashboard split leaves an orphan on port 5000, follow **Stale dashboard PIDs** later in this file (search within `MEMORY_BANK.md`).
+- After **`main.py`** or exit-path changes: **`sudo systemctl restart stock-bot`** so new logging is live. If the supervisor/dashboard split leaves an orphan on port 5000, follow **Stale dashboard PIDs** later in this file (search within `MEMORY_BANK_ALPACA.md`).
 
 ### API keys (mission + broker REST)
 
@@ -1005,19 +1039,19 @@ Where captured:
 ## 9.1 MEMORY BANK LOADING RULE
 
 Cursor MUST:
-- **ALWAYS** load `MEMORY_BANK.md` at the start of every session
+- **ALWAYS** load `MEMORY_BANK_ALPACA.md` at the start of every session
 - **ALWAYS** read Section 0 (Cursor Behavior Contract) first
-- **ALWAYS** reference `MEMORY_BANK.md` before making ANY code changes
-- **ALWAYS** update `MEMORY_BANK.md` when adding new system behavior
+- **ALWAYS** reference `MEMORY_BANK_ALPACA.md` before making ANY code changes
+- **ALWAYS** update `MEMORY_BANK_ALPACA.md` when adding new system behavior
 
 Cursor MUST NOT:
-- Skip loading `MEMORY_BANK.md`
-- Overwrite `MEMORY_BANK.md` unless explicitly instructed
-- Make changes without checking `MEMORY_BANK.md` first
+- Skip loading `MEMORY_BANK_ALPACA.md`
+- Overwrite `MEMORY_BANK_ALPACA.md` unless explicitly instructed
+- Make changes without checking `MEMORY_BANK_ALPACA.md` first
 
 ## 9.2 MEMORY BANK UPDATE RULES
 
-Cursor MUST update `MEMORY_BANK.md` when:
+Cursor MUST update `MEMORY_BANK_ALPACA.md` when:
 - New modules are added
 - New telemetry is added
 - New scoring logic is added
@@ -1027,7 +1061,7 @@ Cursor MUST update `MEMORY_BANK.md` when:
 
 ## 9.3 MEMORY BANK AS SINGLE SOURCE OF TRUTH
 
-`MEMORY_BANK.md` is the authoritative source for:
+`MEMORY_BANK_ALPACA.md` is the authoritative source for:
 - Architecture (Section 2)
 - Signal integrity (Section 4)
 - Scoring pipeline (Section 7)
@@ -1049,7 +1083,7 @@ All changes MUST be:
 - Additive (not replacing existing logic)
 - Defensive (fail-safe, not fail-dangerous)
 - Reversible (can be undone if needed)
-- Documented (in `MEMORY_BANK.md`)
+- Documented (in `MEMORY_BANK_ALPACA.md`)
 
 ---
 
@@ -2258,7 +2292,7 @@ Replace opaque `blocked_reason` strings with:
 
 ## Implementation History
 
-- **2026-04-13 (SRE — droplet + truth warehouse):** Alpaca production droplet resized to **4 AMD vCPUs / 8GB RAM** (`MEMORY_BANK.md` canon updated). **Telegram / ML harvester integrity:** full-truth warehouse mission reports **`DATA_READY: YES`** with **96.57%** blocked-boundary coverage (was fail-closed at **0%** due to mission-side misclassification of `score_snapshot` gate rows — fixed in `scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py`; `score_snapshot_writer.py` stamps **`time_bucket_id`**). **`repair_failed_defer`** structural fix for UW pre-filter shipped earlier same window (`board/eod/live_entry_adjustments.py`, `board/eod/root_cause.py`).
+- **2026-04-13 (SRE — droplet + truth warehouse):** Alpaca production droplet resized to **4 AMD vCPUs / 8GB RAM** (`MEMORY_BANK_ALPACA.md` canon updated). **Telegram / ML harvester integrity:** full-truth warehouse mission reports **`DATA_READY: YES`** with **96.57%** blocked-boundary coverage (was fail-closed at **0%** due to mission-side misclassification of `score_snapshot` gate rows — fixed in `scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py`; `score_snapshot_writer.py` stamps **`time_bucket_id`**). **`repair_failed_defer`** structural fix for UW pre-filter shipped earlier same window (`board/eod/live_entry_adjustments.py`, `board/eod/root_cause.py`).
 - **2026-04-08 (Alpaca V2 Harvester — SRE / telemetry):** **100-trade milestone** reached in the Harvester era with **100% execution-join / data-integrity** on the audited strict cohort; ops tracking **250** for ML scale-up. **Telemetry hardening:** `STRICT_EPOCH_START` reset to **2026-04-07T17:01:00Z** (new ML telemetry era; prior cohort excluded from strict counts — `telemetry/alpaca_strict_completeness_gate.py`). **Milestone latching:** `scripts/telemetry_milestone_watcher.py` clamps CSV cutoffs to the strict epoch (no pre-epoch milestone spam), resets OOS sent-flags on floor change so **250 cannot skip 100**, and `scripts/extract_gemini_telemetry.py` enforces the same floor for `entries_and_exits.csv`. **Live data:** Alpaca **SIP WebSocket** stream with REST fallback (`src/alpaca/stream_manager.py`), singleton `AlpacaStreamManager`, **`websockets` pinned <11** for `alpaca-trade-api`. **Paper promos:** env-gated **PASSIVE_THEN_CROSS** pending queue + workers (non-blocking vs baseline). **Governance / audits:** strict quant edge report, paper capital caps missions, integrity-closure and profit-discovery campaign scripts under `scripts/audit/`; post-deploy manual proof requirement relaxed where it caused **ARMED→BLOCKED** downtime; Telegram **integrity-only** mode exit 0 when post-close sends are blocked. **Canonical trade count** alignment: dashboard strip + milestone parity + droplet diagnosis scripts (`compute_canonical_trade_count`, `scripts/telemetry_sync_milestone_state.py` for `.milestone_state.json` sync when needed).
 - **2026-04-03:** Migrated Alpaca execution to V5.0 Passive Hunter. Implemented midpoint pegging (NBBO, 1¢ inside spread capped at mid), 2026 decimal enforcement (2 dp if price ≥ $1, 4 dp if < $1), 20 bps spread guard with `spread_too_wide_abort`, and 24/5 overnight routing (`extended_hours` when outside US RTH and `asset.overnight_tradable`). See `main.py` (`v5_compute_limit_price`, `AlpacaExecutor.compute_entry_price`, `submit_entry`).
 
@@ -2266,8 +2300,8 @@ Replace opaque `blocked_reason` strings with:
 
 ## Maintenance Log (Infrastructure History)
 
-- **2026-04-13:** Production Alpaca droplet upgraded to **4 AMD vCPUs / 8GB RAM**; `MEMORY_BANK.md` operational canon + Scenario Lab CPU guidance updated. Truth-warehouse **`DATA_READY: YES`** at **96.57%** blocked-boundary coverage logged (classifier/join fix + `time_bucket_id` on score snapshots).
-- **2026-04-08:** `MEMORY_BANK.md` updated for **Alpaca V2 Harvester** phase, milestone/epoch telemetry truth, and pruned Fast-Lane as non-primary ops (doc sync; pull on droplet after `git push`).
+- **2026-04-13:** Production Alpaca droplet upgraded to **4 AMD vCPUs / 8GB RAM**; `MEMORY_BANK_ALPACA.md` operational canon + Scenario Lab CPU guidance updated. Truth-warehouse **`DATA_READY: YES`** at **96.57%** blocked-boundary coverage logged (classifier/join fix + `time_bucket_id` on score snapshots).
+- **2026-04-08:** `MEMORY_BANK_ALPACA.md` updated for **Alpaca V2 Harvester** phase, milestone/epoch telemetry truth, and pruned Fast-Lane as non-primary ops (doc sync; pull on droplet after `git push`).
 - **2026-04-03:** Successfully applied Linux Kernel security patches to Alpaca droplet (v6.8.0-100 -> v6.8.0-107). System rebooted and verified bot auto-restart.
 
 ---

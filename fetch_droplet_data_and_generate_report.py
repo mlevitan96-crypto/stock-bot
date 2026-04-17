@@ -21,7 +21,7 @@ except ImportError:
     DROPLET_CLIENT_AVAILABLE = False
     print("Warning: droplet_client not available, using direct SSH", file=sys.stderr)
 
-# File locations on Droplet (from MEMORY_BANK.md and config/registry.py)
+# File locations on Droplet (from MEMORY_BANK_ALPACA.md and config/registry.py)
 DROPLET_LOG_FILES = {
     "attribution": "/root/stock-bot/logs/attribution.jsonl",
     "blocked_trades": "/root/stock-bot/state/blocked_trades.jsonl",

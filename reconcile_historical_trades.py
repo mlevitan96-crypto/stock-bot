@@ -2,7 +2,7 @@
 """
 Full Week Data Reconciliation
 Searches entire project for trade records and merges them into standardized attribution.jsonl
-Authoritative Source: MEMORY_BANK.md
+Authoritative Source: MEMORY_BANK_ALPACA.md
 """
 
 import json

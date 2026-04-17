@@ -4,6 +4,15 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 ---
 
+## 2026-04-03 — Alpaca V5.0 Passive Hunter execution (main.py)
+
+- **Pricing:** `v5_compute_limit_price` + `AlpacaExecutor.compute_entry_price` — NBBO midpoint peg; BUY `min(mid, bid+0.01)`, SELL `max(mid, ask-0.01)`; spread guard `V5_SPREAD_GUARD_BPS` (default 20) logs `orders.spread_too_wide_abort` and `submit_entry.spread_too_wide_abort` (no market fallback on guard trip).
+- **Decimals:** `normalize_equity_limit_price` — 2 decimals if price ≥ $1.00, 4 if < $1.00 (2026-style equity increments).
+- **24/5:** `submit_entry` passes `extended_hours=True` on limit/market submits when outside US RTH (ET) and `get_asset(...).overnight_tradable`.
+- **Verify:** `scripts/verify_v5_execution.py`.
+
+---
+
 ## 2026-03-30 — FULL ENGINE & DATA REPAIR (Alpaca droplet)
 
 - **Risk:** `risk_management.sanitize_peak_equity_vs_broker()` rebases `state/peak_equity.json` when stored peak exceeds live equity × `PEAK_EQUITY_SANITY_MAX_RATIO` (default 1.28); extra logging before `max_drawdown_exceeded` freeze.
@@ -22,7 +31,7 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 - **Fixed:** `scripts/repair/alpaca_controlled_liquidation.py` — `TypeError` fallback when `REST.close_position(..., cancel_orders=True)` is unsupported (older `alpaca_trade_api` on droplet); pre-close `cancel_all_orders()`; poll `list_positions` after closes; optional **second** close wave on any remaining symbols after the first poll loop; **do not** wipe `position_metadata.json` unless flat; exit code **3** if not flat; JSON stdout includes `positions_after`, `flat`.
 - **Orchestrator:** liquidation step uses non-fatal exit code — peak reset, freeze clear, metadata repair, and evidence MDs still run; `ALPACA_RISK_PEAK_EQUITY_REPAIR_*` records liquidation subprocess exit code.
-- **Doc:** `MEMORY_BANK.md` Alpaca repair bullet documents SDK behavior and **stop `stock-bot` before liquidation** so the trading loop cannot re-open positions mid-reset.
+- **Doc:** `MEMORY_BANK_ALPACA.md` Alpaca repair bullet documents SDK behavior and **stop `stock-bot` before liquidation** so the trading loop cannot re-open positions mid-reset.
 
 ---
 
@@ -58,7 +67,7 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 ## 2026-03-30 — Truth warehouse DATA_READY baseline (MEMORY_BANK)
 
-- **Documented:** `MEMORY_BANK.md` section **1.2** — canonical Alpaca **truth warehouse** path: `scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py`, droplet command, API key merge order (`ALPACA_KEY` / `ALPACA_SECRET` supported), env windows and paper vs live coverage thresholds, corporate-actions and broker REST expectations, timestamped outputs under `reports/` and `replay/`.
+- **Documented:** `MEMORY_BANK_ALPACA.md` section **1.2** — canonical Alpaca **truth warehouse** path: `scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py`, droplet command, API key merge order (`ALPACA_KEY` / `ALPACA_SECRET` supported), env windows and paper vs live coverage thresholds, corporate-actions and broker REST expectations, timestamped outputs under `reports/` and `replay/`.
 - **Clarified:** **`DATA_READY: YES`** (warehouse join/coverage gates) is **not** the same as **`telemetry.alpaca_strict_completeness_gate`** **`LEARNING_STATUS: READY`**; external comms must not conflate them.
 - **Clarified:** Paper execution join at 100% may include **economic-closure** fallbacks; that supports attribution math, not a blanket claim that every exit matched a broker `order_id` in logs.
 - **Runbook:** `docs/DATA_READY_RUNBOOK.md` links to MEMORY_BANK section 1.2 as anti-drift canon.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Regime Persistence Audit - Specialist Tier Monitoring
-Authoritative Source: MEMORY_BANK.md
+Authoritative Source: MEMORY_BANK_ALPACA.md
 
 Evaluates HMM Regime transition stability over the week.
 Determines if current signal weights are correctly aligned with dominant weekly market structure.
@@ -206,7 +206,7 @@ def generate_regime_persistence_audit(friday_date: Optional[datetime] = None) ->
         "report_date": friday_date.strftime("%Y-%m-%d"),
         "report_timestamp": datetime.now(timezone.utc).isoformat(),
         "report_type": "weekly_regime_persistence_audit",
-        "authoritative_source": "MEMORY_BANK.md",
+        "authoritative_source": "MEMORY_BANK_ALPACA.md",
         "regime_analysis": regime_data,
         "assessment": {
             "regime_stability": "STABLE" if regime_data["transition_analysis"]["is_stable"] else "UNSTABLE",

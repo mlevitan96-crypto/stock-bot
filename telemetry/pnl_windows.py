@@ -3,7 +3,7 @@
 PnL windows telemetry (v2-only, additive)
 =======================================
 
-Contract (SYSTEM_CONTRACT.md / MEMORY_BANK.md):
+Contract (SYSTEM_CONTRACT.md / MEMORY_BANK_ALPACA.md):
 - Output schema (returned dict) must include:
   - as_of_ts (UTC ISO)
   - windows: { "24h": {...}, "48h": {...}, "5d": {...} }

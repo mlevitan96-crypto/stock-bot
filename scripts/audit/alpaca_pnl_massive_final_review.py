@@ -4,7 +4,7 @@ ALPACA MASSIVE PnL + EDGE FOREnsics REVIEW — artifact generator (offline works
 
 With --cohort-ids + --truth-json + session epochs, rebuilds reconciliation and populated analyses from TRADING_BOT_ROOT logs.
 
-Signal Path Intelligence (SPI): read-only post-trade path distributions (see MEMORY_BANK.md). Does not change trading behavior.
+Signal Path Intelligence (SPI): read-only post-trade path distributions (see MEMORY_BANK_ALPACA.md). Does not change trading behavior.
 """
 from __future__ import annotations
 
@@ -343,7 +343,7 @@ def _format_spi_markdown(bundle: dict) -> str:
         "# Signal Path Intelligence (SPI)",
         "",
         "Read-only analytics on executed Alpaca cohorts. **Not** forecasts, targets, or trade recommendations.",
-        "Governance: `MEMORY_BANK.md` (Alpaca Signal Path Intelligence). **SPI does not authorize behavior change.**",
+        "Governance: `MEMORY_BANK_ALPACA.md` (Alpaca Signal Path Intelligence). **SPI does not authorize behavior change.**",
         "",
     ]
     if bundle.get("error"):
@@ -757,7 +757,7 @@ def main() -> int:
                 "",
                 f"- **Markdown:** `{rep_out / f'ALPACA_SPI_SECTION_{TS}.md'}`",
                 f"- **JSON:** `{rep_out / f'ALPACA_SPI_SECTION_{TS}.json'}`",
-                "- **Scope:** Read-only post-trade path distributions; does not authorize behavior change (`MEMORY_BANK.md`).",
+                "- **Scope:** Read-only post-trade path distributions; does not authorize behavior change (`MEMORY_BANK_ALPACA.md`).",
                 "- **Non-blocking:** SPI failures do not invalidate PnL reconciliation.",
                 "",
                 "| Check | OK |",

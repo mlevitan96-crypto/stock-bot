@@ -54,4 +54,4 @@ Scoring MUST read only from these artifacts. Never call UW from scoring paths.
 
 - `config/uw_endpoint_policies.py` — endpoint policies
 - `scripts/audit_uw_endpoints.py` — static endpoint audit
-- `MEMORY_BANK.md` §7.8 — UW Intelligence Layer invariants
+- `MEMORY_BANK_ALPACA.md` §7.8 — UW Intelligence Layer invariants

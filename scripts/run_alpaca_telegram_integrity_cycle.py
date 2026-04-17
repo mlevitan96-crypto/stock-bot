@@ -2,7 +2,7 @@
 """
 Alpaca Telegram + data integrity cycle (droplet). Read-only on strategy.
 
-See MEMORY_BANK.md (Alpaca Telegram integrity) and config/alpaca_telegram_integrity.json.
+See MEMORY_BANK_ALPACA.md (Alpaca Telegram integrity) and config/alpaca_telegram_integrity.json.
 """
 from __future__ import annotations
 

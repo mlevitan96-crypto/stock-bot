@@ -5,7 +5,7 @@ Logic Stagnation Detector - Semantic Watchdog for Trading Bot
 Monitors signal-to-trade ratio and detects when execution deviates from signal volume.
 Triggers auto-recalibration when logic failures are detected.
 
-Authoritative Source: MEMORY_BANK.md
+Authoritative Source: MEMORY_BANK_ALPACA.md
 """
 
 import json
