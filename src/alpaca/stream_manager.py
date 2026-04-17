@@ -6,7 +6,8 @@ Spec: https://docs.alpaca.markets/docs/real-time-stock-pricing-data
   override; host overridable via ``ALPACA_STREAM_DATA_HOST_*`` env vars.
 - Handshake: ``APCA-API-KEY-ID`` / ``APCA-API-SECRET-KEY`` headers (Trading API) plus JSON
   ``{"action":"auth","key":...,"secret":...}`` per Alpaca streaming docs.
-- Subscribe minute aggregates via JSON key "bars" (messages T=="b"); trades via "trades" (T=="t").
+- Subscribe minute aggregates via JSON key "bars" (messages T=="b"); trades via "trades" (T=="t");
+  NBBO quotes via "quotes" (T=="q") for L1 order-flow imbalance (OFI) telemetry.
 
 Feed selection: ``src.alpaca.stream_feed`` resolves primary/secondary feeds from GET /v2/account
 (``data_tier`` when present), env ``ALPACA_STREAM_FEED``, or ``ALPACA_STREAM_FEED_TRY_ORDER``.
@@ -33,6 +34,8 @@ try:
     import websockets
 except ImportError:  # pragma: no cover
     websockets = None  # type: ignore
+
+from src.market_intelligence.ofi_tracker import OFITracker
 
 from src.alpaca.stream_feed import (
     FEED_IEX,
@@ -277,7 +280,8 @@ class PriceCache:
 
 class AlpacaStreamManager:
     """
-    Background asyncio WebSocket client: market data v2 (sip or iex), auth + subscribe trades + minute bars.
+    Background asyncio WebSocket client: market data v2 (sip or iex), auth + subscribe
+    trades, minute bars, and NBBO quotes (OFI / microstructure telemetry).
     """
 
     def __init__(
@@ -355,6 +359,7 @@ class AlpacaStreamManager:
                 paper=self._paper,
             )
         self.price_cache = PriceCache(maxlen_per_symbol=bar_maxlen)
+        self.ofi_tracker = OFITracker()
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._last_auth_ok = threading.Event()
@@ -576,6 +581,7 @@ class AlpacaStreamManager:
                     "action": "subscribe",
                     "trades": chunk,
                     "bars": chunk,
+                    "quotes": chunk,
                 }
                 await ws.send(json.dumps(sub))
                 ack = await asyncio.wait_for(ws.recv(), timeout=30.0)
@@ -659,5 +665,18 @@ class AlpacaStreamManager:
             elif t == "t":
                 try:
                     self.price_cache.record_trade(str(o.get("S") or ""), float(o.get("p", 0)))
+                except Exception:
+                    pass
+            elif t == "q":
+                # SIP / IEX consolidated quote: bp/ap/bs/as (see Alpaca streaming stock docs).
+                try:
+                    sym_q = str(o.get("S") or "").upper().strip()
+                    if not sym_q:
+                        continue
+                    bp = float(o.get("bp", 0) or 0.0)
+                    ap = float(o.get("ap", 0) or 0.0)
+                    bs = float(o.get("bs", 0) or 0.0)
+                    a_sz = float(o.get("as", 0) or 0.0)
+                    self.ofi_tracker.on_quote(sym_q, bp, bs, ap, a_sz)
                 except Exception:
                     pass
