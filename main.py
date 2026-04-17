@@ -1895,6 +1895,22 @@ def _emit_trade_intent(
             rec["trade_key"] = str(trade_key_override or _ctid)
         if trade_id_open:
             rec["trade_id"] = str(trade_id_open)
+        try:
+            _pex = getattr(engine, "executor", None) or engine
+            _pen = getattr(_pex, "_pending_entry_snapshot", None)
+            if isinstance(_pen, dict):
+                _vsym = str(_pen.get("vamp_shadow_symbol") or "").upper().strip()
+                if _vsym and _vsym == str(symbol or "").upper().strip():
+                    for _vk in ("shadow_vamp_limit_price", "shadow_vamp_mid"):
+                        if _vk in _pen and _pen[_vk] is not None:
+                            try:
+                                _vfv = float(_pen[_vk])
+                                if math.isfinite(_vfv):
+                                    rec[_vk] = _vfv
+                            except (TypeError, ValueError):
+                                pass
+        except Exception:
+            pass
         if (decision_outcome or "").lower() in ("entered", "blocked") and not intelligence_trace:
             try:
                 log_system_event(
@@ -6276,7 +6292,31 @@ class AlpacaExecutor:
         except Exception:
             pass
 
-        self._pending_entry_snapshot = {
+        # Shadow VAMP peg (telemetry only): theoretical maker limit vs actual execution — does not alter orders.
+        _shadow_vlp = None
+        _shadow_vm = None
+        try:
+            from src.execution.vamp_pegging import VAMPCalculator, nbbo_from_alpaca_quote
+
+            _q_v = self.api.get_latest_quote(symbol)
+            _bp, _bs, _ap, _asz = nbbo_from_alpaca_quote(_q_v)
+            _vamp = VAMPCalculator.volume_adjusted_mid(_bp, _bs, _ap, _asz)
+            if _vamp is not None and _bp > 0 and _ap > 0 and _ap >= _bp:
+                _mid_q = (_bp + _ap) / 2.0
+                _hs = (_ap - _bp) / 2.0
+                _shadow_vm = float(_mid_q)
+                _shadow_vlp = float(
+                    VAMPCalculator.calculate_pegged_limit(
+                        str(side or ""),
+                        float(_vamp),
+                        float(ofi_roll_60),
+                        half_spread=float(_hs),
+                    )
+                )
+        except Exception:
+            pass
+
+        _snap_pending = {
             "entry_score": float(entry_score),
             "components": dict(entry_components) if isinstance(entry_components, dict) else {},
             "market_regime": str(effective_regime),
@@ -6284,7 +6324,13 @@ class AlpacaExecutor:
             "passive_uw_harvest": passive_uw_harvest,
             "ofi_l1_roll_60s_sum": float(ofi_roll_60),
             "ofi_l1_roll_300s_sum": float(ofi_roll_300),
+            "vamp_shadow_symbol": str(symbol or "").upper().strip(),
         }
+        if _shadow_vlp is not None and math.isfinite(float(_shadow_vlp)):
+            _snap_pending["shadow_vamp_limit_price"] = float(_shadow_vlp)
+        if _shadow_vm is not None and math.isfinite(float(_shadow_vm)):
+            _snap_pending["shadow_vamp_mid"] = float(_shadow_vm)
+        self._pending_entry_snapshot = _snap_pending
 
         # Paper-only A/B execution promo (PASSIVE_THEN_CROSS vs baseline); gated by env + universe. Never arms for live.
         try:

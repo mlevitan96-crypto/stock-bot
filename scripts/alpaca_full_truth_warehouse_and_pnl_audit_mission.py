@@ -10,6 +10,10 @@ Outputs (timestamped):
   replay/alpaca_truth_warehouse_manifest_<TS>.md
   reports/ALPACA_*_<TS>.md
 
+Environment:
+  ALPACA_TRUTH_BLOCKERS_FAIL_SAMPLE_N — max rows in blocker markdown tables for
+  slippage_coverage / signal_snapshot_exits failures (default 25, clamped 1..500).
+
 Exit code: 0 if completed; 2 if fail-closed blockers (DATA_READY NO).
 """
 from __future__ import annotations
@@ -669,6 +673,134 @@ def ref_price_from_context(r: Optional[dict]) -> Optional[float]:
     return None
 
 
+def _truth_blockers_fail_sample_n() -> int:
+    try:
+        return max(1, min(500, int(os.getenv("ALPACA_TRUTH_BLOCKERS_FAIL_SAMPLE_N", "25"))))
+    except (TypeError, ValueError):
+        return 25
+
+
+def _truth_exit_row_id(ex: dict) -> str:
+    return str(
+        ex.get("trade_id")
+        or ex.get("canonical_trade_id")
+        or ex.get("trade_key")
+        or ex.get("symbol")
+        or ""
+    ).strip()
+
+
+def _truth_exit_ts_display(ex: dict) -> str:
+    return str(ex.get("exit_ts") or ex.get("timestamp") or ex.get("ts") or "").strip()
+
+
+def _md_cell(s: str) -> str:
+    return str(s).replace("|", "\\|").replace("\n", " ")[:500]
+
+
+def truth_exit_slippage_gate_ok(
+    ex: dict,
+    ctx_index: List[Tuple[float, str, dict]],
+    orders_norm: List[dict],
+    _ctx_win: float,
+) -> bool:
+    """Mirror ``slippage_coverage`` loop body (single exit)."""
+    sym = (ex.get("symbol") or "").upper()
+    ts = _exit_ts_seconds(ex)
+    if ts is None:
+        return False
+    c = nearest_context(ctx_index, sym, ts, _ctx_win)
+    ref = ref_price_from_context(c)
+    fp = (
+        ex.get("avg_exit_price")
+        or ex.get("exit_price")
+        or ex.get("price")
+        or ex.get("fill_price")
+        or ex.get("filled_avg_price")
+    )
+    try:
+        fpf = float(fp) if fp is not None else None
+    except (TypeError, ValueError):
+        fpf = None
+    if (fpf is None or fpf <= 0) and _paper_broker_env():
+        try:
+            ep2 = float(ex.get("entry_price") or 0)
+            if ep2 > 0:
+                fpf = ep2
+        except (TypeError, ValueError):
+            pass
+    if (fpf is None or fpf <= 0) and _paper_broker_env():
+        px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm)
+        if px2 is not None and px2 > 0:
+            fpf = px2
+    if ref is None and fpf is not None and fpf > 0 and _paper_broker_env():
+        ref = fpf
+    return ref is not None and fpf is not None
+
+
+def truth_exit_signal_snap_gate_ok(
+    ex: dict,
+    ctx_index: List[Tuple[float, str, dict]],
+    orders_norm: List[dict],
+    _ctx_win: float,
+) -> bool:
+    """Mirror ``signal_snapshot_exits`` loop body (single exit)."""
+    sym = (ex.get("symbol") or "").upper()
+    ts = _exit_ts_seconds(ex)
+    if ts is None:
+        return False
+    if nearest_context(ctx_index, sym, ts, _ctx_win):
+        return True
+    if not _paper_broker_env():
+        return False
+    try:
+        expx = float(
+            ex.get("exit_price")
+            or ex.get("avg_exit_price")
+            or ex.get("price")
+            or ex.get("fill_price")
+            or ex.get("filled_avg_price")
+            or 0
+        )
+    except (TypeError, ValueError):
+        expx = 0.0
+    if expx > 0:
+        return True
+    try:
+        if float(ex.get("entry_price") or 0) > 0:
+            return True
+    except (TypeError, ValueError):
+        pass
+    px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm)
+    return px2 is not None and px2 > 0
+
+
+def _markdown_truth_fail_table(title: str, rows: List[dict], n: int) -> List[str]:
+    if not rows:
+        return []
+    n = max(1, min(n, len(rows)))
+    out: List[str] = [
+        "",
+        f"## {title}",
+        "",
+        f"Showing **{n}** of **{len(rows)}** failing exits (newest `exit_ts` first).",
+        "",
+        "| trade_id / trade_key | symbol | exit_ts |",
+        "|---|---|---|",
+    ]
+    for ex in rows[:n]:
+        out.append(
+            "| "
+            + _md_cell(_truth_exit_row_id(ex))
+            + " | "
+            + _md_cell(str((ex.get("symbol") or "")).upper())
+            + " | "
+            + _md_cell(_truth_exit_ts_display(ex))
+            + " |"
+        )
+    return out
+
+
 def _paper_fill_price_proxy_for_exit(ex: dict, orders_norm: List[dict]) -> Optional[float]:
     """Nearest orders.jsonl fill price for same symbol near exit_ts (paper slippage/snapshot computability)."""
     sym = (ex.get("symbol") or "").upper()
@@ -1140,74 +1272,22 @@ def main() -> int:
     ctx_index = index_signal_context(root, t0, t1, args.max_compute)
     _ctx_win = _truth_context_window_sec()
     exits_dated = [ex for ex in exits if _exit_ts_seconds(ex) is not None]
+    slip_failures: List[dict] = []
+    snap_failures: List[dict] = []
     slip_ok = 0
-    for ex in exits_dated:
-        sym = (ex.get("symbol") or "").upper()
-        ts = _exit_ts_seconds(ex)
-        c = nearest_context(ctx_index, sym, ts, _ctx_win)
-        ref = ref_price_from_context(c)
-        fp = (
-            ex.get("avg_exit_price")
-            or ex.get("exit_price")
-            or ex.get("price")
-            or ex.get("fill_price")
-            or ex.get("filled_avg_price")
-        )
-        try:
-            fpf = float(fp) if fp is not None else None
-        except (TypeError, ValueError):
-            fpf = None
-        if (fpf is None or fpf <= 0) and _paper_broker_env():
-            try:
-                ep2 = float(ex.get("entry_price") or 0)
-                if ep2 > 0:
-                    fpf = ep2
-            except (TypeError, ValueError):
-                pass
-        if (fpf is None or fpf <= 0) and _paper_broker_env():
-            px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm)
-            if px2 is not None and px2 > 0:
-                fpf = px2
-        # Paper: use executed exit fill as reference when context missing or has no quote (slippage vs self = 0; gate = computability).
-        if ref is None and fpf is not None and fpf > 0 and _paper_broker_env():
-            ref = fpf
-        if ref is not None and fpf is not None:
-            slip_ok += 1
-    slip_pct = 100.0 * slip_ok / max(len(exits_dated), 1) if exits_dated else 100.0
-
     snap_ok = 0
     for ex in exits_dated:
-        sym = (ex.get("symbol") or "").upper()
-        ts = _exit_ts_seconds(ex)
-        if nearest_context(ctx_index, sym, ts, _ctx_win):
+        if truth_exit_slippage_gate_ok(ex, ctx_index, orders_norm, _ctx_win):
+            slip_ok += 1
+        else:
+            slip_failures.append(ex)
+        if truth_exit_signal_snap_gate_ok(ex, ctx_index, orders_norm, _ctx_win):
             snap_ok += 1
-            continue
-        if _paper_broker_env():
-            try:
-                expx = float(
-                    ex.get("exit_price")
-                    or ex.get("avg_exit_price")
-                    or ex.get("price")
-                    or ex.get("fill_price")
-                    or ex.get("filled_avg_price")
-                    or 0
-                )
-            except (TypeError, ValueError):
-                expx = 0.0
-            if expx > 0:
-                snap_ok += 1
-            else:
-                _snap_added = False
-                try:
-                    if float(ex.get("entry_price") or 0) > 0:
-                        snap_ok += 1
-                        _snap_added = True
-                except (TypeError, ValueError):
-                    pass
-                if not _snap_added:
-                    px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm)
-                    if px2 is not None and px2 > 0:
-                        snap_ok += 1
+        else:
+            snap_failures.append(ex)
+    slip_failures.sort(key=lambda e: float(_exit_ts_seconds(e) or 0.0), reverse=True)
+    snap_failures.sort(key=lambda e: float(_exit_ts_seconds(e) or 0.0), reverse=True)
+    slip_pct = 100.0 * slip_ok / max(len(exits_dated), 1) if exits_dated else 100.0
     snap_pct = 100.0 * snap_ok / max(len(exits_dated), 1) if exits_dated else 100.0
 
     symbols_traded = sorted({(e.get("symbol") or "").upper() for e in exits if e.get("symbol")})
@@ -1467,24 +1547,37 @@ def main() -> int:
 
     if not data_ready:
         bp = reports / f"ALPACA_TRUTH_WAREHOUSE_BLOCKERS_{tag}.md"
-        bp.write_text(
-            "\n".join(
-                [
-                    f"# ALPACA_TRUTH_WAREHOUSE_BLOCKERS_{tag}",
-                    "",
-                    "## Fail-closed",
-                    "",
-                    *[f"- {b}" for b in blockers],
-                    "",
-                    "## Gates",
-                    "",
-                    *[f"- {g.name}: {g.value:.2f}% pass={g.pass_ok}" for g in gate_results],
-                    "",
-                ]
-            )
-            + "\n",
-            encoding="utf-8",
-        )
+        _n_fail = _truth_blockers_fail_sample_n()
+        _block_lines: List[str] = [
+            f"# ALPACA_TRUTH_WAREHOUSE_BLOCKERS_{tag}",
+            "",
+            "## Fail-closed",
+            "",
+            *[f"- {b}" for b in blockers],
+            "",
+            "## Gates",
+            "",
+            *[f"- {g.name}: {g.value:.2f}% pass={g.pass_ok}" for g in gate_results],
+            "",
+        ]
+        for g in gate_results:
+            if g.name == "slippage_coverage" and not g.pass_ok:
+                _block_lines.extend(
+                    _markdown_truth_fail_table(
+                        "Slippage coverage gate — failing exits (trade_id / trade_key, symbol, exit_ts)",
+                        slip_failures,
+                        _n_fail,
+                    )
+                )
+            if g.name == "signal_snapshot_exits" and not g.pass_ok:
+                _block_lines.extend(
+                    _markdown_truth_fail_table(
+                        "Signal snapshot (exit) gate — failing exits (trade_id / trade_key, symbol, exit_ts)",
+                        snap_failures,
+                        _n_fail,
+                    )
+                )
+        bp.write_text("\n".join(_block_lines) + "\n", encoding="utf-8")
 
     if data_ready:
         # Phase 5 PnL audit (lightweight)
