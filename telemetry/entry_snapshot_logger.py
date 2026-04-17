@@ -74,6 +74,13 @@ def try_append_entry_snapshot(
         ph = pending.get("passive_uw_harvest")
         if isinstance(ph, dict) and ph:
             rec["passive_uw_harvest"] = ph
+        # Pillar 1 — microstructure alpha (telemetry-only; no execution gates).
+        for _k in ("ofi_l1_roll_60s_sum", "ofi_l1_roll_300s_sum"):
+            if _k in pending:
+                try:
+                    rec[_k] = float(pending[_k])
+                except (TypeError, ValueError):
+                    rec[_k] = pending[_k]
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
     except Exception:
