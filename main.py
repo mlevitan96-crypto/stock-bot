@@ -837,6 +837,70 @@ def jsonl_write(name, record):
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps({"ts": now_iso(), **record}) + "\n")
 
+
+def _tail_resolve_entry_order_id_from_orders_jsonl(
+    symbol: str,
+    *,
+    canonical_trade_id: Optional[str] = None,
+    max_chunk_bytes: int = 1_500_000,
+) -> Optional[str]:
+    """Scan the tail of logs/orders.jsonl for a broker entry order id (displacement / ultrafast exits)."""
+    try:
+        sym_u = str(symbol).strip().upper()
+        if not sym_u:
+            return None
+        ct = (str(canonical_trade_id).strip() if canonical_trade_id else "") or ""
+        path = Path(LOG_DIR) / "orders.jsonl"
+        if not path.is_file():
+            return None
+        size = path.stat().st_size
+        if size <= 0:
+            return None
+        with path.open("rb") as bf:
+            if size > max_chunk_bytes:
+                bf.seek(size - max_chunk_bytes)
+                bf.readline()
+            blob = bf.read()
+        lines = blob.decode("utf-8", errors="replace").splitlines()
+        skip_actions = {
+            "close_position",
+            "close_position_failed",
+            "audit_dry_run_close",
+            "scale_out",
+            "scale_out_failed",
+        }
+        last_unscoped = None
+        for line in reversed(lines):
+            s = line.strip()
+            if not s:
+                continue
+            try:
+                obj = json.loads(s)
+            except Exception:
+                continue
+            evsym = str(obj.get("symbol") or "").strip().upper()
+            if evsym != sym_u:
+                continue
+            act = str(obj.get("action") or "").strip().lower()
+            if act in skip_actions:
+                continue
+            oid = obj.get("order_id") or obj.get("id")
+            if not oid:
+                continue
+            oid_s = str(oid).strip()
+            if not oid_s:
+                continue
+            if ct:
+                row_ct = str(obj.get("canonical_trade_id") or obj.get("trade_key") or "").strip()
+                if row_ct and row_ct == ct:
+                    return oid_s
+                continue
+            last_unscoped = oid_s
+        return last_unscoped
+    except Exception:
+        return None
+
+
 _CYCLE_GATE_SYMBOLS = set()
 _PHASE2_CYCLE_COUNTS = {"trade_intent": 0, "exit_intent": 0, "shadow_decisions": 0}
 
@@ -2690,7 +2754,15 @@ def log_exit_attribution(
             _sym_u = str(symbol).strip().upper()
             _row_pmd = _pmd_exit.get(symbol) if isinstance(_pmd_exit.get(symbol), dict) else _pmd_exit.get(_sym_u)
             if isinstance(_row_pmd, dict):
-                for _k in ("canonical_trade_id", "decision_event_id", "symbol_normalized", "time_bucket_id", "entry_ts"):
+                for _k in (
+                    "canonical_trade_id",
+                    "decision_event_id",
+                    "symbol_normalized",
+                    "time_bucket_id",
+                    "entry_ts",
+                    "entry_order_id",
+                    "trade_key",
+                ):
                     if metadata.get(_k) is None and _row_pmd.get(_k) is not None:
                         metadata[_k] = _row_pmd[_k]
                 # Preserve v2 UW context from disk when in-memory metadata lost it (reconcile / race).
@@ -2710,6 +2782,95 @@ def log_exit_attribution(
             )
         except Exception:
             pass
+
+    # Re-sync entry_order_id after POSITION_METADATA merge (caller often passes None on displacement / close paths).
+    if entry_order_id is None and metadata.get("entry_order_id"):
+        try:
+            entry_order_id = str(metadata.get("entry_order_id")).strip() or None
+        except Exception:
+            entry_order_id = None
+    if entry_order_id is None and strict_chain_executor is not None:
+        try:
+            _opens = getattr(strict_chain_executor, "opens", None) or {}
+            _sk_u = str(symbol).strip().upper()
+            _op = None
+            for _k in (symbol, _sk_u):
+                if _k and _k in _opens and isinstance(_opens.get(_k), dict):
+                    _op = _opens[_k]
+                    break
+            if isinstance(_op, dict) and _op.get("entry_order_id"):
+                entry_order_id = str(_op.get("entry_order_id")).strip() or None
+        except Exception:
+            pass
+    _canon_for_entry_oid: Optional[str] = None
+    if entry_order_id is None:
+        try:
+            _canon_for_entry_oid = str(metadata.get("canonical_trade_id") or metadata.get("trade_key") or "").strip() or None
+            if not _canon_for_entry_oid and isinstance(info, dict) and info.get("ts") is not None:
+                from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _ns_tail
+
+                _etr_t = info.get("ts")
+                if isinstance(_etr_t, datetime):
+                    _edt_t = (
+                        _etr_t.astimezone(timezone.utc) if _etr_t.tzinfo else _etr_t.replace(tzinfo=timezone.utc)
+                    )
+                else:
+                    _edt_t = datetime.fromisoformat(str(_etr_t).strip().replace("Z", "+00:00"))
+                    if _edt_t.tzinfo is None:
+                        _edt_t = _edt_t.replace(tzinfo=timezone.utc)
+                    else:
+                        _edt_t = _edt_t.astimezone(timezone.utc)
+                _side_raw = str(info.get("side", "buy")).lower()
+                _norm_t = _ns_tail("buy" if _side_raw in ("buy", "long") else "sell")
+                _canon_for_entry_oid = build_trade_key(str(symbol).strip().upper(), _norm_t, _edt_t)
+            if _canon_for_entry_oid:
+                entry_order_id = _tail_resolve_entry_order_id_from_orders_jsonl(
+                    symbol, canonical_trade_id=_canon_for_entry_oid
+                )
+            if entry_order_id is None:
+                entry_order_id = _tail_resolve_entry_order_id_from_orders_jsonl(symbol, canonical_trade_id=None)
+        except Exception as _e_tail_oid:
+            try:
+                log_system_event(
+                    "telemetry_chain",
+                    "exit_attribution_orders_jsonl_entry_oid_resolve_failed",
+                    "WARN",
+                    symbol=str(symbol).upper(),
+                    details={"error": str(_e_tail_oid)[:400]},
+                )
+            except Exception:
+                pass
+    if not entry_order_id and strict_runlog_effective():
+        try:
+            _ct_syn = _canon_for_entry_oid or str(metadata.get("canonical_trade_id") or metadata.get("trade_key") or "").strip()
+            if not _ct_syn and isinstance(info, dict) and info.get("ts") is not None:
+                from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _ns_syn
+
+                _etr_s = info.get("ts")
+                if isinstance(_etr_s, datetime):
+                    _edt_s = (
+                        _etr_s.astimezone(timezone.utc) if _etr_s.tzinfo else _etr_s.replace(tzinfo=timezone.utc)
+                    )
+                else:
+                    _edt_s = datetime.fromisoformat(str(_etr_s).strip().replace("Z", "+00:00"))
+                    if _edt_s.tzinfo is None:
+                        _edt_s = _edt_s.replace(tzinfo=timezone.utc)
+                    else:
+                        _edt_s = _edt_s.astimezone(timezone.utc)
+                _side_s = str(info.get("side", "buy")).lower()
+                _norm_s = _ns_syn("buy" if _side_s in ("buy", "long") else "sell")
+                _ct_syn = build_trade_key(str(symbol).strip().upper(), _norm_s, _edt_s)
+            entry_order_id = (
+                f"UNRESOLVED_ENTRY_OID:{_ct_syn}" if _ct_syn else f"UNRESOLVED_ENTRY_OID:{str(symbol).strip().upper()}"
+            )
+            log_event(
+                "data_integrity",
+                "exit_attribution_entry_order_id_synthetic_strict",
+                symbol=str(symbol).upper(),
+                synthetic_entry_order_id=entry_order_id,
+            )
+        except Exception:
+            entry_order_id = f"UNRESOLVED_ENTRY_OID:{str(symbol).strip().upper()}"
 
     entry_price = info.get("entry_price", 0.0)
     entry_qty = info.get("qty", 1)
@@ -7364,6 +7525,13 @@ class AlpacaExecutor:
             "ignition_status": ignition_status,  # V4.0: Store momentum filter status
             "variant_id": variant_id,  # Root-cause: propagate to exit attribution
         }
+        if entry_order_id:
+            try:
+                _eoid_open = str(entry_order_id).strip()
+                if _eoid_open:
+                    record["entry_order_id"] = _eoid_open
+            except Exception:
+                pass
         if atr_mult is not None and Config.ENABLE_PER_TICKER_LEARNING:
             atr = compute_atr(self.api, symbol, Config.ATR_LOOKBACK)
             min_trail = entry_price * Config.ATR_MIN_PCT
@@ -9261,7 +9429,6 @@ class AlpacaExecutor:
                         close_reason=close_reason,
                         metadata=symbol_metadata,
                         exit_qty=exit_fill_qty,
-                        entry_order_id=None,
                         exit_order_id=str(exit_order_id) if exit_order_id else None,
                         feature_snapshot_at_exit=_ex_snap,
                         thesis_tags_at_exit=_ex_tags,
