@@ -1,7 +1,7 @@
 """
 Alpaca Signal Path Intelligence (SPI) — read-only executed-trade path analytics.
 
-Governance contract: see MEMORY_BANK.md (Alpaca Signal Path Intelligence). SPI is
+Governance contract: see MEMORY_BANK_ALPACA.md (Alpaca Signal Path Intelligence). SPI is
 evidence-only; it does not authorize behavior change, signals, exits, or risk.
 """
 
@@ -473,7 +473,7 @@ def aggregate_spi(trade_rows: List[dict]) -> Dict[str, Any]:
         "top_anomalies_descriptive": anomalies[:12],
         "disclaimer": (
             "Distributions and descriptive buckets only; not forecasts, targets, or recommendations. "
-            "SPI does not authorize behavior change (MEMORY_BANK.md)."
+            "SPI does not authorize behavior change (MEMORY_BANK_ALPACA.md)."
         ),
     }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Run Alpaca DATA_READY pipeline ON THE DROPLET via SSH.
-Sources /root/.alpaca_env so TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set (see MEMORY_BANK.md).
+Sources /root/.alpaca_env so TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set (see MEMORY_BANK_ALPACA.md).
 """
 from __future__ import annotations
 

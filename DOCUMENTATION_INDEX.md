@@ -1,8 +1,8 @@
 # 📚 Trading Bot Documentation Index
 
-## 🎯 **PRIMARY DOCUMENTATION: [MEMORY_BANK.md](MEMORY_BANK.md)**
+## 🎯 **PRIMARY DOCUMENTATION: [MEMORY_BANK_ALPACA.md](MEMORY_BANK_ALPACA.md)**
 
-**MEMORY_BANK.md is the SINGLE SOURCE OF TRUTH for all bot information.**
+**MEMORY_BANK_ALPACA.md is the SINGLE SOURCE OF TRUTH for all bot information.**
 
 It contains:
 - ✅ Complete project context and architecture
@@ -13,7 +13,7 @@ It contains:
 - ✅ Configuration details
 - ✅ Best practices
 
-**ALWAYS check MEMORY_BANK.md first before making any changes.**
+**ALWAYS check MEMORY_BANK_ALPACA.md first before making any changes.**
 
 ---
 
@@ -53,28 +53,28 @@ It contains:
 ## 🔍 How to Find Information
 
 ### **For General Questions:**
-1. Start with **[MEMORY_BANK.md](MEMORY_BANK.md)**
+1. Start with **[MEMORY_BANK_ALPACA.md](MEMORY_BANK_ALPACA.md)**
 2. Check **[README.md](README.md)** for quick overview
 3. Review **[EXECUTIVE_SUMMARY_README.md](EXECUTIVE_SUMMARY_README.md)** for capabilities
 
 ### **For Architecture Questions:**
-1. **[MEMORY_BANK.md](MEMORY_BANK.md)** - Architecture Patterns section
+1. **[MEMORY_BANK_ALPACA.md](MEMORY_BANK_ALPACA.md)** - Architecture Patterns section
 2. **[TRADING_BOT_WORKFLOW.md](TRADING_BOT_WORKFLOW.md)** - Complete workflow
 3. **[ALPACA_TRADING_BOT_WORKFLOW.md](ALPACA_TRADING_BOT_WORKFLOW.md)** - Detailed integration
 
 ### **For Learning System:**
-1. **[MEMORY_BANK.md](MEMORY_BANK.md)** - Learning System section
+1. **[MEMORY_BANK_ALPACA.md](MEMORY_BANK_ALPACA.md)** - Learning System section
 2. **[LEARNING_SCHEDULE_AND_PROFITABILITY.md](LEARNING_SCHEDULE_AND_PROFITABILITY.md)** - Schedule and tracking
 3. **[COMPREHENSIVE_LEARNING_SYSTEM.md](COMPREHENSIVE_LEARNING_SYSTEM.md)** - System overview
 
 ### **For Deployment:**
-1. **[MEMORY_BANK.md](MEMORY_BANK.md)** - Deployment Procedures section
+1. **[MEMORY_BANK_ALPACA.md](MEMORY_BANK_ALPACA.md)** - Deployment Procedures section
 2. **[ZERO_DOWNTIME_DEPLOY.md](ZERO_DOWNTIME_DEPLOY.md)** - Zero downtime guide
 3. **[DROPLET_DEPLOYMENT_GUIDE.md](DROPLET_DEPLOYMENT_GUIDE.md)** - Droplet procedures
 
 ### **For Troubleshooting:**
-1. **[MEMORY_BANK.md](MEMORY_BANK.md)** - Common Issues & Solutions section
-2. Check diagnostic scripts in **[MEMORY_BANK.md](MEMORY_BANK.md)** - Diagnostic Scripts Reference
+1. **[MEMORY_BANK_ALPACA.md](MEMORY_BANK_ALPACA.md)** - Common Issues & Solutions section
+2. Check diagnostic scripts in **[MEMORY_BANK_ALPACA.md](MEMORY_BANK_ALPACA.md)** - Diagnostic Scripts Reference
 
 ---
 
@@ -82,18 +82,18 @@ It contains:
 
 | Topic | Primary Source | Additional Sources |
 |-------|---------------|-------------------|
-| **Everything** | MEMORY_BANK.md | All other docs |
-| **Architecture** | MEMORY_BANK.md | TRADING_BOT_WORKFLOW.md |
-| **Learning** | MEMORY_BANK.md | LEARNING_SCHEDULE_AND_PROFITABILITY.md |
-| **Deployment** | MEMORY_BANK.md | ZERO_DOWNTIME_DEPLOY.md |
-| **Troubleshooting** | MEMORY_BANK.md | Diagnostic scripts |
-| **Workflow** | MEMORY_BANK.md | TRADING_BOT_WORKFLOW.md |
+| **Everything** | MEMORY_BANK_ALPACA.md | All other docs |
+| **Architecture** | MEMORY_BANK_ALPACA.md | TRADING_BOT_WORKFLOW.md |
+| **Learning** | MEMORY_BANK_ALPACA.md | LEARNING_SCHEDULE_AND_PROFITABILITY.md |
+| **Deployment** | MEMORY_BANK_ALPACA.md | ZERO_DOWNTIME_DEPLOY.md |
+| **Troubleshooting** | MEMORY_BANK_ALPACA.md | Diagnostic scripts |
+| **Workflow** | MEMORY_BANK_ALPACA.md | TRADING_BOT_WORKFLOW.md |
 
 ---
 
 ## 🎯 **RECOMMENDATION**
 
-**For comprehensive bot information, always start with [MEMORY_BANK.md](MEMORY_BANK.md).**
+**For comprehensive bot information, always start with [MEMORY_BANK_ALPACA.md](MEMORY_BANK_ALPACA.md).**
 
 It is the most complete, up-to-date, and comprehensive documentation source.
 

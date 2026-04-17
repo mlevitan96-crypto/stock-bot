@@ -1,5 +1,5 @@
 # main.py — Single-file adaptive bot with comprehensive Unusual Whales integration + Alpaca paper trading
-# IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK.md
+# IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK_ALPACA.md
 # Features:
 # - Multi-factor scoring: flow clusters + dark pool + gamma/greeks + net premium + realized vol + option volume levels
 # - Disciplined thresholds and weights (configurable via env)

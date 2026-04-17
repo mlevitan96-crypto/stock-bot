@@ -209,14 +209,14 @@ def copy_adversarial_and_playbook(ev: Path) -> None:
 
 
 def memory_bank_excerpt(ev: Path) -> None:
-    mb = REPO / "MEMORY_BANK.md"
+    mb = REPO / "MEMORY_BANK_ALPACA.md"
     text = mb.read_text(encoding="utf-8", errors="replace")
     marker = "## 1."
     idx = text.find("## 1.")
     snippet = text[idx : idx + 1200] if idx >= 0 else "(could not find section 1)"
     body = [
         "# ALPACA PNL MEMORY BANK UPDATE (evidence)\n\n",
-        "## Inserted governance (see MEMORY_BANK.md for full file)\n\n",
+        "## Inserted governance (see MEMORY_BANK_ALPACA.md for full file)\n\n",
         "- Canonical docs: `docs/pnl_audit/REQUIRED_FIELDS.md`, `LINEAGE_MATRIX.md`, `LINEAGE_MATRIX.json`, `FIELD_ADDITION_PLAYBOOK.md`, `ADVERSARIAL_FINDINGS.md`.\n",
         "- **LINEAGE_MATRIX.json** is the machine contract; any telemetry change must update it.\n",
         "- **Broker vs local** sources are explicit per matrix row (`source_of_truth`, `persistence_location`).\n",

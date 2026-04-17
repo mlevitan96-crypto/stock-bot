@@ -310,7 +310,7 @@ def main() -> None:
         _blocker("Signal firing test failed", o7[-4000:])
 
     # ---------- PHASE 8 ----------
-    mb = REPO / "MEMORY_BANK.md"
+    mb = REPO / "MEMORY_BANK_ALPACA.md"
     tlog = REPO / "memory_bank" / "TELEMETRY_CHANGELOG.md"
     block = f"""
 
@@ -332,11 +332,11 @@ def main() -> None:
 
     p8 = []
     p8.append("# ALPACA ERA CUT — DOC UPDATES\n\n")
-    p8.append("Appended sections to MEMORY_BANK.md and memory_bank/TELEMETRY_CHANGELOG.md (see tail of those files).\n\n")
+    p8.append("Appended sections to MEMORY_BANK_ALPACA.md and memory_bank/TELEMETRY_CHANGELOG.md (see tail of those files).\n\n")
     p8.append("```\n" + block[:2500] + "\n```\n")
     _write_evidence("ALPACA_ERA_CUT_DOC_UPDATES.md", "".join(p8))
 
-    out, rc = _git(["add", "MEMORY_BANK.md", "memory_bank/TELEMETRY_CHANGELOG.md"])
+    out, rc = _git(["add", "MEMORY_BANK_ALPACA.md", "memory_bank/TELEMETRY_CHANGELOG.md"])
     out2, rc2 = _git(["commit", "-m", "docs: record alpaca era cut and governance enforcement"])
     if rc2 != 0 and "nothing to commit" not in out2.lower():
         _blocker("git commit docs failed", out2)

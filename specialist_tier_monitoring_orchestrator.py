@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Specialist Tier Monitoring Orchestrator
-Authoritative Source: MEMORY_BANK.md
+Authoritative Source: MEMORY_BANK_ALPACA.md
 
 Orchestrates daily and weekly audit reports, commits and pushes to GitHub.
 
@@ -199,7 +199,7 @@ def main():
     daily_report = run_daily_audit(target_date)
     if daily_report.exists():
         report_files.append(daily_report)
-        commit_messages.append(f"Daily Alpha Audit {target_date.strftime('%Y-%m-%d')} - MEMORY_BANK.md Specialist Tier Monitoring")
+        commit_messages.append(f"Daily Alpha Audit {target_date.strftime('%Y-%m-%d')} - MEMORY_BANK_ALPACA.md Specialist Tier Monitoring")
         print(f"✓ Daily audit complete: {daily_report}")
     
     # Run Friday audits if it's Friday or forced
@@ -212,14 +212,14 @@ def main():
         eow_report = run_friday_eow_audit(friday_date)
         if eow_report.exists():
             report_files.append(eow_report)
-            commit_messages.append(f"Friday EOW Audit {friday_date.strftime('%Y-%m-%d')} - MEMORY_BANK.md Specialist Tier Monitoring")
+            commit_messages.append(f"Friday EOW Audit {friday_date.strftime('%Y-%m-%d')} - MEMORY_BANK_ALPACA.md Specialist Tier Monitoring")
             print(f"✓ Friday EOW audit complete: {eow_report}")
         
         print("Running Regime Persistence Audit...")
         regime_report = run_regime_persistence_audit(friday_date)
         if regime_report.exists():
             report_files.append(regime_report)
-            commit_messages.append(f"Regime Persistence Audit {friday_date.strftime('%Y-%m-%d')} - MEMORY_BANK.md Specialist Tier Monitoring")
+            commit_messages.append(f"Regime Persistence Audit {friday_date.strftime('%Y-%m-%d')} - MEMORY_BANK_ALPACA.md Specialist Tier Monitoring")
             print(f"✓ Regime persistence audit complete: {regime_report}")
     
     # Commit and push to GitHub

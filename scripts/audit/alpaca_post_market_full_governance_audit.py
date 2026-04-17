@@ -484,9 +484,9 @@ def main() -> int:
     p5.append(f"- log exit code: {gl_rc}\n\n")
 
     gov = REPO / ".cursor/ALPACA_GOVERNANCE_LAYER.md"
-    mb = REPO / "MEMORY_BANK.md"
+    mb = REPO / "MEMORY_BANK_ALPACA.md"
     tel = REPO / "memory_bank/TELEMETRY_CHANGELOG.md"
-    p5.append("## MEMORY_BANK.md — exit tuning / env knobs\n\n")
+    p5.append("## MEMORY_BANK_ALPACA.md — exit tuning / env knobs\n\n")
     if mb.is_file():
         txt = mb.read_text(encoding="utf-8", errors="replace")
         hits = [ln for ln in txt.splitlines() if "V2_EXIT" in ln or "TRAILING_STOP" in ln or "exit tuning" in ln.lower()][:15]
@@ -502,7 +502,7 @@ def main() -> int:
     else:
         p5.append(
             "**Not present on droplet** (common: `.cursor/` is dev-only and not deployed). "
-            "Operator canon lives in local repo `.cursor/ALPACA_GOVERNANCE_LAYER.md` and **MEMORY_BANK.md** below.\n\n"
+            "Operator canon lives in local repo `.cursor/ALPACA_GOVERNANCE_LAYER.md` and **MEMORY_BANK_ALPACA.md** below.\n\n"
         )
 
     p5.append("## memory_bank/TELEMETRY_CHANGELOG.md — governance / exit telemetry (head)\n\n```\n")

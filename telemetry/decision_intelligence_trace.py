@@ -10,7 +10,7 @@ Every trade_intent (entered OR blocked) must include:
 
 If a decision cannot explain itself in layers, it is INVALID.
 
-Schema: DecisionIntelligenceTrace (see MEMORY_BANK.md "Decision Intelligence Trace Contract").
+Schema: DecisionIntelligenceTrace (see MEMORY_BANK_ALPACA.md "Decision Intelligence Trace Contract").
 """
 
 from __future__ import annotations

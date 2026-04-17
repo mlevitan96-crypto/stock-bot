@@ -3,7 +3,7 @@
 Deployment Supervisor V4 - Production-ready for Reserved VM deployments.
 Dashboard starts FIRST with ZERO delay to bind port 5000 immediately.
 
-IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK.md
+IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK_ALPACA.md
 """
 
 from config.registry import StateFiles, CacheFiles, LogFiles, ConfigFiles, Directories

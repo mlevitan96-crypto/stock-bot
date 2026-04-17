@@ -27,7 +27,7 @@ try:
 except ImportError:
     DROPLET_CLIENT_AVAILABLE = False
 
-# File locations on Droplet (from MEMORY_BANK.md)
+# File locations on Droplet (from MEMORY_BANK_ALPACA.md)
 DROPLET_LOG_FILES = {
     "attribution": "/root/stock-bot/logs/attribution.jsonl",
     "blocked_trades": "/root/stock-bot/state/blocked_trades.jsonl",
