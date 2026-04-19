@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-19T21:52:40Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warn",
+      "message": "reports/board/ directory does not exist. Expected top-level subdirectory is missing."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warn",
+      "message": "reports/board/ missing — required governance contract directory absent."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "moltbot/ directory still present at repo root with active Python modules (orchestrator.py, board.py, sentinel.py, memory_evolution.py, promotion_discipline.py). This was flagged for removal per CSA findings (2026-03-26)."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Clawdbot/Moltbot references found in code/config: moltbot/*.py (5 files), scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. These are active code files, not audit/docs documenting removal."
+    }
+  ],
+  "slack_sent": false
+}
