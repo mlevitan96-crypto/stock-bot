@@ -19,5 +19,6 @@
     "no_clawdbot_moltbot: scripts/sre/run_sre_anomaly_scan.py contains clawdbot/moltbot references",
     "no_clawdbot_moltbot: scripts/automations/run_governance_integrity_once.py contains clawdbot/moltbot references"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "anomalies_detected — gh CLI is read-only in this environment; issue creation deferred to operator or next writable automation run"
 }
