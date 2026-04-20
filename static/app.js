@@ -7,6 +7,9 @@
   const el = (id) => document.getElementById(id);
   let pollTimer = null;
   let pnlChart = null;
+  /** @type {any} */
+  let dailyTradesChart = null;
+  let lastDailyTradesSig = "";
   let vaultLoaded = false;
   /** @type {{ t: number, equity: number, src?: string }[]} */
   let equityTrail = [];
@@ -84,6 +87,111 @@
       } catch (_) {}
       pnlChart = null;
     }
+  }
+
+  function destroyDailyTradesChart() {
+    if (dailyTradesChart) {
+      try {
+        dailyTradesChart.destroy();
+      } catch (_) {}
+      dailyTradesChart = null;
+    }
+  }
+
+  /**
+   * @param {{ label?: string, date?: string, trade_count?: number }[]} series
+   */
+  function renderDailyTradesChart(series) {
+    const canvas = el("dailyTradesChart");
+    if (!canvas || typeof Chart === "undefined") return;
+    if (!Array.isArray(series) || series.length === 0) {
+      destroyDailyTradesChart();
+      lastDailyTradesSig = "";
+      return;
+    }
+    const labels = series.map(function (x) {
+      return x.label || x.date || "";
+    });
+    const vals = series.map(function (x) {
+      return Number(x.trade_count) || 0;
+    });
+    const sig = labels.join("\u0001") + "|" + vals.join(",");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (dailyTradesChart && sig === lastDailyTradesSig) {
+      dailyTradesChart.data.labels = labels;
+      dailyTradesChart.data.datasets[0].data = vals;
+      dailyTradesChart.update("none");
+      return;
+    }
+    lastDailyTradesSig = sig;
+    destroyDailyTradesChart();
+
+    dailyTradesChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            data: vals,
+            backgroundColor: "rgba(88, 166, 255, 0.72)",
+            borderColor: "#58a6ff",
+            borderWidth: 1,
+            borderRadius: 2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: "#8b949e",
+              maxRotation: 55,
+              minRotation: 45,
+              autoSkip: true,
+              maxTicksLimit: 16,
+              font: { size: 9 },
+            },
+            grid: { display: false },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: "#8b949e", precision: 0 },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+
+  async function loadDailyTradeVolume() {
+    const note = el("dailyTradeNote");
+    const r = await safeFetch("/api/dashboard/daily_trade_volume?days=30");
+    if (!r.ok) {
+      if (note) {
+        note.textContent =
+          r.error && r.error.message ? String(r.error.message) : "Could not load trades-per-day (check auth).";
+      }
+      destroyDailyTradesChart();
+      return;
+    }
+    const d = r.data;
+    if (!d || d.ok === false) {
+      if (note) note.textContent = d && d.error ? String(d.error) : "Trades-per-day unavailable.";
+      destroyDailyTradesChart();
+      return;
+    }
+    const sn = d.scan_note ? String(d.scan_note) : "";
+    const tz = d.timezone ? " · " + d.timezone : "";
+    if (note) note.textContent = (sn || "Daily fill counts from orders.jsonl tail") + tz;
+    renderDailyTradesChart(d.series || []);
   }
 
   function equityFromRollingPoint(p) {
@@ -577,6 +685,8 @@
 
     renderEquityChart();
     persistTrailSession();
+
+    await loadDailyTradeVolume();
 
     setConn(allOk, allOk ? "" : "Reconnecting…");
   }
