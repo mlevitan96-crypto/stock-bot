@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-20T23:23:54Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. Expected top-level directories: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/ — all present except reports/board/ is missing.",
+    "governance_contracts_present: reports/board/ does not exist (required by governance contract).",
+    "no_clawdbot_moltbot: Active moltbot/ directory found at repo root with code files (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). Molt-related scripts found in scripts/: run_openclaw_molt_synthesis.py, run_molt_workflow.py, run_molt_intelligence_expansion.py. Also found in scripts/sre/run_sre_anomaly_scan.py and scripts/automations/run_governance_integrity_once.py. (Excluded: reports/audit and docs references which document removal.)"
+  ],
+  "slack_sent": false
+}
