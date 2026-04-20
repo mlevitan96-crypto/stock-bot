@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-20T06:02:24Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory is missing. Expected top-level directories src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/ are present, and reports/audit/ exists, but reports/board/ does not exist."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ directory is missing. memory_bank/ has key docs, .cursor/automations/ exists with README and specs, reports/audit/ exists, but reports/board/ is absent."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "Deprecated directory moltbot/ exists at repo top-level with active Python modules: orchestrator.py, board.py, sentinel.py, memory_evolution.py, promotion_discipline.py, __init__.py."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot/Clawdbot references found in code (excluding reports/audit and docs documenting removal): moltbot/orchestrator.py, moltbot/board.py, moltbot/sentinel.py, moltbot/memory_evolution.py, moltbot/promotion_discipline.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_intelligence_expansion.py, scripts/run_molt_workflow.py. The moltbot/ directory contains active Python code that should have been removed."
+    }
+  ],
+  "slack_sent": false
+}
