@@ -1,0 +1,21 @@
+[Unit]
+Description=Alpaca Truth Warehouse + PnL audit mission (coverage reports, read-only)
+Documentation=file:///root/stock-bot/scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/stock-bot
+Environment=TRADING_BOT_ROOT=/root/stock-bot
+Environment=PYTHONPATH=/root/stock-bot
+EnvironmentFile=-/root/stock-bot/.env
+# Long run: full window + max-compute can take many minutes on large logs.
+TimeoutStartSec=6h
+ExecStart=/root/stock-bot/venv/bin/python3 /root/stock-bot/scripts/alpaca_full_truth_warehouse_and_pnl_audit_mission.py --root /root/stock-bot --days 180 --max-compute
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
