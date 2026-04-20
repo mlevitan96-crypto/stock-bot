@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-20T13:47:01Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "reports/board/ missing",
+    "Governance contract missing: reports/board",
+    "Deprecated directories still present: ['moltbot/', 'board/']",
+    "Clawdbot/Moltbot code present: moltbot/ directory contains active .py files",
+    "Clawdbot/Moltbot code present: scripts/run_molt_workflow.py references Moltbot workflow",
+    "Clawdbot/Moltbot code present: scripts/run_molt_intelligence_expansion.py references Moltbot workflow",
+    "Clawdbot/Moltbot code present: scripts/run_openclaw_molt_synthesis.py references Moltbot workflow"
+  ],
+  "slack_sent": false
+}
