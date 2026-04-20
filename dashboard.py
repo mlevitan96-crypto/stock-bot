@@ -508,6 +508,12 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
+        <div class="positions-table" style="margin-bottom: 16px;">
+            <h2 style="margin-bottom: 8px; font-size: 1.1em; font-weight: 600;">Trades per day</h2>
+            <p id="daily-trade-volume-note" style="font-size: 0.8em; color: #64748b; margin: 0 0 8px 0;">Loading…</p>
+            <div id="daily-trade-volume-chart" style="min-height: 140px;"></div>
+        </div>
+        
         <div class="positions-table">
             <h2 style="margin-bottom: 15px;">Open Positions</h2>
             <div id="positions-content">
@@ -2288,12 +2294,77 @@ DASHBOARD_HTML = """
             return hours + 'h ' + minutes + 'm';
         }
         
+        function renderDailyTradeVolumeChart(series) {
+            var box = document.getElementById('daily-trade-volume-chart');
+            if (!box || !Array.isArray(series) || series.length === 0) {
+                if (box) box.innerHTML = '';
+                return;
+            }
+            var w = 760;
+            var h = 150;
+            var pl = 28;
+            var pr = 10;
+            var pt = 8;
+            var pb = 46;
+            var innerW = w - pl - pr;
+            var innerH = h - pt - pb;
+            var maxV = 1;
+            for (var i = 0; i < series.length; i++) {
+                var c = series[i].trade_count != null ? Number(series[i].trade_count) : 0;
+                if (c > maxV) maxV = c;
+            }
+            var n = series.length;
+            var bw = innerW / n;
+            var parts = [];
+            parts.push('<line x1="' + pl + '" y1="' + (pt + innerH) + '" x2="' + (w - pr) + '" y2="' + (pt + innerH) + '" stroke="#e5e7eb" stroke-width="1"/>');
+            for (var j = 0; j < n; j++) {
+                var cnt = series[j].trade_count != null ? Number(series[j].trade_count) : 0;
+                var bh = maxV > 0 ? (cnt / maxV) * innerH : 0;
+                var x = pl + j * bw + bw * 0.12;
+                var barW = bw * 0.76;
+                var y = pt + innerH - bh;
+                parts.push('<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + bh + '" fill="#6366f1" opacity="0.85" rx="1"/>');
+                var lx = pl + j * bw + bw / 2;
+                var lab = String(series[j].label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                parts.push('<text x="' + lx + '" y="' + (h - 6) + '" text-anchor="end" transform="rotate(-52 ' + lx + ' ' + (h - 6) + ')" font-size="8.5" fill="#64748b" font-family="system-ui,sans-serif">' + lab + '</text>');
+            }
+            parts.push('<text x="' + pl + '" y="' + (pt + 10) + '" font-size="10" fill="#94a3b8" font-family="system-ui,sans-serif">' + maxV + '</text>');
+            box.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" xmlns="http://www.w3.org/2000/svg" aria-label="Trades per day">' + parts.join('') + '</svg>';
+        }
+        
+        function loadDailyTradeVolumeChart() {
+            var note = document.getElementById('daily-trade-volume-note');
+            var box = document.getElementById('daily-trade-volume-chart');
+            if (!box) return;
+            if (note) note.textContent = 'Loading…';
+            fetch('/api/dashboard/daily_trade_volume?days=30', { credentials: 'same-origin', cache: 'no-store' })
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(d) {
+                    if (!box) return;
+                    if (!d || d.ok === false) {
+                        if (note) note.textContent = (d && d.error) ? String(d.error) : 'Chart unavailable.';
+                        box.innerHTML = '';
+                        return;
+                    }
+                    var sn = d.scan_note ? String(d.scan_note) : '';
+                    var tz = d.timezone ? ' · ' + d.timezone : '';
+                    if (note) note.textContent = sn ? (sn + tz) : ('Daily fill counts from orders.jsonl' + tz);
+                    renderDailyTradeVolumeChart(d.series || []);
+                })
+                .catch(function() {
+                    if (note) note.textContent = 'Could not load trades-per-day chart.';
+                    if (box) box.innerHTML = '';
+                });
+        }
+        
         function updateDashboard() {
             // Only update if positions tab is active
             const positionsTab = document.getElementById('positions-tab');
             if (!positionsTab || !positionsTab.classList.contains('active')) {
                 return;
             }
+            
+            try { loadDailyTradeVolumeChart(); } catch (e) { console.error(e); }
             
             // Save scroll position before update
             const positionsContent = document.getElementById('positions-content');
@@ -3192,6 +3263,151 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
             "broker_reconciliation",
         ],
     }
+
+
+def _orders_jsonl_row_is_fill(rec: dict) -> bool:
+    """Match heuristic used in _alpaca_operational_activity_payload (fills / executions)."""
+    st = str(rec.get("status", "")).lower()
+    typ = str(rec.get("type", "")).lower()
+    if st == "filled" or typ == "fill":
+        return True
+    fq = rec.get("filled_qty")
+    if fq not in (None, 0, "0", ""):
+        try:
+            return float(fq) > 0
+        except Exception:
+            return True
+    return False
+
+
+def _daily_trade_volume_payload(root: Path, days: int) -> dict:
+    """
+    Count fill-like rows in logs/orders.jsonl by U.S. Eastern calendar day (rolling window).
+    Read-only; uses JSONL tail only (bounded) — not a full historical guarantee on busy hosts.
+    """
+    from collections import defaultdict
+    from datetime import timedelta
+
+    try:
+        from zoneinfo import ZoneInfo
+
+        et = ZoneInfo("America/New_York")
+    except Exception:
+        et = timezone.utc  # type: ignore[assignment]
+
+    now_utc = datetime.now(timezone.utc)
+    if et is timezone.utc:
+        now_local = now_utc
+        end_d = now_local.date()
+        start_d = end_d - timedelta(days=max(1, min(days, 90)) - 1)
+    else:
+        now_local = now_utc.astimezone(et)
+        end_d = now_local.date()
+        start_d = end_d - timedelta(days=max(1, min(days, 90)) - 1)
+
+    tail_lines = 80_000
+    tail_chunk = 20_000_000
+    scan_note = (
+        f"Heuristic fill counts from the tail of orders.jsonl (~{tail_lines} lines / "
+        f"≤{tail_chunk // 1_000_000}MB). High order volume can make older days incomplete."
+    )
+
+    counts = defaultdict(int)
+    orders_path = (root / "logs" / "orders.jsonl").resolve()
+    if orders_path.is_file():
+        for line in _tail_file_lines(orders_path, max_lines=tail_lines, max_chunk_bytes=tail_chunk):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not _orders_jsonl_row_is_fill(rec):
+                continue
+            ts = _parse_log_ts_ops(rec.get("timestamp") or rec.get("_ts") or rec.get("ts"))
+            if ts is None:
+                continue
+            try:
+                if et is timezone.utc:
+                    d = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+                else:
+                    d = datetime.fromtimestamp(ts, tz=et).date()
+            except Exception:
+                continue
+            if start_d <= d <= end_d:
+                counts[d] += 1
+
+    series: list = []
+    cur = start_d
+    while cur <= end_d:
+        if et is timezone.utc:
+            noon = datetime(cur.year, cur.month, cur.day, 12, 0, tzinfo=timezone.utc)
+        else:
+            noon = datetime(cur.year, cur.month, cur.day, 12, 0, tzinfo=et)
+        label = noon.strftime("%a, %b ") + str(cur.day)
+        series.append(
+            {
+                "date": cur.isoformat(),
+                "label": label,
+                "trade_count": int(counts.get(cur, 0)),
+            }
+        )
+        cur = cur + timedelta(days=1)
+
+    tz_name = "America/New_York" if et is not timezone.utc else "UTC"
+
+    return {
+        "ok": True,
+        "generated_at_utc": now_utc.isoformat(),
+        "timezone": tz_name,
+        "days_requested": int(days),
+        "days_in_series": len(series),
+        "source": "logs/orders.jsonl",
+        "scan_note": scan_note,
+        "series": series,
+        "does_not_claim": [
+            "learning_certification",
+            "attribution_completeness",
+            "broker_reconciliation",
+        ],
+    }
+
+
+@app.route("/api/dashboard/daily_trade_volume", methods=["GET"])
+def api_dashboard_daily_trade_volume():
+    """Minimal daily fill/trade counts for the Positions tab chart (read-only JSONL tail)."""
+    import concurrent.futures
+
+    try:
+        d = int(request.args.get("days", "30"))
+    except Exception:
+        d = 30
+    d = max(7, min(d, 90))
+    root = Path(_DASHBOARD_ROOT)
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(_daily_trade_volume_payload, root, d)
+            payload = fut.result(timeout=12)
+        return jsonify(payload), 200
+    except concurrent.futures.TimeoutError:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "scan_timeout",
+                "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+                "series": [],
+            }
+        ), 200
+    except Exception as e:
+        return jsonify(
+            {
+                "ok": False,
+                "error": str(e)[:300],
+                "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+                "series": [],
+            }
+        ), 200
 
 
 @app.route("/api/alpaca_operational_activity", methods=["GET"])
