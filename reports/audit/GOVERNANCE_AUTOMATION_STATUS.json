@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-20T08:34:26Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warn",
+      "message": "reports/board/ directory is missing. Expected top-level subdirectory under reports/."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warn",
+      "message": "reports/board/ directory is missing; governance contract requires reports/audit/ and reports/board/ both present."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "alert",
+      "message": "moltbot/ directory exists with active code (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). Scripts reference moltbot/clawdbot patterns: scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py. These are code/config references outside the excluded reports/audit and docs-documenting-removal paths."
+    }
+  ],
+  "slack_sent": false
+}
