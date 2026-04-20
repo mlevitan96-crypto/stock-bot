@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-20T18:30:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory missing (expected at reports/board/)",
+    "governance_contracts_present: reports/board/ directory missing; required for board report artifacts",
+    "no_deprecated_dirs: moltbot/ directory exists at repo root with 5 Python source files (board.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, sentinel.py)",
+    "no_clawdbot_moltbot: moltbot/ directory contains active code referencing Moltbot; scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py contain Moltbot references in code paths"
+  ],
+  "slack_sent": false
+}
