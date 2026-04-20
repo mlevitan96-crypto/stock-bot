@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-20T18:02:09Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory does not exist. Expected top-level directories src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/ are all present. reports/audit/ exists but reports/board/ is missing."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ directory missing. memory_bank/ has key docs (report_output_contract.md, report_retention_policy.md, systemPatterns.md, TELEMETRY_CHANGELOG.md). .cursor/automations/ exists with README.md and spec files. reports/audit/ exists."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "Deprecated directories found: moltbot/ (contains sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py), board/ (contains eod/out/ with archived JSON). Per MEMORY_BANK_ALPACA.md, shadow A/B modules are removed and v1 code paths MUST NOT be reintroduced."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot code/config found outside reports/audit and docs (excluded as documentation-of-removal): moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py (references moltbot). board/ directory contains archived Clawdbot-era JSON artifacts."
+    }
+  ],
+  "slack_sent": false
+}
