@@ -23,5 +23,6 @@
       "message": "Clawdbot/Moltbot references found in code/config files (not just docs): moltbot/ directory (5 .py modules), scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py, board/eod/out/2026-02-12/cron_diagnosis.json, board/eod/out/2026-02-12/eod_failure.json, board/eod/out/2026-02-13/cron_diagnosis.json"
     }
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "SKIPPED — gh CLI is read-only in this environment; anomalies require manual issue creation titled '[Governance Integrity] Anomalies detected'"
 }
