@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-20T09:33:14Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected by governance contract)",
+    "governance_contracts_present: reports/board/ missing — required governance contract directory absent",
+    "no_clawdbot_moltbot: moltbot/ top-level directory exists with active code (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). Molt-referencing scripts found: scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py. board/ top-level directory exists (board/eod/ with output artifacts). These were flagged for removal per CSA_FINDINGS_clawdbot_removal.md"
+  ],
+  "slack_sent": false
+}
