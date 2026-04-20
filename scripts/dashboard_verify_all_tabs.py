@@ -15,6 +15,7 @@ AUTH = (b64encode(f"{USER}:{PW}".encode()).decode()) if (USER and PW) else None
 # Alpaca dashboard: every tab-primary or strip endpoint (404 = hard failure on droplet).
 TAB_ENDPOINTS = [
     "/api/dashboard/header_strip",
+    "/api/dashboard/daily_trade_volume?days=30",
     "/api/alpaca_operational_activity?hours=72",
     "/api/version",
     "/api/versions",
