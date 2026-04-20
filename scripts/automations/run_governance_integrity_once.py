@@ -31,7 +31,12 @@ def check_repo_structure() -> tuple[str, list[str]]:
     top = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
     missing = EXPECTED_TOP_LEVEL - top
     if missing:
-        return "fail", [f"Missing expected top-level dirs: {sorted(missing)}"]
+        details.append(f"Missing expected top-level dirs: {sorted(missing)}")
+    for subdir in ["reports/audit", "reports/board"]:
+        if not (REPO_ROOT / subdir.replace("/", os.sep)).is_dir():
+            details.append(f"{subdir}/ directory does not exist.")
+    if details:
+        return "fail", details
     return "pass", details
 
 
@@ -62,8 +67,25 @@ def check_required_artifacts() -> tuple[str, list[str]]:
     return "fail", ["reports/audit or reports/board missing or not directories"]
 
 
+DEPRECATED_DIRS = ["moltbot", "board", "clawdbot"]
+
 def check_no_deprecated_dirs() -> tuple[str, list[str]]:
-    """No reintroduced deprecated roots; no strict list in repo, pass by default."""
+    """Check that deprecated top-level directories have not been reintroduced."""
+    details = []
+    for d in DEPRECATED_DIRS:
+        p = REPO_ROOT / d
+        if p.is_dir():
+            contents = [f.name for f in p.rglob("*.py")]
+            if contents:
+                details.append(
+                    f"Deprecated directory {d}/ exists at repo root with Python modules: {', '.join(sorted(contents))}."
+                )
+            else:
+                details.append(
+                    f"Deprecated directory {d}/ exists at repo root."
+                )
+    if details:
+        return "fail", details
     return "pass", []
 
 

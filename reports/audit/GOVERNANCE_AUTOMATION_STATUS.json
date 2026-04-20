@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "timestamp": "2026-04-20T02:24:56.399293+00:00",
+  "run_ts_utc": "2026-04-20T02:24:56.399316+00:00",
+  "branch": "main",
+  "status": "anomalies",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "fail",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "reports/board/ directory does not exist.",
+    "Missing: reports/board",
+    "reports/audit or reports/board missing or not directories",
+    "Deprecated directory moltbot/ exists at repo root with Python modules: __init__.py, __init__.py, board.py, counterfactual_analyst.py, governance_chair.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, risk_auditor.py, sentinel.py, signal_advocate.py.",
+    "Deprecated directory board/ exists at repo root with Python modules: apply_cursor_plan.py, bundle_writer.py, cron_diagnose_and_fix.py, cron_health_check.py, deploy_sync_cron_on_droplet.py, eod_confirmation.py, exit_regimes.py, install_eod_cron_on_droplet.py, live_entry_adjustments.py, rolling_windows.py, root_cause.py, run_data_integrity_patch.py, run_eod_on_droplet.py, run_eod_on_droplet_and_sync.py, run_stock_quant_officer_eod.py, start_live_paper_run.py, uw_failure_diagnostics.py."
+  ],
+  "anomalies": [
+    "reports/board/ directory does not exist.",
+    "Missing: reports/board",
+    "reports/audit or reports/board missing or not directories",
+    "Deprecated directory moltbot/ exists at repo root with Python modules: __init__.py, __init__.py, board.py, counterfactual_analyst.py, governance_chair.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, risk_auditor.py, sentinel.py, signal_advocate.py.",
+    "Deprecated directory board/ exists at repo root with Python modules: apply_cursor_plan.py, bundle_writer.py, cron_diagnose_and_fix.py, cron_health_check.py, deploy_sync_cron_on_droplet.py, eod_confirmation.py, exit_regimes.py, install_eod_cron_on_droplet.py, live_entry_adjustments.py, rolling_windows.py, root_cause.py, run_data_integrity_patch.py, run_eod_on_droplet.py, run_eod_on_droplet_and_sync.py, run_stock_quant_officer_eod.py, start_live_paper_run.py, uw_failure_diagnostics.py."
+  ],
+  "slack_sent": false
+}
