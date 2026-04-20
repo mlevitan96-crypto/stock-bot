@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-20T20:23:55Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warn",
+      "message": "reports/board/ directory is not tracked in git (missing from HEAD tree). All other expected top-level dirs (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) are present."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warn",
+      "message": "reports/board/ not tracked in git. memory_bank/ has key docs (systemPatterns.md, TELEMETRY_CHANGELOG.md, report_output_contract.md, report_retention_policy.md). .cursor/automations/ has README.md + 5 automation specs. reports/audit/ exists and is tracked."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Active moltbot/ directory found with code files (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). Scripts referencing Moltbot/Clawdbot: scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. These are code/config references, not documentation-only mentions."
+    }
+  ],
+  "slack_sent": false
+}
