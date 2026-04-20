@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-20T02:12:52Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "issue": "reports/board/ directory does not exist. Expected top-level subdirectory for board reports."
+    },
+    {
+      "check": "governance_contracts_present",
+      "issue": "reports/board/ directory missing — required governance contract path absent."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "issue": "Deprecated directory moltbot/ exists at repo root with active Python modules: orchestrator.py, promotion_discipline.py, board.py, sentinel.py, memory_evolution.py."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "issue": "Deprecated directory board/ exists at repo root (board reports should reside under reports/board/)."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "issue": "Moltbot references found in code: moltbot/orchestrator.py, moltbot/promotion_discipline.py, moltbot/board.py, moltbot/sentinel.py, moltbot/memory_evolution.py, scripts/run_molt_intelligence_expansion.py, scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "issue": "Clawdbot/Moltbot references found in: scripts/sre/run_sre_anomaly_scan.py, board/eod/out/2026-02-12/cron_diagnosis.json, board/eod/out/2026-02-12/eod_failure.json, board/eod/out/2026-02-13/cron_diagnosis.json."
+    }
+  ],
+  "slack_sent": false
+}
