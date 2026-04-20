@@ -5377,6 +5377,13 @@ class AlpacaExecutor:
             log_event("submit_order_called", "SUBMIT_ORDER_CALLED", symbol=symbol, ts=time.time(), mode=order_type, qty=qty, side=side)
         except Exception:
             pass
+
+        _exit_sc_reason = kwargs.pop("exit_signal_context_reason", None)
+        if _exit_sc_reason:
+            try:
+                self._emit_exit_orderbook_signal_context(symbol, str(_exit_sc_reason))
+            except Exception:
+                pass
         
         # Submit real order (guard has already passed - this is the final network call)
         if order_type == "limit" and limit_price is not None:
@@ -5625,6 +5632,46 @@ class AlpacaExecutor:
         except Exception:
             return 0.0
 
+    def _emit_exit_orderbook_signal_context(self, symbol: str, decision_reason: str) -> None:
+        """
+        Truth-warehouse slippage gate: log NBBO / last trade at the instant *before* the exit hits Alpaca.
+        Rows carry mid/last + quote so nearest_context can join without widening the time window.
+        """
+        try:
+            from telemetry.signal_context_logger import log_signal_context, default_threshold
+
+            symu = str(symbol or "").upper().strip()
+            if not symu:
+                return
+            bid, ask = self.get_nbbo(symu)
+            last_px = float(self.get_last_trade(symu) or 0.0)
+            mid: Optional[float] = None
+            if bid > 0 and ask > 0 and ask >= bid:
+                mid = (bid + ask) / 2.0
+            if mid is None or mid <= 0:
+                mid = last_px if last_px > 0 else None
+            last_out = last_px if last_px > 0 else mid
+            sig_dict = {
+                "mid": mid,
+                "last": last_out,
+                "quote": {"bid": bid, "ask": ask},
+                "telemetry_phase": "orderbook_preflight",
+            }
+            mode = "paper" if getattr(Config, "PAPER_TRADING", True) else "live"
+            log_signal_context(
+                symbol=symu,
+                mode=mode,
+                decision="exit",
+                decision_reason=str(decision_reason or "exit_order_submit"),
+                pnl_usd=None,
+                signals=sig_dict,
+                final_score=None,
+                threshold=default_threshold(),
+                confidence_bucket="unknown",
+            )
+        except Exception:
+            pass
+
     def check_order_filled(self, order_id: str, max_wait_sec: float = 2.0) -> tuple:
         start = time.time()
         while (time.time() - start) < max_wait_sec:
@@ -5729,6 +5776,10 @@ class AlpacaExecutor:
         for attempt in range(1, int(max_attempts) + 1):
             try:
                 try:
+                    self._emit_exit_orderbook_signal_context(symbol, close_reason_tag)
+                except Exception:
+                    pass
+                try:
                     _ord = self.api.close_position(symbol, cancel_orders=True)
                 except TypeError:
                     _ord = self.api.close_position(symbol)
@@ -5785,6 +5836,10 @@ class AlpacaExecutor:
             _mock = type("_MockOrder", (), {"id": fake_id})()
             return _mock
         try:
+            try:
+                self._emit_exit_orderbook_signal_context(symbol, "close_position_api_once")
+            except Exception:
+                pass
             _ord_once = self.api.close_position(symbol, cancel_orders=True)
         except TypeError:
             _ord_once = self.api.close_position(symbol)
@@ -7794,7 +7849,15 @@ class AlpacaExecutor:
                 _emit_close_or_flip_strict_truth_chain(self, symbol, close_reason_tag="scale_out_partial")
             except Exception:
                 pass
-            o = self._submit_order_guarded(symbol=symbol, qty=close_qty, side=exit_side, order_type="market", time_in_force="day", caller="_scale_out_partial")
+            o = self._submit_order_guarded(
+                symbol=symbol,
+                qty=close_qty,
+                side=exit_side,
+                order_type="market",
+                time_in_force="day",
+                caller="_scale_out_partial",
+                exit_signal_context_reason="scale_out_partial",
+            )
             log_order({"action": "scale_out", "symbol": symbol, "qty": close_qty, "fraction": fraction})
             return True
         except Exception as e:
