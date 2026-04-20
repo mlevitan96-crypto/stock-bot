@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily Alpaca Truth Warehouse coverage mission (low-traffic UTC)
+Documentation=file:///root/stock-bot/deploy/systemd/alpaca-warehouse-coverage.service
+
+[Timer]
+# Calendar uses the host timezone; droplets are expected to run UTC so this is 02:00 UTC.
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+AccuracySec=1min
+Unit=alpaca-warehouse-coverage.service
+
+[Install]
+WantedBy=timers.target
