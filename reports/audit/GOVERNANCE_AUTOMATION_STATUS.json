@@ -17,5 +17,6 @@
     "no_deprecated_dirs: moltbot/ top-level directory still present with active Python code (sentinel.py, orchestrator.py, board.py, memory_evolution.py, promotion_discipline.py)",
     "no_clawdbot_moltbot: moltbot/ directory contains active code referencing Moltbot; scripts/run_molt_workflow.py imports from moltbot; scripts/run_molt_intelligence_expansion.py references Moltbot in active code context"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/908"
 }
