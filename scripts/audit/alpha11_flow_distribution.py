@@ -21,6 +21,7 @@ import json
 import math
 import sys
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -83,6 +84,72 @@ def _deep_scan_flow_strength(obj: Any, depth: int = 0) -> Optional[float]:
     return None
 
 
+def _from_composite_meta(cm: Any) -> Optional[float]:
+    if not isinstance(cm, dict):
+        return None
+    uw = cm.get("v2_uw_inputs")
+    if not isinstance(uw, dict):
+        return None
+    for k in ("flow_strength", "conviction"):
+        v = uw.get(k)
+        if v is None:
+            continue
+        try:
+            f = float(v)
+            if math.isfinite(f):
+                return f
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _parse_ts_any(v: Any) -> Optional[float]:
+    if v is None:
+        return None
+    try:
+        if isinstance(v, (int, float)):
+            return float(v)
+        s = str(v).strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).timestamp()
+    except Exception:
+        return None
+
+
+def _load_alpha11_blocked_flow_index(root: Path) -> List[Tuple[str, float, float]]:
+    """(symbol, ts_epoch, flow_strength) for rows blocked specifically by Alpha 11."""
+    out: List[Tuple[str, float, float]] = []
+    p = root / "state" / "blocked_trades.jsonl"
+    for r in _iter_jsonl(p):
+        if str(r.get("reason") or r.get("block_reason") or "") != "alpha11_flow_strength_below_gate":
+            continue
+        fs = _from_composite_meta(r.get("composite_meta"))
+        if fs is None:
+            continue
+        sym = str(r.get("symbol") or "").upper().strip()
+        ts = _parse_ts_any(r.get("timestamp") or r.get("ts"))
+        if not sym or ts is None:
+            continue
+        out.append((sym, float(ts), float(fs)))
+    out.sort(key=lambda x: x[1])
+    return out
+
+
+def _nearest_blocked_fs(sym: str, t: float, idx: List[Tuple[str, float, float]], max_dt: float = 300.0) -> Optional[float]:
+    best: Optional[Tuple[float, float]] = None
+    for s, ts, fs in idx:
+        if s != sym:
+            continue
+        d = abs(ts - t)
+        if d > max_dt:
+            continue
+        if best is None or d < best[0]:
+            best = (d, fs)
+    return best[1] if best else None
+
+
 def _flow_strength_from_intent(rec: dict) -> Optional[float]:
     """Mirror ``src/alpha11_gate`` extraction: v2_uw_inputs.flow_strength / conviction, then snapshot proxies."""
     fs: Optional[float] = None
@@ -104,7 +171,7 @@ def _flow_strength_from_intent(rec: dict) -> Optional[float]:
 
     cm = rec.get("composite_meta")
     if isinstance(cm, dict):
-        fs = _from_uw(cm.get("v2_uw_inputs"))
+        fs = _from_composite_meta(cm) or _from_uw(cm.get("v2_uw_inputs"))
     cr = rec.get("composite_result")
     if fs is None and isinstance(cr, dict):
         fs = _from_uw(cr.get("v2_uw_inputs"))
@@ -188,6 +255,7 @@ def main() -> int:
 
     bwp = _load_blocked_why_module()
     bars_by_sym = bwp.load_bars(bars_path)
+    a11_idx = _load_alpha11_blocked_flow_index(root)
 
     intents = _last_trade_intents(run_path, max(1, int(args.n)))
     if not intents:
@@ -201,6 +269,13 @@ def main() -> int:
 
     for rec in intents:
         fs = _flow_strength_from_intent(rec)
+        if fs is None and str(rec.get("decision_outcome", "")).lower() == "blocked":
+            br = str(rec.get("blocked_reason") or rec.get("final_decision_primary_reason") or "")
+            if "alpha11" in br.lower() or "flow_strength" in br.lower():
+                t_i = _parse_ts_any(rec.get("ts") or rec.get("timestamp"))
+                sym = str(rec.get("symbol") or "").upper().strip()
+                if t_i is not None and sym:
+                    fs = _nearest_blocked_fs(sym, float(t_i), a11_idx)
         b = _flow_bin(fs)
         counts_all[b] += 1
         if str(rec.get("decision_outcome", "")).lower() != "blocked":
@@ -273,6 +348,7 @@ def main() -> int:
         "run_jsonl": str(run_path),
         "bars_path": str(bars_path),
         "bars_loaded_symbols": len(bars_by_sym),
+        "alpha11_blocked_join_rows": len(a11_idx),
         "trade_intents_analyzed": len(intents),
         "q_verdict": verdict,
         "bins": rows_out,
