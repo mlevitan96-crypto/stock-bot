@@ -262,7 +262,12 @@ def main() -> int:
                         tid = str(rec.get("trade_id") or "")
                         side = str(rec.get("side") or rec.get("direction") or "long")
                         snap = rec.get("snapshot") if isinstance(rec.get("snapshot"), dict) else {}
-                        qty = _safe_float(rec.get("qty")) or _safe_float(snap.get("qty"))
+                        qty = (
+                            _safe_float(rec.get("qty"))
+                            or _safe_float(snap.get("qty"))
+                            or _safe_float(rec.get("filled_qty"))
+                            or _safe_float(snap.get("filled_qty"))
+                        )
                         entry_ts = parse_ts(rec.get("entry_ts") or rec.get("entry_timestamp"))
                         if entry_ts is None and tid:
                             mte = _TID_ENTRY_TS.match(str(tid).strip())
@@ -277,10 +282,7 @@ def main() -> int:
                         if not sym or entry_ts is None or exit_ts is None or qty is None or ep is None:
                             skipped += 1
                             continue
-                        bl = bars.get(sym)
-                        if not bl:
-                            skipped += 1
-                            continue
+                        bl = bars.get(sym) or []
 
                         t_in = entry_ts + timedelta(minutes=int(ed))
                         if ex_shift == "eod":
@@ -289,6 +291,12 @@ def main() -> int:
                             t_out = exit_ts + timedelta(minutes=int(ex_shift))
                         px_in = bar_close_on_or_after(bl, t_in)
                         px_out = bar_close_on_or_after(bl, t_out)
+                        # Fallback when 1m bars are sparse: flat price at recorded fills (sweep still runs; caveat in notes).
+                        xp_live = _safe_float(rec.get("exit_price")) or _safe_float(snap.get("exit_price"))
+                        if px_in is None:
+                            px_in = ep
+                        if px_out is None:
+                            px_out = xp_live if xp_live is not None else ep
                         if px_in is None or px_out is None:
                             skipped += 1
                             continue
@@ -336,6 +344,7 @@ def main() -> int:
             "MFE gate compares snapshot mfe_pct (auto /100 if >2).",
             "EOD exit uses 16:00 ET on exit calendar day.",
             "worst_single_trade_adversarial_usd is the worst per-trade mark in the cell (not full MAE path).",
+            "When 1m bars lack a symbol or timestamp, entry/exit px fall back to logged fill prices (flat counterfactual).",
         ],
     }
     outp = out_dir / "APEX_OMNI_PARAMETER_SWEEP.json"
