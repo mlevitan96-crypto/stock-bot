@@ -1,0 +1,4 @@
+{
+  "min_confluence": 0.12,
+  "_note": "Hull product of shifted composite legs; raise after cohort calibration. Override with GUT_CONFLUENCE_MIN."
+}
