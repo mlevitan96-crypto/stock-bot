@@ -3,8 +3,9 @@
 Write ``config/strict_completeness_quarantine.json`` from current incomplete_trade_ids_all.
 
 Usage (droplet):
-  PYTHONPATH=. python3 scripts/audit/materialize_strict_quarantine.py --root /root/stock-bot \\
-    --open-ts-epoch 1776778319.0 --enable --dry-run
+  PYTHONPATH=. python3 scripts/audit/materialize_strict_quarantine.py --root /root/stock-bot --enable
+
+  ``--open-ts-epoch`` defaults to ``STRICT_EPOCH_START`` from ``telemetry.alpaca_strict_completeness_gate``.
 
 When not --dry-run, merges with existing file (preserves manual ids unless --replace).
 """
@@ -19,19 +20,28 @@ _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from telemetry.alpaca_strict_completeness_gate import evaluate_completeness  # noqa: E402
+from telemetry.alpaca_strict_completeness_gate import (  # noqa: E402
+    STRICT_EPOCH_START,
+    evaluate_completeness,
+)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", type=Path, default=Path("."))
-    ap.add_argument("--open-ts-epoch", type=float, required=True, help="UTC epoch for evaluate_completeness window")
+    ap.add_argument(
+        "--open-ts-epoch",
+        type=float,
+        default=None,
+        help=f"UTC epoch for evaluate_completeness window (default: STRICT_EPOCH_START = {STRICT_EPOCH_START})",
+    )
     ap.add_argument("--enable", action="store_true", help="Set enabled true in output JSON")
     ap.add_argument("--dry-run", action="store_true", help="Print JSON only; do not write")
     ap.add_argument("--replace", action="store_true", help="Replace trade_ids entirely (no merge)")
     args = ap.parse_args()
     root = args.root.resolve()
-    r = evaluate_completeness(root, open_ts_epoch=float(args.open_ts_epoch), audit=True)
+    open_ts = float(args.open_ts_epoch) if args.open_ts_epoch is not None else float(STRICT_EPOCH_START)
+    r = evaluate_completeness(root, open_ts_epoch=open_ts, audit=True)
     ids = list(r.get("incomplete_trade_ids_all") or [])
     out_path = root / "config" / "strict_completeness_quarantine.json"
     prev: dict = {}
@@ -57,7 +67,7 @@ def main() -> int:
         "reason": prev.get("reason")
         or "Materialized from evaluate_completeness incomplete_trade_ids_all; SRE sign-off required to enable.",
         "trade_ids": merged_ids,
-        "materialized_from_open_ts_epoch": float(args.open_ts_epoch),
+        "materialized_from_open_ts_epoch": open_ts,
         "source_snapshot": {
             "LEARNING_STATUS": r.get("LEARNING_STATUS"),
             "trades_seen": r.get("trades_seen"),
