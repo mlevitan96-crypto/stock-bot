@@ -817,6 +817,40 @@ def _rotate_jsonl_file(path_str: str, max_bytes: int, backup_count: int) -> None
         pass
 
 
+def _json_sanitize_for_append(obj: Any) -> Any:
+    """
+    Coerce telemetry payloads to JSON-serializable scalars (numpy scalars, NaN/Inf).
+    Prevents silent ``trade_intent`` / strict-chain drops when ``json.dumps`` would raise.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, (str, int, bool)):
+        return obj
+    if isinstance(obj, dict):
+        return {str(k): _json_sanitize_for_append(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_sanitize_for_append(x) for x in obj]
+    if isinstance(obj, (bytes, bytearray)):
+        return obj.decode("utf-8", errors="replace")
+    try:
+        if hasattr(obj, "item"):
+            return _json_sanitize_for_append(obj.item())  # type: ignore[union-attr]
+    except Exception:
+        pass
+    try:
+        fv = float(obj)
+        if math.isfinite(fv):
+            return fv
+    except (TypeError, ValueError):
+        pass
+    try:
+        return str(obj)
+    except Exception:
+        return None
+
+
 def jsonl_write(name, record):
     # CRITICAL: Use standardized path for attribution log
     if name == "attribution":
@@ -839,8 +873,11 @@ def jsonl_write(name, record):
             record = {**record, "strategy_id": sid}
     except ImportError:
         pass
+    _safe = _json_sanitize_for_append(record)
+    if not isinstance(_safe, dict):
+        _safe = {"_sanitize_fallback": True, "value": str(_safe)}
     with open(path, "a", encoding="utf-8") as f:
-        f.write(json.dumps({"ts": now_iso(), **record}) + "\n")
+        f.write(json.dumps({"ts": now_iso(), **_safe}) + "\n")
 
 
 def _tail_resolve_entry_order_id_from_orders_jsonl(
@@ -1811,11 +1848,19 @@ def _trade_intent_uw_flow_snapshot(comps: Optional[dict], cluster: Optional[dict
         elif isinstance(_cl.get("v2_uw_inputs"), dict):
             _uw = _cl.get("v2_uw_inputs")
         if isinstance(_uw, dict):
-            slim = {
-                k: _uw[k]
-                for k in ("flow_strength", "conviction", "market_tide", "flow_conviction", "sentiment_score")
-                if k in _uw and _uw[k] is not None
-            }
+            slim: Dict[str, Any] = {}
+            for k in ("flow_strength", "conviction", "market_tide", "flow_conviction", "sentiment_score"):
+                if k not in _uw or _uw[k] is None:
+                    continue
+                try:
+                    v = _uw[k]
+                    if hasattr(v, "item"):
+                        v = v.item()  # type: ignore[union-attr]
+                    fv = float(v)
+                    if math.isfinite(fv):
+                        slim[k] = fv
+                except (TypeError, ValueError):
+                    continue
             if slim:
                 out["uw_flow_at_intent"] = slim
     except Exception:
@@ -7495,6 +7540,12 @@ class AlpacaExecutor:
             exit_fill_qty = 0
             exit_fill_price = 0.0
             try:
+                # Strict completeness: emit trade_intent(entered) + entry_decision_made + canonical_resolved
+                # *before* broker close so ultrafast displacement cannot skip post-mark_open telemetry (SRE: RIVN 2026-04-21).
+                try:
+                    _emit_close_or_flip_strict_truth_chain(self, symbol, close_reason_tag="displacement_close")
+                except Exception:
+                    pass
                 # Contract: closes should succeed even if qty is reserved by open orders.
                 # Prefer canceling open orders as part of close (safe fallback for older SDKs).
                 close_order = self.close_position_with_retries(symbol, max_attempts=3, close_reason_tag="displacement_close")
