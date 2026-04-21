@@ -143,7 +143,7 @@ def uw_flow_strength(rec: dict) -> Optional[float]:
 
 def mfe_fraction(rec: dict) -> Optional[float]:
     snap = rec.get("snapshot") if isinstance(rec.get("snapshot"), dict) else {}
-    for k in ("mfe_pct", "mfe"):
+    for k in ("mfe_pct", "mfe", "mfe_pct_so_far"):
         v = _safe_float(snap.get(k) if k in snap else rec.get(k))
         if v is None:
             continue
@@ -151,6 +151,141 @@ def mfe_fraction(rec: dict) -> Optional[float]:
             return v / 100.0
         return v
     return None
+
+
+def mae_fraction(rec: dict) -> Optional[float]:
+    """Adverse excursion as fraction (positive number = pain); prefers exit_quality_metrics then snapshot."""
+    eq = rec.get("exit_quality_metrics") if isinstance(rec.get("exit_quality_metrics"), dict) else {}
+    for k in ("mae_pct", "mae"):
+        v = _safe_float(eq.get(k))
+        if v is not None:
+            if abs(v) > 2.0:
+                return abs(v / 100.0)
+            return abs(v)
+    snap = rec.get("snapshot") if isinstance(rec.get("snapshot"), dict) else {}
+    for k in ("mae_pct", "mae", "mae_pct_so_far"):
+        v = _safe_float(snap.get(k) if k in snap else rec.get(k))
+        if v is None:
+            continue
+        if abs(v) > 2.0:
+            return abs(v / 100.0)
+        return abs(v)
+    return None
+
+
+def realized_pnl_usd(rec: dict) -> Optional[float]:
+    snap = rec.get("snapshot") if isinstance(rec.get("snapshot"), dict) else {}
+    for k in ("pnl", "realized_pnl_usd", "pnl_usd"):
+        v = _safe_float(rec.get(k)) or _safe_float(snap.get(k))
+        if v is not None:
+            return v
+    return None
+
+
+def cohort_behavior_summary(rows: List[dict]) -> Dict[str, Any]:
+    """
+    Heuristic stats from exit rows (realized path, not grid counterfactual).
+    Impatience: among winners, mean(max(0, MFE% − pnl_pct)) when both are in percent space.
+    Stubbornness: among losers, mean MAE% vs mean |pnl_usd|.
+    """
+    snap_pnl_pct = lambda s: _safe_float(s.get("pnl_pct"))
+
+    win_mfe_minus_realized_pct_pts: List[float] = []
+    lose_mae_pct_pts: List[float] = []
+    lose_pnl_abs_usd: List[float] = []
+    n_pnl = 0
+    for rec in rows:
+        pnl = realized_pnl_usd(rec)
+        if pnl is None:
+            continue
+        n_pnl += 1
+        snap = rec.get("snapshot") if isinstance(rec.get("snapshot"), dict) else {}
+        mfe = mfe_fraction(rec)
+        mae = mae_fraction(rec)
+        pnl_pct = snap_pnl_pct(snap) or _safe_float(rec.get("pnl_pct"))
+        if pnl > 0 and mfe is not None and pnl_pct is not None:
+            mfe_pct_pts = float(mfe) * 100.0
+            win_mfe_minus_realized_pct_pts.append(max(0.0, mfe_pct_pts - float(pnl_pct)))
+        if pnl < 0:
+            lose_pnl_abs_usd.append(abs(float(pnl)))
+            if mae is not None:
+                lose_mae_pct_pts.append(float(mae) * 100.0)
+
+    def _mean(xs: List[float]) -> Optional[float]:
+        return round(sum(xs) / len(xs), 4) if xs else None
+
+    return {
+        "rows_with_realized_pnl": n_pnl,
+        "winners_with_mfe_and_pnl_pct": len(win_mfe_minus_realized_pct_pts),
+        "opportunity_cost_of_impatience_proxy_mean_pct_pts": _mean(win_mfe_minus_realized_pct_pts),
+        "losers_count": len(lose_pnl_abs_usd),
+        "cost_of_stubbornness_mae_pct_mean": _mean(lose_mae_pct_pts),
+        "losers_mean_abs_pnl_usd": _mean(lose_pnl_abs_usd),
+        "note": "pct_pts = percentage points (e.g. 1.2 means MFE% headroom over realized pnl%).",
+    }
+
+
+def bar_resolution_probe(
+    rows: List[dict],
+    bars: Dict[str, List[Tuple[datetime, float]]],
+    *,
+    entry_delay_min: int = 5,
+    exit_shift_min: int = 30,
+) -> Dict[str, Any]:
+    """Share of shifted entry/exit marks resolved from 1m bars (vs fill-price fallback)."""
+    n_in_bar = n_out_bar = n_used = 0
+    for rec in rows:
+        sym = str(rec.get("symbol") or "").upper()
+        tid = str(rec.get("trade_id") or "")
+        side = str(rec.get("side") or rec.get("direction") or "long")
+        snap = rec.get("snapshot") if isinstance(rec.get("snapshot"), dict) else {}
+        qty = (
+            _safe_float(rec.get("qty"))
+            or _safe_float(snap.get("qty"))
+            or _safe_float(rec.get("filled_qty"))
+            or _safe_float(snap.get("filled_qty"))
+        )
+        entry_ts = parse_ts(rec.get("entry_ts") or rec.get("entry_timestamp"))
+        if entry_ts is None and tid:
+            mte = _TID_ENTRY_TS.match(str(tid).strip())
+            if mte:
+                entry_ts = parse_ts(mte.group(1))
+        exit_ts = parse_ts(rec.get("exit_ts") or rec.get("timestamp"))
+        ep = (
+            _safe_float(rec.get("entry_price"))
+            or _safe_float(snap.get("entry_price"))
+            or _safe_float(snap.get("avg_entry_price"))
+        )
+        if not sym or entry_ts is None or exit_ts is None or qty is None or ep is None:
+            continue
+        bl = bars.get(sym) or []
+        t_in = entry_ts + timedelta(minutes=int(entry_delay_min))
+        t_out = exit_ts + timedelta(minutes=int(exit_shift_min))
+        px_in = bar_close_on_or_after(bl, t_in)
+        px_out = bar_close_on_or_after(bl, t_out)
+        xp_live = _safe_float(rec.get("exit_price")) or _safe_float(snap.get("exit_price"))
+        resolved_in = px_in is not None
+        resolved_out = px_out is not None
+        if not resolved_in:
+            px_in = ep
+        if not resolved_out:
+            px_out = xp_live if xp_live is not None else ep
+        if px_in is None or px_out is None:
+            continue
+        n_used += 1
+        if resolved_in:
+            n_in_bar += 1
+        if resolved_out:
+            n_out_bar += 1
+    return {
+        "entry_delay_min": entry_delay_min,
+        "exit_shift_min": exit_shift_min,
+        "trades_in_probe": n_used,
+        "px_in_from_bar_count": n_in_bar,
+        "px_out_from_bar_count": n_out_bar,
+        "px_in_from_bar_rate": round(n_in_bar / n_used, 4) if n_used else None,
+        "px_out_from_bar_rate": round(n_out_bar / n_used, 4) if n_used else None,
+    }
 
 
 def cohort_rows(root: Path) -> List[dict]:
@@ -218,6 +353,8 @@ def main() -> int:
         rows = rows[: int(args.max_trades)]
 
     bars = load_bars_jsonl(bars_path)
+    cohort_behavior = cohort_behavior_summary(rows)
+    bar_probe = bar_resolution_probe(rows, bars)
     t0 = float(STRICT_EPOCH_START)
     t1 = datetime.now(timezone.utc).timestamp()
     blocked_n = blocked_intent_count(root, t0, t1)
@@ -329,6 +466,10 @@ def main() -> int:
                     if best is None or total_adv > best["sum_hypo_usd_adversarial"]:
                         best = dict(cell)
 
+    raws = [float(c["sum_hypo_usd_raw"]) for c in grid_results]
+    raw_spread = (max(raws) - min(raws)) if raws else 0.0
+    degenerate_timing = raw_spread < 1e-6
+
     payload = {
         "root": str(root),
         "STRICT_EPOCH_START": STRICT_EPOCH_START,
@@ -338,6 +479,10 @@ def main() -> int:
         "bars_symbols": len(bars),
         "adversarial_bps": float(args.adversarial_bps),
         "best_cell_adversarial_usd": best,
+        "cohort_behavior_summary": cohort_behavior,
+        "bar_resolution_probe_shifted_entry5m_exit30m": bar_probe,
+        "grid_raw_usd_spread": round(raw_spread, 6),
+        "timing_sweep_degenerate_all_raw_usd_identical": degenerate_timing,
         "grid": grid_results,
         "notes": [
             "Alpha11 floors filter on uw_flow_strength when present; missing → fail-open include.",
@@ -345,6 +490,8 @@ def main() -> int:
             "EOD exit uses 16:00 ET on exit calendar day.",
             "worst_single_trade_adversarial_usd is the worst per-trade mark in the cell (not full MAE path).",
             "When 1m bars lack a symbol or timestamp, entry/exit px fall back to logged fill prices (flat counterfactual).",
+            "If timing_sweep_degenerate_all_raw_usd_identical is true, entry/exit grid does not move marks; best_cell may be baseline only because adversarial friction punishes non-baseline cells.",
+            "REST 1m backfill when bars missing is not implemented here; expand artifacts/market_data/alpaca_bars.jsonl coverage for actionable timing EV.",
         ],
     }
     outp = out_dir / "APEX_OMNI_PARAMETER_SWEEP.json"
