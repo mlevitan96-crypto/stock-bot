@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -39,6 +40,8 @@ try:
     _ET = ZoneInfo("America/New_York")
 except Exception:  # pragma: no cover
     _ET = None
+
+_TID_ENTRY_TS = re.compile(r"^open_[A-Z0-9]+_(.+)$")
 
 
 def parse_ts(x: Any) -> Optional[datetime]:
@@ -261,8 +264,16 @@ def main() -> int:
                         snap = rec.get("snapshot") if isinstance(rec.get("snapshot"), dict) else {}
                         qty = _safe_float(rec.get("qty")) or _safe_float(snap.get("qty"))
                         entry_ts = parse_ts(rec.get("entry_ts") or rec.get("entry_timestamp"))
+                        if entry_ts is None and tid:
+                            mte = _TID_ENTRY_TS.match(str(tid).strip())
+                            if mte:
+                                entry_ts = parse_ts(mte.group(1))
                         exit_ts = parse_ts(rec.get("exit_ts") or rec.get("timestamp"))
-                        ep = _safe_float(rec.get("entry_price")) or _safe_float(snap.get("entry_price"))
+                        ep = (
+                            _safe_float(rec.get("entry_price"))
+                            or _safe_float(snap.get("entry_price"))
+                            or _safe_float(snap.get("avg_entry_price"))
+                        )
                         if not sym or entry_ts is None or exit_ts is None or qty is None or ep is None:
                             skipped += 1
                             continue
