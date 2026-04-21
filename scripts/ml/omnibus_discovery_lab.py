@@ -223,17 +223,19 @@ def run_rf_top10(df: Any, target: str, min_rows: int = 40) -> Tuple[Any, str]:
 
     y = df[target].astype(float)
     Xdf = df.select_dtypes(include=[np.number]).copy()
-    drop_cols = {
-        target,
+    # Strict anti-leakage: never put the label (or sibling PnL scale) in X.
+    for c in (target, "realized_pnl_usd", "realized_pnl_bps"):
+        if c in Xdf.columns:
+            Xdf = Xdf.drop(columns=[c])
+    for c in (
         "sim_baseline_usd",
         "sim_vwap_stop_usd",
         "sim_atr2x_usd",
         "sim_fixed_rr_usd",
-        "realized_pnl_usd",
-        "realized_pnl_bps",
-    }
-    drop_cols.discard(target)
-    Xdf = Xdf.drop(columns=[c for c in Xdf.columns if c in drop_cols], errors="ignore")
+        "hold_hours",
+    ):
+        if c in Xdf.columns:
+            Xdf = Xdf.drop(columns=[c])
     Xdf = Xdf.replace([np.inf, -np.inf], np.nan).fillna(0.0)
     if Xdf.shape[1] < 3:
         return None, "RF skipped (too few numeric feature columns).\n"
@@ -325,12 +327,6 @@ def main() -> int:
     df = pd.DataFrame(rows_out)
     # --- Exit matrix ---
     exit_cols = ["realized_pnl_usd", "sim_vwap_stop_usd", "sim_atr2x_usd", "sim_fixed_rr_usd"]
-    rename = {
-        "realized_pnl_usd": "actual_exit_usd",
-        "sim_vwap_stop_usd": "vwap_cross_usd",
-        "sim_atr2x_usd": "atr2x_trail_usd",
-        "sim_fixed_rr_usd": "fixed_rr_1_2_usd",
-    }
     em = []
     for c, label in zip(exit_cols, ["Actual (realized)", "VWAP cross", "2x ATR trail", "Fixed 1:2 (0.5% SL / 1% TP)"]):
         s = df[c].dropna() if c in df.columns else pd.Series(dtype=float)
@@ -369,10 +365,13 @@ def main() -> int:
     # --- RF ---
     rf_note = ""
     top10 = None
+    rf_target = ""
     if "realized_pnl_bps" in df.columns:
-        top10, rf_note = run_rf_top10(df, "realized_pnl_bps")
+        rf_target = "realized_pnl_bps"
+        top10, rf_note = run_rf_top10(df, rf_target)
     if top10 is None and "realized_pnl_usd" in df.columns:
-        top10, rf_note = run_rf_top10(df, "realized_pnl_usd")
+        rf_target = "realized_pnl_usd"
+        top10, rf_note = run_rf_top10(df, rf_target)
 
     out_md.parent.mkdir(parents=True, exist_ok=True)
 
@@ -403,6 +402,13 @@ def main() -> int:
         _md_table(macro, floatfmt=".4f") if not macro.empty else "_No macro bucket data._\n",
         "",
         "## 4. Non-linear feature importance (RandomForest, top 10)",
+        "",
+        (
+            f"Regressor target: `{rf_target}`. Excluded from **X**: target, sibling PnL column, all `sim_*`, "
+            f"`hold_hours` (post-trade / anti-leakage)."
+            if rf_target
+            else "_No RF target column._"
+        ),
         "",
         rf_note if rf_note else "",
     ]
