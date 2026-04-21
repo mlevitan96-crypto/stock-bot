@@ -1779,6 +1779,50 @@ def log_order(event: dict):
     jsonl_write("orders", {"type": "order", **ev})
 
 
+def _trade_intent_uw_flow_snapshot(comps: Optional[dict], cluster: Optional[dict]) -> Dict[str, Any]:
+    """
+    Persist Alpha 11 / UW flow telemetry on every trade_intent so audits never depend on
+    secondary joins (Operation Apex — shadow expectancy hardening).
+    """
+    out: Dict[str, Any] = {"alpha11_flow_strength": None, "alpha11_gate_floor_snapshot": 0.985}
+    try:
+        from src.alpha11_gate import _extract_flow_strength, _flow_strength_from_uw, _min_flow_strength
+
+        _c = comps if isinstance(comps, dict) else {}
+        _cl = cluster if isinstance(cluster, dict) else {}
+        _cm = _cl.get("composite_meta") if isinstance(_cl.get("composite_meta"), dict) else None
+        fs = _extract_flow_strength(_cl, _cm)
+        if fs is None:
+            fs = _flow_strength_from_uw(_c)
+        if fs is None:
+            try:
+                _x = _c.get("flow_strength")
+                if _x is not None:
+                    fs = float(_x)
+                    if not math.isfinite(fs):
+                        fs = None
+            except (TypeError, ValueError):
+                fs = None
+        out["alpha11_flow_strength"] = fs
+        out["alpha11_gate_floor_snapshot"] = float(_min_flow_strength())
+        _uw = None
+        if isinstance(_cm, dict) and isinstance(_cm.get("v2_uw_inputs"), dict):
+            _uw = _cm.get("v2_uw_inputs")
+        elif isinstance(_cl.get("v2_uw_inputs"), dict):
+            _uw = _cl.get("v2_uw_inputs")
+        if isinstance(_uw, dict):
+            slim = {
+                k: _uw[k]
+                for k in ("flow_strength", "conviction", "market_tide", "flow_conviction", "sentiment_score")
+                if k in _uw and _uw[k] is not None
+            }
+            if slim:
+                out["uw_flow_at_intent"] = slim
+    except Exception:
+        pass
+    return out
+
+
 def _emit_trade_intent(
     symbol: str,
     side: str,
@@ -1940,6 +1984,14 @@ def _emit_trade_intent(
                     rec["blocked_reason_details"] = extra.get("blocked_reason_details", {})
             except Exception:
                 pass
+        _uw_snap = _trade_intent_uw_flow_snapshot(
+            comps if isinstance(comps, dict) else {},
+            cluster if isinstance(cluster, dict) else {},
+        )
+        rec["alpha11_flow_strength"] = _uw_snap.get("alpha11_flow_strength")
+        rec["alpha11_gate_floor_snapshot"] = _uw_snap.get("alpha11_gate_floor_snapshot")
+        if _uw_snap.get("uw_flow_at_intent"):
+            rec["uw_flow_at_intent"] = _uw_snap["uw_flow_at_intent"]
         jsonl_write("run", rec)
         try:
             if (decision_outcome or "").lower() == "entered":
