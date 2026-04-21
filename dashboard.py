@@ -15,7 +15,7 @@ import secrets
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # Ensure repo root is on path and cwd so state/logs paths resolve (e.g. systemd may start with different cwd)
 _DASHBOARD_ROOT = Path(__file__).resolve().parent
@@ -177,6 +177,9 @@ _registry_loaded = False
 # Short-lived memoization for hot dashboard reads (bounded polling load).
 _DASH_TTL_SEC = 5.0
 _dash_ttl_store: dict[str, tuple[float, object]] = {}
+# ML cohort row count can be expensive to parse; refresh less often than the metrics bundle.
+_ML_EPOCH_CACHE: dict[str, Any] = {"t": 0.0, "data": None}
+_ML_EPOCH_TTL_SEC = 45.0
 
 
 def _dash_cache_get(key: str, builder):
@@ -3357,12 +3360,29 @@ def _daily_trade_volume_payload(root: Path, days: int) -> dict:
 
     tz_name = "America/New_York" if et is not timezone.utc else "UTC"
 
+    today_iso = end_d.isoformat()
+    today_count = int(counts.get(end_d, 0))
+    if series:
+        if series[-1]["date"] != today_iso:
+            if et is timezone.utc:
+                noon = datetime(end_d.year, end_d.month, end_d.day, 12, 0, tzinfo=timezone.utc)
+            else:
+                noon = datetime(end_d.year, end_d.month, end_d.day, 12, 0, tzinfo=et)
+            lbl = noon.strftime("%a, %b ") + str(end_d.day)
+            series.append({"date": today_iso, "label": lbl, "trade_count": today_count})
+        else:
+            series[-1]["trade_count"] = today_count
+    today_label = series[-1]["label"] if series else ""
+
     return {
         "ok": True,
         "generated_at_utc": now_utc.isoformat(),
         "timezone": tz_name,
         "days_requested": int(days),
         "days_in_series": len(series),
+        "calendar_today_date": today_iso,
+        "calendar_today_label": today_label,
+        "calendar_today_trade_count": today_count,
         "source": "logs/orders.jsonl",
         "scan_note": scan_note,
         "series": series,
@@ -6730,7 +6750,10 @@ def api_rolling_pnl_5d():
 def _metrics_payload():
     """Aggregated governance / KPI JSON for the SPA (cached)."""
     root = Path(_DASHBOARD_ROOT)
-    out: dict = {"timestamp_utc": datetime.now(timezone.utc).isoformat()}
+    out: dict = {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "equity_baseline_usd": 10_000.0,
+    }
     try:
         from src.governance.canonical_trade_count import compute_canonical_trade_count
         from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START
@@ -6776,8 +6799,41 @@ def _metrics_payload():
             out["rolling_pnl_last_points"] = pts[-40:]
         else:
             out["rolling_pnl_last_points"] = pts
+        out["rolling_pnl_point_count"] = len(pts) if isinstance(pts, list) else 0
     except Exception as e:
         out["rolling_pnl_error"] = str(e)
+
+    # ML harvester "Real Join" cohort size (strict_scoreflow + skip_neutral_no_join) — progress vs 250-trade milestone.
+    ML_EPOCH_TARGET = 250
+    try:
+        now_ml = time.monotonic()
+        if (
+            _ML_EPOCH_CACHE["data"] is not None
+            and (now_ml - float(_ML_EPOCH_CACHE["t"])) < _ML_EPOCH_TTL_SEC
+        ):
+            out.update(_ML_EPOCH_CACHE["data"])
+        else:
+            frag: dict[str, Any] = {"ml_epoch_target": ML_EPOCH_TARGET}
+            from src.ml.alpaca_cohort_train import load_and_filter
+
+            csv_path = root / "reports" / "Gemini" / "alpaca_ml_cohort_flat.csv"
+            if csv_path.is_file():
+                _hdr, _kept_rows, st = load_and_filter(
+                    csv_path,
+                    feature_mode="strict_scoreflow",
+                    require_join_tier=None,
+                    skip_neutral_no_join=True,
+                )
+                frag["ml_epoch_n"] = int(st.get("kept", 0))
+            else:
+                frag["ml_epoch_n"] = None
+                frag["ml_epoch_csv_missing"] = "reports/Gemini/alpaca_ml_cohort_flat.csv not found"
+            _ML_EPOCH_CACHE["t"] = now_ml
+            _ML_EPOCH_CACHE["data"] = frag
+            out.update(frag)
+    except Exception as e:
+        out["ml_epoch_error"] = str(e)[:240]
+        out["ml_epoch_target"] = ML_EPOCH_TARGET
 
     try:
         pos = _dash_cache_get("positions_bundle_v1", _positions_cached_fetch)

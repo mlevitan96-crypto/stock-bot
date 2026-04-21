@@ -278,8 +278,8 @@
       <section id="panel-cc" class="panel active" role="tabpanel">
         <div class="kpi-row">
           <div class="kpi governance" id="kpiGovernance">
-            <label>Governance · strict cohort</label>
-            <div class="val" id="kpiStrictN">—</div>
+            <label>Active epoch · ML cohort (Real Join)</label>
+            <div class="val" id="kpiEpoch">Epoch: N = — / 250</div>
             <div class="sub"><span id="kpiDataReady">DATA_READY: —</span> · floor <span id="kpiFloor">—</span></div>
           </div>
           <div class="kpi">
@@ -301,7 +301,8 @@
         <div class="card chart-card-full">
           <h2>Wallet equity <span class="muted" style="font-weight:400">(absolute · broker total_value)</span></h2>
           <p class="muted" style="margin:0 0 0.5rem;font-size:0.78rem;">
-            History merges <code>/metrics</code> rolling snapshots and <code>/api/rolling_pnl_5d</code> when present; each poll appends live portfolio value. Earliest point in view anchors green/red vs current.
+            History merges <code>/metrics</code> + <code>/api/rolling_pnl_5d</code>; each poll appends live portfolio value.
+            Baseline ref <span id="equityBaselineHint">$10,000.00</span> (chart starts from this anchor when history loads).
           </p>
           <div class="chart-wrap"><canvas id="pnlChart" aria-label="Equity chart"></canvas></div>
         </div>
