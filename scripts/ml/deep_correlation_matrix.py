@@ -356,19 +356,21 @@ def simulate_dynamic_exits(
 ) -> Dict[str, Optional[float]]:
     """Return simulated PnL USD for VWAP breach exit and 2x ATR trail vs hold to actual exit bar."""
     long = is_long_side(side)
-    sess = session_open_utc(entry_ts)
-    win = slice_ohlcv(bars_all, sess, exit_ts + timedelta(minutes=2))
-    if len(win) < 3:
-        return {"pnl_baseline_usd": None, "pnl_vwap_stop_usd": None, "pnl_atr2x_usd": None}
-    atr = atr_series(win, period=14)
-    vw_series = cumulative_vwap_slice(win)
 
     def pnl_at(exit_price: float) -> float:
         if long:
             return (exit_price - entry_px) * qty
         return (entry_px - exit_price) * qty
 
-    baseline = pnl_at(exit_px)
+    sess = session_open_utc(entry_ts)
+    win = slice_ohlcv(bars_all, sess, exit_ts + timedelta(minutes=2))
+    baseline_fill = pnl_at(exit_px)
+    if len(win) < 3:
+        return {"pnl_baseline_usd": baseline_fill, "pnl_vwap_stop_usd": None, "pnl_atr2x_usd": None}
+    atr = atr_series(win, period=14)
+    vw_series = cumulative_vwap_slice(win)
+
+    baseline = baseline_fill
 
     # VWAP stop: first bar after entry where close crosses VWAP adversely
     vwap_exit_px: Optional[float] = None
@@ -563,18 +565,29 @@ def main() -> int:
         pair = Xdf[[c, target]].dropna()
         if len(pair) < 15:
             continue
-        pearson[c] = float(pair[c].corr(pair[target]))
+        pr = float(pair[c].corr(pair[target]))
+        if not math.isnan(pr):
+            pearson[c] = pr
         try:
             from scipy.stats import spearmanr
 
-            r, _ = spearmanr(pair[c].values, pair[target].values)
-            if not math.isnan(r):
-                spearman[c] = float(r)
+            sr, _ = spearmanr(pair[c].values, pair[target].values)
+            if not math.isnan(sr):
+                spearman[c] = float(sr)
         except Exception:
             pass
 
-    p_sorted = sorted(pearson.items(), key=lambda kv: abs(kv[1]), reverse=True)
-    s_sorted = sorted(spearman.items(), key=lambda kv: abs(kv[1]), reverse=True)
+    def _finite(v: Any) -> bool:
+        try:
+            x = float(v)
+            return x == x and math.isfinite(x)
+        except (TypeError, ValueError):
+            return False
+
+    finite_pearson = {k: float(v) for k, v in pearson.items() if _finite(v)}
+    finite_spearman = {k: float(v) for k, v in spearman.items() if _finite(v)}
+    p_sorted = sorted(finite_pearson.items(), key=lambda kv: abs(kv[1]), reverse=True)
+    s_sorted = sorted(finite_spearman.items(), key=lambda kv: abs(kv[1]), reverse=True)
 
     rf_top: List[Dict[str, Any]] = []
     try:
@@ -602,8 +615,8 @@ def main() -> int:
     base_sum = df["sim_baseline_usd"].sum(skipna=True)
     n_sim = int(df["sim_baseline_usd"].notna().sum())
 
-    top_pos = [kv for kv in p_sorted if kv[1] > 0][:3]
-    top_neg = [kv for kv in p_sorted if kv[1] < 0][:3]
+    top_pos = sorted([kv for kv in finite_pearson.items() if kv[1] > 0], key=lambda kv: -kv[1])[:3]
+    top_neg = sorted([kv for kv in finite_pearson.items() if kv[1] < 0], key=lambda kv: kv[1])[:3]
 
     payload = {
         "root": str(root),
@@ -638,7 +651,12 @@ def main() -> int:
 
     out_path = args.out or (root / "artifacts" / "ml" / "DEEP_CORRELATION_MATRIX.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    def _json_default(obj: Any) -> Any:
+        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+            return None
+        raise TypeError(str(type(obj)))
+
+    out_path.write_text(json.dumps(payload, indent=2, default=_json_default), encoding="utf-8")
     print("Wrote", out_path, flush=True)
     print(json.dumps(payload["synthesis"], indent=2), flush=True)
     print(json.dumps(payload["exit_simulation"], indent=2), flush=True)
