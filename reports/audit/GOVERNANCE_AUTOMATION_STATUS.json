@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-21T15:22:46Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warn",
+      "message": "reports/board/ directory does not exist. Expected: reports/audit/ (present) and reports/board/ (missing)."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warn",
+      "message": "reports/board/ directory missing; governance contract expects both reports/audit/ and reports/board/ to exist."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "error",
+      "message": "Deprecated top-level directory moltbot/ still exists with active Python code: board.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, sentinel.py."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "warn",
+      "message": "Deprecated top-level directory board/ still exists with legacy output artifacts (board/eod/)."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "error",
+      "message": "Moltbot code found in active directories: moltbot/ (5 Python modules), scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py. References in reports/audit/ and docs/ excluded per policy."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "info",
+      "message": "Moltbot/Clawdbot references in docs and reports (excluded from anomaly): docs/ALPACA_GOVERNANCE_CONTEXT.md, docs/ALPACA_DAILY_RUN_INTEGRITY_CONTRACT.md, reports/daily/ evidence artifacts, MEMORY_BANK_ALPACA.md, scripts/automations/run_governance_integrity_once.py (self-referential governance checker)."
+    }
+  ],
+  "slack_sent": false
+}
