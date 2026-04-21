@@ -27,7 +27,8 @@ UW_KEYS = {"flow", "dark_pool", "insider", "whale", "event"}
 REGIME_MACRO_KEYS = {"regime", "market_tide", "calendar", "motif_bonus"}
 OTHER_COMPONENT_KEYS = {
     "congress", "shorts_squeeze", "institutional", "iv_skew", "smile",
-    "toxicity_penalty", "greeks_gamma", "ftd_pressure", "iv_rank", "oi_change", "etf_flow", "squeeze_score"
+    "toxicity_penalty", "toxicity_correlation_penalty", "greeks_gamma", "ftd_pressure", "iv_rank",
+    "oi_change", "etf_flow", "squeeze_score",
 }
 TRAILING_STOP_PCT = 0.015
 TIME_EXIT_MINUTES = 240
