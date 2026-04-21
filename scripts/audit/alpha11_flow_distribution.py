@@ -54,6 +54,35 @@ def _iter_jsonl(path: Path):
                 yield o
 
 
+def _deep_scan_flow_strength(obj: Any, depth: int = 0) -> Optional[float]:
+    """Bounded DFS for ``flow_strength`` / ``uw_flow_strength`` / ``conviction`` in nested telemetry."""
+    if depth > 10 or obj is None:
+        return None
+    if isinstance(obj, dict):
+        for key in ("flow_strength", "uw_flow_strength", "conviction"):
+            if key not in obj:
+                continue
+            v = obj.get(key)
+            if v is None or isinstance(v, (dict, list)):
+                continue
+            try:
+                f = float(v)
+                if math.isfinite(f):
+                    return f
+            except (TypeError, ValueError):
+                continue
+        for v in obj.values():
+            r = _deep_scan_flow_strength(v, depth + 1)
+            if r is not None:
+                return r
+    elif isinstance(obj, list):
+        for v in obj:
+            r = _deep_scan_flow_strength(v, depth + 1)
+            if r is not None:
+                return r
+    return None
+
+
 def _flow_strength_from_intent(rec: dict) -> Optional[float]:
     """Mirror ``src/alpha11_gate`` extraction: v2_uw_inputs.flow_strength / conviction, then snapshot proxies."""
     fs: Optional[float] = None
@@ -93,6 +122,12 @@ def _flow_strength_from_intent(rec: dict) -> Optional[float]:
                     continue
         if fs is None and isinstance(snap.get("v2_uw_inputs"), dict):
             fs = _from_uw(snap.get("v2_uw_inputs"))
+    if fs is None:
+        fs = _deep_scan_flow_strength(rec.get("feature_snapshot"))
+    if fs is None:
+        fs = _deep_scan_flow_strength(rec.get("intelligence_trace"))
+    if fs is None:
+        fs = _deep_scan_flow_strength(rec.get("blocked_reason_details"))
     return fs
 
 
