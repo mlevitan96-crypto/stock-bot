@@ -5248,6 +5248,56 @@ def _probe_1min_bar_freshness_maybe(api, *, symbol: str = "SPY", every_sec: floa
         except Exception:
             pass
 
+
+def _apply_alpha11_tiered_entry_notional(symbol: str, notional_target: float, cluster: dict) -> float:
+    """
+    Alpha 11 tiered sizing on entry notional (after conviction sizing). CSA telemetry:
+    ``tier_sizing_applied`` on ``logs/system_events.jsonl`` when multiplier or min-notional clamp applies.
+    """
+    try:
+        from src.alpha11_gate import adjust_notional_for_alpha11_tier
+
+        cm = cluster.get("composite_meta") if isinstance(cluster.get("composite_meta"), dict) else None
+        try:
+            nt0 = float(notional_target)
+        except (TypeError, ValueError):
+            return float(notional_target)
+        if not math.isfinite(nt0) or nt0 <= 0:
+            return nt0
+        adj, fs, mult, tier, clamped = adjust_notional_for_alpha11_tier(
+            nt0,
+            symbol=str(symbol),
+            composite_result=cm,
+            composite_meta=cm,
+            min_notional_usd=float(getattr(Config, "MIN_NOTIONAL_USD", 100.0) or 100.0),
+        )
+        log_it = clamped or (mult < 1.0 - 1e-12) or (abs(adj - nt0) > 1e-6)
+        if log_it:
+            try:
+                from utils.system_events import log_system_event
+
+                log_system_event(
+                    "strategy",
+                    "tier_sizing_applied",
+                    "INFO",
+                    symbol=str(symbol),
+                    original_notional=round(nt0, 4),
+                    multiplier=round(float(mult), 4),
+                    adjusted_notional=round(float(adj), 4),
+                    flow_strength=(None if fs is None else round(float(fs), 6)),
+                    tier=str(tier),
+                    min_notional_clamp=bool(clamped),
+                )
+            except Exception:
+                pass
+        return float(adj)
+    except Exception:
+        try:
+            return float(notional_target)
+        except (TypeError, ValueError):
+            return float(getattr(Config, "SIZE_BASE_USD", 500.0) or 500.0)
+
+
 # =========================
 # EXECUTION & POSITION MGMT (Alpaca API - PAPER/LIVE)
 # =========================
@@ -10443,6 +10493,7 @@ class StrategyEngine:
                     # Fallback to fixed sizing if risk management not available
                     log_event("sizing", "fallback_to_fixed", symbol=symbol, error=str(sizing_error))
                     notional_target = Config.SIZE_BASE_USD
+                notional_target = _apply_alpha11_tiered_entry_notional(symbol, notional_target, c)
                 qty = max(1, int(notional_target / ref_price))
                 # V2.1 FIX: Extract signal components from composite_meta for ML learning
                 # This enables the learning system to understand WHY trades succeeded or failed
@@ -10515,6 +10566,7 @@ class StrategyEngine:
                     # Fallback to fixed sizing if risk management not available
                     log_event("sizing", "fallback_to_fixed", symbol=symbol, error=str(sizing_error))
                     notional_target = Config.SIZE_BASE_USD * size_scale
+                notional_target = _apply_alpha11_tiered_entry_notional(symbol, notional_target, c)
                 qty = max(1, int(notional_target / ref_price))
             else:
                 # CRITICAL FIX: Fallback scoring when source is unknown or composite_score is missing/zero
@@ -10593,6 +10645,7 @@ class StrategyEngine:
                     # Fallback to fixed sizing if risk management not available
                     log_event("sizing", "fallback_to_fixed", symbol=symbol, error=str(sizing_error))
                     notional_target = Config.SIZE_BASE_USD
+                notional_target = _apply_alpha11_tiered_entry_notional(symbol, notional_target, c)
                 qty = max(1, int(notional_target / ref_price))
                 # V2.1 FIX: Try to extract components from confirm_map for ML learning
                 comps = {}
