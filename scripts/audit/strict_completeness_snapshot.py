@@ -18,8 +18,18 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", type=Path, default=Path("."))
     ap.add_argument("--audit", action="store_true")
+    ap.add_argument(
+        "--open-ts-epoch",
+        type=float,
+        default=None,
+        help="UTC epoch floor for exit/cohort filtering (default: ET market open today).",
+    )
     args = ap.parse_args()
-    r = evaluate_completeness(args.root.resolve(), audit=args.audit)
+    r = evaluate_completeness(
+        args.root.resolve(),
+        open_ts_epoch=args.open_ts_epoch,
+        audit=args.audit,
+    )
     keys = (
         "LEARNING_STATUS",
         "learning_fail_closed_reason",
