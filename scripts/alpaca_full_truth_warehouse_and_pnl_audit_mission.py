@@ -14,6 +14,9 @@ Environment:
   ALPACA_TRUTH_BLOCKERS_FAIL_SAMPLE_N — max rows in blocker markdown tables for
   slippage_coverage / signal_snapshot_exits failures (default 25, clamped 1..500).
 
+Slippage / signal_snapshot gates also read ``snapshot.*`` prices and ``client_order_id`` from
+exit rows, and fall back to ``alpaca_unified_events`` exit duplicates when ``orders.jsonl`` is thin.
+
 Exit code: 0 if completed; 2 if fail-closed blockers (DATA_READY NO).
 """
 from __future__ import annotations
@@ -700,11 +703,119 @@ def _md_cell(s: str) -> str:
     return str(s).replace("|", "\\|").replace("\n", " ")[:500]
 
 
+def _truth_exit_snapshot(ex: dict) -> dict:
+    s = ex.get("snapshot")
+    return s if isinstance(s, dict) else {}
+
+
+def _truth_positive_float(*vals: Any) -> Optional[float]:
+    for v in vals:
+        if v is None or v == "":
+            continue
+        try:
+            x = float(v)
+        except (TypeError, ValueError):
+            continue
+        if x > 0:
+            return x
+    return None
+
+
+def _truth_exit_fill_price(ex: dict) -> Optional[float]:
+    """Exit / fill price: top-level fields first, then ``snapshot`` (strict schema often nests prices)."""
+    snap = _truth_exit_snapshot(ex)
+    return _truth_positive_float(
+        ex.get("avg_exit_price"),
+        ex.get("exit_price"),
+        ex.get("price"),
+        ex.get("fill_price"),
+        ex.get("filled_avg_price"),
+        snap.get("exit_price"),
+        snap.get("avg_exit_price"),
+        snap.get("fill_price"),
+        snap.get("filled_avg_price"),
+        snap.get("price"),
+    )
+
+
+def _truth_exit_entry_price(ex: dict) -> Optional[float]:
+    snap = _truth_exit_snapshot(ex)
+    return _truth_positive_float(
+        ex.get("entry_price"),
+        ex.get("avg_entry_price"),
+        snap.get("entry_price"),
+        snap.get("avg_entry_price"),
+    )
+
+
+def _truth_exit_broker_id_strings(ex: dict) -> List[str]:
+    """Alpaca order id + client_order_id variants from exit row and snapshot (for orders.jsonl join)."""
+    snap = _truth_exit_snapshot(ex)
+    out: List[str] = []
+    seen: set[str] = set()
+    for src in (ex, snap):
+        if not isinstance(src, dict):
+            continue
+        for k in (
+            "exit_order_id",
+            "order_id",
+            "exit_orderId",
+            "alpaca_exit_order_id",
+            "entry_order_id",
+            "client_order_id",
+            "exit_client_order_id",
+        ):
+            v = src.get(k)
+            if v is None or str(v).strip() == "":
+                continue
+            s = str(v).strip()
+            if s not in seen:
+                seen.add(s)
+                out.append(s)
+    return out
+
+
+def _unified_fill_price_proxy(ex: dict, unified: Optional[List[dict]]) -> Optional[float]:
+    """When orders.jsonl is thin, reuse fill/exit px from ``alpaca_unified_events`` exit rows for the same trade_key."""
+    if not unified:
+        return None
+    keys = {
+        str(ex.get("trade_key") or "").strip(),
+        str(ex.get("canonical_trade_id") or "").strip(),
+        str(ex.get("trade_id") or "").strip(),
+    }
+    keys.discard("")
+    if not keys:
+        return None
+    sym_u = (ex.get("symbol") or "").upper()
+    for r in unified:
+        if not isinstance(r, dict):
+            continue
+        if (r.get("symbol") or "").upper() != sym_u:
+            continue
+        et = str(r.get("event_type") or "").lower()
+        if "exit" not in et:
+            continue
+        rk = {
+            str(r.get("trade_key") or "").strip(),
+            str(r.get("canonical_trade_id") or "").strip(),
+            str(r.get("trade_id") or "").strip(),
+        }
+        rk.discard("")
+        if not keys.intersection(rk):
+            continue
+        px = _truth_exit_fill_price(r)
+        if px is not None:
+            return px
+    return None
+
+
 def truth_exit_slippage_gate_ok(
     ex: dict,
     ctx_index: List[Tuple[float, str, dict]],
     orders_norm: List[dict],
     _ctx_win: float,
+    unified: Optional[List[dict]] = None,
 ) -> bool:
     """Mirror ``slippage_coverage`` loop body (single exit)."""
     sym = (ex.get("symbol") or "").upper()
@@ -713,26 +824,13 @@ def truth_exit_slippage_gate_ok(
         return False
     c = nearest_context(ctx_index, sym, ts, _ctx_win)
     ref = ref_price_from_context(c)
-    fp = (
-        ex.get("avg_exit_price")
-        or ex.get("exit_price")
-        or ex.get("price")
-        or ex.get("fill_price")
-        or ex.get("filled_avg_price")
-    )
-    try:
-        fpf = float(fp) if fp is not None else None
-    except (TypeError, ValueError):
-        fpf = None
+    fpf = _truth_exit_fill_price(ex)
     if (fpf is None or fpf <= 0) and _paper_broker_env():
-        try:
-            ep2 = float(ex.get("entry_price") or 0)
-            if ep2 > 0:
-                fpf = ep2
-        except (TypeError, ValueError):
-            pass
+        ep2 = _truth_exit_entry_price(ex)
+        if ep2 is not None:
+            fpf = ep2
     if (fpf is None or fpf <= 0) and _paper_broker_env():
-        px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm)
+        px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm, unified)
         if px2 is not None and px2 > 0:
             fpf = px2
     if ref is None and fpf is not None and fpf > 0 and _paper_broker_env():
@@ -745,6 +843,7 @@ def truth_exit_signal_snap_gate_ok(
     ctx_index: List[Tuple[float, str, dict]],
     orders_norm: List[dict],
     _ctx_win: float,
+    unified: Optional[List[dict]] = None,
 ) -> bool:
     """Mirror ``signal_snapshot_exits`` loop body (single exit)."""
     sym = (ex.get("symbol") or "").upper()
@@ -755,25 +854,13 @@ def truth_exit_signal_snap_gate_ok(
         return True
     if not _paper_broker_env():
         return False
-    try:
-        expx = float(
-            ex.get("exit_price")
-            or ex.get("avg_exit_price")
-            or ex.get("price")
-            or ex.get("fill_price")
-            or ex.get("filled_avg_price")
-            or 0
-        )
-    except (TypeError, ValueError):
-        expx = 0.0
-    if expx > 0:
+    expx = _truth_exit_fill_price(ex)
+    if expx is not None and expx > 0:
         return True
-    try:
-        if float(ex.get("entry_price") or 0) > 0:
-            return True
-    except (TypeError, ValueError):
-        pass
-    px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm)
+    ep = _truth_exit_entry_price(ex)
+    if ep is not None:
+        return True
+    px2 = _paper_fill_price_proxy_for_exit(ex, orders_norm, unified)
     return px2 is not None and px2 > 0
 
 
@@ -803,20 +890,23 @@ def _markdown_truth_fail_table(title: str, rows: List[dict], n: int) -> List[str
     return out
 
 
-def _paper_fill_price_proxy_for_exit(ex: dict, orders_norm: List[dict]) -> Optional[float]:
+def _paper_fill_price_proxy_for_exit(
+    ex: dict, orders_norm: List[dict], unified: Optional[List[dict]] = None
+) -> Optional[float]:
     """Nearest orders.jsonl fill price for same symbol near exit_ts (paper slippage/snapshot computability)."""
     sym = (ex.get("symbol") or "").upper()
     ts_ex = _exit_ts_seconds(ex)
     if not sym or ts_ex is None:
-        return None
+        return _unified_fill_price_proxy(ex, unified)
+    want_ids = set(_truth_exit_broker_id_strings(ex))
     # Prefer explicit broker order id on the exit row (avoids timestamp drift vs fill rows).
-    for _k in ("exit_order_id", "order_id", "exit_orderId", "alpaca_exit_order_id"):
-        _oid = ex.get(_k)
-        if _oid is None or str(_oid).strip() == "":
-            continue
-        _os = str(_oid).strip()
+    for _os in list(want_ids):
         for o in orders_norm:
-            if str(o.get("order_id") or "").strip() != _os:
+            oid_row = str(o.get("order_id") or "").strip()
+            raw = o.get("raw") if isinstance(o.get("raw"), dict) else {}
+            cid = str(raw.get("client_order_id") or "").strip()
+            lid = str(raw.get("id") or "").strip()
+            if oid_row != _os and cid != _os and lid != _os:
                 continue
             px = o.get("price") or o.get("filled_avg_price")
             if px is None:
@@ -851,7 +941,9 @@ def _paper_fill_price_proxy_for_exit(ex: dict, orders_norm: List[dict]) -> Optio
         if d < best_d:
             best_d = d
             best_px = pxf
-    return best_px
+    if best_px is not None:
+        return best_px
+    return _unified_fill_price_proxy(ex, unified)
 
 
 # ---------------------------------------------------------------------------
@@ -1297,11 +1389,11 @@ def main() -> int:
     slip_ok = 0
     snap_ok = 0
     for ex in exits_dated:
-        if truth_exit_slippage_gate_ok(ex, ctx_index, orders_norm, _ctx_win):
+        if truth_exit_slippage_gate_ok(ex, ctx_index, orders_norm, _ctx_win, unified):
             slip_ok += 1
         else:
             slip_failures.append(ex)
-        if truth_exit_signal_snap_gate_ok(ex, ctx_index, orders_norm, _ctx_win):
+        if truth_exit_signal_snap_gate_ok(ex, ctx_index, orders_norm, _ctx_win, unified):
             snap_ok += 1
         else:
             snap_failures.append(ex)
