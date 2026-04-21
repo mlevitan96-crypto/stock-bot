@@ -82,8 +82,25 @@ def _scan_entry_snapshots(path: Path) -> Tuple[Optional[Dict[str, Any]], int]:
     return first, n
 
 
-def _scan_exit_slippage_fees(path: Path) -> Tuple[Optional[Dict[str, Any]], int]:
-    """First exit row with finite exit_slippage_bps and fees_usd present (Alpha 11 economics path)."""
+def _entry_uw_dense(eu: Any) -> bool:
+    """Alpha 11 / ML tripwire style: persisted UW blob with finite sentiment or earnings proximity."""
+    if not isinstance(eu, dict) or not eu:
+        return False
+    for k in ("sentiment_score", "earnings_proximity"):
+        if k in eu and _finite(eu.get(k)):
+            return True
+    comp = eu.get("components")
+    if isinstance(comp, dict) and comp:
+        return True
+    return False
+
+
+def _scan_exit_dense(path: Path) -> Tuple[Optional[Dict[str, Any]], int]:
+    """
+    First exit row where broker economics + UW density are present.
+    Note: some hosts never emitted ``exit_slippage_bps`` in JSONL; we require ``fees_usd`` and dense ``entry_uw``.
+    If ``exit_slippage_bps`` exists, it is preferred as an additional signal on the same row.
+    """
     first: Optional[Dict[str, Any]] = None
     n = 0
     if not path.is_file():
@@ -100,26 +117,23 @@ def _scan_exit_slippage_fees(path: Path) -> Tuple[Optional[Dict[str, Any]], int]
                 continue
             if not isinstance(rec, dict):
                 continue
-            if "exit_slippage_bps" not in rec:
-                continue
-            if not _finite(rec.get("exit_slippage_bps")):
-                continue
             if "fees_usd" not in rec:
+                continue
+            if not _entry_uw_dense(rec.get("entry_uw")):
                 continue
             ex = _parse_ts(rec.get("exit_ts") or rec.get("timestamp") or rec.get("ts"))
             if ex is None:
                 continue
-            eu = rec.get("entry_uw")
-            eu_ok = isinstance(eu, dict) and len(eu) > 0
+            slip = rec.get("exit_slippage_bps")
             first = {
                 "line_number": n,
                 "exit_ts": rec.get("exit_ts"),
                 "epoch_utc": ex,
                 "symbol": rec.get("symbol"),
                 "trade_id": rec.get("trade_id"),
-                "exit_slippage_bps": rec.get("exit_slippage_bps"),
                 "fees_usd": rec.get("fees_usd"),
-                "entry_uw_nonempty": eu_ok,
+                "exit_slippage_bps": slip if slip is not None else None,
+                "entry_uw_keys_sample": list(rec["entry_uw"].keys())[:16] if isinstance(rec.get("entry_uw"), dict) else [],
             }
             break
     return first, n
@@ -166,7 +180,7 @@ def _sustained_density(
             if rec.get("msg") == "entry_snapshot" and _finite(rec.get("ofi_l1_roll_60s_sum")):
                 ok += 1
         else:
-            if _finite(rec.get("exit_slippage_bps")) and "fees_usd" in rec:
+            if "fees_usd" in rec and _entry_uw_dense(rec.get("entry_uw")):
                 ok += 1
     pct = (100.0 * ok / tot) if tot else 0.0
     return ok, tot, pct
@@ -182,7 +196,7 @@ def main() -> int:
     ex_path = root / "logs" / "exit_attribution.jsonl"
 
     ent_first, ent_lines = _scan_entry_snapshots(ent_path)
-    ex_first, ex_lines = _scan_exit_slippage_fees(ex_path)
+    ex_first, ex_lines = _scan_exit_dense(ex_path)
 
     out: Dict[str, Any] = {
         "root": str(root),
@@ -193,10 +207,10 @@ def main() -> int:
                 "timestamp_utc",
             ],
             "exit_attribution": [
-                "finite exit_slippage_bps",
-                "fees_usd key present",
+                "fees_usd key present (broker economics)",
+                "entry_uw with finite sentiment_score or earnings_proximity OR nonempty components",
                 "exit_ts",
-                "entry_uw nonempty (reported on first hit)",
+                "exit_slippage_bps when present (optional; many logs omit this key)",
             ],
         },
         "entry_snapshots_path": str(ent_path),
@@ -204,7 +218,7 @@ def main() -> int:
         "total_lines_seen_entry_file": ent_lines,
         "total_lines_seen_exit_file": ex_lines,
         "first_dense_entry": ent_first,
-        "first_dense_exit": ex_first,
+        "first_dense_exit_fees_uw": ex_first,
     }
 
     epochs: List[float] = []
