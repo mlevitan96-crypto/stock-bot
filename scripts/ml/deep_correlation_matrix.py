@@ -614,9 +614,27 @@ def main() -> int:
     atr_sum = df["sim_atr2x_usd"].sum(skipna=True)
     base_sum = df["sim_baseline_usd"].sum(skipna=True)
     n_sim = int(df["sim_baseline_usd"].notna().sum())
+    n_vw = int(df["sim_vwap_stop_usd"].notna().sum())
+    n_at = int(df["sim_atr2x_usd"].notna().sum())
 
     top_pos = sorted([kv for kv in finite_pearson.items() if kv[1] > 0], key=lambda kv: -kv[1])[:3]
     top_neg = sorted([kv for kv in finite_pearson.items() if kv[1] < 0], key=lambda kv: kv[1])[:3]
+
+    sim_reliable = n_sim > 0 and n_vw > max(20, int(0.5 * n_sim)) and n_at > max(20, int(0.5 * n_sim))
+    if sim_reliable and base_sum is not None and not (isinstance(base_sum, float) and math.isnan(base_sum)):
+        vw_beat = vwap_sum > base_sum
+        at_beat = atr_sum > base_sum
+        exit_verdict = (
+            f"VWAP stop aggregate {'beats' if vw_beat else 'lags'} baseline; "
+            f"ATR 2x trail aggregate {'beats' if at_beat else 'lags'} baseline "
+            f"({n_vw}/{n_sim} trades with VWAP sim, {n_at}/{n_sim} with ATR sim)."
+        )
+    else:
+        exit_verdict = (
+            f"VWAP/ATR path simulation largely unavailable (VWAP non-null {n_vw}/{n_sim}, ATR {n_at}/{n_sim}); "
+            "expand artifacts/market_data/alpaca_bars.jsonl session coverage or use --fetch-bars-live elsewhere. "
+            "Do not infer structural exit edge from NaN-heavy sims."
+        )
 
     payload = {
         "root": str(root),
@@ -630,22 +648,18 @@ def main() -> int:
         "random_forest_top5": rf_top,
         "exit_simulation": {
             "trades_with_bar_path": n_sim,
+            "trades_with_vwap_sim": n_vw,
+            "trades_with_atr_sim": n_at,
             "sum_pnl_usd_baseline_bar_replay": round(float(base_sum), 4) if n_sim else None,
-            "sum_pnl_usd_vwap_stop": round(float(vwap_sum), 4) if n_sim else None,
-            "sum_pnl_usd_atr2x_trail": round(float(atr_sum), 4) if n_sim else None,
-            "vwap_vs_baseline_usd_delta": round(float(vwap_sum - base_sum), 4) if n_sim else None,
-            "atr_vs_baseline_usd_delta": round(float(atr_sum - base_sum), 4) if n_sim else None,
+            "sum_pnl_usd_vwap_stop": round(float(vwap_sum), 4) if n_vw else None,
+            "sum_pnl_usd_atr2x_trail": round(float(atr_sum), 4) if n_at else None,
+            "vwap_vs_baseline_usd_delta": round(float(vwap_sum - base_sum), 4) if n_vw and n_sim else None,
+            "atr_vs_baseline_usd_delta": round(float(atr_sum - base_sum), 4) if n_at and n_sim else None,
         },
         "synthesis": {
             "top_3_alpha_drivers_pearson": [{"feature": k, "pearson": v} for k, v in top_pos],
             "top_3_toxic_traits_pearson": [{"feature": k, "pearson": v} for k, v in top_neg],
-            "exit_verdict": (
-                "VWAP stop sum PnL "
-                + ("beats " if n_sim and vwap_sum > base_sum else "lags ")
-                + "baseline bar-replay; ATR trail "
-                + ("beats " if n_sim and atr_sum > base_sum else "lags ")
-                + "baseline (aggregate USD, in-sample path simulation)."
-            ),
+            "exit_verdict": exit_verdict,
         },
     }
 
