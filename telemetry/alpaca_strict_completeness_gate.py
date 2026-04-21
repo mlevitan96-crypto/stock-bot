@@ -30,11 +30,15 @@ except Exception:  # pragma: no cover - optional during bootstrap
 
 # Forward-only strict learning era (UTC epoch). Used when ``open_ts_epoch`` is set: cohort
 # membership requires position **open** time parsed from ``trade_id`` (open_<SYM>_<ISO>) >= this floor.
-# Reset 2026-04-07: new ML telemetry era (UW cache parity); prior cohort excluded from strict counts.
-STRICT_EPOCH_START = 1775581260.0  # 2026-04-07T17:01:00Z
+# Reset 2026-04-17: forensic anchor from ``scripts/_tmp_schema_audit.py`` on production logs —
+# max(first entry_snapshot with finite ``ofi_l1_roll_60s_sum``, first exit with ``fees_usd`` + dense
+# ``entry_uw``). Droplet proof 2026-04-17: OFI L1 became present on entries; exits already had fees/UW earlier.
+STRICT_EPOCH_START = 1776442912.699623  # 2026-04-17T16:21:52.699623Z (data-proof; see script)
 
 # Trades opened on/after this UTC instant must have a LIVE `entry_decision_made` row (OK, non-synthetic).
-LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH = datetime(2026, 4, 7, 17, 1, 0, tzinfo=timezone.utc).timestamp()
+LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH = datetime(
+    2026, 4, 17, 16, 21, 52, 699623, tzinfo=timezone.utc
+).timestamp()
 
 AUTHORITATIVE_JOIN_KEY_RULE = (
     "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from "
@@ -340,6 +344,8 @@ def evaluate_completeness(
     complete = 0
     complete_trade_ids: List[str] = []
     strict_cohort_trade_ids: List[str] = []
+    # Full incomplete trade_id set for SRE tooling (per-reason lists in audit are capped at 10).
+    incomplete_trade_ids_all: Set[str] = set()
 
     fwd_seen = fwd_cmp = fwd_inc = 0
     leg_seen = leg_cmp = leg_inc = 0
@@ -428,6 +434,7 @@ def evaluate_completeness(
             is_forward_cohort = oep_for_split >= float(forward_since_epoch)
 
         if reasons:
+            incomplete_trade_ids_all.add(tid)
             for r in reasons:
                 reason_hist[r] += 1
                 ids_l = incomplete_ids_by_reason[r]
@@ -585,6 +592,7 @@ def evaluate_completeness(
     }
     if audit:
         out["incomplete_trade_ids_by_reason"] = {k: list(v) for k, v in incomplete_ids_by_reason.items()}
+        out["incomplete_trade_ids_all"] = sorted(incomplete_trade_ids_all)[:2000]
         out["chain_matrices_sample"] = chain_matrices_sample
         out["chain_matrices_complete_sample"] = chain_matrices_complete_sample
     if collect_complete_trade_ids:
