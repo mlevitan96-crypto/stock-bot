@@ -1662,6 +1662,69 @@ def is_after_close_now():
 def is_friday():
     return datetime.now(timezone.utc).weekday() == 4
 
+
+def is_eod_flatten_window_et() -> bool:
+    """
+    Last five minutes of NYSE regular session (cash), Mon–Fri: 15:55–16:00 America/New_York.
+    Used with ``EOD_FLATTEN_ET_ENABLED`` to flatten before the close auction.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo  # type: ignore
+
+    now = datetime.now(timezone.utc)
+    et = now.astimezone(ZoneInfo("America/New_York"))
+    if et.weekday() >= 5:
+        return False
+    hm = et.hour * 60 + et.minute
+    return (15 * 60 + 55) <= hm < (16 * 60)
+
+
+def maybe_run_eod_flatten_book(engine) -> None:
+    """
+    Flatten all Alpaca positions once per cycle during the 15:55–16:00 ET window when enabled.
+    Gated by ``EOD_FLATTEN_ET_ENABLED=1`` (default off). Reduces overnight/gap risk vs holding into close.
+    """
+    if os.environ.get("EOD_FLATTEN_ET_ENABLED", "0").strip().lower() not in ("1", "true", "yes", "on"):
+        return
+    if not is_eod_flatten_window_et():
+        return
+    ex = getattr(engine, "executor", None)
+    if ex is None or not hasattr(ex, "close_position_with_retries"):
+        return
+    try:
+        if not is_market_open_now():
+            return
+    except Exception:
+        pass
+    try:
+        positions = ex.api.list_positions() or []
+    except Exception as list_err:
+        try:
+            log_event("eod_flatten", "list_positions_failed", error=str(list_err))
+        except Exception:
+            pass
+        return
+    for p in positions:
+        sym = str(getattr(p, "symbol", "") or "").strip().upper()
+        if not sym:
+            continue
+        try:
+            qty = float(getattr(p, "qty", 0) or 0)
+        except (TypeError, ValueError):
+            qty = 0.0
+        if qty == 0:
+            continue
+        try:
+            log_event("eod_flatten", "closing_position", symbol=sym, reason="eod_flatten_3555_et", qty=qty)
+            ex.close_position_with_retries(sym, max_attempts=3, close_reason_tag="eod_flatten_et")
+        except Exception as e:
+            try:
+                log_event("eod_flatten", "close_failed", symbol=sym, error=str(e))
+            except Exception:
+                pass
+
 # =========================
 # STATISTICAL UTILITIES (for confidence-calibrated promotions)
 # =========================
@@ -8684,6 +8747,46 @@ class AlpacaExecutor:
                     log_event("exit", "dynamic_atr_exit_eval_error", symbol=symbol, error=str(_dae))
                 except Exception:
                     pass
+
+            # Stagnant time-in-trade hard stop (capital velocity trim). Default off.
+            try:
+                if os.environ.get("STAGNANT_TIME_IN_TRADE_EXIT_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on"):
+                    try:
+                        _stag_max = float(os.environ.get("STAGNANT_TIME_IN_TRADE_MAX_MINUTES", "45"))
+                    except ValueError:
+                        _stag_max = 45.0
+                    if _stag_max > 0 and float(age_min) >= _stag_max:
+                        exit_signals["stagnant_time_in_trade"] = True
+                        exit_signals["stagnant_minutes"] = round(float(age_min), 2)
+                        exit_reasons[symbol] = "stagnant_time_in_trade_hard_stop"
+                        exit_regime_info[symbol] = (
+                            "normal",
+                            "stagnant_time_in_trade",
+                            {"max_minutes": _stag_max},
+                        )
+                        log_event(
+                            "exit",
+                            "stagnant_time_in_trade_trigger",
+                            symbol=symbol,
+                            age_minutes=float(age_min),
+                            threshold_minutes=_stag_max,
+                        )
+                        try:
+                            _emit_exit_intent(
+                                symbol=symbol,
+                                info=info if isinstance(info, dict) else {},
+                                close_reason="stagnant_time_in_trade_hard_stop",
+                                metadata=all_metadata.get(symbol) if isinstance(all_metadata.get(symbol), dict) else {},
+                            )
+                        except Exception:
+                            pass
+                        to_close.append(symbol)
+                        continue
+            except Exception as _stg_e:
+                try:
+                    log_event("exit", "stagnant_time_exit_error", symbol=symbol, error=str(_stg_e))
+                except Exception:
+                    pass
             
             # STRUCTURAL EXIT: Check for gamma call walls and liquidity exhaustion
             try:
@@ -15060,6 +15163,15 @@ def run_once():
                 f.flush()
         except:
             pass
+
+        # EOD book flatten (15:55–16:00 ET) before normal exit evaluation when enabled.
+        try:
+            maybe_run_eod_flatten_book(engine)
+        except Exception as _eod_f:
+            try:
+                log_event("eod_flatten", "maybe_run_failed", error=str(_eod_f))
+            except Exception:
+                pass
         
         # CRITICAL FIX: Ensure evaluate_exits is ALWAYS called, even if there's an exception
         try:
