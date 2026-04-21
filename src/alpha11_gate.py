@@ -175,11 +175,37 @@ def _extract_flow_strength(
     return None
 
 
+def _effective_flow_floor(regime_state: Optional[str]) -> float:
+    """
+    When ``REGIME_ENGINE_ENABLED=1``, adjust the Alpha 11 floor by continuous regime:
+    - CHOP: raise floor (fade marginal breakouts; hysteresis lives in regime module).
+    - MACRO_DOWNTREND: slightly relax floor (paired with LONG_ONLY / short policy elsewhere).
+    """
+    base = _min_flow_strength()
+    if not _truthy_env("REGIME_ENGINE_ENABLED", "0"):
+        return base
+    r = str(regime_state or "TREND").strip().upper()
+    if r == "CHOP":
+        try:
+            add = float(os.environ.get("ALPHA11_CHOP_FLOOR_ADD", "0.08").strip())
+        except ValueError:
+            add = 0.08
+        return float(min(0.999, base + max(0.0, add)))
+    if r == "MACRO_DOWNTREND":
+        try:
+            rel = float(os.environ.get("ALPHA11_MACRO_DOWNTREND_FLOOR_RELAX", "0.05").strip())
+        except ValueError:
+            rel = 0.05
+        return float(max(0.5, base - max(0.0, rel)))
+    return base
+
+
 def check_alpha11_flow_strength_gate(
     *,
     symbol: str,
     composite_result: Optional[Mapping[str, Any]],
     composite_meta: Optional[Mapping[str, Any]],
+    regime_state: Optional[str] = None,
 ) -> Tuple[bool, Optional[str], Optional[float]]:
     """
     Returns (allowed, block_reason_or_none, flow_strength_or_none).
@@ -194,7 +220,7 @@ def check_alpha11_flow_strength_gate(
     if fs is None:
         return True, "alpha11_flow_skipped_missing_flow_strength", None
 
-    floor = _min_flow_strength()
+    floor = _effective_flow_floor(regime_state)
     if fs < floor:
         return False, "alpha11_flow_strength_below_gate", fs
     return True, None, fs

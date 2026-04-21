@@ -132,8 +132,12 @@ def record(symbol: str, score: float, components: Dict[str, float],
         
         comp_stats = _telemetry_state["components"][comp_name]
         comp_stats["count"] += 1
-        comp_stats["total"] += abs(comp_value)
-        if comp_value == 0.0:
+        try:
+            cv = float(comp_value)  # numpy scalar safe
+        except (TypeError, ValueError):
+            cv = 0.0
+        comp_stats["total"] += abs(cv)
+        if cv == 0.0:
             comp_stats["zero_count"] += 1
     
     # Record metadata

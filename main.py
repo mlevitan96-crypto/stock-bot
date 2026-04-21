@@ -826,7 +826,9 @@ def _json_sanitize_for_append(obj: Any) -> Any:
         return None
     if isinstance(obj, float):
         return obj if math.isfinite(obj) else None
-    if isinstance(obj, (str, int, bool)):
+    if isinstance(obj, bool):
+        return bool(obj)
+    if isinstance(obj, (str, int)):
         return obj
     if isinstance(obj, dict):
         return {str(k): _json_sanitize_for_append(v) for k, v in obj.items()}
@@ -834,8 +836,15 @@ def _json_sanitize_for_append(obj: Any) -> Any:
         return [_json_sanitize_for_append(x) for x in obj]
     if isinstance(obj, (bytes, bytearray)):
         return obj.decode("utf-8", errors="replace")
+    # numpy / pandas scalar (bool_, int64, float64, …) without hard-importing numpy
+    mod = type(obj).__module__
+    if mod and mod.startswith("numpy") and hasattr(obj, "item"):
+        try:
+            return _json_sanitize_for_append(obj.item())  # type: ignore[union-attr]
+        except Exception:
+            pass
     try:
-        if hasattr(obj, "item"):
+        if hasattr(obj, "item") and mod not in ("builtins", "str", "bytes"):
             return _json_sanitize_for_append(obj.item())  # type: ignore[union-attr]
     except Exception:
         pass
@@ -12522,10 +12531,27 @@ class StrategyEngine:
                     from src.alpha11_gate import check_alpha11_flow_strength_gate
 
                     _cm_a11 = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else {}
+                    _reg_ctx: dict = {}
+                    try:
+                        if isinstance(market_ctx, dict):
+                            _reg_ctx.update(market_ctx)
+                        _mc2 = getattr(self, "market_context_v2", None)
+                        if isinstance(_mc2, dict):
+                            _reg_ctx = {**_mc2, **_reg_ctx}
+                    except Exception:
+                        _reg_ctx = dict(market_ctx) if isinstance(market_ctx, dict) else {}
+                    _reg_pub = None
+                    try:
+                        from src.regime.continuous_regime_classifier import classify_from_market_context
+
+                        _reg_pub = classify_from_market_context(_reg_ctx)
+                    except Exception:
+                        _reg_pub = None
                     _a11_ok, _a11_reason, _a11_fs = check_alpha11_flow_strength_gate(
                         symbol=symbol,
                         composite_result=composite_result if isinstance(composite_result, dict) else None,
                         composite_meta=_cm_a11,
+                        regime_state=_reg_pub,
                     )
                     if not _a11_ok and _a11_reason:
                         print(
@@ -14423,9 +14449,13 @@ def run_once():
                             "features_for_learning": composite.get("features_for_learning", {}),
                             "toxicity": composite.get("toxicity", 0.0),
                             "freshness": composite.get("freshness", 1.0),
-                            "notes": composite.get("notes", "")
+                            "notes": composite.get("notes", ""),
+                            "uw_toxicity_veto": composite.get("uw_toxicity_veto", False),
+                            "uw_toxicity_correlation_penalty": composite.get(
+                                "uw_toxicity_correlation_penalty", 0.0
+                            ),
                         }
-                        f.write(json.dumps(attr_rec) + "\n")
+                        f.write(json.dumps(_json_sanitize_for_append(attr_rec)) + "\n")
                 except Exception as e:
                     pass  # Don't crash trading on attribution logging errors
                 
