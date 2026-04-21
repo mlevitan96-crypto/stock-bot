@@ -350,6 +350,9 @@ except Exception:
 # GLOBAL STATE - Monitoring
 # =========================
 ZERO_ORDER_CYCLE_COUNT = 0
+# One-shot process pulse (Telegram "Vanguard Status: LOCKED") per engine invocation.
+_VANGUARD_LOCK_TELEGRAM_SENT = False
+
 REQUIRED_HEARTBEAT_MODULES = [
     "alpha_forecaster_gate",
     "bayes_alpha_allocator",
@@ -477,6 +480,12 @@ class Config:
     # When PHASE2_TELEMETRY_ENABLED is false in .env, these rows were historically suppressed; this flag
     # keeps emitting them (additive JSONL only; no execution/strategy change). Default true.
     STRICT_RUNLOG_TELEMETRY_ENABLED = get_env("STRICT_RUNLOG_TELEMETRY_ENABLED", "true").lower() == "true"
+
+    # Grand Unified Theory (GUT) confluence gate — see ``src/gut_confluence_gate.py``.
+    # Default off; set GUT_GATE_ENABLED=1 and GUT_CONFLUENCE_MIN (or artifacts/ml/gut_threshold.json) on the droplet.
+    GUT_GATE_ENABLED = get_env("GUT_GATE_ENABLED", "0").lower() in ("1", "true", "yes", "on")
+    GUT_TELEGRAM_ON_PASS = get_env("GUT_TELEGRAM_ON_PASS", "true").lower() in ("1", "true", "yes", "on")
+    VANGUARD_LOCK_TELEGRAM = get_env("VANGUARD_LOCK_TELEGRAM", "true").lower() in ("1", "true", "yes", "on")
     
     # Institutional Remediation Phase 7: kill zombie trades quickly (120 minutes)
     STALE_TRADE_EXIT_MINUTES = get_env("STALE_TRADE_EXIT_MINUTES", 120, int)  # 120 minutes
@@ -2109,6 +2118,19 @@ def _emit_trade_intent(
         rec["alpha11_gate_floor_snapshot"] = _uw_snap.get("alpha11_gate_floor_snapshot")
         if _uw_snap.get("uw_flow_at_intent"):
             rec["uw_flow_at_intent"] = _uw_snap["uw_flow_at_intent"]
+        if isinstance(cluster, dict):
+            _gcs = cluster.get("_gut_confluence_score")
+            if _gcs is not None:
+                try:
+                    rec["gut_confluence_score"] = float(_gcs)
+                except (TypeError, ValueError):
+                    pass
+            _gcd = cluster.get("_gut_confluence_detail")
+            if isinstance(_gcd, dict):
+                rec["gut_confluence_detail"] = _gcd
+            _sfv = cluster.get("_shadow_fractal_vapor")
+            if isinstance(_sfv, dict):
+                rec["shadow_fractal_vapor"] = _sfv
         jsonl_write("run", rec)
         try:
             if (decision_outcome or "").lower() == "entered":
@@ -2119,6 +2141,17 @@ def _emit_trade_intent(
                     symbol=str(symbol).upper(),
                     canonical_trade_id=str(rec.get("canonical_trade_id") or "")[:200],
                 )
+                if getattr(Config, "GUT_TELEGRAM_ON_PASS", True) and rec.get("gut_confluence_score") is not None:
+                    try:
+                        from scripts.alpaca_telegram import send_governance_telegram
+
+                        _gs = float(rec["gut_confluence_score"])
+                        send_governance_telegram(
+                            f"God Tier GUT pass {str(symbol).upper()} side={side} confluence={_gs:.6g} composite={float(score):.3f}",
+                            script_name="gut_god_tier_entry",
+                        )
+                    except Exception:
+                        pass
         except Exception:
             pass
         try:
@@ -11439,6 +11472,97 @@ class StrategyEngine:
                 continue
 
             print(f"DEBUG {symbol}: PASSED expectancy gate, checking other gates...", flush=True)
+
+            # Fractal vapor shadow (Hurst + dH/dt) — observability only; never blocks.
+            try:
+                from src.signals.fractal_vapor_trail import compute_fractal_vapor_trail
+
+                _ps = c.get("price_series") or c.get("prices") or []
+                _fv = compute_fractal_vapor_trail(_ps, symbol=symbol)
+                if isinstance(_fv, dict) and _fv:
+                    c["_shadow_fractal_vapor"] = _fv
+                    try:
+                        log_event("shadow", "shadow_fractal_vapor", symbol=symbol, fractal_vapor=_fv)
+                    except Exception:
+                        pass
+            except Exception as _e_fv:
+                try:
+                    log_event("shadow", "fractal_vapor_error", symbol=symbol, error=str(_e_fv)[:200])
+                except Exception:
+                    pass
+
+            # GUT confluence gate (live): product of flow × dark pool × IV skew × (toxicity × regime hulls).
+            try:
+                from src.gut_confluence_gate import evaluate_gut_gate
+
+                _comps_gut = comps if isinstance(comps, dict) else {}
+                _gut_ok, _gut_reason, _gut_score, _gut_detail = evaluate_gut_gate(cluster=c, comps=_comps_gut)
+                c["_gut_confluence_score"] = float(_gut_score)
+                c["_gut_confluence_detail"] = _gut_detail
+                if getattr(Config, "GUT_GATE_ENABLED", False) and not _gut_ok:
+                    _inc_gate("gut_confluence_blocked")
+                    print(
+                        f"DEBUG {symbol}: BLOCKED by gut_confluence_blocked (score={_gut_score:.6g} reason={_gut_reason})",
+                        flush=True,
+                    )
+                    try:
+                        _emit_trade_intent_blocked_trace(
+                            symbol,
+                            direction,
+                            float(score),
+                            _comps_gut,
+                            c,
+                            market_regime,
+                            self,
+                            blocked_reason="gut_confluence_blocked",
+                            final_primary="gut_confluence_blocked",
+                            failed_gate="gut_confluence_gate",
+                            failed_reason=_gut_reason,
+                            prior_gates_pass=("score_gate", "expectancy_gate"),
+                        )
+                    except Exception:
+                        pass
+                    log_event(
+                        "gate",
+                        "gut_confluence_blocked",
+                        symbol=symbol,
+                        gut_confluence_score=float(_gut_score),
+                        gut_reason=_gut_reason,
+                        gate_type="gut_confluence_gate",
+                    )
+                    try:
+                        log_blocked_trade(
+                            symbol,
+                            "gut_confluence_blocked",
+                            float(score),
+                            direction=c.get("direction"),
+                            decision_price=ref_price_check if "ref_price_check" in locals() else 0.0,
+                            components=_comps_gut,
+                            market_context=market_ctx,
+                            composite_meta=c.get("composite_meta"),
+                            first_signal_ts_utc=_first_signal_ts_cache.get(symbol),
+                            gut_confluence_score=float(_gut_score),
+                        )
+                    except Exception:
+                        pass
+                    log_signal_to_history(
+                        symbol=symbol,
+                        direction=direction,
+                        raw_score=raw_score,
+                        whale_boost=whale_boost,
+                        final_score=final_score,
+                        atr_multiplier=atr_mult or 0.0,
+                        momentum_pct=momentum_pct,
+                        momentum_required_pct=momentum_required_pct,
+                        decision="Blocked: gut_confluence_blocked",
+                        metadata={"gut_confluence_score": float(_gut_score), "gut_reason": _gut_reason},
+                    )
+                    continue
+            except Exception as _e_gut:
+                try:
+                    log_event("gate", "gut_gate_error", symbol=symbol, error=str(_e_gut)[:240])
+                except Exception:
+                    pass
             
             # V3.2.1: Check cycle position limit
             if new_positions_this_cycle >= MAX_NEW_POSITIONS_PER_CYCLE:
@@ -13844,11 +13968,24 @@ def run_once():
         except:
             pass
         
-        global ZERO_ORDER_CYCLE_COUNT
+        global ZERO_ORDER_CYCLE_COUNT, _VANGUARD_LOCK_TELEGRAM_SENT
         alerts_this_cycle = []
         fixes_applied_list = []  # V3.0: Track auto-fixes
         
         audit_seg("run_once", "START")
+
+        # Vanguard pulse: one Telegram per process start (best-effort; respects governance quiet hours).
+        if not _VANGUARD_LOCK_TELEGRAM_SENT and getattr(Config, "VANGUARD_LOCK_TELEGRAM", True):
+            _VANGUARD_LOCK_TELEGRAM_SENT = True
+            try:
+                from scripts.alpaca_telegram import send_governance_telegram
+
+                send_governance_telegram(
+                    "Vanguard Status: LOCKED — stock-bot run_once pulse armed (data pipes + decision loop).",
+                    script_name="vanguard_system_lock",
+                )
+            except Exception:
+                pass
         
         # MONITORING GUARD 1: Check freeze state (governor_freezes.json only, no pre_market_freeze.flag)
         # NOTE: pre_market_freeze.flag mechanism removed - it was causing more problems than it solved
