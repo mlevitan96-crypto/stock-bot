@@ -742,6 +742,22 @@ def compute_calendar_component(calendar_data: Optional[Dict], symbol: str, regim
     
     return round(component, 4), "; ".join(notes_parts)
 
+
+def _json_native_float_list(levels: Any) -> List[float]:
+    """JSON-safe list of finite floats (strips numpy / odd scalar types)."""
+    out: List[float] = []
+    if not levels:
+        return out
+    for x in levels:
+        try:
+            v = float(x)
+            if math.isfinite(v):
+                out.append(v)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 @global_failure_wrapper("scoring")
 def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str = "NEUTRAL",
                                   expanded_intel: Dict = None,
@@ -1391,16 +1407,16 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         "group_sums": group_sums,
         "version": "V3.1" if adaptive_active else "V3",
         "adaptive_weights_active": adaptive_active,
-        "gamma_resistance_levels": gamma_resistance_levels,
+        "gamma_resistance_levels": _json_native_float_list(gamma_resistance_levels),
         "components": components,
         "attribution_components": attribution_components,
         "component_sources": component_sources,
         "missing_components": missing_components,
         "motifs": {
-            "staircase": motif_staircase.get("detected", False),
-            "sweep_block": motif_sweep.get("detected", False),
-            "burst": motif_burst.get("detected", False),
-            "whale_persistence": whale_detected
+            "staircase": bool(motif_staircase.get("detected", False)),
+            "sweep_block": bool(motif_sweep.get("detected", False)),
+            "burst": bool(motif_burst.get("detected", False)),
+            "whale_persistence": bool(whale_detected),
         },
         "expanded_intel": {
             # V1 intelligence
@@ -1458,7 +1474,7 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
             "squeeze_setup_type": enriched_data.get("squeeze_score", {}).get("setup", "NONE"),
             "max_pain": _to_num(enriched_data.get("max_pain", {}).get("max_pain", 0)),
             "uw_toxicity_veto": bool(uw_toxicity_veto),
-            "uw_toxicity_correlation_penalty": round(float(extra_toxic_pen), 4),
+            "uw_toxicity_correlation_penalty": float(round(float(extra_toxic_pen), 4)),
             "gamma_exposure_net": float(gamma_exposure_net),
             "dp_sentiment": str(dp_sent),
         }
@@ -2307,10 +2323,10 @@ def _compute_composite_score_legacy_v2(symbol: str, enriched_data: Dict, regime:
             "freshness_factor": round(freshness, 3)
         },
         "motifs": {
-            "staircase": motif_staircase.get("detected", False),
-            "sweep_block": motif_sweep.get("detected", False),
-            "burst": motif_burst.get("detected", False),
-            "whale_persistence": whale_detected
+            "staircase": bool(motif_staircase.get("detected", False)),
+            "sweep_block": bool(motif_sweep.get("detected", False)),
+            "burst": bool(motif_burst.get("detected", False)),
+            "whale_persistence": bool(whale_detected),
         },
         "sizing_overlay": round(sizing_overlay, 3),
         "entry_delay_sec": entry_delay_sec,
