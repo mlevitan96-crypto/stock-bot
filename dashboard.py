@@ -3268,18 +3268,43 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     }
 
 
-def _orders_jsonl_row_is_fill(rec: dict) -> bool:
-    """Match heuristic used in _alpaca_operational_activity_payload (fills / executions)."""
-    st = str(rec.get("status", "")).lower()
-    typ = str(rec.get("type", "")).lower()
-    if st == "filled" or typ == "fill":
+def _order_id_from_orders_jsonl_row(rec: dict) -> str | None:
+    """Best-effort broker id for deduplication (Alpaca uses `id` or `order_id`)."""
+    for k in ("order_id", "id", "client_order_id"):
+        v = rec.get(k)
+        if v is None:
+            continue
+        s = str(v).strip()
+        if s:
+            return s
+    return None
+
+
+def _orders_jsonl_row_is_terminal_filled(rec: dict) -> bool:
+    """
+    True only for terminal filled semantics — NOT raw partial-fill / lifecycle spam.
+    - Prefer explicit broker row: status == 'filled' (case-insensitive).
+    - Else app-level fill notifications that always imply a completed fill for one broker order.
+    """
+    st = str(rec.get("status", "")).strip().lower()
+    if st == "filled":
         return True
-    fq = rec.get("filled_qty")
-    if fq not in (None, 0, "0", ""):
+    act = str(rec.get("action", "")).strip().lower()
+    if act in ("submit_limit_filled", "submit_limit_final_filled"):
+        return True
+    if act == "close_position":
         try:
-            return float(fq) > 0
+            fq = float(rec.get("filled_qty") or 0)
+            if fq > 0:
+                return True
         except Exception:
-            return True
+            pass
+        try:
+            ap = float(rec.get("filled_avg_price") or rec.get("price") or 0)
+            if ap > 0:
+                return True
+        except Exception:
+            pass
     return False
 
 
@@ -3311,11 +3336,12 @@ def _daily_trade_volume_payload(root: Path, days: int) -> dict:
     tail_lines = 80_000
     tail_chunk = 20_000_000
     scan_note = (
-        f"Heuristic fill counts from the tail of orders.jsonl (~{tail_lines} lines / "
-        f"≤{tail_chunk // 1_000_000}MB). High order volume can make older days incomplete."
+        f"Unique broker order_ids with terminal filled semantics from orders.jsonl tail "
+        f"(~{tail_lines} lines / ≤{tail_chunk // 1_000_000}MB). "
+        "Counts dedupe lifecycle/partial-fill duplicate rows; high volume can omit older days."
     )
 
-    counts = defaultdict(int)
+    counts = defaultdict(set)
     orders_path = (root / "logs" / "orders.jsonl").resolve()
     if orders_path.is_file():
         for line in _tail_file_lines(orders_path, max_lines=tail_lines, max_chunk_bytes=tail_chunk):
@@ -3326,7 +3352,10 @@ def _daily_trade_volume_payload(root: Path, days: int) -> dict:
                 rec = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if not _orders_jsonl_row_is_fill(rec):
+            if not _orders_jsonl_row_is_terminal_filled(rec):
+                continue
+            oid = _order_id_from_orders_jsonl_row(rec)
+            if not oid:
                 continue
             ts = _parse_log_ts_ops(rec.get("timestamp") or rec.get("_ts") or rec.get("ts"))
             if ts is None:
@@ -3339,7 +3368,9 @@ def _daily_trade_volume_payload(root: Path, days: int) -> dict:
             except Exception:
                 continue
             if start_d <= d <= end_d:
-                counts[d] += 1
+                counts[d].add(oid)
+
+    counts_int = {k: len(v) for k, v in counts.items()}
 
     series: list = []
     cur = start_d
@@ -3353,7 +3384,7 @@ def _daily_trade_volume_payload(root: Path, days: int) -> dict:
             {
                 "date": cur.isoformat(),
                 "label": label,
-                "trade_count": int(counts.get(cur, 0)),
+                "trade_count": int(counts_int.get(cur, 0)),
             }
         )
         cur = cur + timedelta(days=1)
@@ -3361,7 +3392,7 @@ def _daily_trade_volume_payload(root: Path, days: int) -> dict:
     tz_name = "America/New_York" if et is not timezone.utc else "UTC"
 
     today_iso = end_d.isoformat()
-    today_count = int(counts.get(end_d, 0))
+    today_count = int(counts_int.get(end_d, 0))
     if series:
         if series[-1]["date"] != today_iso:
             if et is timezone.utc:
