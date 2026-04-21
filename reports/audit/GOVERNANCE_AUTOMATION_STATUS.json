@@ -17,5 +17,6 @@
     "no_deprecated_dirs: moltbot/ directory still present at repo root with active Python files (board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py). This deprecated directory should have been removed.",
     "no_clawdbot_moltbot: moltbot/ directory contains active code referencing Moltbot (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). scripts/run_openclaw_molt_synthesis.py contains Clawdbot references in stub comments."
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "not_created: automation lacks issue-write capability; anomalies require manual issue filing or next CI run with write permissions"
 }
