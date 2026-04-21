@@ -31,6 +31,7 @@ ML_CANONICAL_SCOREFLOW_COMPONENT_KEYS: tuple[str, ...] = (
     "oi_change",
     "etf_flow",
     "squeeze_score",
+    "toxicity_correlation_penalty",
     "freshness_factor",
 )
 
