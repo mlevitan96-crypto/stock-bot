@@ -329,7 +329,18 @@ def hold_hours(rec: dict, entry_ts: Optional[datetime], exit_ts: Optional[dateti
 
 def intended_qty(rec: dict) -> Optional[float]:
     snap = rec.get("snapshot") if isinstance(rec.get("snapshot"), dict) else {}
-    return _safe_float(rec.get("intended_qty")) or _safe_float(snap.get("intended_qty"))
+    for k in ("intended_qty", "target_qty", "requested_qty", "order_qty"):
+        v = _safe_float(rec.get(k)) or _safe_float(snap.get(k))
+        if v is not None:
+            return v
+    for blob_key in ("context", "metadata", "position_metadata", "entry_context"):
+        blob = rec.get(blob_key)
+        if isinstance(blob, dict):
+            for k in ("intended_qty", "qty", "requested_shares", "target_qty"):
+                v = _safe_float(blob.get(k))
+                if v is not None:
+                    return v
+    return None
 
 
 def filled_qty(rec: dict) -> Optional[float]:
