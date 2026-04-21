@@ -1,6 +1,10 @@
 """
 Strict completeness (A) evaluation for Alpaca logs (read-only). Used by audits and pytest.
 
+Optional **SRE quarantine:** ``config/strict_completeness_quarantine.json`` (or ``ALPACA_STRICT_QUARANTINE_JSON``)
+with ``{"enabled": true, "trade_ids": ["open_..."]}`` removes those terminal closes from the strict
+completeness denominator after ``trade_id`` dedupe. Use only for provably corrupt rows; document in PR.
+
 AUTHORITATIVE_JOIN_KEY (Alpaca strict joins):
   Per closed trade, use ``trade_key`` from unified exit (or derived from
   ``open_{SYM}_{entry_ts}`` + exit side). Intent-time vs fill-time IDs are linked via
@@ -11,6 +15,7 @@ AUTHORITATIVE_JOIN_KEY (Alpaca strict joins):
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -106,6 +111,35 @@ def _open_epoch_from_trade_id(tid: str, tid_re: Any) -> Optional[float]:
     if not m:
         return None
     return _parse_iso_ts(m.group(2))
+
+
+def load_strict_completeness_quarantine_trade_ids(root: Path) -> Tuple[Set[str], Optional[str]]:
+    """
+    Optional SRE quarantine: ``config/strict_completeness_quarantine.json`` with
+    ``{"enabled": true, "trade_ids": ["open_FOO_..."]}`` removes those ``trade_id`` rows
+    from the strict completeness **denominator** (after dedupe, before chain checks).
+
+    Override path with ``ALPACA_STRICT_QUARANTINE_JSON`` (absolute path).
+    """
+    raw = os.environ.get("ALPACA_STRICT_QUARANTINE_JSON", "").strip()
+    p = Path(raw) if raw else (root / "config" / "strict_completeness_quarantine.json")
+    if not p.is_file():
+        return set(), None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return set(), str(p)
+    if not isinstance(data, dict) or not data.get("enabled", False):
+        return set(), str(p)
+    ids = data.get("trade_ids")
+    if not isinstance(ids, list):
+        return set(), str(p)
+    out: Set[str] = set()
+    for x in ids:
+        s = str(x).strip()
+        if s:
+            out.add(s)
+    return out, str(p)
 
 
 def _dedupe_closed_rows_by_trade_id(closed_rows: List[tuple]) -> Tuple[List[tuple], int]:
@@ -336,6 +370,17 @@ def evaluate_completeness(
     _exit_rows_before_trade_id_dedupe = len(closed)
     closed, _dup_removed = _dedupe_closed_rows_by_trade_id(closed)
 
+    strict_quarantine_ids, strict_quarantine_path = load_strict_completeness_quarantine_trade_ids(root)
+    strict_quarantine_removed = 0
+    if strict_quarantine_ids:
+        _qc: List[tuple] = []
+        for row in closed:
+            if row[0] in strict_quarantine_ids:
+                strict_quarantine_removed += 1
+                continue
+            _qc.append(row)
+        closed = _qc
+
     reason_hist: Counter = Counter()
     incomplete_ex: List[dict] = []
     incomplete_ids_by_reason: Dict[str, List[str]] = defaultdict(list)
@@ -556,6 +601,8 @@ def evaluate_completeness(
         "precheck": precheck,
         "exit_attribution_rows_before_trade_id_dedupe": _exit_rows_before_trade_id_dedupe,
         "exit_attribution_duplicate_trade_id_rows_removed": _dup_removed,
+        "strict_quarantine_trade_ids_removed": strict_quarantine_removed,
+        "strict_quarantine_config_path": strict_quarantine_path,
         "trades_seen": len(closed),
         "trades_complete": complete,
         "trades_incomplete": len(closed) - complete,
