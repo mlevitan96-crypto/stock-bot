@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "enabled": false,
+  "reason": "SRE quarantine: omit listed exit_attribution trade_id rows from strict completeness denominator (after dedupe). Enable only with operator sign-off.",
+  "trade_ids": [],
+  "historical_reference_incomplete_20260421T133159Z_audit_sample": [
+    "open_GM_2026-04-21T13:46:51.739215+00:00",
+    "open_JPM_2026-04-21T13:46:51.739841+00:00",
+    "open_F_2026-04-21T13:46:51.740392+00:00",
+    "open_PFE_2026-04-21T13:46:51.741434+00:00",
+    "open_COP_2026-04-21T13:46:51.741861+00:00",
+    "open_MRNA_2026-04-21T13:46:51.742354+00:00",
+    "open_SLB_2026-04-21T13:46:51.743359+00:00",
+    "open_SOFI_2026-04-21T13:36:09.785867+00:00"
+  ]
+}
