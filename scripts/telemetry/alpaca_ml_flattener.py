@@ -9,8 +9,10 @@ remain as fallback when canonical keys are missing on historical rows.
 
 Falls back to logs/scoring_flow.jsonl wide join when no snapshot exists.
 
-Reads closed trades with open instant strictly on/after STRICT_EPOCH_START, dedupes by trade_id
-(last row wins), flattens nested ML blobs with mlf_* column prefix, writes CSV.
+Reads closed trades with **exit timestamp** on/after the floor epoch (same cut as
+``compute_canonical_trade_count``), dedupes by canonical trade_key (fallback: trade_id,
+then entry order id; last row wins), flattens nested ML blobs with mlf_* column prefix,
+writes CSV.
 
 Usage (repo root):
   PYTHONPATH=. python3 scripts/telemetry/alpaca_ml_flattener.py --root /root/stock-bot
@@ -38,6 +40,7 @@ from telemetry.ml_scoreflow_contract import (  # noqa: E402
 )
 from utils.era_cut import learning_excluded_for_exit_record  # noqa: E402
 from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side  # noqa: E402
+from src.governance.canonical_trade_count import _parse_exit_epoch  # noqa: E402
 
 TID_RE = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
 ML_BLOB_KEYS = ("entry_uw", "v2_exit_components", "direction_intel_embed")
@@ -268,29 +271,49 @@ def _last_known_composite_wide(
     return None, None, None, "none"
 
 
+def _exit_row_dedupe_key(rec: dict) -> Optional[str]:
+    """
+    Align cardinality with ``compute_canonical_trade_count``: prefer stable canonical trade_key,
+    then Alpaca trade_id, then entry order id (orphan rows without trade_id).
+    """
+    ck = _canonical_trade_key_for_exit_row(rec)
+    if ck:
+        return f"ck:{ck}"
+    tid = str(rec.get("trade_id") or "").strip()
+    if tid:
+        return f"id:{tid}"
+    for k in ("entry_order_id", "entry_orderId"):
+        v = rec.get(k)
+        if v is not None and str(v).strip():
+            return f"oid:{str(v).strip()}"
+    return None
+
+
 def _dedupe_exit_rows(rows: List[dict]) -> List[dict]:
-    """Last row wins per trade_id (SRE-EDGE-001 style)."""
-    by_tid: Dict[str, dict] = {}
+    """Last row wins per canonical dedupe key (matches governance trade unit)."""
+    by_key: Dict[str, dict] = {}
     order: List[str] = []
     for r in rows:
-        tid = str(r.get("trade_id") or "").strip()
-        if not tid:
+        dk = _exit_row_dedupe_key(r)
+        if not dk:
             continue
-        if tid not in by_tid:
-            order.append(tid)
-        by_tid[tid] = r
-    return [by_tid[t] for t in order]
+        if dk not in by_key:
+            order.append(dk)
+        by_key[dk] = r
+    return [by_key[k] for k in order]
 
 
 def _filter_strict_cohort(rec: dict, floor_epoch: float) -> bool:
+    """
+    Match ``compute_canonical_trade_count(..., floor_epoch=...)``: era cut + exit timestamp
+    on/after floor (not open-instant floor), so flattener row count aligns with canonical trades.
+    """
     if learning_excluded_for_exit_record(rec):
         return False
-    oep = _open_epoch_from_trade_id(rec.get("trade_id"))
-    if oep is None:
-        oep = _parse_iso_ts(rec.get("entry_ts") or rec.get("entry_timestamp"))
-    if oep is None:
+    ex = _parse_exit_epoch(rec)
+    if ex is None or ex < float(floor_epoch):
         return False
-    return oep >= float(floor_epoch)
+    return True
 
 
 def _apply_exit_quality_pct_fields(rec: dict, row: Dict[str, Any]) -> None:
