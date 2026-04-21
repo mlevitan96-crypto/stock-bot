@@ -8004,6 +8004,22 @@ class AlpacaExecutor:
         except Exception as e:
             log_event("persist", "metadata_write_failed", symbol=symbol, error=str(e))
 
+    def _persist_dynamic_atr_trail(self, symbol: str, trail_state: dict) -> None:
+        """Merge ``dynamic_atr_trail`` into POSITION_METADATA for ``symbol`` (atomic write)."""
+        metadata_path = StateFiles.POSITION_METADATA
+        try:
+            metadata_path.parent.mkdir(exist_ok=True)
+            metadata = load_metadata_with_lock(metadata_path)
+            sym = str(symbol).upper()
+            row = metadata.get(sym) if isinstance(metadata.get(sym), dict) else {}
+            row = dict(row)
+            row["dynamic_atr_trail"] = dict(trail_state)
+            row["updated_at"] = datetime.utcnow().isoformat()
+            metadata[sym] = row
+            atomic_write_json(metadata_path, metadata)
+        except Exception as e:
+            log_event("persist", "dynamic_atr_trail_write_failed", symbol=symbol, error=str(e))
+
     def _scale_out_partial(self, symbol: str, fraction: float, side: str):
         try:
             current_qty = get_position_qty(self.api, symbol)
@@ -8561,6 +8577,113 @@ class AlpacaExecutor:
             pnl_pct = max(-1000.0, min(1000.0, pnl_pct))
             high_water_pct = max(-1000.0, min(1000.0, high_water_pct))
             exit_signals["pnl_pct"] = pnl_pct
+
+            # Dynamic Wilder ATR trailing stop (long-only). Early in the loop so v2/pressure ``continue`` paths cannot skip it.
+            try:
+                if os.environ.get("DYNAMIC_ATR_EXITS_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on"):
+                    if str(info.get("side", "buy")).lower() == "buy" and float(entry_price) > 0:
+                        try:
+                            _atr_period = int(os.environ.get("DYNAMIC_ATR_PERIOD", "14"))
+                        except ValueError:
+                            _atr_period = 14
+                        try:
+                            _atr_mult = float(os.environ.get("DYNAMIC_ATR_MULTIPLIER", "2.0"))
+                        except ValueError:
+                            _atr_mult = 2.0
+                        try:
+                            _atr_bar_lim = int(os.environ.get("DYNAMIC_ATR_BAR_LIMIT", "80"))
+                        except ValueError:
+                            _atr_bar_lim = 80
+                        _atr_bar_lim = max(_atr_bar_lim, _atr_period + 5)
+                        _bars_atr = fetch_bars_safe(self.api, symbol, "1Min", limit=_atr_bar_lim)
+                        _df_atr = getattr(_bars_atr, "df", None) if _bars_atr is not None else None
+                        if _df_atr is not None and len(_df_atr) >= _atr_period + 1:
+                            from src.exit.dynamic_trailing_stops import (
+                                long_ratcheted_trailing_stop,
+                                long_stop_hit,
+                                wilders_atr_last,
+                            )
+
+                            _h_atr = [float(x) for x in _df_atr["high"].tolist()]
+                            _l_atr = [float(x) for x in _df_atr["low"].tolist()]
+                            _c_atr = [float(x) for x in _df_atr["close"].tolist()]
+                            _atr_now = wilders_atr_last(_h_atr, _l_atr, _c_atr, period=_atr_period)
+                            _sym_meta_early = all_metadata.get(symbol, {})
+                            if not isinstance(_sym_meta_early, dict):
+                                _sym_meta_early = {}
+                            _dyn = _sym_meta_early.get("dynamic_atr_trail")
+                            if not isinstance(_dyn, dict):
+                                _dyn = {}
+                            _dyn = dict(_dyn)
+                            _entry_atr = _dyn.get("entry_atr")
+                            try:
+                                _entry_atr_f = float(_entry_atr) if _entry_atr is not None else float(_atr_now)
+                                if not (_entry_atr_f == _entry_atr_f):
+                                    _entry_atr_f = float(_atr_now)
+                            except (TypeError, ValueError):
+                                _entry_atr_f = float(_atr_now)
+                            _hh = max(float(high_water_price), float(current_price), float(entry_price))
+                            _prev_raw = _dyn.get("trailing_stop_price")
+                            try:
+                                _prev_stop = float(_prev_raw) if _prev_raw is not None and str(_prev_raw).strip() != "" else None
+                                if _prev_stop is not None and not (_prev_stop == _prev_stop):
+                                    _prev_stop = None
+                            except (TypeError, ValueError):
+                                _prev_stop = None
+                            _new_stop = long_ratcheted_trailing_stop(
+                                entry_price=float(entry_price),
+                                entry_atr=float(_entry_atr_f),
+                                highest_high_since_entry=float(_hh),
+                                current_atr=float(_atr_now),
+                                multiplier=float(_atr_mult),
+                                previous_stop=_prev_stop,
+                            )
+                            _dyn["entry_atr"] = float(_entry_atr_f)
+                            _dyn["trailing_stop_price"] = float(_new_stop)
+                            _dyn["last_atr"] = float(_atr_now)
+                            try:
+                                _dyn["last_bar_ts"] = str(_df_atr.index[-1])
+                            except Exception:
+                                pass
+                            _dyn["updated_at"] = datetime.utcnow().isoformat() + "Z"
+                            self._persist_dynamic_atr_trail(symbol, _dyn)
+                            all_metadata.setdefault(symbol, {})
+                            if isinstance(all_metadata[symbol], dict):
+                                all_metadata[symbol]["dynamic_atr_trail"] = _dyn
+                            if long_stop_hit(current_price=float(current_price), trailing_stop=float(_new_stop)):
+                                exit_signals["dynamic_atr_trailing_stop"] = True
+                                exit_signals["dynamic_atr_stop_price"] = round(float(_new_stop), 6)
+                                exit_signals["trailing_stop"] = True
+                                exit_reasons[symbol] = "dynamic_atr_trailing_stop"
+                                exit_regime_info[symbol] = (
+                                    "normal",
+                                    "dynamic_atr_trailing_stop",
+                                    {"dynamic_atr_stop": float(_new_stop), "atr": float(_atr_now)},
+                                )
+                                log_event(
+                                    "exit",
+                                    "dynamic_atr_trailing_stop_hit",
+                                    symbol=symbol,
+                                    stop_price=float(_new_stop),
+                                    current_price=float(current_price),
+                                    atr=float(_atr_now),
+                                )
+                                try:
+                                    _emit_exit_intent(
+                                        symbol=symbol,
+                                        info=info if isinstance(info, dict) else {},
+                                        close_reason="dynamic_atr_trail_stop",
+                                        metadata={**(_sym_meta_early if isinstance(_sym_meta_early, dict) else {}), "dynamic_atr_trail": _dyn},
+                                    )
+                                except Exception:
+                                    pass
+                                to_close.append(symbol)
+                                continue
+            except Exception as _dae:
+                try:
+                    log_event("exit", "dynamic_atr_exit_eval_error", symbol=symbol, error=str(_dae))
+                except Exception:
+                    pass
             
             # STRUCTURAL EXIT: Check for gamma call walls and liquidity exhaustion
             try:
