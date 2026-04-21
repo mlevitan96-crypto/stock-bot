@@ -126,6 +126,11 @@ from uw_composite_v2 import get_threshold
 import cross_asset_confirmation as cross_asset
 import uw_execution_v2 as uw_exec
 import feature_attribution_v2 as feat_attr
+from src.telemetry.equity_price_precision import (
+    quantize_telemetry_price,
+    quantize_telemetry_pnl_pct,
+    quantize_telemetry_pnl_usd,
+)
 
 # V3.2: Adaptive Signal Weight Optimization Integration
 _adaptive_optimizer = None
@@ -3067,9 +3072,9 @@ def log_exit_attribution(
     
     context = {
         "close_reason": close_reason,
-        "entry_price": round(entry_price, 4),
-        "exit_price": round(exit_price, 4),
-        "pnl_pct": round(pnl_pct, 4),
+        "entry_price": quantize_telemetry_price(entry_price),
+        "exit_price": quantize_telemetry_price(exit_price),
+        "pnl_pct": quantize_telemetry_pnl_pct(pnl_pct, ref_price=entry_price),
         "hold_minutes": round(hold_minutes, 1),
         "side": side,
         # Disambiguation fields for reconciliation
@@ -3139,12 +3144,12 @@ def log_exit_attribution(
         # MANDATORY FLAT FIELDS (per user requirement)
         "symbol": symbol,
         "entry_score": entry_score_flat,
-        "exit_pnl": round(pnl_pct, 4),  # exit_pnl is pnl_pct
+        "exit_pnl": quantize_telemetry_pnl_pct(pnl_pct, ref_price=entry_price),  # exit_pnl is pnl_pct
         "market_regime": market_regime_flat,
         "stealth_boost_applied": stealth_boost_applied,
         # Additional fields (preserved for backward compatibility)
-        "pnl_usd": round(pnl_usd, 2),
-        "pnl_pct": round(pnl_pct, 4),
+        "pnl_usd": quantize_telemetry_pnl_usd(pnl_usd, ref_price=entry_price),
+        "pnl_pct": quantize_telemetry_pnl_pct(pnl_pct, ref_price=entry_price),
         "hold_minutes": round(hold_minutes, 1),
         "context": context  # Full context preserved for detailed analysis
     }
@@ -9101,14 +9106,14 @@ class AlpacaExecutor:
                             "type": "attribution",
                             "trade_id": f"scale_{symbol}_{now_iso()}",
                             "symbol": symbol,
-                            "pnl_usd": round(scale_pnl, 2),
-                            "pnl_pct": round(pnl_pct * tgt["fraction"], 4),
+                            "pnl_usd": quantize_telemetry_pnl_usd(scale_pnl, ref_price=entry_price),
+                            "pnl_pct": quantize_telemetry_pnl_pct(pnl_pct * tgt["fraction"], ref_price=entry_price),
                             "hold_minutes": round(hold_minutes, 1),
                             "context": {
                                 "close_reason": close_reason,
-                                "entry_price": round(entry_price, 4),
-                                "exit_price": round(current_price, 4),
-                                "pnl_pct": round(pnl_pct, 4),
+                                "entry_price": quantize_telemetry_price(entry_price),
+                                "exit_price": quantize_telemetry_price(current_price),
+                                "pnl_pct": quantize_telemetry_pnl_pct(pnl_pct, ref_price=entry_price),
                                 "hold_minutes": round(hold_minutes, 1),
                                 "side": side,
                                 "qty": scaled_qty,

@@ -20,6 +20,11 @@ from typing import Any, Dict, Optional
 from utils.signal_normalization import normalize_signals
 
 from src.exit.exit_attribution_enrich import enrich_exit_row
+from src.telemetry.equity_price_precision import (
+    quantize_telemetry_price,
+    quantize_telemetry_pnl_pct,
+    quantize_telemetry_pnl_usd,
+)
 
 
 def merge_composite_components_at_entry(metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -289,10 +294,10 @@ def build_exit_attribution_record(
         "timestamp": exit_timestamp or _now_iso(),
         "entry_timestamp": str(entry_timestamp),
         "exit_reason": str(exit_reason),
-        "pnl": pnl,
-        "pnl_pct": pnl_pct,
-        "entry_price": entry_price,
-        "exit_price": exit_price,
+        "pnl": quantize_telemetry_pnl_usd(pnl, ref_price=entry_price) if pnl is not None else None,
+        "pnl_pct": quantize_telemetry_pnl_pct(pnl_pct, ref_price=entry_price) if pnl_pct is not None else None,
+        "entry_price": quantize_telemetry_price(entry_price) if entry_price is not None else None,
+        "exit_price": quantize_telemetry_price(exit_price) if exit_price is not None else None,
         "qty": qty,
         "time_in_trade_minutes": time_in_trade_minutes,
         "entry_uw": dict(entry_uw or {}),
