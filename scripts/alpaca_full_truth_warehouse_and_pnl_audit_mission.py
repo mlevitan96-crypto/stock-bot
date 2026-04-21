@@ -148,17 +148,19 @@ def _exit_ts_seconds(ex: dict) -> Optional[float]:
 def _truth_context_window_sec() -> float:
     """Wider window for exit↔signal_context join (historical logs; override via env)."""
     try:
-        return max(120.0, float(os.getenv("ALPACA_TRUTH_CONTEXT_WINDOW_SEC", "7200")))
+        # Default 24h: sparse signal_context on fast exits / session boundaries (SRE Apex 2026-04).
+        return max(120.0, float(os.getenv("ALPACA_TRUTH_CONTEXT_WINDOW_SEC", "86400")))
     except (TypeError, ValueError):
-        return 7200.0
+        return 86400.0
 
 
 def _truth_execution_time_window_sec() -> float:
     """Exit↔order fill time proximity (broker + logs)."""
     try:
-        return max(60.0, float(os.getenv("ALPACA_TRUTH_EXECUTION_WINDOW_SEC", "7200")))
+        # Default 48h: paper exits often join by order_id; time-asof fallback needs slack when ts drift.
+        return max(60.0, float(os.getenv("ALPACA_TRUTH_EXECUTION_WINDOW_SEC", "172800")))
     except (TypeError, ValueError):
-        return 7200.0
+        return 172800.0
 
 
 def _paper_broker_env() -> bool:
@@ -807,6 +809,24 @@ def _paper_fill_price_proxy_for_exit(ex: dict, orders_norm: List[dict]) -> Optio
     ts_ex = _exit_ts_seconds(ex)
     if not sym or ts_ex is None:
         return None
+    # Prefer explicit broker order id on the exit row (avoids timestamp drift vs fill rows).
+    for _k in ("exit_order_id", "order_id", "exit_orderId", "alpaca_exit_order_id"):
+        _oid = ex.get(_k)
+        if _oid is None or str(_oid).strip() == "":
+            continue
+        _os = str(_oid).strip()
+        for o in orders_norm:
+            if str(o.get("order_id") or "").strip() != _os:
+                continue
+            px = o.get("price") or o.get("filled_avg_price")
+            if px is None:
+                continue
+            try:
+                pxf = float(px)
+            except (TypeError, ValueError):
+                continue
+            if pxf > 0:
+                return pxf
     win = _truth_execution_time_window_sec()
     best_d = 1e30
     best_px: Optional[float] = None

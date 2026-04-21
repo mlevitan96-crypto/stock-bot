@@ -686,10 +686,36 @@ def main() -> int:
         if _u not in headers:
             headers.append(_u)
 
+    def _apply_sub_dollar_csv_precision(row: Dict[str, Any]) -> None:
+        """Apex: sub-$1 entry cohort uses 4dp prices / 4dp USD PnL on CSV (finer above $1)."""
+        try:
+            ref = float(row.get("entry_price") or 0)
+        except (TypeError, ValueError):
+            ref = 0.0
+        sub = 0 < abs(ref) < 1.0
+        for k in ("entry_price", "exit_price"):
+            v = row.get(k)
+            if v in (None, ""):
+                continue
+            try:
+                x = float(v)
+            except (TypeError, ValueError):
+                continue
+            row[k] = round(x, 4) if sub else round(x, 6)
+        v2 = row.get("realized_pnl_usd")
+        if v2 in (None, ""):
+            return
+        try:
+            u = float(v2)
+        except (TypeError, ValueError):
+            return
+        row["realized_pnl_usd"] = round(u, 4) if sub else round(u, 2)
+
     with out_path.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=headers, extrasaction="ignore")
         w.writeheader()
         for r in rows:
+            _apply_sub_dollar_csv_precision(r)
             w.writerow({h: r.get(h, "") for h in headers})
 
     n = len(rows)
