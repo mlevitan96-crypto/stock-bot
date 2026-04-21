@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-21T18:32:23Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory does not exist. All other expected top-level directories present: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/, reports/audit/."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ directory missing (required governance contract path). memory_bank/ has 4 docs (report_output_contract.md, report_retention_policy.md, systemPatterns.md, TELEMETRY_CHANGELOG.md). .cursor/automations/ exists with README.md and specs."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "Deprecated directories found at top level: moltbot/ (5 python files: sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py), board/ (contains eod/out/ with old outputs). These should have been removed per governance cleanup."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Clawdbot/Moltbot references found in code/config paths (excluding docs/reports that document removal): moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py, scripts/sre/run_sre_anomaly_scan.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/automations/run_governance_integrity_once.py, board/eod/out/2026-02-13/cron_diagnosis.json, board/eod/out/2026-02-12/eod_failure.json, board/eod/out/2026-02-12/cron_diagnosis.json"
+    }
+  ],
+  "slack_sent": false
+}
