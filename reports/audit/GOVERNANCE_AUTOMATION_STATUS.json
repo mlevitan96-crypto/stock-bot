@@ -16,5 +16,6 @@
     "governance_contracts_present: reports/board/ directory missing; all other governance contract paths present (memory_bank/ has docs, .cursor/automations/ has README + specs, reports/audit/ exists)",
     "no_clawdbot_moltbot: moltbot/ directory exists with active Python package (sentinel.py, orchestrator.py, board.py, memory_evolution.py, promotion_discipline.py, agents/); scripts/run_molt_workflow.py imports from moltbot; scripts/run_molt_intelligence_expansion.py references Moltbot in docstring"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "anomalies detected — gh CLI is read-only in this environment; issue creation deferred to operator or next writable run"
 }
