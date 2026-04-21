@@ -3268,53 +3268,40 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     }
 
 
-def _order_id_from_orders_jsonl_row(rec: dict) -> str | None:
-    """Best-effort broker id for deduplication (Alpaca uses `id` or `order_id`)."""
-    for k in ("order_id", "id", "client_order_id"):
+def _daily_trade_exit_row_dedupe_id(rec: dict) -> str | None:
+    """
+    One id per closed trade for the daily chart: prefer trade_id, then canonical_trade_id / trade_key,
+    else stable Alpaca trade_key from symbol/side/entry (same grain as ML flattener / canonical count).
+    """
+    from src.telemetry.alpaca_trade_key import build_trade_key
+
+    for k in ("trade_id", "canonical_trade_id", "trade_key"):
         v = rec.get(k)
         if v is None:
             continue
         s = str(v).strip()
         if s:
             return s
-    return None
-
-
-def _orders_jsonl_row_is_terminal_filled(rec: dict) -> bool:
-    """
-    True only for terminal filled semantics — NOT raw partial-fill / lifecycle spam.
-    - Prefer explicit broker row: status == 'filled' (case-insensitive).
-    - Else app-level fill notifications that always imply a completed fill for one broker order.
-    """
-    st = str(rec.get("status", "")).strip().lower()
-    if st == "filled":
-        return True
-    act = str(rec.get("action", "")).strip().lower()
-    if act in ("submit_limit_filled", "submit_limit_final_filled"):
-        return True
-    if act == "close_position":
-        try:
-            fq = float(rec.get("filled_qty") or 0)
-            if fq > 0:
-                return True
-        except Exception:
-            pass
-        try:
-            ap = float(rec.get("filled_avg_price") or rec.get("price") or 0)
-            if ap > 0:
-                return True
-        except Exception:
-            pass
-    return False
+    sym = rec.get("symbol")
+    side = rec.get("side") or rec.get("position_side")
+    et_ent = rec.get("entry_ts") or rec.get("entry_timestamp")
+    try:
+        return build_trade_key(sym, side, et_ent)
+    except Exception:
+        return None
 
 
 def _daily_trade_volume_payload(root: Path, days: int) -> dict:
     """
-    Count fill-like rows in logs/orders.jsonl by U.S. Eastern calendar day (rolling window).
-    Read-only; uses JSONL tail only (bounded) — not a full historical guarantee on busy hosts.
+    Count ML-era closed trades from logs/exit_attribution.jsonl by U.S. Eastern calendar day of exit_ts.
+    One line per completed round-trip in the canonical log; deduped by trade_id / canonical id / trade_key.
+    Read-only; uses JSONL tail only (bounded) — not a full historical guarantee on very busy hosts.
     """
     from collections import defaultdict
     from datetime import timedelta
+
+    from src.governance.canonical_trade_count import _parse_exit_epoch
+    from utils.era_cut import learning_excluded_for_exit_record
 
     try:
         from zoneinfo import ZoneInfo
@@ -3336,15 +3323,15 @@ def _daily_trade_volume_payload(root: Path, days: int) -> dict:
     tail_lines = 80_000
     tail_chunk = 20_000_000
     scan_note = (
-        f"Unique broker order_ids with terminal filled semantics from orders.jsonl tail "
-        f"(~{tail_lines} lines / ≤{tail_chunk // 1_000_000}MB). "
-        "Counts dedupe lifecycle/partial-fill duplicate rows; high volume can omit older days."
+        f"Unique closed trades from exit_attribution.jsonl tail (~{tail_lines} lines / "
+        f"≤{tail_chunk // 1_000_000}MB), grouped by America/New_York calendar day of exit_ts. "
+        "Excludes pre-era rows (same era cut as canonical / ML). High volume can omit older days."
     )
 
     counts = defaultdict(set)
-    orders_path = (root / "logs" / "orders.jsonl").resolve()
-    if orders_path.is_file():
-        for line in _tail_file_lines(orders_path, max_lines=tail_lines, max_chunk_bytes=tail_chunk):
+    exit_path = (root / "logs" / "exit_attribution.jsonl").resolve()
+    if exit_path.is_file():
+        for line in _tail_file_lines(exit_path, max_lines=tail_lines, max_chunk_bytes=tail_chunk):
             line = line.strip()
             if not line:
                 continue
@@ -3352,23 +3339,25 @@ def _daily_trade_volume_payload(root: Path, days: int) -> dict:
                 rec = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if not _orders_jsonl_row_is_terminal_filled(rec):
+            if not isinstance(rec, dict):
                 continue
-            oid = _order_id_from_orders_jsonl_row(rec)
-            if not oid:
+            if learning_excluded_for_exit_record(rec):
                 continue
-            ts = _parse_log_ts_ops(rec.get("timestamp") or rec.get("_ts") or rec.get("ts"))
-            if ts is None:
+            ex = _parse_exit_epoch(rec)
+            if ex is None:
                 continue
             try:
                 if et is timezone.utc:
-                    d = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+                    d = datetime.fromtimestamp(ex, tz=timezone.utc).date()
                 else:
-                    d = datetime.fromtimestamp(ts, tz=et).date()
+                    d = datetime.fromtimestamp(ex, tz=timezone.utc).astimezone(et).date()
             except Exception:
                 continue
-            if start_d <= d <= end_d:
-                counts[d].add(oid)
+            if not (start_d <= d <= end_d):
+                continue
+            tid = _daily_trade_exit_row_dedupe_id(rec)
+            if tid:
+                counts[d].add(tid)
 
     counts_int = {k: len(v) for k, v in counts.items()}
 
@@ -3414,7 +3403,7 @@ def _daily_trade_volume_payload(root: Path, days: int) -> dict:
         "calendar_today_date": today_iso,
         "calendar_today_label": today_label,
         "calendar_today_trade_count": today_count,
-        "source": "logs/orders.jsonl",
+        "source": "logs/exit_attribution.jsonl",
         "scan_note": scan_note,
         "series": series,
         "does_not_claim": [
