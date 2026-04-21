@@ -48,7 +48,11 @@ def _get_governance_signal_weight_overlay() -> Optional[Dict[str, float]]:
         path_key = str(path.resolve())
         if path_key == _governance_overlay_cache[0] and mtime == _governance_overlay_cache[1]:
             return _governance_overlay_cache[2]
-        data = json.loads(path.read_text(encoding="utf-8"))
+        from src.infrastructure.json_utils import safe_json_load
+
+        data = safe_json_load(path, default={}, context="uw_composite_v2.path_to_profitability_overlay")
+        if not isinstance(data, dict):
+            data = {}
         if (data.get("lever") or "").lower() != "entry":
             _governance_overlay_cache = (path_key, mtime, None)
             return None
@@ -744,7 +748,7 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
                                   use_adaptive_weights: bool = True) -> Dict[str, Any]:
     """
     Core composite scoring used by the v2-only engine.
-    
+
     Incorporates ALL expanded endpoints:
     - Congress/politician trading
     - Short interest & squeeze potential
@@ -752,13 +756,19 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     - Market tide
     - Calendar catalysts
     - ETF flows
-    
+
     V3.1: Uses adaptive weight multipliers (0.25x-2.5x) learned from trade outcomes.
     Weights are continuously tuned based on which signals prove most predictive.
-    
+
     Returns comprehensive result with all components for learning
     """
-    
+    from src.infrastructure.uw_input_armor import armor_uw_enriched_row_for_composite
+
+    if not isinstance(enriched_data, dict):
+        enriched_data = {}
+    else:
+        enriched_data = armor_uw_enriched_row_for_composite(enriched_data, symbol=symbol)
+
     # V3.1: Get adaptive weights if available (V2.0: regime-specific)
     weights = WEIGHTS_V3.copy()
     # Reversible config: signal weight multipliers from win/loss profile (env, default 1.0)
@@ -886,7 +896,15 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     except Exception:
         dp_strength = 0.2
     dp_weight = get_weight("dark_pool", regime)
-    dp_component = dp_weight * dp_strength
+    # Signed dark pool: adverse institutional vs trade direction is a drag (correlation-matrix lane).
+    base_dp_mag = dp_weight * dp_strength
+    dp_adverse = (flow_sign > 0 and dp_sent == "BEARISH") or (flow_sign < 0 and dp_sent == "BULLISH")
+    if flow_sign == 0 or dp_sent not in ("BULLISH", "BEARISH"):
+        dp_component = 0.15 * base_dp_mag
+    elif dp_adverse:
+        dp_component = -base_dp_mag
+    else:
+        dp_component = base_dp_mag
     
     # 3. Insider (use regime-aware weight)
     ins_sent = ins.get("sentiment", "NEUTRAL")
@@ -987,8 +1005,10 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     # ============ V2 NEW COMPONENTS (Full Intelligence Pipeline) ============
     
     # 16. Greeks/Gamma (squeeze detection)
-    greeks_data = enriched_data.get("greeks", {})
+    greeks_data = enriched_data.get("greeks", {}) or {}
     gamma_resistance_levels = _extract_gamma_resistance_levels(greeks_data if isinstance(greeks_data, dict) else {})
+    gamma_exposure_net = 0.0
+    gamma_squeeze_used = False
     # REAL SCORES: No placeholder. When greeks data missing use 0.0 (see SIGNAL_INTEGRITY_REAL_SCORES_PATH.md).
     if not greeks_data:
         greeks_gamma_component = 0.0
@@ -1003,6 +1023,8 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
             gamma_exposure = call_gamma - put_gamma  # Net gamma exposure
         
         gamma_squeeze = greeks_data.get("gamma_squeeze_setup", False)
+        gamma_exposure_net = float(gamma_exposure)
+        gamma_squeeze_used = bool(gamma_squeeze)
         greeks_weight = get_weight("greeks_gamma", regime)
         if gamma_squeeze:
             greeks_gamma_component = greeks_weight * 1.0
@@ -1140,6 +1162,55 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         else:
             squeeze_score_component = squeeze_weight * 0.2  # Neutral default instead of 0.0
     
+    # Correlation-matrix toxicity lane + alpha emphasis (market_tide / regime macro path).
+    extra_toxic_pen = 0.0
+    uw_toxicity_veto = False
+
+    def _uw_env_bool(key: str, default: str = "1") -> bool:
+        return os.environ.get(key, default).strip().lower() in ("1", "true", "yes")
+
+    def _uw_env_float(key: str, default: str) -> float:
+        try:
+            return float(os.environ.get(key, default))
+        except Exception:
+            return float(default)
+
+    if _uw_env_bool("UW_TOXICITY_ALPHA_BOOST_ENABLED", "1"):
+        tide_mult = _uw_env_float("UW_MARKET_TIDE_ALPHA_MULT", "1.15")
+        regime_mult = _uw_env_float("UW_REGIME_COMPONENT_ALPHA_MULT", "1.12")
+        tide_component = float(tide_component) * tide_mult
+        regime_component = float(regime_component) * regime_mult
+        if abs(tide_mult - 1.0) > 1e-6:
+            all_notes.append(f"market_tide_alpha_x{tide_mult:g}")
+        if abs(regime_mult - 1.0) > 1e-6:
+            all_notes.append(f"regime_component_alpha_x{regime_mult:g}")
+
+    if _uw_env_bool("UW_TOXICITY_VETO_ENABLED", "1"):
+        dp_veto_n = _uw_env_float("UW_DP_VETO_NOTIONAL_USD", "8000000")
+        if flow_sign > 0 and dp_sent == "BEARISH" and dp_prem >= dp_veto_n:
+            uw_toxicity_veto = True
+            extra_toxic_pen -= _uw_env_float("UW_DP_HARD_VETO_SCORE_PENALTY", "6.5")
+            all_notes.append(f"uw_veto_dp_adverse(long_vs_dp,prem={dp_prem:.0f})")
+        elif flow_sign < 0 and dp_sent == "BULLISH" and dp_prem >= dp_veto_n:
+            uw_toxicity_veto = True
+            extra_toxic_pen -= _uw_env_float("UW_DP_HARD_VETO_SCORE_PENALTY", "6.5")
+            all_notes.append(f"uw_veto_dp_adverse(short_vs_dp,prem={dp_prem:.0f})")
+        elif dp_adverse and dp_prem >= _uw_env_float("UW_DP_SOFT_PENALTY_NOTIONAL_USD", "1e6"):
+            extra_toxic_pen -= _uw_env_float("UW_DP_ADVERSITY_SCORE_PENALTY", "1.15")
+            all_notes.append("uw_dp_adversity_penalty")
+        if (not iv_aligned) and abs(iv_skew) >= _uw_env_float("UW_IV_SKEW_TOX_THRESHOLD", "0.10"):
+            extra_toxic_pen -= _uw_env_float("UW_IV_SKEW_TOX_PENALTY", "0.65")
+            all_notes.append("uw_iv_skew_toxic_penalty")
+        gx = abs(gamma_exposure_net)
+        if (
+            (not gamma_squeeze_used)
+            and gx > _uw_env_float("UW_GREEKS_GAMMA_TOX_THRESHOLD", "250000")
+            and flow_sign != 0
+            and (gamma_exposure_net * float(flow_sign) < 0)
+        ):
+            extra_toxic_pen -= _uw_env_float("UW_GREEKS_TOX_PENALTY", "0.45")
+            all_notes.append("uw_greeks_flow_conflict_penalty")
+
     # ============ FINAL SCORE ============
     
     # Sum all components (including V2)
@@ -1167,7 +1238,7 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         oi_change_component +
         etf_flow_component +
         squeeze_score_component
-    )
+    ) + float(extra_toxic_pen)
     
     # Apply freshness decay
     composite_score = composite_raw * freshness
@@ -1185,6 +1256,10 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     composite_pre_clamp = composite_score
     # Clamp to 0-8 (higher max due to new components)
     composite_score = max(0.0, min(8.0, composite_score))
+    if uw_toxicity_veto:
+        cap = _uw_env_float("UW_TOXICITY_VETO_SCORE_CAP", "0.35")
+        composite_score = min(composite_score, cap)
+        all_notes.append("uw_toxicity_veto_cap")
 
     # ============ SIZING OVERLAY ============
     sizing_overlay = 0.0
@@ -1250,7 +1325,8 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
         "etf_flow": round(etf_flow_component, 3),
         "squeeze_score": round(squeeze_score_component, 3),
         # Meta
-        "freshness_factor": round(freshness, 3)
+        "freshness_factor": round(freshness, 3),
+        "toxicity_correlation_penalty": round(float(extra_toxic_pen), 4),
     }
 
     # Component sources for audit/telemetry
@@ -1309,6 +1385,8 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     return {
         "symbol": symbol,
         "score": round(composite_score, 3),
+        "uw_toxicity_veto": bool(uw_toxicity_veto),
+        "uw_toxicity_correlation_penalty": round(float(extra_toxic_pen), 4),
         "composite_pre_clamp": round(composite_pre_clamp, 4),
         "group_sums": group_sums,
         "version": "V3.1" if adaptive_active else "V3",
@@ -1378,7 +1456,11 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
             "squeeze_signals": _to_num(enriched_data.get("squeeze_score", {}).get("signals", 0)),
             "high_squeeze_potential": enriched_data.get("squeeze_score", {}).get("high_squeeze_potential", False),
             "squeeze_setup_type": enriched_data.get("squeeze_score", {}).get("setup", "NONE"),
-            "max_pain": _to_num(enriched_data.get("max_pain", {}).get("max_pain", 0))
+            "max_pain": _to_num(enriched_data.get("max_pain", {}).get("max_pain", 0)),
+            "uw_toxicity_veto": bool(uw_toxicity_veto),
+            "uw_toxicity_correlation_penalty": round(float(extra_toxic_pen), 4),
+            "gamma_exposure_net": float(gamma_exposure_net),
+            "dp_sentiment": str(dp_sent),
         }
     }
 
@@ -1458,7 +1540,9 @@ def _load_uw_flow_row_for_intel(symbol: str, enriched_data: Any) -> Dict[str, An
                                 row["dark_pool"] = v
     except Exception as ex:
         _log_uw_v2_intel_failure(symbol, "uw_flow_cache_read", ex)
-    return row
+    from src.infrastructure.uw_input_armor import armor_uw_enriched_row_for_composite
+
+    return armor_uw_enriched_row_for_composite(row, symbol=sym)
 
 
 def _synthetic_uw_intel_from_flow_row(row: Dict[str, Any]) -> Dict[str, Any]:
@@ -1645,6 +1729,13 @@ def compute_composite_score_v2(
                 "misalign_dampen": 0.25,
                 "neutral_dampen": 0.60,
             }
+
+    from src.infrastructure.uw_input_armor import armor_uw_enriched_row_for_composite
+
+    enriched_data = armor_uw_enriched_row_for_composite(
+        enriched_data if isinstance(enriched_data, dict) else {},
+        symbol=symbol,
+    )
 
     # Base score source: compute from scratch using the core composite.
     base = _compute_composite_score_core(
