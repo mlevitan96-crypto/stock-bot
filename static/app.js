@@ -13,8 +13,9 @@
   let vaultLoaded = false;
   /** @type {{ t: number, equity: number, src?: string }[]} */
   let equityTrail = [];
-  let rollingHistoryFetched = false;
   let lastChartSig = "";
+  /** Reference starting equity for chart anchor (USD). */
+  var EQUITY_BASELINE_USD = 10000;
 
   const moneyFmt = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -115,83 +116,115 @@
     const vals = series.map(function (x) {
       return Number(x.trade_count) || 0;
     });
-    const sig = labels.join("\u0001") + "|" + vals.join(",");
+    var mx = 0;
+    for (var vi = 0; vi < vals.length; vi++) {
+      if (vals[vi] > mx) mx = vals[vi];
+    }
+    var ySuggestedMax = mx === 0 ? 4 : Math.ceil(mx * 1.15);
+    const sig = labels.join("\u0001") + "|" + vals.join(",") + "|" + ySuggestedMax;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     if (dailyTradesChart && sig === lastDailyTradesSig) {
       dailyTradesChart.data.labels = labels;
       dailyTradesChart.data.datasets[0].data = vals;
+      if (dailyTradesChart.options.scales && dailyTradesChart.options.scales.y) {
+        dailyTradesChart.options.scales.y.suggestedMax = ySuggestedMax;
+      }
       dailyTradesChart.update("none");
       return;
     }
     lastDailyTradesSig = sig;
     destroyDailyTradesChart();
 
-    dailyTradesChart = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            data: vals,
-            backgroundColor: "rgba(88, 166, 255, 0.72)",
-            borderColor: "#58a6ff",
-            borderWidth: 1,
-            borderRadius: 2,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { enabled: false },
-        },
-        scales: {
-          x: {
-            ticks: {
-              color: "#8b949e",
-              maxRotation: 55,
-              minRotation: 45,
-              autoSkip: true,
-              maxTicksLimit: 16,
-              font: { size: 9 },
+    try {
+      dailyTradesChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              data: vals,
+              backgroundColor: "rgba(88, 166, 255, 0.72)",
+              borderColor: "#58a6ff",
+              borderWidth: 1,
+              borderRadius: 2,
             },
-            grid: { display: false },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false },
           },
-          y: {
-            beginAtZero: true,
-            ticks: { color: "#8b949e", precision: 0 },
-            grid: { display: false },
+          scales: {
+            x: {
+              ticks: {
+                color: "#8b949e",
+                maxRotation: 55,
+                minRotation: 45,
+                autoSkip: true,
+                maxTicksLimit: 16,
+                font: { size: 9 },
+              },
+              grid: { display: false },
+            },
+            y: {
+              beginAtZero: true,
+              suggestedMax: ySuggestedMax,
+              ticks: { color: "#8b949e", precision: 0, stepSize: mx === 0 ? 1 : undefined },
+              grid: { display: false },
+            },
           },
         },
-      },
-    });
+      });
+    } catch (err) {
+      console.error("[dashboard] daily trades chart", err);
+      destroyDailyTradesChart();
+    }
   }
 
   async function loadDailyTradeVolume() {
     const note = el("dailyTradeNote");
-    const r = await safeFetch("/api/dashboard/daily_trade_volume?days=30");
-    if (!r.ok) {
-      if (note) {
-        note.textContent =
-          r.error && r.error.message ? String(r.error.message) : "Could not load trades-per-day (check auth).";
+    try {
+      const r = await safeFetch("/api/dashboard/daily_trade_volume?days=30");
+      if (!r.ok) {
+        if (note) {
+          note.textContent =
+            r.error && r.error.message ? String(r.error.message) : "Could not load trades-per-day (check auth).";
+        }
+        destroyDailyTradesChart();
+        return;
       }
+      const d = r.data;
+      if (!d || d.ok === false) {
+        if (note) note.textContent = d && d.error ? String(d.error) : "Trades-per-day unavailable.";
+        destroyDailyTradesChart();
+        return;
+      }
+      const sn = d.scan_note ? String(d.scan_note) : "";
+      const tz = d.timezone ? " · " + d.timezone : "";
+      const todayHint =
+        d.calendar_today_label && d.calendar_today_trade_count != null
+          ? " · Today: " + d.calendar_today_label + " → " + String(d.calendar_today_trade_count)
+          : "";
+      if (note) note.textContent = (sn || "Daily fill counts from orders.jsonl tail") + tz + todayHint;
+      var series = d.series || [];
+      requestAnimationFrame(function () {
+        try {
+          renderDailyTradesChart(series);
+        } catch (e) {
+          console.error("[dashboard] render daily trades", e);
+        }
+      });
+    } catch (e) {
+      console.error("[dashboard] loadDailyTradeVolume", e);
+      if (note) note.textContent = "Trades-per-day load error.";
       destroyDailyTradesChart();
-      return;
     }
-    const d = r.data;
-    if (!d || d.ok === false) {
-      if (note) note.textContent = d && d.error ? String(d.error) : "Trades-per-day unavailable.";
-      destroyDailyTradesChart();
-      return;
-    }
-    const sn = d.scan_note ? String(d.scan_note) : "";
-    const tz = d.timezone ? " · " + d.timezone : "";
-    if (note) note.textContent = (sn || "Daily fill counts from orders.jsonl tail") + tz;
-    renderDailyTradesChart(d.series || []);
   }
 
   function equityFromRollingPoint(p) {
@@ -249,13 +282,18 @@
     while (equityTrail.length > 4000) equityTrail.shift();
   }
 
-  async function ensureRollingHistoryOnce() {
-    if (rollingHistoryFetched) return;
-    rollingHistoryFetched = true;
+  async function refreshRollingPnl5d() {
     try {
       var r = await safeFetch("/api/rolling_pnl_5d");
       if (r.ok && r.data && Array.isArray(r.data.points)) mergeSamplesFromRollingJson(r.data.points);
     } catch (_) {}
+  }
+
+  function withBaselineAnchor(sortedAsc) {
+    if (!sortedAsc.length) return sortedAsc;
+    var first = sortedAsc[0];
+    if (Math.abs(Number(first.equity) - EQUITY_BASELINE_USD) < 0.05) return sortedAsc;
+    return [{ t: first.t - 3600000, equity: EQUITY_BASELINE_USD, src: "baseline_ref" }].concat(sortedAsc);
   }
 
   function hydrateTrailFromSession() {
@@ -418,6 +456,7 @@
     var series = equityTrail.slice().sort(function (a, b) {
       return a.t - b.t;
     });
+    series = withBaselineAnchor(series);
     if (series.length === 0) {
       destroyPnlChart();
       lastChartSig = "";
@@ -458,7 +497,8 @@
 
     var gradientFill = fillTop;
     try {
-      var g = ctx2.createLinearGradient(0, 0, 0, canvas.clientHeight || 220);
+      var ch = canvas.parentElement ? canvas.parentElement.clientHeight : 0;
+      var g = ctx2.createLinearGradient(0, 0, 0, ch || canvas.clientHeight || 220);
       g.addColorStop(0, fillTop);
       g.addColorStop(1, fillBot);
       gradientFill = g;
@@ -475,68 +515,59 @@
     lastChartSig = sig;
 
     destroyPnlChart();
-    pnlChart = new Chart(ctx2, {
-      type: "line",
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: "Equity (USD)",
-            data: vals,
-            borderColor: lineMain,
-            backgroundColor: gradientFill,
-            fill: true,
-            tension: 0.25,
-            pointRadius: 0,
-            borderWidth: 2,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { intersect: false, mode: "index" },
-        elements: {
-          line: {
-            segment: {
-              borderColor: function (seg) {
-                var y0 = seg.p0.parsed.y;
-                var y1 = seg.p1.parsed.y;
-                var m0 = y0 >= anchor;
-                var m1 = y1 >= anchor;
-                if (m0 && m1) return "#39d353";
-                if (!m0 && !m1) return "#ff6b6b";
-                return "#d29922";
+    try {
+      pnlChart = new Chart(ctx2, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Equity (USD)",
+              data: vals,
+              borderColor: lineMain,
+              backgroundColor: gradientFill,
+              fill: true,
+              tension: 0.25,
+              pointRadius: 0,
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          interaction: { intersect: false, mode: "index" },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  var v = ctx.parsed.y;
+                  var vsAnchor = v >= anchor ? "≥ anchor" : "< anchor";
+                  return formatMoney(v) + " (" + vsAnchor + ")";
+                },
               },
             },
           },
-        },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: function (ctx) {
-                var v = ctx.parsed.y;
-                var vsAnchor = v >= anchor ? "≥ anchor" : "< anchor";
-                return formatMoney(v) + " (" + vsAnchor + ")";
+          scales: {
+            x: { ticks: { color: "#8b949e", maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: "#30363d" } },
+            y: {
+              ticks: {
+                color: "#8b949e",
+                callback: function (v) {
+                  return formatMoney(v);
+                },
               },
+              grid: { color: "#30363d" },
             },
           },
         },
-        scales: {
-          x: { ticks: { color: "#8b949e", maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: "#30363d" } },
-          y: {
-            ticks: {
-              color: "#8b949e",
-              callback: function (v) {
-                return formatMoney(v);
-              },
-            },
-            grid: { color: "#30363d" },
-          },
-        },
-      },
-    });
+      });
+    } catch (err) {
+      console.error("[dashboard] equity chart", err);
+      destroyPnlChart();
+    }
   }
 
   function renderOpenRows(positions) {
@@ -641,9 +672,29 @@
 
     const m = await safeFetch("/metrics");
     if (m.ok && m.data) {
-      const sn = m.data.strict_cohort_n;
-      const kn = el("kpiStrictN");
-      if (kn) kn.textContent = sn != null ? "Strict N=" + String(sn) : "—";
+      if (m.data.equity_baseline_usd != null && !Number.isNaN(Number(m.data.equity_baseline_usd))) {
+        EQUITY_BASELINE_USD = Number(m.data.equity_baseline_usd);
+      }
+      const ke = el("kpiEpoch");
+      const target = m.data.ml_epoch_target != null ? Number(m.data.ml_epoch_target) : 250;
+      if (ke) {
+        const n = m.data.ml_epoch_n;
+        if (n != null && n !== "" && !Number.isNaN(Number(n))) {
+          ke.textContent = "Epoch: N = " + String(n) + " / " + String(target);
+        } else if (m.data.ml_epoch_csv_missing) {
+          ke.textContent = "Epoch: N = — / " + target + " (no cohort CSV)";
+        } else if (m.data.ml_epoch_error) {
+          ke.textContent = "Epoch: N = — / " + target;
+          ke.title = String(m.data.ml_epoch_error);
+        } else {
+          ke.textContent = "Epoch: N = — / " + target;
+          ke.title = "";
+        }
+      }
+      const bh = el("equityBaselineHint");
+      if (bh && m.data.equity_baseline_usd != null) {
+        bh.textContent = formatMoney(m.data.equity_baseline_usd);
+      }
       const dr = m.data.DATA_READY;
       const kd = el("kpiDataReady");
       if (kd) {
@@ -671,7 +722,7 @@
       allOk = false;
     }
 
-    await ensureRollingHistoryOnce();
+    await refreshRollingPnl5d();
 
     const p = await safeFetch("/open_positions?limit=50");
     if (p.ok && p.data) {
@@ -683,10 +734,17 @@
       allOk = false;
     }
 
-    renderEquityChart();
     persistTrailSession();
 
     await loadDailyTradeVolume();
+
+    requestAnimationFrame(function () {
+      try {
+        renderEquityChart();
+      } catch (err) {
+        console.error("[dashboard] paint equity", err);
+      }
+    });
 
     setConn(allOk, allOk ? "" : "Reconnecting…");
   }
