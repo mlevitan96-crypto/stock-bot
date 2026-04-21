@@ -2008,6 +2008,18 @@ def compute_composite_score_v2(
         except Exception as ex2:
             _log_uw_v2_intel_failure(symbol, "v2_uw_intel_recovery_failed", ex2)
 
+    # Toxicity veto must survive v2 stacking (vol/uw_intel deltas must not un-veto).
+    if base.get("uw_toxicity_veto") and str(os.environ.get("UW_TOXICITY_VETO_STICKY", "1")).strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        try:
+            vcap = float(os.environ.get("UW_TOXICITY_VETO_SCORE_CAP", "0.35"))
+        except Exception:
+            vcap = 0.35
+        score_v2 = min(float(score_v2), vcap)
+
     # Annotate
     try:
         base["score"] = round(float(score_v2), 3)
