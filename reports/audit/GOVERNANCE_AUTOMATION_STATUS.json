@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-21T04:43:22Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warning",
+      "message": "reports/board/ directory does not exist. Expected top-level directories src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/ are all present. reports/audit/ exists. reports/board/ is missing."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warning",
+      "message": "reports/board/ directory missing. memory_bank/ has key docs (report_output_contract.md, report_retention_policy.md, systemPatterns.md, TELEMETRY_CHANGELOG.md). .cursor/automations/ exists with README.md and spec files. reports/audit/ exists."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "anomaly",
+      "message": "Moltbot references found in code/config (not just docs/audit): moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py, board/eod/out/2026-02-13/cron_diagnosis.json, board/eod/out/2026-02-12/eod_failure.json, board/eod/out/2026-02-12/cron_diagnosis.json. Clawdbot not found in code/config (removal confirmed). Note: moltbot/ and board/ are documented as active workflows in MEMORY_BANK_ALPACA.md — this may be expected state rather than reintroduction."
+    }
+  ],
+  "slack_sent": false
+}
