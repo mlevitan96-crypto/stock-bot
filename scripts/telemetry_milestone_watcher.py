@@ -12,7 +12,9 @@ Telegram milestone thresholds (Z only): 50, 100, 150, 200, 250 (deduped per stat
 
 **Zero-tolerance tripwire:** last 3 deduped closes in `logs/exit_attribution.jsonl` must carry
 finite PnL and `entry_uw.earnings_proximity` / `entry_uw.sentiment_score`; otherwise a high-priority
-Telegram fires (see `telemetry/alpaca_zero_tolerance_tripwire.py`).
+Telegram fires (see `telemetry/alpaca_zero_tolerance_tripwire.py`). Not keyed on `MIN_EXEC_SCORE`
+or entry composite — a lower score floor does not cause false degradation alerts unless
+recent exits lack PnL or `entry_uw` fields.
 
 SPI CSV columns are logged as a diagnostic only (no Telegram SPI gate).
 
@@ -59,7 +61,7 @@ except Exception:
 try:
     from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START
 except Exception:  # pragma: no cover
-    STRICT_EPOCH_START = 1775581260.0  # 2026-04-07T17:01:00Z
+    STRICT_EPOCH_START = 1776442912.699623  # keep in sync with telemetry/alpaca_strict_completeness_gate.py
 
 GEMINI_DIR = REPO / "reports" / "Gemini"
 ENTRIES_CSV = GEMINI_DIR / "entries_and_exits.csv"

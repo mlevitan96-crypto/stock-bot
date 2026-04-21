@@ -6,9 +6,19 @@ import unittest
 from pathlib import Path
 import tempfile
 
+from src.telemetry.alpaca_trade_key import build_trade_key
+
 
 class TestStrictCompletenessLiveEntryDecisionMade(unittest.TestCase):
-    def _base_logs(self, root: Path, tid: str, ct: str) -> None:
+    def _base_logs(
+        self,
+        root: Path,
+        tid: str,
+        ct: str,
+        *,
+        entry_timestamp: str = "2026-03-28T15:00:00+00:00",
+        exit_timestamp: str = "2026-03-28T16:00:00+00:00",
+    ) -> None:
         logs = root / "logs"
         logs.mkdir(parents=True)
         (root / "main.py").write_text("# stub\n", encoding="utf-8")
@@ -16,8 +26,8 @@ class TestStrictCompletenessLiveEntryDecisionMade(unittest.TestCase):
         exit_row = {
             "trade_id": tid,
             "symbol": "TEST",
-            "timestamp": "2026-03-28T16:00:00+00:00",
-            "entry_timestamp": "2026-03-28T15:00:00+00:00",
+            "timestamp": exit_timestamp,
+            "entry_timestamp": entry_timestamp,
             "side": "buy",
             "exit_price": 101.0,
             "pnl": 1.0,
@@ -44,8 +54,9 @@ class TestStrictCompletenessLiveEntryDecisionMade(unittest.TestCase):
     def test_post_epoch_armed_with_ok_entry_decision_made(self) -> None:
         from telemetry.alpaca_strict_completeness_gate import evaluate_completeness
 
-        ct = "TEST|LONG|1772222400"
-        tid = "open_TEST_2026-03-28T15:00:00+00:00"
+        entry_iso = "2026-04-10T15:00:00+00:00"
+        ct = build_trade_key("TEST", "LONG", entry_iso)
+        tid = f"open_TEST_{entry_iso}"
         it = {
             "intent_id": "i1",
             "signal_layers": {
@@ -70,7 +81,13 @@ class TestStrictCompletenessLiveEntryDecisionMade(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            self._base_logs(root, tid, ct)
+            self._base_logs(
+                root,
+                tid,
+                ct,
+                entry_timestamp=entry_iso,
+                exit_timestamp="2026-04-10T16:00:00+00:00",
+            )
             logs = root / "logs"
             run_lines = [
                 {
@@ -93,11 +110,18 @@ class TestStrictCompletenessLiveEntryDecisionMade(unittest.TestCase):
     def test_post_epoch_blocked_without_entry_decision_made(self) -> None:
         from telemetry.alpaca_strict_completeness_gate import evaluate_completeness
 
-        ct = "TEST|LONG|1772222400"
-        tid = "open_TEST_2026-03-28T15:00:00+00:00"
+        entry_iso = "2026-04-20T15:00:00+00:00"
+        ct = build_trade_key("TEST", "LONG", entry_iso)
+        tid = f"open_TEST_{entry_iso}"
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            self._base_logs(root, tid, ct)
+            self._base_logs(
+                root,
+                tid,
+                ct,
+                entry_timestamp=entry_iso,
+                exit_timestamp="2026-04-20T16:00:00+00:00",
+            )
             logs = root / "logs"
             run_lines = [
                 {
