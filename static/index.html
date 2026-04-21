@@ -302,7 +302,7 @@
           <h2>Wallet equity <span class="muted" style="font-weight:400">(absolute · broker total_value)</span></h2>
           <p class="muted" style="margin:0 0 0.5rem;font-size:0.78rem;">
             History merges <code>/metrics</code> + <code>/api/rolling_pnl_5d</code>; each poll appends live portfolio value.
-            Baseline ref <span id="equityBaselineHint">$10,000.00</span> (chart starts from this anchor when history loads).
+            Governance baseline <span id="equityBaselineHint">$10,000.00</span> (display only). Y-axis uses the visible equity min/max (±0.1% padding), not this baseline.
           </p>
           <div class="chart-wrap"><canvas id="pnlChart" aria-label="Equity chart"></canvas></div>
         </div>

@@ -2102,7 +2102,11 @@ DASHBOARD_HTML = """
                     if (pts.length > 0) {
                         const w = 800; const h = 200; const pad = { left: 50, right: 20, top: 15, bottom: 25 };
                         const ys = pts.map(p => Number(p.equity) != null ? Number(p.equity) : Number(p.pnl) || 0);
-                        const minY = Math.min(...ys, 0); const maxY = Math.max(...ys, 0);
+                        let minY = Math.min(...ys);
+                        let maxY = Math.max(...ys);
+                        if (!Number.isFinite(minY) || !Number.isFinite(maxY)) { minY = 0; maxY = 1; }
+                        else if (minY === maxY) { const pad = Math.max(Math.abs(minY) * 0.001, 1); minY -= pad; maxY += pad; }
+                        else { const pad = (maxY - minY) * 0.001; minY -= pad; maxY += pad; }
                         const rangeY = maxY - minY || 1;
                         const scaleY = (v) => h - pad.bottom - ((v - minY) / rangeY) * (h - pad.top - pad.bottom);
                         const scaleX = (i) => pad.left + (i / Math.max(pts.length - 1, 1)) * (w - pad.left - pad.right);

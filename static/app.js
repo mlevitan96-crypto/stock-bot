@@ -1,7 +1,8 @@
 (function () {
   "use strict";
 
-  const POLL_MS = 60000;
+  /** Command Center poll interval (ms); balance broker load vs chart freshness. */
+  const POLL_MS = 30000;
   const FETCH_OPTS = { credentials: "include", headers: { Accept: "application/json" } };
 
   const el = (id) => document.getElementById(id);
@@ -289,11 +290,26 @@
     } catch (_) {}
   }
 
-  function withBaselineAnchor(sortedAsc) {
-    if (!sortedAsc.length) return sortedAsc;
-    var first = sortedAsc[0];
-    if (Math.abs(Number(first.equity) - EQUITY_BASELINE_USD) < 0.05) return sortedAsc;
-    return [{ t: first.t - 3600000, equity: EQUITY_BASELINE_USD, src: "baseline_ref" }].concat(sortedAsc);
+  /** Min/max Y for equity chart: strict data range + small padding (no synthetic anchors). */
+  function yDomainFromVals(vals) {
+    var mn = Infinity;
+    var mx = -Infinity;
+    for (var i = 0; i < vals.length; i++) {
+      var v = Number(vals[i]);
+      if (!Number.isFinite(v)) continue;
+      mn = Math.min(mn, v);
+      mx = Math.max(mx, v);
+    }
+    if (!Number.isFinite(mn) || !Number.isFinite(mx)) {
+      return { min: undefined, max: undefined };
+    }
+    if (mn === mx) {
+      var padFlat = Math.max(Math.abs(mn) * 0.001, 1);
+      return { min: mn - padFlat, max: mx + padFlat };
+    }
+    var span = mx - mn;
+    var pad = span * 0.001;
+    return { min: mn - pad, max: mx + pad };
   }
 
   function hydrateTrailFromSession() {
@@ -456,15 +472,12 @@
     var series = equityTrail.slice().sort(function (a, b) {
       return a.t - b.t;
     });
-    series = withBaselineAnchor(series);
     if (series.length === 0) {
       destroyPnlChart();
       lastChartSig = "";
       return;
     }
 
-    var anchor = series[0].equity;
-    var lastEq = series[series.length - 1].equity;
     /** @type {string[]} */
     var labels = series.map(function (pt, idx) {
       try {
@@ -486,7 +499,10 @@
       vals = [vals[0], vals[0]];
     }
 
-    var above = lastEq >= anchor;
+    var anchorRef = vals[0];
+    var lastEq = vals[vals.length - 1];
+    var yBounds = yDomainFromVals(vals);
+    var above = lastEq >= anchorRef;
     var lineMain = above ? "#39d353" : "#ff6b6b";
     var fillTop = above ? "rgba(57, 211, 83, 0.24)" : "rgba(255, 107, 107, 0.2)";
     var fillBot = "rgba(13, 17, 23, 0)";
@@ -509,6 +525,10 @@
       pnlChart.data.datasets[0].data = vals;
       pnlChart.data.datasets[0].borderColor = lineMain;
       pnlChart.data.datasets[0].backgroundColor = gradientFill;
+      if (pnlChart.options.scales && pnlChart.options.scales.y) {
+        pnlChart.options.scales.y.min = yBounds.min;
+        pnlChart.options.scales.y.max = yBounds.max;
+      }
       pnlChart.update("none");
       return;
     }
@@ -544,8 +564,8 @@
               callbacks: {
                 label: function (ctx) {
                   var v = ctx.parsed.y;
-                  var vsAnchor = v >= anchor ? "≥ anchor" : "< anchor";
-                  return formatMoney(v) + " (" + vsAnchor + ")";
+                  var vsStart = v >= anchorRef ? "≥ series start" : "< series start";
+                  return formatMoney(v) + " (" + vsStart + ")";
                 },
               },
             },
@@ -553,6 +573,8 @@
           scales: {
             x: { ticks: { color: "#8b949e", maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: "#30363d" } },
             y: {
+              min: yBounds.min,
+              max: yBounds.max,
               ticks: {
                 color: "#8b949e",
                 callback: function (v) {
