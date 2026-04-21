@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-21T16:41:52Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "issue": "reports/board/ directory does not exist. All other expected top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) and reports/audit/ are present."
+    },
+    {
+      "check": "governance_contracts_present",
+      "issue": "reports/board/ missing. memory_bank/ has key docs (report_output_contract.md, report_retention_policy.md, systemPatterns.md, TELEMETRY_CHANGELOG.md). .cursor/automations/ exists with README and specs. reports/audit/ exists."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "issue": "Deprecated directories still present: moltbot/ (5 Python files: sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py), board/ (contains eod/out/ with legacy output files)."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "issue": "Moltbot references found in code/config (excluding reports/audit and docs): moltbot/ directory (5 .py files), scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. Clawdbot/Moltbot references in board/eod/out/ JSON files."
+    }
+  ],
+  "slack_sent": false
+}
