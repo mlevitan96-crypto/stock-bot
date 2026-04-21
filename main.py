@@ -12658,6 +12658,49 @@ class StrategyEngine:
                         )
                 except Exception:
                     pass
+                # Shadow regime execution matrix: log counterfactual passive intent in CHOP (no live routing change).
+                try:
+                    import os as _os_regime_shadow
+
+                    if _os_regime_shadow.environ.get("REGIME_POLICY_SHADOW", "0").strip().lower() in (
+                        "1",
+                        "true",
+                        "yes",
+                        "on",
+                    ):
+                        from src.regime.regime_execution_policy import log_shadow_regime_execution_intent
+
+                        _rps = locals().get("_reg_pub")
+                        if _rps is None:
+                            _rc_shadow: dict = {}
+                            try:
+                                if isinstance(market_ctx, dict):
+                                    _rc_shadow.update(market_ctx)
+                                _mc2_shadow = getattr(self, "market_context_v2", None)
+                                if isinstance(_mc2_shadow, dict):
+                                    _rc_shadow = {**_mc2_shadow, **_rc_shadow}
+                            except Exception:
+                                _rc_shadow = dict(market_ctx) if isinstance(market_ctx, dict) else {}
+                            try:
+                                from src.regime.continuous_regime_classifier import (
+                                    classify_from_market_context as _classify_regime_shadow,
+                                )
+
+                                _rps = _classify_regime_shadow(_rc_shadow)
+                            except Exception:
+                                _rps = None
+                        if str(_rps or "").strip().upper() == "CHOP":
+                            log_shadow_regime_execution_intent(
+                                regime_state="CHOP",
+                                symbol=symbol,
+                                side=side,
+                                qty=int(qty),
+                                correlation_id=str(client_order_id_base or correlation_id or ""),
+                                entry_score=float(score),
+                                extra={"live_market_regime_label": str(market_regime)},
+                            )
+                except Exception:
+                    pass
                 # CRITICAL: Add exception handling and logging around submit_entry
                 try:
                     print(f"DEBUG {symbol}: About to call submit_entry with qty={qty}, side={side}, regime={market_regime}", flush=True)
