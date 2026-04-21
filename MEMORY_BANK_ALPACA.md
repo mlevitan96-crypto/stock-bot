@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-15 (Alpaca strict ML ARMED + exit telemetry hardening; §1.0 + §1.1.2 Alpha 11; SIP OFI)
-# Last Updated: 2026-04-15 (Q-Ops: MEMORY_BANK — SIP L1 OFI tracker + entry_snapshot fields documented)
+# Version: 2026-04-21 (orders.jsonl trade definition: unique filled order_id)
+# Last Updated: 2026-04-21 (Q-Ops: dashboard daily volume dedupes broker order_id; audit `scripts/audit/audit_orders_jsonl_daily_dedup.py`)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
