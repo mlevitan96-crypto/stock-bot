@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-21T09:14:37Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected by governance contract)",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active code (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py); scripts reference Moltbot (scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py); board/eod/out/ contains Clawdbot/Moltbot references in JSON outputs (board/eod/out/2026-02-12/eod_failure.json, board/eod/out/2026-02-12/cron_diagnosis.json, board/eod/out/2026-02-13/cron_diagnosis.json). Excluded: reports/audit/*, reports/daily/*/evidence/*, docs/* (documenting removal)."
+  ],
+  "slack_sent": false
+}
