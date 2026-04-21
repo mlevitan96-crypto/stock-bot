@@ -18,5 +18,6 @@
     "no_clawdbot_moltbot: scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_intelligence_expansion.py contain molt references in code",
     "no_clawdbot_moltbot: Note — MEMORY_BANK_ALPACA.md (lines 1202-1210) still documents moltbot as an active learning orchestrator workflow; governance check flags code presence per contract"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/927"
 }
