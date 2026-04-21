@@ -211,7 +211,7 @@
         d.calendar_today_label && d.calendar_today_trade_count != null
           ? " · Today: " + d.calendar_today_label + " → " + String(d.calendar_today_trade_count)
           : "";
-      if (note) note.textContent = (sn || "Daily fill counts from orders.jsonl tail") + tz + todayHint;
+      if (note) note.textContent = (sn || "Daily closed-trade counts from exit_attribution.jsonl tail") + tz + todayHint;
       var series = d.series || [];
       requestAnimationFrame(function () {
         try {
