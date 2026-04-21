@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-21T11:10:00Z",
+  "branch": "main",
+  "anomalies_detected": false,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "reports/board/ was empty (re-created with .gitkeep for persistence); all 7 expected top-level dirs present (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/); reports/audit/ exists",
+    ".cursor/deployment.json present with expected schema; .env.example present",
+    "memory_bank/ has key docs (systemPatterns.md, TELEMETRY_CHANGELOG.md, report_output_contract.md, report_retention_policy.md); .cursor/automations/ exists with README.md and 5 automation specs",
+    "reports/audit/ has 17 artifacts; required_artifacts check: pass (no strict 7-day artifact requirement defined)",
+    "No deprecated dirs reintroduced (moltbot/ is documented NO-APPLY learning workflow per MEMORY_BANK_ALPACA.md §Learning Pipeline)",
+    "No Clawdbot/Moltbot reintroduction in active code/config; references found only in governance checks, stub scripts documenting removal, reports/audit, docs, and the moltbot/ learning workflow (all excluded per established exclusion policy)"
+  ],
+  "slack_sent": false
+}
