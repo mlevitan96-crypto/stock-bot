@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-21T12:30:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "detail": "reports/board/ directory does not exist. All other expected top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) and reports/audit/ are present."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "detail": "reports/board/ missing (required by governance contract). memory_bank/ has key docs (report_output_contract.md, report_retention_policy.md, systemPatterns.md, TELEMETRY_CHANGELOG.md). .cursor/automations/ exists with README.md and automation specs. reports/audit/ present."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "detail": "moltbot/ directory exists at repo root with active Python code (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). board/ directory exists at repo root (board/eod/). These appear to be deprecated components that should have been removed per prior governance decisions."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "detail": "moltbot/ directory contains active code files referencing Moltbot: moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py. Scripts referencing Moltbot patterns: scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. No Clawdbot directory found. No references in src/. Reports/audit and docs references excluded (document removal only)."
+    }
+  ],
+  "slack_sent": false
+}
