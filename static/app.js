@@ -248,6 +248,13 @@
     return null;
   }
 
+  function shadowEquityFromRollingPoint(p) {
+    if (!p || typeof p !== "object") return null;
+    if (p.equity_shadow != null && !Number.isNaN(Number(p.equity_shadow))) return Number(p.equity_shadow);
+    if (p.shadow_equity != null && !Number.isNaN(Number(p.shadow_equity))) return Number(p.shadow_equity);
+    return null;
+  }
+
   function mergeSamplesFromRollingJson(points) {
     if (!Array.isArray(points)) return;
     for (var i = 0; i < points.length; i++) {
@@ -257,6 +264,7 @@
       var tsRaw = p.ts || p.timestamp || "";
       var t = tsRaw ? Date.parse(tsRaw) : NaN;
       if (Number.isNaN(t)) continue;
+      var sh = shadowEquityFromRollingPoint(p);
       var found = -1;
       for (var j = 0; j < equityTrail.length; j++) {
         if (Math.abs(equityTrail[j].t - t) < 500) {
@@ -264,8 +272,17 @@
           break;
         }
       }
-      if (found >= 0) equityTrail[found] = { t: t, equity: eq, src: "rolling_file" };
-      else equityTrail.push({ t: t, equity: eq, src: "rolling_file" });
+      if (found >= 0) {
+        var ex = equityTrail[found];
+        var merged = { t: t, equity: eq, src: "rolling_file" };
+        if (sh != null) merged.shadow = sh;
+        else if (ex.shadow != null) merged.shadow = ex.shadow;
+        equityTrail[found] = merged;
+      } else {
+        var row = { t: t, equity: eq, src: "rolling_file" };
+        if (sh != null) row.shadow = sh;
+        equityTrail.push(row);
+      }
     }
     equityTrail.sort(function (a, b) {
       return a.t - b.t;
@@ -286,7 +303,21 @@
   async function refreshRollingPnl5d() {
     try {
       var r = await safeFetch("/api/rolling_pnl_5d");
-      if (r.ok && r.data && Array.isArray(r.data.points)) mergeSamplesFromRollingJson(r.data.points);
+      if (!r.ok || !r.data) return;
+      var pts = r.data.points;
+      if (!Array.isArray(pts)) return;
+      var sv = r.data.shadow_value;
+      if (Array.isArray(sv) && sv.length === pts.length) {
+        for (var k = 0; k < pts.length; k++) {
+          var sVal = sv[k];
+          if (sVal == null) continue;
+          if (Number.isNaN(Number(sVal))) continue;
+          var p = pts[k];
+          if (!p || typeof p !== "object") continue;
+          if (p.equity_shadow == null) pts[k] = Object.assign({}, p, { equity_shadow: Number(sVal) });
+        }
+      }
+      mergeSamplesFromRollingJson(pts);
     } catch (_) {}
   }
 
@@ -343,6 +374,11 @@
     return !c || c.checked;
   }
 
+  function equityChartShowShadow() {
+    var c = el("equityShowShadow");
+    return !c || c.checked;
+  }
+
   function formatEtAxisLabel(tsMs) {
     try {
       return new Intl.DateTimeFormat("en-US", {
@@ -390,7 +426,9 @@
             return x && typeof x.t === "number" && typeof x.equity === "number";
           })
           .map(function (x) {
-            return { t: x.t, equity: x.equity, src: x.src || "session" };
+            var o = { t: x.t, equity: x.equity, src: x.src || "session" };
+            if (typeof x.shadow === "number" && !Number.isNaN(x.shadow)) o.shadow = x.shadow;
+            return o;
           });
       }
     } catch (_) {}
@@ -582,16 +620,39 @@
     var pnlVals = vals.map(function (v) {
       return v - baseline;
     });
+    var showSh = equityChartShowShadow();
+    var shadowVals = series.map(function (pt) {
+      if (typeof pt.shadow === "number" && !Number.isNaN(pt.shadow)) return pt.shadow;
+      return null;
+    });
+    var hasShadowData = false;
+    for (var si = 0; si < shadowVals.length; si++) {
+      if (shadowVals[si] != null && Number.isFinite(shadowVals[si])) {
+        hasShadowData = true;
+        break;
+      }
+    }
 
     if (vals.length === 1) {
       labels = [labels[0] || formatEtAxisLabel(series[0].t), "now"];
       vals = [vals[0], vals[0]];
       pnlVals = [pnlVals[0], pnlVals[0]];
+      if (shadowVals[0] != null) {
+        shadowVals = [shadowVals[0], shadowVals[0]];
+      } else {
+        shadowVals = [null, null];
+      }
     }
 
     var anchorRef = vals[0];
     var lastEq = vals[vals.length - 1];
-    var yBounds = yDomainFromVals(vals);
+    var yBoundVals = vals.slice();
+    if (showSh) {
+      for (var bj = 0; bj < shadowVals.length; bj++) {
+        if (shadowVals[bj] != null && Number.isFinite(shadowVals[bj])) yBoundVals.push(shadowVals[bj]);
+      }
+    }
+    var yBounds = yDomainFromVals(yBoundVals);
     var yPnlBounds = yDomainFromVals(pnlVals);
     var above = lastEq >= anchorRef;
     var lineMain = above ? "#39d353" : "#ff6b6b";
@@ -600,12 +661,15 @@
     var sig =
       (rthOn ? "R1" : "R0") +
       (showRun ? "P1" : "P0") +
+      (showSh ? "S1" : "S0") +
       "\u0001" +
       labels.join("\u0001") +
       "|" +
       vals.join(",") +
       "|" +
-      pnlVals.join(",");
+      pnlVals.join(",") +
+      "|" +
+      (shadowVals.map(function (x) { return x == null ? "" : x; }).join(",") + "");
 
     var ctx2 = canvas.getContext("2d");
     if (!ctx2) return;
@@ -628,6 +692,10 @@
         pnlChart.data.datasets[1].data = pnlVals;
         pnlChart.data.datasets[1].hidden = !showRun;
       }
+      if (pnlChart.data.datasets[2]) {
+        pnlChart.data.datasets[2].data = shadowVals;
+        pnlChart.data.datasets[2].hidden = !showSh || !hasShadowData;
+      }
       if (pnlChart.options.scales && pnlChart.options.scales.y) {
         pnlChart.options.scales.y.min = yBounds.min;
         pnlChart.options.scales.y.max = yBounds.max;
@@ -640,12 +708,17 @@
         }
       }
       if (pnlChart.options.plugins && pnlChart.options.plugins.legend) {
-        pnlChart.options.plugins.legend.display = showRun;
+        pnlChart.options.plugins.legend.display = showRun || (showSh && hasShadowData);
       }
       pnlChart.update("none");
       return;
     }
     lastChartSig = sig;
+
+    var legendOn = showRun || (showSh && hasShadowData);
+    var shadowOn = showSh && hasShadowData;
+    var shadowDashed = [5, 5];
+    var shadowColor = "#FFD700";
 
     destroyPnlChart();
     try {
@@ -655,7 +728,7 @@
           labels: labels,
           datasets: [
             {
-              label: "Equity (USD)",
+              label: "Actual equity (live)",
               data: vals,
               yAxisID: "y",
               borderColor: lineMain,
@@ -678,6 +751,20 @@
               borderDash: [5, 4],
               hidden: !showRun,
             },
+            {
+              label: "Shadow equity (no-chop sim)",
+              data: shadowVals,
+              yAxisID: "y",
+              borderColor: shadowColor,
+              backgroundColor: "transparent",
+              fill: false,
+              tension: 0.25,
+              pointRadius: 0,
+              borderWidth: 2.25,
+              borderDash: shadowDashed,
+              hidden: !shadowOn,
+              spanGaps: true,
+            },
           ],
         },
         options: {
@@ -687,7 +774,7 @@
           interaction: { intersect: false, mode: "index" },
           plugins: {
             legend: {
-              display: showRun,
+              display: legendOn,
               position: "top",
               labels: { color: "#8b949e", boxWidth: 10, font: { size: 10 } },
             },
@@ -707,13 +794,31 @@
                   var ix = ctx.dataIndex;
                   var row = series[ix];
                   var tsEt = row ? formatEtAxisLabel(row.t) : "";
-                  if (ctx.datasetIndex === 0) {
-                    var v = ctx.parsed.y;
-                    var vsStart = v >= anchorRef ? "≥ series start" : "< series start";
-                    return "Equity " + formatMoney(v) + " (" + vsStart + ")" + (tsEt ? " · " + tsEt + " ET" : "");
+                  var tag = tsEt ? " · " + tsEt + " ET" : "";
+                  if (ctx.datasetIndex === 0 || ctx.datasetIndex === 2) {
+                    return null;
                   }
-                  var pv = ctx.parsed.y;
-                  return "Running PnL " + formatMoney(pv) + " vs " + formatMoney(baseline) + (tsEt ? " · " + tsEt + " ET" : "");
+                  if (ctx.datasetIndex === 1) {
+                    var pv = ctx.parsed.y;
+                    return "Running PnL " + formatMoney(pv) + " vs " + formatMoney(baseline) + tag;
+                  }
+                  return "";
+                },
+                footer: function (tooltipItems) {
+                  if (!tooltipItems || !tooltipItems.length) return [];
+                  var ix = tooltipItems[0].dataIndex;
+                  var row = series[ix];
+                  if (!row) return [];
+                  var tsEt = formatEtAxisLabel(row.t) + " ET";
+                  var act = "Actual equity (live): " + formatMoney(row.equity) + (row.t ? " · " + tsEt : "");
+                  if (!showSh) {
+                    return [act];
+                  }
+                  var sh =
+                    row.shadow != null && !Number.isNaN(Number(row.shadow))
+                      ? "Shadow equity (no-chop sim): " + formatMoney(row.shadow) + (row.t ? " · " + tsEt : "")
+                      : "Shadow equity (no-chop sim): n/a";
+                  return [act, sh];
                 },
               },
             },
@@ -1114,8 +1219,10 @@
     }
     var rth = el("equityRthOnly");
     var run = el("equityShowRunPnl");
+    var shw = el("equityShowShadow");
     if (rth) rth.addEventListener("change", bump);
     if (run) run.addEventListener("change", bump);
+    if (shw) shw.addEventListener("change", bump);
   })();
 
   hydrateTrailFromSession();
