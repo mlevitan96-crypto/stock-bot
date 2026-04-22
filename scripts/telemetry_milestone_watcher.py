@@ -8,7 +8,7 @@ all `mlf_scoreflow_components_*` plus `mlf_scoreflow_total_score`, with entry ti
 effective cutoff. Implemented via `strict_ml_ready_count_since_cutoff` after
 `scripts/telemetry/alpaca_ml_flattener.py` writes `reports/Gemini/alpaca_ml_cohort_flat.csv`.
 
-Telegram milestone thresholds (Z only): 50, 100, 150, 200, 250 (deduped per state key).
+Telegram milestone thresholds (Z only): 10, 100, 250 (deduped per state key).
 
 **Zero-tolerance tripwire:** last 3 deduped closes in `logs/exit_attribution.jsonl` must carry
 finite PnL and `entry_uw.earnings_proximity` / `entry_uw.sentiment_score`; otherwise a high-priority
@@ -99,24 +99,14 @@ def _strict_epoch_datetime_utc() -> datetime:
 # Strict ML-ready Z milestones only (deduped in state by key). Order enforced: lower before higher.
 STRICT_ML_Z_MILESTONES: List[Tuple[int, str, str]] = [
     (
-        50,
-        "strict_ml_z_50",
-        "🎯 [Alpaca ML Cohort] 50 strict ML-ready trades (Z). Gold-standard rows only — not gross executions.",
+        10,
+        "strict_ml_z_10",
+        "🎯 [Alpaca ML Cohort] 10 strict ML-ready trades (Z). Vanguard / Shadow era checkpoint.",
     ),
     (
         100,
         "strict_ml_z_100",
         "🎯 [Alpaca ML Cohort] 100 strict ML-ready trades (Z). ML data collection on track.",
-    ),
-    (
-        150,
-        "strict_ml_z_150",
-        "📈 [Alpaca ML Cohort] 150 strict ML-ready trades (Z).",
-    ),
-    (
-        200,
-        "strict_ml_z_200",
-        "📈 [Alpaca ML Cohort] 200 strict ML-ready trades (Z).",
     ),
     (
         250,
