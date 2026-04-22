@@ -19,5 +19,6 @@
     "no_clawdbot_moltbot: scripts/run_openclaw_molt_synthesis.py references Clawdbot (removal-stub comments in executable script)",
     "no_clawdbot_moltbot: scripts/run_molt_intelligence_expansion.py references Moltbot"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "ANOMALIES_DETECTED — gh CLI is read-only in this environment; issue creation deferred to operator review"
 }
