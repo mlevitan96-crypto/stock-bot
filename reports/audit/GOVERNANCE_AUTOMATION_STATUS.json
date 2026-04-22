@@ -21,5 +21,7 @@
     "no_clawdbot_moltbot: scripts/sre/run_sre_anomaly_scan.py references clawdbot/moltbot strings",
     "no_clawdbot_moltbot: scripts/automations/run_governance_integrity_once.py references clawdbot/moltbot strings"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue_required": true,
+  "github_issue_note": "Anomalies detected — GitHub issue creation requested but gh CLI is read-only in this environment. Manual issue creation needed with title: [Governance Integrity] Anomalies detected"
 }
