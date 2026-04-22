@@ -16,5 +16,6 @@
     "no_deprecated_dirs: moltbot/ directory is still present at /workspace/moltbot/ — should have been removed per governance cleanup",
     "no_clawdbot_moltbot: moltbot/ directory with active Python files found (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). Additionally, references found in scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1018"
 }
