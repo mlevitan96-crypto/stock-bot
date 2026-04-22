@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-22T12:03:16Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ directory was missing at scan time (created by this run to restore contract)"
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "moltbot/ directory exists with active Python code (5 files: sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). This is a deprecated system that should have been removed."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Clawdbot/Moltbot references found in code/config (excluding docs/audit/memory_bank): moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py"
+    }
+  ],
+  "slack_sent": false
+}
