@@ -51,7 +51,9 @@ AUTHORITATIVE_JOIN_KEY_RULE = (
     "canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so "
     "trade_intent(entered) keyed at intent-time still joins to fill-time keys. "
     "Do not use a single per-symbol 'latest fill' as the join key (multiple positions "
-    "per symbol would collide)."
+    "per symbol would collide). "
+    "Orders.jsonl join additionally accepts the same symbol+UTC-second floor with "
+    "LONG/SHORT flipped (displacement close vs order canonical mismatch)."
 )
 
 try:
@@ -188,6 +190,26 @@ def _pick_best_entry_decision_made(
     return max(cands, key=score_entry_decision_made_row)
 
 
+def _is_synthetic_strict_chain_repair_attribution(rec: dict) -> bool:
+    """
+    True for unified ``alpaca_entry_attribution`` rows that backfill or bridge the strict era
+    without a contemporaneous ``run.jsonl`` trade_intent / exit_intent / EDM chain (epoch bridge,
+    historical backfill exit_proxy, manual repair).
+    """
+    sr = str(rec.get("schema_role") or "")
+    dr = str(rec.get("decision_reason") or "").lower()
+    is_repair = bool(rec.get("is_repair_row"))
+    if sr == "strict_chain_epoch_bridge" or dr.startswith("strict_chain_epoch_bridge:"):
+        return True
+    if sr == "strict_chain_manual_backfill":
+        return True
+    if "strict_chain_historical_backfill" in dr:
+        return True
+    if sr == "exit_proxy" and is_repair:
+        return True
+    return False
+
+
 def _unified_entry_join_ok(
     tid: str,
     aliases: Set[str],
@@ -211,6 +233,26 @@ def _unified_entry_join_ok(
     if not exit_row.get("entry_timestamp"):
         return False
     return True
+
+
+_CT_SIDE_EPOCH_RE = re.compile(r"^([^|]+)\|(LONG|SHORT)\|(\d+)$")
+
+
+def _order_join_keys_sym_epoch_side_variants(ids: Set[str]) -> Set[str]:
+    """
+    Expand ``SYM|LONG|epoch`` / ``SYM|SHORT|epoch`` keys so orders match when only one side
+    appears in ``orders.jsonl`` (e.g. displacement close: unified exit on SHORT, broker log
+    line keyed LONG for the same UTC-second floor).
+    """
+    out = set(ids)
+    for k in ids:
+        m = _CT_SIDE_EPOCH_RE.match(str(k).strip())
+        if not m:
+            continue
+        sym, side, ep = m.group(1).upper(), m.group(2), m.group(3)
+        alt = "SHORT" if side == "LONG" else "LONG"
+        out.add(f"{sym}|{alt}|{ep}")
+    return out
 
 
 def _expand_canonical_aliases(seed_ids: Set[str], intent_to_fill: Dict[str, str]) -> Set[str]:
@@ -280,9 +322,9 @@ def evaluate_completeness(
     if not run_path.is_file():
         precheck.append("missing_run_jsonl")
 
-    # Synthetic strict-epoch bridge rows (displacement / historical repair) carry full unified
-    # entry+exit but intentionally omit live run.jsonl trade_intent / exit_intent / EDM. They must
-    # not fail the learning chain — they are not forward causal certification trades.
+    # Synthetic strict-chain repairs (epoch bridge, historical backfill exit_proxy, manual backfill)
+    # carry unified entry+exit but intentionally omit live run.jsonl trade_intent / exit_intent / EDM.
+    # Exclude them from the strict learning denominator — they are not forward causal certification trades.
     bridge_epoch_trade_ids: Set[str] = set()
     unified_entry: Dict[str, dict] = {}
     unified_exit_by_tid: Dict[str, dict] = {}
@@ -290,11 +332,8 @@ def evaluate_completeness(
         et = rec.get("event_type") or rec.get("type")
         if et == "alpaca_entry_attribution":
             tid_b = rec.get("trade_id")
-            if tid_b:
-                sr = str(rec.get("schema_role") or "")
-                dr = str(rec.get("decision_reason") or "")
-                if sr == "strict_chain_epoch_bridge" or dr.startswith("strict_chain_epoch_bridge:"):
-                    bridge_epoch_trade_ids.add(str(tid_b))
+            if tid_b and _is_synthetic_strict_chain_repair_attribution(rec):
+                bridge_epoch_trade_ids.add(str(tid_b))
             for k in (rec.get("trade_key"), rec.get("canonical_trade_id")):
                 if k:
                     unified_entry[str(k)] = rec
@@ -308,6 +347,9 @@ def evaluate_completeness(
         ct = rec.get("canonical_trade_id")
         if ct:
             orders_by_ct.setdefault(str(ct), []).append(rec)
+        tk_o = rec.get("trade_key")
+        if tk_o and str(tk_o) != str(ct or ""):
+            orders_by_ct.setdefault(str(tk_o), []).append(rec)
 
     exit_intents_by_ct: Dict[str, List[dict]] = defaultdict(list)
     trade_intents_entered: List[dict] = []
@@ -484,7 +526,8 @@ def evaluate_completeness(
         unified_ok = bool(aliases) and _unified_entry_join_ok(
             tid, aliases, unified_entry, unified_exit_by_tid, rec
         )
-        orders_ok = bool(aliases) and any(k in orders_by_ct for k in aliases)
+        order_keys = _order_join_keys_sym_epoch_side_variants(set(aliases)) if aliases else set()
+        orders_ok = bool(order_keys) and any(k in orders_by_ct for k in order_keys)
         exit_int_ok = bool(aliases) and any(k in exit_intents_by_ct for k in aliases)
 
         if not tk:
