@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-22T17:01:38Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected by governance contract)",
+    "governance_contracts_present: reports/board/ missing — governance contract incomplete",
+    "no_deprecated_dirs: moltbot/ directory exists at repo root (deprecated — should have been removed)",
+    "no_deprecated_dirs: board/ directory exists at repo root (deprecated — should have been removed)",
+    "no_clawdbot_moltbot: moltbot/ contains active Python code: sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py",
+    "no_clawdbot_moltbot: scripts/run_openclaw_molt_synthesis.py references moltbot/clawdbot",
+    "no_clawdbot_moltbot: scripts/run_molt_workflow.py references moltbot/clawdbot",
+    "no_clawdbot_moltbot: scripts/run_molt_intelligence_expansion.py references moltbot/clawdbot",
+    "no_clawdbot_moltbot: scripts/sre/run_sre_anomaly_scan.py references moltbot/clawdbot",
+    "no_clawdbot_moltbot: board/eod/out/ contains files referencing clawdbot/moltbot patterns"
+  ],
+  "slack_sent": false
+}
