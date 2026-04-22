@@ -14,6 +14,10 @@ Environment:
   ALPACA_TRUTH_BLOCKERS_FAIL_SAMPLE_N — max rows in blocker markdown tables for
   slippage_coverage / signal_snapshot_exits failures (default 25, clamped 1..500).
 
+  ALPACA_TRUTH_SIGNAL_CONTEXT_BUCKET_SEC — bucket width (seconds) when indexing
+  ``signal_context.jsonl`` for exit joins (default 86400). The legacy global top-K-by-timestamp
+  index could drop early-window rows; bucketing keeps coverage across the whole audit window.
+
 Slippage / signal_snapshot gates also read ``snapshot.*`` prices and ``client_order_id`` from
 exit rows, and fall back to ``alpaca_unified_events`` exit duplicates when ``orders.jsonl`` is thin.
 
@@ -35,7 +39,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 # ---------------------------------------------------------------------------
 # Paths & context
@@ -157,6 +161,28 @@ def _truth_context_window_sec() -> float:
         return 86400.0
 
 
+def _truth_signal_context_bucket_sec() -> float:
+    """Index ``signal_context`` into (symbol × time_bucket) cells so early-window exits retain rows."""
+    try:
+        return max(300.0, float(os.getenv("ALPACA_TRUTH_SIGNAL_CONTEXT_BUCKET_SEC", "86400")))
+    except (TypeError, ValueError):
+        return 86400.0
+
+
+def _thin_ts_rows_evenly(rows: List[Tuple[float, dict]], cap: int) -> List[Tuple[float, dict]]:
+    """Keep up to ``cap`` rows spread across time order (deterministic subsample)."""
+    if cap <= 0:
+        return []
+    if len(rows) <= cap:
+        return sorted(rows, key=lambda x: x[0])
+    rows_sorted = sorted(rows, key=lambda x: x[0])
+    n = len(rows_sorted)
+    if cap == 1:
+        return [rows_sorted[n // 2]]
+    idxs = sorted({int(round(i * (n - 1) / (cap - 1))) for i in range(cap)})
+    return [rows_sorted[i] for i in idxs]
+
+
 def _truth_execution_time_window_sec() -> float:
     """Exit↔order fill time proximity (broker + logs)."""
     try:
@@ -226,9 +252,12 @@ def _merge_env_file(path: Path) -> None:
 
 
 def _maybe_load_alpaca_env(root: Path) -> None:
-    """Load broker keys from repo .env first, then .alpaca_env — matches systemd EnvironmentFile."""
-    if _has_alpaca_keypair():
-        return
+    """Merge repo .env / .alpaca_env into the process for any keys not already set.
+
+    Do not short-circuit when API keys are already present: systemd often injects keys but
+    omits ``ALPACA_BASE_URL``, which would make ``_paper_broker_env()`` false and disable
+    paper-only slippage / signal_snapshot fallbacks (false DATA_READY on the droplet).
+    """
     candidates = [
         root / ".env",
         Path("/root/stock-bot/.env"),
@@ -239,8 +268,6 @@ def _maybe_load_alpaca_env(root: Path) -> None:
     for path in candidates:
         if path.is_file():
             _merge_env_file(path)
-        if _has_alpaca_keypair():
-            return
 
 
 def stream_jsonl(path: Path) -> Iterator[dict]:
@@ -440,15 +467,17 @@ def _exit_attribution_candidate_paths(root: Path) -> List[Path]:
     while still attempting logs/exit_attribution.jsonl. After a ``logs/*.jsonl`` purge, the
     symlink or CTR file may be the only copy until the next terminal close recreates the log.
     """
+    # Prefer canonical economic rows before ``alpaca_exit_attribution`` envelopes, which often
+    # share the same (trade_key|exit_ts) but omit ``exit_price`` (Truth Warehouse dedupe bug).
     paths: List[Path] = [
         root / "logs" / "exit_attribution.jsonl",
-        root / "logs" / "alpaca_exit_attribution.jsonl",
     ]
     tr = (os.environ.get("STOCKBOT_TRUTH_ROOT") or "").strip()
     if tr:
         paths.append(Path(tr) / "exits" / "exit_attribution.jsonl")
     else:
         paths.append(Path("/var/lib/stock-bot/truth/exits/exit_attribution.jsonl"))
+    paths.append(root / "logs" / "alpaca_exit_attribution.jsonl")
     # De-dupe while preserving order
     out: List[Path] = []
     seen_p: set[str] = set()
@@ -463,18 +492,29 @@ def _exit_attribution_candidate_paths(root: Path) -> List[Path]:
 
 def load_exits_window(root: Path, t0: float, t1: float) -> List[dict]:
     paths = _exit_attribution_candidate_paths(root)
-    rows: List[dict] = []
-    seen: set[str] = set()
+    by_key: Dict[str, dict] = {}
+
+    def _fill_rank(ex: dict) -> int:
+        px = _truth_exit_fill_price(ex)
+        if px is not None and px > 0:
+            return 2
+        if _truth_exit_entry_price(ex) is not None:
+            return 1
+        return 0
+
     for p in paths:
         for r in stream_jsonl(p):
             ts = _exit_ts_seconds(r)
             if ts is None or ts < t0 or ts > t1:
                 continue
             k = f"{r.get('trade_key')}|{r.get('exit_ts') or r.get('timestamp')}"
-            if k in seen:
+            prev = by_key.get(k)
+            if prev is None:
+                by_key[k] = r
                 continue
-            seen.add(k)
-            rows.append(r)
+            if _fill_rank(r) > _fill_rank(prev):
+                by_key[k] = r
+    rows = sorted(by_key.values(), key=lambda e: float(_exit_ts_seconds(e) or 0.0))
     return rows
 
 
@@ -609,23 +649,64 @@ def build_execution_tables(
 # ---------------------------------------------------------------------------
 
 
-def index_signal_context(root: Path, t0: float, t1: float, max_compute: bool) -> List[Tuple[float, str, dict]]:
+def index_signal_context(
+    root: Path,
+    t0: float,
+    t1: float,
+    max_compute: bool,
+    exit_symbols: Optional[Set[str]] = None,
+) -> List[Tuple[float, str, dict]]:
+    """
+    Build a bounded index of ``logs/signal_context.jsonl`` for ``nearest_context`` joins.
+
+    Rows are grouped by (symbol, floor bucket of timestamp) so high-volume symbols do not
+    evict early-window telemetry. The previous global "K largest timestamps in window" heap
+    biased toward the end of the window and could drop all rows for an exit in the first days
+    of a multi-day audit while still showing 100% execution join coverage.
+    """
     p = root / "logs" / "signal_context.jsonl"
     if not p.is_file():
         return []
-    cap = 300_000 if max_compute else 150_000
+    cap_total = 300_000 if max_compute else 150_000
+    exit_syms: Set[str] = {s.strip().upper() for s in (exit_symbols or set()) if str(s).strip()}
+    filter_syms = bool(exit_syms)
+
+    bucket_sec = _truth_signal_context_bucket_sec()
+    span = max(1.0, float(t1) - float(t0))
+    num_b = max(1, int(math.ceil(span / bucket_sec)))
+    # When exit_symbols is unknown (empty), assume ~200 active symbols for budget math.
+    sym_denom = max(1, len(exit_syms) if exit_syms else 200)
+    per_bucket_cap = max(8, cap_total // max(1, num_b * sym_denom))
 
     def _ts(r: dict) -> Optional[float]:
         return _parse_ts_any(r.get("ts") or r.get("timestamp"))
 
-    raw = _heap_k_largest_ts_in_window(p, t0, t1, cap, _ts)
-    rows: List[Tuple[float, str, dict]] = []
-    for r in raw:
+    store: Dict[Tuple[str, int], List[Tuple[float, dict]]] = defaultdict(list)
+
+    for r in stream_jsonl(p):
         ts = _ts(r)
-        if ts is None:
+        if ts is None or ts < t0 or ts > t1:
             continue
-        sym = (r.get("symbol") or "").upper()
-        rows.append((float(ts), sym, r))
+        sym = (r.get("symbol") or "").strip().upper()
+        if not sym:
+            continue
+        if filter_syms and sym not in exit_syms:
+            continue
+        b = int((float(ts) - float(t0)) / bucket_sec)
+        if b < 0:
+            b = 0
+        elif b >= num_b:
+            b = num_b - 1
+        key = (sym, b)
+        lst = store[key]
+        lst.append((float(ts), r))
+        if len(lst) > per_bucket_cap:
+            store[key] = _thin_ts_rows_evenly(lst, per_bucket_cap)
+
+    rows: List[Tuple[float, str, dict]] = []
+    for (sym_u, _bk), lst in store.items():
+        for tsf, r in lst:
+            rows.append((tsf, sym_u, r))
     rows.sort(key=lambda x: x[0])
     return rows
 
@@ -1381,7 +1462,10 @@ def main() -> int:
         else (100.0 if not orders_norm else 0.0)
     )
 
-    ctx_index = index_signal_context(root, t0, t1, args.max_compute)
+    exit_syms_ctx: Set[str] = {
+        (str(e.get("symbol") or "")).strip().upper() for e in exits if (e.get("symbol") or "").strip()
+    }
+    ctx_index = index_signal_context(root, t0, t1, args.max_compute, exit_syms_ctx)
     _ctx_win = _truth_context_window_sec()
     exits_dated = [ex for ex in exits if _exit_ts_seconds(ex) is not None]
     slip_failures: List[dict] = []

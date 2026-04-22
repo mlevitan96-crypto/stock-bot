@@ -188,6 +188,31 @@ def _pick_best_entry_decision_made(
     return max(cands, key=score_entry_decision_made_row)
 
 
+def _unified_entry_join_ok(
+    tid: str,
+    aliases: Set[str],
+    unified_entry: Dict[str, dict],
+    unified_exit_by_tid: Dict[str, dict],
+    exit_row: dict,
+) -> bool:
+    """
+    True when unified has a normal entry row, or when the unified stream has a terminal exit for
+    this trade_id but the entry line is missing (ordering / flush race). The latter still has
+    economic entry fields on ``exit_attribution`` and a terminal ``alpaca_exit_attribution`` row.
+    """
+    if aliases and any(k in unified_entry for k in aliases):
+        return True
+    uexit = unified_exit_by_tid.get(str(tid))
+    if not (uexit and uexit.get("terminal_close")):
+        return False
+    ep = exit_row.get("entry_price")
+    if ep is None or (isinstance(ep, (int, float)) and float(ep) <= 0):
+        return False
+    if not exit_row.get("entry_timestamp"):
+        return False
+    return True
+
+
 def _expand_canonical_aliases(seed_ids: Set[str], intent_to_fill: Dict[str, str]) -> Set[str]:
     """Closure of seed IDs with undirected intent<->fill edges from canonical_trade_id_resolved."""
     s = {x for x in seed_ids if x}
@@ -255,11 +280,21 @@ def evaluate_completeness(
     if not run_path.is_file():
         precheck.append("missing_run_jsonl")
 
+    # Synthetic strict-epoch bridge rows (displacement / historical repair) carry full unified
+    # entry+exit but intentionally omit live run.jsonl trade_intent / exit_intent / EDM. They must
+    # not fail the learning chain — they are not forward causal certification trades.
+    bridge_epoch_trade_ids: Set[str] = set()
     unified_entry: Dict[str, dict] = {}
     unified_exit_by_tid: Dict[str, dict] = {}
     for rec in _stream_jsonl_primary_then_backfill(logs, "alpaca_unified_events.jsonl"):
         et = rec.get("event_type") or rec.get("type")
         if et == "alpaca_entry_attribution":
+            tid_b = rec.get("trade_id")
+            if tid_b:
+                sr = str(rec.get("schema_role") or "")
+                dr = str(rec.get("decision_reason") or "")
+                if sr == "strict_chain_epoch_bridge" or dr.startswith("strict_chain_epoch_bridge:"):
+                    bridge_epoch_trade_ids.add(str(tid_b))
             for k in (rec.get("trade_key"), rec.get("canonical_trade_id")):
                 if k:
                     unified_entry[str(k)] = rec
@@ -306,6 +341,7 @@ def evaluate_completeness(
 
     TID_RE = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
     closed: List[tuple] = []
+    bridge_epoch_exit_rows_skipped = 0
     for rec in _stream_jsonl(exit_path):
         ex_ts = _parse_iso_ts(rec.get("timestamp"))
         if open_ts is not None and (ex_ts is None or ex_ts < open_ts):
@@ -316,6 +352,9 @@ def evaluate_completeness(
         sym = rec.get("symbol")
         ent = rec.get("entry_timestamp")
         if not tid or not sym:
+            continue
+        if str(tid) in bridge_epoch_trade_ids:
+            bridge_epoch_exit_rows_skipped += 1
             continue
         closed.append((str(tid), str(sym).upper(), str(ent or ""), rec))
 
@@ -442,7 +481,9 @@ def evaluate_completeness(
             )
             for r in trade_intents_entered
         )
-        unified_ok = bool(aliases) and any(k in unified_entry for k in aliases)
+        unified_ok = bool(aliases) and _unified_entry_join_ok(
+            tid, aliases, unified_entry, unified_exit_by_tid, rec
+        )
         orders_ok = bool(aliases) and any(k in orders_by_ct for k in aliases)
         exit_int_ok = bool(aliases) and any(k in exit_intents_by_ct for k in aliases)
 
@@ -600,6 +641,8 @@ def evaluate_completeness(
         "excluded_trade_ids_capped": list(excluded_trade_ids_capped),
         "precheck": precheck,
         "exit_attribution_rows_before_trade_id_dedupe": _exit_rows_before_trade_id_dedupe,
+        "strict_epoch_bridge_exit_rows_skipped": bridge_epoch_exit_rows_skipped,
+        "strict_epoch_bridge_trade_ids_discovered": len(bridge_epoch_trade_ids),
         "exit_attribution_duplicate_trade_id_rows_removed": _dup_removed,
         "strict_quarantine_trade_ids_removed": strict_quarantine_removed,
         "strict_quarantine_config_path": strict_quarantine_path,
