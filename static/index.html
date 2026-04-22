@@ -303,6 +303,10 @@
           <p class="muted" style="margin:0 0 0.5rem;font-size:0.78rem;">
             History merges <code>/metrics</code> + <code>/api/rolling_pnl_5d</code>; each poll appends live portfolio value.
             Governance baseline <span id="equityBaselineHint">$10,000.00</span> (display only). Y-axis uses the visible equity min/max (±0.1% padding), not this baseline.
+            <span class="equity-chart-opts" style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;margin-top:0.35rem;">
+              <label class="muted" style="cursor:pointer;font-size:0.78rem;"><input type="checkbox" id="equityRthOnly" checked /> US RTH stitch (drop overnight/weekend samples)</label>
+              <label class="muted" style="cursor:pointer;font-size:0.78rem;"><input type="checkbox" id="equityShowRunPnl" checked /> Running P&amp;L vs baseline (right axis)</label>
+            </span>
           </p>
           <div class="chart-wrap"><canvas id="pnlChart" aria-label="Equity chart"></canvas></div>
         </div>

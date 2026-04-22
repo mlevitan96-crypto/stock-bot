@@ -290,6 +290,73 @@
     } catch (_) {}
   }
 
+  /** True when timestamp falls on NYSE regular session (Mon–Fri, 09:30–16:00 America/New_York). */
+  function isNYSERegularSession(tsMs) {
+    var d = new Date(tsMs);
+    var wk = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" }).format(d);
+    if (wk === "Sat" || wk === "Sun") return false;
+    var parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(d);
+    var hh = -1;
+    var mm = 0;
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      if (p.type === "hour") hh = parseInt(p.value, 10);
+      if (p.type === "minute") mm = parseInt(p.value, 10) || 0;
+    }
+    if (hh < 0 || Number.isNaN(hh)) return false;
+    var mins = hh * 60 + mm;
+    return mins >= 9 * 60 + 30 && mins < 16 * 60;
+  }
+
+  /**
+   * Drop overnight/weekend points so the X-axis is sequential RTH-only (stitched sessions).
+   * Always keeps the final sample (live broker total) even outside RTH.
+   * @param {{ t: number, equity: number, src?: string }[]} sortedAsc
+   */
+  function filterEquitySeriesRthStitch(sortedAsc) {
+    if (!sortedAsc || sortedAsc.length === 0) return [];
+    var last = sortedAsc[sortedAsc.length - 1];
+    var out = [];
+    for (var i = 0; i < sortedAsc.length; i++) {
+      var pt = sortedAsc[i];
+      if (isNYSERegularSession(pt.t)) out.push(pt);
+    }
+    if (out.length === 0) return sortedAsc.slice();
+    if (last && !isNYSERegularSession(last.t)) {
+      if (!out.length || out[out.length - 1].t !== last.t) out.push(last);
+    }
+    return out;
+  }
+
+  function equityChartRthOnlyEnabled() {
+    var c = el("equityRthOnly");
+    return !c || c.checked;
+  }
+
+  function equityChartShowRunPnl() {
+    var c = el("equityShowRunPnl");
+    return !c || c.checked;
+  }
+
+  function formatEtAxisLabel(tsMs) {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(tsMs));
+    } catch (_) {
+      return String(tsMs);
+    }
+  }
+
   /** Min/max Y for equity chart: strict data range + small padding (no synthetic anchors). */
   function yDomainFromVals(vals) {
     var mn = Infinity;
@@ -469,44 +536,76 @@
     var canvas = el("pnlChart");
     if (!canvas || typeof Chart === "undefined") return;
 
-    var series = equityTrail.slice().sort(function (a, b) {
+    var rawSeries = equityTrail.slice().sort(function (a, b) {
       return a.t - b.t;
     });
-    if (series.length === 0) {
+    if (rawSeries.length === 0) {
       destroyPnlChart();
       lastChartSig = "";
       return;
     }
 
+    var rthOn = equityChartRthOnlyEnabled();
+    var series = rthOn ? filterEquitySeriesRthStitch(rawSeries) : rawSeries;
+    if (series.length === 0) series = rawSeries;
+
+    var showRun = equityChartShowRunPnl();
+    var baseline = Number(EQUITY_BASELINE_USD);
+    if (Number.isNaN(baseline)) baseline = 10000;
+
+    var n = series.length;
+    var tickEvery = Math.max(1, Math.ceil(n / 14));
+    var prevDayEt = "";
     /** @type {string[]} */
-    var labels = series.map(function (pt, idx) {
+    var labels = [];
+    for (var idx = 0; idx < n; idx++) {
+      var pt = series[idx];
+      var dayEt = "";
       try {
-        var d = new Date(pt.t);
-        if (idx === 0 || idx === series.length - 1 || idx % Math.ceil(series.length / 12 || 1) === 0) {
-          return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-        }
-        return "";
+        dayEt = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/New_York",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(pt.t));
       } catch (_) {
-        return String(idx + 1);
+        dayEt = "";
       }
-    });
+      var showTick = idx === 0 || idx === n - 1 || dayEt !== prevDayEt || idx % tickEvery === 0;
+      prevDayEt = dayEt || prevDayEt;
+      labels.push(showTick ? formatEtAxisLabel(pt.t) : "");
+    }
+
     var vals = series.map(function (pt) {
       return pt.equity;
     });
+    var pnlVals = vals.map(function (v) {
+      return v - baseline;
+    });
 
     if (vals.length === 1) {
-      labels = [labels[0] || "start", "now"];
+      labels = [labels[0] || formatEtAxisLabel(series[0].t), "now"];
       vals = [vals[0], vals[0]];
+      pnlVals = [pnlVals[0], pnlVals[0]];
     }
 
     var anchorRef = vals[0];
     var lastEq = vals[vals.length - 1];
     var yBounds = yDomainFromVals(vals);
+    var yPnlBounds = yDomainFromVals(pnlVals);
     var above = lastEq >= anchorRef;
     var lineMain = above ? "#39d353" : "#ff6b6b";
     var fillTop = above ? "rgba(57, 211, 83, 0.24)" : "rgba(255, 107, 107, 0.2)";
     var fillBot = "rgba(13, 17, 23, 0)";
-    var sig = labels.join("\u0001") + "|" + vals.join(",");
+    var sig =
+      (rthOn ? "R1" : "R0") +
+      (showRun ? "P1" : "P0") +
+      "\u0001" +
+      labels.join("\u0001") +
+      "|" +
+      vals.join(",") +
+      "|" +
+      pnlVals.join(",");
 
     var ctx2 = canvas.getContext("2d");
     if (!ctx2) return;
@@ -525,9 +624,23 @@
       pnlChart.data.datasets[0].data = vals;
       pnlChart.data.datasets[0].borderColor = lineMain;
       pnlChart.data.datasets[0].backgroundColor = gradientFill;
+      if (pnlChart.data.datasets[1]) {
+        pnlChart.data.datasets[1].data = pnlVals;
+        pnlChart.data.datasets[1].hidden = !showRun;
+      }
       if (pnlChart.options.scales && pnlChart.options.scales.y) {
         pnlChart.options.scales.y.min = yBounds.min;
         pnlChart.options.scales.y.max = yBounds.max;
+      }
+      if (pnlChart.options.scales && pnlChart.options.scales.y1) {
+        pnlChart.options.scales.y1.display = showRun;
+        if (showRun) {
+          pnlChart.options.scales.y1.min = yPnlBounds.min;
+          pnlChart.options.scales.y1.max = yPnlBounds.max;
+        }
+      }
+      if (pnlChart.options.plugins && pnlChart.options.plugins.legend) {
+        pnlChart.options.plugins.legend.display = showRun;
       }
       pnlChart.update("none");
       return;
@@ -544,12 +657,26 @@
             {
               label: "Equity (USD)",
               data: vals,
+              yAxisID: "y",
               borderColor: lineMain,
               backgroundColor: gradientFill,
               fill: true,
               tension: 0.25,
               pointRadius: 0,
               borderWidth: 2,
+            },
+            {
+              label: "Running PnL vs baseline",
+              data: pnlVals,
+              yAxisID: "y1",
+              borderColor: "#58a6ff",
+              backgroundColor: "transparent",
+              fill: false,
+              tension: 0.25,
+              pointRadius: 0,
+              borderWidth: 1.75,
+              borderDash: [5, 4],
+              hidden: !showRun,
             },
           ],
         },
@@ -559,20 +686,47 @@
           animation: false,
           interaction: { intersect: false, mode: "index" },
           plugins: {
-            legend: { display: false },
+            legend: {
+              display: showRun,
+              position: "top",
+              labels: { color: "#8b949e", boxWidth: 10, font: { size: 10 } },
+            },
             tooltip: {
               callbacks: {
+                title: function (items) {
+                  var ix = items && items[0] ? items[0].dataIndex : 0;
+                  var row = series[ix];
+                  if (!row) return "";
+                  try {
+                    return new Date(row.t).toISOString();
+                  } catch (_) {
+                    return "";
+                  }
+                },
                 label: function (ctx) {
-                  var v = ctx.parsed.y;
-                  var vsStart = v >= anchorRef ? "≥ series start" : "< series start";
-                  return formatMoney(v) + " (" + vsStart + ")";
+                  var ix = ctx.dataIndex;
+                  var row = series[ix];
+                  var tsEt = row ? formatEtAxisLabel(row.t) : "";
+                  if (ctx.datasetIndex === 0) {
+                    var v = ctx.parsed.y;
+                    var vsStart = v >= anchorRef ? "≥ series start" : "< series start";
+                    return "Equity " + formatMoney(v) + " (" + vsStart + ")" + (tsEt ? " · " + tsEt + " ET" : "");
+                  }
+                  var pv = ctx.parsed.y;
+                  return "Running PnL " + formatMoney(pv) + " vs " + formatMoney(baseline) + (tsEt ? " · " + tsEt + " ET" : "");
                 },
               },
             },
           },
           scales: {
-            x: { ticks: { color: "#8b949e", maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: "#30363d" } },
+            x: {
+              type: "category",
+              offset: false,
+              ticks: { color: "#8b949e", maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+              grid: { color: "#30363d" },
+            },
             y: {
+              position: "left",
               min: yBounds.min,
               max: yBounds.max,
               ticks: {
@@ -582,6 +736,19 @@
                 },
               },
               grid: { color: "#30363d" },
+            },
+            y1: {
+              display: showRun,
+              position: "right",
+              min: yPnlBounds.min,
+              max: yPnlBounds.max,
+              grid: { drawOnChartArea: false },
+              ticks: {
+                color: "#79b8ff",
+                callback: function (v) {
+                  return formatMoney(v);
+                },
+              },
             },
           },
         },
@@ -935,6 +1102,21 @@
   document.addEventListener("keydown", function (ev) {
     if (ev.key === "Escape") closeTradeModal();
   });
+
+  (function bindEquityChartToggles() {
+    function bump() {
+      lastChartSig = "";
+      requestAnimationFrame(function () {
+        try {
+          renderEquityChart();
+        } catch (_) {}
+      });
+    }
+    var rth = el("equityRthOnly");
+    var run = el("equityShowRunPnl");
+    if (rth) rth.addEventListener("change", bump);
+    if (run) run.addEventListener("change", bump);
+  })();
 
   hydrateTrailFromSession();
   void pollCommandCenter();
