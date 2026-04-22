@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-22T16:52:07Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory does not exist. Expected at reports/board/."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "Deprecated directory moltbot/ still exists at top-level with active Python files: board.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, sentinel.py. Per MEMORY_BANK_ALPACA.md these are legacy learning-workflow modules."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot/Clawdbot references found in code/config (not just audit/docs): moltbot/ directory (5 .py files), scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py, board/eod/out/2026-02-13/cron_diagnosis.json, board/eod/out/2026-02-12/cron_diagnosis.json, board/eod/out/2026-02-12/eod_failure.json"
+    }
+  ],
+  "slack_sent": false
+}
