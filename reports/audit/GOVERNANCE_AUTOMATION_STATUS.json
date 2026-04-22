@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-22T11:53:35Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing (expected under reports/). A top-level board/ directory exists but reports/board/ does not.",
+    "governance_contracts_present: reports/board/ missing — required governance contract directory absent.",
+    "no_deprecated_dirs: moltbot/ directory still exists at top level. This is a deprecated directory that should have been removed.",
+    "no_clawdbot_moltbot: Moltbot references found in active code paths — moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py, scripts/run_molt_workflow.py (imports from moltbot), scripts/run_molt_intelligence_expansion.py (references Moltbot). These are code/script files, not audit/doc files documenting removal."
+  ],
+  "slack_sent": false
+}
