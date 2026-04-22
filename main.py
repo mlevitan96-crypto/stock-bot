@@ -2131,6 +2131,77 @@ def _emit_trade_intent(
             _sfv = cluster.get("_shadow_fractal_vapor")
             if isinstance(_sfv, dict):
                 rec["shadow_fractal_vapor"] = _sfv
+
+        def _lift_gut_fractal_nested_for_trade_intent(_roots):
+            """Lift gut_confluence_score / shadow_fractal_vapor from nested dicts into rec."""
+            import math as _math
+
+            def _find_gut(obj, depth):
+                if depth < 0 or not isinstance(obj, dict):
+                    return None
+                for k in ("_gut_confluence_score", "gut_confluence_score"):
+                    if k in obj and obj[k] is not None:
+                        try:
+                            v = float(obj[k])
+                            if _math.isfinite(v):
+                                return v
+                        except (TypeError, ValueError):
+                            pass
+                for v in obj.values():
+                    if isinstance(v, dict):
+                        r = _find_gut(v, depth - 1)
+                        if r is not None:
+                            return r
+                    if isinstance(v, list):
+                        for it in v[:40]:
+                            if isinstance(it, dict):
+                                r = _find_gut(it, depth - 1)
+                                if r is not None:
+                                    return r
+                return None
+
+            def _find_fractal(obj, depth):
+                if depth < 0 or not isinstance(obj, dict):
+                    return None
+                for k in ("_shadow_fractal_vapor", "shadow_fractal_vapor"):
+                    if k in obj and isinstance(obj[k], dict) and obj[k]:
+                        return obj[k]
+                for v in obj.values():
+                    if isinstance(v, dict):
+                        r = _find_fractal(v, depth - 1)
+                        if r is not None:
+                            return r
+                    if isinstance(v, list):
+                        for it in v[:40]:
+                            if isinstance(it, dict):
+                                r = _find_fractal(it, depth - 1)
+                                if r is not None:
+                                    return r
+                return None
+
+            gut_v = frac_d = None
+            for root in _roots:
+                if not isinstance(root, dict):
+                    continue
+                if gut_v is None:
+                    gut_v = _find_gut(root, 6)
+                if frac_d is None:
+                    frac_d = _find_fractal(root, 6)
+                if gut_v is not None and frac_d is not None:
+                    break
+            return gut_v, frac_d
+
+        _roots_for_lift = (
+            cluster if isinstance(cluster, dict) else {},
+            displacement_context if isinstance(displacement_context, dict) else {},
+            snap if isinstance(snap, dict) else {},
+            intelligence_trace if isinstance(intelligence_trace, dict) else {},
+        )
+        _gv_lift, _fv_lift = _lift_gut_fractal_nested_for_trade_intent(_roots_for_lift)
+        if rec.get("gut_confluence_score") is None and _gv_lift is not None:
+            rec["gut_confluence_score"] = float(_gv_lift)
+        if rec.get("shadow_fractal_vapor") is None and isinstance(_fv_lift, dict):
+            rec["shadow_fractal_vapor"] = _fv_lift
         jsonl_write("run", rec)
         try:
             if (decision_outcome or "").lower() == "entered":
