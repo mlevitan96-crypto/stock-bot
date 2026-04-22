@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-22T19:21:32Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory does not exist. Expected top-level reports/board/ per governance contract."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ directory is missing. Governance contract requires reports/audit/ and reports/board/ to exist."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot code remains in repo: moltbot/ directory (5 Python files: sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py), scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/sre/run_sre_anomaly_scan.py (contains moltbot reference), scripts/automations/run_governance_integrity_once.py (contains moltbot reference). These are code/config files, not audit/docs documenting removal."
+    }
+  ],
+  "slack_sent": false
+}
