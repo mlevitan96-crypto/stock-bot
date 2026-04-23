@@ -1,0 +1,9 @@
+{
+  "top_frac": 0.25,
+  "holdout_probability_threshold": 0.3876119554042816,
+  "holdout_approved_n": 57,
+  "holdout_total_n": 226,
+  "holdout_win_rate_among_approved": 0.43859649122807015,
+  "holdout_net_realized_pnl_usd_among_approved": -23.09,
+  "model_path": "C:/Dev/stock-bot/models/vanguard_v2_profit_agent.json"
+}
