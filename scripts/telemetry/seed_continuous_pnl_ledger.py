@@ -20,13 +20,21 @@ def main() -> int:
         help="Overwrite existing non-empty ledger (default: skip if ledger already has rows).",
     )
     args = ap.parse_args()
-    from telemetry.continuous_pnl_ledger import seed_continuous_pnl_ledger_from_logs
+    from telemetry.continuous_pnl_ledger import (
+        continuous_pnl_ledger_path,
+        seed_continuous_pnl_ledger_from_logs,
+        _ledger_has_v1_rows,
+    )
 
-    n = seed_continuous_pnl_ledger_from_logs(args.root.resolve(), force=bool(args.force))
-    if n == 0 and not args.force:
-        print("Skipped: ledger already exists; pass --force to rebuild.", flush=True)
+    root = args.root.resolve()
+    n = seed_continuous_pnl_ledger_from_logs(root, force=bool(args.force))
+    if n == 0 and not args.force and _ledger_has_v1_rows(continuous_pnl_ledger_path(root)):
+        print("Skipped: ledger already has v1 rows; pass --force to rebuild.", flush=True)
         return 0
-    print(f"Wrote {n} rows -> {args.root / 'state' / 'continuous_pnl_ledger.jsonl'}", flush=True)
+    if n == 0:
+        print("Wrote 0 rows (no qualifying exits in tail or all excluded).", flush=True)
+        return 0
+    print(f"Wrote {n} rows -> {root / 'state' / 'continuous_pnl_ledger.jsonl'}", flush=True)
     return 0
 
 
