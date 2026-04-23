@@ -68,7 +68,13 @@ def get_risk_limits() -> Dict[str, float]:
     if is_paper:
         daily_loss_pct = 0.04  # 4%
         daily_loss_dollar = 2200  # 4% of 55k
-        min_account_equity = starting_equity * 0.85  # 85% of 55k = 46,750
+        # 85% of STARTING_EQUITY minus optional slack (USD). Prevents spurious freezes when
+        # equity hovers within a few dollars of the nominal floor (broker rounding / drift).
+        try:
+            floor_slack = float(os.getenv("ACCOUNT_EQUITY_FLOOR_SLACK_USD", "0") or 0)
+        except (TypeError, ValueError):
+            floor_slack = 0.0
+        min_account_equity = starting_equity * 0.85 - max(0.0, floor_slack)
         risk_per_trade_pct = 0.015  # 1.5%
         max_position_dollar = 825  # 1.5% of 55k
         max_symbol_exposure = starting_equity * 0.10  # 10%
@@ -76,7 +82,11 @@ def get_risk_limits() -> Dict[str, float]:
     else:
         daily_loss_pct = 0.04  # 4%
         daily_loss_dollar = 400  # Hard cap for 10k account
-        min_account_equity = starting_equity * 0.85  # 85% of 10k = 8,500
+        try:
+            floor_slack = float(os.getenv("ACCOUNT_EQUITY_FLOOR_SLACK_USD", "0") or 0)
+        except (TypeError, ValueError):
+            floor_slack = 0.0
+        min_account_equity = starting_equity * 0.85 - max(0.0, floor_slack)
         risk_per_trade_pct = 0.015  # 1.5%
         max_position_dollar = 300  # Hard cap for 10k
         max_symbol_exposure = starting_equity * 0.10  # 10% of 10k = 1,000
@@ -273,6 +283,45 @@ def freeze_trading(reason: str, **details):
         })
     except Exception:
         pass
+
+
+def maybe_clear_equity_floor_freeze_on_recovery() -> bool:
+    """
+    If governor_freezes.json still has account_equity_floor_breached active but live broker
+    equity is at or above the configured min floor, clear the breach and boolean rollup flags
+    (production_freeze / meta_integrity_protect) that rollback may have set while frozen.
+    """
+    if not FREEZE_FILE.exists():
+        return False
+    try:
+        freezes = json.loads(FREEZE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    if not isinstance(freezes, dict):
+        return False
+    breach = freezes.get("account_equity_floor_breached")
+    if not isinstance(breach, dict) or breach.get("active") is not True:
+        return False
+    try:
+        import alpaca_trade_api as tradeapi  # type: ignore
+
+        api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL)
+        eq = float(getattr(api.get_account(), "equity", 0.0) or 0.0)
+    except Exception:
+        return False
+    limits = get_risk_limits()
+    floor = float(limits["min_account_equity"])
+    if eq < floor:
+        return False
+    freezes.pop("account_equity_floor_breached", None)
+    if freezes.get("production_freeze") is True:
+        freezes["production_freeze"] = False
+    if freezes.get("meta_integrity_protect") is True:
+        freezes["meta_integrity_protect"] = False
+    atomic_write_json(FREEZE_FILE, freezes)
+    log_event("freeze", "cleared_equity_floor_recovered", current_equity=eq, floor=floor)
+    return True
+
 
 # ============================================================
 # RISK CHECKS
