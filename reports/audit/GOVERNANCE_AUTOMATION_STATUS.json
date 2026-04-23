@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-23T02:34:45Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. Expected top-level dirs src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/ all present; reports/audit/ present; reports/board/ MISSING.",
+    "governance_contracts_present: .cursor/automations/ exists with README + specs; memory_bank/ has key docs (report_output_contract.md, report_retention_policy.md, systemPatterns.md, TELEMETRY_CHANGELOG.md); reports/audit/ present. FAIL: reports/board/ directory missing.",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active code (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). Scripts reference Moltbot: scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. MEMORY_BANK_ALPACA.md documents moltbot as active. These are code/config references, not just audit/docs documenting removal."
+  ],
+  "slack_sent": false
+}
