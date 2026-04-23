@@ -2202,6 +2202,22 @@ def _emit_trade_intent(
             rec["gut_confluence_score"] = float(_gv_lift)
         if rec.get("shadow_fractal_vapor") is None and isinstance(_fv_lift, dict):
             rec["shadow_fractal_vapor"] = _fv_lift
+        try:
+            from telemetry.shadow_evaluator import attach_shadow_telemetry
+
+            attach_shadow_telemetry(
+                rec,
+                symbol=symbol,
+                side=side,
+                feature_snapshot=snap,
+                comps=comps if isinstance(comps, dict) else {},
+                cluster=cluster if isinstance(cluster, dict) else {},
+                engine=engine,
+            )
+        except Exception as _e_shadow:
+            rec["shadow_chop_block"] = None
+            rec["ai_approved_v1"] = None
+            rec["ai_approved_v1_error"] = str(_e_shadow)[:200]
         jsonl_write("run", rec)
         try:
             if (decision_outcome or "").lower() == "entered":
@@ -6236,6 +6252,9 @@ class AlpacaExecutor:
         entry_score: float = None,
         market_regime: str = None,
         entry_components=None,
+        ml_gate_feature_snapshot=None,
+        ml_gate_cluster=None,
+        ml_gate_trade_id=None,
     ):
         """
         Submit entry order with spread watchdog and regime-aware execution.
@@ -6279,7 +6298,86 @@ class AlpacaExecutor:
         if ref_price <= 0:
             log_event("submit_entry", "bad_ref_price", symbol=symbol, ref_price=ref_price)
             return None, None, "error", 0, "bad_ref_price"
-        
+
+        try:
+            from src.offense.streak_breaker import entry_blocked_by_streak
+
+            _streak_block, _streak_reason = entry_blocked_by_streak()
+            if _streak_block:
+                log_event(
+                    "submit_entry",
+                    "offense_streak_two_losses_block",
+                    symbol=symbol,
+                    reason=_streak_reason,
+                )
+                return None, None, _streak_reason, 0, _streak_reason
+        except Exception as _streak_e:
+            log_event("submit_entry", "offense_streak_check_failed", symbol=symbol, error=str(_streak_e))
+
+        try:
+            from src.offense.entry_momentum_gate import check_offense_entry_gate
+
+            _gate_ok, _gate_reason = check_offense_entry_gate(self.api, symbol, float(ref_price), side)
+            if not _gate_ok:
+                log_event(
+                    "submit_entry",
+                    "offense_entry_gate_blocked",
+                    symbol=symbol,
+                    reason=_gate_reason,
+                    ref_price=float(ref_price),
+                )
+                return None, None, "offense_entry_gate", 0, _gate_reason
+        except Exception as _gate_e:
+            log_event("submit_entry", "offense_entry_gate_error", symbol=symbol, error=str(_gate_e))
+
+        # V2 live gate: hard block when model says probability below threshold (long entries only).
+        if str(os.environ.get("V2_LIVE_GATE_ENABLED", "1")).strip().lower() in ("1", "true", "yes", "on"):
+            if str(side).lower() == "buy":
+                try:
+                    from telemetry.shadow_evaluator import build_vanguard_feature_map
+                    from telemetry.vanguard_ml_runtime import evaluate_v2_live_gate
+
+                    _fs_g = ml_gate_feature_snapshot if isinstance(ml_gate_feature_snapshot, dict) else {}
+                    _cl_g = ml_gate_cluster if isinstance(ml_gate_cluster, dict) else {}
+                    _ec_g = entry_components if isinstance(entry_components, dict) else {}
+                    _row_gate = build_vanguard_feature_map(
+                        symbol=symbol,
+                        side=side,
+                        now_utc=datetime.now(timezone.utc),
+                        feature_snapshot=_fs_g if _fs_g else _ec_g,
+                        comps=_ec_g,
+                        cluster=_cl_g if _cl_g else _ec_g,
+                        trade_id=str(ml_gate_trade_id) if ml_gate_trade_id else None,
+                    )
+                    _pex_g = getattr(self, "_pending_entry_snapshot", None)
+                    if isinstance(_pex_g, dict):
+                        for k_g, fk_g in (("entry_price", "entry_price"), ("size", "qty"), ("qty", "qty")):
+                            if k_g in _pex_g and _pex_g[k_g] is not None and fk_g not in _row_gate:
+                                try:
+                                    _row_gate[fk_g] = float(_pex_g[k_g])
+                                except (TypeError, ValueError):
+                                    pass
+                    _ok_v2, _p_v2, _rc_v2 = evaluate_v2_live_gate(symbol=symbol, side=side, row=_row_gate)
+                    if not _ok_v2:
+                        log_event(
+                            "submit_entry",
+                            "v2_agent_veto",
+                            symbol=symbol,
+                            side=side,
+                            v2_proba=_p_v2,
+                            reason=_rc_v2,
+                        )
+                        return None, None, str(_rc_v2 or "v2_agent_veto"), 0, str(_rc_v2 or "v2_agent_veto")
+                except Exception as _v2e:
+                    log_event("submit_entry", "v2_live_gate_error", symbol=symbol, error=str(_v2e))
+                    if str(os.environ.get("V2_LIVE_GATE_FAIL_OPEN", "0")).strip().lower() not in (
+                        "1",
+                        "true",
+                        "yes",
+                        "on",
+                    ):
+                        return None, None, "v2_agent_veto_inference_error", 0, "v2_agent_veto_inference_error"
+
         # === TRADE GUARD: Mandatory sanity check (Risk #15) ===
         try:
             from trade_guard import evaluate_order
@@ -8187,6 +8285,22 @@ class AlpacaExecutor:
         except Exception as e:
             log_event("persist", "dynamic_atr_trail_write_failed", symbol=symbol, error=str(e))
 
+    def _persist_offense_atr_trail(self, symbol: str, trail_state: dict) -> None:
+        """Merge ``offense_atr_trail`` into POSITION_METADATA for ``symbol`` (atomic write)."""
+        metadata_path = StateFiles.POSITION_METADATA
+        try:
+            metadata_path.parent.mkdir(exist_ok=True)
+            metadata = load_metadata_with_lock(metadata_path)
+            sym = str(symbol).upper()
+            row = metadata.get(sym) if isinstance(metadata.get(sym), dict) else {}
+            row = dict(row)
+            row["offense_atr_trail"] = dict(trail_state)
+            row["updated_at"] = datetime.utcnow().isoformat()
+            metadata[sym] = row
+            atomic_write_json(metadata_path, metadata)
+        except Exception as e:
+            log_event("persist", "offense_atr_trail_write_failed", symbol=symbol, error=str(e))
+
     def _scale_out_partial(self, symbol: str, fraction: float, side: str):
         try:
             current_qty = get_position_qty(self.api, symbol)
@@ -8744,6 +8858,172 @@ class AlpacaExecutor:
             pnl_pct = max(-1000.0, min(1000.0, pnl_pct))
             high_water_pct = max(-1000.0, min(1000.0, high_water_pct))
             exit_signals["pnl_pct"] = pnl_pct
+
+            # Offense baseline: if still underwater after N minutes, force a market-style close (default 60).
+            try:
+                if os.environ.get("UNDERWATER_TIME_STOP_ENABLED", "1").strip().lower() in ("1", "true", "yes", "on"):
+                    try:
+                        _uw_lim = float(os.environ.get("UNDERWATER_TIME_STOP_MINUTES", "60.0"))
+                    except ValueError:
+                        _uw_lim = 60.0
+                    if float(age_min) > _uw_lim and float(pnl_pct) < 0.0:
+                        exit_signals["underwater_time_decay_stop"] = True
+                        exit_signals["underwater_age_minutes"] = round(float(age_min), 2)
+                        exit_reasons[symbol] = "underwater_time_decay_stop"
+                        exit_regime_info[symbol] = (
+                            "normal",
+                            "underwater_time_decay_stop",
+                            {"max_minutes": _uw_lim, "pnl_pct": float(pnl_pct)},
+                        )
+                        log_event(
+                            "exit",
+                            "underwater_time_decay_trigger",
+                            symbol=symbol,
+                            age_minutes=float(age_min),
+                            threshold_minutes=_uw_lim,
+                            pnl_pct=float(pnl_pct),
+                        )
+                        try:
+                            _emit_exit_intent(
+                                symbol=symbol,
+                                info=info if isinstance(info, dict) else {},
+                                close_reason="underwater_time_decay_stop",
+                                metadata=all_metadata.get(symbol) if isinstance(all_metadata.get(symbol), dict) else {},
+                            )
+                        except Exception:
+                            pass
+                        to_close.append(symbol)
+                        continue
+            except Exception as _uwt:
+                try:
+                    log_event("exit", "underwater_time_stop_eval_error", symbol=symbol, error=str(_uwt))
+                except Exception:
+                    pass
+
+            # Offense ATR trailing stop (1.5× ATR below high since entry; 1.5% static trail if ATR missing). Skipped when DYNAMIC_ATR_EXITS_ENABLED is on.
+            try:
+                _dyn_on = os.environ.get("DYNAMIC_ATR_EXITS_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
+                if (
+                    not _dyn_on
+                    and os.environ.get("OFFENSE_ATR_TRAIL_ENABLED", "1").strip().lower() in ("1", "true", "yes", "on")
+                ):
+                    if str(info.get("side", "buy")).lower() == "buy" and float(entry_price) > 0:
+                        try:
+                            _oa_period = int(os.environ.get("OFFENSE_ATR_PERIOD", "14"))
+                        except ValueError:
+                            _oa_period = 14
+                        try:
+                            _oa_mult = float(os.environ.get("OFFENSE_ATR_MULTIPLIER", "1.5"))
+                        except ValueError:
+                            _oa_mult = 1.5
+                        try:
+                            _oa_bar_lim = int(os.environ.get("OFFENSE_ATR_BAR_LIMIT", "80"))
+                        except ValueError:
+                            _oa_bar_lim = 80
+                        _oa_bar_lim = max(_oa_bar_lim, _oa_period + 5)
+                        _bars_oa = fetch_bars_safe(self.api, symbol, "1Min", limit=_oa_bar_lim)
+                        _df_oa = getattr(_bars_oa, "df", None) if _bars_oa is not None else None
+                        _sym_meta_oa = all_metadata.get(symbol, {})
+                        if not isinstance(_sym_meta_oa, dict):
+                            _sym_meta_oa = {}
+                        _oa_state = _sym_meta_oa.get("offense_atr_trail")
+                        if not isinstance(_oa_state, dict):
+                            _oa_state = {}
+                        _oa_state = dict(_oa_state)
+                        _hh_oa = max(float(high_water_price), float(current_price), float(entry_price))
+                        _atr_now_oa = None
+                        if _df_oa is not None and len(_df_oa) >= _oa_period + 1:
+                            from src.exit.dynamic_trailing_stops import (
+                                long_ratcheted_trailing_stop,
+                                long_stop_hit,
+                                wilders_atr_last,
+                            )
+
+                            _h_oa = [float(x) for x in _df_oa["high"].tolist()]
+                            _l_oa = [float(x) for x in _df_oa["low"].tolist()]
+                            _c_oa = [float(x) for x in _df_oa["close"].tolist()]
+                            _atr_now_oa = wilders_atr_last(_h_oa, _l_oa, _c_oa, period=_oa_period)
+                            _entry_atr = _oa_state.get("entry_atr")
+                            try:
+                                _entry_atr_f = float(_entry_atr) if _entry_atr is not None else float(_atr_now_oa)
+                                if not (_entry_atr_f == _entry_atr_f):
+                                    _entry_atr_f = float(_atr_now_oa)
+                            except (TypeError, ValueError):
+                                _entry_atr_f = float(_atr_now_oa)
+                            _prev_raw_oa = _oa_state.get("trailing_stop_price")
+                            try:
+                                _prev_stop_oa = (
+                                    float(_prev_raw_oa)
+                                    if _prev_raw_oa is not None and str(_prev_raw_oa).strip() != ""
+                                    else None
+                                )
+                                if _prev_stop_oa is not None and not (_prev_stop_oa == _prev_stop_oa):
+                                    _prev_stop_oa = None
+                            except (TypeError, ValueError):
+                                _prev_stop_oa = None
+                            _new_stop_oa = long_ratcheted_trailing_stop(
+                                entry_price=float(entry_price),
+                                entry_atr=float(_entry_atr_f),
+                                highest_high_since_entry=float(_hh_oa),
+                                current_atr=float(_atr_now_oa),
+                                multiplier=float(_oa_mult),
+                                previous_stop=_prev_stop_oa,
+                            )
+                            _oa_state["entry_atr"] = float(_entry_atr_f)
+                            _oa_state["trailing_stop_price"] = float(_new_stop_oa)
+                            _oa_state["last_atr"] = float(_atr_now_oa)
+                        else:
+                            _pct = float(os.environ.get("OFFENSE_ATR_STATIC_FRACTION", "0.015"))
+                            _new_stop_oa = float(_hh_oa) * (1.0 - _pct)
+                            _oa_state["trailing_stop_price"] = float(_new_stop_oa)
+                            _oa_state["last_atr"] = None
+                            _oa_state["static_fraction"] = _pct
+                        try:
+                            _oa_state["last_bar_ts"] = str(_df_oa.index[-1]) if _df_oa is not None and len(_df_oa) else None
+                        except Exception:
+                            pass
+                        _oa_state["updated_at"] = datetime.utcnow().isoformat() + "Z"
+                        self._persist_offense_atr_trail(symbol, _oa_state)
+                        all_metadata.setdefault(symbol, {})
+                        if isinstance(all_metadata[symbol], dict):
+                            all_metadata[symbol]["offense_atr_trail"] = _oa_state
+                        if long_stop_hit(current_price=float(current_price), trailing_stop=float(_new_stop_oa)):
+                            exit_signals["offense_atr_trailing_stop"] = True
+                            exit_signals["offense_atr_stop_price"] = round(float(_new_stop_oa), 6)
+                            exit_signals["trailing_stop"] = True
+                            exit_reasons[symbol] = "offense_atr_trailing_stop"
+                            exit_regime_info[symbol] = (
+                                "normal",
+                                "offense_atr_trailing_stop",
+                                {"offense_atr_stop": float(_new_stop_oa), "atr": _atr_now_oa},
+                            )
+                            log_event(
+                                "exit",
+                                "offense_atr_trailing_stop_hit",
+                                symbol=symbol,
+                                stop_price=float(_new_stop_oa),
+                                current_price=float(current_price),
+                                atr=_atr_now_oa,
+                            )
+                            try:
+                                _emit_exit_intent(
+                                    symbol=symbol,
+                                    info=info if isinstance(info, dict) else {},
+                                    close_reason="offense_atr_trail_stop",
+                                    metadata={
+                                        **(_sym_meta_oa if isinstance(_sym_meta_oa, dict) else {}),
+                                        "offense_atr_trail": _oa_state,
+                                    },
+                                )
+                            except Exception:
+                                pass
+                            to_close.append(symbol)
+                            continue
+            except Exception as _oae:
+                try:
+                    log_event("exit", "offense_atr_exit_eval_error", symbol=symbol, error=str(_oae))
+                except Exception:
+                    pass
 
             # Dynamic Wilder ATR trailing stop (long-only). Early in the loop so v2/pressure ``continue`` paths cannot skip it.
             try:
@@ -9392,6 +9672,20 @@ class AlpacaExecutor:
             else:
                 self.high_water[symbol] = max(self.high_water.get(symbol, current_price), current_price)
                 trail_stop = self.high_water[symbol] * (1 - trailing_stop_pct)
+
+            # Offense: combine static percent trail with offense ATR chandelier (long: take looser stop = min prices).
+            try:
+                if os.environ.get("OFFENSE_TRAIL_MERGE_WITH_STATIC", "1").strip().lower() in ("1", "true", "yes", "on"):
+                    if str(info.get("side", "buy")).lower() == "buy":
+                        _row_m = all_metadata.get(symbol, {})
+                        if isinstance(_row_m, dict):
+                            _ot = _row_m.get("offense_atr_trail")
+                            if isinstance(_ot, dict) and _ot.get("trailing_stop_price") is not None:
+                                _otp = float(_ot["trailing_stop_price"])
+                                if _otp > 0 and not (math.isnan(_otp) or math.isinf(_otp)):
+                                    trail_stop = min(float(trail_stop), _otp)
+            except Exception:
+                pass
 
             # V3.0 CONVICTION-BASED EXITS: Removed TIME_EXIT logic
             # Exit on: 1) Stop-Loss, 2) Signal Decay >40%, 3) Profit target
@@ -13125,6 +13419,26 @@ class StrategyEngine:
                 # CRITICAL: Add exception handling and logging around submit_entry
                 try:
                     print(f"DEBUG {symbol}: About to call submit_entry with qty={qty}, side={side}, regime={market_regime}", flush=True)
+                    snap_ml = None
+                    try:
+                        from telemetry.attribution_feature_snapshot import build_shared_feature_snapshot
+
+                        enriched_ml = {"symbol": symbol, "score": score, "composite_score": score}
+                        if isinstance(comps, dict):
+                            enriched_ml.update(comps)
+                        if isinstance(c, dict):
+                            enriched_ml.setdefault("direction", c.get("direction"))
+                        mc_ml = getattr(self, "market_context_v2", None) or {}
+                        rs_ml = getattr(self, "regime_posture_v2", None) or {}
+                        snap_ml = build_shared_feature_snapshot(
+                            enriched_ml,
+                            mc_ml if isinstance(mc_ml, dict) else {},
+                            rs_ml if isinstance(rs_ml, dict) else {},
+                            snapshot_stage="entry",
+                            comps_fallback=comps if isinstance(comps, dict) else None,
+                        )
+                    except Exception:
+                        snap_ml = None
                     res, fill_price, order_type, filled_qty, entry_status = self.executor.submit_entry(
                         symbol,
                         qty,
@@ -13134,6 +13448,9 @@ class StrategyEngine:
                         entry_score=score,
                         market_regime=market_regime,
                         entry_components=comps if isinstance(comps, dict) else {},
+                        ml_gate_feature_snapshot=snap_ml if isinstance(snap_ml, dict) else None,
+                        ml_gate_cluster=c if isinstance(c, dict) else None,
+                        ml_gate_trade_id=None,
                     )
                     print(f"DEBUG {symbol}: submit_entry completed - res={res is not None}, order_type={order_type}, entry_status={entry_status}, filled_qty={filled_qty}", flush=True)
                     
