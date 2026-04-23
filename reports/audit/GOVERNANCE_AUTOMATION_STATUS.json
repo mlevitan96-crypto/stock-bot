@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-23T13:42:43Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warn",
+      "message": "reports/board/ directory does not exist. Expected top-level subdirectory per governance contract."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warn",
+      "message": "reports/board/ directory is missing. memory_bank/ and .cursor/automations/ (with README + specs) and reports/audit/ are present."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "error",
+      "message": "Active moltbot/ code directory found with 5 Python modules (sentinel.py, orchestrator.py, board.py, promotion_discipline.py, memory_evolution.py). scripts/run_molt_workflow.py imports from moltbot. scripts/run_molt_intelligence_expansion.py references Moltbot. Excluded: reports/audit, reports/daily, docs, board/eod/out (historical logs/documentation of removal)."
+    }
+  ],
+  "slack_sent": false
+}
