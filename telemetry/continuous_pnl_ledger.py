@@ -344,6 +344,17 @@ def append_continuous_pnl_point_from_exit(rec: Dict[str, Any]) -> None:
         return
 
 
+def _ledger_has_v1_rows(path: Path) -> bool:
+    """True if file exists and contains at least one ``continuous_pnl_ledger_v1`` row."""
+    if not path.is_file() or path.stat().st_size == 0:
+        return False
+    try:
+        txt = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    return SCHEMA_V1 in txt
+
+
 def seed_continuous_pnl_ledger_from_logs(
     root: Path,
     *,
@@ -352,10 +363,10 @@ def seed_continuous_pnl_ledger_from_logs(
 ) -> int:
     """
     One-off: populate ``state/continuous_pnl_ledger.jsonl`` from current exit + run tails.
-    Returns number of rows written. Skips if ledger non-empty unless ``force=True``.
+    Returns number of rows written. Skips if ledger already has v1 rows unless ``force=True``.
     """
     path = continuous_pnl_ledger_path(root)
-    if path.is_file() and path.stat().st_size > 0 and not force:
+    if _ledger_has_v1_rows(path) and not force:
         return 0
     if path.is_file() and force:
         path.unlink(missing_ok=True)
