@@ -17,5 +17,6 @@
     "no_deprecated_dirs: moltbot/ directory still present at top level",
     "no_clawdbot_moltbot: moltbot code found in moltbot/ (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py); molt-related scripts found in scripts/ (run_molt_workflow.py, run_molt_intelligence_expansion.py, run_openclaw_molt_synthesis.py); references in scripts/sre/run_sre_anomaly_scan.py"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1062"
 }
