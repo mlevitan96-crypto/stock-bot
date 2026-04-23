@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-23T15:25:08Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. Expected by governance contract and MEMORY_BANK_ALPACA.md (PROFITABILITY_COCKPIT.md path).",
+    "governance_contracts_present: reports/board/ missing — governance contract requires reports/audit/ and reports/board/ to exist."
+  ],
+  "slack_sent": false
+}
