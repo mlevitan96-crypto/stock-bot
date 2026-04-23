@@ -9,8 +9,8 @@
   let pollTimer = null;
   let pnlChart = null;
   /** @type {any} */
-  let dailyTradesChart = null;
-  let lastDailyTradesSig = "";
+  let dualBarrelChart = null;
+  let lastDualBarrelSig = "";
   let vaultLoaded = false;
   /** @type {{ t: number, equity: number, src?: string }[]} */
   let equityTrail = [];
@@ -91,65 +91,119 @@
     }
   }
 
-  function destroyDailyTradesChart() {
-    if (dailyTradesChart) {
+  function destroyDualBarrelChart() {
+    if (dualBarrelChart) {
       try {
-        dailyTradesChart.destroy();
+        dualBarrelChart.destroy();
       } catch (_) {}
-      dailyTradesChart = null;
+      dualBarrelChart = null;
     }
   }
 
   /**
    * @param {{ label?: string, date?: string, trade_count?: number }[]} series
    */
-  function renderDailyTradesChart(series) {
-    const canvas = el("dailyTradesChart");
-    if (!canvas || typeof Chart === "undefined") return;
+  function renderDailyLedgerTable(series) {
+    const tbody = el("dailyLedgerBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
     if (!Array.isArray(series) || series.length === 0) {
-      destroyDailyTradesChart();
-      lastDailyTradesSig = "";
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td colspan="2" class="muted">No rows</td>';
+      tbody.appendChild(tr);
       return;
     }
-    const labels = series.map(function (x) {
-      return x.label || x.date || "";
+    const rows = series.slice().sort(function (a, b) {
+      return String(b.date || "").localeCompare(String(a.date || ""));
     });
-    const vals = series.map(function (x) {
-      return Number(x.trade_count) || 0;
-    });
-    var mx = 0;
-    for (var vi = 0; vi < vals.length; vi++) {
-      if (vals[vi] > mx) mx = vals[vi];
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var tr = document.createElement("tr");
+      tr.className = "data-row";
+      var d = r.date != null ? String(r.date) : String(r.label || "");
+      var c = r.trade_count != null ? String(r.trade_count) : "0";
+      tr.innerHTML = "<td>" + escapeHtml(d) + "</td><td>" + escapeHtml(c) + "</td>";
+      tbody.appendChild(tr);
     }
-    var ySuggestedMax = mx === 0 ? 4 : Math.ceil(mx * 1.15);
-    const sig = labels.join("\u0001") + "|" + vals.join(",") + "|" + ySuggestedMax;
-    const ctx = canvas.getContext("2d");
+  }
+
+  /**
+   * @param {{ t?: number, ts_iso?: string, live_cumulative_usd?: number, shadow_cumulative_usd?: number }[]} points
+   */
+  function renderDualBarrelChart(points) {
+    const canvas = el("dualBarrelPnlChart");
+    const note = el("dualBarrelNote");
+    if (!canvas || typeof Chart === "undefined") return;
+    if (!Array.isArray(points) || points.length === 0) {
+      destroyDualBarrelChart();
+      lastDualBarrelSig = "";
+      if (note) note.textContent = "No cumulative PnL points yet (need exit_attribution.jsonl closes).";
+      return;
+    }
+    var labels = [];
+    var live = [];
+    var sh = [];
+    for (var i = 0; i < points.length; i++) {
+      var p = points[i];
+      var tsMs = typeof p.t === "number" ? p.t * 1000 : p.ts_iso ? Date.parse(String(p.ts_iso)) : NaN;
+      labels.push(Number.isFinite(tsMs) ? formatEtAxisLabel(tsMs) : String(i));
+      live.push(Number(p.live_cumulative_usd));
+      sh.push(Number(p.shadow_cumulative_usd));
+    }
+    var sig =
+      "DB\u0001" +
+      labels.join("\u0001") +
+      "|" +
+      live.join(",") +
+      "|" +
+      sh.join(",");
+    var yVals = live.concat(sh);
+    var yBounds = yDomainFromVals(yVals);
+    var ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    if (dailyTradesChart && sig === lastDailyTradesSig) {
-      dailyTradesChart.data.labels = labels;
-      dailyTradesChart.data.datasets[0].data = vals;
-      if (dailyTradesChart.options.scales && dailyTradesChart.options.scales.y) {
-        dailyTradesChart.options.scales.y.suggestedMax = ySuggestedMax;
+    if (dualBarrelChart && sig === lastDualBarrelSig) {
+      dualBarrelChart.data.labels = labels;
+      dualBarrelChart.data.datasets[0].data = live;
+      dualBarrelChart.data.datasets[1].data = sh;
+      if (dualBarrelChart.options.scales && dualBarrelChart.options.scales.y) {
+        dualBarrelChart.options.scales.y.min = yBounds.min;
+        dualBarrelChart.options.scales.y.max = yBounds.max;
       }
-      dailyTradesChart.update("none");
+      dualBarrelChart.update("none");
       return;
     }
-    lastDailyTradesSig = sig;
-    destroyDailyTradesChart();
+    lastDualBarrelSig = sig;
+    destroyDualBarrelChart();
 
     try {
-      dailyTradesChart = new Chart(ctx, {
-        type: "bar",
+      dualBarrelChart = new Chart(ctx, {
+        type: "line",
         data: {
           labels: labels,
           datasets: [
             {
-              data: vals,
-              backgroundColor: "rgba(88, 166, 255, 0.72)",
-              borderColor: "#58a6ff",
-              borderWidth: 1,
-              borderRadius: 2,
+              label: "Live / paper cumulative realized PnL",
+              data: live,
+              yAxisID: "y",
+              borderColor: "#39d353",
+              backgroundColor: "transparent",
+              fill: false,
+              tension: 0.2,
+              pointRadius: 0,
+              borderWidth: 2.25,
+            },
+            {
+              label: "Shadow cumulative (V3-approved closes only)",
+              data: sh,
+              yAxisID: "y",
+              borderColor: "#8b949e",
+              backgroundColor: "transparent",
+              fill: false,
+              tension: 0.2,
+              pointRadius: 0,
+              borderWidth: 2,
+              borderDash: [6, 5],
             },
           ],
         },
@@ -157,34 +211,45 @@
           responsive: true,
           maintainAspectRatio: false,
           animation: false,
+          interaction: { intersect: false, mode: "index" },
           plugins: {
-            legend: { display: false },
-            tooltip: { enabled: false },
+            legend: {
+              display: true,
+              position: "top",
+              labels: { color: "#8b949e", boxWidth: 10, font: { size: 10 } },
+            },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  var v = ctx.parsed.y;
+                  return ctx.dataset.label + ": " + formatMoney(v);
+                },
+              },
+            },
           },
           scales: {
             x: {
-              ticks: {
-                color: "#8b949e",
-                maxRotation: 55,
-                minRotation: 45,
-                autoSkip: true,
-                maxTicksLimit: 16,
-                font: { size: 9 },
-              },
-              grid: { display: false },
+              ticks: { color: "#8b949e", maxRotation: 0, autoSkip: true, maxTicksLimit: 14, font: { size: 9 } },
+              grid: { color: "#30363d" },
             },
             y: {
-              beginAtZero: true,
-              suggestedMax: ySuggestedMax,
-              ticks: { color: "#8b949e", precision: 0, stepSize: mx === 0 ? 1 : undefined },
-              grid: { display: false },
+              position: "left",
+              min: yBounds.min,
+              max: yBounds.max,
+              ticks: {
+                color: "#8b949e",
+                callback: function (v) {
+                  return formatMoney(v);
+                },
+              },
+              grid: { color: "#30363d" },
             },
           },
         },
       });
     } catch (err) {
-      console.error("[dashboard] daily trades chart", err);
-      destroyDailyTradesChart();
+      console.error("[dashboard] dual barrel chart", err);
+      destroyDualBarrelChart();
     }
   }
 
@@ -195,36 +260,91 @@
       if (!r.ok) {
         if (note) {
           note.textContent =
-            r.error && r.error.message ? String(r.error.message) : "Could not load trades-per-day (check auth).";
+            r.error && r.error.message ? String(r.error.message) : "Could not load daily ledger (check auth).";
         }
-        destroyDailyTradesChart();
+        renderDailyLedgerTable([]);
         return;
       }
       const d = r.data;
       if (!d || d.ok === false) {
-        if (note) note.textContent = d && d.error ? String(d.error) : "Trades-per-day unavailable.";
-        destroyDailyTradesChart();
+        if (note) note.textContent = d && d.error ? String(d.error) : "Daily ledger unavailable.";
+        renderDailyLedgerTable([]);
         return;
       }
       const sn = d.scan_note ? String(d.scan_note) : "";
       const tz = d.timezone ? " · " + d.timezone : "";
       const todayHint =
-        d.calendar_today_label && d.calendar_today_trade_count != null
-          ? " · Today: " + d.calendar_today_label + " → " + String(d.calendar_today_trade_count)
+        d.calendar_today_date && d.calendar_today_trade_count != null
+          ? " · Today (UTC): " + d.calendar_today_date + " → " + String(d.calendar_today_trade_count)
           : "";
-      if (note) note.textContent = (sn || "Daily closed-trade counts from exit_attribution.jsonl tail") + tz + todayHint;
+      if (note) note.textContent = (sn || "Daily ledger") + tz + todayHint;
       var series = d.series || [];
       requestAnimationFrame(function () {
         try {
-          renderDailyTradesChart(series);
+          renderDailyLedgerTable(series);
         } catch (e) {
-          console.error("[dashboard] render daily trades", e);
+          console.error("[dashboard] render daily ledger", e);
         }
       });
     } catch (e) {
       console.error("[dashboard] loadDailyTradeVolume", e);
-      if (note) note.textContent = "Trades-per-day load error.";
-      destroyDailyTradesChart();
+      if (note) note.textContent = "Daily ledger load error.";
+      renderDailyLedgerTable([]);
+    }
+  }
+
+  async function loadDualBarrelPnl() {
+    const note = el("dualBarrelNote");
+    try {
+      const r = await safeFetch("/api/dashboard/dual_barrel_cumulative_pnl?max_points=600");
+      if (!r.ok) {
+        if (note) {
+          var em = r.error && r.error.message ? String(r.error.message) : "Could not load dual-barrel series.";
+          note.textContent = em;
+        }
+        destroyDualBarrelChart();
+        return;
+      }
+      const d = r.data;
+      if (!d || d.ok === false) {
+        if (note) note.textContent = d && d.error ? String(d.error) : "Dual-barrel series unavailable.";
+        destroyDualBarrelChart();
+        return;
+      }
+      var pts = d.points || [];
+      pts = pts
+        .filter(function (p) {
+          return p && typeof p.t === "number" && !Number.isNaN(p.t);
+        })
+        .slice()
+        .sort(function (a, b) {
+          return a.t - b.t;
+        });
+      if (note) {
+        if (!pts || pts.length === 0) {
+          note.textContent =
+            "No cumulative PnL points yet. Run seed script or close trades; ledger lives under state/.";
+        } else {
+          note.textContent =
+            "Loaded " +
+            pts.length +
+            " sample(s)" +
+            (d.source ? " · " + String(d.source) : "") +
+            (d.ledger_row_count != null ? " · ledger closes: " + String(d.ledger_row_count) : "") +
+            ".";
+        }
+      }
+      requestAnimationFrame(function () {
+        try {
+          renderDualBarrelChart(pts);
+        } catch (e) {
+          console.error("[dashboard] render dual barrel", e);
+        }
+      });
+    } catch (e) {
+      console.error("[dashboard] loadDualBarrelPnl", e);
+      if (note) note.textContent = "Dual-barrel load error.";
+      destroyDualBarrelChart();
     }
   }
 
@@ -1031,6 +1151,7 @@
     persistTrailSession();
 
     await loadDailyTradeVolume();
+    await loadDualBarrelPnl();
 
     requestAnimationFrame(function () {
       try {
