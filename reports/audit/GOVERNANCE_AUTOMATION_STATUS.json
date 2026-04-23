@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-23T08:20:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist",
+    "governance_contracts_present: reports/board/ missing; MEMORY_BANK_ALPACA.md exists at repo root but not inside memory_bank/",
+    "no_deprecated_dirs: moltbot/ directory still present at top level",
+    "no_clawdbot_moltbot: moltbot code found in moltbot/ (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py); molt-related scripts found in scripts/ (run_molt_workflow.py, run_molt_intelligence_expansion.py, run_openclaw_molt_synthesis.py); references in scripts/sre/run_sre_anomaly_scan.py"
+  ],
+  "slack_sent": false
+}
