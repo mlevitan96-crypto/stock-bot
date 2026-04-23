@@ -1,9 +1,11 @@
 """
-Shadow mode: chop-window flag + Vanguard XGBoost v1 best-effort approval (no execution impact).
+Shadow mode: chop-window flag + Vanguard XGBoost ML telemetry (v1 legacy, v2 live mirror, v3 shadow).
 
 Attaches to trade_intent JSON in logs/run.jsonl:
   - shadow_chop_block: 11:30–13:30 US/Eastern
   - ai_approved_v1: True/False/None (None = inference failed safely)
+  - ai_approved_v2: True/False/None — same threshold as live V2 gate
+  - ai_approved_v3_shadow: True/False/None — V3 Alpha Hunter (runner) shadow lane
 """
 from __future__ import annotations
 
@@ -342,16 +344,11 @@ def attach_shadow_telemetry(
 ) -> None:
     rec["shadow_chop_block"] = bool(shadow_chop_block_now())
     rec["ai_approved_v1"] = None
-    bst, meta, err = _load_booster_and_meta()
-    if bst is None or not isinstance(meta, dict) or not meta.get("feature_names"):
-        if err:
-            rec["ai_approved_v1_error"] = err[:200]
-        return
+    rec["ai_approved_v2"] = None
+    rec["ai_approved_v3_shadow"] = None
+    tid = rec.get("trade_id")
+    row: Dict[str, float] = {}
     try:
-        fo: List[str] = list(meta["feature_names"])
-        sc = [str(x) for x in (meta.get("symbol_classes") or [])]
-        sdc = [str(x) for x in (meta.get("side_classes") or [])]
-        tid = rec.get("trade_id")
         row = build_vanguard_feature_map(
             symbol=symbol,
             side=side,
@@ -374,14 +371,35 @@ def attach_shadow_telemetry(
                                 pass
             except Exception:
                 pass
-        rec["ai_approved_v1"] = bool(
-            predict_vanguard_ai_approved(fo, symbol, side, sc, sdc, row)
-        )
     except Exception as e:
-        rec["ai_approved_v1"] = None
-        rec["ai_approved_v1_error"] = str(e)[:400]
+        rec["ai_approved_v1_error"] = str(e)[:200]
         if "sys" in dir():
-            print(f"[shadow_evaluator] ai_approved_v1 failed: {e}", file=sys.stderr)
+            print(f"[shadow_evaluator] feature_map_failed: {e}", file=sys.stderr)
+
+    bst, meta, err = _load_booster_and_meta()
+    if bst is None or not isinstance(meta, dict) or not meta.get("feature_names"):
+        if err:
+            rec["ai_approved_v1_error"] = (rec.get("ai_approved_v1_error") or "") + ("; " if rec.get("ai_approved_v1_error") else "") + str(err)[:200]
+    else:
+        try:
+            fo: List[str] = list(meta["feature_names"])
+            sc = [str(x) for x in (meta.get("symbol_classes") or [])]
+            sdc = [str(x) for x in (meta.get("side_classes") or [])]
+            rec["ai_approved_v1"] = bool(predict_vanguard_ai_approved(fo, symbol, side, sc, sdc, row))
+        except Exception as e:
+            rec["ai_approved_v1"] = None
+            rec["ai_approved_v1_error"] = str(e)[:400]
+            if "sys" in dir():
+                print(f"[shadow_evaluator] ai_approved_v1 failed: {e}", file=sys.stderr)
+
+    try:
+        from telemetry.vanguard_ml_runtime import enrich_shadow_v2_v3_fields
+
+        enrich_shadow_v2_v3_fields(rec, symbol=symbol, side=side, row=row)
+    except Exception as e:
+        rec["ai_approved_v2_error"] = str(e)[:200]
+        if "sys" in dir():
+            print(f"[shadow_evaluator] v2/v3 shadow enrich failed: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":

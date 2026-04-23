@@ -139,6 +139,15 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
             )
         with OUT.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
+        try:
+            from src.offense.streak_breaker import register_closed_trade_pnl
+
+            _pnl_reg = rec.get("pnl")
+            if _pnl_reg is None:
+                _pnl_reg = rec.get("realized_pnl_usd")
+            register_closed_trade_pnl(_pnl_reg)
+        except Exception:
+            pass
         # Canonical exit attribution (dominant + margins + snapshot)
         try:
             from src.telemetry.alpaca_attribution_emitter import emit_exit_attribution

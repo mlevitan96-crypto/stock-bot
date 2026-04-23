@@ -455,6 +455,30 @@ def _base_trade_fields(rec: dict) -> Dict[str, Any]:
     }
 
 
+def _load_run_intent_ai_index(root: Path) -> Dict[str, Dict[str, Any]]:
+    """Last trade_intent row wins per trade_id / canonical_trade_id / trade_key (for ML AI columns)."""
+    path = root / "logs" / "run.jsonl"
+    out: Dict[str, Dict[str, Any]] = {}
+    if not path.is_file():
+        return out
+    for r in _iter_jsonl(path):
+        if str(r.get("event_type") or "") != "trade_intent":
+            continue
+        blob = {
+            "ai_approved_v1": r.get("ai_approved_v1"),
+            "ai_approved_v2": r.get("ai_approved_v2"),
+            "ai_approved_v3_shadow": r.get("ai_approved_v3_shadow"),
+        }
+        for key in ("trade_id", "canonical_trade_id", "trade_key"):
+            v = r.get(key)
+            if v is None:
+                continue
+            s = str(v).strip()
+            if s:
+                out[s] = blob
+    return out
+
+
 def _entry_epoch_for_scoring(rec: dict, row: Dict[str, Any]) -> Optional[float]:
     """Prefer entry_ts on row, then raw record timestamps, then open instant from trade_id."""
     t = _parse_iso_ts(row.get("entry_ts"))
@@ -472,6 +496,7 @@ def build_rows(
     scoring_index: Optional[Dict[str, Tuple[List[float], List[Dict[str, Any]], List[float]]]],
     entry_snap_index: Optional[Dict[str, Dict[str, dict]]] = None,
     *,
+    run_intent_ai: Optional[Dict[str, Dict[str, Any]]] = None,
     scoreflow_lookback_sec: float = SCOREFLOW_LOOKBACK_SEC_DEFAULT,
     scoreflow_unbounded_fallback: bool = True,
 ) -> List[Dict[str, Any]]:
@@ -588,6 +613,23 @@ def build_rows(
         row["uw_gamma_skew"] = _g_uc
         row["uw_tide_score"] = _t_uc
 
+        if run_intent_ai:
+            _keys_ai: List[str] = []
+            try:
+                _keys_ai.extend([k for k in _exit_row_snapshot_lookup_keys(rec) if k])
+            except Exception:
+                pass
+            _tid_ai = rec.get("trade_id")
+            if _tid_ai:
+                _keys_ai.append(str(_tid_ai).strip())
+            for _ek in _keys_ai:
+                if _ek and _ek in run_intent_ai:
+                    _blob = run_intent_ai[_ek]
+                    row["ai_approved_v1"] = _blob.get("ai_approved_v1")
+                    row["ai_approved_v2"] = _blob.get("ai_approved_v2")
+                    row["ai_approved_v3_shadow"] = _blob.get("ai_approved_v3_shadow")
+                    break
+
         out.append(row)
     return out
 
@@ -666,11 +708,14 @@ def main() -> int:
         else _load_entry_snapshot_indexes(entry_snap_path)
     )
 
+    run_intent_ai = _load_run_intent_ai_index(root)
+
     rows = build_rows(
         root,
         args.floor_epoch,
         scoring_index,
         entry_snap_index,
+        run_intent_ai=run_intent_ai,
         scoreflow_lookback_sec=args.scoreflow_lookback_sec,
         scoreflow_unbounded_fallback=not args.no_scoreflow_unbounded_fallback,
     )
@@ -685,6 +730,9 @@ def main() -> int:
     for _u in ("uw_gamma_skew", "uw_tide_score"):
         if _u not in headers:
             headers.append(_u)
+    for _ai in ("ai_approved_v1", "ai_approved_v2", "ai_approved_v3_shadow"):
+        if _ai not in headers:
+            headers.append(_ai)
 
     def _apply_sub_dollar_csv_precision(row: Dict[str, Any]) -> None:
         """Apex: sub-$1 entry cohort uses 4dp prices / 4dp USD PnL on CSV (finer above $1)."""

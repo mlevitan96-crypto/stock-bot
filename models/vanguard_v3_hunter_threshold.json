@@ -1,0 +1,8 @@
+{
+  "top_frac": 0.3,
+  "holdout_probability_threshold": 0.354498028755188,
+  "holdout_approved_n": 68,
+  "holdout_total_n": 225,
+  "holdout_runner_rate_among_approved": 0.4264705882352941,
+  "model_path": "C:/Dev/stock-bot/models/vanguard_v3_hunter_agent.json"
+}
