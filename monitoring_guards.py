@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 import json
 from typing import Dict, List, Any, Optional, Callable
 
+from src.infrastructure.json_utils import safe_json_load
+
 
 def append_jsonl(path: str, obj: dict):
     """Append JSON line to file."""
@@ -209,10 +211,9 @@ def check_performance_freeze() -> bool:
             freeze_path = Path("state/governor_freezes.json")
             freezes = {}
             if freeze_path.exists():
-                try:
-                    freezes = json.loads(freeze_path.read_text())
-                except:
-                    pass
+                freezes = safe_json_load(freeze_path, default={}, context="monitoring_guards.performance_freeze")
+                if not isinstance(freezes, dict):
+                    freezes = {}
             
             freezes["performance_freeze"] = True
             freezes["performance_freeze_reason"] = freeze_reason
@@ -253,6 +254,14 @@ def check_freeze_state() -> bool:
     Returns:
         True if no freezes, False if any freeze active
     """
+    # Auto-heal: equity floor breach may linger after equity recovers; clear before evaluating.
+    try:
+        from risk_management import maybe_clear_equity_floor_freeze_on_recovery
+
+        maybe_clear_equity_floor_freeze_on_recovery()
+    except Exception:
+        pass
+
     # CRITICAL: Check performance first (emergency stop for losing trades)
     if not check_performance_freeze():
         return False  # Performance freeze active
@@ -272,7 +281,9 @@ def check_freeze_state() -> bool:
         return True  # No freeze file = no freezes
     
     try:
-        freezes = json.loads(freeze_path.read_text())
+        freezes = safe_json_load(freeze_path, default={}, context="monitoring_guards.check_freeze_state")
+        if not isinstance(freezes, dict):
+            freezes = {}
 
         def _freeze_entry_active(v: Any) -> bool:
             if v is True:
@@ -462,7 +473,9 @@ def auto_refresh_stale_heartbeats(max_age_minutes: int = 30) -> Dict[str, Any]:
     
     for hb_file in heartbeat_dir.glob("*.json"):
         try:
-            data = json.loads(hb_file.read_text())
+            data = safe_json_load(hb_file, default={}, context="monitoring_guards.remediate_heartbeats")
+            if not isinstance(data, dict):
+                continue
             
             # Check age
             if "ts" in data:
@@ -568,7 +581,10 @@ def check_heartbeat_staleness(required_modules: List[str], max_age_minutes: int 
             continue
         
         try:
-            hb_data = json.loads(hb_path.read_text())
+            hb_data = safe_json_load(hb_path, default={}, context="monitoring_guards.heartbeat_check")
+            if not isinstance(hb_data, dict):
+                missing.append(module)
+                continue
             
             # Handle both timestamp formats: "ts" (ISO string) or "last_heartbeat_dt" (string) or "last_heartbeat_ts" (unix)
             if "ts" in hb_data:
@@ -699,7 +715,9 @@ def check_rollback_conditions(
         if should_freeze:
             freeze_path = Path("state/governor_freezes.json")
             if freeze_path.exists():
-                freezes = json.loads(freeze_path.read_text())
+                freezes = safe_json_load(freeze_path, default={}, context="monitoring_guards.rollback_freeze")
+                if not isinstance(freezes, dict):
+                    freezes = {}
                 freezes["production_freeze"] = True
                 freezes["meta_integrity_protect"] = True
                 freeze_path.write_text(json.dumps(freezes, indent=2))
@@ -839,7 +857,9 @@ def auto_clear_freeze_flags() -> bool:
         if not freeze_path.exists():
             return True
         
-        freezes = json.loads(freeze_path.read_text())
+        freezes = safe_json_load(freeze_path, default={}, context="monitoring_guards.auto_clear_freeze")
+        if not isinstance(freezes, dict):
+            freezes = {}
         original_freezes = freezes.copy()
         
         # Clear all freeze flags
@@ -881,7 +901,9 @@ def reload_scoring_config() -> bool:
             }, success=False)
             return False
         
-        config = json.loads(config_path.read_text())
+        config = safe_json_load(config_path, default={}, context="monitoring_guards.reload_scoring_config")
+        if not isinstance(config, dict):
+            config = {}
         
         log_fix_action("reload_scoring_config", {
             "config_loaded": True,
