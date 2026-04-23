@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-23T09:04:51.821+00:00",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "Missing: reports/board/",
+    "Governance contract missing: reports/board"
+  ],
+  "github_issue_ref": "#1063 (existing open issue tracks same anomaly)",
+  "slack_sent": false
+}
