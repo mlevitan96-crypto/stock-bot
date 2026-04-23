@@ -262,6 +262,16 @@
     .status-dot.ok { background: var(--good); }
     .status-dot.degraded { background: var(--warn); }
     .status-dot.unknown { background: var(--bad); }
+    .ledger-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .ledger-table th,
+    .ledger-table td {
+      border: 1px solid #30363d;
+      padding: 0.35rem 0.55rem;
+      text-align: left;
+    }
+    .ledger-table th { color: #8b949e; font-weight: 600; background: rgba(22, 27, 34, 0.85); }
+    .ledger-table tbody tr:nth-child(even) { background: rgba(13, 17, 23, 0.35); }
+    .ledger-table-wrap { max-height: clamp(200px, 32vh, 420px); overflow: auto; }
   </style>
 </head>
 <body>
@@ -294,9 +304,30 @@
           </div>
         </div>
         <div class="card chart-card-full">
-          <h2>Trades per day <span class="muted" style="font-weight:400">(closed trades · exit_attribution.jsonl · ET exit day)</span></h2>
+          <h2>Daily trade ledger <span class="muted" style="font-weight:400">(UTC · opens ∪ closes · past days frozen)</span></h2>
           <p id="dailyTradeNote" class="muted" style="margin:0 0 0.5rem;font-size:0.78rem;">Loading…</p>
-          <div class="chart-wrap" style="min-height:160px;height:clamp(160px,22vh,260px);"><canvas id="dailyTradesChart" aria-label="Trades per day"></canvas></div>
+          <div class="ledger-table-wrap">
+            <table class="ledger-table" aria-label="Daily trade ledger">
+              <thead>
+                <tr>
+                  <th>Date (UTC)</th>
+                  <th>Total trades (opened ∪ closed)</th>
+                </tr>
+              </thead>
+              <tbody id="dailyLedgerBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card chart-card-full">
+          <h2>Dual-barrel cumulative realized PnL <span class="muted" style="font-weight:400">(live vs V3 shadow lane)</span></h2>
+          <p id="dualBarrelNote" class="muted" style="margin:0 0 0.5rem;font-size:0.78rem;">
+            Continuous curve from <code>state/continuous_pnl_ledger.jsonl</code> (survives epoch log truncates).
+            Live = cumulative realized <code>pnl</code> per close. Shadow = same closes only where entry
+            <code>trade_intent</code> had <code>ai_approved_v3_shadow: true</code>; otherwise 0 for that close.
+          </p>
+          <div class="chart-wrap" style="min-height:180px;height:clamp(180px,26vh,300px);">
+            <canvas id="dualBarrelPnlChart" aria-label="Dual barrel cumulative PnL"></canvas>
+          </div>
         </div>
         <div class="card chart-card-full">
           <h2>Wallet equity <span class="muted" style="font-weight:400">(absolute · broker total_value)</span></h2>

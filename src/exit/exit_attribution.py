@@ -140,6 +140,12 @@ def append_exit_attribution(rec: Dict[str, Any]) -> None:
         with OUT.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, default=str) + "\n")
         try:
+            from telemetry.continuous_pnl_ledger import append_continuous_pnl_point_from_exit
+
+            append_continuous_pnl_point_from_exit(rec)
+        except Exception:
+            pass
+        try:
             from src.offense.streak_breaker import register_closed_trade_pnl
 
             _pnl_reg = rec.get("pnl")

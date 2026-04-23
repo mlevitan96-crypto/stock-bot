@@ -3272,150 +3272,13 @@ def _alpaca_operational_activity_payload(root: Path, hours: int) -> dict:
     }
 
 
-def _daily_trade_exit_row_dedupe_id(rec: dict) -> str | None:
-    """
-    One id per closed trade for the daily chart: prefer trade_id, then canonical_trade_id / trade_key,
-    else stable Alpaca trade_key from symbol/side/entry (same grain as ML flattener / canonical count).
-    """
-    from src.telemetry.alpaca_trade_key import build_trade_key
-
-    for k in ("trade_id", "canonical_trade_id", "trade_key"):
-        v = rec.get(k)
-        if v is None:
-            continue
-        s = str(v).strip()
-        if s:
-            return s
-    sym = rec.get("symbol")
-    side = rec.get("side") or rec.get("position_side")
-    et_ent = rec.get("entry_ts") or rec.get("entry_timestamp")
-    try:
-        return build_trade_key(sym, side, et_ent)
-    except Exception:
-        return None
-
-
 def _daily_trade_volume_payload(root: Path, days: int) -> dict:
     """
-    Count ML-era closed trades from logs/exit_attribution.jsonl by U.S. Eastern calendar day of exit_ts.
-    One line per completed round-trip in the canonical log; deduped by trade_id / canonical id / trade_key.
-    Read-only; uses JSONL tail only (bounded) — not a full historical guarantee on very busy hosts.
+    UTC daily trade activity + immutable past-day ledger (see telemetry.command_center_dashboard).
     """
-    from collections import defaultdict
-    from datetime import timedelta
+    from telemetry.command_center_dashboard import daily_trade_volume_utc_with_ledger
 
-    from src.governance.canonical_trade_count import _parse_exit_epoch
-    from utils.era_cut import learning_excluded_for_exit_record
-
-    try:
-        from zoneinfo import ZoneInfo
-
-        et = ZoneInfo("America/New_York")
-    except Exception:
-        et = timezone.utc  # type: ignore[assignment]
-
-    now_utc = datetime.now(timezone.utc)
-    if et is timezone.utc:
-        now_local = now_utc
-        end_d = now_local.date()
-        start_d = end_d - timedelta(days=max(1, min(days, 90)) - 1)
-    else:
-        now_local = now_utc.astimezone(et)
-        end_d = now_local.date()
-        start_d = end_d - timedelta(days=max(1, min(days, 90)) - 1)
-
-    tail_lines = 80_000
-    tail_chunk = 20_000_000
-    scan_note = (
-        f"Unique closed trades from exit_attribution.jsonl tail (~{tail_lines} lines / "
-        f"≤{tail_chunk // 1_000_000}MB), grouped by America/New_York calendar day of exit_ts. "
-        "Excludes pre-era rows (same era cut as canonical / ML). High volume can omit older days."
-    )
-
-    counts = defaultdict(set)
-    exit_path = (root / "logs" / "exit_attribution.jsonl").resolve()
-    if exit_path.is_file():
-        for line in _tail_file_lines(exit_path, max_lines=tail_lines, max_chunk_bytes=tail_chunk):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(rec, dict):
-                continue
-            if learning_excluded_for_exit_record(rec):
-                continue
-            ex = _parse_exit_epoch(rec)
-            if ex is None:
-                continue
-            try:
-                if et is timezone.utc:
-                    d = datetime.fromtimestamp(ex, tz=timezone.utc).date()
-                else:
-                    d = datetime.fromtimestamp(ex, tz=timezone.utc).astimezone(et).date()
-            except Exception:
-                continue
-            if not (start_d <= d <= end_d):
-                continue
-            tid = _daily_trade_exit_row_dedupe_id(rec)
-            if tid:
-                counts[d].add(tid)
-
-    counts_int = {k: len(v) for k, v in counts.items()}
-
-    series: list = []
-    cur = start_d
-    while cur <= end_d:
-        if et is timezone.utc:
-            noon = datetime(cur.year, cur.month, cur.day, 12, 0, tzinfo=timezone.utc)
-        else:
-            noon = datetime(cur.year, cur.month, cur.day, 12, 0, tzinfo=et)
-        label = noon.strftime("%a, %b ") + str(cur.day)
-        series.append(
-            {
-                "date": cur.isoformat(),
-                "label": label,
-                "trade_count": int(counts_int.get(cur, 0)),
-            }
-        )
-        cur = cur + timedelta(days=1)
-
-    tz_name = "America/New_York" if et is not timezone.utc else "UTC"
-
-    today_iso = end_d.isoformat()
-    today_count = int(counts_int.get(end_d, 0))
-    if series:
-        if series[-1]["date"] != today_iso:
-            if et is timezone.utc:
-                noon = datetime(end_d.year, end_d.month, end_d.day, 12, 0, tzinfo=timezone.utc)
-            else:
-                noon = datetime(end_d.year, end_d.month, end_d.day, 12, 0, tzinfo=et)
-            lbl = noon.strftime("%a, %b ") + str(end_d.day)
-            series.append({"date": today_iso, "label": lbl, "trade_count": today_count})
-        else:
-            series[-1]["trade_count"] = today_count
-    today_label = series[-1]["label"] if series else ""
-
-    return {
-        "ok": True,
-        "generated_at_utc": now_utc.isoformat(),
-        "timezone": tz_name,
-        "days_requested": int(days),
-        "days_in_series": len(series),
-        "calendar_today_date": today_iso,
-        "calendar_today_label": today_label,
-        "calendar_today_trade_count": today_count,
-        "source": "logs/exit_attribution.jsonl",
-        "scan_note": scan_note,
-        "series": series,
-        "does_not_claim": [
-            "learning_certification",
-            "attribution_completeness",
-            "broker_reconciliation",
-        ],
-    }
+    return daily_trade_volume_utc_with_ledger(root, days, tail_lines=_tail_file_lines)
 
 
 @app.route("/api/dashboard/daily_trade_volume", methods=["GET"])
@@ -3450,6 +3313,44 @@ def api_dashboard_daily_trade_volume():
                 "error": str(e)[:300],
                 "generated_at_utc": datetime.now(timezone.utc).isoformat(),
                 "series": [],
+            }
+        ), 200
+
+
+@app.route("/api/dashboard/dual_barrel_cumulative_pnl", methods=["GET"])
+def api_dashboard_dual_barrel_cumulative_pnl():
+    """Cumulative realized live vs V3-shadow-filtered PnL for Command Center (Chart.js)."""
+    import concurrent.futures
+
+    from telemetry.command_center_dashboard import dual_barrel_cumulative_pnl_series
+
+    root = Path(_DASHBOARD_ROOT)
+    try:
+        mx = int(request.args.get("max_points", "600"))
+    except Exception:
+        mx = 600
+    mx = max(50, min(mx, 5000))
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(dual_barrel_cumulative_pnl_series, root, max_points=mx, tail_lines=_tail_file_lines)
+            payload = fut.result(timeout=20)
+        return jsonify(payload), 200
+    except concurrent.futures.TimeoutError:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "scan_timeout",
+                "points": [],
+                "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            }
+        ), 200
+    except Exception as e:
+        return jsonify(
+            {
+                "ok": False,
+                "error": str(e)[:300],
+                "points": [],
+                "generated_at_utc": datetime.now(timezone.utc).isoformat(),
             }
         ), 200
 
@@ -6748,7 +6649,7 @@ def api_executive_summary():
 def _rolling_pnl_5d_build():
     path = (_DASHBOARD_ROOT / "reports" / "state" / "rolling_pnl_5d.jsonl").resolve()
     if not path.exists():
-        return {"points": [], "window": "5d", "source": "unified_exits"}
+        return {"points": [], "window": "5d", "source": "unified_exits", "shadow_value": []}
     points = []
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
@@ -6758,17 +6659,30 @@ def _rolling_pnl_5d_build():
             points.append(json.loads(line))
         except Exception:
             continue
-    return {"points": points, "window": "5d", "source": "unified_exits"}
+    shadow_value = [
+        p.get("equity_shadow")
+        for p in points
+        if isinstance(p, dict) and p.get("equity_shadow") is not None
+    ]
+    if not shadow_value and points:
+        shadow_value = [p.get("equity") for p in points if isinstance(p, dict)]
+    return {
+        "points": points,
+        "window": "5d",
+        "source": "unified_exits",
+        "shadow_value": shadow_value,
+    }
 
 
 @app.route("/api/rolling_pnl_5d", methods=["GET"])
 def api_rolling_pnl_5d():
-    """Return 5-day rolling PnL series from reports/state/rolling_pnl_5d.jsonl. No smoothing; gaps visible."""
+    """Return 5-day rolling PnL series from reports/state/rolling_pnl_5d.jsonl. No smoothing; gaps visible.
+    Also returns ``shadow_value``: hypothetic equity if trades entered with ``shadow_chop_block`` (11:30–1:30 ET) were removed."""
     try:
-        data = _dash_cache_get("rolling_pnl_5d_v1", _rolling_pnl_5d_build)
+        data = _dash_cache_get("rolling_pnl_5d_v2", _rolling_pnl_5d_build)
         return jsonify(data), 200
     except Exception as e:
-        return jsonify({"points": [], "window": "5d", "error": str(e)}), 200
+        return jsonify({"points": [], "window": "5d", "shadow_value": [], "error": str(e)}), 200
 
 
 def _metrics_payload():
@@ -6817,7 +6731,7 @@ def _metrics_payload():
         out["data_ready_error"] = str(e)
 
     try:
-        roll = _dash_cache_get("rolling_pnl_5d_v1", _rolling_pnl_5d_build)
+        roll = _dash_cache_get("rolling_pnl_5d_v2", _rolling_pnl_5d_build)
         pts = roll.get("points") or []
         if isinstance(pts, list) and len(pts) > 40:
             out["rolling_pnl_last_points"] = pts[-40:]
