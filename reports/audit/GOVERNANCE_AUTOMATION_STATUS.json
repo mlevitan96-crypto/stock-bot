@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-24T15:41:34Z",
+  "branch": "main",
+  "anomalies_detected": false,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "reports/board/ was missing (recurring); restored .gitkeep \u2014 check passes after fix"
+  ],
+  "slack_sent": false
+}
