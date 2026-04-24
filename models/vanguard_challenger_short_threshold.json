@@ -1,0 +1,26 @@
+{
+  "holdout_probability_threshold": 0.8259136080741882,
+  "holdout_approved_n": 3,
+  "holdout_total_n": 46,
+  "holdout_win_rate_among_approved": 0.6666666666666666,
+  "holdout_net_realized_pnl_usd_among_approved": 0.6199999999999999,
+  "holdout_precision_approved": 0.6666666666666666,
+  "holdout_recall_approved": 0.09090909090909091,
+  "holdout_profit_factor_approved": 3.2142857142857135,
+  "holdout_gross_profit_approved": 0.8999999999999999,
+  "holdout_gross_loss_approved": 0.28,
+  "side": "short",
+  "rows": 226,
+  "train": 180,
+  "test": 46,
+  "pre_decision_features_n": 121,
+  "best_params": {
+    "colsample_bytree": 0.75,
+    "learning_rate": 0.06,
+    "max_depth": 2,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "best_cv_score": 0.5952380952380952,
+  "model_path": "C:/Dev/stock-bot/models/vanguard_challenger_short.json"
+}
