@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-24T17:42:28Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warning",
+      "message": "reports/board/ directory does not exist. All other expected top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) and reports/audit/ are present."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warning",
+      "message": "reports/board/ missing. memory_bank/ has key docs (report_output_contract.md, report_retention_policy.md, systemPatterns.md, TELEMETRY_CHANGELOG.md). .cursor/automations/ exists with README.md and spec files. reports/audit/ exists."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "Deprecated directory moltbot/ still exists at repository root with active code files: board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py, __init__.py, agents/."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot/Clawdbot references found in code/config (excluding reports/audit and docs documenting removal): moltbot/ directory with active Python modules; scripts/run_molt_workflow.py imports from moltbot; scripts/run_molt_intelligence_expansion.py references Moltbot."
+    }
+  ],
+  "slack_sent": false
+}
