@@ -1,0 +1,11 @@
+{
+  "version": "exit_aggression_paper_+0.15",
+  "exit_weights": {
+    "flow_deterioration": 0.37
+  },
+  "meta": {
+    "mode": "paper",
+    "delta_applied": 0.15,
+    "primary_key": "flow_deterioration"
+  }
+}

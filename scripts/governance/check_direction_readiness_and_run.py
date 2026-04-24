@@ -29,6 +29,18 @@ from src.governance.direction_readiness import (
 )
 
 
+def _append_cron_log_heartbeat(base: Path, exit_code: int) -> None:
+    """One line per run so direction_readiness_cron.log reflects auto-heal/manual runs, not only cron redirect."""
+    logp = base / "logs" / "direction_readiness_cron.log"
+    try:
+        logp.parent.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with logp.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] check_direction_readiness_and_run exit={exit_code}\n")
+    except OSError:
+        pass
+
+
 def main() -> int:
     base = REPO
     prev = load_direction_readiness_state(base)
@@ -108,4 +120,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    _rc = main()
+    _append_cron_log_heartbeat(REPO, _rc)
+    sys.exit(_rc)

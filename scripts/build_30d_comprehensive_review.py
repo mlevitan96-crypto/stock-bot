@@ -425,7 +425,7 @@ def main() -> int:
     for rec in how_to_proceed:
         md_lines.append(f"- {rec}")
     board_task = (
-        "Each persona (Equity Skeptic, Wheel Advocate, Risk Officer, Promotion Judge, "
+        "Each persona (Equity Skeptic, Income Strategist, Risk Officer, Promotion Judge, "
         "Customer Advocate, Innovation Officer, SRE) must produce **3 ideas** to improve PnL and stop losing money. "
         "Then the Board must **agree on the top 5** recommendations with owner, metric, and 3/5-day success criteria."
     )

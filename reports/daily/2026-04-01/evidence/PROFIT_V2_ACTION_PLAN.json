@@ -1,0 +1,56 @@
+{
+  "generated_at_utc": "2026-04-01T21:00:00Z",
+  "note": "Ranked, reversible research actions only — no production tuning in this mission.",
+  "actions": [
+    {
+      "rank": 1,
+      "lever": "directional_policy",
+      "action": "Shadow-gate or size-cap SHORT exposure by regime while keeping LONG path unchanged",
+      "expected_impact": "Tail data show SHORT sum_pnl negative vs LONG positive; shadow may reduce drag if causal",
+      "risk": "Shorts may hedge regime moves; gating can worsen drawdowns",
+      "confidence": "LOW-MEDIUM (tail sample; confounds: symbol mix, time)",
+      "verification": "30d shadow ledger vs baseline; per-regime cells require min-n rule",
+      "rollback": "Disable shadow flag; no broker gate change"
+    },
+    {
+      "rank": 2,
+      "lever": "exit_timing",
+      "action": "Paper/shadow tests on delayed exit scenarios; prioritize horizons where MTM differs from realized",
+      "expected_impact": "Mean horizon deltas small; +60m MTM slightly above realized on average in this sample",
+      "risk": "Mark-to-bar ≠ executable fills; overnight gaps ignored",
+      "confidence": "LOW (descriptive only)",
+      "verification": "Compare distribution of horizon_pnl vs realized; scenario JSON replay",
+      "rollback": "Discard scenario configs; no main.py threshold edits without governance"
+    },
+    {
+      "rank": 3,
+      "lever": "signal_UW_pruning",
+      "action": "Shadow ablation on components with negative median-split mean PnL delta (e.g. flow in ALPACA_SIGNAL_RANKING.json)",
+      "expected_impact": "Noise reduction if component is truly non-informative",
+      "risk": "Median split and same-sample uplift are non-causal",
+      "confidence": "LOW",
+      "verification": "Shadow portfolio with component mask; walk-forward",
+      "rollback": "Restore weights from git"
+    },
+    {
+      "rank": 4,
+      "lever": "gate_adjustments",
+      "action": "Lab for top block reasons (displacement_blocked, max_positions_reached) with bars-backed forward path",
+      "expected_impact": "Quantify opportunity cost vs risk avoided",
+      "risk": "Survivorship and lookahead if bars misaligned",
+      "confidence": "LOW without per-block timestamps joined to bars",
+      "verification": "Replay blocked symbols at block_ts with stored minute bars",
+      "rollback": "N/A read-only lab"
+    },
+    {
+      "rank": 5,
+      "lever": "telemetry",
+      "action": "Fix signal_context emission (env audit + remove silent failure) or dual-write score_snapshot hash id on exit rows",
+      "expected_impact": "Restores canonical join for learning without relying on nearest snapshot",
+      "risk": "Extra disk IO; must stay non-blocking",
+      "confidence": "HIGH for observability; MEDIUM for causality",
+      "verification": "verify_signal_context_nonempty.py passes; sample row has trade id keys",
+      "rollback": "ALPACA_SIGNAL_CONTEXT_EMIT=0"
+    }
+  ]
+}

@@ -58,6 +58,11 @@ def _iter_jsonl(p: Path):
                 continue
 
 
+def _iter_merged_logs(logs: Path, basename: str):
+    yield from _iter_jsonl(logs / basename)
+    yield from _iter_jsonl(logs / f"strict_backfill_{basename}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", type=Path, default=Path("."))
@@ -84,7 +89,7 @@ def main() -> int:
     cohort: Set[str] = set(gate.get("strict_cohort_trade_ids") or [])
 
     unified_term: Set[str] = set()
-    for r in _iter_jsonl(logs / "alpaca_unified_events.jsonl"):
+    for r in _iter_merged_logs(logs, "alpaca_unified_events.jsonl"):
         if r.get("event_type") != "alpaca_exit_attribution":
             continue
         if not r.get("terminal_close"):
@@ -101,7 +106,7 @@ def main() -> int:
     intent_to_fill: Dict[str, str] = {}
     trade_intents_entered: List[dict] = []
     exit_intents_by_ct: Dict[str, List[dict]] = defaultdict(list)
-    for r in _iter_jsonl(logs / "run.jsonl"):
+    for r in _iter_merged_logs(logs, "run.jsonl"):
         et = r.get("event_type")
         if et == "canonical_trade_id_resolved" and r.get("canonical_trade_id_fill"):
             ci = r.get("canonical_trade_id_intent")
@@ -118,7 +123,7 @@ def main() -> int:
 
     unified_entry: Dict[str, dict] = {}
     unified_exit_by_tid: Dict[str, dict] = {}
-    for r in _iter_jsonl(logs / "alpaca_unified_events.jsonl"):
+    for r in _iter_merged_logs(logs, "alpaca_unified_events.jsonl"):
         et = r.get("event_type") or r.get("type")
         if et == "alpaca_entry_attribution":
             for k in (r.get("trade_key"), r.get("canonical_trade_id")):
@@ -130,7 +135,7 @@ def main() -> int:
                 unified_exit_by_tid[str(tid)] = r
 
     orders_by_ct: Dict[str, List[dict]] = defaultdict(list)
-    for r in _iter_jsonl(logs / "orders.jsonl"):
+    for r in _iter_merged_logs(logs, "orders.jsonl"):
         ct = r.get("canonical_trade_id")
         if ct:
             orders_by_ct[str(ct)].append(r)
