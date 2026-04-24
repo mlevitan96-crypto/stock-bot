@@ -287,7 +287,12 @@ class Thresholds:
     DISPLACEMENT_COOLDOWN_HOURS = get_env("DISPLACEMENT_COOLDOWN_HOURS", 6, int)  # Was 4h, now 6h
     DISPLACEMENT_MIN_HOLD_SECONDS = get_env("DISPLACEMENT_MIN_HOLD_SECONDS", 3600, int)  # 1h — policy gate default
 
-    POSITION_SIZE_USD = get_env("POSITION_SIZE_USD", 500, float)
+    # Paper default: large notional cap so high-priced symbols are not structurally excluded (env POSITION_SIZE_USD overrides).
+    POSITION_SIZE_USD = get_env(
+        "POSITION_SIZE_USD",
+        100000.0 if (os.getenv("TRADING_MODE", "PAPER").strip().upper() == "PAPER") else 500.0,
+        float,
+    )
     MAX_THEME_NOTIONAL_USD = get_env("MAX_THEME_NOTIONAL_USD", 50000, float)
     
     HB_INTERVAL_SEC = get_env("HB_INTERVAL_SEC", 60, int)
@@ -521,26 +526,16 @@ class SignalComponents:
 
 
 def read_json(path: Path, default: Any = None) -> Any:
-    """Safely read JSON file with default fallback."""
-    import json
-    try:
-        if path.exists():
-            raw_data = path.read_text()
-            if not raw_data.strip():
-                return default if default is not None else {}
-            data = json.loads(raw_data)
-            # BULLETPROOF: Validate structure (must be dict for metadata files)
-            if isinstance(data, dict):
-                return data
-            else:
-                # Return empty dict for non-dict data (fail open)
-                return {}
-    except (json.JSONDecodeError, IOError, UnicodeDecodeError) as e:
-        # Log corruption but continue with default
-        return default if default is not None else {}
-    except Exception:
-        pass
-    return default if default is not None else {}
+    """Safely read JSON file with default fallback (Data Armor: ``safe_json_load``)."""
+    from src.infrastructure.json_utils import safe_json_load
+
+    base = default if default is not None else {}
+    data = safe_json_load(path, base, context="registry.read_json")
+    if isinstance(data, dict):
+        return data
+    if isinstance(base, dict):
+        return base
+    return data
 
 
 def atomic_write_json(path: Path, data: Any) -> None:

@@ -436,6 +436,13 @@ class Config:
 
     # Execution & management
     SIZE_BASE_USD = float(get_env("SIZE_BASE_USD", "500"))
+    # Per-position target notional (paper: match uncapped ML collection sizing; env POSITION_SIZE_USD overrides).
+    _cfg_paper = str(TRADING_MODE).strip().upper() == "PAPER"
+    POSITION_SIZE_USD = get_env(
+        "POSITION_SIZE_USD",
+        100000.0 if _cfg_paper else float(SIZE_BASE_USD),
+        float,
+    )
     MIN_NOTIONAL_USD = float(get_env("MIN_NOTIONAL_USD", "100"))
     DEFAULT_QTY = get_env("DEFAULT_QTY", 25, int)
     MAX_CONCURRENT_POSITIONS = get_env("MAX_CONCURRENT_POSITIONS", 16, int)  # Increased from 12 - was capacity constrained
