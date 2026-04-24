@@ -1,0 +1,145 @@
+{
+  "description": "Exit replay scenario grid for research. Replay applies filters (min_hold, decay_threshold, component ablation) to actual closed trades; TP/SL/trail require bar data for full simulation.",
+  "scenarios": [
+    {
+      "name": "baseline",
+      "min_hold_minutes": 0,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.0,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "minhold_5",
+      "min_hold_minutes": 5,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.0,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "minhold_15",
+      "min_hold_minutes": 15,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.0,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "minhold_60",
+      "min_hold_minutes": 60,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.0,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "decay_074",
+      "min_hold_minutes": 0,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.74,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "decay_080",
+      "min_hold_minutes": 0,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.80,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "decay_086",
+      "min_hold_minutes": 0,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.86,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "decay_090",
+      "min_hold_minutes": 0,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.90,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "minhold_15_decay_086",
+      "min_hold_minutes": 15,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.86,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "minhold_60_decay_090",
+      "min_hold_minutes": 60,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.90,
+      "trail_pct": null,
+      "remove_components": [],
+      "regime_overrides": {}
+    },
+    {
+      "name": "remove_exit_time_decay",
+      "min_hold_minutes": 0,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.0,
+      "trail_pct": null,
+      "remove_components": ["exit_time_decay"],
+      "regime_overrides": {}
+    },
+    {
+      "name": "remove_exit_flow_deterioration",
+      "min_hold_minutes": 0,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.0,
+      "trail_pct": null,
+      "remove_components": ["exit_flow_deterioration"],
+      "regime_overrides": {}
+    },
+    {
+      "name": "remove_exit_score_deterioration",
+      "min_hold_minutes": 0,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.0,
+      "trail_pct": null,
+      "remove_components": ["exit_score_deterioration"],
+      "regime_overrides": {}
+    },
+    {
+      "name": "remove_exit_time_decay_and_flow",
+      "min_hold_minutes": 0,
+      "take_profit_pct": null,
+      "stop_loss_pct": null,
+      "signal_decay_threshold": 0.0,
+      "trail_pct": null,
+      "remove_components": ["exit_time_decay", "exit_flow_deterioration"],
+      "regime_overrides": {}
+    }
+  ]
+}

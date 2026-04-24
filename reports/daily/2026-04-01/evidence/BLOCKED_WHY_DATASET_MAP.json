@@ -1,0 +1,52 @@
+{
+  "generated_note": "Paths relative to repo root /root/stock-bot on droplet; sizes/lines from droplet stat/wc in Phase 0 capture.",
+  "datasets": {
+    "blocked_trades_jsonl": {
+      "path": "state/blocked_trades.jsonl",
+      "role": "Canonical blocked-universe ledger (append-only from main.log_blocked_trade)",
+      "lines": 8669,
+      "bytes": 57067181,
+      "mtime_utc_sample": "2026-04-01T19:59:31Z",
+      "discovered_via": "find . -maxdepth 4 -name '*blocked*jsonl' → _BLOCKED_WHY_PHASE0_RAW.json find_blocked"
+    },
+    "exit_attribution_jsonl": {
+      "path": "logs/exit_attribution.jsonl",
+      "role": "Executed trade exit ledger",
+      "lines": 432,
+      "bytes": 3894749,
+      "mtime_utc_sample": "2026-04-01T19:23:04Z",
+      "discovered_via": "find exit*attribution + stat_exit in _BLOCKED_WHY_PHASE0_RAW.json"
+    },
+    "alpaca_bars_jsonl": {
+      "path": "artifacts/market_data/alpaca_bars.jsonl",
+      "role": "1Min OHLCV for counterfactual replay (Alpaca Data API v2)",
+      "lines": 53,
+      "bytes": 8242141,
+      "mtime_utc_sample": "2026-04-01T20:42:25Z",
+      "symbols_distinct": 53,
+      "discovered_via": "find artifacts *bars*jsonl + stat_bars in _BLOCKED_WHY_PHASE0_RAW.json",
+      "fetch_flags_used": "--merge-blocked-state --pad-days 2 on scripts/audit/fetch_alpaca_bars_for_counterfactuals.py"
+    },
+    "score_snapshot_jsonl": {
+      "path": "logs/score_snapshot.jsonl",
+      "role": "Pre-trade score components (UW fields nested under signal_group_scores.components)",
+      "discovered_via": "find *score_snapshot* in _BLOCKED_WHY_PHASE0_RAW.json find_snap"
+    },
+    "signal_context_jsonl": {
+      "path": "logs/signal_context.jsonl",
+      "role": "Optional canonical signal context (may be empty on this host)",
+      "discovered_via": "find *signal_context* in _BLOCKED_WHY_PHASE0_RAW.json find_snap"
+    },
+    "uw_blocked_learning_json": {
+      "path": "state/uw_blocked_learning.json",
+      "role": "Secondary blocked-learning artifact",
+      "discovered_via": "find_blocked in _BLOCKED_WHY_PHASE0_RAW.json"
+    }
+  },
+  "code_emitters": {
+    "blocked_row_schema": "main.py log_blocked_trade ~1102-1141",
+    "displacement_block_path": "main.py ~9529-9574",
+    "bars_fetch_implementation": "scripts/audit/fetch_alpaca_bars_for_counterfactuals.py _fetch_bars_day → GET /v2/stocks/bars",
+    "counterfactual_pipeline": "scripts/audit/run_blocked_why_pipeline.py"
+  }
+}

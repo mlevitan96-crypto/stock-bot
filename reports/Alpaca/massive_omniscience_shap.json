@@ -1,0 +1,99 @@
+{
+  "rows_used": 1130,
+  "pnl_column": "realized_pnl_usd",
+  "win_rate": 0.3938053097345133,
+  "mean_trade_pnl": -0.24778761061946902,
+  "roc_auc_train_subset": 0.9910004552298911,
+  "roc_auc_holdout_25pct": 0.9662685941755709,
+  "top_mean_abs_shap": [
+    {
+      "feature": "mfe_mae_proxy",
+      "mean_abs_shap": 1.8095160722732544
+    },
+    {
+      "feature": "exit_mfe_pct",
+      "mean_abs_shap": 1.1022562980651855
+    },
+    {
+      "feature": "sequence_pnl",
+      "mean_abs_shap": 0.23459257185459137
+    },
+    {
+      "feature": "mlf_scoreflow_snapshot_age_sec",
+      "mean_abs_shap": 0.18593142926692963
+    },
+    {
+      "feature": "holding_time_minutes",
+      "mean_abs_shap": 0.16419681906700134
+    },
+    {
+      "feature": "entry_price",
+      "mean_abs_shap": 0.14679907262325287
+    },
+    {
+      "feature": "mlf_direction_intel_embed_intel_snapshot_exit_premarket_intel_premarket_gap_pct",
+      "mean_abs_shap": 0.12845514714717865
+    },
+    {
+      "feature": "mlf_scoreflow_components_freshness_factor",
+      "mean_abs_shap": 0.11853551119565964
+    },
+    {
+      "feature": "mlf_direction_intel_embed_intel_snapshot_entry_premarket_intel_premarket_gap_pct",
+      "mean_abs_shap": 0.11616775393486023
+    },
+    {
+      "feature": "mlf_direction_intel_embed_intel_snapshot_entry_volatility_intel_VIX_level",
+      "mean_abs_shap": 0.10419877618551254
+    },
+    {
+      "feature": "qty",
+      "mean_abs_shap": 0.10110167413949966
+    },
+    {
+      "feature": "exit_price",
+      "mean_abs_shap": 0.09093795716762543
+    },
+    {
+      "feature": "mlf_direction_intel_embed_intel_snapshot_exit_volatility_intel_VIX_level",
+      "mean_abs_shap": 0.0765681266784668
+    },
+    {
+      "feature": "mlf_scoreflow_snapshot_ts_epoch",
+      "mean_abs_shap": 0.07534991204738617
+    },
+    {
+      "feature": "strict_open_epoch_utc",
+      "mean_abs_shap": 0.06332876533269882
+    }
+  ],
+  "top_negative_shap_interactions": [
+    {
+      "feature_i": "mfe_mae_proxy",
+      "feature_j": "holding_time_minutes",
+      "mean_shap_interaction": -0.009313425049185753
+    },
+    {
+      "feature_i": "mlf_direction_intel_embed_intel_snapshot_exit_volatility_intel_VIX_level",
+      "feature_j": "mlf_direction_intel_embed_intel_snapshot_entry_volatility_intel_VIX_level",
+      "mean_shap_interaction": -0.008697721175849438
+    },
+    {
+      "feature_i": "strict_open_epoch_utc",
+      "feature_j": "holding_time_minutes",
+      "mean_shap_interaction": -0.006159699056297541
+    }
+  ],
+  "shadow_audit": {
+    "trades_ai_approved_v1_false": 1130,
+    "net_pnl_usd_on_those_trades": -280.0,
+    "interpretation": "Sum of realized PnL on rows where ai_approved_v1 is not True (False/NaN treated as not approved)."
+  },
+  "counter_intel_vectors": {
+    "session_slice": "15m ET bins from entry_ts",
+    "shadow_delta": "-pnl when shadow_chop_block else 0",
+    "sequence_pnl": "sum of prior 2 trades pnl",
+    "mfe_mae_proxy": "exit_mfe_pct - exit_mae_pct (NaN\u21920)",
+    "signal_density": "count of scoreflow momentum cols > 0.25 among 9 names"
+  }
+}
