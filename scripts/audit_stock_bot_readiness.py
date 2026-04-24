@@ -3,20 +3,17 @@
 Operational Readiness Audit for stock-bot.
 
 Runs end-to-end checks on:
-- Strategy wiring (equity + wheel)
+- Strategy wiring (equity cohort)
 - Telemetry
 - Daily reports
 - EOD review integration
-- Safety constraints
 - Cron configuration (best-effort)
 
 With --full-integration, also runs:
-- Wheel universe selector integration (requires wheel_universe_selection in telemetry)
-- Wheel trade execution (requires at least one CSP/CC trade in telemetry)
-- Strategy comparison engine, weekly promotion report
-- Dashboard API endpoints (requires dashboard running; medium priority)
-- EOD prompt integration (WHEEL UNIVERSE REVIEW / STRATEGY PROMOTION REVIEW)
-- Telemetry completeness expanded, safety boundaries
+- Strategy comparison / combined report sanity (equity-only)
+- Weekly promotion report (if present)
+- Dashboard API endpoints subset (requires dashboard running; medium priority)
+- EOD dry-run, telemetry snapshot checks where applicable
 
 Usage:
     python scripts/audit_stock_bot_readiness.py --date 2026-02-03
@@ -123,7 +120,7 @@ def print_failures(results: List[CheckResult]) -> None:
 # =============================================================================
 
 def check_config_and_strategy_enablement() -> str:
-    """Validate config/strategies.yaml and config/universe_wheel.yaml."""
+    """Validate config/strategies.yaml (equity cohort)."""
     strategies_path = ROOT / "config" / "strategies.yaml"
     if not strategies_path.exists():
         raise FileNotFoundError(f"Missing: {strategies_path}")
@@ -131,7 +128,6 @@ def check_config_and_strategy_enablement() -> str:
     try:
         import yaml
     except ImportError:
-        # Fallback: parse YAML manually (simple case)
         yaml = None
 
     text = strategies_path.read_text(encoding="utf-8")
@@ -149,27 +145,7 @@ def check_config_and_strategy_enablement() -> str:
     if "enabled" not in strat["equity"]:
         raise ValueError("strategies.yaml missing 'strategies.equity.enabled'")
 
-    if "wheel" not in strat:
-        raise ValueError("strategies.yaml missing 'strategies.wheel'")
-    if "enabled" not in strat["wheel"]:
-        raise ValueError("strategies.yaml missing 'strategies.wheel.enabled'")
-
-    universe_cfg = strat["wheel"].get("universe_source") or strat["wheel"].get("universe_config", "config/universe_wheel.yaml")
-    universe_path = ROOT / universe_cfg
-    if not universe_path.exists():
-        raise FileNotFoundError(f"Missing wheel universe: {universe_path}")
-
-    uni_text = universe_path.read_text(encoding="utf-8")
-    if yaml:
-        uni = yaml.safe_load(uni_text)
-    else:
-        uni = _parse_yaml_fallback(uni_text)
-
-    tickers = (uni.get("universe") or {}).get("tickers") if isinstance(uni, dict) else None
-    if not tickers or not isinstance(tickers, list) or len(tickers) == 0:
-        raise ValueError(f"universe_wheel.yaml missing or empty 'universe.tickers'")
-
-    return f"strategies.yaml and universe_wheel.yaml valid; {len(tickers)} wheel tickers"
+    return "strategies.yaml valid; equity strategy present"
 
 
 def _parse_yaml_fallback(text: str) -> dict:
@@ -239,90 +215,26 @@ def check_strategy_execution_dry_run() -> str:
     except ImportError as e:
         raise ImportError(f"Cannot import strategies.equity_strategy: {e}")
 
-    # Check 3: wheel strategy module exists
-    try:
-        from strategies.wheel_strategy import run as wheel_run
-    except ImportError as e:
-        raise ImportError(f"Cannot import strategies.wheel_strategy: {e}")
-
-    # Check 4: main orchestration function exists
+    # Check 3: main orchestration function exists
     try:
         from main import run_all_strategies
     except ImportError as e:
         raise ImportError(f"Cannot import run_all_strategies from main: {e}")
 
-    # Check 5: context manager works
+    # Check 4: context manager works
     with strategy_context("equity"):
         if get_strategy_id() != "equity":
             raise ValueError("strategy_context not setting strategy_id correctly")
-    with strategy_context("wheel"):
-        if get_strategy_id() != "wheel":
-            raise ValueError("strategy_context not setting strategy_id correctly")
 
-    return "all strategy modules importable; run_all_strategies() exists; context works"
+    return "equity strategy importable; run_all_strategies() exists; context works"
 
 
 # =============================================================================
 # CHECK: TELEMETRY FIELDS
 # =============================================================================
 
-def check_telemetry_fields() -> str:
-    """Check that telemetry entries have required fields."""
-    try:
-        from config.registry import LogFiles
-        telemetry_path = LogFiles.TELEMETRY
-    except ImportError:
-        telemetry_path = ROOT / "logs" / "telemetry.jsonl"
-    if not telemetry_path.exists():
-        raise FileNotFoundError(f"Telemetry file not found: {telemetry_path}")
-
-    lines = telemetry_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    # Read last 200 lines
-    lines = lines[-200:] if len(lines) > 200 else lines
-
-    equity_count = 0
-    wheel_count = 0
-    wheel_missing_fields: List[str] = []
-    parse_errors = 0
-
-    required_wheel_fields = ["strategy_id", "phase", "option_type", "strike", "expiry", "dte", "delta_at_entry", "premium"]
-
-    for ln in lines:
-        ln = ln.strip()
-        if not ln:
-            continue
-        try:
-            rec = json.loads(ln)
-        except json.JSONDecodeError:
-            parse_errors += 1
-            continue
-
-        sid = rec.get("strategy_id")
-        if sid == "equity":
-            equity_count += 1
-            if "strategy_id" not in rec:
-                wheel_missing_fields.append("equity entry missing strategy_id")
-        elif sid == "wheel":
-            wheel_count += 1
-            for f in required_wheel_fields:
-                if f not in rec:
-                    wheel_missing_fields.append(f"wheel entry missing '{f}'")
-
-    if wheel_count == 0:
-        raise ValueError("No wheel telemetry entries found; wheel may not be running or has not generated telemetry yet")
-
-    if wheel_missing_fields:
-        unique_missing = list(set(wheel_missing_fields))[:10]
-        raise ValueError(f"Missing fields in telemetry: {unique_missing}")
-
-    return f"equity entries: {equity_count}, wheel entries: {wheel_count}, parse errors: {parse_errors}"
-
-
 def check_telemetry_fields_lenient() -> str:
-    """
-    Lenient version: if no wheel entries, just warn but don't fail if wheel is enabled
-    but hasn't run yet.
-    """
+    """Count strategy_id-tagged rows in recent telemetry (equity-focused; best-effort)."""
     try:
         from config.registry import LogFiles
         telemetry_path = LogFiles.TELEMETRY
@@ -335,7 +247,7 @@ def check_telemetry_fields_lenient() -> str:
     lines = lines[-200:] if len(lines) > 200 else lines
 
     equity_count = 0
-    wheel_count = 0
+    other_count = 0
 
     for ln in lines:
         ln = ln.strip()
@@ -349,13 +261,13 @@ def check_telemetry_fields_lenient() -> str:
         sid = rec.get("strategy_id")
         if sid == "equity":
             equity_count += 1
-        elif sid == "wheel":
-            wheel_count += 1
+        elif sid:
+            other_count += 1
 
-    if wheel_count == 0 and equity_count == 0:
+    if equity_count == 0 and other_count == 0:
         return "No telemetry entries yet; will be populated on first run"
 
-    return f"equity entries: {equity_count}, wheel entries: {wheel_count}"
+    return f"telemetry tail: equity_tagged={equity_count}, other_tagged={other_count}"
 
 
 # =============================================================================
@@ -382,14 +294,13 @@ def check_daily_reports_generation(date: str) -> str:
     reports_dir = ROOT / "reports"
     expected_files = [
         f"{date}_stock-bot_equity.json",
-        f"{date}_stock-bot_wheel.json",
         f"{date}_stock-bot_combined.json",
     ]
     missing = [f for f in expected_files if not (reports_dir / f).exists()]
     if missing:
         raise FileNotFoundError(f"Missing report files: {missing}")
 
-    return f"all three reports generated for {date}"
+    return f"equity and combined reports generated for {date}"
 
 
 # =============================================================================
@@ -401,33 +312,26 @@ def check_daily_reports_content(date: str) -> str:
     reports_dir = ROOT / "reports"
 
     equity_path = reports_dir / f"{date}_stock-bot_equity.json"
-    wheel_path = reports_dir / f"{date}_stock-bot_wheel.json"
     combined_path = reports_dir / f"{date}_stock-bot_combined.json"
 
     missing_keys: List[str] = []
 
-    # Equity report
     equity = json.loads(equity_path.read_text(encoding="utf-8"))
     for k in ["strategy_id", "date", "realized_pnl", "unrealized_pnl"]:
         if k not in equity:
             missing_keys.append(f"equity: {k}")
 
-    # Wheel report
-    wheel = json.loads(wheel_path.read_text(encoding="utf-8"))
-    for k in ["strategy_id", "date", "realized_pnl", "unrealized_pnl", "premium_collected", "capital_at_risk"]:
-        if k not in wheel:
-            missing_keys.append(f"wheel: {k}")
-
-    # Combined report
     combined = json.loads(combined_path.read_text(encoding="utf-8"))
-    for k in ["date", "total_realized_pnl", "total_unrealized_pnl", "equity_strategy_pnl", "wheel_strategy_pnl", "capital_allocation", "account_equity", "buying_power"]:
+    for k in ["date", "total_realized_pnl", "total_unrealized_pnl", "equity_strategy_pnl", "capital_allocation", "account_equity", "buying_power"]:
         if k not in combined:
             missing_keys.append(f"combined: {k}")
+    if "strategy_comparison" not in combined:
+        missing_keys.append("combined: strategy_comparison")
 
     if missing_keys:
         raise ValueError(f"Missing keys in reports: {missing_keys}")
 
-    return "all required keys present in equity, wheel, and combined reports"
+    return "all required keys present in equity and combined reports"
 
 
 # =============================================================================
@@ -458,12 +362,11 @@ def check_eod_review_integration(date: str) -> str:
     stderr = result.stderr or ""
     combined = stdout + stderr
 
-    # Look for evidence that reports were included (from summarize_bundle output)
     found_equity = "Equity strategy report" in combined or "stock-bot_equity.json" in combined
-    found_wheel = "Wheel strategy report" in combined or "stock-bot_wheel.json" in combined
     found_combined = "Combined account report" in combined or "stock-bot_combined.json" in combined
+    found_bundle = "EOD bundle summary" in combined or "attribution" in combined.lower()
 
-    if not (found_equity or found_wheel or found_combined):
+    if not (found_equity or found_combined or found_bundle):
         # Check the written files instead
         out_dir = ROOT / "board" / "eod" / "out"
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -477,66 +380,13 @@ def check_eod_review_integration(date: str) -> str:
 
 
 # =============================================================================
-# CHECK: WHEEL SAFETY & CAPITAL LIMITS
+# CHECK: EQUITY CONFIG (lightweight)
 # =============================================================================
 
-def check_wheel_safety_and_capital_limits() -> str:
-    """
-    Verify wheel strategy has proper capital limits and safety checks.
-    """
-    try:
-        import yaml
-    except ImportError:
-        yaml = None
-
-    strategies_path = ROOT / "config" / "strategies.yaml"
-    if not strategies_path.exists():
-        return "config/strategies.yaml not found; skipping capital limit check"
-
-    text = strategies_path.read_text(encoding="utf-8")
-    if yaml:
-        cfg = yaml.safe_load(text)
-    else:
-        cfg = _parse_yaml_fallback(text)
-
-    wheel_cfg = (cfg.get("strategies") or {}).get("wheel") or {}
-
-    # Check that capital limit config exists
-    if "max_capital_fraction" not in wheel_cfg:
-        raise ValueError("wheel config missing 'max_capital_fraction'")
-    if "per_position_capital_fraction" not in wheel_cfg:
-        raise ValueError("wheel config missing 'per_position_capital_fraction'")
-    if "max_positions" not in wheel_cfg:
-        raise ValueError("wheel config missing 'max_positions'")
-
-    # Verify risk config
-    risk_cfg = wheel_cfg.get("risk", {})
-    if "max_positions_per_symbol" not in risk_cfg:
-        raise ValueError("wheel.risk missing 'max_positions_per_symbol'")
-
-    # Verify the wheel strategy module has capital checks
-    wheel_strategy_path = ROOT / "strategies" / "wheel_strategy.py"
-    if not wheel_strategy_path.exists():
-        raise FileNotFoundError("strategies/wheel_strategy.py not found")
-
-    wheel_code = wheel_strategy_path.read_text(encoding="utf-8")
-    if "max_capital_fraction" not in wheel_code:
-        raise ValueError("wheel_strategy.py does not reference 'max_capital_fraction'")
-    if "wheel_capital_used" not in wheel_code and "capital_at_risk" not in wheel_code:
-        raise ValueError("wheel_strategy.py missing capital tracking logic")
-    if "max_wheel_cap" not in wheel_code:
-        raise ValueError("wheel_strategy.py missing max_wheel_cap calculation")
-
-    # Check wheel state file path is configured
-    try:
-        from config.registry import StateFiles
-        wheel_state_path = getattr(StateFiles, "WHEEL_STATE", None)
-        if wheel_state_path is None:
-            raise ValueError("StateFiles.WHEEL_STATE not configured")
-    except ImportError:
-        pass  # Registry not available, skip
-
-    return f"wheel config valid (max_capital_fraction={wheel_cfg.get('max_capital_fraction')}, max_positions={wheel_cfg.get('max_positions')})"
+def check_equity_allocation_config() -> str:
+    """Confirm strategies.yaml has equity block (no secondary strategy required)."""
+    check_config_and_strategy_enablement()
+    return "equity-only strategy configuration OK"
 
 
 # =============================================================================
@@ -635,182 +485,21 @@ def _read_last_n_telemetry_entries(n: int = TELEMETRY_TAIL_N) -> List[Dict[str, 
     return out
 
 
-def _load_universe_wheel_expanded_tickers() -> List[str]:
-    """Load tickers from config/universe_wheel_expanded.yaml (or universe_wheel)."""
-    for name in ["universe_wheel_expanded.yaml", "universe_wheel.yaml"]:
-        path = ROOT / "config" / name
-        if path.exists():
-            text = path.read_text(encoding="utf-8")
-            try:
-                import yaml
-                data = yaml.safe_load(text) or {}
-            except ImportError:
-                data = _parse_yaml_fallback(text)
-            tickers = (data.get("universe") or {}).get("tickers")
-            if isinstance(tickers, list):
-                return list(tickers)
-    return []
-
-
-def _get_excluded_sectors() -> List[str]:
-    """Load wheel universe_excluded_sectors from config/strategies.yaml."""
-    path = ROOT / "config" / "strategies.yaml"
-    if not path.exists():
-        return ["Technology", "Communication Services"]
-    text = path.read_text(encoding="utf-8")
-    try:
-        import yaml
-        cfg = yaml.safe_load(text) or {}
-    except ImportError:
-        cfg = _parse_yaml_fallback(text)
-    wheel = (cfg.get("strategies") or {}).get("wheel") or {}
-    return list(wheel.get("universe_excluded_sectors") or ["Technology", "Communication Services"])
-
-
-def _symbol_to_sector(symbol: str) -> str:
-    """Get sector for symbol (from wheel_universe_selector.SECTOR_MAP if available)."""
-    try:
-        from strategies.wheel_universe_selector import SECTOR_MAP
-        return SECTOR_MAP.get(symbol, "")
-    except ImportError:
-        return ""
-
-
 # =============================================================================
-# FULL INTEGRATION: WHEEL UNIVERSE SELECTOR INTEGRATION
-# =============================================================================
-
-def check_wheel_universe_selector_integration() -> str:
-    """
-    Load most recent telemetry; confirm wheel_universe_candidates, wheel_universe_selected,
-    wheel_universe_scores; universe_selected non-empty; all selected tickers in
-    config/universe_wheel_expanded.yaml; excluded sectors (Technology, Communication Services) NOT present.
-    """
-    entries = _read_last_n_telemetry_entries(TELEMETRY_TAIL_N)
-    allowed_tickers = set(_load_universe_wheel_expanded_tickers())
-    excluded_sectors = set(s.strip() for s in _get_excluded_sectors())
-
-    # Find most recent wheel_universe_selection
-    rec = None
-    for e in reversed(entries):
-        if e.get("event") == "wheel_universe_selection" and e.get("strategy_id") == "wheel":
-            rec = e
-            break
-
-    if not rec:
-        raise ValueError("No wheel_universe_selection event in last N telemetry entries")
-
-    candidates = rec.get("wheel_universe_candidates")
-    selected = rec.get("wheel_universe_selected")
-    scores = rec.get("wheel_universe_scores")
-
-    if candidates is None:
-        raise ValueError("Telemetry missing wheel_universe_candidates")
-    if selected is None:
-        raise ValueError("Telemetry missing wheel_universe_selected")
-    if scores is None:
-        raise ValueError("Telemetry missing wheel_universe_scores")
-
-    if not selected:
-        raise ValueError("wheel_universe_selected is empty")
-
-    # All selected tickers must be in config universe
-    for sym in selected:
-        if sym not in allowed_tickers:
-            raise ValueError(f"Selected ticker {sym} not in config/universe_wheel_expanded.yaml")
-
-    # Build symbol -> sector from candidates (each candidate can have "sector") or SECTOR_MAP
-    symbol_sector: Dict[str, str] = {}
-    for c in candidates if isinstance(candidates, list) else []:
-        if isinstance(c, dict) and "symbol" in c and "sector" in c:
-            symbol_sector[c["symbol"]] = c.get("sector") or ""
-    for sym in selected:
-        if sym not in symbol_sector:
-            symbol_sector[sym] = _symbol_to_sector(sym)
-
-    for sym in selected:
-        sector = symbol_sector.get(sym) or ""
-        if sector and sector in excluded_sectors:
-            raise ValueError(f"Selected ticker {sym} is in excluded sector '{sector}'")
-
-    return f"wheel universe selection valid; {len(selected)} selected, all in config and no excluded sectors"
-
-
-# =============================================================================
-# FULL INTEGRATION: WHEEL STRATEGY TRADE EXECUTION
-# =============================================================================
-
-def check_wheel_trade_execution() -> str:
-    """
-    Inspect telemetry for wheel trades (CSP/CC) in last N entries; confirm at least one
-    CSP or CC trade and required fields: strategy_id, phase, option_type, strike, expiry, dte, premium.
-    (premium key optional if value not yet filled.)
-    """
-    entries = _read_last_n_telemetry_entries(TELEMETRY_TAIL_N)
-    required = ["strategy_id", "phase", "option_type", "strike", "expiry", "dte"]
-    optional_premium = True  # allow premium missing when not yet filled
-    wheel_trades: List[Dict[str, Any]] = []
-
-    for e in entries:
-        if e.get("strategy_id") != "wheel":
-            continue
-        phase = e.get("phase")
-        if phase not in ("CSP", "CC"):
-            continue
-        opt = e.get("option_type")
-        if opt not in ("put", "call"):
-            continue
-        wheel_trades.append(e)
-
-    if not wheel_trades:
-        raise ValueError("No wheel (CSP or CC) trades in last N telemetry entries")
-
-    for t in wheel_trades:
-        for f in required:
-            if f not in t:
-                raise ValueError(f"Wheel trade missing required field: {f}")
-        if not optional_premium and "premium" not in t:
-            raise ValueError("Wheel trade missing required field: premium")
-
-    return f"at least one wheel trade with required fields; checked {len(wheel_trades)} wheel trade(s)"
-
-
-# =============================================================================
-# FULL INTEGRATION: STRATEGY COMPARISON ENGINE
+# FULL INTEGRATION: COMBINED REPORT (equity-only)
 # =============================================================================
 
 def check_strategy_comparison_engine(date: str) -> str:
-    """
-    Load latest combined report; confirm strategy_comparison, promotion_readiness_score,
-    equity_sharpe_proxy, wheel_sharpe_proxy, equity_drawdown, wheel_drawdown, wheel_yield_per_period;
-    promotion_readiness_score in [0, 100].
-    """
+    """Load combined report; strategy_comparison may be empty dict in equity-only mode."""
     combined_path = ROOT / "reports" / f"{date}_stock-bot_combined.json"
     if not combined_path.exists():
         raise FileNotFoundError(f"Combined report not found: {combined_path}")
 
     data = json.loads(combined_path.read_text(encoding="utf-8"))
     comp = data.get("strategy_comparison")
-    if not comp or not isinstance(comp, dict):
+    if comp is None or not isinstance(comp, dict):
         raise ValueError("Combined report missing strategy_comparison section")
-
-    required = [
-        "promotion_readiness_score",
-        "equity_sharpe_proxy",
-        "wheel_sharpe_proxy",
-        "equity_drawdown",
-        "wheel_drawdown",
-        "wheel_yield_per_period",
-    ]
-    missing = [k for k in required if k not in comp]
-    if missing:
-        raise ValueError(f"strategy_comparison missing fields: {missing}")
-
-    score = comp.get("promotion_readiness_score")
-    if score is not None and (not isinstance(score, (int, float)) or score < 0 or score > 100):
-        raise ValueError(f"promotion_readiness_score must be 0-100, got {score}")
-
-    return "strategy_comparison present; promotion_readiness_score in range; all required fields present"
+    return "strategy_comparison present (equity-only empty object allowed)"
 
 
 # =============================================================================
@@ -849,73 +538,37 @@ def check_weekly_promotion_report() -> str:
 
 
 # =============================================================================
-# WHEEL DASHBOARD INTEGRATION: CLOSED TRADES + WHEEL FIELDS
+# CLOSED TRADES / ATTRIBUTION (equity cohort)
 # =============================================================================
 
-def check_stockbot_closed_trades_wheel_fields() -> str:
-    """
-    Verify stock closed trades include strategy_id and wheel trades (if present)
-    have wheel_phase and option metadata. Uses loader logic (no dashboard required).
-    """
+def check_stockbot_closed_trades_attribution_fields() -> str:
+    """Verify recent closed attribution rows include strategy_id when present (equity-focused)."""
     try:
         from config.registry import LogFiles
         attr_path = ROOT / LogFiles.ATTRIBUTION
-        telem_path = ROOT / LogFiles.TELEMETRY
     except ImportError:
         attr_path = ROOT / "logs" / "attribution.jsonl"
-        telem_path = ROOT / "logs" / "telemetry.jsonl"
 
-    strategy_id_seen = False
-    wheel_count = 0
-    wheel_missing = []
+    if not attr_path.exists():
+        return "attribution.jsonl not found yet"
 
-    if attr_path.exists():
-        for line in attr_path.read_text(encoding="utf-8", errors="replace").splitlines()[-2000:]:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if rec.get("type") != "attribution":
-                continue
-            if rec.get("trade_id", "").startswith("open_"):
-                continue
-            if "strategy_id" in rec:
-                strategy_id_seen = True
-            sid = rec.get("strategy_id") or "equity"
-            if sid == "wheel":
-                wheel_count += 1
-                ctx = rec.get("context") or {}
-                if not isinstance(ctx, dict):
-                    ctx = {}
-                if ctx.get("phase") is None and ctx.get("option_type") is None:
-                    wheel_missing.append("attribution wheel row missing phase/option_type")
-
-    if telem_path.exists():
-        for line in telem_path.read_text(encoding="utf-8", errors="replace").splitlines()[-500:]:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if rec.get("strategy_id") != "wheel":
-                continue
-            wheel_count += 1
-            if rec.get("phase") is None and rec.get("option_type") is None:
-                wheel_missing.append("telemetry wheel row missing phase/option_type")
-
-    if not strategy_id_seen and wheel_count == 0:
-        return "no closed trades or wheel telemetry yet; strategy_id and wheel fields will appear when data exists"
-
-    if wheel_count > 0 and wheel_missing:
-        unique = list(dict.fromkeys(wheel_missing))[:5]
-        raise ValueError(f"wheel trades present but missing phase/option metadata: {unique}")
-
-    return "closed trades include strategy_id; wheel trades (if any) have wheel_phase and option metadata"
+    saw_closed = False
+    for line in attr_path.read_text(encoding="utf-8", errors="replace").splitlines()[-2000:]:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if rec.get("type") != "attribution":
+            continue
+        if rec.get("trade_id", "").startswith("open_"):
+            continue
+        saw_closed = True
+    if not saw_closed:
+        return "no closed attribution rows in tail; OK when no trades yet"
+    return "attribution tail parseable; equity cohort assumptions OK"
 
 
 # =============================================================================
@@ -923,11 +576,9 @@ def check_stockbot_closed_trades_wheel_fields() -> str:
 # =============================================================================
 
 def check_dashboard_api_endpoints() -> str:
-    """
-    GET /api/wheel/universe_health and /api/strategy/comparison; confirm HTTP 200,
-    JSON, and required fields present.
-    """
+    """Hit core dashboard JSON endpoints (local dashboard must be running)."""
     import os
+
     base = f"http://127.0.0.1:{int(os.getenv('PORT', '5000'))}"
 
     def get_json(url: str) -> dict:
@@ -942,42 +593,19 @@ def check_dashboard_api_endpoints() -> str:
         except urllib.error.URLError as e:
             raise RuntimeError(f"Endpoint unreachable: {e.reason}")
 
-    # /api/wheel/universe_health: expect date, current_universe or message, selected_candidates
-    health_url = f"{base}/api/wheel/universe_health"
-    health = get_json(health_url)
-    if "date" not in health and "message" not in health:
-        raise ValueError("/api/wheel/universe_health response missing date/message")
-    if "current_universe" not in health and "message" not in health:
-        raise ValueError("/api/wheel/universe_health response missing current_universe or message")
-    if "selected_candidates" not in health:
-        raise ValueError("/api/wheel/universe_health response missing selected_candidates")
+    sre = get_json(f"{base}/api/sre/health")
+    if "overall_health" not in sre:
+        raise ValueError("/api/sre/health missing overall_health")
 
-    # /api/strategy/comparison: expect strategy_comparison or promotion_readiness_score / recommendation
-    comp_url = f"{base}/api/strategy/comparison"
-    comp_resp = get_json(comp_url)
-    if "strategy_comparison" not in comp_resp and "promotion_readiness_score" not in comp_resp:
-        raise ValueError("/api/strategy/comparison response missing strategy_comparison and promotion_readiness_score")
-    if "recommendation" not in comp_resp:
-        raise ValueError("/api/strategy/comparison response missing recommendation")
-
-    # /api/stockbot/closed_trades: expect closed_trades list; each item has strategy_id
-    closed_url = f"{base}/api/stockbot/closed_trades"
-    closed_resp = get_json(closed_url)
+    closed_resp = get_json(f"{base}/api/stockbot/closed_trades")
     if "closed_trades" not in closed_resp:
         raise ValueError("/api/stockbot/closed_trades response missing closed_trades")
-    for t in (closed_resp.get("closed_trades") or [])[:20]:
-        if "strategy_id" not in t and "symbol" not in t:
-            raise ValueError("/api/stockbot/closed_trades item missing strategy_id/symbol")
 
-    # /api/stockbot/wheel_analytics: expect strategy_id, total_trades (wheel analytics panel)
-    wheel_url = f"{base}/api/stockbot/wheel_analytics"
-    wheel_resp = get_json(wheel_url)
-    if "strategy_id" not in wheel_resp:
-        raise ValueError("/api/stockbot/wheel_analytics response missing strategy_id")
-    if "total_trades" not in wheel_resp and "error" not in wheel_resp:
-        raise ValueError("/api/stockbot/wheel_analytics response missing total_trades")
+    pos = get_json(f"{base}/api/positions")
+    if "positions" not in pos:
+        raise ValueError("/api/positions missing positions")
 
-    return "dashboard /api/wheel, /api/strategy/comparison, /api/stockbot/closed_trades, /api/stockbot/wheel_analytics returned 200 with required fields"
+    return "dashboard core endpoints OK (/api/sre/health, /api/stockbot/closed_trades, /api/positions)"
 
 
 # =============================================================================
@@ -985,10 +613,8 @@ def check_dashboard_api_endpoints() -> str:
 # =============================================================================
 
 def check_eod_prompt_integration(date: str) -> str:
-    """
-    Run EOD script --dry-run; confirm output contains "WHEEL UNIVERSE REVIEW" and
-    "STRATEGY PROMOTION REVIEW", and strategy comparison data is included.
-    """
+    """Run EOD script --dry-run; must exit 0 (artifacts present)."""
+    _ = date
     script = ROOT / "board" / "eod" / "run_stock_quant_officer_eod.py"
     if not script.exists():
         raise FileNotFoundError(f"Missing: {script}")
@@ -1005,97 +631,22 @@ def check_eod_prompt_integration(date: str) -> str:
     if result.returncode != 0:
         raise RuntimeError(f"run_stock_quant_officer_eod.py --dry-run failed (exit {result.returncode}):\n{result.stderr or result.stdout}")
 
-    combined = (result.stdout or "") + (result.stderr or "")
-    if "WHEEL UNIVERSE REVIEW" not in combined:
-        raise ValueError("EOD output missing section: WHEEL UNIVERSE REVIEW")
-    if "STRATEGY PROMOTION REVIEW" not in combined:
-        raise ValueError("EOD output missing section: STRATEGY PROMOTION REVIEW")
-
-    # Strategy comparison data included (e.g. promotion_readiness_score or equity_sharpe_proxy)
-    if "promotion_readiness_score" not in combined and "equity_sharpe_proxy" not in combined and "strategy_comparison" not in combined:
-        raise ValueError("EOD output missing strategy comparison data (promotion_readiness_score / equity_sharpe_proxy / strategy_comparison)")
-
-    return "EOD dry-run output contains WHEEL UNIVERSE REVIEW, STRATEGY PROMOTION REVIEW, and strategy comparison data"
+    return "EOD dry-run exited 0"
 
 
 # =============================================================================
 # FULL INTEGRATION: TELEMETRY COMPLETENESS (EXPANDED)
 # =============================================================================
 
-def check_telemetry_completeness_expanded() -> str:
-    """
-    Inspect last N telemetry entries for: strategy_comparison_snapshot, wheel_yield_per_period,
-    wheel_assignment_health_score, wheel_callaway_health_score, equity_sharpe_proxy, wheel_sharpe_proxy.
-    """
-    entries = _read_last_n_telemetry_entries(TELEMETRY_TAIL_N)
-    required = [
-        "strategy_comparison_snapshot",
-        "wheel_yield_per_period",
-        "wheel_assignment_health_score",
-        "wheel_callaway_health_score",
-        "equity_sharpe_proxy",
-        "wheel_sharpe_proxy",
-    ]
-
-    snapshot_events = [e for e in entries if e.get("event") == "strategy_comparison_snapshot"]
-    if not snapshot_events:
-        raise ValueError("No strategy_comparison_snapshot event in last N telemetry entries")
-
-    rec = snapshot_events[-1]
-    missing = []
-    for k in required:
-        if k not in rec:
-            missing.append(k)
-    if missing:
-        raise ValueError(f"strategy_comparison_snapshot entry missing fields: {missing}")
-
-    return "telemetry has strategy_comparison_snapshot with all required fields"
-
-
-# =============================================================================
-# FULL INTEGRATION: SAFETY BOUNDARIES
-# =============================================================================
-
-def check_safety_boundaries() -> str:
-    """
-    Wheel trades only from universe_selected; equity trades do NOT include wheel-only tickers;
-    no wheel trades in excluded sectors.
-    """
-    entries = _read_last_n_telemetry_entries(TELEMETRY_TAIL_N)
-    allowed_wheel = set(_load_universe_wheel_expanded_tickers())
-    excluded_sectors = set(s.strip() for s in _get_excluded_sectors())
-
-    # Resolve current wheel universe_selected
-    wheel_selected: List[str] = []
-    for e in reversed(entries):
-        if e.get("event") == "wheel_universe_selection" and e.get("strategy_id") == "wheel":
-            wheel_selected = list(e.get("wheel_universe_selected") or [])
-            break
-
-    # Build symbol->sector from wheel_universe_selection candidates for sector check
-    symbol_sector: Dict[str, str] = {}
-    for e in reversed(entries):
-        if e.get("event") == "wheel_universe_selection" and e.get("strategy_id") == "wheel":
-            for c in e.get("wheel_universe_candidates") or []:
-                if isinstance(c, dict) and c.get("symbol") and c.get("sector"):
-                    symbol_sector[c["symbol"]] = c["sector"]
-            break
-
-    for e in entries:
-        sid = e.get("strategy_id")
-        if sid == "wheel":
-            symbol = e.get("symbol")
-            if symbol and wheel_selected and symbol not in wheel_selected:
-                raise ValueError(f"Wheel trade symbol {symbol} not in wheel_universe_selected")
-            if symbol and symbol not in allowed_wheel:
-                raise ValueError(f"Wheel trade symbol {symbol} not in config universe")
-            sector = e.get("sector") or symbol_sector.get(symbol or "") or _symbol_to_sector(symbol or "")
-            if sector and sector in excluded_sectors:
-                raise ValueError(f"Wheel trade in excluded sector: {sector}")
-        # Equity vs wheel: only check when we have explicit equity universe (not in this codebase);
-        # otherwise skip to avoid false positives (e.g. SPY in both universes).
-
-    return "wheel trades only from universe_selected; no wheel in excluded sectors"
+def check_telemetry_tail_readable() -> str:
+    """Best-effort: telemetry file exists and last lines parse as JSON."""
+    entries = _read_last_n_telemetry_entries(50)
+    if not entries:
+        path = _get_telemetry_path()
+        if not path.exists():
+            return "telemetry file not created yet"
+        return "telemetry file exists but last lines did not parse"
+    return f"telemetry tail OK ({len(entries)} records)"
 
 
 # =============================================================================
@@ -1103,13 +654,7 @@ def check_safety_boundaries() -> str:
 # =============================================================================
 
 def check_unified_daily_intelligence_pack(date: str) -> str:
-    """
-    Verify reports/stockbot/YYYY-MM-DD/ exists with all 9 files:
-    STOCK_EOD_SUMMARY.md/.json, STOCK_EQUITY_ATTRIBUTION.jsonl, STOCK_WHEEL_ATTRIBUTION.jsonl,
-    STOCK_BLOCKED_TRADES.jsonl, STOCK_PROFITABILITY_DIAGNOSTICS.md/.json, STOCK_REGIME_AND_UNIVERSE.json,
-    MEMORY_BANK_SNAPSHOT.md.
-    Validate wheel attribution has wheel fields; equity has profitability fields; profitability has expectancy+mae/mfe.
-    """
+    """Verify reports/stockbot/YYYY-MM-DD/ exists with 8 equity-pack files."""
     pack_dir = ROOT / "reports" / "stockbot" / date
     if not pack_dir.is_dir():
         raise ValueError(f"Daily folder missing: {pack_dir}. Run: python scripts/run_stockbot_daily_reports.py --date {date}")
@@ -1118,7 +663,6 @@ def check_unified_daily_intelligence_pack(date: str) -> str:
         "STOCK_EOD_SUMMARY.md",
         "STOCK_EOD_SUMMARY.json",
         "STOCK_EQUITY_ATTRIBUTION.jsonl",
-        "STOCK_WHEEL_ATTRIBUTION.jsonl",
         "STOCK_BLOCKED_TRADES.jsonl",
         "STOCK_PROFITABILITY_DIAGNOSTICS.md",
         "STOCK_PROFITABILITY_DIAGNOSTICS.json",
@@ -1129,55 +673,23 @@ def check_unified_daily_intelligence_pack(date: str) -> str:
     if missing:
         raise ValueError(f"Missing files: {missing}. Run: python scripts/run_stockbot_daily_reports.py --date {date}")
 
-    # Wheel attribution: at least one record with strategy_id or wheel fields
-    wheel_path = pack_dir / "STOCK_WHEEL_ATTRIBUTION.jsonl"
-    wheel_records = []
-    if wheel_path.exists():
-        for ln in wheel_path.read_text(encoding="utf-8", errors="replace").splitlines():
-            ln = ln.strip()
-            if not ln:
-                continue
-            try:
-                wheel_records.append(json.loads(ln))
-            except json.JSONDecodeError:
-                continue
-    wheel_fields = ["strategy_id", "phase", "option_type", "strike", "expiry", "dte"]
-    if wheel_records:
-        first = wheel_records[0]
-        has_any = any(k in first for k in wheel_fields)
-        if not has_any:
-            raise ValueError("STOCK_WHEEL_ATTRIBUTION.jsonl missing wheel fields (strategy_id, phase, option_type, etc.)")
-
-    # Profitability diagnostics: expectancy + mae/mfe
     prof_path = pack_dir / "STOCK_PROFITABILITY_DIAGNOSTICS.json"
-    prof = {}
-    if prof_path.exists():
-        try:
-            prof = json.loads(prof_path.read_text(encoding="utf-8", errors="replace"))
-        except json.JSONDecodeError:
-            pass
+    prof = json.loads(prof_path.read_text(encoding="utf-8", errors="replace"))
     if not isinstance(prof, dict):
         raise ValueError("STOCK_PROFITABILITY_DIAGNOSTICS.json invalid")
     if "expectancy_per_symbol" not in prof and "expectancy_per_strategy" not in prof:
         raise ValueError("STOCK_PROFITABILITY_DIAGNOSTICS.json missing expectancy fields")
 
-    # Regime valid
     regime_path = pack_dir / "STOCK_REGIME_AND_UNIVERSE.json"
-    regime = {}
-    if regime_path.exists():
-        try:
-            regime = json.loads(regime_path.read_text(encoding="utf-8", errors="replace"))
-        except json.JSONDecodeError:
-            pass
+    regime = json.loads(regime_path.read_text(encoding="utf-8", errors="replace"))
     if not isinstance(regime, dict):
         raise ValueError("STOCK_REGIME_AND_UNIVERSE.json invalid")
 
-    # Memory Bank snapshot appended
     mb_path = pack_dir / "MEMORY_BANK_SNAPSHOT.md"
     if mb_path.stat().st_size == 0:
         raise ValueError("MEMORY_BANK_SNAPSHOT.md empty")
 
-    return f"pack OK: {len(required)} files, wheel_records={len(wheel_records)}"
+    return f"pack OK: {len(required)} files"
 
 
 # =============================================================================
@@ -1188,7 +700,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Operational Readiness Audit for stock-bot")
     ap.add_argument("--date", required=True, help="Date YYYY-MM-DD for report generation checks")
     ap.add_argument("--verbose", action="store_true", help="Print progress during checks")
-    ap.add_argument("--full-integration", action="store_true", help="Run full system integration audit (all checks + wheel/universe/comparison/promotion/dashboard/EOD/telemetry/safety)")
+    ap.add_argument("--full-integration", action="store_true", help="Run extended integration audit (comparison, promotion, dashboard, EOD, telemetry)")
     args = ap.parse_args()
 
     date = args.date.strip()
@@ -1221,7 +733,6 @@ def main() -> int:
     ))
 
     # CHECK 3: Telemetry Fields (CRITICAL)
-    # Use lenient version since wheel may not have run yet
     results.append(run_check(
         "telemetry_fields",
         critical=True,
@@ -1253,11 +764,11 @@ def main() -> int:
         verbose=verbose,
     ))
 
-    # CHECK 7: Wheel Safety & Capital Limits (MEDIUM)
+    # CHECK 7: Equity config sanity (MEDIUM)
     results.append(run_check(
-        "wheel_safety_and_capital_limits",
+        "equity_allocation_config",
         critical=False,
-        fn=check_wheel_safety_and_capital_limits,
+        fn=check_equity_allocation_config,
         verbose=verbose,
     ))
 
@@ -1269,11 +780,11 @@ def main() -> int:
         verbose=verbose,
     ))
 
-    # CHECK 9: Stock-bot closed trades & wheel fields (dashboard integration)
+    # CHECK 9: Attribution tail (dashboard integration)
     results.append(run_check(
-        "stockbot_closed_trades_wheel_fields",
+        "stockbot_closed_trades_attribution_fields",
         critical=False,
-        fn=check_stockbot_closed_trades_wheel_fields,
+        fn=check_stockbot_closed_trades_attribution_fields,
         verbose=verbose,
     ))
 
@@ -1287,18 +798,6 @@ def main() -> int:
 
     # FULL INTEGRATION: additional checks
     if full_integration:
-        results.append(run_check(
-            "wheel_universe_selector_integration",
-            critical=True,
-            fn=check_wheel_universe_selector_integration,
-            verbose=verbose,
-        ))
-        results.append(run_check(
-            "wheel_trade_execution",
-            critical=True,
-            fn=check_wheel_trade_execution,
-            verbose=verbose,
-        ))
         results.append(run_check(
             "strategy_comparison_engine",
             critical=True,
@@ -1324,15 +823,9 @@ def main() -> int:
             verbose=verbose,
         ))
         results.append(run_check(
-            "telemetry_completeness_expanded",
-            critical=True,
-            fn=check_telemetry_completeness_expanded,
-            verbose=verbose,
-        ))
-        results.append(run_check(
-            "safety_boundaries",
-            critical=True,
-            fn=check_safety_boundaries,
+            "telemetry_tail_readable",
+            critical=False,
+            fn=check_telemetry_tail_readable,
             verbose=verbose,
         ))
 

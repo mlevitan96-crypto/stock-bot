@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install direction readiness check cron on droplet (every 30 min during market hours)."""
+"""Install direction readiness check cron on droplet (every 5 min during market hours)."""
 from __future__ import annotations
 
 import sys
@@ -9,8 +9,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
 REMOTE_ROOT = "/root/stock-bot"
-# Every 30 min at 0 and 30, 9–16 UTC, Mon–Fri (adjust for your market hours)
-CRON_LINE = "0,30 9-16 * * 1-5 cd /root/stock-bot && python3 scripts/governance/check_direction_readiness_and_run.py >> logs/direction_readiness_cron.log 2>&1"
+# Every 5 min, 9–21 UTC (covers US market), Mon–Fri. Use venv python so cron has correct PATH.
+CRON_LINE = "*/5 9-21 * * 1-5 cd /root/stock-bot && /root/stock-bot/venv/bin/python scripts/governance/check_direction_readiness_and_run.py >> logs/direction_readiness_cron.log 2>&1"
 
 
 def main() -> int:
@@ -28,7 +28,7 @@ def main() -> int:
         if rc != 0:
             print("Crontab install failed", file=sys.stderr)
             return rc
-    print("Direction readiness cron installed (every 30 min, 9–16 UTC, Mon–Fri).")
+    print("Direction readiness cron installed (every 5 min, 9–21 UTC, Mon–Fri).")
     return 0
 
 

@@ -11,7 +11,7 @@ ARTIFACTS_DIR = REPO_ROOT / "artifacts"
 
 
 def main():
-    out = {"EQUITY": {"pnl": 0.0, "trades": 0}, "WHEEL": {"pnl": 0.0, "trades": 0}}
+    out: dict = {"EQUITY": {"pnl": 0.0, "trades": 0}}
     pattern = str(LOGS_DIR / "exit_attribution*.jsonl")
     for f in glob.glob(pattern):
         try:
@@ -24,7 +24,7 @@ def main():
                         r = json.loads(line)
                     except json.JSONDecodeError:
                         continue
-                    s = r.get("strategy", "EQUITY")
+                    s = "EQUITY"
                     if s not in out:
                         out[s] = {"pnl": 0.0, "trades": 0}
                     out[s]["pnl"] = out[s].get("pnl", 0) + (r.get("pnl") or 0)

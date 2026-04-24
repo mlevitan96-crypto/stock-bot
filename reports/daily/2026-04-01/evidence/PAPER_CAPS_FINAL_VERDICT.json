@@ -1,0 +1,17 @@
+{
+  "better_action_under_caps_on_by_p05": "QUANT_EMU_001",
+  "caps_improve_tail_cf_p05_delta": 0.121125,
+  "recommended_caps_from_evidence": {
+    "PAPER_CAPS_ENABLED": "1",
+    "PAPER_CAP_MAX_GROSS_USD": "12000",
+    "PAPER_CAP_MAX_NET_USD": "10000",
+    "PAPER_CAP_MAX_PER_SYMBOL_USD": "2500",
+    "PAPER_CAP_MAX_ORDERS_PER_MINUTE": "40",
+    "PAPER_CAP_MAX_NEW_POSITIONS_PER_CYCLE": "4",
+    "PAPER_CAP_HOLD_MINUTES": "60",
+    "PAPER_CAP_CYCLE_MINUTES": "1"
+  },
+  "next_single_paper_lever": "Re-run weekly `run_paper_extension_caps_evaluation.py` with frozen cap env; archive JSON.",
+  "verify": "python3 scripts/audit/verify_paper_caps_wired.py && diff PAPER_EXTENSION_EVALUATION.json week-over-week",
+  "rollback": "Unset PAPER_CAPS_* env; delete cap JSONL; stop scheduling evaluation script."
+}

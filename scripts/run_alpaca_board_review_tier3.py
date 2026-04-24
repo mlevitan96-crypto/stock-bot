@@ -7,7 +7,7 @@ shadow comparison, weekly ledger, CSA verdict, SRE status) and produces a Board 
 Packet (MD + JSON) under reports/ALPACA_BOARD_REVIEW_<YYYYMMDD>_<HHMM>/.
 Updates state/alpaca_board_review_state.json on success.
 
-Alpaca-native only. No Kraken references. No cron, no promotion logic, no heartbeat.
+Alpaca US equities only. No cron, no promotion logic, no heartbeat.
 Phase 1: Tier 3 only.
 
 Usage:

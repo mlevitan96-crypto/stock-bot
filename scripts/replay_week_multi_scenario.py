@@ -68,7 +68,7 @@ def summarize_exit_rows(rows):
     buckets = {}
     for r in rows:
         mode = norm(r.get("mode") or r.get("run_mode"), {"LIVE", "PAPER", "SHADOW"})
-        strat = norm(r.get("strategy") or r.get("strategy_label"), {"EQUITY", "WHEEL"})
+        strat = norm((r.get("strategy") or r.get("strategy_label") or "EQUITY"), {"EQUITY"})
         key = f"{mode}:{strat}"
         b = buckets.setdefault(key, {"pnl": 0.0, "exits": 0, "wins": 0, "losses": 0})
         pnl = float(r.get("pnl") or 0.0)

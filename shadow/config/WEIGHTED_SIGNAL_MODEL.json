@@ -1,0 +1,832 @@
+{
+  "version": "1.0",
+  "mode": "shadow",
+  "contract": "Weighted contributors only; no veto. Shadow-only, read-only.",
+  "contributors": [
+    {
+      "signal_id": "exit_regimes_fire_sale_signal_delta_threshold",
+      "key_path": "exit_regimes.fire_sale.signal_delta_threshold",
+      "weight": 1.0,
+      "weight_slot": "weight_exit_regimes_fire_sale_signal_delta_threshold",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "exit_regimes_fire_sale_price_delta_pct_threshold",
+      "key_path": "exit_regimes.fire_sale.price_delta_pct_threshold",
+      "weight": 1.0,
+      "weight_slot": "weight_exit_regimes_fire_sale_price_delta_pct_threshold",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "exit_regimes_fire_sale_catastrophic_decay_delta",
+      "key_path": "exit_regimes.fire_sale.catastrophic_decay_delta",
+      "weight": 1.0,
+      "weight_slot": "weight_exit_regimes_fire_sale_catastrophic_decay_delta",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "exit_regimes_fire_sale_enabled",
+      "key_path": "exit_regimes.fire_sale.enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_exit_regimes_fire_sale_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "exit_regimes_let_it_breathe_entry_signal_strength_threshold",
+      "key_path": "exit_regimes.let_it_breathe.entry_signal_strength_threshold",
+      "weight": 1.0,
+      "weight_slot": "weight_exit_regimes_let_it_breathe_entry_signal_strength_threshold",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "exit_regimes_let_it_breathe_pnl_delta_15m_threshold",
+      "key_path": "exit_regimes.let_it_breathe.pnl_delta_15m_threshold",
+      "weight": 1.0,
+      "weight_slot": "weight_exit_regimes_let_it_breathe_pnl_delta_15m_threshold",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "exit_regimes_let_it_breathe_relax_decay_multiplier",
+      "key_path": "exit_regimes.let_it_breathe.relax_decay_multiplier",
+      "weight": 1.0,
+      "weight_slot": "weight_exit_regimes_let_it_breathe_relax_decay_multiplier",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "exit_regimes_let_it_breathe_enabled",
+      "key_path": "exit_regimes.let_it_breathe.enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_exit_regimes_let_it_breathe_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_risk_max_positions_multiplier",
+      "key_path": "modes.LIVE.risk.max_positions_multiplier",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_risk_max_positions_multiplier",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_risk_new_entries_enabled",
+      "key_path": "modes.LIVE.risk.new_entries_enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_risk_new_entries_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_risk_allow_experimental_exits",
+      "key_path": "modes.LIVE.risk.allow_experimental_exits",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_risk_allow_experimental_exits",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_execution_min_hold_seconds",
+      "key_path": "modes.LIVE.execution.min_hold_seconds",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_execution_min_hold_seconds",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_execution_cooldown_seconds_after_exit",
+      "key_path": "modes.LIVE.execution.cooldown_seconds_after_exit",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_execution_cooldown_seconds_after_exit",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_execution_max_daily_exits_multiplier",
+      "key_path": "modes.LIVE.execution.max_daily_exits_multiplier",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_execution_max_daily_exits_multiplier",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_exits_signal_decay_exit_enabled",
+      "key_path": "modes.LIVE.exits.signal_decay_exit_enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_exits_signal_decay_exit_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_exits_signal_decay_sensitivity",
+      "key_path": "modes.LIVE.exits.signal_decay_sensitivity",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_exits_signal_decay_sensitivity",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_exits_displacement_exit_enabled",
+      "key_path": "modes.LIVE.exits.displacement_exit_enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_exits_displacement_exit_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_LIVE_exits_displacement_sensitivity",
+      "key_path": "modes.LIVE.exits.displacement_sensitivity",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_LIVE_exits_displacement_sensitivity",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_risk_max_positions_multiplier",
+      "key_path": "modes.PAPER.risk.max_positions_multiplier",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_risk_max_positions_multiplier",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_risk_new_entries_enabled",
+      "key_path": "modes.PAPER.risk.new_entries_enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_risk_new_entries_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_risk_allow_experimental_exits",
+      "key_path": "modes.PAPER.risk.allow_experimental_exits",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_risk_allow_experimental_exits",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_execution_min_hold_seconds",
+      "key_path": "modes.PAPER.execution.min_hold_seconds",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_execution_min_hold_seconds",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_execution_cooldown_seconds_after_exit",
+      "key_path": "modes.PAPER.execution.cooldown_seconds_after_exit",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_execution_cooldown_seconds_after_exit",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_execution_max_daily_exits_multiplier",
+      "key_path": "modes.PAPER.execution.max_daily_exits_multiplier",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_execution_max_daily_exits_multiplier",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_exits_signal_decay_exit_enabled",
+      "key_path": "modes.PAPER.exits.signal_decay_exit_enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_exits_signal_decay_exit_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_exits_signal_decay_sensitivity",
+      "key_path": "modes.PAPER.exits.signal_decay_sensitivity",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_exits_signal_decay_sensitivity",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_exits_displacement_exit_enabled",
+      "key_path": "modes.PAPER.exits.displacement_exit_enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_exits_displacement_exit_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_PAPER_exits_displacement_sensitivity",
+      "key_path": "modes.PAPER.exits.displacement_sensitivity",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_PAPER_exits_displacement_sensitivity",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_risk_max_positions_multiplier",
+      "key_path": "modes.SHADOW.risk.max_positions_multiplier",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_risk_max_positions_multiplier",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_risk_new_entries_enabled",
+      "key_path": "modes.SHADOW.risk.new_entries_enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_risk_new_entries_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_risk_allow_experimental_exits",
+      "key_path": "modes.SHADOW.risk.allow_experimental_exits",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_risk_allow_experimental_exits",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_execution_min_hold_seconds",
+      "key_path": "modes.SHADOW.execution.min_hold_seconds",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_execution_min_hold_seconds",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_execution_cooldown_seconds_after_exit",
+      "key_path": "modes.SHADOW.execution.cooldown_seconds_after_exit",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_execution_cooldown_seconds_after_exit",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_execution_max_daily_exits_multiplier",
+      "key_path": "modes.SHADOW.execution.max_daily_exits_multiplier",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_execution_max_daily_exits_multiplier",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_exits_signal_decay_exit_enabled",
+      "key_path": "modes.SHADOW.exits.signal_decay_exit_enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_exits_signal_decay_exit_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_exits_signal_decay_sensitivity",
+      "key_path": "modes.SHADOW.exits.signal_decay_sensitivity",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_exits_signal_decay_sensitivity",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_exits_displacement_exit_enabled",
+      "key_path": "modes.SHADOW.exits.displacement_exit_enabled",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_exits_displacement_exit_enabled",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "modes_SHADOW_exits_displacement_sensitivity",
+      "key_path": "modes.SHADOW.exits.displacement_sensitivity",
+      "weight": 1.0,
+      "weight_slot": "weight_modes_SHADOW_exits_displacement_sensitivity",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_entry_thresholds_base",
+      "key_path": "tuning.entry_thresholds.base",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_entry_thresholds_base",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_entry_thresholds_canary",
+      "key_path": "tuning.entry_thresholds.canary",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_entry_thresholds_canary",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_entry_thresholds_champion",
+      "key_path": "tuning.entry_thresholds.champion",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_entry_thresholds_champion",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_exit_weights_flow_deterioration",
+      "key_path": "tuning.exit_weights.flow_deterioration",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_exit_weights_flow_deterioration",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_exit_weights_darkpool_deterioration",
+      "key_path": "tuning.exit_weights.darkpool_deterioration",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_exit_weights_darkpool_deterioration",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_exit_weights_sentiment_deterioration",
+      "key_path": "tuning.exit_weights.sentiment_deterioration",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_exit_weights_sentiment_deterioration",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_exit_weights_score_deterioration",
+      "key_path": "tuning.exit_weights.score_deterioration",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_exit_weights_score_deterioration",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_exit_weights_regime_shift",
+      "key_path": "tuning.exit_weights.regime_shift",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_exit_weights_regime_shift",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_exit_weights_sector_shift",
+      "key_path": "tuning.exit_weights.sector_shift",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_exit_weights_sector_shift",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_exit_weights_vol_expansion",
+      "key_path": "tuning.exit_weights.vol_expansion",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_exit_weights_vol_expansion",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "tuning_exit_weights_thesis_invalidated",
+      "key_path": "tuning.exit_weights.thesis_invalidated",
+      "weight": 1.0,
+      "weight_slot": "weight_tuning_exit_weights_thesis_invalidated",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "exit_weights_flow_deterioration",
+      "key_path": "exit_weights.flow_deterioration",
+      "weight": 1.0,
+      "weight_slot": "weight_exit_weights_flow_deterioration",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_baseline_signal_decay_decay_ratio_threshold",
+      "key_path": "policy_variants.baseline.signal_decay.decay_ratio_threshold",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_baseline_signal_decay_decay_ratio_threshold",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_baseline_signal_decay_hold_tolerance_factor",
+      "key_path": "policy_variants.baseline.signal_decay.hold_tolerance_factor",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_baseline_signal_decay_hold_tolerance_factor",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_baseline_signal_decay_min_hold_minutes_before_decay_exit",
+      "key_path": "policy_variants.baseline.signal_decay.min_hold_minutes_before_decay_exit",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_baseline_signal_decay_min_hold_minutes_before_decay_exit",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_baseline_signal_decay_disable_decay_for_top_quartile_entry",
+      "key_path": "policy_variants.baseline.signal_decay.disable_decay_for_top_quartile_entry",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_baseline_signal_decay_disable_decay_for_top_quartile_entry",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_live_canary_signal_decay_decay_ratio_threshold",
+      "key_path": "policy_variants.live_canary.signal_decay.decay_ratio_threshold",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_live_canary_signal_decay_decay_ratio_threshold",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_live_canary_signal_decay_hold_tolerance_factor",
+      "key_path": "policy_variants.live_canary.signal_decay.hold_tolerance_factor",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_live_canary_signal_decay_hold_tolerance_factor",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_live_canary_signal_decay_min_hold_minutes_before_decay_exit",
+      "key_path": "policy_variants.live_canary.signal_decay.min_hold_minutes_before_decay_exit",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_live_canary_signal_decay_min_hold_minutes_before_decay_exit",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_live_canary_signal_decay_disable_decay_for_top_quartile_entry",
+      "key_path": "policy_variants.live_canary.signal_decay.disable_decay_for_top_quartile_entry",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_live_canary_signal_decay_disable_decay_for_top_quartile_entry",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_paper_aggressive_signal_decay_decay_ratio_threshold",
+      "key_path": "policy_variants.paper_aggressive.signal_decay.decay_ratio_threshold",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_paper_aggressive_signal_decay_decay_ratio_threshold",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_paper_aggressive_signal_decay_hold_tolerance_factor",
+      "key_path": "policy_variants.paper_aggressive.signal_decay.hold_tolerance_factor",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_paper_aggressive_signal_decay_hold_tolerance_factor",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_paper_aggressive_signal_decay_min_hold_minutes_before_decay_exit",
+      "key_path": "policy_variants.paper_aggressive.signal_decay.min_hold_minutes_before_decay_exit",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_paper_aggressive_signal_decay_min_hold_minutes_before_decay_exit",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "policy_variants_paper_aggressive_signal_decay_disable_decay_for_top_quartile_entry",
+      "key_path": "policy_variants.paper_aggressive.signal_decay.disable_decay_for_top_quartile_entry",
+      "weight": 1.0,
+      "weight_slot": "weight_policy_variants_paper_aggressive_signal_decay_disable_decay_for_top_quartile_entry",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_flow_premium",
+      "key_path": "uw_micro.default.uw_flow_premium",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_flow_premium",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_flow_sweep_ratio",
+      "key_path": "uw_micro.default.uw_flow_sweep_ratio",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_flow_sweep_ratio",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_flow_aggressor",
+      "key_path": "uw_micro.default.uw_flow_aggressor",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_flow_aggressor",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_flow_conviction",
+      "key_path": "uw_micro.default.uw_flow_conviction",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_flow_conviction",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_flow_volume",
+      "key_path": "uw_micro.default.uw_flow_volume",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_flow_volume",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_flow_oi",
+      "key_path": "uw_micro.default.uw_flow_oi",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_flow_oi",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_flow_magnitude",
+      "key_path": "uw_micro.default.uw_flow_magnitude",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_flow_magnitude",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_dp_notional",
+      "key_path": "uw_micro.default.uw_dp_notional",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_dp_notional",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_dp_lit_ratio",
+      "key_path": "uw_micro.default.uw_dp_lit_ratio",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_dp_lit_ratio",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_dp_side",
+      "key_path": "uw_micro.default.uw_dp_side",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_dp_side",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_insider_activity",
+      "key_path": "uw_micro.default.uw_insider_activity",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_insider_activity",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_insider_usd",
+      "key_path": "uw_micro.default.uw_insider_usd",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_insider_usd",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    },
+    {
+      "signal_id": "uw_micro_default_uw_insider_sentiment",
+      "key_path": "uw_micro.default.uw_insider_sentiment",
+      "weight": 1.0,
+      "weight_slot": "weight_uw_micro_default_uw_insider_sentiment",
+      "normalized_range": [
+        -1.0,
+        1.0
+      ],
+      "veto_allowed": false
+    }
+  ]
+}

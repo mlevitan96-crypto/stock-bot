@@ -1,0 +1,112 @@
+{
+  "evidence_et": "2026-04-01",
+  "extension_window": {
+    "start_date_inclusive": "2026-03-30",
+    "end_date_inclusive": "2026-04-01",
+    "rule": "last_7_calendar_days_if>=7_unique_days_else_last_3",
+    "unique_days_observed": 3,
+    "rows_in_window": 5705
+  },
+  "caps_env_snapshot": {
+    "PAPER_CAPS_ENABLED": "1",
+    "PAPER_CAP_MAX_GROSS_USD": "12000",
+    "PAPER_CAP_MAX_NET_USD": "10000",
+    "PAPER_CAP_MAX_PER_SYMBOL_USD": "2500",
+    "PAPER_CAP_MAX_ORDERS_PER_MINUTE": "40",
+    "PAPER_CAP_MAX_NEW_POSITIONS_PER_CYCLE": "4",
+    "PAPER_CAP_HOLD_MINUTES": "60",
+    "PAPER_CAP_CYCLE_MINUTES": "1"
+  },
+  "QUANT_CF_001": {
+    "baseline_caps_off": {
+      "trade_count": 5705,
+      "blocked_by_caps_count": 0,
+      "total_pnl_usd": 2313.902031,
+      "pnl_per_trade_mean": 0.405592,
+      "win_rate": 0.570727,
+      "max_drawdown_usd": -496.669441,
+      "tail_p05_pnl_per_trade": -3.926003,
+      "top_fail_reason_codes": [],
+      "opportunity_cost_blocked_pnl60_sum_usd": 0.0
+    },
+    "caps_on": {
+      "trade_count": 273,
+      "blocked_by_caps_count": 5432,
+      "total_pnl_usd": 113.709901,
+      "pnl_per_trade_mean": 0.41652,
+      "win_rate": 0.56044,
+      "max_drawdown_usd": -84.413236,
+      "tail_p05_pnl_per_trade": -3.804878,
+      "top_fail_reason_codes": [
+        [
+          "max_gross_usd",
+          4470
+        ],
+        [
+          "max_net_usd",
+          700
+        ],
+        [
+          "max_new_positions_per_cycle",
+          252
+        ],
+        [
+          "max_per_symbol_usd",
+          136
+        ]
+      ],
+      "opportunity_cost_blocked_pnl60_sum_usd": 2200.19213
+    }
+  },
+  "QUANT_EMU_001": {
+    "baseline_caps_off": {
+      "trade_count": 5705,
+      "blocked_by_caps_count": 0,
+      "total_pnl_usd": 109.046631,
+      "pnl_per_trade_mean": 0.019114,
+      "win_rate": 0.60894,
+      "max_drawdown_usd": -196.464875,
+      "tail_p05_pnl_per_trade": -1.166619,
+      "top_fail_reason_codes": [],
+      "opportunity_cost_blocked_sum_usd": 0.0,
+      "emulator_params": {
+        "k_atr_stop": 1.5,
+        "m_atr_tp": 1.0,
+        "N_max_bars": 60
+      }
+    },
+    "caps_on": {
+      "trade_count": 273,
+      "blocked_by_caps_count": 5432,
+      "total_pnl_usd": 5.731017,
+      "pnl_per_trade_mean": 0.020993,
+      "win_rate": 0.600733,
+      "max_drawdown_usd": -36.553671,
+      "tail_p05_pnl_per_trade": -1.969679,
+      "top_fail_reason_codes": [
+        [
+          "max_gross_usd",
+          4470
+        ],
+        [
+          "max_net_usd",
+          700
+        ],
+        [
+          "max_new_positions_per_cycle",
+          252
+        ],
+        [
+          "max_per_symbol_usd",
+          136
+        ]
+      ],
+      "opportunity_cost_blocked_sum_usd": 103.315614,
+      "emulator_params": {
+        "k_atr_stop": 1.5,
+        "m_atr_tp": 1.0,
+        "N_max_bars": 60
+      }
+    }
+  }
+}

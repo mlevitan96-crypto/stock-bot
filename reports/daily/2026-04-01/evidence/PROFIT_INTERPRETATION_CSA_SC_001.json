@@ -1,0 +1,11 @@
+{
+  "hypothesis_id": "CSA_SC_001",
+  "status": "CANNOT_ADVANCE_PROFIT_PATH",
+  "reason": "Phase_8_hard_gate_positive_paper_required_for_profit_promotion",
+  "evidence": {
+    "allowed_count": 5,
+    "mean_pnl_60m_joined": -0.968325,
+    "baseline_displacement_mean_60m": 0.405592
+  },
+  "note": "Admission count > 0 but joined counterfactual mean 60m is negative vs positive promotion bar."
+}

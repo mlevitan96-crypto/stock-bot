@@ -1,0 +1,61 @@
+{
+  "hypotheses": [
+    {
+      "id": "CSA_SC_001",
+      "role": "CSA",
+      "statement": "Paper second-chance displacement re-eval admits some previously displacement_blocked intents without weakening first-pass displacement authority.",
+      "evidence_refs": [
+        "SECOND_CHANCE_PNL_EVALUATION.json",
+        "SECOND_CHANCE_FINAL_VERDICT.md"
+      ],
+      "paper_signal": "allowed_count>0",
+      "paper_metrics": {
+        "allowed_count": 5,
+        "mean_60m_allowed_joined": -0.968325
+      }
+    },
+    {
+      "id": "QUANT_CF_001",
+      "role": "QUANT",
+      "statement": "Displacement_blocked rows show positive mean Variant-A 60m counterfactual expectancy in the blocked-why corpus.",
+      "evidence_refs": [
+        "BLOCKED_GATE_SCORECARD.json",
+        "PAPER_EXPERIMENT_RESULTS.json",
+        "BLOCKED_COUNTERFACTUAL_PNL_FULL.json"
+      ],
+      "paper_signal": "pnl_60m_expectancy_displacement_blocked>0",
+      "paper_metrics": {
+        "n_covered": 5705,
+        "share_positive_60m": 0.570727,
+        "pnl_60m_expectancy_usd": 0.405592
+      }
+    },
+    {
+      "id": "QUANT_EMU_001",
+      "role": "QUANT",
+      "statement": "Under documented ATR stop/TP/time-stop proxy, a majority of emulator grid cells show positive mean USD PnL on displacement_blocked-covered rows.",
+      "evidence_refs": [
+        "DISPLACEMENT_EXIT_EMULATOR_RESULTS.json"
+      ],
+      "paper_signal": "opportunity_persists_majority_positive_mean_cells",
+      "paper_metrics": {
+        "cells_positive": 11,
+        "cells_total": 18,
+        "majority_flag": true
+      }
+    },
+    {
+      "id": "STRAT_SEP_001",
+      "role": "STRATEGY",
+      "statement": "Decision-time features weakly separate GOOD vs BAD displacement_blocked outcomes at 60m (univariate rules).",
+      "evidence_refs": [
+        "DISPLACEMENT_GOOD_VS_BAD_SEPARATION.json"
+      ],
+      "paper_signal": "conclusion_A",
+      "paper_metrics": {
+        "conclusion_AB": "A) We can separate GOOD vs BAD displacement blocks with decision-time features (see top rules).",
+        "n_rows": 5705
+      }
+    }
+  ]
+}

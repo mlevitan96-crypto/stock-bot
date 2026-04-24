@@ -20,6 +20,21 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Tuple
 
+from config.tuning.tuning_loader import get_merged_exit_weights
+
+_DEFAULT_EXIT_WEIGHTS: Dict[str, float] = {
+    "flow_deterioration": 0.20,
+    "darkpool_deterioration": 0.10,
+    "sentiment_deterioration": 0.10,
+    "score_deterioration": 0.25,
+    "regime_shift": 0.10,
+    "sector_shift": 0.05,
+    "vol_expansion": 0.10,
+    "thesis_invalidated": 0.10,
+    "earnings_risk": 0.0,
+    "overnight_flow_risk": 0.0,
+}
+
 
 def _clamp(x: float, lo: float, hi: float) -> float:
     try:
@@ -90,15 +105,18 @@ def compute_exit_score_v2(
         "overnight_flow_risk": round(overnight_risk, 4),
     }
 
+    exit_w = get_merged_exit_weights(_DEFAULT_EXIT_WEIGHTS)
     score = (
-        0.20 * flow_det
-        + 0.10 * dp_det
-        + 0.10 * sent_det
-        + 0.25 * score_det
-        + 0.10 * r_shift
-        + 0.05 * s_shift
-        + 0.10 * vol_exp
-        + 0.10 * thesis_bad
+        float(exit_w.get("flow_deterioration", 0.20)) * flow_det
+        + float(exit_w.get("darkpool_deterioration", 0.10)) * dp_det
+        + float(exit_w.get("sentiment_deterioration", 0.10)) * sent_det
+        + float(exit_w.get("score_deterioration", 0.25)) * score_det
+        + float(exit_w.get("regime_shift", 0.10)) * r_shift
+        + float(exit_w.get("sector_shift", 0.05)) * s_shift
+        + float(exit_w.get("vol_expansion", 0.10)) * vol_exp
+        + float(exit_w.get("thesis_invalidated", 0.10)) * thesis_bad
+        + float(exit_w.get("earnings_risk", 0.0)) * earnings_risk
+        + float(exit_w.get("overnight_flow_risk", 0.0)) * overnight_risk
     )
     score = _clamp(score, 0.0, 1.0)
 
@@ -123,23 +141,11 @@ def compute_exit_score_v2(
     def _exit_signal_id(key: str) -> str:
         return key if key.startswith("exit_") else f"exit_{key}"
 
-    weights = {
-        "flow_deterioration": 0.20,
-        "darkpool_deterioration": 0.10,
-        "sentiment_deterioration": 0.10,
-        "score_deterioration": 0.25,
-        "regime_shift": 0.10,
-        "sector_shift": 0.05,
-        "vol_expansion": 0.10,
-        "thesis_invalidated": 0.10,
-        "earnings_risk": 0.0,
-        "overnight_flow_risk": 0.0,
-    }
     attribution_components = [
         {
             "signal_id": _exit_signal_id(k),
             "source": "exit",
-            "contribution_to_score": round(float(weights.get(k, 0.0)) * float(components.get(k, 0.0)), 6),
+            "contribution_to_score": round(float(exit_w.get(k, 0.0)) * float(components.get(k, 0.0)), 6),
         }
         for k in components
     ]

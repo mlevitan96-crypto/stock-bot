@@ -6,7 +6,7 @@ Reads Tier 1/2/3 packets (or board/state fallbacks) and SRE_STATUS; produces
 state/alpaca_convergence_state.json with convergence_status and divergence_class.
 Advisory only; no auto-block, no promotion logic.
 
-Alpaca-native only. No Kraken references.
+Alpaca US equities only.
 
 Usage:
   python scripts/run_alpaca_convergence_check.py [--base-dir PATH] [--force] [--dry-run]

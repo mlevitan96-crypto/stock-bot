@@ -1,7 +1,7 @@
 # Alpaca Infra Fallback Contract
 
 **Authority:** `docs/ALPACA_GOVERNANCE_CONTEXT.md` Section A1 (Truth Contracts).  
-**Scope:** Alpaca-only. Expected behavior for market data outages, order submission failures, and rate limits. No crypto or cross-venue logic.
+**Scope:** Alpaca-only. Expected behavior for market data outages, order submission failures, and rate limits. No cross-venue logic.
 
 This document states the **expected behavior** of the Alpaca bot when infrastructure degrades. Code paths that implement these behaviors are referenced; no new automated tests are added unless clearly justified (per governance execution plan).
 

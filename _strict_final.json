@@ -1,0 +1,292 @@
+Warning: Permanently added '104.236.102.57' (ED25519) to the list of known hosts.
+{
+  "ROOT": "/root/stock-bot",
+  "OPEN_TS_UTC_EPOCH": 1776259800.0,
+  "EXIT_TS_UTC_EPOCH_MAX": null,
+  "FORWARD_SINCE_UTC_EPOCH": null,
+  "STRICT_EPOCH_START": 1775581260.0,
+  "strict_cohort_entry_era_floor_applied": true,
+  "strict_cohort_excluded_preera_open_count": 12,
+  "strict_cohort_exclusion_reasons": {
+    "PREERA_OPEN": 12
+  },
+  "excluded_trade_ids_capped": [
+    "open_INTC_2026-04-14T18:53:58.870873+00:00",
+    "open_INTC_2026-04-14T18:53:58.870873+00:00",
+    "open_LCID_2026-04-14T19:46:36.221795+00:00",
+    "open_LCID_2026-04-14T19:46:36.221795+00:00",
+    "open_TGT_2026-04-14T19:47:33.326541+00:00",
+    "open_TGT_2026-04-14T19:47:33.326541+00:00",
+    "open_GOOGL_2026-04-14T19:49:15.400122+00:00",
+    "open_GOOGL_2026-04-14T19:49:15.400122+00:00",
+    "open_COP_2026-04-14T19:51:06.072406+00:00",
+    "open_COP_2026-04-14T19:51:06.072406+00:00",
+    "open_TSLA_2026-04-14T19:14:08.388576+00:00",
+    "open_TSLA_2026-04-14T19:14:08.388576+00:00"
+  ],
+  "precheck": [],
+  "exit_attribution_rows_before_trade_id_dedupe": 150,
+  "exit_attribution_duplicate_trade_id_rows_removed": 75,
+  "trades_seen": 75,
+  "trades_complete": 70,
+  "trades_incomplete": 5,
+  "reason_histogram": {
+    "entry_decision_not_joinable_by_canonical_trade_id": 4,
+    "live_entry_decision_made_missing_or_blocked": 1,
+    "missing_unified_entry_attribution": 1,
+    "no_orders_rows_with_canonical_trade_id": 1
+  },
+  "incomplete_examples": [
+    {
+      "trade_id": "open_SPY_2026-04-15T14:30:03.005415+00:00",
+      "trade_key": "SPY|LONG|1776260273",
+      "authoritative_join_key": "SPY|LONG|1776260273",
+      "reasons": [
+        "entry_decision_not_joinable_by_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_COIN_2026-04-15T15:30:32.532726+00:00",
+      "trade_key": "COIN|LONG|1776267032",
+      "authoritative_join_key": "COIN|LONG|1776267032",
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_SLB_2026-04-15T15:33:49.690398+00:00",
+      "trade_key": "SLB|LONG|1776267150",
+      "authoritative_join_key": "SLB|LONG|1776267150",
+      "reasons": [
+        "entry_decision_not_joinable_by_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_NIO_2026-04-15T15:44:06.376971+00:00",
+      "trade_key": "NIO|LONG|1776267150",
+      "authoritative_join_key": "NIO|LONG|1776267150",
+      "reasons": [
+        "entry_decision_not_joinable_by_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_JNJ_2026-04-15T15:50:19.641090+00:00",
+      "trade_key": "JNJ|SHORT|1776268219",
+      "authoritative_join_key": "JNJ|SHORT|1776268219",
+      "reasons": [
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id"
+      ]
+    }
+  ],
+  "code_structural_trade_intent_no_canonical_on_entered": false,
+  "LEARNING_STATUS": "BLOCKED",
+  "learning_fail_closed_reason": "incomplete_trade_chain",
+  "STRICT_WINDOW_ZERO_CLOSES": false,
+  "learning_inform_note": null,
+  "AUTHORITATIVE_JOIN_KEY_RULE": "Per closed trade: trade_key from unified alpaca_exit_attribution (or derived from open_{SYM}_{entry_ts} trade_id + exit row side). Expand aliases using undirected canonical_trade_id_intent <-> canonical_trade_id_fill edges from run.jsonl so trade_intent(entered) keyed at intent-time still joins to fill-time keys. Do not use a single per-symbol 'latest fill' as the join key (multiple positions per symbol would collide).",
+  "legacy_trades_seen": null,
+  "legacy_trades_complete": null,
+  "legacy_trades_incomplete": null,
+  "forward_trades_seen": null,
+  "forward_trades_complete": null,
+  "forward_trades_incomplete": null,
+  "FORWARD_CHAIN_PERFECT": false,
+  "FORWARD_COHORT_VACUOUS": false,
+  "POSTFIX_META": null,
+  "postfix_insufficient_closes": false,
+  "postfix_allow_intent_blocker": false,
+  "LEGACY_DEBT_QUARANTINED_NOTE": null,
+  "incomplete_trade_ids_by_reason": {
+    "entry_decision_not_joinable_by_canonical_trade_id": [
+      "open_SPY_2026-04-15T14:30:03.005415+00:00",
+      "open_COIN_2026-04-15T15:30:32.532726+00:00",
+      "open_SLB_2026-04-15T15:33:49.690398+00:00",
+      "open_NIO_2026-04-15T15:44:06.376971+00:00"
+    ],
+    "live_entry_decision_made_missing_or_blocked": [
+      "open_COIN_2026-04-15T15:30:32.532726+00:00"
+    ],
+    "missing_unified_entry_attribution": [
+      "open_JNJ_2026-04-15T15:50:19.641090+00:00"
+    ],
+    "no_orders_rows_with_canonical_trade_id": [
+      "open_JNJ_2026-04-15T15:50:19.641090+00:00"
+    ]
+  },
+  "chain_matrices_sample": [
+    {
+      "trade_id": "open_SPY_2026-04-15T14:30:03.005415+00:00",
+      "symbol": "SPY",
+      "forward_cohort": false,
+      "authoritative_join_key": "SPY|LONG|1776260273",
+      "trade_key_from_exit": "SPY|LONG|1776260273",
+      "alias_sample": [
+        "SPY|LONG|1776260273"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": false,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "entry_decision_not_joinable_by_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_COIN_2026-04-15T15:30:32.532726+00:00",
+      "symbol": "COIN",
+      "forward_cohort": false,
+      "authoritative_join_key": "COIN|LONG|1776267032",
+      "trade_key_from_exit": "COIN|LONG|1776267032",
+      "alias_sample": [
+        "COIN|LONG|1776267032"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": false,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "live_entry_decision_made_missing_or_blocked",
+        "entry_decision_not_joinable_by_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_SLB_2026-04-15T15:33:49.690398+00:00",
+      "symbol": "SLB",
+      "forward_cohort": false,
+      "authoritative_join_key": "SLB|LONG|1776267150",
+      "trade_key_from_exit": "SLB|LONG|1776267150",
+      "alias_sample": [
+        "SLB|LONG|1776267150"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": false,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "entry_decision_not_joinable_by_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_NIO_2026-04-15T15:44:06.376971+00:00",
+      "symbol": "NIO",
+      "forward_cohort": false,
+      "authoritative_join_key": "NIO|LONG|1776267150",
+      "trade_key_from_exit": "NIO|LONG|1776267150",
+      "alias_sample": [
+        "NIO|LONG|1776267150"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": false,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "entry_decision_not_joinable_by_canonical_trade_id"
+      ]
+    },
+    {
+      "trade_id": "open_JNJ_2026-04-15T15:50:19.641090+00:00",
+      "symbol": "JNJ",
+      "forward_cohort": false,
+      "authoritative_join_key": "JNJ|SHORT|1776268219",
+      "trade_key_from_exit": "JNJ|SHORT|1776268219",
+      "alias_sample": [
+        "JNJ|LONG|1776268219",
+        "JNJ|SHORT|1776268219"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": true,
+        "unified_entry_attribution_present": false,
+        "orders_rows_canonical_trade_id_present": false,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": [
+        "missing_unified_entry_attribution",
+        "no_orders_rows_with_canonical_trade_id"
+      ]
+    }
+  ],
+  "chain_matrices_complete_sample": [
+    {
+      "trade_id": "open_BA_2026-04-15T13:58:00.159432+00:00",
+      "symbol": "BA",
+      "forward_cohort": false,
+      "authoritative_join_key": "BA|SHORT|1776261480",
+      "trade_key_from_exit": "BA|SHORT|1776261480",
+      "alias_sample": [
+        "BA|LONG|1776261480",
+        "BA|SHORT|1776261480",
+        "BLOCKED|BA|2e6b450f-de3b-4462-940c-30e99a5ce1d8"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": true,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": []
+    },
+    {
+      "trade_id": "open_F_2026-04-15T13:58:00.159455+00:00",
+      "symbol": "F",
+      "forward_cohort": false,
+      "authoritative_join_key": "F|LONG|1776260273",
+      "trade_key_from_exit": "F|LONG|1776260273",
+      "alias_sample": [
+        "F|LONG|1776260273"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": true,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": []
+    },
+    {
+      "trade_id": "open_COIN_2026-04-15T13:30:54.367138+00:00",
+      "symbol": "COIN",
+      "forward_cohort": false,
+      "authoritative_join_key": "COIN|LONG|1776259854",
+      "trade_key_from_exit": "COIN|LONG|1776259854",
+      "alias_sample": [
+        "BLOCKED|COIN|07248fd0-dd3b-4296-805e-9ecb52239beb",
+        "BLOCKED|COIN|76ee31ef-ab8f-4001-ac51-328ab02b2384",
+        "COIN|LONG|1776259854",
+        "COIN|SHORT|1776259854"
+      ],
+      "matrix": {
+        "trade_intent_entered_present": true,
+        "unified_entry_attribution_present": true,
+        "orders_rows_canonical_trade_id_present": true,
+        "exit_intent_keyed_present": true,
+        "unified_exit_attribution_terminal_close": true,
+        "exit_attribution_jsonl_row": true
+      },
+      "reasons": []
+    }
+  ]
+}

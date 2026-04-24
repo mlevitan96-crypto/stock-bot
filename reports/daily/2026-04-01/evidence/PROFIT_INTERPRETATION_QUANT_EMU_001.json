@@ -1,0 +1,49 @@
+{
+  "hypothesis_id": "QUANT_EMU_001",
+  "role": "QUANT",
+  "incremental_ev_per_trade_usd": {
+    "best_cell_mean": 0.019523,
+    "worst_cell_mean": -0.01183,
+    "best_cell_params": {
+      "k_atr_stop": 1.5,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 30,
+      "mean_pnl_usd": 0.019523,
+      "p05_pnl_usd": -1.166619
+    },
+    "worst_cell_params": {
+      "k_atr_stop": 0.5,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 15,
+      "mean_pnl_usd": -0.01183,
+      "p05_pnl_usd": -0.427716
+    },
+    "source": "DISPLACEMENT_EXIT_EMULATOR_RESULTS.json grid"
+  },
+  "incremental_ev_per_day_usd_est": 37.217345,
+  "incremental_ev_per_week_usd_est": 260.521415,
+  "frequency": {
+    "same_as_QUANT_CF_001_displacement_blocks_per_day": 1906.3333,
+    "n_rows_each_cell": 5705
+  },
+  "trade_count_note": "Emulator re-evaluates same covered rows per grid cell (n in each cell).",
+  "drawdown_proxy": {
+    "best_cell_p05_usd": -1.166619,
+    "worst_cell_p05_usd": -0.427716
+  },
+  "gate_interactions": {
+    "displacement_blocked": "Universe aligned to displacement_blocked coverage from addon pipeline.",
+    "exits": "ATR proxy emulator; not V2 exit engine."
+  },
+  "sensitivity": {
+    "mean_range_usd": [
+      -0.01183,
+      0.019523
+    ],
+    "p05_range_usd": [
+      -1.166619,
+      -0.427716
+    ]
+  },
+  "confidence": "LOW\u2013MEDIUM for live translation; MEDIUM for ranking proxy grids within bars model."
+}

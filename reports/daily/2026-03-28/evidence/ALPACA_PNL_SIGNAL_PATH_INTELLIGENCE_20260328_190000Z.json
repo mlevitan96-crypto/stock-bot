@@ -1,0 +1,58 @@
+{
+  "analysis": "K",
+  "name": "signal_path_intelligence",
+  "cohort": "MARKET_SESSION_ET",
+  "n_trades": 2,
+  "blocked": false,
+  "blockers": [],
+  "spi_version": "1.0.0",
+  "spi_trade_rows": 2,
+  "summary": {
+    "per_signal": {
+      "attribution_unknown": {
+        "trade_count": 2,
+        "hold_minutes": {
+          "n": 2,
+          "min": 135.0,
+          "p25": 135.0,
+          "p50": 135.0,
+          "p75": 180.0,
+          "max": 180.0
+        },
+        "mae_pct_hold": {
+          "n": 0
+        },
+        "vol_ratio_path_vs_baseline": {
+          "n": 0
+        },
+        "time_to_plus_0_5pct_min": {
+          "n": 0
+        },
+        "path_archetype_counts": {
+          "no_intraday_path_data": 2
+        }
+      }
+    },
+    "aggregate": {
+      "trade_count": 2,
+      "mae_pct_hold": {
+        "n": 0
+      },
+      "hold_minutes": {
+        "n": 2,
+        "min": 135.0,
+        "p25": 135.0,
+        "p50": 135.0,
+        "p75": 180.0,
+        "max": 180.0
+      }
+    },
+    "top_anomalies_descriptive": [],
+    "disclaimer": "Distributions and descriptive buckets only; not forecasts, targets, or recommendations. SPI does not authorize behavior change (MEMORY_BANK.md)."
+  },
+  "error": null,
+  "artifacts": {
+    "spi_section_json": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-28\\evidence\\ALPACA_SPI_SECTION_20260328_190000Z.json",
+    "spi_section_md": "C:\\Dev\\stock-bot\\reports\\daily\\2026-03-28\\evidence\\ALPACA_SPI_SECTION_20260328_190000Z.md"
+  }
+}

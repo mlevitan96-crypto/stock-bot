@@ -58,12 +58,31 @@ def main() -> int:
     else:
         close_ts, close_iso, session_date = nyse_regular_close_last_completed()
 
+    if (os.environ.get("STOCKBOT_REPORT_SESSION_DATE_ET") or "").strip():
+        session_date_et = os.environ["STOCKBOT_REPORT_SESSION_DATE_ET"].strip()
+    elif args.close_epoch_override is not None:
+        if ZoneInfo is None:
+            session_date_et = datetime.fromtimestamp(close_ts, tz=timezone.utc).date().isoformat()
+        else:
+            et = ZoneInfo("America/New_York")
+            session_date_et = (
+                datetime.fromtimestamp(close_ts, tz=timezone.utc).astimezone(et).date().isoformat()
+            )
+    else:
+        session_date_et = session_date
+    os.environ["STOCKBOT_REPORT_SESSION_DATE_ET"] = session_date_et
+
+    sys.path.insert(0, str(REPO))
+    from src.report_output.paths import evidence_dir
+
+    evd = evidence_dir(root, session_date_et)
+    evd.mkdir(parents=True, exist_ok=True)
+
     window_h = int(args.window_hours)
     window_start_ts = close_ts - window_h * 3600
     window_start_iso = datetime.fromtimestamp(window_start_ts, tz=timezone.utc).isoformat()
 
-    scope_path = root / "reports" / "audit" / f"ALPACA_LAST_WINDOW_SCOPE_{ts}.md"
-    scope_path.parent.mkdir(parents=True, exist_ok=True)
+    scope_path = evd / f"ALPACA_LAST_WINDOW_SCOPE_{ts}.md"
     scope_path.write_text(
         f"# Alpaca last-window scope\n\n"
         f"**TS:** `{ts}`\n\n"
@@ -78,10 +97,10 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    json_out = root / "reports" / f"ALPACA_LAST_WINDOW_TRUTH_{ts}.json"
-    md_out = root / "reports" / "audit" / f"ALPACA_LAST_WINDOW_TRUTH_{ts}.md"
-    inc_json = root / "reports" / f"ALPACA_LAST_WINDOW_INCIDENT_{ts}.json"
-    inc_md = root / "reports" / f"ALPACA_LAST_WINDOW_INCIDENT_{ts}.md"
+    json_out = evd / f"ALPACA_LAST_WINDOW_TRUTH_{ts}.json"
+    md_out = evd / f"ALPACA_LAST_WINDOW_TRUTH_{ts}.md"
+    inc_json = evd / f"ALPACA_LAST_WINDOW_INCIDENT_{ts}.json"
+    inc_md = evd / f"ALPACA_LAST_WINDOW_INCIDENT_{ts}.md"
 
     runner = REPO / "scripts" / "audit" / "alpaca_forward_truth_contract_runner.py"
     env = {**os.environ, "PYTHONPATH": str(REPO)}
@@ -139,7 +158,7 @@ def main() -> int:
             interpretation = "Could not parse truth JSON."
 
     verdict = "LAST_WINDOW_LEARNING_SAFE" if safe else "LAST_WINDOW_LEARNING_NOT_SAFE"
-    verdict_path = root / "reports" / "audit" / f"ALPACA_LAST_WINDOW_LEARNING_VERDICT_{ts}.md"
+    verdict_path = evd / f"ALPACA_LAST_WINDOW_LEARNING_VERDICT_{ts}.md"
     verdict_path.write_text(
         f"# CSA — last-window learning verdict\n\n"
         f"**TS:** `{ts}`\n\n"
@@ -171,7 +190,20 @@ def main() -> int:
     except Exception:
         pass
 
-    print(json.dumps({"scope": str(scope_path), "truth": str(json_out), "verdict": str(verdict_path), "exit_code": exit_code, "csa_verdict": verdict}, indent=2))
+    print(
+        json.dumps(
+            {
+                "session_date_et": session_date_et,
+                "evidence_dir": str(evd),
+                "scope": str(scope_path),
+                "truth": str(json_out),
+                "verdict": str(verdict_path),
+                "exit_code": exit_code,
+                "csa_verdict": verdict,
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

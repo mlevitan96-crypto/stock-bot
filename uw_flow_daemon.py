@@ -257,6 +257,8 @@ class UWClient:
             pass  # Don't fail on quota logging
         
         try:
+            from src.infrastructure.json_utils import safe_requests_json
+
             # Central UW client routing (rate-limited, cached, logged).
             # Keep daemon semantics:
             # - still inspects UW headers when available
@@ -305,7 +307,7 @@ class UWClient:
             
                 # Check for 429 (rate limited) - V4.0: Queue signal if in PANIC regime
             if r.status_code == 429:
-                error_data = r.json() if r.content else {}
+                error_data = safe_requests_json(r, url_hint=url, default={}) if r.content else {}
                 safe_print(f"[UW-DAEMON] ❌ RATE LIMITED (429): {error_data.get('message', 'Daily limit hit')}")
                 
                 # V4.0: Queue signal for later processing if in PANIC regime
@@ -352,7 +354,7 @@ class UWClient:
                     pass
             
             r.raise_for_status()
-            response_data = r.json()
+            response_data = safe_requests_json(r, url_hint=url, default={"data": []})
             
             # DIAGNOSTIC: Store last 5 raw payloads for debugging
             try:
@@ -465,7 +467,9 @@ class UWClient:
             r = requests.get(url, headers=self.headers, params=params or {}, timeout=10)
             data = None
             try:
-                data = r.json()
+                from src.infrastructure.json_utils import safe_requests_json as _srj
+
+                data = _srj(r, url_hint=url, default={})
             except Exception:
                 data = r.text[:500] if getattr(r, "text", None) else ""
             return {
@@ -720,8 +724,10 @@ class SmartPoller:
     def _load_state(self) -> dict:
         """Load persisted polling timestamps."""
         try:
-            if self.state_file.exists():
-                return json.loads(self.state_file.read_text())
+            from src.infrastructure.json_utils import safe_json_load
+
+            data = safe_json_load(self.state_file, default={}, context="uw_flow_daemon.last_call")
+            return data if isinstance(data, dict) else {}
         except Exception:
             pass
         return {}
@@ -1466,9 +1472,11 @@ class UWFlowDaemon:
 
     def _load_discovery_state(self) -> Dict[str, Any]:
         try:
+            from src.infrastructure.json_utils import safe_json_load
+
             p = self._discovery_state_path()
-            if p.exists():
-                return json.loads(p.read_text())
+            data = safe_json_load(p, default={}, context="uw_flow_daemon.discovery_state")
+            return data if isinstance(data, dict) else {}
         except Exception:
             pass
         return {}

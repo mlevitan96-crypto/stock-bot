@@ -1,0 +1,24 @@
+{
+  "csv": "C:\\Dev\\stock-bot\\reports\\Gemini\\alpaca_ml_cohort_flat_UW.csv",
+  "n_rows_total": 470,
+  "n_rows_fit": 469,
+  "n_features": 43,
+  "target_requested": "target_ret_eod_rth",
+  "target_resolved": "target_ret_eod_rth",
+  "target_resolution_note": "column_present_in_csv",
+  "entry_only_leak_filter": "drop columns containing exit_ (except target) or starting with mlf_v2_exit_; skip exit_mae_pct, holding_time_minutes, realized_pnl_usd",
+  "realized_pnl_column": "realized_pnl_usd",
+  "cv_folds": 5,
+  "cv_metric": "r2",
+  "cv_scores_by_model": {
+    "ridge": 0.009192635343198963,
+    "elasticnet": -0.04083072361246769,
+    "random_forest": 0.05064030252312508,
+    "gradient_boosting": -0.16042564760006733
+  },
+  "winner_model": "random_forest",
+  "winner_cv_r2_mean": 0.05064030252312508,
+  "winner_cv_mae_mean": 0.006584140788515677,
+  "winner_cv_mae_note": "same KFold folds, scoring=neg_mean_absolute_error, sklearn inverts sign",
+  "importance_method": "shap_tree"
+}

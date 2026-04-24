@@ -1,0 +1,16 @@
+{
+  "hypothesis_id": "QUANT_CF_001",
+  "action_type": "paper_extension",
+  "exact_change": "Re-run `run_blocked_why_pipeline.py` + merge-blocked bars fetch on a fixed cadence; no `main.py` threshold edits.",
+  "scope_duration": "30d rolling evidence windows; config frozen except bars date range.",
+  "success_metrics": [
+    "pnl_60m_expectancy displacement_blocked remains positive in new window",
+    "coverage rate for displacement_blocked rows stable or improves in BLOCKED_WHY_BARS_COVERAGE.json"
+  ],
+  "kill_criteria": [
+    "pnl_60m_expectancy displacement_blocked < 0 for two consecutive weekly rebuilds",
+    "coverage collapse >20% vs prior week without documented data outage"
+  ],
+  "rollback": "Stop scheduled pipeline; archive evidence folder; no engine env changes required.",
+  "owner_role": "QUANT"
+}

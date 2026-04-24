@@ -68,7 +68,7 @@ def main() -> int:
         "blocked_trades_exists": blocked_exists,
         "fail_closed": fail_closed,
     }
-    print(json.dumps(result, indent=2))
+    print(json.dumps(result))  # single line for runner capture
     return 1 if fail_closed else 0
 
 

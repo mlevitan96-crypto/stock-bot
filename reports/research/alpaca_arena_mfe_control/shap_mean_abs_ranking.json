@@ -1,0 +1,57 @@
+{
+  "top": [
+    {
+      "rank": 1,
+      "feature": "mlf_direction_intel_embed_intel_deltas_futures_direction_delta",
+      "mean_abs_shap": 0.037620949429031686
+    },
+    {
+      "rank": 2,
+      "feature": "strict_open_epoch_utc",
+      "mean_abs_shap": 0.02806672705915673
+    },
+    {
+      "rank": 3,
+      "feature": "mlf_direction_intel_embed_intel_snapshot_entry_regime_posture_market_context_spy_overnight_ret",
+      "mean_abs_shap": 0.027690077782091444
+    },
+    {
+      "rank": 4,
+      "feature": "mlf_direction_intel_embed_intel_snapshot_entry_regime_posture_market_context_vxx_vxz_ratio",
+      "mean_abs_shap": 0.018120577134643878
+    },
+    {
+      "rank": 5,
+      "feature": "mlf_scoreflow_total_score",
+      "mean_abs_shap": 0.013780283155194448
+    },
+    {
+      "rank": 6,
+      "feature": "mlf_scoreflow_snapshot_ts_epoch",
+      "mean_abs_shap": 0.010153787778554692
+    },
+    {
+      "rank": 7,
+      "feature": "mlf_scoreflow_components_oi_change",
+      "mean_abs_shap": 0.00947265138347661
+    },
+    {
+      "rank": 8,
+      "feature": "mlf_scoreflow_snapshot_age_sec",
+      "mean_abs_shap": 0.008230240552899334
+    },
+    {
+      "rank": 9,
+      "feature": "mlf_scoreflow_components_freshness_factor",
+      "mean_abs_shap": 0.008011725408087441
+    },
+    {
+      "rank": 10,
+      "feature": "mlf_scoreflow_components_iv_rank",
+      "mean_abs_shap": 0.007124428898768165
+    }
+  ],
+  "meta": {
+    "engine": "shap_tree"
+  }
+}

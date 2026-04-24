@@ -1,0 +1,21 @@
+{
+  "version": "PROMOTED_DIAGNOSTIC_ALPACA_SCORE_DETERIORATION_EMPHASIS_2026-03-20",
+  "exit_weights": {
+    "flow_deterioration": 0.17,
+    "darkpool_deterioration": 0.1,
+    "sentiment_deterioration": 0.1,
+    "score_deterioration": 0.28,
+    "regime_shift": 0.1,
+    "sector_shift": 0.05,
+    "vol_expansion": 0.1,
+    "thesis_invalidated": 0.1
+  },
+  "meta": {
+    "mode": "paper",
+    "capital_risk": "none",
+    "promotion_tag": "PROMOTED_DIAGNOSTIC_ALPACA_SCORE_DETERIORATION_EMPHASIS",
+    "diagnostic": true,
+    "hypothesis": "Higher weight on score_deterioration increases exit_score when entry vs now composite decays, increasing intel_deterioration-class exits vs hold and improving loss attribution clarity.",
+    "baseline_note": "Prior active.json was exit_aggression_paper_+0.15 (flow_deterioration 0.37 only); exit_score_v2 now applies full exit_weights merge from tuning_loader."
+  }
+}

@@ -7,7 +7,7 @@
   "use_survivorship": true,
   "use_constraints": true,
   "use_correlation_sizing": true,
-  "use_wheel_strategy": true,
+  "use_secondary_options_strategy": false,
   "log_all_candidates": true,
   "log_all_exits": true,
   "log_all_blocks": true

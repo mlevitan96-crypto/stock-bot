@@ -1,0 +1,11 @@
+{
+  "git_head": "efd27d13760df1f943a4867f0a4947f1d9f29c97",
+  "paper_endpoint_detected": true,
+  "main_py_submit_order_occurrences": 24,
+  "paper_cap_module_submit_order_occurrences": 0,
+  "code_pointers": [
+    "main.py Config TRADING_MODE / ALPACA_BASE_URL (~351\u2013352)",
+    "main.py _is_paper_url / paper-only enforcement (~916\u2013951)",
+    "main.py AlpacaExecutor._submit_order_guarded \u2192 api.submit_order (~4316\u20134452)"
+  ]
+}

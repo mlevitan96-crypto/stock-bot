@@ -3,15 +3,12 @@
 Molt Intelligence Expansion — load unified daily pack, run Molt workflow.
 
 Loads reports/stockbot/YYYY-MM-DD/ and provides:
-- load_wheel_attribution()
 - load_equity_attribution()
 - load_profitability_diagnostics()
 - load_blocked_trades()
 - load_regime_universe()
 
 Generates/ensures STOCK_EOD_SUMMARY, STOCK_PROFITABILITY_DIAGNOSTICS, MEMORY_BANK_SNAPSHOT.
-Moltbot reads raw attribution, wheel attribution, profitability diagnostics, blocked trades,
-regime/universe, and writes its own conclusions.
 
 Run: python scripts/run_molt_intelligence_expansion.py [--date YYYY-MM-DD] [--base-dir PATH]
 """
@@ -23,7 +20,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -63,16 +60,8 @@ def load_equity_attribution(base: Path, day: str) -> List[dict]:
     if pack_path.exists():
         return _iter_jsonl(pack_path)
     from scripts.run_stockbot_daily_reports import _load_equity_attribution
+
     return _load_equity_attribution(base, day)
-
-
-def load_wheel_attribution(base: Path, day: str) -> List[dict]:
-    """Load wheel attribution from daily pack or logs."""
-    pack_path = base / "reports" / "stockbot" / day / "STOCK_WHEEL_ATTRIBUTION.jsonl"
-    if pack_path.exists():
-        return _iter_jsonl(pack_path)
-    from scripts.run_stockbot_daily_reports import _load_wheel_attribution
-    return _load_wheel_attribution(base, day)
 
 
 def load_profitability_diagnostics(base: Path, day: str) -> dict:
@@ -87,6 +76,7 @@ def load_blocked_trades(base: Path, day: str) -> List[dict]:
     if pack_path.exists():
         return _iter_jsonl(pack_path)
     from scripts.run_stockbot_daily_reports import _load_blocked_trades
+
     return _load_blocked_trades(base, day)
 
 
@@ -107,7 +97,12 @@ def ensure_daily_pack(base: Path, day: str) -> Path:
     out_dir = base / "reports" / "stockbot" / day
     if not out_dir.exists() or not (out_dir / "STOCK_EOD_SUMMARY.json").exists():
         import subprocess
-        subprocess.run([sys.executable, str(ROOT / "scripts" / "run_stockbot_daily_reports.py"), "--date", day, "--base-dir", str(base)], check=True, cwd=str(base))
+
+        subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "run_stockbot_daily_reports.py"), "--date", day, "--base-dir", str(base)],
+            check=True,
+            cwd=str(base),
+        )
     return out_dir
 
 
@@ -122,13 +117,13 @@ def main() -> int:
     ensure_daily_pack(base, day)
 
     eq = load_equity_attribution(base, day)
-    wh = load_wheel_attribution(base, day)
     prof = load_profitability_diagnostics(base, day)
     blocked = load_blocked_trades(base, day)
     regime = load_regime_universe(base, day)
-    eod = load_eod_summary(base, day)
+    _ = load_eod_summary(base, day)
 
-    print(f"Loaded for {day}: equity={len(eq)}, wheel={len(wh)}, blocked={len(blocked)}, regime={regime.get('regime', 'N/A')}")
+    print(f"Loaded for {day}: equity={len(eq)}, blocked={len(blocked)}, regime={regime.get('regime', 'N/A')}")
+    _ = prof
     return 0
 
 

@@ -1,0 +1,50 @@
+{
+  "harvester_floor_utc": "2026-04-07T17:01:00+00:00",
+  "blocked_veto_audit": {
+    "harvester_floor_epoch": 1775581260.0,
+    "blocked_rows_since_floor": 0,
+    "by_source_file": {},
+    "top_block_reasons": {},
+    "high_score_blocked_count_gte_4": 0,
+    "counterfactual_numeric_observations": 0,
+    "counterfactual_field_sum_usd_or_units": null,
+    "blocked_rows_with_positive_counterfactual_field": 0,
+    "note": "Opportunity cost in USD requires per-row counterfactual PnL in blocked JSONL or a bars replay (see scripts/blocked_expectancy_analysis.py). Many deployments only log reason/score without precomputed counterfactual_pnl_* \u2014 then only counts/by_reason are reliable here.",
+    "sample_field_names_seen": []
+  },
+  "exit_mfe_regret_audit": {
+    "exit_attribution_path": "C:\\Dev\\stock-bot\\logs\\exit_attribution.jsonl",
+    "rows_in_cohort_window": 0,
+    "rows_with_exit_quality_metrics": 0,
+    "exit_efficiency_realized_over_mfe": {
+      "n_comparable": 0,
+      "mean_ratio": null,
+      "median_ratio": null
+    },
+    "profit_giveback": {
+      "n": 0,
+      "mean": null
+    },
+    "interpretation": "Mean realized/MFE near 1 means exits capture most favorable excursion; low values suggest exit engine leaves money on table (if MFE is in comparable USD units)."
+  },
+  "mlf_correlation_synergy_audit": {
+    "flat_cohort_strict_real_join_rows": 0,
+    "load_and_filter_stats": {
+      "gross_rows": 0,
+      "dropped_missing_pnl": 0,
+      "dropped_join_tier": 0,
+      "dropped_neutral_no_join": 0,
+      "dropped_feature_nan": 0,
+      "kept": 0
+    },
+    "top_mlf_correlations_with_pnl": [],
+    "synergy_buckets_top_by_win_rate": [],
+    "clusters_with_win_rate_ge_60pct": [],
+    "median_thresholds_used": {
+      "congress": 0.0,
+      "smile": 0.0,
+      "sentiment_score": 0.0
+    }
+  },
+  "final_verdict_signal_vs_exit": "Exit / veto balance: inconclusive from automated fields \u2014 verify MFE USD scaling in exit_quality_metrics and add counterfactual_pnl to blocked logs for a definitive split."
+}

@@ -1,0 +1,874 @@
+{
+  "schema": "board_audit_report_v1",
+  "generated_at_utc": "2026-04-15T21:29:43.636865+00:00",
+  "sources": {
+    "exit_attribution": "/root/stock-bot/logs/exit_attribution.jsonl",
+    "run_stitched": "/root/stock-bot/logs/run_stitched.jsonl"
+  },
+  "universe": {
+    "exit_rows_raw": 2980,
+    "trades_deduped_by_trade_id": 2779,
+    "duplicate_rows_removed_estimate": 201,
+    "note": "Counts are from this host's logs/exit_attribution.jsonl (last row wins per trade_id). A higher 'full history' count elsewhere usually means merged shards or no dedupe."
+  },
+  "executive_summary": {
+    "total_pnl_usd": -422.61,
+    "win_rate": 0.4505,
+    "wins": 1252,
+    "losses": 1527,
+    "total_fees_usd": 0.0,
+    "fees_as_fraction_of_gross_win_usd": 0.0,
+    "exit_slippage_bps_mean_when_present": null,
+    "exit_slippage_bps_median_when_present": null,
+    "exit_slippage_coverage_rows": 0,
+    "estimated_exit_slippage_drag_usd_sum": 0.0,
+    "dominant_exit_pathology": [
+      [
+        "signal_decay",
+        2611
+      ],
+      [
+        "stale_time",
+        126
+      ],
+      [
+        "displacement",
+        34
+      ],
+      [
+        "trailing_stop",
+        7
+      ],
+      [
+        "other_mixed",
+        1
+      ]
+    ],
+    "median_hold_minutes": 35.44
+  },
+  "fee_drag": {
+    "note": "fees_usd from exit rows; slippage $ = exit_slippage_bps/1e4 * entry_notional when both known.",
+    "total_fees_usd": 0.0,
+    "estimated_slippage_usd_sum": 0.0,
+    "combined_friction_proxy_usd": 0.0
+  },
+  "toxic_segment": {
+    "negative_pnl_mass_usd_approx": 1776.59,
+    "primary_disjoint_key": "sym|SYMBOL|sess|SEGMENT|er|ENTRY_REGIME",
+    "clusters_explaining_80pct_of_loss_mass_primary_disjoint": [
+      {
+        "cluster_key": "sym|NIO|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -35.08,
+        "trade_count": 38,
+        "win_rate": 0.3421
+      },
+      {
+        "cluster_key": "sym|SOFI|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -27.25,
+        "trade_count": 43,
+        "win_rate": 0.4186
+      },
+      {
+        "cluster_key": "sym|LCID|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -23.59,
+        "trade_count": 35,
+        "win_rate": 0.4
+      },
+      {
+        "cluster_key": "sym|COIN|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -22.77,
+        "trade_count": 50,
+        "win_rate": 0.42
+      },
+      {
+        "cluster_key": "sym|MRNA|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -21.92,
+        "trade_count": 26,
+        "win_rate": 0.3846
+      },
+      {
+        "cluster_key": "sym|HOOD|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -18.21,
+        "trade_count": 32,
+        "win_rate": 0.375
+      },
+      {
+        "cluster_key": "sym|INTC|sess|last_hour_et|er|NEUTRAL",
+        "bucket_pnl_usd": -16.5,
+        "trade_count": 8,
+        "win_rate": 0.125
+      },
+      {
+        "cluster_key": "sym|RIVN|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -16.38,
+        "trade_count": 38,
+        "win_rate": 0.4737
+      },
+      {
+        "cluster_key": "sym|LCID|sess|last_hour_et|er|NEUTRAL",
+        "bucket_pnl_usd": -14.56,
+        "trade_count": 9,
+        "win_rate": 0.3333
+      },
+      {
+        "cluster_key": "sym|CVX|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -14.34,
+        "trade_count": 44,
+        "win_rate": 0.3182
+      },
+      {
+        "cluster_key": "sym|LCID|sess|open_first_hour_et|er|NEUTRAL",
+        "bucket_pnl_usd": -13.07,
+        "trade_count": 10,
+        "win_rate": 0.4
+      },
+      {
+        "cluster_key": "sym|LCID|sess|regular_et|er|UNKNOWN",
+        "bucket_pnl_usd": -12.78,
+        "trade_count": 6,
+        "win_rate": 0.3333
+      },
+      {
+        "cluster_key": "sym|SLB|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -11.47,
+        "trade_count": 41,
+        "win_rate": 0.3171
+      },
+      {
+        "cluster_key": "sym|META|sess|open_first_hour_et|er|UNKNOWN",
+        "bucket_pnl_usd": -11.35,
+        "trade_count": 7,
+        "win_rate": 0.2857
+      },
+      {
+        "cluster_key": "sym|UNH|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -10.72,
+        "trade_count": 39,
+        "win_rate": 0.3846
+      },
+      {
+        "cluster_key": "sym|UNH|sess|open_first_hour_et|er|NEUTRAL",
+        "bucket_pnl_usd": -10.3,
+        "trade_count": 10,
+        "win_rate": 0.3
+      },
+      {
+        "cluster_key": "sym|HD|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -10.23,
+        "trade_count": 23,
+        "win_rate": 0.2609
+      },
+      {
+        "cluster_key": "sym|NVDA|sess|regular_et|er|UNKNOWN",
+        "bucket_pnl_usd": -9.98,
+        "trade_count": 5,
+        "win_rate": 0.0
+      },
+      {
+        "cluster_key": "sym|TGT|sess|open_first_hour_et|er|MIXED",
+        "bucket_pnl_usd": -9.36,
+        "trade_count": 14,
+        "win_rate": 0.2143
+      },
+      {
+        "cluster_key": "sym|F|sess|open_first_hour_et|er|MIXED",
+        "bucket_pnl_usd": -8.61,
+        "trade_count": 11,
+        "win_rate": 0.1818
+      },
+      {
+        "cluster_key": "sym|NIO|sess|last_hour_et|er|NEUTRAL",
+        "bucket_pnl_usd": -8.53,
+        "trade_count": 9,
+        "win_rate": 0.2222
+      },
+      {
+        "cluster_key": "sym|MRNA|sess|open_first_hour_et|er|NEUTRAL",
+        "bucket_pnl_usd": -7.92,
+        "trade_count": 9,
+        "win_rate": 0.5556
+      },
+      {
+        "cluster_key": "sym|NVDA|sess|last_hour_et|er|NEUTRAL",
+        "bucket_pnl_usd": -7.76,
+        "trade_count": 6,
+        "win_rate": 0.3333
+      },
+      {
+        "cluster_key": "sym|RIVN|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -7.73,
+        "trade_count": 12,
+        "win_rate": 0.5
+      },
+      {
+        "cluster_key": "sym|SLB|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -7.44,
+        "trade_count": 9,
+        "win_rate": 0.4444
+      },
+      {
+        "cluster_key": "sym|TGT|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -7.23,
+        "trade_count": 43,
+        "win_rate": 0.4186
+      },
+      {
+        "cluster_key": "sym|CVX|sess|open_first_hour_et|er|MIXED",
+        "bucket_pnl_usd": -6.74,
+        "trade_count": 14,
+        "win_rate": 0.3571
+      },
+      {
+        "cluster_key": "sym|PFE|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -5.95,
+        "trade_count": 41,
+        "win_rate": 0.4146
+      },
+      {
+        "cluster_key": "sym|JNJ|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -5.78,
+        "trade_count": 23,
+        "win_rate": 0.3478
+      },
+      {
+        "cluster_key": "sym|CAT|sess|regular_et|er|UNKNOWN",
+        "bucket_pnl_usd": -5.62,
+        "trade_count": 5,
+        "win_rate": 0.4
+      },
+      {
+        "cluster_key": "sym|LOW|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -5.54,
+        "trade_count": 34,
+        "win_rate": 0.4118
+      },
+      {
+        "cluster_key": "sym|F|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -5.52,
+        "trade_count": 47,
+        "win_rate": 0.3617
+      },
+      {
+        "cluster_key": "sym|XOM|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -5.08,
+        "trade_count": 41,
+        "win_rate": 0.3171
+      },
+      {
+        "cluster_key": "sym|PFE|sess|open_first_hour_et|er|MIXED",
+        "bucket_pnl_usd": -5.0,
+        "trade_count": 13,
+        "win_rate": 0.3846
+      },
+      {
+        "cluster_key": "sym|JNJ|sess|open_first_hour_et|er|MIXED",
+        "bucket_pnl_usd": -4.99,
+        "trade_count": 9,
+        "win_rate": 0.3333
+      },
+      {
+        "cluster_key": "sym|AMZN|sess|open_first_hour_et|er|MIXED",
+        "bucket_pnl_usd": -4.86,
+        "trade_count": 7,
+        "win_rate": 0.1429
+      },
+      {
+        "cluster_key": "sym|COP|sess|open_first_hour_et|er|NEUTRAL",
+        "bucket_pnl_usd": -4.8,
+        "trade_count": 13,
+        "win_rate": 0.4615
+      },
+      {
+        "cluster_key": "sym|NFLX|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -4.78,
+        "trade_count": 12,
+        "win_rate": 0.4167
+      },
+      {
+        "cluster_key": "sym|MA|sess|regular_et|er|MIXED",
+        "bucket_pnl_usd": -4.68,
+        "trade_count": 11,
+        "win_rate": 0.4545
+      },
+      {
+        "cluster_key": "sym|LOW|sess|last_hour_et|er|MIXED",
+        "bucket_pnl_usd": -4.55,
+        "trade_count": 6,
+        "win_rate": 0.3333
+      },
+      {
+        "cluster_key": "sym|BA|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -4.19,
+        "trade_count": 18,
+        "win_rate": 0.3333
+      }
+    ],
+    "concentration_ratio_toxic_clusters_to_total_trade_loss_mass": 0.2494,
+    "exploratory_xref_buckets_top_negative_sample": [
+      {
+        "cluster_key": "XREF|path|signal_decay|sess|regular_et",
+        "bucket_pnl_usd": -199.97,
+        "n": 1795,
+        "win_rate": 0.4513
+      },
+      {
+        "cluster_key": "XREF|sector|UNKNOWN|sess|open_first_hour_et",
+        "bucket_pnl_usd": -184.12,
+        "n": 543,
+        "win_rate": 0.4383
+      },
+      {
+        "cluster_key": "XREF|sector|UNKNOWN|sess|regular_et",
+        "bucket_pnl_usd": -167.53,
+        "n": 1530,
+        "win_rate": 0.4471
+      },
+      {
+        "cluster_key": "XREF|hour|9|er|UNKNOWN",
+        "bucket_pnl_usd": -125.63,
+        "n": 103,
+        "win_rate": 0.3398
+      },
+      {
+        "cluster_key": "XREF|path|signal_decay|sess|open_first_hour_et",
+        "bucket_pnl_usd": -116.12,
+        "n": 592,
+        "win_rate": 0.4645
+      },
+      {
+        "cluster_key": "XREF|dow|Thu|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -113.25,
+        "n": 153,
+        "win_rate": 0.3725
+      },
+      {
+        "cluster_key": "XREF|hour|12|er|NEUTRAL",
+        "bucket_pnl_usd": -94.54,
+        "n": 195,
+        "win_rate": 0.4359
+      },
+      {
+        "cluster_key": "XREF|hour|15|er|NEUTRAL",
+        "bucket_pnl_usd": -56.97,
+        "n": 109,
+        "win_rate": 0.3394
+      },
+      {
+        "cluster_key": "XREF|sector|UNKNOWN|sess|last_hour_et",
+        "bucket_pnl_usd": -53.32,
+        "n": 211,
+        "win_rate": 0.4028
+      },
+      {
+        "cluster_key": "XREF|dow|Thu|sess|open_first_hour_et|er|UNKNOWN",
+        "bucket_pnl_usd": -48.05,
+        "n": 32,
+        "win_rate": 0.2812
+      },
+      {
+        "cluster_key": "XREF|path|signal_decay|sess|last_hour_et",
+        "bucket_pnl_usd": -47.98,
+        "n": 224,
+        "win_rate": 0.3929
+      },
+      {
+        "cluster_key": "XREF|dow|Wed|sess|regular_et|er|NEUTRAL",
+        "bucket_pnl_usd": -44.7,
+        "n": 260,
+        "win_rate": 0.4923
+      },
+      {
+        "cluster_key": "XREF|dow|Tue|sess|open_first_hour_et|er|MIXED",
+        "bucket_pnl_usd": -39.26,
+        "n": 81,
+        "win_rate": 0.3704
+      },
+      {
+        "cluster_key": "XREF|hour|9|er|MIXED",
+        "bucket_pnl_usd": -38.97,
+        "n": 171,
+        "win_rate": 0.462
+      },
+      {
+        "cluster_key": "XREF|dow|Wed|sess|open_first_hour_et|er|UNKNOWN",
+        "bucket_pnl_usd": -38.84,
+        "n": 22,
+        "win_rate": 0.4091
+      }
+    ]
+  },
+  "alpha_segment": {
+    "clusters_win_rate_ge_0p60_min_n_20_sym_all_sessions": [
+      {
+        "cluster_key": "sym_all_sess|BAC|er|MIXED",
+        "pnl_usd_sum": 7.51,
+        "trade_count": 40,
+        "win_rate": 0.625
+      },
+      {
+        "cluster_key": "sym_all_sess|IWM|er|MIXED",
+        "pnl_usd_sum": 4.4,
+        "trade_count": 30,
+        "win_rate": 0.6
+      }
+    ],
+    "note": "Buckets are sym_all_sess|SYMBOL|er|ENTRY_REGIME (all ET session segments pooled per symbol)."
+  },
+  "correlation_sector_time": {
+    "exit_attribution_same_sector_calendar_5m_bucket_opens_including_self_p95": 19.0,
+    "stitched_entered_intents_loaded": 146,
+    "stitched_max_concurrent_same_sector_5m_window": {
+      "UNKNOWN": 20.0
+    },
+    "run_stitched_event_histogram_top": [
+      [
+        "trade_intent",
+        1225
+      ],
+      [
+        "canonical_trade_id_resolved",
+        279
+      ],
+      [
+        "exit_intent",
+        254
+      ],
+      [
+        "entry_decision_made",
+        146
+      ],
+      [
+        "complete",
+        96
+      ]
+    ]
+  },
+  "blocklist_recommendations_48h": [
+    {
+      "cluster_key": "sym|NIO|sess|regular_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -35.08,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|SOFI|sess|regular_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -27.25,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|LCID|sess|regular_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -23.59,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|COIN|sess|regular_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -22.77,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|MRNA|sess|regular_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -21.92,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|HOOD|sess|regular_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -18.21,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|INTC|sess|last_hour_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -16.5,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|RIVN|sess|regular_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -16.38,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|LCID|sess|last_hour_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -14.56,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|CVX|sess|regular_et|er|MIXED",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -14.34,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|LCID|sess|open_first_hour_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -13.07,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|LCID|sess|regular_et|er|UNKNOWN",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -12.78,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|SLB|sess|regular_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -11.47,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|META|sess|open_first_hour_et|er|UNKNOWN",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -11.35,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|UNH|sess|regular_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -10.72,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|UNH|sess|open_first_hour_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -10.3,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|HD|sess|regular_et|er|MIXED",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -10.23,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|NVDA|sess|regular_et|er|UNKNOWN",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -9.98,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|TGT|sess|open_first_hour_et|er|MIXED",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -9.36,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|F|sess|open_first_hour_et|er|MIXED",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -8.61,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|NIO|sess|last_hour_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -8.53,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|MRNA|sess|open_first_hour_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -7.92,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|NVDA|sess|last_hour_et|er|NEUTRAL",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -7.76,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|RIVN|sess|regular_et|er|MIXED",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -7.73,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    },
+    {
+      "cluster_key": "sym|SLB|sess|regular_et|er|MIXED",
+      "action": "BLOCK_OR_HARD_CAP",
+      "bucket_pnl_usd": -7.44,
+      "rationale": "Top toxic mass contributor for 48h defensive posture (paper/live per governance)."
+    }
+  ],
+  "strategy_board_48h": {
+    "risk": "Enforce blocklist caps on toxic cluster keys; reduce size in symbols/sessions appearing in toxic list.",
+    "quant": "Tighten execution on rows with high exit_slippage_bps; review take-profit vs pathology mix.",
+    "sre": "Verify exit_attribution completeness; retain stitched logs for concurrency forensics.",
+    "ml_architect": {
+      "alpha10_rf_lineage_note": "Repository ships Alpha 10 RandomForest exit-MFE gate (models/alpha10_rf_mfe.joblib); no separate Alpha 11 bundle found \u2014 verdict applies to that lineage.",
+      "verdict": "fine_tune_or_refresh_features",
+      "rationale": "Losses diffuse across buckets: model drift is moderate. Prefer feature refresh (MFE/MAE truth), new labels from bar-backed excursions, and incremental fine-tune before full reset."
+    }
+  },
+  "deep_feature_schema": {
+    "fields": [
+      "trade_id",
+      "symbol",
+      "entry_ts_utc",
+      "exit_ts_utc",
+      "dow_et",
+      "dow_index",
+      "hour_et",
+      "session_segment_et",
+      "sector",
+      "entry_regime",
+      "exit_regime",
+      "regime_shift",
+      "pnl_usd",
+      "pnl_pct",
+      "hold_minutes",
+      "fees_usd",
+      "exit_slippage_bps",
+      "entry_slippage_bps",
+      "slip_drag_usd_est",
+      "mfe_price",
+      "mae_price",
+      "profit_giveback",
+      "alpha_persistence_cliff_proxy_min",
+      "exit_pathology",
+      "variant_id",
+      "sector_5m_calendar_bucket_opens_including_self",
+      "sector_5m_calendar_bucket_other_opens"
+    ],
+    "per_trade_export": null
+  },
+  "per_trade_sample": [
+    {
+      "trade_id": "open_LCID_2026-03-16T18:21:27.778272+00:00",
+      "symbol": "LCID",
+      "entry_ts_utc": "2026-03-16T18:21:27.778272+00:00",
+      "exit_ts_utc": "2026-03-16T18:58:49.688425+00:00",
+      "dow_et": "Mon",
+      "dow_index": 0,
+      "hour_et": 14,
+      "session_segment_et": "regular_et",
+      "sector": "UNKNOWN",
+      "entry_regime": "NEUTRAL",
+      "exit_regime": "NEUTRAL",
+      "regime_shift": "NEUTRAL->NEUTRAL",
+      "pnl_usd": 0.26,
+      "pnl_pct": 0.101215,
+      "hold_minutes": 37.365169216666665,
+      "fees_usd": 0.0,
+      "exit_slippage_bps": null,
+      "entry_slippage_bps": null,
+      "slip_drag_usd_est": null,
+      "mfe_price": 0.01,
+      "mae_price": null,
+      "profit_giveback": 0.0,
+      "alpha_persistence_cliff_proxy_min": 37.3652,
+      "exit_pathology": "signal_decay",
+      "variant_id": "paper_aggressive",
+      "sector_5m_calendar_bucket_opens_including_self": 13,
+      "sector_5m_calendar_bucket_other_opens": 12
+    },
+    {
+      "trade_id": "open_COIN_2026-03-16T18:21:37.196217+00:00",
+      "symbol": "COIN",
+      "entry_ts_utc": "2026-03-16T18:21:37.196217+00:00",
+      "exit_ts_utc": "2026-03-16T18:58:52.627675+00:00",
+      "dow_et": "Mon",
+      "dow_index": 0,
+      "hour_et": 14,
+      "session_segment_et": "regular_et",
+      "sector": "TECH",
+      "entry_regime": "NEUTRAL",
+      "exit_regime": "NEUTRAL",
+      "regime_shift": "NEUTRAL->NEUTRAL",
+      "pnl_usd": -1.15,
+      "pnl_pct": -0.56254,
+      "hold_minutes": 37.25719096666667,
+      "fees_usd": 0.0,
+      "exit_slippage_bps": null,
+      "entry_slippage_bps": null,
+      "slip_drag_usd_est": null,
+      "mfe_price": 0.0,
+      "mae_price": null,
+      "profit_giveback": null,
+      "alpha_persistence_cliff_proxy_min": null,
+      "exit_pathology": "signal_decay",
+      "variant_id": "paper_aggressive",
+      "sector_5m_calendar_bucket_opens_including_self": 3,
+      "sector_5m_calendar_bucket_other_opens": 2
+    },
+    {
+      "trade_id": "open_BAC_2026-03-16T18:26:18.059526+00:00",
+      "symbol": "BAC",
+      "entry_ts_utc": "2026-03-16T18:26:18.059526+00:00",
+      "exit_ts_utc": "2026-03-16T18:58:55.658346+00:00",
+      "dow_et": "Mon",
+      "dow_index": 0,
+      "hour_et": 14,
+      "session_segment_et": "regular_et",
+      "sector": "UNKNOWN",
+      "entry_regime": "MIXED",
+      "exit_regime": "MIXED",
+      "regime_shift": "MIXED->MIXED",
+      "pnl_usd": -0.48,
+      "pnl_pct": -0.084872,
+      "hold_minutes": 32.626647,
+      "fees_usd": 0.0,
+      "exit_slippage_bps": null,
+      "entry_slippage_bps": null,
+      "slip_drag_usd_est": null,
+      "mfe_price": 0.0,
+      "mae_price": null,
+      "profit_giveback": null,
+      "alpha_persistence_cliff_proxy_min": null,
+      "exit_pathology": "signal_decay",
+      "variant_id": "paper_aggressive",
+      "sector_5m_calendar_bucket_opens_including_self": 6,
+      "sector_5m_calendar_bucket_other_opens": 5
+    },
+    {
+      "trade_id": "open_HOOD_2026-03-16T18:21:45.049572+00:00",
+      "symbol": "HOOD",
+      "entry_ts_utc": "2026-03-16T18:21:45.049572+00:00",
+      "exit_ts_utc": "2026-03-16T18:58:55.938529+00:00",
+      "dow_et": "Mon",
+      "dow_index": 0,
+      "hour_et": 14,
+      "session_segment_et": "regular_et",
+      "sector": "UNKNOWN",
+      "entry_regime": "NEUTRAL",
+      "exit_regime": "NEUTRAL",
+      "regime_shift": "NEUTRAL->NEUTRAL",
+      "pnl_usd": -1.95,
+      "pnl_pct": -0.430093,
+      "hold_minutes": 37.18148261666667,
+      "fees_usd": 0.0,
+      "exit_slippage_bps": null,
+      "entry_slippage_bps": null,
+      "slip_drag_usd_est": null,
+      "mfe_price": 0.0,
+      "mae_price": null,
+      "profit_giveback": null,
+      "alpha_persistence_cliff_proxy_min": null,
+      "exit_pathology": "signal_decay",
+      "variant_id": "paper_aggressive",
+      "sector_5m_calendar_bucket_opens_including_self": 13,
+      "sector_5m_calendar_bucket_other_opens": 12
+    },
+    {
+      "trade_id": "open_SLB_2026-03-16T18:21:50.219032+00:00",
+      "symbol": "SLB",
+      "entry_ts_utc": "2026-03-16T18:21:50.219032+00:00",
+      "exit_ts_utc": "2026-03-16T18:58:58.373089+00:00",
+      "dow_et": "Mon",
+      "dow_index": 0,
+      "hour_et": 14,
+      "session_segment_et": "regular_et",
+      "sector": "UNKNOWN",
+      "entry_regime": "NEUTRAL",
+      "exit_regime": "NEUTRAL",
+      "regime_shift": "NEUTRAL->NEUTRAL",
+      "pnl_usd": -0.13,
+      "pnl_pct": -0.022416,
+      "hold_minutes": 37.13590095,
+      "fees_usd": 0.0,
+      "exit_slippage_bps": null,
+      "entry_slippage_bps": null,
+      "slip_drag_usd_est": null,
+      "mfe_price": 0.0,
+      "mae_price": null,
+      "profit_giveback": null,
+      "alpha_persistence_cliff_proxy_min": null,
+      "exit_pathology": "signal_decay",
+      "variant_id": "paper_aggressive",
+      "sector_5m_calendar_bucket_opens_including_self": 13,
+      "sector_5m_calendar_bucket_other_opens": 12
+    },
+    {
+      "trade_id": "open_C_2026-03-16T18:22:12.463035+00:00",
+      "symbol": "C",
+      "entry_ts_utc": "2026-03-16T18:22:12.463035+00:00",
+      "exit_ts_utc": "2026-03-16T18:58:58.541354+00:00",
+      "dow_et": "Mon",
+      "dow_index": 0,
+      "hour_et": 14,
+      "session_segment_et": "regular_et",
+      "sector": "UNKNOWN",
+      "entry_regime": "MIXED",
+      "exit_regime": "MIXED",
+      "regime_shift": "MIXED->MIXED",
+      "pnl_usd": 0.4,
+      "pnl_pct": 0.093231,
+      "hold_minutes": 36.76797198333334,
+      "fees_usd": 0.0,
+      "exit_slippage_bps": null,
+      "entry_slippage_bps": null,
+      "slip_drag_usd_est": null,
+      "mfe_price": 0.11,
+      "mae_price": null,
+      "profit_giveback": 0.090909,
+      "alpha_persistence_cliff_proxy_min": 33.4254,
+      "exit_pathology": "signal_decay",
+      "variant_id": "paper_aggressive",
+      "sector_5m_calendar_bucket_opens_including_self": 13,
+      "sector_5m_calendar_bucket_other_opens": 12
+    },
+    {
+      "trade_id": "open_NIO_2026-03-16T18:22:03.055058+00:00",
+      "symbol": "NIO",
+      "entry_ts_utc": "2026-03-16T18:22:03.055058+00:00",
+      "exit_ts_utc": "2026-03-16T18:59:00.924913+00:00",
+      "dow_et": "Mon",
+      "dow_index": 0,
+      "hour_et": 14,
+      "session_segment_et": "regular_et",
+      "sector": "UNKNOWN",
+      "entry_regime": "NEUTRAL",
+      "exit_regime": "NEUTRAL",
+      "regime_shift": "NEUTRAL->NEUTRAL",
+      "pnl_usd": -1.94,
+      "pnl_pct": -0.328947,
+      "hold_minutes": 36.96449758333333,
+      "fees_usd": 0.0,
+      "exit_slippage_bps": null,
+      "entry_slippage_bps": null,
+      "slip_drag_usd_est": null,
+      "mfe_price": 0.0,
+      "mae_price": null,
+      "profit_giveback": null,
+      "alpha_persistence_cliff_proxy_min": null,
+      "exit_pathology": "signal_decay",
+      "variant_id": "paper_aggressive",
+      "sector_5m_calendar_bucket_opens_including_self": 13,
+      "sector_5m_calendar_bucket_other_opens": 12
+    },
+    {
+      "trade_id": "open_PLTR_2026-03-16T18:22:24.888161+00:00",
+      "symbol": "PLTR",
+      "entry_ts_utc": "2026-03-16T18:22:24.888161+00:00",
+      "exit_ts_utc": "2026-03-16T18:59:14.663866+00:00",
+      "dow_et": "Mon",
+      "dow_index": 0,
+      "hour_et": 14,
+      "session_segment_et": "regular_et",
+      "sector": "TECH",
+      "entry_regime": "NEUTRAL",
+      "exit_regime": "NEUTRAL",
+      "regime_shift": "NEUTRAL->NEUTRAL",
+      "pnl_usd": 0.080001,
+      "pnl_pct": 0.01742,
+      "hold_minutes": 36.82959508333333,
+      "fees_usd": 0.0,
+      "exit_slippage_bps": null,
+      "entry_slippage_bps": null,
+      "slip_drag_usd_est": null,
+      "mfe_price": 0.056667,
+      "mae_price": null,
+      "profit_giveback": 0.529409,
+      "alpha_persistence_cliff_proxy_min": 17.3317,
+      "exit_pathology": "signal_decay",
+      "variant_id": "paper_aggressive",
+      "sector_5m_calendar_bucket_opens_including_self": 3,
+      "sector_5m_calendar_bucket_other_opens": 2
+    }
+  ]
+}

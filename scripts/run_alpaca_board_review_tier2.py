@@ -6,7 +6,7 @@ Reads existing 7d/30d/last100 comprehensive reviews and optional CSA_BOARD_REVIE
 produces Tier 2 Board Review packet (MD + JSON).
 Updates state/alpaca_board_review_state.json (merge: adds tier2_* keys).
 
-Alpaca-native only. No Kraken references. No cron, no promotion logic, no heartbeat.
+Alpaca US equities only. No cron, no promotion logic, no heartbeat.
 Phase 2. Read-only: does not invoke build_30d_comprehensive_review.
 
 Usage:

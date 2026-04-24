@@ -1,0 +1,157 @@
+{
+  "proxy_documentation": {
+    "atr": "14-bar mean true range in price units before entry bar",
+    "stop": "entry +/- k*ATR (long below, short above)",
+    "take_profit": "entry +/- m*ATR",
+    "time_stop": "N minutes = N bars of 1Min data from entry bar"
+  },
+  "grid": [
+    {
+      "k_atr_stop": 0.5,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 15,
+      "n": 5705,
+      "mean_pnl_usd": -0.01183,
+      "p05_pnl_usd": -0.427716
+    },
+    {
+      "k_atr_stop": 0.5,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 30,
+      "n": 5705,
+      "mean_pnl_usd": -0.01183,
+      "p05_pnl_usd": -0.427716
+    },
+    {
+      "k_atr_stop": 0.5,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 60,
+      "n": 5705,
+      "mean_pnl_usd": -0.01183,
+      "p05_pnl_usd": -0.427716
+    },
+    {
+      "k_atr_stop": 0.5,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 15,
+      "n": 5705,
+      "mean_pnl_usd": 0.010748,
+      "p05_pnl_usd": -0.458283
+    },
+    {
+      "k_atr_stop": 0.5,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 30,
+      "n": 5705,
+      "mean_pnl_usd": 0.010708,
+      "p05_pnl_usd": -0.458283
+    },
+    {
+      "k_atr_stop": 0.5,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 60,
+      "n": 5705,
+      "mean_pnl_usd": 0.010708,
+      "p05_pnl_usd": -0.458283
+    },
+    {
+      "k_atr_stop": 1.0,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 15,
+      "n": 5705,
+      "mean_pnl_usd": -0.005796,
+      "p05_pnl_usd": -0.759034
+    },
+    {
+      "k_atr_stop": 1.0,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 30,
+      "n": 5705,
+      "mean_pnl_usd": -0.005796,
+      "p05_pnl_usd": -0.759034
+    },
+    {
+      "k_atr_stop": 1.0,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 60,
+      "n": 5705,
+      "mean_pnl_usd": -0.005796,
+      "p05_pnl_usd": -0.759034
+    },
+    {
+      "k_atr_stop": 1.0,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 15,
+      "n": 5705,
+      "mean_pnl_usd": 0.009936,
+      "p05_pnl_usd": -0.840544
+    },
+    {
+      "k_atr_stop": 1.0,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 30,
+      "n": 5705,
+      "mean_pnl_usd": 0.010381,
+      "p05_pnl_usd": -0.842915
+    },
+    {
+      "k_atr_stop": 1.0,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 60,
+      "n": 5705,
+      "mean_pnl_usd": 0.010264,
+      "p05_pnl_usd": -0.842915
+    },
+    {
+      "k_atr_stop": 1.5,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 15,
+      "n": 5705,
+      "mean_pnl_usd": 0.00053,
+      "p05_pnl_usd": -0.980717
+    },
+    {
+      "k_atr_stop": 1.5,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 30,
+      "n": 5705,
+      "mean_pnl_usd": -4.8e-05,
+      "p05_pnl_usd": -0.989235
+    },
+    {
+      "k_atr_stop": 1.5,
+      "m_atr_tp": 0.5,
+      "N_max_minutes": 60,
+      "n": 5705,
+      "mean_pnl_usd": 0.000111,
+      "p05_pnl_usd": -0.989774
+    },
+    {
+      "k_atr_stop": 1.5,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 15,
+      "n": 5705,
+      "mean_pnl_usd": 0.018996,
+      "p05_pnl_usd": -1.152215
+    },
+    {
+      "k_atr_stop": 1.5,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 30,
+      "n": 5705,
+      "mean_pnl_usd": 0.019523,
+      "p05_pnl_usd": -1.166619
+    },
+    {
+      "k_atr_stop": 1.5,
+      "m_atr_tp": 1.0,
+      "N_max_minutes": 60,
+      "n": 5705,
+      "mean_pnl_usd": 0.019114,
+      "p05_pnl_usd": -1.166619
+    }
+  ],
+  "opportunity_persists_majority_positive_mean_cells": true,
+  "cells_positive_mean_count": 11,
+  "cells_total": 18
+}

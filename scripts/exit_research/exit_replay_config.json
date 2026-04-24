@@ -1,0 +1,12 @@
+{
+  "start_date": "2026-02-01",
+  "end_date": "2026-03-02",
+  "base_universe_path": "state/daily_universe_v2.json",
+  "base_logs_path": "logs",
+  "attribution_path": "logs/attribution.jsonl",
+  "exit_attribution_path": "logs/exit_attribution.jsonl",
+  "master_trade_log_path": "logs/master_trade_log.jsonl",
+  "scenario_grid": "scripts/exit_research/exit_scenarios.json",
+  "out_dir": "reports/exit_research",
+  "scenarios_subdir": "reports/exit_research/scenarios"
+}

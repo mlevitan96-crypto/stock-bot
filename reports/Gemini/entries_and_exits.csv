@@ -1,0 +1,1 @@
+timestamp_utc,source_file,event_kind,symbol,side,requested_qty,filled_qty,limit_or_intended_price,fill_price,slippage_bps,realized_pnl_usd,trade_id,notes

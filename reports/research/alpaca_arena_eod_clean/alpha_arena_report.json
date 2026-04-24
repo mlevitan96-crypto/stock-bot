@@ -1,0 +1,33 @@
+{
+  "csv": "C:\\Dev\\stock-bot\\reports\\Gemini\\alpaca_ml_cohort_flat_UW_IX.csv",
+  "n_rows_total": 470,
+  "n_rows_fit": 469,
+  "n_features": 47,
+  "target_requested": "target_ret_eod_rth",
+  "target_resolved": "target_ret_eod_rth",
+  "target_resolution_note": "column_present_in_csv",
+  "chrono_leak_features_dropped": [
+    "mlf_direction_intel_embed_intel_snapshot_entry_regime_posture_ts",
+    "mlf_direction_intel_embed_intel_snapshot_entry_timestamp",
+    "mlf_direction_intel_embed_intel_snapshot_exit_regime_posture_ts",
+    "mlf_direction_intel_embed_intel_snapshot_exit_timestamp",
+    "mlf_scoreflow_snapshot_ts_epoch",
+    "strict_open_epoch_utc"
+  ],
+  "chrono_leak_policy": "CHRONO_LEAK_FEATURE_NAMES + mlf_* *_ts / *_timestamp / *ts_epoch*",
+  "entry_only_leak_filter": "drop columns containing exit_ (except target) or starting with mlf_v2_exit_; skip exit_mae_pct, holding_time_minutes, realized_pnl_usd",
+  "realized_pnl_column": "realized_pnl_usd",
+  "cv_folds": 5,
+  "cv_metric": "r2",
+  "cv_scores_by_model": {
+    "ridge": -0.026327629091332728,
+    "elasticnet": -0.04083072361246769,
+    "random_forest": 0.05099273269469105,
+    "gradient_boosting": -0.09209756792401043
+  },
+  "winner_model": "random_forest",
+  "winner_cv_r2_mean": 0.05099273269469105,
+  "winner_cv_mae_mean": 0.006532835633890291,
+  "winner_cv_mae_note": "same KFold folds, scoring=neg_mean_absolute_error, sklearn inverts sign",
+  "importance_method": "shap_tree"
+}

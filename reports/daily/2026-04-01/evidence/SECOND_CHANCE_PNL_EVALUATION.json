@@ -1,0 +1,34 @@
+{
+  "reeval_result_rows_total": 250,
+  "allowed_count": 5,
+  "blocked_count": 245,
+  "allowed_with_counterfactual_join": 5,
+  "paper_pnl_variant_a": {
+    "allowed_n_with_cf": 5,
+    "mean_pnl_usd_15m": -0.242494,
+    "mean_pnl_usd_30m": -0.268875,
+    "mean_pnl_usd_60m": -0.968325
+  },
+  "comparison": {
+    "original_blocked_outcome_usd": 0.0,
+    "baseline_displacement_blocked_mean_pnl_60m_variant_a": 0.405592,
+    "baseline_displacement_blocked_n": 5705,
+    "second_chance_allowed_mean_pnl_60m_when_joined": -0.968325
+  },
+  "by_symbol_mean_60m": {
+    "BLK": -2.010905,
+    "META": -0.273271
+  },
+  "by_time_of_day_mean_60m": {
+    "14_20_utc": -0.968325
+  },
+  "by_volatility_bucket_mean_60m": {
+    "unknown": -0.968325
+  },
+  "by_direction_mean_60m": {
+    "bearish": 1.279165,
+    "bullish": -1.530197
+  },
+  "counterfactual_path": "/root/stock-bot/reports/daily/2026-04-01/evidence/BLOCKED_COUNTERFACTUAL_PNL_FULL.json",
+  "second_chance_log": "/root/stock-bot/logs/second_chance_displacement.jsonl"
+}

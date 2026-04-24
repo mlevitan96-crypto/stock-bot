@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """
-Canonical Alpaca learning status summary (synthesis only). Overwrites rolling reports/ALPACA_LEARNING_STATUS_SUMMARY.{json,md}.
+Alpaca learning status summary (synthesis only).
+
+Writes under reports/daily/<YYYY-MM-DD>/evidence/ (see docs/REPORT_OUTPUT_CONTRACT.md).
+Resolve dir via STOCKBOT_REPORT_EVIDENCE_DIR or STOCKBOT_REPORT_SESSION_DATE_ET (ET calendar date).
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -182,6 +186,31 @@ def render_markdown(summary: Dict[str, Any]) -> str:
     return "".join(lines)
 
 
+def resolve_learning_status_evidence_dir(root: Path) -> Path:
+    """Evidence directory for rolling learning summary (no top-level reports/)."""
+    root = root.resolve()
+    explicit = os.environ.get("STOCKBOT_REPORT_EVIDENCE_DIR")
+    if explicit and explicit.strip():
+        p = Path(explicit.strip()).expanduser()
+        return p if p.is_absolute() else (root / p).resolve()
+    session = (os.environ.get("STOCKBOT_REPORT_SESSION_DATE_ET") or "").strip()
+    rp = str(root)
+    if rp not in sys.path:
+        sys.path.insert(0, rp)
+    from src.report_output.paths import evidence_dir
+
+    if session:
+        return evidence_dir(root, session)
+    try:
+        from zoneinfo import ZoneInfo
+
+        et = ZoneInfo("America/New_York")
+        d = datetime.now(timezone.utc).astimezone(et).date().isoformat()
+    except Exception:
+        d = datetime.now(timezone.utc).date().isoformat()
+    return evidence_dir(root, d)
+
+
 def emit_learning_status_summary(
     root: Path,
     truth_json_path: Path,
@@ -200,10 +229,10 @@ def emit_learning_status_summary(
         incident_json_path=incident_json_path,
         window_hours_override=window_hours_override,
     )
-    out_json = root / "reports" / "ALPACA_LEARNING_STATUS_SUMMARY.json"
-    out_md = root / "reports" / "audit" / "ALPACA_LEARNING_STATUS_SUMMARY.md"
-    out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_md.parent.mkdir(parents=True, exist_ok=True)
+    evd = resolve_learning_status_evidence_dir(root)
+    evd.mkdir(parents=True, exist_ok=True)
+    out_json = evd / "ALPACA_LEARNING_STATUS_SUMMARY.json"
+    out_md = evd / "ALPACA_LEARNING_STATUS_SUMMARY.md"
     out_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     out_md.write_text(render_markdown(summary), encoding="utf-8")
     return summary
@@ -228,7 +257,18 @@ def main() -> int:
         incident_json_path=args.incident_json,
         window_hours_override=args.window_hours,
     )
-    print(json.dumps({"written": ["reports/ALPACA_LEARNING_STATUS_SUMMARY.json", "reports/audit/ALPACA_LEARNING_STATUS_SUMMARY.md"]}, indent=2))
+    evd = resolve_learning_status_evidence_dir(root)
+    print(
+        json.dumps(
+            {
+                "written": [
+                    str((evd / "ALPACA_LEARNING_STATUS_SUMMARY.json").relative_to(root)),
+                    str((evd / "ALPACA_LEARNING_STATUS_SUMMARY.md").relative_to(root)),
+                ]
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

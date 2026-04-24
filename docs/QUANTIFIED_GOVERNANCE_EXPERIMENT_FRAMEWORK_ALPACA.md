@@ -20,17 +20,24 @@ Alpaca decision spines and governance reports **should support** the following s
 
 ### 2.1 CSA_REVIEW
 
-- **Profit logic:** Assumptions behind PnL and expectancy; consistency with strategy and regime.
-- **Assumptions:** Stated hypotheses, data windows, and constraints.
-- **Opportunity cost:** Foregone alternatives (e.g., different exit timing, sizing, or filters) and their implied impact.
+Full persona: **`docs/ALPACA_TIERED_BOARD_REVIEW_DESIGN.md` §8.1** (Chief Strategy Auditor — Economic Truth Guardian, Alpaca). In report sections, emphasize:
+
+- **Economic truth:** Learning readiness from **live entry/exit intent + realized outcome**; durable edge vs sparse/lucky outcomes; signal decay by time-of-day or regime.
+- **Discipline:** False confidence from sparse data; missed-opportunity zones from conservative gating (describe only — no lever changes).
+- **Explicit non-scope in this role:** No portfolio construction, capital allocation, or execution timing.
+
+**Narrative verdict labels (learning layer):** `CSA_LEARNING_UNBLOCKED_LIVE_TRUTH_CONFIRMED`, `CSA_LEARNING_BLOCKED`, `CSA_PASS_WEAK` — see §8.1 and §8.3 of the tiered design doc for coexistence with legacy **PROCEED | HOLD | ESCALATE | ROLLBACK** in `CSA_VERDICT_*.json`.
 
 **Output:** Narrative or structured block in reports (e.g. `CSA_REVIEW` in verdict JSON or markdown). No code or config changes from CSA.
 
 ### 2.2 SRE_REVIEW
 
-- **Observability:** Logging, metrics, and dashboards sufficient to detect failures and regressions.
-- **Failure modes:** Identified failure modes and mitigations (e.g., API downtime, stale data, restart behavior).
-- **Rollback:** How to revert or pause safely; no automatic rollback from this pipeline.
+Full persona: **`docs/ALPACA_TIERED_BOARD_REVIEW_DESIGN.md` §8.2** (Site Reliability Engineer — Operational Integrity Sentinel, Alpaca). In report sections, emphasize:
+
+- **Session integrity:** Session-aware joins; partial-day silence; telemetry completeness across market hours; overnight stale state.
+- **Explicit non-scope in this role:** No strategy review; no learning decisions.
+
+**Narrative verdict labels (pipeline layer):** `SRE_LEARNING_PIPELINE_HEALTHY`, `SRE_PIPELINE_DEGRADED` (non-blocking), `SRE_PIPELINE_UNHEALTHY` (blocking) — see §8.2 and §8.3 for coexistence with existing `SRE_STATUS.json` / events tooling.
 
 **Output:** Narrative or structured block in reports (e.g. `SRE_REVIEW` in verdict JSON or markdown). No execution impact.
 

@@ -84,7 +84,7 @@ def main() -> int:
         ("/api/telemetry/latest/health", {}, ["latest_date", "as_of_ts"], None),
         ("/api/system-events", {"limit": "10"}, ["events"], None),
         ("/api/stockbot/closed_trades", {}, ["closed_trades", "count"], None),
-        ("/api/stockbot/wheel_analytics", {}, ["strategy_id", "total_trades"], None),
+        ("/api/dashboard/data_integrity", {}, ["generated_at_utc", "data_sources"], None),
     ]
     for route, query, required_keys, _ in contracts:
         status, data, err = _fetch(route, query or None)

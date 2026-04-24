@@ -1,0 +1,29 @@
+{
+  "promoted": [
+    {
+      "hypothesis_id": "QUANT_CF_001",
+      "how": "paper_extension per ACTION_CONTRACT_QUANT_CF_001.json"
+    },
+    {
+      "hypothesis_id": "QUANT_EMU_001",
+      "how": "paper_extension per ACTION_CONTRACT_QUANT_EMU_001.json"
+    }
+  ],
+  "rejected": [
+    {
+      "hypothesis_id": "CSA_SC_001",
+      "why": "Joined second-chance allowed subset mean 60m variant A negative; fails profit promotion bar."
+    }
+  ],
+  "deferred": [
+    {
+      "hypothesis_id": "STRAT_SEP_001",
+      "why": "No dollar EV computed for conditional policy; needs simulation or shadow book."
+    }
+  ],
+  "expected_portfolio_impact_if_promoted": {
+    "note": "Paper-only promotions: no live portfolio impact until a separate micro-live contract is approved.",
+    "illustrative_counterfactual_upper_bound_usd_per_week": 5412.354751,
+    "caveat": "Upper bound scales scorecard mean by scanned blocks/day; not realized trading."
+  }
+}

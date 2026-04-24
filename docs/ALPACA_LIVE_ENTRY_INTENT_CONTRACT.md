@@ -35,4 +35,4 @@ Canonical reference for `entry_decision_made` rows on `logs/run.jsonl`. Telemetr
 
 ## Isolation
 
-- Alpaca-only paths; no Kraken imports or shared execution.
+- Alpaca-only paths; no non-Alpaca imports or shared execution.

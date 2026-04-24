@@ -1,0 +1,21 @@
+{
+  "git_head": "e03f25ef06483e6e0157228d6821613aeac4085f",
+  "systemctl_stock_bot_exit": 0,
+  "systemctl_stock_bot_text_truncated": "\u25cf stock-bot.service - Algorithmic Trading Bot\n     Loaded: loaded (/etc/systemd/system/stock-bot.service; enabled; preset: enabled)\n    Drop-In: /etc/systemd/system/stock-bot.service.d\n             \u2514\u2500override.conf, paper-overlay.conf, truth.conf\n     Active: active (running) since Wed 2026-04-01 18:36:53 UTC; 6h ago\n   Main PID: 1847213 (systemd_start.s)\n      Tasks: 35 (limit: 9483)\n     Memory: 807.5M (peak: 832.1M)\n        CPU: 1h 2min 44.971s\n     CGroup: /system.slice/stock-bot.service\n             \u251c\u25001847213 /bin/bash /root/stock-bot/systemd_start.sh\n             \u251c\u25001847215 /root/stock-bot/venv/bin/python deploy_supervisor.py\n             \u251c\u25001847221 /root/stock-bot/venv/bin/python -u dashboard.py\n             \u251c\u25001847232 /root/stock-bot/venv/bin/python -u main.py\n             \u2514\u25001847256 /root/stock-bot/venv/bin/python heartbeat_keeper.py\n\nApr 02 00:52:48 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [trading-bot] 2026-04-02 00:52:48,587 [CACHE-ENRICH] INFO: 159.89.168.48 - - [02/Apr/2026 00:52:48] \"GET / HTTP/1.1\" 200 -\nApr 02 00:52:49 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [trading-bot] 2026-04-02 00:52:49,049 [CACHE-ENRICH] INFO: 159.89.168.48 - - [02/Apr/2026 00:52:49] \"GET /favicon.ico HTTP/1.1\" 404 -\nApr 02 00:52:50 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [trading-bot] ERROR EXITS: Failed to close WMT (attempt 2/3): close_position_api_once returned None\nApr 02 00:52:56 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [trading-bot] ERROR EXITS: Failed to close WMT (attempt 3/3): close_position_api_once returned None\nApr 02 00:52:56 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [trading-bot] ERROR EXITS: All 3 attempts to close WMT failed\nApr 02 00:52:56 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [trading-bot] WARNING EXITS: WMT could not be verified as closed after 3 attempts - keeping in tracking for retry\nApr 02 00:52:56 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [trading-bot] DEBUG EXITS: Closing F (decision_px=11.66, entry=11.66, hold=326.5min)\nApr 02 00:52:57 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [trading-bot] ERROR EXITS: Failed to close F (attempt 1/3): close_position_api_once returned None\nApr 02 00:52:58 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [heartbeat-keeper] /root/stock-bot/heartbeat_keeper.py:459: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).\nApr 02 00:52:58 ubuntu-s-1vcpu-2gb-nyc3-01-alpaca systemd_start.sh[1847215]: [heartbeat-keeper]   result[\"_dt\"] = datetime.utcnow().isoformat()\n",
+  "evidence_dir": "/root/stock-bot/reports/daily/2026-04-01/evidence",
+  "evidence_files_required": [
+    "SECOND_CHANCE_PNL_EVALUATION.json",
+    "PAPER_EXPERIMENT_RESULTS.json",
+    "DISPLACEMENT_EXIT_EMULATOR_RESULTS.json",
+    "BLOCKED_GATE_SCORECARD.json",
+    "DISPLACEMENT_GOOD_VS_BAD_SEPARATION.json"
+  ],
+  "blocked_frequency_scan": {
+    "displacement_blocked_rows_in_file": 5719,
+    "unique_calendar_days_in_timestamp_prefix": 3,
+    "first_timestamp_sample": "2026-03-30T17:12:28.216143+00:00",
+    "last_timestamp_sample": "2026-04-01T19:59:28.210761+00:00",
+    "approx_per_day_if_uniform": 1906.3333
+  },
+  "dataset_map_lines": 8669
+}

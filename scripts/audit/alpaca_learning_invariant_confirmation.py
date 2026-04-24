@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Read-only Kraken-derived learning invariant confirmation for Alpaca (CSA/SRE).
+Read-only learning invariant confirmation for Alpaca (CSA/SRE).
 
 Phase 1: At most one alpaca_entry_attribution (unified) row per trade_id.
-Phase 2: Strict-complete trade sample — entry intent field parity (Kraken names mapped to Alpaca).
+Phase 2: Strict-complete trade sample — entry intent field parity (reference schema → Alpaca paths).
 Phase 3: Evidence bundle for learning gate separation (code citations only; no gate changes).
 
 Stdout: JSON summary. With --write-reports, emits markdown under reports/daily/<ET-date>/evidence/.
@@ -408,7 +408,7 @@ def phase2_intent_completeness(root: Path, sample_min: int) -> Dict[str, Any]:
     field_components_pass = 0
     violations: List[dict] = []
 
-    kraken_to_alpaca = {
+    reference_field_to_alpaca = {
         "signal_trace": "entry_decision_made.signal_trace (post live-intent epoch) OR intelligence_trace/raw_signals (legacy)",
         "entry_score_total": "entry_decision_made.entry_score_total OR composite_score (unified/dedicated)",
         "entry_score_components": "entry_decision_made.entry_score_components OR contributions/raw_signals (legacy)",
@@ -570,7 +570,7 @@ def phase2_intent_completeness(root: Path, sample_min: int) -> Dict[str, Any]:
         "live_entry_intent_required_since_epoch": LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH,
         "sample_trade_ids": sample_ids,
         "sample_size": n,
-        "kraken_field_mapping": kraken_to_alpaca,
+        "reference_field_mapping": reference_field_to_alpaca,
         "pass_signal_trace": not no_sample and field_signal_trace_pass == n,
         "pass_entry_score_total": not no_sample and field_score_total_pass == n,
         "pass_entry_score_components": not no_sample and field_components_pass == n,
@@ -701,7 +701,7 @@ Full scan of unified log stream for `event_type=alpaca_entry_attribution`, group
 | Normalized keys with row count > 1 (includes stub shadows) | {p1.get("violation_normalized_open_trade_id_count")} |
 | Normalized keys with **≥2 economic** entry payloads (blocking) | {p1.get("violation_normalized_economic_payload_duplicates")} |
 | Normalized keys with stub + economic shadow lines (SRE hygiene) | {p1.get("stub_shadow_normalized_key_count")} |
-| PASS (Kraken-style double **decision** — economic dupes) | **{"YES" if p1.get("passes") else "NO"}** |
+| PASS (double economic **decision** rows — dupes) | **{"YES" if p1.get("passes") else "NO"}** |
 | PASS (raw string line count — informational) | **{"YES" if p1.get("passes_raw_trade_id") else "NO"}** |
 
 ## Proxy note
@@ -733,19 +733,19 @@ Full scan of unified log stream for `event_type=alpaca_entry_attribution`, group
     paths.append(
         w(
             "ALPACA_ENTRY_INTENT_COMPLETENESS",
-            f"""# Alpaca entry intent completeness (Kraken field mapping)
+            f"""# Alpaca entry intent completeness (reference field mapping)
 
 **Evidence host:** {evidence_host}  
 **ET report date:** {et_date}  
 **Generated (UTC):** {ts}
 
-## Kraken → Alpaca mapping
+## Reference field → Alpaca path
 
-| Kraken (mission) | Alpaca |
-|------------------|--------|
-| signal_trace | {p2.get("kraken_field_mapping", {}).get("signal_trace")} |
-| entry_score_total | {p2.get("kraken_field_mapping", {}).get("entry_score_total")} |
-| entry_score_components | {p2.get("kraken_field_mapping", {}).get("entry_score_components")} |
+| Reference field | Alpaca |
+|-----------------|--------|
+| signal_trace | {p2.get("reference_field_mapping", {}).get("signal_trace")} |
+| entry_score_total | {p2.get("reference_field_mapping", {}).get("entry_score_total")} |
+| entry_score_components | {p2.get("reference_field_mapping", {}).get("entry_score_components")} |
 
 ## Strict cohort context
 

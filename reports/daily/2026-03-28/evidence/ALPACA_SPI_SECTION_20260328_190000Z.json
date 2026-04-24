@@ -1,0 +1,105 @@
+{
+  "spi_version": "1.0.0",
+  "ts": "20260328_190000Z",
+  "cohort_trade_count": 2,
+  "spi_trade_rows": 2,
+  "profit_thresholds_fractional": [
+    0.005,
+    0.01,
+    0.02
+  ],
+  "fetch_bars_if_missing": false,
+  "repo_root": "C:\\Dev\\stock-bot",
+  "trading_bot_root": "C:\\Dev\\stock-bot\\artifacts\\spi_smoke",
+  "trade_rows": [
+    {
+      "trade_id": "open_MKT1_2026-03-26T14:00:00+00:00",
+      "symbol": "MKT1",
+      "signal_attribution_bucket": "attribution_unknown",
+      "path_source": "attribution_snapshot_no_bars",
+      "hold_minutes": 180.0,
+      "time_to_exit_minutes": 180.0,
+      "time_to_profit_frac_minutes": {
+        "to_plus_0_5pct_min": null,
+        "to_plus_1pct_min": null,
+        "to_plus_2pct_min": null
+      },
+      "mae_pct_hold": null,
+      "mfe_pct_hold": null,
+      "mae_pct_before_first_1pct": null,
+      "vol_path": null,
+      "vol_baseline": null,
+      "vol_ratio_path_vs_baseline": null,
+      "path_archetype": "no_intraday_path_data",
+      "snapshot_mae_pct": null,
+      "snapshot_mfe_pct": null,
+      "pnl_pct_realized": null
+    },
+    {
+      "trade_id": "open_MKT2_2026-03-26T15:30:00+00:00",
+      "symbol": "MKT2",
+      "signal_attribution_bucket": "attribution_unknown",
+      "path_source": "attribution_snapshot_no_bars",
+      "hold_minutes": 135.0,
+      "time_to_exit_minutes": 135.0,
+      "time_to_profit_frac_minutes": {
+        "to_plus_0_5pct_min": null,
+        "to_plus_1pct_min": null,
+        "to_plus_2pct_min": null
+      },
+      "mae_pct_hold": null,
+      "mfe_pct_hold": null,
+      "mae_pct_before_first_1pct": null,
+      "vol_path": null,
+      "vol_baseline": null,
+      "vol_ratio_path_vs_baseline": null,
+      "path_archetype": "no_intraday_path_data",
+      "snapshot_mae_pct": null,
+      "snapshot_mfe_pct": null,
+      "pnl_pct_realized": null
+    }
+  ],
+  "summary": {
+    "per_signal": {
+      "attribution_unknown": {
+        "trade_count": 2,
+        "hold_minutes": {
+          "n": 2,
+          "min": 135.0,
+          "p25": 135.0,
+          "p50": 135.0,
+          "p75": 180.0,
+          "max": 180.0
+        },
+        "mae_pct_hold": {
+          "n": 0
+        },
+        "vol_ratio_path_vs_baseline": {
+          "n": 0
+        },
+        "time_to_plus_0_5pct_min": {
+          "n": 0
+        },
+        "path_archetype_counts": {
+          "no_intraday_path_data": 2
+        }
+      }
+    },
+    "aggregate": {
+      "trade_count": 2,
+      "mae_pct_hold": {
+        "n": 0
+      },
+      "hold_minutes": {
+        "n": 2,
+        "min": 135.0,
+        "p25": 135.0,
+        "p50": 135.0,
+        "p75": 180.0,
+        "max": 180.0
+      }
+    },
+    "top_anomalies_descriptive": [],
+    "disclaimer": "Distributions and descriptive buckets only; not forecasts, targets, or recommendations. SPI does not authorize behavior change (MEMORY_BANK.md)."
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "hypothesis_id": "QUANT_CF_001",
+  "role": "QUANT",
+  "incremental_ev_per_trade_usd": {
+    "pnl_60m_variant_a_mean": 0.405592,
+    "source": "BLOCKED_GATE_SCORECARD.json per_reason displacement_blocked pnl_60m_expectancy"
+  },
+  "incremental_ev_per_day_usd_est": 773.193536,
+  "incremental_ev_per_week_usd_est": 5412.354751,
+  "frequency": {
+    "displacement_blocked_rows_scanned": 5719,
+    "unique_days": 3,
+    "approx_displacement_blocks_per_day": 1906.3333,
+    "caveat": "Uniform spread across days is an approximation from timestamp prefix counts."
+  },
+  "trade_count_note": "Counterfactual rows n in scorecard for displacement_blocked",
+  "n_counterfactual_rows": 5705,
+  "drawdown_proxy": {
+    "pnl_60m_tail_risk_p05_pnl_usd": -3.926003,
+    "source": "BLOCKED_GATE_SCORECARD.json"
+  },
+  "gate_interactions": {
+    "displacement_blocked": "Hypothesis universe is exactly this gate class.",
+    "max_positions": "Not isolated in this hypothesis (see other per_reason rows in scorecard).",
+    "exits": "Variant A uses fixed horizons from bars, not production exit logic."
+  },
+  "sensitivity": {
+    "horizon_15m_expectancy_usd": 0.108463,
+    "horizon_30m_expectancy_usd": 0.173238,
+    "horizon_60m_expectancy_usd": 0.405592,
+    "win_rate_60m": 0.570727
+  },
+  "confidence": "MEDIUM for mean expectancy (large n); LOW for live translation (execution model gap)."
+}

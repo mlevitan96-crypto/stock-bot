@@ -1,0 +1,242 @@
+{
+  "harvester_floor_utc": "2026-04-07T17:01:00+00:00",
+  "blocked_veto_audit": {
+    "harvester_floor_epoch": 1775581260.0,
+    "blocked_rows_since_floor": 6383,
+    "by_source_file": {
+      "blocked_trades": 6383
+    },
+    "top_block_reasons": {
+      "displacement_blocked": 4343,
+      "max_positions_reached": 968,
+      "expectancy_blocked:score_floor_breach": 851,
+      "order_validation_failed": 208,
+      "symbol_on_cooldown": 13
+    },
+    "high_score_blocked_count_gte_4": 3540,
+    "counterfactual_numeric_observations": 0,
+    "counterfactual_field_sum_usd_or_units": null,
+    "blocked_rows_with_positive_counterfactual_field": 0,
+    "note": "Opportunity cost in USD requires per-row counterfactual PnL in blocked JSONL or a bars replay (see scripts/blocked_expectancy_analysis.py). Many deployments only log reason/score without precomputed counterfactual_pnl_* \u2014 then only counts/by_reason are reliable here.",
+    "sample_field_names_seen": [
+      "alpaca_positions",
+      "block_reason",
+      "breakout_signal",
+      "candidate_rank",
+      "candidate_score",
+      "canonical_trade_id",
+      "components",
+      "composite_meta",
+      "decision_event_id",
+      "decision_price",
+      "direction",
+      "displaced_symbol",
+      "executor_opens",
+      "expected_value_usd",
+      "first_signal_ts_utc",
+      "max_positions",
+      "mean_reversion_signal",
+      "momentum_signal",
+      "outcome_tracked",
+      "policy_reason",
+      "reason",
+      "regime_label",
+      "regime_signal",
+      "reversal_signal",
+      "score",
+      "sector_momentum",
+      "sector_signal",
+      "side",
+      "signals",
+      "survivorship_adjustment",
+      "symbol",
+      "symbol_normalized",
+      "time_bucket_id",
+      "timestamp",
+      "trend_signal",
+      "uw_edge_suppression_rate",
+      "uw_signal_quality_score",
+      "variant_id",
+      "volatility_signal",
+      "would_have_entered_price"
+    ]
+  },
+  "exit_mfe_regret_audit": {
+    "exit_attribution_path": "/root/stock-bot/logs/exit_attribution.jsonl",
+    "rows_in_cohort_window": 401,
+    "rows_with_exit_quality_metrics": 401,
+    "exit_efficiency_realized_over_mfe": {
+      "n_comparable": 174,
+      "mean_ratio": 0.846,
+      "median_ratio": 0.9667
+    },
+    "profit_giveback": {
+      "n": 174,
+      "mean": 0.3731
+    },
+    "interpretation": "Mean realized/MFE near 1 means exits capture most favorable excursion; low values suggest exit engine leaves money on table (if MFE is in comparable USD units)."
+  },
+  "mlf_correlation_synergy_audit": {
+    "flat_cohort_strict_real_join_rows": 400,
+    "load_and_filter_stats": {
+      "gross_rows": 400,
+      "dropped_missing_pnl": 0,
+      "dropped_join_tier": 0,
+      "dropped_neutral_no_join": 0,
+      "dropped_feature_nan": 0,
+      "kept": 400
+    },
+    "top_mlf_correlations_with_pnl": [
+      {
+        "feature": "mlf_direction_intel_embed_direction_intel_components_exit_overnight_direction_contribution_to_direction_score",
+        "pearson_r": -0.1684
+      },
+      {
+        "feature": "mlf_direction_intel_embed_direction_intel_components_exit_overnight_direction_normalized_value",
+        "pearson_r": -0.1684
+      },
+      {
+        "feature": "mlf_direction_intel_embed_direction_intel_components_exit_premarket_direction_contribution_to_direction_score",
+        "pearson_r": -0.1684
+      },
+      {
+        "feature": "mlf_direction_intel_embed_direction_intel_components_exit_premarket_direction_normalized_value",
+        "pearson_r": -0.1684
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_exit_regime_posture_structural_confidence",
+        "pearson_r": 0.1452
+      },
+      {
+        "feature": "mlf_entry_uw_sentiment_score",
+        "pearson_r": -0.1431
+      },
+      {
+        "feature": "mlf_direction_intel_embed_direction_intel_components_exit_futures_direction_contribution_to_direction_score",
+        "pearson_r": -0.1418
+      },
+      {
+        "feature": "mlf_direction_intel_embed_direction_intel_components_exit_futures_direction_normalized_value",
+        "pearson_r": -0.1418
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_exit_regime_posture_market_context_qqq_overnight_ret",
+        "pearson_r": -0.1311
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_exit_premarket_intel_premarket_gap_pct",
+        "pearson_r": -0.1311
+      },
+      {
+        "feature": "mlf_direction_intel_embed_direction_intel_components_exit_futures_direction_raw_value",
+        "pearson_r": -0.1311
+      },
+      {
+        "feature": "mlf_direction_intel_embed_direction_intel_components_exit_overnight_direction_raw_value",
+        "pearson_r": -0.1311
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_exit_futures_intel_futures_trend_strength",
+        "pearson_r": -0.1311
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_exit_overnight_intel_overnight_return",
+        "pearson_r": -0.1311
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_exit_regime_posture_market_context_spy_overnight_ret",
+        "pearson_r": -0.1305
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_deltas_futures_direction_delta",
+        "pearson_r": -0.1136
+      },
+      {
+        "feature": "mlf_v2_exit_components_vol_expansion",
+        "pearson_r": -0.1114
+      },
+      {
+        "feature": "mlf_v2_exit_components_sector_shift",
+        "pearson_r": -0.1026
+      },
+      {
+        "feature": "mlf_v2_exit_components_sentiment_deterioration",
+        "pearson_r": -0.0935
+      },
+      {
+        "feature": "mlf_v2_exit_components_regime_shift",
+        "pearson_r": -0.0836
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_entry_regime_posture_market_context_qqq_overnight_ret",
+        "pearson_r": -0.0776
+      },
+      {
+        "feature": "mlf_scoreflow_components_squeeze_score",
+        "pearson_r": 0.0759
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_entry_premarket_intel_premarket_gap_pct",
+        "pearson_r": -0.075
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_entry_futures_intel_futures_trend_strength",
+        "pearson_r": -0.075
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_entry_overnight_intel_overnight_return",
+        "pearson_r": -0.075
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_entry_regime_posture_structural_confidence",
+        "pearson_r": 0.075
+      },
+      {
+        "feature": "mlf_scoreflow_components_iv_skew",
+        "pearson_r": 0.0745
+      },
+      {
+        "feature": "mlf_scoreflow_components_toxicity_penalty",
+        "pearson_r": -0.0729
+      },
+      {
+        "feature": "mlf_direction_intel_embed_intel_snapshot_entry_regime_posture_market_context_spy_overnight_ret",
+        "pearson_r": -0.0719
+      },
+      {
+        "feature": "mlf_scoreflow_components_flow",
+        "pearson_r": 0.0718
+      }
+    ],
+    "synergy_buckets_top_by_win_rate": [
+      {
+        "cluster": "congress_ge_median & smile_ge_median",
+        "n": 400,
+        "win_rate": 0.41,
+        "profit_factor": 0.5522,
+        "hits_60pct_win_bar": false
+      },
+      {
+        "cluster": "congress_ge_median only",
+        "n": 400,
+        "win_rate": 0.41,
+        "profit_factor": 0.5522,
+        "hits_60pct_win_bar": false
+      },
+      {
+        "cluster": "flow_ge_median & congress_ge_median",
+        "n": 400,
+        "win_rate": 0.41,
+        "profit_factor": 0.5522,
+        "hits_60pct_win_bar": false
+      }
+    ],
+    "clusters_with_win_rate_ge_60pct": [],
+    "median_thresholds_used": {
+      "congress": 0.0,
+      "smile": 0.0,
+      "sentiment_score": 1.0
+    }
+  },
+  "final_verdict_signal_vs_exit": "Exit / veto balance: large blocked volume without counterfactual PnL fields \u2014 run blocked_expectancy / bars replay to quantify veto gap; exit efficiency not clearly dominant."
+}

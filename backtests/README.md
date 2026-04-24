@@ -30,7 +30,7 @@ bash board/eod/run_30d_backtest_on_droplet.sh
 
 ### Config flags (in `30d_backtest_config.json`)
 
-- `use_exit_regimes`, `use_uw`, `use_survivorship`, `use_constraints`, `use_correlation_sizing`, `use_wheel_strategy` – used as metadata in the replay (logs already reflect these systems).
+- `use_exit_regimes`, `use_uw`, `use_survivorship`, `use_constraints`, `use_correlation_sizing`, `use_secondary_options_strategy` – used as metadata in the replay (logs already reflect these systems).
 - `log_all_candidates`, `log_all_exits`, `log_all_blocks` – ensure we write all replayed candidates, exits, and blocks.
 
 ### Manual run (without the shell script)

@@ -1,0 +1,18 @@
+{
+  "blocked_rows_total": 8669,
+  "rows_full_horizon_coverage": 8653,
+  "coverage_pct": 99.8154,
+  "coverage_fail_reasons": {
+    "partial_horizon": 16
+  },
+  "missing_symbol_time_ranges_sample": [],
+  "bars_file_symbols": 53,
+  "notional_usd_for_qty": 500.0,
+  "formulas": {
+    "variant_a": "entry=open(first bar t>=block_ts), exit=close(first bar t>=block_ts+H); long PnL=(exit-entry)*qty short PnL=(entry-exit)*qty",
+    "variant_b": "entry=(high+low)/2 of entry bar, exit=close at horizon",
+    "variant_c": "entry open adjusted by adverse slippage 0.0005 on entry",
+    "fees": "none applied (blocked rows lack fee schedule); sensitivity: add per-share fee in follow-on",
+    "qty": "notional_usd/decision_price, min 0.0001 share-equivalent"
+  }
+}

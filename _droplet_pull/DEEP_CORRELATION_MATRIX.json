@@ -1,0 +1,273 @@
+{
+  "root": "/root/stock-bot",
+  "STRICT_EPOCH_START": 1776442912.699623,
+  "cohort_rows": 651,
+  "bars_symbols": 53,
+  "bars_path": "/root/stock-bot/artifacts/market_data/alpaca_bars.jsonl",
+  "target": "realized_pnl_bps",
+  "top_pearson_abs": [
+    {
+      "feature": "uw_raw_signals_dark_pool",
+      "pearson": -0.2644299184618222
+    },
+    {
+      "feature": "uw_contributions_dark_pool",
+      "pearson": -0.2644299184618222
+    },
+    {
+      "feature": "uw_raw_signals_market_tide",
+      "pearson": 0.22242506692507988
+    },
+    {
+      "feature": "uw_contributions_market_tide",
+      "pearson": 0.22242506692507988
+    },
+    {
+      "feature": "uw_raw_signals_regime_shift",
+      "pearson": 0.20814300463516827
+    },
+    {
+      "feature": "uw_contributions_regime_shift",
+      "pearson": 0.20814300463516827
+    },
+    {
+      "feature": "uw_raw_signals_iv_skew",
+      "pearson": -0.2046399513614324
+    },
+    {
+      "feature": "uw_contributions_iv_skew",
+      "pearson": -0.2046399513614324
+    },
+    {
+      "feature": "uw_raw_signals_iv_rank",
+      "pearson": -0.17538202745014334
+    },
+    {
+      "feature": "uw_contributions_iv_rank",
+      "pearson": -0.17538202745014334
+    },
+    {
+      "feature": "uw_is_repair_row",
+      "pearson": 0.148329920643374
+    },
+    {
+      "feature": "uw_raw_signals_oi_change",
+      "pearson": -0.10553843695548719
+    },
+    {
+      "feature": "uw_contributions_oi_change",
+      "pearson": -0.10553843695548719
+    },
+    {
+      "feature": "uw_raw_signals_sentiment_deterioration",
+      "pearson": 0.08988876415690268
+    },
+    {
+      "feature": "uw_contributions_sentiment_deterioration",
+      "pearson": 0.08988876415690268
+    },
+    {
+      "feature": "uw_raw_signals_score_deterioration",
+      "pearson": 0.08602830387633278
+    },
+    {
+      "feature": "uw_contributions_score_deterioration",
+      "pearson": 0.08602830387633278
+    },
+    {
+      "feature": "uw_raw_signals_toxicity_penalty",
+      "pearson": 0.08593755949765439
+    },
+    {
+      "feature": "uw_contributions_toxicity_penalty",
+      "pearson": 0.08593755949765439
+    },
+    {
+      "feature": "uw_raw_signals_flow",
+      "pearson": -0.08139639220410595
+    },
+    {
+      "feature": "uw_contributions_flow",
+      "pearson": -0.08139639220410595
+    },
+    {
+      "feature": "uw_raw_signals_sector_shift",
+      "pearson": 0.06436331303796822
+    },
+    {
+      "feature": "uw_contributions_sector_shift",
+      "pearson": 0.06436331303796822
+    },
+    {
+      "feature": "uw_composite_score",
+      "pearson": -0.05951824603989396
+    },
+    {
+      "feature": "uw_entry_dominant_component_value",
+      "pearson": -0.05650601656814979
+    }
+  ],
+  "top_spearman_abs": [
+    {
+      "feature": "uw_raw_signals_dark_pool",
+      "spearman": -0.2980129561698344
+    },
+    {
+      "feature": "uw_contributions_dark_pool",
+      "spearman": -0.2980129561698344
+    },
+    {
+      "feature": "uw_raw_signals_greeks_gamma",
+      "spearman": -0.25699482211795766
+    },
+    {
+      "feature": "uw_contributions_greeks_gamma",
+      "spearman": -0.25699482211795766
+    },
+    {
+      "feature": "uw_raw_signals_market_tide",
+      "spearman": 0.2387379100572275
+    },
+    {
+      "feature": "uw_contributions_market_tide",
+      "spearman": 0.2387379100572275
+    },
+    {
+      "feature": "uw_raw_signals_iv_skew",
+      "spearman": -0.21483692143974947
+    },
+    {
+      "feature": "uw_contributions_iv_skew",
+      "spearman": -0.21483692143974947
+    },
+    {
+      "feature": "uw_raw_signals_iv_rank",
+      "spearman": -0.19848992860872483
+    },
+    {
+      "feature": "uw_contributions_iv_rank",
+      "spearman": -0.19848992860872483
+    },
+    {
+      "feature": "uw_is_repair_row",
+      "spearman": 0.1911155192456697
+    },
+    {
+      "feature": "uw_raw_signals_regime_shift",
+      "spearman": 0.12914838140017448
+    },
+    {
+      "feature": "uw_contributions_regime_shift",
+      "spearman": 0.12914838140017448
+    },
+    {
+      "feature": "uw_composite_score",
+      "spearman": -0.12470898152433553
+    },
+    {
+      "feature": "uw_raw_signals_score_deterioration",
+      "spearman": 0.11373626731678532
+    },
+    {
+      "feature": "uw_contributions_score_deterioration",
+      "spearman": 0.11373626731678532
+    },
+    {
+      "feature": "uw_raw_signals_flow",
+      "spearman": -0.11253362551605925
+    },
+    {
+      "feature": "uw_contributions_flow",
+      "spearman": -0.11253362551605925
+    },
+    {
+      "feature": "uw_entry_dominant_component_value",
+      "spearman": -0.10529612624707732
+    },
+    {
+      "feature": "uw_raw_signals_oi_change",
+      "spearman": -0.07563172471471853
+    },
+    {
+      "feature": "uw_contributions_oi_change",
+      "spearman": -0.07563172471471853
+    },
+    {
+      "feature": "uw_raw_signals_flow_deterioration",
+      "spearman": 0.07472281867776392
+    },
+    {
+      "feature": "uw_contributions_flow_deterioration",
+      "spearman": 0.07472281867776392
+    },
+    {
+      "feature": "uw_raw_signals_toxicity_penalty",
+      "spearman": 0.06366553326679651
+    },
+    {
+      "feature": "uw_contributions_toxicity_penalty",
+      "spearman": 0.06366553326679651
+    }
+  ],
+  "random_forest_top5": [
+    {
+      "feature": "hold_hours",
+      "importance": 0.29627277587013234
+    },
+    {
+      "feature": "uw_composite_score",
+      "importance": 0.25956074137110174
+    },
+    {
+      "feature": "uw_raw_signals_score_deterioration",
+      "importance": 0.10067029417030775
+    },
+    {
+      "feature": "uw_contributions_score_deterioration",
+      "importance": 0.09038185885055473
+    },
+    {
+      "feature": "uw_contributions_vol_expansion",
+      "importance": 0.04297112849308414
+    }
+  ],
+  "exit_simulation": {
+    "trades_with_bar_path": 651,
+    "sum_pnl_usd_baseline_bar_replay": -209.8819,
+    "sum_pnl_usd_vwap_stop": 0.0,
+    "sum_pnl_usd_atr2x_trail": 0.0,
+    "vwap_vs_baseline_usd_delta": 209.8819,
+    "atr_vs_baseline_usd_delta": 209.8819
+  },
+  "synthesis": {
+    "top_3_alpha_drivers_pearson": [
+      {
+        "feature": "uw_raw_signals_market_tide",
+        "pearson": 0.22242506692507988
+      },
+      {
+        "feature": "uw_contributions_market_tide",
+        "pearson": 0.22242506692507988
+      },
+      {
+        "feature": "uw_raw_signals_regime_shift",
+        "pearson": 0.20814300463516827
+      }
+    ],
+    "top_3_toxic_traits_pearson": [
+      {
+        "feature": "uw_raw_signals_dark_pool",
+        "pearson": -0.2644299184618222
+      },
+      {
+        "feature": "uw_contributions_dark_pool",
+        "pearson": -0.2644299184618222
+      },
+      {
+        "feature": "uw_raw_signals_iv_skew",
+        "pearson": -0.2046399513614324
+      }
+    ],
+    "exit_verdict": "VWAP stop sum PnL beats baseline bar-replay; ATR trail beats baseline (aggregate USD, in-sample path simulation)."
+  }
+}

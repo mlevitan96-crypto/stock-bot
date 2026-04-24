@@ -21,12 +21,8 @@ def norm_mode(x):
 
 
 def norm_strategy(x):
-    if not x:
-        return "UNKNOWN"
-    x = str(x).upper()
-    if x in ("EQUITY", "WHEEL"):
-        return x
-    return x
+    _ = x
+    return "EQUITY"
 
 
 def main():

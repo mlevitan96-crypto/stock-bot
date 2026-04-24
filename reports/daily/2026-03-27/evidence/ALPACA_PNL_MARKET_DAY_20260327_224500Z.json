@@ -1,0 +1,39 @@
+{
+  "session_date_et": "2026-03-27",
+  "source": "droplet /tmp/_droplet_pnl_session_bundle.py (uploaded from reports/daily/2026-03-27/evidence/)",
+  "pnl": {
+    "trade_count_exit_rows_calendar_et_day": 256,
+    "gross_pnl_pct_sum": 13.14093613414197,
+    "net_realized_pnl_usd_sum": 1.9110239999999337,
+    "fees_usd_sum_orders_heuristic": 0.0,
+    "fee_field_hits": 0,
+    "win_rate_pct_basis": 48.046875,
+    "avg_win_pct": 0.45350630042456586,
+    "avg_loss_pct": -0.3305452621556561,
+    "min_pct": -1.5723270440251422,
+    "max_pct": 2.350081037277147
+  },
+  "strict_gate_today_session_open_to_regular_close": {
+    "trades_seen": 255,
+    "trades_complete": 255,
+    "trades_incomplete": 0,
+    "LEARNING_STATUS": "ARMED"
+  },
+  "dashboard_aligned_strict_gate": {
+    "open_ts_epoch": 1774458080.0,
+    "trades_seen": 580,
+    "trades_complete": 578,
+    "trades_incomplete": 2,
+    "LEARNING_STATUS": "BLOCKED",
+    "top_incomplete_reason": "no_orders_rows_with_canonical_trade_id"
+  },
+  "hourly_pnl_usd_et_hour": {
+    "10": 6.660196000000097,
+    "11": 30.75266599999992,
+    "12": -9.764999999999937,
+    "13": 14.17949999999992,
+    "14": 0.8600000000000048,
+    "15": -40.776338000000074
+  },
+  "worst_hour_et": {"hour": "15", "pnl_usd": -40.776338000000074}
+}

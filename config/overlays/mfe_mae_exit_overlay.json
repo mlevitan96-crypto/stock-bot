@@ -1,0 +1,16 @@
+{
+  "schema": "mfe_mae_exit_overlay_v1",
+  "source": "scripts/_tmp_mfe_mae_analysis.py",
+  "apply": {
+    "trailing_stop_pct": 0.012,
+    "profit_target_decimal_default": 0.005,
+    "profit_target_decimal_bear": 0.00625,
+    "stop_loss_pct_default": -0.006,
+    "stop_loss_pct_bear": -0.0069
+  },
+  "_method": {
+    "trailing_stop_pct": "p65 mfe_pct (full strict cohort), clipped [1.2%, 4%]",
+    "profit_target_decimal_default": "p55 mfe_pct (signal_decay subset) else p60 full, clipped [0.5%, 1.8%]",
+    "stop_loss_pct_default": "p20 of loser MAE% (when eq.mae present) converted to decimal; else p15 of loser exit pnl%; clamped to [-2.5%, -0.6%] floor via min(-0.006, sl_dec)"
+  }
+}

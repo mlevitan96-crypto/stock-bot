@@ -254,11 +254,15 @@ def main() -> int:
     audit_path = AUDIT / f"SIGNAL_CONTRIBUTION_AUDIT_{DATE}.md"
     audit_path.write_text("\n".join(audit_lines), encoding="utf-8")
 
+    # Phase 3: Shadow vs paper (N/A when no shadow)
     # Phase 4: Monday Surprise Readiness
     monday_lines = [
         "# Monday Surprise Readiness",
         "",
         f"**Date:** {DATE}",
+        "",
+        "## Shadow vs paper (Phase 3)",
+        "N/A — v2-only engine; no shadow mode in production. Divergence check skipped.",
         "",
         "## A) Time-based",
         "- Market open: engine uses Alpaca clock; timezone UTC in logs.",

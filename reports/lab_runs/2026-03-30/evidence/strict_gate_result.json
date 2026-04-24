@@ -1,0 +1,9 @@
+{
+  "LEARNING_STATUS": "ARMED",
+  "trades_seen": 2,
+  "trades_complete": 2,
+  "trades_incomplete": 0,
+  "learning_fail_closed_reason": null,
+  "reason_histogram": {},
+  "precheck": []
+}

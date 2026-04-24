@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional, Tuple
 
 # Config defaults (overridden by env via caller)
 DISPLACEMENT_ENABLED = True
-DISPLACEMENT_MIN_HOLD_SECONDS = 20 * 60  # 20 minutes
+DISPLACEMENT_MIN_HOLD_SECONDS = 3600  # 1 hour (align with Config default; overrides from caller)
 DISPLACEMENT_MIN_DELTA_SCORE = 0.75
 DISPLACEMENT_REQUIRE_THESIS_DOMINANCE = True
 DISPLACEMENT_THESIS_DOMINANCE_MODE = "flow_or_regime"

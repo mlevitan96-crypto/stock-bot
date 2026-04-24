@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -11,8 +12,29 @@ sys.path.insert(0, str(REPO))
 
 from droplet_client import DropletClient  # noqa: E402
 
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None  # type: ignore
+
 PROJ = "/root/stock-bot"
 TS = "20260327_LAST_WINDOW"
+
+
+def _nyse_session_date_et() -> str:
+    """Match alpaca_last_window_learning_verify session_date_et when env is unset."""
+    if ZoneInfo is None:
+        return datetime.now(timezone.utc).date().isoformat()
+    et = ZoneInfo("America/New_York")
+    now_et = datetime.now(timezone.utc).astimezone(et)
+    d = now_et.date()
+    close_today = datetime(d.year, d.month, d.day, 16, 0, 0, tzinfo=et)
+    if now_et >= close_today:
+        return d.isoformat()
+    d = d - timedelta(days=1)
+    while d.weekday() >= 5:
+        d = d - timedelta(days=1)
+    return d.isoformat()
 
 
 def main() -> int:
@@ -47,13 +69,15 @@ def main() -> int:
     )
     bundle["steps"]["verify"] = {"stdout": (vr.get("stdout") or "").strip()[-8000:], "exit_code": vr.get("exit_code")}
 
+    sess = _nyse_session_date_et()
+    ev = f"{PROJ}/reports/daily/{sess}/evidence"
     paths = [
-        f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_SCOPE_{TS}.md",
-        f"{PROJ}/reports/ALPACA_LAST_WINDOW_TRUTH_{TS}.json",
-        f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_TRUTH_{TS}.md",
-        f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md",
-        f"{PROJ}/reports/ALPACA_LEARNING_STATUS_SUMMARY.json",
-        f"{PROJ}/reports/audit/ALPACA_LEARNING_STATUS_SUMMARY.md",
+        f"{ev}/ALPACA_LAST_WINDOW_SCOPE_{TS}.md",
+        f"{ev}/ALPACA_LAST_WINDOW_TRUTH_{TS}.json",
+        f"{ev}/ALPACA_LAST_WINDOW_TRUTH_{TS}.md",
+        f"{ev}/ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md",
+        f"{ev}/ALPACA_LEARNING_STATUS_SUMMARY.json",
+        f"{ev}/ALPACA_LEARNING_STATUS_SUMMARY.md",
     ]
     fetched = {}
     for p in paths:
@@ -61,33 +85,34 @@ def main() -> int:
         fetched[p] = (cat.get("stdout") or "").strip()
     bundle["fetched"] = fetched
 
-    out = REPO / "reports" / f"ALPACA_LAST_WINDOW_DROPLET_BUNDLE_{TS}.json"
-    out.parent.mkdir(parents=True, exist_ok=True)
+    ev_local = REPO / "reports" / "daily" / sess / "evidence"
+    ev_local.mkdir(parents=True, exist_ok=True)
+    out = ev_local / f"ALPACA_LAST_WINDOW_DROPLET_BUNDLE_{TS}.json"
     out.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
 
     # Mirror verdict + scope + truth json locally when present
-    scope_local = REPO / "reports" / "audit" / f"ALPACA_LAST_WINDOW_SCOPE_{TS}.md"
-    truth_local = REPO / "reports" / f"ALPACA_LAST_WINDOW_TRUTH_{TS}.json"
-    truth_md_local = REPO / "reports" / "audit" / f"ALPACA_LAST_WINDOW_TRUTH_{TS}.md"
-    verdict_local = REPO / "reports" / "audit" / f"ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md"
-    sk = f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_SCOPE_{TS}.md"
+    scope_local = ev_local / f"ALPACA_LAST_WINDOW_SCOPE_{TS}.md"
+    truth_local = ev_local / f"ALPACA_LAST_WINDOW_TRUTH_{TS}.json"
+    truth_md_local = ev_local / f"ALPACA_LAST_WINDOW_TRUTH_{TS}.md"
+    verdict_local = ev_local / f"ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md"
+    sk = f"{PROJ}/reports/daily/{sess}/evidence/ALPACA_LAST_WINDOW_SCOPE_{TS}.md"
     if sk in fetched and not fetched[sk].startswith("MISSING"):
         scope_local.write_text(fetched[sk], encoding="utf-8")
-    tk = f"{PROJ}/reports/ALPACA_LAST_WINDOW_TRUTH_{TS}.json"
+    tk = f"{PROJ}/reports/daily/{sess}/evidence/ALPACA_LAST_WINDOW_TRUTH_{TS}.json"
     if tk in fetched and not fetched[tk].startswith("MISSING"):
         truth_local.write_text(fetched[tk], encoding="utf-8")
-    tmk = f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_TRUTH_{TS}.md"
+    tmk = f"{PROJ}/reports/daily/{sess}/evidence/ALPACA_LAST_WINDOW_TRUTH_{TS}.md"
     if tmk in fetched and not fetched[tmk].startswith("MISSING"):
         truth_md_local.write_text(fetched[tmk], encoding="utf-8")
-    vk = f"{PROJ}/reports/audit/ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md"
+    vk = f"{PROJ}/reports/daily/{sess}/evidence/ALPACA_LAST_WINDOW_LEARNING_VERDICT_{TS}.md"
     if vk in fetched and not fetched[vk].startswith("MISSING"):
         verdict_local.write_text(fetched[vk], encoding="utf-8")
-    sum_json_local = REPO / "reports" / "ALPACA_LEARNING_STATUS_SUMMARY.json"
-    sum_md_local = REPO / "reports" / "audit" / "ALPACA_LEARNING_STATUS_SUMMARY.md"
-    skj = f"{PROJ}/reports/ALPACA_LEARNING_STATUS_SUMMARY.json"
+    sum_json_local = ev_local / "ALPACA_LEARNING_STATUS_SUMMARY.json"
+    sum_md_local = ev_local / "ALPACA_LEARNING_STATUS_SUMMARY.md"
+    skj = f"{PROJ}/reports/daily/{sess}/evidence/ALPACA_LEARNING_STATUS_SUMMARY.json"
     if skj in fetched and not fetched[skj].startswith("MISSING"):
         sum_json_local.write_text(fetched[skj], encoding="utf-8")
-    skm = f"{PROJ}/reports/audit/ALPACA_LEARNING_STATUS_SUMMARY.md"
+    skm = f"{PROJ}/reports/daily/{sess}/evidence/ALPACA_LEARNING_STATUS_SUMMARY.md"
     if skm in fetched and not fetched[skm].startswith("MISSING"):
         sum_md_local.write_text(fetched[skm], encoding="utf-8")
 

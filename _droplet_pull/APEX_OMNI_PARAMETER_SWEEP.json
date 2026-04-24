@@ -1,0 +1,546 @@
+{
+  "root": "/root/stock-bot",
+  "STRICT_EPOCH_START": 1776442912.699623,
+  "REF_ALPHA_BASELINE": 0.85,
+  "cohort_trades_loaded": 637,
+  "blocked_trade_intents_in_strict_window": 1010,
+  "bars_path": "/root/stock-bot/artifacts/market_data/alpaca_bars.jsonl",
+  "bars_symbols": 53,
+  "fetch_bars_live": true,
+  "rest_day_fetch_count": 140,
+  "adversarial_bps": 2.0,
+  "institutional_profit_matrix": {
+    "markout_t_plus_1m_mean_bps": -2.607551,
+    "markout_t_plus_5m_mean_bps": -1.248927,
+    "markout_samples_1m": 633,
+    "markout_samples_5m": 624,
+    "markout_note": "Long: positive = favorable drift after entry; negative = adverse markout (toxicity).",
+    "capital_velocity_mean_bps_per_hour": -145.661012,
+    "capital_velocity_samples": 624,
+    "displacement_trades_with_eod_shadow": 0,
+    "displacement_mean_shadow_minus_realized_usd": null,
+    "edge_ratio_mean_mfe_over_mean_mae": null,
+    "mean_mfe_fraction": null,
+    "mean_mae_fraction": null,
+    "liquidity_mean_filled_over_intended": null,
+    "liquidity_samples": 0,
+    "early_exit_eod_opportunity_sum_usd": 325.1675,
+    "early_exit_eod_opportunity_trades": 210
+  },
+  "best_cell_adversarial_usd": {
+    "entry_delay_min": 15,
+    "exit_mode": "exit_m15",
+    "alpha11_min_flow_floor": 0.985,
+    "trades_used": 633,
+    "trades_skipped_filter_or_bars": 4,
+    "sum_hypo_usd_raw": 55.7648,
+    "sum_hypo_usd_adversarial": 15.6809,
+    "worst_single_trade_adversarial_usd": -11.7336
+  },
+  "cohort_behavior_summary": {
+    "rows_with_realized_pnl": 624,
+    "winners_with_mfe_and_pnl_pct": 0,
+    "opportunity_cost_of_impatience_proxy_mean_pct_pts": null,
+    "losers_count": 363,
+    "cost_of_stubbornness_mae_pct_mean": null,
+    "losers_mean_abs_pnl_usd": 1.1831,
+    "note": "pct_pts = percentage points (MFE% headroom over realized pnl%)."
+  },
+  "bar_resolution_probe_shifted_entry5m_exit30m_file_only": {
+    "entry_delay_min": 5,
+    "exit_shift_min": 30,
+    "trades_in_probe": 633,
+    "file_only_px_in_hit_rate": 0.0,
+    "file_only_px_out_hit_rate": 0.0
+  },
+  "grid_raw_usd_spread": 287.6913,
+  "timing_sweep_degenerate_all_raw_usd_identical": false,
+  "grid": [
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": 15.1214,
+      "sum_hypo_usd_adversarial": -24.9696,
+      "worst_single_trade_adversarial_usd": -11.884
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": 15.1214,
+      "sum_hypo_usd_adversarial": -24.9696,
+      "worst_single_trade_adversarial_usd": -11.884
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": 15.1214,
+      "sum_hypo_usd_adversarial": -24.9696,
+      "worst_single_trade_adversarial_usd": -11.884
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": 15.1214,
+      "sum_hypo_usd_adversarial": -24.9696,
+      "worst_single_trade_adversarial_usd": -11.884
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -106.251,
+      "sum_hypo_usd_adversarial": -106.251,
+      "worst_single_trade_adversarial_usd": -18.55
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -106.251,
+      "sum_hypo_usd_adversarial": -146.342,
+      "worst_single_trade_adversarial_usd": -18.692
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -106.251,
+      "sum_hypo_usd_adversarial": -146.342,
+      "worst_single_trade_adversarial_usd": -18.692
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -106.251,
+      "sum_hypo_usd_adversarial": -146.342,
+      "worst_single_trade_adversarial_usd": -18.692
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -162.5522,
+      "sum_hypo_usd_adversarial": -202.6432,
+      "worst_single_trade_adversarial_usd": -20.2306
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -162.5522,
+      "sum_hypo_usd_adversarial": -202.6432,
+      "worst_single_trade_adversarial_usd": -20.2306
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -162.5522,
+      "sum_hypo_usd_adversarial": -202.6432,
+      "worst_single_trade_adversarial_usd": -20.2306
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -162.5522,
+      "sum_hypo_usd_adversarial": -202.6432,
+      "worst_single_trade_adversarial_usd": -20.2306
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -205.7597,
+      "sum_hypo_usd_adversarial": -245.8507,
+      "worst_single_trade_adversarial_usd": -21.5507
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -205.7597,
+      "sum_hypo_usd_adversarial": -245.8507,
+      "worst_single_trade_adversarial_usd": -21.5507
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -205.7597,
+      "sum_hypo_usd_adversarial": -245.8507,
+      "worst_single_trade_adversarial_usd": -21.5507
+    },
+    {
+      "entry_delay_min": 0,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -205.7597,
+      "sum_hypo_usd_adversarial": -245.8507,
+      "worst_single_trade_adversarial_usd": -21.5507
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -11.0454,
+      "sum_hypo_usd_adversarial": -51.1412,
+      "worst_single_trade_adversarial_usd": -11.1335
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -11.0454,
+      "sum_hypo_usd_adversarial": -51.1412,
+      "worst_single_trade_adversarial_usd": -11.1335
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -11.0454,
+      "sum_hypo_usd_adversarial": -51.1412,
+      "worst_single_trade_adversarial_usd": -11.1335
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -11.0454,
+      "sum_hypo_usd_adversarial": -51.1412,
+      "worst_single_trade_adversarial_usd": -11.1335
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -132.4178,
+      "sum_hypo_usd_adversarial": -172.5136,
+      "worst_single_trade_adversarial_usd": -20.2698
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -132.4178,
+      "sum_hypo_usd_adversarial": -172.5136,
+      "worst_single_trade_adversarial_usd": -20.2698
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -132.4178,
+      "sum_hypo_usd_adversarial": -172.5136,
+      "worst_single_trade_adversarial_usd": -20.2698
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -132.4178,
+      "sum_hypo_usd_adversarial": -172.5136,
+      "worst_single_trade_adversarial_usd": -20.2698
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -188.719,
+      "sum_hypo_usd_adversarial": -228.8148,
+      "worst_single_trade_adversarial_usd": -19.5705
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -188.719,
+      "sum_hypo_usd_adversarial": -228.8148,
+      "worst_single_trade_adversarial_usd": -19.5705
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -188.719,
+      "sum_hypo_usd_adversarial": -228.8148,
+      "worst_single_trade_adversarial_usd": -19.5705
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -188.719,
+      "sum_hypo_usd_adversarial": -228.8148,
+      "worst_single_trade_adversarial_usd": -19.5705
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -231.9265,
+      "sum_hypo_usd_adversarial": -272.0223,
+      "worst_single_trade_adversarial_usd": -20.8905
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -231.9265,
+      "sum_hypo_usd_adversarial": -272.0223,
+      "worst_single_trade_adversarial_usd": -20.8905
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -231.9265,
+      "sum_hypo_usd_adversarial": -272.0223,
+      "worst_single_trade_adversarial_usd": -20.8905
+    },
+    {
+      "entry_delay_min": 5,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -231.9265,
+      "sum_hypo_usd_adversarial": -272.0223,
+      "worst_single_trade_adversarial_usd": -20.8905
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": 55.7648,
+      "sum_hypo_usd_adversarial": 15.6809,
+      "worst_single_trade_adversarial_usd": -11.7336
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": 55.7648,
+      "sum_hypo_usd_adversarial": 15.6809,
+      "worst_single_trade_adversarial_usd": -11.7336
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": 55.7648,
+      "sum_hypo_usd_adversarial": 15.6809,
+      "worst_single_trade_adversarial_usd": -11.7336
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_m15",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": 55.7648,
+      "sum_hypo_usd_adversarial": 15.6809,
+      "worst_single_trade_adversarial_usd": -11.7336
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -65.6076,
+      "sum_hypo_usd_adversarial": -105.6915,
+      "worst_single_trade_adversarial_usd": -15.8315
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -65.6076,
+      "sum_hypo_usd_adversarial": -105.6915,
+      "worst_single_trade_adversarial_usd": -15.8315
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -65.6076,
+      "sum_hypo_usd_adversarial": -105.6915,
+      "worst_single_trade_adversarial_usd": -15.8315
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_live",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -65.6076,
+      "sum_hypo_usd_adversarial": -105.6915,
+      "worst_single_trade_adversarial_usd": -15.8315
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -121.9088,
+      "sum_hypo_usd_adversarial": -161.9927,
+      "worst_single_trade_adversarial_usd": -11.979
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -121.9088,
+      "sum_hypo_usd_adversarial": -161.9927,
+      "worst_single_trade_adversarial_usd": -11.979
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -121.9088,
+      "sum_hypo_usd_adversarial": -161.9927,
+      "worst_single_trade_adversarial_usd": -11.979
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_p30",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -121.9088,
+      "sum_hypo_usd_adversarial": -161.9927,
+      "worst_single_trade_adversarial_usd": -11.979
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.85,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -165.1163,
+      "sum_hypo_usd_adversarial": -205.2002,
+      "worst_single_trade_adversarial_usd": -16.3117
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.9,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -165.1163,
+      "sum_hypo_usd_adversarial": -205.2002,
+      "worst_single_trade_adversarial_usd": -16.3117
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.95,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -165.1163,
+      "sum_hypo_usd_adversarial": -205.2002,
+      "worst_single_trade_adversarial_usd": -16.3117
+    },
+    {
+      "entry_delay_min": 15,
+      "exit_mode": "exit_eod",
+      "alpha11_min_flow_floor": 0.985,
+      "trades_used": 633,
+      "trades_skipped_filter_or_bars": 4,
+      "sum_hypo_usd_raw": -165.1163,
+      "sum_hypo_usd_adversarial": -205.2002,
+      "worst_single_trade_adversarial_usd": -16.3117
+    }
+  ],
+  "notes": [
+    "Friction applies to every cell except entry_delay=0 + exit_live + alpha floor 0.85.",
+    "Alpha11 floors filter on uw_flow_strength when present; missing \u2192 fail-open include.",
+    "EOD exit uses 16:00 ET on exit calendar day.",
+    "REST cache key: (symbol, ET date); one get_bars per key when a minute is missing from merged bars."
+  ]
+}
