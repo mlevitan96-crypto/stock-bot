@@ -6,6 +6,8 @@ from src.exit.dynamic_trailing_stops import (
     calculate_atr_trailing_stop,
     long_ratcheted_trailing_stop,
     long_stop_hit,
+    short_ratcheted_trailing_stop,
+    short_stop_hit,
     wilders_atr_last,
 )
 
@@ -55,3 +57,29 @@ def test_long_stop_hit() -> None:
     assert long_stop_hit(current_price=99.0, trailing_stop=100.0) is True
     assert long_stop_hit(current_price=100.0, trailing_stop=100.0) is True
     assert long_stop_hit(current_price=100.01, trailing_stop=100.0) is False
+
+
+def test_short_ratchet_never_moves_up() -> None:
+    stop1 = short_ratcheted_trailing_stop(
+        entry_price=100.0,
+        entry_atr=1.0,
+        lowest_low_since_entry=99.0,
+        current_atr=1.0,
+        multiplier=2.0,
+        previous_stop=None,
+    )
+    stop2 = short_ratcheted_trailing_stop(
+        entry_price=100.0,
+        entry_atr=1.0,
+        lowest_low_since_entry=99.0,
+        current_atr=5.0,
+        multiplier=2.0,
+        previous_stop=stop1,
+    )
+    assert stop2 <= stop1
+
+
+def test_short_stop_hit() -> None:
+    assert short_stop_hit(current_price=101.0, trailing_stop=100.0) is True
+    assert short_stop_hit(current_price=100.0, trailing_stop=100.0) is True
+    assert short_stop_hit(current_price=99.99, trailing_stop=100.0) is False
