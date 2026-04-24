@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-24T05:02:26Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory was missing at scan time (created by this run)",
+    "no_deprecated_dirs: moltbot/ directory exists at top-level with active Python code (sentinel.py, orchestrator.py, board.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/). This appears to be a deprecated component that should have been removed.",
+    "no_clawdbot_moltbot: moltbot/ directory contains active code referencing Moltbot patterns. Additionally, the following scripts contain Clawdbot/Moltbot references: scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. Board EOD output artifacts (board/eod/out/) also contain references but are historical artifacts."
+  ],
+  "slack_sent": false
+}
