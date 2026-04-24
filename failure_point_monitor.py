@@ -8,6 +8,8 @@ import json
 import time
 import subprocess
 from pathlib import Path
+
+from src.infrastructure.json_utils import safe_json_load
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
@@ -277,8 +279,9 @@ class FailurePointMonitor:
         
         if freeze_file.exists():
             try:
-                with freeze_file.open() as f:
-                    freezes = json.load(f)
+                freezes = safe_json_load(freeze_file, default={}, context="failure_point_monitor.freeze")
+                if not isinstance(freezes, dict):
+                    freezes = {}
 
                     def _active(v):
                         if v is True:
