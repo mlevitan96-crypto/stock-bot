@@ -1,0 +1,37 @@
+# HYPOTHESIS_COUNCIL_PROFIT_RANKING (Phase 10)
+
+## Ranked (expectancy / |p05| proxy)
+
+```json
+{
+  "ranked": [
+    {
+      "rank": 1,
+      "hypothesis_id": "QUANT_CF_001",
+      "profit_proxy": "pnl_60m_expectancy_usd",
+      "value": 0.405592,
+      "risk_proxy": "abs_p05_60m_usd",
+      "risk_value": 3.926003,
+      "score_expectancy_over_abs_p05": 0.103309
+    },
+    {
+      "rank": 2,
+      "hypothesis_id": "QUANT_EMU_001",
+      "profit_proxy": "best_grid_mean_pnl_usd",
+      "value": 0.019523,
+      "risk_proxy": "abs_p05_best_cell",
+      "risk_value": 1.166619,
+      "score_mean_over_abs_p05": 0.016735
+    }
+  ],
+  "deferred": [
+    "STRAT_SEP_001"
+  ],
+  "rejected_profit_path": [
+    "CSA_SC_001"
+  ],
+  "conflicts": [
+    "Counterfactual positive mean does not imply second-chance allowed subset is profitable (see SECOND_CHANCE_PNL_EVALUATION.json)."
+  ]
+}
+```
