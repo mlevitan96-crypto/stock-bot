@@ -17,5 +17,11 @@
     "no_deprecated_dirs: moltbot/ directory exists at top-level — deprecated directory reintroduced or never removed",
     "no_clawdbot_moltbot: Moltbot/moltbot references found in code/config files (excluding reports/audit and docs that document removal): moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py, scripts/sre/run_sre_anomaly_scan.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/automations/run_governance_integrity_once.py"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": {
+    "title": "[Governance Integrity] Anomalies detected",
+    "status": "not_created",
+    "reason": "gh CLI is read-only in this environment; issue creation requires manual action or write-capable tooling",
+    "body_summary": "Run: 2026-04-24T09:31:23Z | Branch: main | Failed checks: repo_structure, governance_contracts_present, no_deprecated_dirs, no_clawdbot_moltbot | Details: reports/board/ missing; moltbot/ directory still present; moltbot references found in code/scripts"
+  }
 }
