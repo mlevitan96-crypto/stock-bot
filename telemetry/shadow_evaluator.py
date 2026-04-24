@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import math
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -23,12 +24,20 @@ import numpy as np
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _MODEL_PATH = REPO_ROOT / "models" / "vanguard_entry_filter_v1.json"
 _META_PATH = REPO_ROOT / "models" / "vanguard_entry_filter_v1_features.json"
+_CHALLENGER_LONG_MODEL = REPO_ROOT / "models" / "vanguard_challenger_long.json"
+_CHALLENGER_LONG_META = REPO_ROOT / "models" / "vanguard_challenger_long_features.json"
+_CHALLENGER_LONG_THRESHOLD = REPO_ROOT / "models" / "vanguard_challenger_long_threshold.json"
+_CHALLENGER_SHORT_MODEL = REPO_ROOT / "models" / "vanguard_challenger_short.json"
+_CHALLENGER_SHORT_META = REPO_ROOT / "models" / "vanguard_challenger_short_features.json"
+_CHALLENGER_SHORT_THRESHOLD = REPO_ROOT / "models" / "vanguard_challenger_short_threshold.json"
+_SHADOW_EXECUTIONS_PATH = REPO_ROOT / "logs" / "shadow_executions.jsonl"
 
 _CACHED: Dict[str, Any] = {
     "booster": None,
     "meta": None,
     "err": None,
 }
+_CHALLENGER_CACHE: Dict[str, Any] = {}
 _TID_RE = re.compile(r"^open_([A-Z0-9]+)_(.+)$")
 
 try:
@@ -145,9 +154,141 @@ def _side_code(side: str, classes: List[str]) -> float:
     else:
         s2 = s
     try:
-        return float(classes.index(s2)) if s2 in classes else float("nan")
+        normalized_classes = [str(c).upper().strip() for c in classes]
+        return float(normalized_classes.index(s2)) if s2 in normalized_classes else float("nan")
     except Exception:
         return float("nan")
+
+
+def _challenger_paths(side: str) -> Tuple[Path, Path, Path, str]:
+    side_norm = str(side or "").strip().lower()
+    if side_norm in ("sell", "short"):
+        return _CHALLENGER_SHORT_MODEL, _CHALLENGER_SHORT_META, _CHALLENGER_SHORT_THRESHOLD, "short"
+    return _CHALLENGER_LONG_MODEL, _CHALLENGER_LONG_META, _CHALLENGER_LONG_THRESHOLD, "long"
+
+
+def _load_challenger_pair(side: str) -> Tuple[Optional[Any], Optional[dict], Optional[dict], Optional[str]]:
+    model_path, meta_path, threshold_path, side_key = _challenger_paths(side)
+    cache_key = f"challenger_{side_key}"
+    err_key = f"{cache_key}_err"
+    if _CHALLENGER_CACHE.get(err_key):
+        return None, None, None, str(_CHALLENGER_CACHE.get(err_key))
+    cached = _CHALLENGER_CACHE.get(cache_key)
+    if isinstance(cached, tuple) and len(cached) == 3:
+        booster, meta, threshold_meta = cached
+        return booster, meta, threshold_meta, None
+    if not model_path.is_file() or not meta_path.is_file() or not threshold_path.is_file():
+        err = f"missing_challenger_artifacts side={side_key}"
+        _CHALLENGER_CACHE[err_key] = err
+        return None, None, None, err
+    try:
+        import xgboost as xgb  # type: ignore
+
+        booster = xgb.Booster()
+        booster.load_model(str(model_path))
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        threshold_meta = json.loads(threshold_path.read_text(encoding="utf-8"))
+        _CHALLENGER_CACHE[cache_key] = (booster, meta, threshold_meta)
+        _CHALLENGER_CACHE.pop(err_key, None)
+        return booster, meta, threshold_meta, None
+    except Exception as e:  # pragma: no cover
+        _CHALLENGER_CACHE[err_key] = str(e)
+        return None, None, None, str(e)
+
+
+def _vector_for_model(
+    feature_order: List[str],
+    row: Dict[str, float],
+    symbol: str,
+    side: str,
+    symbol_classes: List[str],
+    side_classes: List[str],
+) -> "np.ndarray":
+    from src.core.ml_feature_normalization import normalize_features_for_side
+
+    normalized_row = normalize_features_for_side(row, side)
+    vec: Dict[str, float] = {}
+    for key in feature_order:
+        try:
+            vec[key] = float(normalized_row.get(key, float("nan")))
+        except (TypeError, ValueError):
+            vec[key] = float("nan")
+    vec["symbol_enc"] = _symbol_code(symbol, symbol_classes)
+    vec["side_enc"] = _side_code(side, side_classes)
+    if (not math.isfinite(float(vec.get("hour_of_day", float("nan"))))) and "hour_of_day" in feature_order:
+        vec["hour_of_day"] = (
+            float(datetime.now(_ET).hour)  # type: ignore[union-attr]
+            if _ET
+            else float(datetime.now(timezone.utc).hour)
+        )
+    return np.array([float(vec.get(f, float("nan"))) for f in feature_order], dtype=np.float32).reshape(1, -1)
+
+
+def predict_challenger_probability(
+    *,
+    symbol: str,
+    side: str,
+    row: Dict[str, float],
+) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+    booster, meta, threshold_meta, err = _load_challenger_pair(side)
+    if booster is None or not isinstance(meta, dict) or not isinstance(threshold_meta, dict):
+        return None, None, err or "missing_challenger_artifacts"
+    try:
+        import xgboost as xgb  # type: ignore
+
+        feature_order = list(meta.get("feature_names") or [])
+        symbol_classes = [str(x) for x in (meta.get("symbol_classes") or [])]
+        side_classes = [str(x) for x in (meta.get("side_classes") or [])]
+        x = _vector_for_model(feature_order, row, symbol, side, symbol_classes, side_classes)
+        d = xgb.DMatrix(x, feature_names=feature_order)
+        pred = booster.predict(d)
+        proba = float(pred[0]) if len(pred) else float("nan")
+        if not math.isfinite(proba):
+            return None, None, "non_finite_challenger_proba"
+        threshold = float(threshold_meta.get("holdout_probability_threshold", 0.5))
+        return proba, threshold, None
+    except Exception as e:
+        return None, None, str(e)[:400]
+
+
+def _shadow_tp_sl(entry_price: float, side: str) -> Tuple[float, float]:
+    tp_pct = float(os.environ.get("CHALLENGER_SHADOW_TP_PCT", "0.015"))
+    sl_pct = float(os.environ.get("CHALLENGER_SHADOW_SL_PCT", "0.008"))
+    side_norm = str(side or "").strip().lower()
+    if side_norm in ("sell", "short"):
+        return entry_price * (1.0 - tp_pct), entry_price * (1.0 + sl_pct)
+    return entry_price * (1.0 + tp_pct), entry_price * (1.0 - sl_pct)
+
+
+def log_shadow_execution(
+    *,
+    symbol: str,
+    side: str,
+    proba: float,
+    threshold: float,
+    entry_price: float,
+    source_event: Dict[str, Any],
+) -> None:
+    entry = float(entry_price)
+    take_profit, stop_loss = _shadow_tp_sl(entry, side)
+    rec = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "event_type": "SHADOW_EXECUTION",
+        "model": "vanguard_challenger",
+        "symbol": str(symbol or "").upper().strip(),
+        "side": str(side or "").strip().lower(),
+        "entry_price": entry,
+        "shadow_take_profit_price": round(float(take_profit), 6),
+        "shadow_stop_loss_price": round(float(stop_loss), 6),
+        "challenger_proba": float(proba),
+        "challenger_threshold": float(threshold),
+        "primary_decision_outcome": source_event.get("decision_outcome"),
+        "primary_blocked_reason": source_event.get("blocked_reason") or source_event.get("blocked_reason_code"),
+        "source": "shadow_evaluator",
+    }
+    _SHADOW_EXECUTIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with _SHADOW_EXECUTIONS_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, default=str) + "\n")
 
 
 def _merge_ml_blobs(cluster: Any, comps: Any, snap: Any, amf) -> Dict[str, Any]:
@@ -308,22 +449,7 @@ def predict_vanguard_ai_approved(
     bst, _, err = _load_booster_and_meta()
     if bst is None or err:
         raise RuntimeError(err or "no booster")
-    vec: Dict[str, float] = {}
-    for k in feature_order:
-        vec[k] = float(row.get(k, float("nan")))
-    vec["symbol_enc"] = _symbol_code(symbol, symbol_classes)
-    vec["side_enc"] = _side_code(side, side_classes)
-    hraw = float(vec.get("hour_of_day", float("nan")))
-    if (not math.isfinite(hraw)) and "hour_of_day" in feature_order:
-        vec["hour_of_day"] = (
-            float(datetime.now(_ET).hour)  # type: ignore[union-attr]
-            if _ET
-            else float(datetime.now(timezone.utc).hour)
-        )
-    x = np.array(
-        [float(vec.get(f, float("nan"))) for f in feature_order],
-        dtype=np.float32,
-    ).reshape(1, -1)
+    x = _vector_for_model(feature_order, row, symbol, side, symbol_classes, side_classes)
     import xgboost as xgb  # type: ignore
 
     d = xgb.DMatrix(x, feature_names=feature_order)
@@ -346,6 +472,7 @@ def attach_shadow_telemetry(
     rec["ai_approved_v1"] = None
     rec["ai_approved_v2"] = None
     rec["ai_approved_v3_shadow"] = None
+    rec["challenger_ai_approved"] = None
     tid = rec.get("trade_id")
     row: Dict[str, float] = {}
     try:
@@ -400,6 +527,30 @@ def attach_shadow_telemetry(
         rec["ai_approved_v2_error"] = str(e)[:200]
         if "sys" in dir():
             print(f"[shadow_evaluator] v2/v3 shadow enrich failed: {e}", file=sys.stderr)
+
+    if os.environ.get("CHALLENGER_SHADOW_ENABLED", "1").strip().lower() in ("1", "true", "yes", "on"):
+        try:
+            proba_c, threshold_c, err_c = predict_challenger_probability(symbol=symbol, side=side, row=row)
+            if proba_c is not None and threshold_c is not None:
+                approved_c = float(proba_c) >= float(threshold_c)
+                rec["challenger_ai_approved"] = bool(approved_c)
+                rec["challenger_shadow_proba"] = float(proba_c)
+                rec["challenger_threshold"] = float(threshold_c)
+                if approved_c and str(rec.get("decision_outcome") or "").lower() != "entered":
+                    entry_price = row.get("entry_price")
+                    if entry_price is not None and math.isfinite(float(entry_price)) and float(entry_price) > 0:
+                        log_shadow_execution(
+                            symbol=symbol,
+                            side=side,
+                            proba=float(proba_c),
+                            threshold=float(threshold_c),
+                            entry_price=float(entry_price),
+                            source_event=rec,
+                        )
+            elif err_c:
+                rec["challenger_error"] = str(err_c)[:200]
+        except Exception as e:
+            rec["challenger_error"] = str(e)[:200]
 
 
 if __name__ == "__main__":

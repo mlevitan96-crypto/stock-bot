@@ -424,6 +424,40 @@ def _uw_gamma_skew_and_tide(entry_uw: Any) -> Tuple[float, float]:
     return (float(g_out) if g_out is not None else z, float(t_out) if t_out is not None else z)
 
 
+def _first_nonblank(*values: Any) -> Any:
+    for value in values:
+        if value is not None and str(value).strip() != "":
+            return value
+    return None
+
+
+def _is_zero_pnl(rec: dict) -> bool:
+    pnl = rec.get("pnl")
+    if pnl is None:
+        pnl = rec.get("realized_pnl_usd")
+    try:
+        return abs(float(pnl)) < 1e-9
+    except (TypeError, ValueError):
+        return False
+
+
+def _entry_price_for_base_row(rec: dict) -> Any:
+    entry_price = _first_nonblank(
+        rec.get("entry_price"),
+        rec.get("avg_entry_price"),
+        rec.get("entry_fill_price"),
+        rec.get("entry_filled_avg_price"),
+    )
+    if entry_price is not None:
+        return entry_price
+    if _is_zero_pnl(rec):
+        # Some same-instant displacement/flat rows have unresolved entry order ids but
+        # still carry the broker execution price on the close side. For a true flat
+        # trade, entry and exit price are identical, so keep the ML target complete.
+        return _first_nonblank(rec.get("exit_price"), rec.get("price"), rec.get("filled_avg_price"))
+    return None
+
+
 def _base_trade_fields(rec: dict) -> Dict[str, Any]:
     side = rec.get("position_side") or rec.get("side") or ""
     pnl = rec.get("pnl")
@@ -446,7 +480,7 @@ def _base_trade_fields(rec: dict) -> Dict[str, Any]:
         "trade_key": rec.get("trade_key") or rec.get("canonical_trade_id"),
         "entry_ts": rec.get("entry_ts") or rec.get("entry_timestamp"),
         "exit_ts": rec.get("exit_ts") or rec.get("timestamp"),
-        "entry_price": rec.get("entry_price"),
+        "entry_price": _entry_price_for_base_row(rec),
         "exit_price": rec.get("exit_price") or rec.get("price"),
         "qty": rec.get("qty"),
         "variant_id": rec.get("variant_id"),
@@ -630,6 +664,9 @@ def build_rows(
                     row["ai_approved_v3_shadow"] = _blob.get("ai_approved_v3_shadow")
                     break
 
+        from src.core.ml_feature_normalization import normalize_features_for_side
+
+        row = normalize_features_for_side(row, str(row.get("side") or ""))
         out.append(row)
     return out
 

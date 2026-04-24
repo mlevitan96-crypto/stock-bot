@@ -142,6 +142,17 @@ def slippage_bps_vs_mid(
     return round(bps, 4), "decision_time_mid"
 
 
+def slippage_bps_vs_touch(
+    ref_bid: Optional[float],
+    ref_ask: Optional[float],
+    fill_price: Optional[float],
+    side: Optional[str],
+) -> tuple[Optional[float], Optional[str]]:
+    from src.execution.touch_pricing import slippage_bps_vs_touch as _touch
+
+    return _touch(ref_bid=ref_bid, ref_ask=ref_ask, fill_price=fill_price, side=side)
+
+
 def attach_paper_economics_defaults(event: Dict[str, Any]) -> Dict[str, Any]:
     """
     Additive economics schema for orders.jsonl.
@@ -152,9 +163,11 @@ def attach_paper_economics_defaults(event: Dict[str, Any]) -> Dict[str, Any]:
         e.setdefault("fee_excluded_reason", "ALPACA_PAPER_FILL_PAYLOAD_MISSING_FEE_FIELDS")
     e.setdefault("fee_amount", e.get("fee_amount"))
     e.setdefault("fee_currency", e.get("fee_currency"))
-    # Slippage: fill when we have ref mid from attribution store
+    # Slippage: prefer decision-time bid/ask touch; retain mid as historical fallback.
     sym = e.get("symbol")
     keys = get_symbol_attribution_keys(sym) if sym else {}
+    ref_bid = keys.get("decision_slippage_ref_bid")
+    ref_ask = keys.get("decision_slippage_ref_ask")
     ref_mid = keys.get("decision_slippage_ref_mid")
     fill_px = e.get("filled_avg_price")
     if fill_px is None:
@@ -162,11 +175,18 @@ def attach_paper_economics_defaults(event: Dict[str, Any]) -> Dict[str, Any]:
     if fill_px is None:
         fill_px = e.get("price")
     side = e.get("side")
-    bps, ref_type = slippage_bps_vs_mid(
-        float(ref_mid) if ref_mid is not None else None,
+    bps, ref_type = slippage_bps_vs_touch(
+        float(ref_bid) if ref_bid is not None else None,
+        float(ref_ask) if ref_ask is not None else None,
         float(fill_px) if fill_px is not None else None,
         str(side) if side else None,
     )
+    if bps is None:
+        bps, ref_type = slippage_bps_vs_mid(
+            float(ref_mid) if ref_mid is not None else None,
+            float(fill_px) if fill_px is not None else None,
+            str(side) if side else None,
+        )
     if bps is not None:
         e.setdefault("slippage_bps", bps)
         e.setdefault("slippage_ref_price_type", ref_type)

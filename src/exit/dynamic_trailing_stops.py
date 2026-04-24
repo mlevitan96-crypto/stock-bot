@@ -107,3 +107,38 @@ def long_ratcheted_trailing_stop(
 def long_stop_hit(*, current_price: float, trailing_stop: float) -> bool:
     """True when price is at or below the trailing stop (long)."""
     return float(current_price) <= float(trailing_stop)
+
+
+def short_ratcheted_trailing_stop(
+    *,
+    entry_price: float,
+    entry_atr: float,
+    lowest_low_since_entry: float,
+    current_atr: float,
+    multiplier: float,
+    previous_stop: Optional[float],
+) -> float:
+    """
+    Ratcheted short stop: never moves up. Combines initial anchor with chandelier trail.
+
+    ``initial = entry_price + multiplier * entry_atr``
+    ``chandelier = lowest_low_since_entry + multiplier * current_atr``
+    ``candidate = min(initial, chandelier)``
+    ``return min(previous_stop, candidate)`` when ``previous_stop`` is set.
+    """
+    ep = float(entry_price)
+    ea = float(entry_atr)
+    ll = float(lowest_low_since_entry)
+    atr = float(current_atr)
+    m = float(multiplier)
+    initial = ep + m * ea
+    chandelier = ll + m * atr
+    candidate = min(initial, chandelier)
+    if previous_stop is None or not _finite(float(previous_stop)):
+        return float(candidate)
+    return float(min(float(previous_stop), candidate))
+
+
+def short_stop_hit(*, current_price: float, trailing_stop: float) -> bool:
+    """True when price is at or above the trailing stop (short)."""
+    return float(current_price) >= float(trailing_stop)

@@ -48,7 +48,8 @@ def _side_code(side: str, classes: List[str]) -> float:
     else:
         s2 = s
     try:
-        return float(classes.index(s2)) if s2 in classes else float("nan")
+        normalized_classes = [str(c).upper().strip() for c in classes]
+        return float(normalized_classes.index(s2)) if s2 in normalized_classes else float("nan")
     except Exception:
         return float("nan")
 
@@ -108,7 +109,13 @@ def _vec_for_order(
     side: str,
     symbol_classes: List[str],
     side_classes: List[str],
+    *,
+    normalize_for_side: bool = True,
 ) -> "np.ndarray":
+    if normalize_for_side:
+        from src.core.ml_feature_normalization import normalize_features_for_side
+
+        row = normalize_features_for_side(row, side)  # type: ignore[assignment]
     vec: Dict[str, float] = {}
     for k in feature_order:
         vec[k] = float(row.get(k, float("nan")))
@@ -143,7 +150,7 @@ def predict_v2_probability(
     try:
         import xgboost as xgb  # type: ignore
 
-        x = _vec_for_order(feature_order, row, symbol, side, symbol_classes, side_classes)
+        x = _vec_for_order(feature_order, row, symbol, side, symbol_classes, side_classes, normalize_for_side=True)
         d = xgb.DMatrix(x, feature_names=feature_order)
         p = bst.predict(d)
         p0 = float(p[0]) if len(p) else float("nan")
@@ -168,7 +175,7 @@ def predict_v3_probability(
     try:
         import xgboost as xgb  # type: ignore
 
-        x = _vec_for_order(feature_order, row, symbol, side, symbol_classes, side_classes)
+        x = _vec_for_order(feature_order, row, symbol, side, symbol_classes, side_classes, normalize_for_side=False)
         d = xgb.DMatrix(x, feature_names=feature_order)
         p = bst.predict(d)
         p0 = float(p[0]) if len(p) else float("nan")
@@ -227,6 +234,9 @@ def evaluate_v2_live_gate(
     Fail-closed (not allowed) when model missing or inference fails, unless V2_LIVE_GATE_FAIL_OPEN=1.
     """
     import os
+
+    if str(side or "").strip().lower() in ("sell", "short"):
+        return True, None, "v2_short_gate_quarantined_until_retrain"
 
     thr = float(threshold) if threshold is not None else default_v2_threshold()
     bst, meta, err = _load_pair(_V2_MODEL, _V2_META, "v2")

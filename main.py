@@ -6236,6 +6236,11 @@ class AlpacaExecutor:
             else:
                 return normalize_equity_limit_price(max(bid + tol, ask - tol))
 
+        if mode in ("MARKET_FALLBACK", "TOUCH_CROSS", "AGGRESSIVE_TOUCH"):
+            from src.execution.touch_pricing import touch_price_for_order_side
+
+            return normalize_equity_limit_price(touch_price_for_order_side(side, bid=bid, ask=ask))
+
         spread = ask - bid
         if spread / mid <= (Config.ENTRY_TOLERANCE_BPS / 10000.0):
             return normalize_equity_limit_price(mid)
@@ -6292,14 +6297,17 @@ class AlpacaExecutor:
         # Only applies to entry path; exits may legitimately submit sell orders to close longs.
         if side == "sell":
             try:
+                from src.core.broker_math import validate_short_asset
+
                 asset = self.api.get_asset(symbol)
-                is_shortable = bool(getattr(asset, "shortable", False))
+                htb_override = os.getenv("HTB_OVERRIDE", "").strip().lower() in ("1", "true", "yes", "on")
+                short_ok, short_reason = validate_short_asset(asset, htb_override=htb_override)
             except Exception as e:
                 log_event("submit_entry", "asset_lookup_failed", symbol=symbol, error=str(e))
-                is_shortable = False
-            if not is_shortable:
-                log_event("submit_entry", "asset_not_shortable_blocked", symbol=symbol)
-                return None, None, "asset_not_shortable", 0, "asset_not_shortable"
+                short_ok, short_reason = False, "asset_lookup_failed"
+            if not short_ok:
+                log_event("submit_entry", "short_asset_blocked", symbol=symbol, reason=short_reason)
+                return None, None, short_reason, 0, short_reason
 
         ref_price = self.get_last_trade(symbol)
         if ref_price <= 0:
@@ -6337,53 +6345,55 @@ class AlpacaExecutor:
         except Exception as _gate_e:
             log_event("submit_entry", "offense_entry_gate_error", symbol=symbol, error=str(_gate_e))
 
-        # V2 live gate: hard block when model says probability below threshold (long entries only).
+        # V2 live gate: hard block when model says probability below threshold.
+        # Shorts are explicitly quarantined in the runtime until the V2 model is retrained.
         if str(os.environ.get("V2_LIVE_GATE_ENABLED", "1")).strip().lower() in ("1", "true", "yes", "on"):
-            if str(side).lower() == "buy":
-                try:
-                    from telemetry.shadow_evaluator import build_vanguard_feature_map
-                    from telemetry.vanguard_ml_runtime import evaluate_v2_live_gate
+            try:
+                from telemetry.shadow_evaluator import build_vanguard_feature_map
+                from telemetry.vanguard_ml_runtime import evaluate_v2_live_gate
 
-                    _fs_g = ml_gate_feature_snapshot if isinstance(ml_gate_feature_snapshot, dict) else {}
-                    _cl_g = ml_gate_cluster if isinstance(ml_gate_cluster, dict) else {}
-                    _ec_g = entry_components if isinstance(entry_components, dict) else {}
-                    _row_gate = build_vanguard_feature_map(
+                _fs_g = ml_gate_feature_snapshot if isinstance(ml_gate_feature_snapshot, dict) else {}
+                _cl_g = ml_gate_cluster if isinstance(ml_gate_cluster, dict) else {}
+                _ec_g = entry_components if isinstance(entry_components, dict) else {}
+                _row_gate = build_vanguard_feature_map(
+                    symbol=symbol,
+                    side=side,
+                    now_utc=datetime.now(timezone.utc),
+                    feature_snapshot=_fs_g if _fs_g else _ec_g,
+                    comps=_ec_g,
+                    cluster=_cl_g if _cl_g else _ec_g,
+                    trade_id=str(ml_gate_trade_id) if ml_gate_trade_id else None,
+                )
+                _pex_g = getattr(self, "_pending_entry_snapshot", None)
+                if isinstance(_pex_g, dict):
+                    for k_g, fk_g in (("entry_price", "entry_price"), ("size", "qty"), ("qty", "qty")):
+                        if k_g in _pex_g and _pex_g[k_g] is not None and fk_g not in _row_gate:
+                            try:
+                                _row_gate[fk_g] = float(_pex_g[k_g])
+                            except (TypeError, ValueError):
+                                pass
+                _ok_v2, _p_v2, _rc_v2 = evaluate_v2_live_gate(symbol=symbol, side=side, row=_row_gate)
+                if not _ok_v2:
+                    log_event(
+                        "submit_entry",
+                        "v2_agent_veto",
                         symbol=symbol,
                         side=side,
-                        now_utc=datetime.now(timezone.utc),
-                        feature_snapshot=_fs_g if _fs_g else _ec_g,
-                        comps=_ec_g,
-                        cluster=_cl_g if _cl_g else _ec_g,
-                        trade_id=str(ml_gate_trade_id) if ml_gate_trade_id else None,
+                        v2_proba=_p_v2,
+                        reason=_rc_v2,
                     )
-                    _pex_g = getattr(self, "_pending_entry_snapshot", None)
-                    if isinstance(_pex_g, dict):
-                        for k_g, fk_g in (("entry_price", "entry_price"), ("size", "qty"), ("qty", "qty")):
-                            if k_g in _pex_g and _pex_g[k_g] is not None and fk_g not in _row_gate:
-                                try:
-                                    _row_gate[fk_g] = float(_pex_g[k_g])
-                                except (TypeError, ValueError):
-                                    pass
-                    _ok_v2, _p_v2, _rc_v2 = evaluate_v2_live_gate(symbol=symbol, side=side, row=_row_gate)
-                    if not _ok_v2:
-                        log_event(
-                            "submit_entry",
-                            "v2_agent_veto",
-                            symbol=symbol,
-                            side=side,
-                            v2_proba=_p_v2,
-                            reason=_rc_v2,
-                        )
-                        return None, None, str(_rc_v2 or "v2_agent_veto"), 0, str(_rc_v2 or "v2_agent_veto")
-                except Exception as _v2e:
-                    log_event("submit_entry", "v2_live_gate_error", symbol=symbol, error=str(_v2e))
-                    if str(os.environ.get("V2_LIVE_GATE_FAIL_OPEN", "0")).strip().lower() not in (
-                        "1",
-                        "true",
-                        "yes",
-                        "on",
-                    ):
-                        return None, None, "v2_agent_veto_inference_error", 0, "v2_agent_veto_inference_error"
+                    return None, None, str(_rc_v2 or "v2_agent_veto"), 0, str(_rc_v2 or "v2_agent_veto")
+                if _rc_v2 == "v2_short_gate_quarantined_until_retrain":
+                    log_event("submit_entry", "v2_short_gate_quarantined", symbol=symbol, side=side, reason=_rc_v2)
+            except Exception as _v2e:
+                log_event("submit_entry", "v2_live_gate_error", symbol=symbol, error=str(_v2e))
+                if str(os.environ.get("V2_LIVE_GATE_FAIL_OPEN", "0")).strip().lower() not in (
+                    "1",
+                    "true",
+                    "yes",
+                    "on",
+                ):
+                    return None, None, "v2_agent_veto_inference_error", 0, "v2_agent_veto_inference_error"
 
         # === TRADE GUARD: Mandatory sanity check (Risk #15) ===
         try:
@@ -6545,10 +6555,12 @@ class AlpacaExecutor:
             # BULLETPROOF: Validate buying power is positive
             if bp <= 0:
                 log_event("submit_entry", "invalid_buying_power", symbol=symbol, bp=bp, dtbp=dtbp)
-                # Fail open - allow trade to proceed if can't validate (will fail at broker if truly insufficient)
-                bp = 1000000.0  # Large default to not block trade
+                return None, None, "invalid_buying_power", 0, "invalid_buying_power"
             
-            required_margin = notional * 1.5 if side == "sell" else notional
+            from src.core.broker_math import required_buying_power
+
+            notional = abs(float(qty)) * float(ref_price)
+            required_margin = required_buying_power(notional, side)
             # Use regular buying_power for paper trading (dtbp is unreliable in paper accounts)
             available_bp = bp
             
@@ -6575,6 +6587,7 @@ class AlpacaExecutor:
                 return None, None, "insufficient_buying_power", 0, "insufficient_buying_power"
         except Exception as e:
             log_event("submit_entry", "margin_check_failed", symbol=symbol, error=str(e))
+            return None, None, "margin_check_failed", 0, "margin_check_failed"
         
         # === REGIME-AWARE EXECUTION (Audit Recommendation) ===
         execution_urgency = Config.REGIME_EXECUTION_MAP.get(regime, "NEUTRAL")
@@ -6592,6 +6605,19 @@ class AlpacaExecutor:
                      symbol=symbol, regime=regime, urgency=execution_urgency)
         # else: NEUTRAL uses default Config.ENTRY_MODE
         
+        decision_bid, decision_ask = self.get_nbbo(symbol)
+        try:
+            from telemetry.attribution_emit_keys import set_symbol_attribution_keys
+
+            if decision_bid > 0 and decision_ask > 0:
+                set_symbol_attribution_keys(
+                    symbol,
+                    decision_slippage_ref_bid=float(decision_bid),
+                    decision_slippage_ref_ask=float(decision_ask),
+                    decision_slippage_ref_mid=(float(decision_bid) + float(decision_ask)) / 2.0,
+                )
+        except Exception:
+            pass
         limit_price = self.compute_entry_price(symbol, side)
 
         # AUDIT_MODE: Safety check - no live orders in audit mode
@@ -6907,6 +6933,14 @@ class AlpacaExecutor:
                     if order_id:
                         filled, filled_qty, filled_price = self.check_order_filled(order_id)
                         if filled and filled_qty > 0:
+                            from src.execution.touch_pricing import slippage_bps_vs_touch
+
+                            touch_slippage_bps, touch_ref = slippage_bps_vs_touch(
+                                ref_bid=decision_bid,
+                                ref_ask=decision_ask,
+                                fill_price=filled_price,
+                                side=side,
+                            )
                             # If partial fill, cancel remainder and proceed with filled_qty only.
                             if filled_qty < qty:
                                 try:
@@ -6914,7 +6948,8 @@ class AlpacaExecutor:
                                 except Exception:
                                     pass
                             log_order({"action": "submit_limit_filled", "symbol": symbol, "side": side,
-                                       "limit_price": limit_price, "filled_price": filled_price, "attempt": attempt})
+                                       "limit_price": limit_price, "filled_price": filled_price, "attempt": attempt,
+                                       "touch_slippage_bps": touch_slippage_bps, "touch_ref": touch_ref})
                             telemetry.log_order_event(
                                 event_type="LIMIT_FILLED",
                                 symbol=symbol,
@@ -6923,7 +6958,8 @@ class AlpacaExecutor:
                                 order_type="limit",
                                 limit_price=limit_price,
                                 fill_price=filled_price,
-                                slippage_bps=abs(filled_price - limit_price) / limit_price * 10000 if limit_price > 0 else 0,
+                                slippage_bps=touch_slippage_bps if touch_slippage_bps is not None else 0,
+                                slippage_ref_price_type=touch_ref,
                                 attempt=attempt,
                                 status="filled"
                             )
@@ -7212,6 +7248,14 @@ class AlpacaExecutor:
             if order_id:
                 filled, filled_qty, filled_price = self.check_order_filled(order_id, max_wait_sec=1.0)
                 if filled and filled_qty > 0:
+                    from src.execution.touch_pricing import slippage_bps_vs_touch
+
+                    touch_slippage_bps, touch_ref = slippage_bps_vs_touch(
+                        ref_bid=decision_bid,
+                        ref_ask=decision_ask,
+                        fill_price=filled_price,
+                        side=side,
+                    )
                     telemetry.log_order_event(
                         event_type="MARKET_FILLED",
                         symbol=symbol,
@@ -7220,7 +7264,8 @@ class AlpacaExecutor:
                         order_type="market",
                         limit_price=None,
                         fill_price=filled_price,
-                        slippage_bps=0,
+                        slippage_bps=touch_slippage_bps if touch_slippage_bps is not None else 0,
+                        slippage_ref_price_type=touch_ref,
                         attempt="market_fallback",
                         status="filled"
                     )
@@ -7405,7 +7450,10 @@ class AlpacaExecutor:
                     entry_price = float(getattr(pos, "avg_entry_price", 0))
                     current_price = float(getattr(pos, "current_price", 0))
                     if entry_price > 0 and current_price > 0:
-                        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+                        from src.core.position_math import calculate_signed_pnl_pct
+
+                        pos_side = "buy" if float(getattr(pos, "qty", 0) or 0) > 0 else "sell"
+                        pnl_pct = calculate_signed_pnl_pct(entry_price, current_price, pos_side)
                     else:
                         pnl_pct = 0.0
                     
@@ -8309,7 +8357,7 @@ class AlpacaExecutor:
     def _scale_out_partial(self, symbol: str, fraction: float, side: str):
         try:
             current_qty = get_position_qty(self.api, symbol)
-            if current_qty <= 0 or fraction <= 0:
+            if abs(current_qty) <= 0 or fraction <= 0:
                 return False
             close_qty = max(1, int(abs(current_qty) * fraction))
             exit_side = "sell" if side == "buy" else "buy"
@@ -8827,6 +8875,14 @@ class AlpacaExecutor:
             
             entry_price = info.get("entry_price", current_price) or current_price  # BULLETPROOF: Ensure non-zero
             high_water_price = info.get("high_water", current_price) or current_price  # BULLETPROOF: Ensure non-zero
+            position_side_for_math = str(info.get("side", "buy") or "buy").lower()
+            from src.core.position_math import (
+                calculate_new_trailing_stop,
+                calculate_signed_pnl_pct,
+                favorable_extreme_price,
+                is_stop_loss_hit,
+            )
+            high_water_price = favorable_extreme_price(high_water_price, current_price, position_side_for_math)
             
             # CRITICAL FIX: Use Alpaca's unrealized_plpc directly if available
             # This is the authoritative P&L calculation from Alpaca
@@ -8848,16 +8904,16 @@ class AlpacaExecutor:
                     if entry_price <= 0:
                         log_event("exit", "invalid_entry_price", symbol=symbol, entry_price=entry_price, current_price=current_price)
                         entry_price = current_price if current_price > 0 else 1.0
-                    pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+                    pnl_pct = calculate_signed_pnl_pct(entry_price, current_price, position_side_for_math) if entry_price > 0 else 0
             else:
                 # BULLETPROOF: Validate entry_price before division (prevent divide by zero)
                 if entry_price <= 0:
                     log_event("exit", "invalid_entry_price", symbol=symbol, entry_price=entry_price, current_price=current_price)
                     entry_price = current_price if current_price > 0 else 1.0  # Fallback to safe value
                 
-                pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+                pnl_pct = calculate_signed_pnl_pct(entry_price, current_price, position_side_for_math) if entry_price > 0 else 0
             
-            high_water_pct = ((high_water_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+            high_water_pct = calculate_signed_pnl_pct(entry_price, high_water_price, position_side_for_math) if entry_price > 0 else 0
             
             # BULLETPROOF: Clamp percentages to reasonable range (prevent NaN/infinity)
             pnl_pct = max(-1000.0, min(1000.0, pnl_pct))
@@ -8912,7 +8968,7 @@ class AlpacaExecutor:
                     not _dyn_on
                     and os.environ.get("OFFENSE_ATR_TRAIL_ENABLED", "1").strip().lower() in ("1", "true", "yes", "on")
                 ):
-                    if str(info.get("side", "buy")).lower() == "buy" and float(entry_price) > 0:
+                    if float(entry_price) > 0:
                         try:
                             _oa_period = int(os.environ.get("OFFENSE_ATR_PERIOD", "14"))
                         except ValueError:
@@ -8935,15 +8991,21 @@ class AlpacaExecutor:
                         if not isinstance(_oa_state, dict):
                             _oa_state = {}
                         _oa_state = dict(_oa_state)
-                        _hh_oa = max(float(high_water_price), float(current_price), float(entry_price))
+                        _extreme_oa = favorable_extreme_price(
+                            favorable_extreme_price(float(entry_price), float(high_water_price), position_side_for_math),
+                            float(current_price),
+                            position_side_for_math,
+                        )
                         _atr_now_oa = None
-                        if _df_oa is not None and len(_df_oa) >= _oa_period + 1:
-                            from src.exit.dynamic_trailing_stops import (
-                                long_ratcheted_trailing_stop,
-                                long_stop_hit,
-                                wilders_atr_last,
-                            )
+                        from src.exit.dynamic_trailing_stops import (
+                            long_ratcheted_trailing_stop,
+                            long_stop_hit,
+                            short_ratcheted_trailing_stop,
+                            short_stop_hit,
+                            wilders_atr_last,
+                        )
 
+                        if _df_oa is not None and len(_df_oa) >= _oa_period + 1:
                             _h_oa = [float(x) for x in _df_oa["high"].tolist()]
                             _l_oa = [float(x) for x in _df_oa["low"].tolist()]
                             _c_oa = [float(x) for x in _df_oa["close"].tolist()]
@@ -8966,20 +9028,44 @@ class AlpacaExecutor:
                                     _prev_stop_oa = None
                             except (TypeError, ValueError):
                                 _prev_stop_oa = None
-                            _new_stop_oa = long_ratcheted_trailing_stop(
-                                entry_price=float(entry_price),
-                                entry_atr=float(_entry_atr_f),
-                                highest_high_since_entry=float(_hh_oa),
-                                current_atr=float(_atr_now_oa),
-                                multiplier=float(_oa_mult),
-                                previous_stop=_prev_stop_oa,
-                            )
+                            if position_side_for_math in ("buy", "long", "bull", "bullish"):
+                                _new_stop_oa = long_ratcheted_trailing_stop(
+                                    entry_price=float(entry_price),
+                                    entry_atr=float(_entry_atr_f),
+                                    highest_high_since_entry=float(_extreme_oa),
+                                    current_atr=float(_atr_now_oa),
+                                    multiplier=float(_oa_mult),
+                                    previous_stop=_prev_stop_oa,
+                                )
+                            else:
+                                _new_stop_oa = short_ratcheted_trailing_stop(
+                                    entry_price=float(entry_price),
+                                    entry_atr=float(_entry_atr_f),
+                                    lowest_low_since_entry=float(_extreme_oa),
+                                    current_atr=float(_atr_now_oa),
+                                    multiplier=float(_oa_mult),
+                                    previous_stop=_prev_stop_oa,
+                                )
                             _oa_state["entry_atr"] = float(_entry_atr_f)
                             _oa_state["trailing_stop_price"] = float(_new_stop_oa)
                             _oa_state["last_atr"] = float(_atr_now_oa)
                         else:
                             _pct = float(os.environ.get("OFFENSE_ATR_STATIC_FRACTION", "0.015"))
-                            _new_stop_oa = float(_hh_oa) * (1.0 - _pct)
+                            _prev_raw_oa = _oa_state.get("trailing_stop_price")
+                            try:
+                                _prev_stop_oa = (
+                                    float(_prev_raw_oa)
+                                    if _prev_raw_oa is not None and str(_prev_raw_oa).strip() != ""
+                                    else None
+                                )
+                            except (TypeError, ValueError):
+                                _prev_stop_oa = None
+                            _new_stop_oa = calculate_new_trailing_stop(
+                                current_price=float(_extreme_oa),
+                                current_stop=_prev_stop_oa,
+                                side=position_side_for_math,
+                                trail_amount=abs(float(_extreme_oa) * _pct),
+                            )
                             _oa_state["trailing_stop_price"] = float(_new_stop_oa)
                             _oa_state["last_atr"] = None
                             _oa_state["static_fraction"] = _pct
@@ -8992,7 +9078,12 @@ class AlpacaExecutor:
                         all_metadata.setdefault(symbol, {})
                         if isinstance(all_metadata[symbol], dict):
                             all_metadata[symbol]["offense_atr_trail"] = _oa_state
-                        if long_stop_hit(current_price=float(current_price), trailing_stop=float(_new_stop_oa)):
+                        _atr_stop_hit_oa = (
+                            long_stop_hit(current_price=float(current_price), trailing_stop=float(_new_stop_oa))
+                            if position_side_for_math in ("buy", "long", "bull", "bullish")
+                            else short_stop_hit(current_price=float(current_price), trailing_stop=float(_new_stop_oa))
+                        )
+                        if _atr_stop_hit_oa:
                             exit_signals["offense_atr_trailing_stop"] = True
                             exit_signals["offense_atr_stop_price"] = round(float(_new_stop_oa), 6)
                             exit_signals["trailing_stop"] = True
@@ -9030,10 +9121,10 @@ class AlpacaExecutor:
                 except Exception:
                     pass
 
-            # Dynamic Wilder ATR trailing stop (long-only). Early in the loop so v2/pressure ``continue`` paths cannot skip it.
+            # Dynamic Wilder ATR trailing stop. Early in the loop so v2/pressure ``continue`` paths cannot skip it.
             try:
                 if os.environ.get("DYNAMIC_ATR_EXITS_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on"):
-                    if str(info.get("side", "buy")).lower() == "buy" and float(entry_price) > 0:
+                    if float(entry_price) > 0:
                         try:
                             _atr_period = int(os.environ.get("DYNAMIC_ATR_PERIOD", "14"))
                         except ValueError:
@@ -9053,6 +9144,8 @@ class AlpacaExecutor:
                             from src.exit.dynamic_trailing_stops import (
                                 long_ratcheted_trailing_stop,
                                 long_stop_hit,
+                                short_ratcheted_trailing_stop,
+                                short_stop_hit,
                                 wilders_atr_last,
                             )
 
@@ -9074,7 +9167,11 @@ class AlpacaExecutor:
                                     _entry_atr_f = float(_atr_now)
                             except (TypeError, ValueError):
                                 _entry_atr_f = float(_atr_now)
-                            _hh = max(float(high_water_price), float(current_price), float(entry_price))
+                            _extreme_atr = favorable_extreme_price(
+                                favorable_extreme_price(float(entry_price), float(high_water_price), position_side_for_math),
+                                float(current_price),
+                                position_side_for_math,
+                            )
                             _prev_raw = _dyn.get("trailing_stop_price")
                             try:
                                 _prev_stop = float(_prev_raw) if _prev_raw is not None and str(_prev_raw).strip() != "" else None
@@ -9082,14 +9179,24 @@ class AlpacaExecutor:
                                     _prev_stop = None
                             except (TypeError, ValueError):
                                 _prev_stop = None
-                            _new_stop = long_ratcheted_trailing_stop(
-                                entry_price=float(entry_price),
-                                entry_atr=float(_entry_atr_f),
-                                highest_high_since_entry=float(_hh),
-                                current_atr=float(_atr_now),
-                                multiplier=float(_atr_mult),
-                                previous_stop=_prev_stop,
-                            )
+                            if position_side_for_math in ("buy", "long", "bull", "bullish"):
+                                _new_stop = long_ratcheted_trailing_stop(
+                                    entry_price=float(entry_price),
+                                    entry_atr=float(_entry_atr_f),
+                                    highest_high_since_entry=float(_extreme_atr),
+                                    current_atr=float(_atr_now),
+                                    multiplier=float(_atr_mult),
+                                    previous_stop=_prev_stop,
+                                )
+                            else:
+                                _new_stop = short_ratcheted_trailing_stop(
+                                    entry_price=float(entry_price),
+                                    entry_atr=float(_entry_atr_f),
+                                    lowest_low_since_entry=float(_extreme_atr),
+                                    current_atr=float(_atr_now),
+                                    multiplier=float(_atr_mult),
+                                    previous_stop=_prev_stop,
+                                )
                             _dyn["entry_atr"] = float(_entry_atr_f)
                             _dyn["trailing_stop_price"] = float(_new_stop)
                             _dyn["last_atr"] = float(_atr_now)
@@ -9102,7 +9209,12 @@ class AlpacaExecutor:
                             all_metadata.setdefault(symbol, {})
                             if isinstance(all_metadata[symbol], dict):
                                 all_metadata[symbol]["dynamic_atr_trail"] = _dyn
-                            if long_stop_hit(current_price=float(current_price), trailing_stop=float(_new_stop)):
+                            _atr_stop_hit = (
+                                long_stop_hit(current_price=float(current_price), trailing_stop=float(_new_stop))
+                                if position_side_for_math in ("buy", "long", "bull", "bullish")
+                                else short_stop_hit(current_price=float(current_price), trailing_stop=float(_new_stop))
+                            )
+                            if _atr_stop_hit:
                                 exit_signals["dynamic_atr_trailing_stop"] = True
                                 exit_signals["dynamic_atr_stop_price"] = round(float(_new_stop), 6)
                                 exit_signals["trailing_stop"] = True
@@ -9343,7 +9455,7 @@ class AlpacaExecutor:
                     exit_cond_signal_decay = signal_decay_ratio < 0.70
                     time_exit_min = float(os.environ.get("TIME_EXIT_MINUTES", "240"))
                     exit_cond_stale_alpha = age_min >= time_exit_min
-                    exit_cond_risk_stop = bool(stop_px and current_price <= float(stop_px)) or (float(high_water_pct or 0) - float(pnl_pct or 0) >= 3.5)
+                    exit_cond_risk_stop = bool(stop_px and is_stop_loss_hit(current_price, float(stop_px), position_side_for_math)) or (float(high_water_pct or 0) - float(pnl_pct or 0) >= 3.5)
                     exit_eligible_trace = float(v2_exit_score) >= _v2_exit_thr
                     entry_ts_obj = info.get("ts") or now
                     entry_ts_iso = entry_ts_obj.strftime("%Y-%m-%dT%H:%M:%S.%f")[:23] + "Z" if hasattr(entry_ts_obj, "strftime") else str(entry_ts_obj)[:26]
@@ -9672,23 +9784,35 @@ class AlpacaExecutor:
                     trailing_stop_pct = 0.01  # 1.0% for MIXED regimes
             
             if "trail_dist" in info and info["trail_dist"] is not None:
-                info["high_water"] = max(info.get("high_water", current_price), current_price)
-                trail_stop = info["high_water"] - info["trail_dist"]
+                info["high_water"] = favorable_extreme_price(info.get("high_water", current_price), current_price, position_side_for_math)
+                trail_stop = calculate_new_trailing_stop(
+                    current_price=float(info["high_water"]),
+                    current_stop=None,
+                    side=position_side_for_math,
+                    trail_amount=abs(float(info["trail_dist"])),
+                )
             else:
-                self.high_water[symbol] = max(self.high_water.get(symbol, current_price), current_price)
-                trail_stop = self.high_water[symbol] * (1 - trailing_stop_pct)
+                self.high_water[symbol] = favorable_extreme_price(self.high_water.get(symbol, current_price), current_price, position_side_for_math)
+                trail_stop = calculate_new_trailing_stop(
+                    current_price=float(self.high_water[symbol]),
+                    current_stop=None,
+                    side=position_side_for_math,
+                    trail_amount=abs(float(self.high_water[symbol]) * trailing_stop_pct),
+                )
 
             # Offense: combine static percent trail with offense ATR chandelier (long: take looser stop = min prices).
             try:
                 if os.environ.get("OFFENSE_TRAIL_MERGE_WITH_STATIC", "1").strip().lower() in ("1", "true", "yes", "on"):
-                    if str(info.get("side", "buy")).lower() == "buy":
-                        _row_m = all_metadata.get(symbol, {})
-                        if isinstance(_row_m, dict):
-                            _ot = _row_m.get("offense_atr_trail")
-                            if isinstance(_ot, dict) and _ot.get("trailing_stop_price") is not None:
-                                _otp = float(_ot["trailing_stop_price"])
-                                if _otp > 0 and not (math.isnan(_otp) or math.isinf(_otp)):
+                    _row_m = all_metadata.get(symbol, {})
+                    if isinstance(_row_m, dict):
+                        _ot = _row_m.get("offense_atr_trail")
+                        if isinstance(_ot, dict) and _ot.get("trailing_stop_price") is not None:
+                            _otp = float(_ot["trailing_stop_price"])
+                            if _otp > 0 and not (math.isnan(_otp) or math.isinf(_otp)):
+                                if position_side_for_math in ("buy", "long", "bull", "bullish"):
                                     trail_stop = min(float(trail_stop), _otp)
+                                else:
+                                    trail_stop = max(float(trail_stop), _otp)
             except Exception:
                 pass
 
@@ -9737,7 +9861,7 @@ class AlpacaExecutor:
                 min_hold_sec_no_decay = MIN_HOLD_SECONDS_NO_DECAY
                 current_composite_tmp = current_signals.get("composite_score", 0.0) or 0.0
                 signal_delta_tmp = (float(current_composite_tmp) - float(entry_score)) if (entry_score and current_composite_tmp) else None
-                price_delta_pct_tmp = (float(current_price - entry_price) / float(entry_price) * 100.0) if entry_price and entry_price > 0 else None
+                price_delta_pct_tmp = calculate_signed_pnl_pct(entry_price, current_price, position_side_for_math) if entry_price and entry_price > 0 else None
                 exit_regime_for_decay, _, _ = get_exit_regime(
                     signal_delta=signal_delta_tmp,
                     price_delta_pct=price_delta_pct_tmp,
@@ -9786,7 +9910,7 @@ class AlpacaExecutor:
             # BULLETPROOF: Validate trail_stop calculation before comparing
             stop_hit = False
             if not (math.isnan(trail_stop) or math.isinf(trail_stop) or trail_stop <= 0):
-                stop_hit = current_price <= trail_stop
+                stop_hit = is_stop_loss_hit(current_price, trail_stop, position_side_for_math)
             else:
                 log_event("exit", "invalid_trail_stop", symbol=symbol, trail_stop=trail_stop, current_price=current_price)
             
@@ -9812,7 +9936,7 @@ class AlpacaExecutor:
                 from board.eod.exit_regimes import get_exit_regime, log_exit_regime_decision
                 current_composite = current_signals.get("composite_score", 0.0) or 0.0
                 signal_delta = (float(current_composite) - float(entry_score)) if (entry_score and current_composite) else None
-                price_delta_pct = (float(current_price - entry_price) / float(entry_price) * 100.0) if entry_price and entry_price > 0 else None
+                price_delta_pct = calculate_signed_pnl_pct(entry_price, current_price, position_side_for_math) if entry_price and entry_price > 0 else None
                 exit_regime, exit_regime_reason, exit_regime_context = get_exit_regime(
                     signal_delta=signal_delta,
                     price_delta_pct=price_delta_pct,
@@ -9881,7 +10005,7 @@ class AlpacaExecutor:
                         if hasattr(entry_ts, 'tzinfo') and entry_ts.tzinfo is not None:
                             entry_ts = entry_ts.replace(tzinfo=None)
                         hold_minutes = (datetime.utcnow() - entry_ts).total_seconds() / 60.0
-                        pnl_pct = ((current_price - entry_price) / entry_price * 100 * side_sign) if entry_price > 0 else 0.0
+                        pnl_pct = calculate_signed_pnl_pct(entry_price, current_price, side) if entry_price > 0 else 0.0
                         
                         symbol_metadata = all_metadata.get(symbol, {})
                         components = symbol_metadata.get("components", info.get("components", {}))
