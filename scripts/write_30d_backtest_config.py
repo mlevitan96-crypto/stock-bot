@@ -27,7 +27,7 @@ def main() -> int:
         "use_survivorship": True,
         "use_constraints": True,
         "use_correlation_sizing": True,
-        "use_wheel_strategy": True,
+        "use_secondary_options_strategy": False,
         "log_all_candidates": True,
         "log_all_exits": True,
         "log_all_blocks": True,

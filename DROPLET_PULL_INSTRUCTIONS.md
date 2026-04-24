@@ -7,10 +7,10 @@
 
 ## Quick Deployment Command
 
-On your droplet, run:
+On your droplet, run (immutable GitOps — matches `.cursorrules` `immutable_production_gitops`):
 
 ```bash
-cd ~/stock-bot && git pull origin main && echo "Code updated successfully"
+cd ~/stock-bot && git fetch origin && git reset --hard origin/main && echo "Code synced to origin/main"
 ```
 
 ---

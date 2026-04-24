@@ -1,0 +1,81 @@
+{
+  "blocked_reason_counts_tail": {
+    "displacement_blocked": 5719,
+    "expectancy_blocked:score_floor_breach": 293,
+    "max_new_positions_per_cycle": 180,
+    "max_positions_reached": 1917,
+    "order_validation_failed": 560
+  },
+  "blocked_tail_rows": 8669,
+  "disclaimer": "Median split is not causal; small n; same-sample bootstrap for exploration only.",
+  "exit_tail_rows": 432,
+  "matched_exit_snapshot_pairs": 63,
+  "snapshot_tail_rows": 2000,
+  "uw_component_uplift_bootstrap": {
+    "dark_pool": {
+      "bootstrap": {
+        "bootstrap_p95_high": 0.317079,
+        "bootstrap_p95_low": -1.105323,
+        "delta_mean": -0.368582,
+        "mean_high": -0.538125,
+        "mean_low": -0.169543,
+        "n_high": 32,
+        "n_low": 31
+      },
+      "median_split_on_component": 0.186,
+      "n": 63
+    },
+    "etf_flow": {
+      "bootstrap": {
+        "bootstrap_p95_high": 0.325829,
+        "bootstrap_p95_low": -1.105323,
+        "delta_mean": -0.368582,
+        "mean_high": -0.538125,
+        "mean_low": -0.169543,
+        "n_high": 32,
+        "n_low": 31
+      },
+      "median_split_on_component": 0.043,
+      "n": 63
+    },
+    "flow": {
+      "bootstrap": {
+        "bootstrap_p95_high": -0.005905,
+        "bootstrap_p95_low": -1.545211,
+        "delta_mean": -0.732187,
+        "mean_high": -0.717042,
+        "mean_low": 0.015145,
+        "n_high": 32,
+        "n_low": 31
+      },
+      "median_split_on_component": 2.4,
+      "n": 63
+    },
+    "greeks_gamma": {
+      "bootstrap": {
+        "bootstrap_p95_high": 0.983308,
+        "bootstrap_p95_low": -0.440911,
+        "delta_mean": 0.216962,
+        "mean_high": -0.25,
+        "mean_low": -0.466962,
+        "n_high": 32,
+        "n_low": 31
+      },
+      "median_split_on_component": 0.143,
+      "n": 63
+    },
+    "whale": {
+      "bootstrap": {
+        "bootstrap_p95_high": 0.278257,
+        "bootstrap_p95_low": -1.124193,
+        "delta_mean": -0.368582,
+        "mean_high": -0.538125,
+        "mean_low": -0.169543,
+        "n_high": 32,
+        "n_low": 31
+      },
+      "median_split_on_component": 0.0,
+      "n": 63
+    }
+  }
+}

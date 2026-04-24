@@ -11,6 +11,8 @@ Default: print-only (--dry-run). Use --fit only after explicit operator approval
 Usage (repo root):
   PYTHONPATH=. python3 src/ml/alpaca_cohort_train.py --csv reports/Gemini/alpaca_ml_cohort_flat.csv
   PYTHONPATH=. python3 src/ml/alpaca_cohort_train.py --feature-mode strict_scoreflow --fit
+  PYTHONPATH=. python3 src/ml/alpaca_cohort_train.py --calibration-gate
+  PYTHONPATH=. python3 src/ml/alpaca_cohort_train.py --calibration-gate-precision
 """
 from __future__ import annotations
 
@@ -219,11 +221,45 @@ def main() -> int:
         action="store_true",
         help="Fit a shallow sanity model (requires sklearn). Default is dry-run counts only.",
     )
+    ap.add_argument(
+        "--calibration-gate",
+        action="store_true",
+        help="Harvester L2 calibration (full features) vs mlf_scoreflow_total_score; "
+        "writes reports/Gemini/harvester_calibration_gate.json; exit 2 if PF gate fails.",
+    )
+    ap.add_argument(
+        "--calibration-gate-precision",
+        action="store_true",
+        help="Precision narrow: congress+smile+sentiment, C=0.1, imputed weight 0.25; "
+        "requires PF>=10%% lift AND positive CV; writes harvester_calibration_gate_precision.json.",
+    )
     args = ap.parse_args()
     path = args.csv.resolve()
     if not path.is_file():
         print(f"Missing CSV: {path}", file=sys.stderr)
         return 1
+
+    if args.calibration_gate_precision or args.calibration_gate:
+        from src.ml.alpaca_harvester_calibration_gate import print_report, run_calibration_gate
+
+        narrow = bool(args.calibration_gate_precision)
+        jout = (
+            REPO_ROOT / "reports" / "Gemini" / "harvester_calibration_gate_precision.json"
+            if narrow
+            else REPO_ROOT / "reports" / "Gemini" / "harvester_calibration_gate.json"
+        )
+        try:
+            res = run_calibration_gate(
+                path,
+                json_out=jout,
+                narrow_precision=narrow,
+                l2_c=0.1 if narrow else None,
+            )
+        except Exception as e:
+            print(f"Calibration gate failed: {e}", file=sys.stderr)
+            return 1
+        print_report(res.report)
+        return 0 if res.promotion_ok else 2
 
     require_tier = "entry_snapshot" if args.feature_mode == "strict_entry_snapshot" else None
     headers, kept, stats = load_and_filter(

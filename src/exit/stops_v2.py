@@ -27,8 +27,8 @@ def compute_stop_price(
         return None, {"reason": "missing_entry_price"}
 
     vol = float(realized_vol_20d or 0.0)
-    # Base stop percent: 1.5%–4% based on vol
-    base_pct = 0.015 + max(0.0, min(0.025, (vol - 0.20) * 0.06))
+    # Base stop percent: floor 2.5%, up to ~5% with vol term (wider for high-beta / thesis room)
+    base_pct = 0.025 + max(0.0, min(0.025, (vol - 0.20) * 0.06))
 
     # Tighten on flow reversal / regime risk-off / sector collapse
     tighten = 1.0
