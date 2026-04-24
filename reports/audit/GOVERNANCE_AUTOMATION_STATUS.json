@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-24T15:52:34Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "reports/board/ missing",
+    "reports/board/ missing",
+    "Deprecated directory moltbot/ exists at repo root with active Python code",
+    "Clawdbot/Moltbot references found in code/config files: ['moltbot/sentinel.py', 'moltbot/promotion_discipline.py', 'moltbot/orchestrator.py', 'moltbot/memory_evolution.py', 'moltbot/board.py', 'moltbot/__init__.py', 'scripts/run_openclaw_molt_synthesis.py', 'scripts/run_molt_workflow.py', 'scripts/run_molt_intelligence_expansion.py', 'scripts/sre/run_sre_anomaly_scan.py']"
+  ],
+  "slack_sent": false
+}
