@@ -4,6 +4,16 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 ---
 
+## 2026-04-24 — Alpaca side-aware parity + Shadow Vanguard
+
+- **Added:** Side-aware ML normalization contract in `src/core/ml_feature_normalization.py`; flattener and live V2 runtime both use `normalize_features_for_side()` so directional short examples invert identically across train and serve.
+- **Changed:** Broker/execution telemetry now carries strict side-aware semantics: short preflight requires `shortable` + `easy_to_borrow`, invalid buying power fails closed, and touch pricing uses Buy/Cover = Ask and Sell/Short = Bid for fallback/default crossing.
+- **Added:** Shadow Vanguard challenger lane in `telemetry/shadow_evaluator.py`; split-brain challenger artifacts live under `models/vanguard_challenger_*` and log ignored-primary approvals to isolated `logs/shadow_executions.jsonl`.
+- **Quarantine:** Live V2 short hard gate remains quarantined with reason `v2_short_gate_quarantined_until_retrain`; Challenger short scoring is telemetry-only and must not feed `exit_attribution.jsonl` or DATA_READY.
+- **Verification:** Phase tests cover position math, dynamic stops, broker reality, touch pricing, side-normalized features, and shadow execution isolation.
+
+---
+
 ## 2026-04-03 — Alpaca V5.0 Passive Hunter execution (main.py)
 
 - **Pricing:** `v5_compute_limit_price` + `AlpacaExecutor.compute_entry_price` — NBBO midpoint peg; BUY `min(mid, bid+0.01)`, SELL `max(mid, ask-0.01)`; spread guard `V5_SPREAD_GUARD_BPS` (default 20) logs `orders.spread_too_wide_abort` and `submit_entry.spread_too_wide_abort` (no market fallback on guard trip).
