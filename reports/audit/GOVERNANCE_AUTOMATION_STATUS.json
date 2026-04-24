@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-24T12:23:17Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "fail",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "Missing governance path: reports/board",
+    "reports/audit or reports/board missing",
+    "Deprecated directory moltbot/ still present"
+  ],
+  "slack_sent": false
+}
