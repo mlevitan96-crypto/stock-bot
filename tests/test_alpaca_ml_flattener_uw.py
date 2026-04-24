@@ -72,3 +72,22 @@ def test_uw_scoreflow_components_shadows_slim_entry_uw(flattener_mod):
     g, t = flattener_mod._uw_gamma_skew_and_tide(merged)
     assert g == pytest.approx(0.21)
     assert t == pytest.approx(-0.09)
+
+
+def test_flat_zero_pnl_row_uses_execution_price_as_entry_price(flattener_mod):
+    row = flattener_mod._base_trade_fields(
+        {
+            "symbol": "COP",
+            "side": "buy",
+            "position_side": "long",
+            "trade_id": "open_COP_2026-04-24T17:10:53.399783+00:00",
+            "entry_ts": "2026-04-24T17:10:53.399783+00:00",
+            "exit_ts": "2026-04-24T17:10:53.399783+00:00",
+            "entry_price": None,
+            "exit_price": 120.74,
+            "qty": 1,
+            "pnl": 0.0,
+        }
+    )
+
+    assert row["entry_price"] == pytest.approx(120.74)
