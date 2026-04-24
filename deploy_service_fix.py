@@ -13,9 +13,11 @@ print("DEPLOYING SERVICE FIX TO DROPLET")
 print("=" * 80)
 print()
 
-# Step 1: Pull latest code
-print("[1/4] Pulling latest code from GitHub...")
-stdout1, stderr1, code1 = c._execute('cd /root/stock-bot && git pull')
+# Step 1: Immutable GitOps sync (origin/main only; no soft pull — see .cursorrules immutable_production_gitops)
+print("[1/4] Syncing repo to origin/main (fetch + reset --hard)...")
+stdout1, stderr1, code1 = c._execute(
+    "cd /root/stock-bot && git fetch origin && git reset --hard origin/main"
+)
 if code1 == 0:
     print("  [OK] Code updated")
     if stdout1:

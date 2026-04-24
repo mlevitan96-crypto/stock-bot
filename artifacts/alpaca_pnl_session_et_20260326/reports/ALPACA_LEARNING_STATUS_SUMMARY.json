@@ -1,0 +1,23 @@
+{
+  "timestamp_utc": "2026-03-26T22:59:32.185315+00:00",
+  "window_hours": 72,
+  "window_start_epoch": 1774531800.0,
+  "window_end_epoch": 1774555200.0,
+  "verdict": "LEARNING_SAFE",
+  "trades_seen": 2,
+  "trades_incomplete": 0,
+  "sre_auto_repair": {
+    "ran": false,
+    "actions_applied": 0,
+    "residual_incompletes": 0
+  },
+  "exit_code": 0,
+  "commit_sha": "f1122bca0e0c2e2153268a0dc9df9bfb0961f791",
+  "runner": "alpaca_forward_truth_runner",
+  "notes": [
+    "synthesis_from_truth_json_and_exit_code"
+  ],
+  "proof_links": [
+    "C:/Dev/stock-bot/reports/daily/2026-03-26/evidence/ALPACA_MARKET_SESSION_TRUTH_20260327_MKTS_FINAL.json"
+  ]
+}
