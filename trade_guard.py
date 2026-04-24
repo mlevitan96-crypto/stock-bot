@@ -36,12 +36,13 @@ class TradeGuard:
         Args:
             config: Optional config dict. If None, uses defaults from env/registry.
         """
-        # Risk limits
-        # Institutional Remediation Phase 2:
-        # Raise default cap to unlock SPY/QQQ/AAPL while preserving env override.
-        self.max_position_size_usd = get_env("MAX_POSITION_SIZE_USD", 750.0, float)
+        # Risk limits (paper: high caps so share price alone does not veto; env overrides always win).
+        _paper = (os.getenv("TRADING_MODE", "PAPER").strip().upper() == "PAPER")
+        _def_pos = 100000.0 if _paper else 750.0
+        _def_ord = 150000.0 if _paper else 2000.0
+        self.max_position_size_usd = get_env("MAX_POSITION_SIZE_USD", _def_pos, float)
         self.max_portfolio_exposure_pct = get_env("MAX_PORTFOLIO_EXPOSURE_PCT", 0.30, float)  # 30% max
-        self.max_notional_per_order = get_env("MAX_NOTIONAL_PER_ORDER", 2000.0, float)
+        self.max_notional_per_order = get_env("MAX_NOTIONAL_PER_ORDER", _def_ord, float)
         self.max_concentration_per_symbol_pct = get_env("MAX_CONCENTRATION_PER_SYMBOL_PCT", 0.15, float)  # 15% max per symbol
         
         # Price sanity
