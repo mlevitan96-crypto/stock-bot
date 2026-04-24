@@ -1,0 +1,57 @@
+{
+  "lifetime_canonical": {
+    "unique_trade_keys_post_era_cut": 1549,
+    "realized_pnl_sum_first_row_per_key_usd": -192.17,
+    "era_cut_excluded_rows": 2129,
+    "floor_epoch_utc": null,
+    "note": "No strict epoch floor; era_cut from config still excludes pre-era learning rows."
+  },
+  "strict_STRICT_EPOCH_START": {
+    "epoch_utc": "2026-04-17T16:21:52.699623+00:00",
+    "evaluate_completeness": {
+      "LEARNING_STATUS": "ARMED",
+      "trades_seen": 555,
+      "trades_complete": 555,
+      "trades_incomplete": 0,
+      "learning_fail_closed_reason": null
+    },
+    "strict_cohort_trade_ids_n": 555
+  },
+  "apex_integrity_arm": {
+    "arm_utc": "2026-04-21T13:31:59+00:00",
+    "arm_epoch": 1776778319.0,
+    "evaluate_completeness": {
+      "LEARNING_STATUS": "BLOCKED",
+      "trades_seen": 148,
+      "trades_complete": 125,
+      "trades_incomplete": 23,
+      "learning_fail_closed_reason": "incomplete_trade_chain"
+    },
+    "strict_cohort_trade_ids_n": 148,
+    "apex_open_time_cohort_exit_attribution": {
+      "unique_trade_ids_open_on_or_after_arm": 148,
+      "sum_pnl_usd": -122.55,
+      "wins": 43,
+      "losses": 100,
+      "flat": 5,
+      "median_net_pnl_bps": null,
+      "mean_net_pnl_bps": null,
+      "bps_populated_n": 0
+    }
+  },
+  "tier_sizing_system_events_since_arm": {
+    "tier_sizing_applied_rows": 4,
+    "symbols_top_15": {
+      "XLF": 1,
+      "XLE": 1,
+      "XLK": 1,
+      "XLV": 1
+    },
+    "apex_cohort_symbols_also_in_tier_events": [
+      "XLE",
+      "XLF",
+      "XLK",
+      "XLV"
+    ]
+  }
+}

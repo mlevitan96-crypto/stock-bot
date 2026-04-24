@@ -1,0 +1,32 @@
+{
+  "notional_usd_per_replayed_trade": 1000.0,
+  "note": "hypothetical_total_pnl_usd_fixed_notional sums (pnl_pct/100)*notional per replayed row; not live sizing. Use for relative comparison across veto reasons.",
+  "by_reason": [
+    {
+      "reason": "displacement_blocked",
+      "n_extracted": 4343,
+      "n_replayed_with_bars": 4343,
+      "n_missing_bars_or_price": 0,
+      "win_rate_pct": 48.68,
+      "mean_pnl_pct": 0.0139,
+      "median_pnl_pct": -0.0118,
+      "hypothetical_total_pnl_usd_fixed_notional": 605.0
+    },
+    {
+      "reason": "expectancy_blocked:score_floor_breach",
+      "n_extracted": 851,
+      "n_replayed_with_bars": 851,
+      "n_missing_bars_or_price": 0,
+      "win_rate_pct": 54.52,
+      "mean_pnl_pct": 0.0611,
+      "median_pnl_pct": 0.0588,
+      "hypothetical_total_pnl_usd_fixed_notional": 520.28
+    }
+  ],
+  "floor_epoch": 1775581260.0,
+  "reasons_filter": [
+    "displacement_blocked",
+    "expectancy_blocked:score_floor_breach",
+    "score_below_min"
+  ]
+}

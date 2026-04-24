@@ -2,7 +2,7 @@
 """
 Full 30-day backtest (run on droplet only).
 Replays from logs: attribution, exit_attribution, blocked_trades.
-Applies config flags (exit_regimes, UW, survivorship, wheel, constraints, correlation) as metadata.
+Applies config flags (exit_regimes, UW, survivorship, constraints, correlation) as metadata.
 Writes: backtest_trades.jsonl, backtest_exits.jsonl, backtest_blocks.jsonl, backtest_summary.json, backtest_pnl_curve.json.
 Usage: python scripts/run_30d_backtest_droplet.py [--out backtests/30d_after_intel_overhaul]
 """
@@ -85,7 +85,7 @@ def _load_config() -> dict:
             "use_survivorship": True,
             "use_constraints": True,
             "use_correlation_sizing": True,
-            "use_wheel_strategy": True,
+            "use_secondary_options_strategy": False,
             "log_all_candidates": True,
             "log_all_exits": True,
             "log_all_blocks": True,

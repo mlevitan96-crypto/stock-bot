@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Emit baseline JSON for Alpaca strict gate (+ Kraken inventory stub) for learning-readiness closure.
+Emit baseline JSON for Alpaca strict gate for learning-readiness closure.
 Telemetry-only; no strategy changes.
 """
 from __future__ import annotations
@@ -32,24 +32,8 @@ def main() -> int:
     root = REPO
     alpaca = evaluate_completeness(root, open_ts_epoch=STRICT_EPOCH_START, audit=True)
 
-    kraken = {
-        "venue": "kraken",
-        "kraken_data_telegram_certification_suite_py": None,
-        "strict_tail_gate_in_repo": False,
-        "milestone_telegram_script_in_repo": False,
-        "note": (
-            "No kraken_data_telegram_certification_suite.py found in repository; "
-            "Kraken path is downloader + shell massive review only (see scripts/run_kraken_on_droplet.py)."
-        ),
-        "evidence_ts_utc": datetime.now(timezone.utc).isoformat(),
-    }
-
     (REPO / f"reports/ALPACA_BASELINE_{ts}.json").write_text(
         json.dumps({"ts_utc": ts, "root": str(root), "strict": alpaca}, indent=2),
-        encoding="utf-8",
-    )
-    (REPO / f"reports/KRAKEN_BASELINE_{ts}.json").write_text(
-        json.dumps(kraken, indent=2),
         encoding="utf-8",
     )
 
@@ -75,21 +59,6 @@ def main() -> int:
 ## Machine JSON
 
 `reports/ALPACA_BASELINE_{ts}.json`
-""",
-        encoding="utf-8",
-    )
-
-    k_md = REPO / f"reports/audit/KRAKEN_BASELINE_{ts}.md"
-    k_md.write_text(
-        f"""# Kraken baseline — learning telemetry ({ts})
-
-## Status
-
-**No runnable Kraken strict-tail / Telegram certification suite** is present in this repository under the mission name. Baseline JSON is an explicit **inventory negative**.
-
-## Machine JSON
-
-`reports/KRAKEN_BASELINE_{ts}.json`
 """,
         encoding="utf-8",
     )

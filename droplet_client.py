@@ -300,6 +300,18 @@ class DropletClient:
         finally:
             sftp.close()
 
+    def get_file(self, remote_path: str, local_path: str | Path) -> None:
+        """Download a file from the droplet via SFTP. remote_path is relative to project_dir."""
+        ssh = self._connect()
+        full_remote = f"{self.project_dir.rstrip('/')}/{remote_path}" if not remote_path.startswith("/") else remote_path
+        local = Path(local_path)
+        local.parent.mkdir(parents=True, exist_ok=True)
+        sftp = ssh.open_sftp()
+        try:
+            sftp.get(full_remote, str(local))
+        finally:
+            sftp.close()
+
     def close(self):
         """Close SSH connection."""
         if self.ssh_client:
