@@ -76,7 +76,8 @@ def get_risk_limits() -> Dict[str, float]:
             floor_slack = 0.0
         min_account_equity = starting_equity * 0.85 - max(0.0, floor_slack)
         risk_per_trade_pct = 0.015  # 1.5%
-        max_position_dollar = 825  # 1.5% of 55k
+        # Paper: uncap per-order notional for high-priced names (ML data collection). Override via MAX_POSITION_DOLLAR_PAPER.
+        max_position_dollar = float(os.getenv("MAX_POSITION_DOLLAR_PAPER", "100000"))
         max_symbol_exposure = starting_equity * 0.10  # 10%
         max_sector_exposure = starting_equity * 0.30  # 30%
     else:
@@ -88,7 +89,7 @@ def get_risk_limits() -> Dict[str, float]:
             floor_slack = 0.0
         min_account_equity = starting_equity * 0.85 - max(0.0, floor_slack)
         risk_per_trade_pct = 0.015  # 1.5%
-        max_position_dollar = 300  # Hard cap for 10k
+        max_position_dollar = float(os.getenv("MAX_POSITION_DOLLAR_LIVE", "300"))
         max_symbol_exposure = starting_equity * 0.10  # 10% of 10k = 1,000
         max_sector_exposure = starting_equity * 0.30  # 30% of 10k = 3,000
     
