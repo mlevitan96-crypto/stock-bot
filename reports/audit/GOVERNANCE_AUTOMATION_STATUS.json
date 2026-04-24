@@ -28,5 +28,11 @@
       "message": "Moltbot code found in code/config (not just documentation). moltbot/ directory exists with active Python files: board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py. Scripts reference moltbot: scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. Excluded: docs/ and reports/audit/ references that document removal history."
     }
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": {
+    "action": "existing_open",
+    "issue_number": 1119,
+    "url": "https://github.com/mlevitan96-crypto/stock-bot/issues/1119",
+    "note": "Existing open issue #1119 covers identical anomalies. No new issue created to avoid duplication."
+  }
 }
