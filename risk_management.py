@@ -525,13 +525,22 @@ def check_sector_exposure(positions: list, account_equity: float) -> Tuple[bool,
 
 def validate_order_size(symbol: str, qty: int, side: str, current_price: float, buying_power: float) -> Tuple[bool, Optional[str]]:
     """Validate order size against buying power and limits"""
+    from src.core.broker_math import validate_buying_power
+
     limits = get_risk_limits()
     
-    order_value = qty * current_price
+    order_value = abs(qty) * current_price
     
     # Check against buying power (95% safety margin)
-    if side == "buy" and order_value > buying_power * 0.95:
-        return False, f"Order ${order_value:.2f} exceeds 95% of buying power ${buying_power:.2f}"
+    ok_bp, bp_reason = validate_buying_power(
+        notional=order_value,
+        side=side,
+        buying_power=buying_power * 0.95,
+    )
+    if not ok_bp:
+        if bp_reason == "invalid_buying_power":
+            return False, f"Invalid buying power ${buying_power:.2f}"
+        return False, f"Order ${order_value:.2f} exceeds buying power ${buying_power:.2f}"
     
     # Check against max position size
     if order_value > limits["max_position_dollar"]:
