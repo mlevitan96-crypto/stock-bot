@@ -17,5 +17,6 @@
     "no_deprecated_dirs: moltbot/ directory exists at repo root with active code files (board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py, __init__.py, agents/).",
     "no_clawdbot_moltbot: Moltbot code found in code/config paths (not documentation): moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/automations/run_governance_integrity_once.py. Excluded: reports/audit/*, reports/daily/*, docs/*, MEMORY_BANK_ALPACA.md (documentation references)."
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "unable_to_create — gh CLI is read-only in this environment; anomalies require manual issue creation"
 }
