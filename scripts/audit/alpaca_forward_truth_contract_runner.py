@@ -78,6 +78,7 @@ def _gate(root: Path, open_ts: float, forward_since: float, exit_ts_max: Optiona
         forward_since_epoch=forward_since,
         exit_ts_max_epoch=exit_ts_max,
         audit=True,
+        collect_complete_trade_ids=True,
     )
 
 
@@ -133,7 +134,13 @@ def main() -> int:
         "--window-end-epoch",
         type=float,
         default=None,
-        help="UTC epoch of window end (e.g. NYSE regular close); floor = end - window_hours; exit_ts_max = end",
+        help="UTC epoch of window end (e.g. NYSE regular close); with --window-start-epoch sets exact session slice",
+    )
+    ap.add_argument(
+        "--window-start-epoch",
+        type=float,
+        default=None,
+        help="UTC epoch of window start (e.g. NYSE 09:30 ET); requires --window-end-epoch; open_ts=max(STRICT_EPOCH,this)",
     )
     ap.add_argument("--json-out", type=Path, required=True)
     ap.add_argument("--md-out", type=Path, required=True)
@@ -142,6 +149,12 @@ def main() -> int:
     args = ap.parse_args()
 
     root = args.root.resolve()
+    if (args.window_start_epoch is not None) ^ (args.window_end_epoch is not None):
+        print(
+            json.dumps({"error": "window_epoch_pair", "detail": "use both --window-start-epoch and --window-end-epoch"}),
+            file=sys.stderr,
+        )
+        return 1
     try:
         repair_mod = _load_repair_module()
         sre = _load_sre_engine()
@@ -154,7 +167,14 @@ def main() -> int:
 
     window_sec = max(1, int(args.window_hours) * 3600)
     exit_ts_max_epoch: Optional[float] = None
-    if args.window_end_epoch is not None:
+    if args.window_start_epoch is not None and args.window_end_epoch is not None:
+        ws = float(args.window_start_epoch)
+        we = float(args.window_end_epoch)
+        open_ts_epoch = max(float(STRICT_EPOCH_START), ws)
+        forward_since_epoch = max(float(STRICT_EPOCH_START), ws)
+        exit_ts_max_epoch = we
+        policy_note = "market_session_explicit_start_end_utc; EXIT_TS_UTC_EPOCH_MAX = window_end"
+    elif args.window_end_epoch is not None:
         end = float(args.window_end_epoch)
         window_start = end - window_sec
         open_ts_epoch = max(float(STRICT_EPOCH_START), float(window_start))
@@ -172,6 +192,7 @@ def main() -> int:
         "contract": "alpaca_forward_truth",
         "run_utc": datetime.now(timezone.utc).isoformat(),
         "window_hours": int(args.window_hours),
+        "window_start_epoch_arg": float(args.window_start_epoch) if args.window_start_epoch is not None else None,
         "window_end_epoch": exit_ts_max_epoch,
         "open_ts_epoch": open_ts_epoch,
         "forward_since_epoch": forward_since_epoch,
@@ -229,6 +250,37 @@ def main() -> int:
     run_record["final_gate"] = gate
     incomplete = int(gate.get("trades_incomplete") or 0)
 
+    tc = int(gate.get("trades_complete") or 0)
+    cids = list(gate.get("complete_trade_ids") or [])
+    run_record["incomplete_trade_ids"] = _all_incomplete_tids(gate)
+    if tc > 0 and len(cids) == 0:
+        run_record["error"] = "complete_trade_ids_enumeration_contract"
+        run_record["forward_truth_contract"] = "INCIDENT"
+        run_record["trades_incomplete_count"] = incomplete
+        run_record["exit_code_intended"] = 2
+        inc_body = {
+            "severity": "TRUTH_JSON_CONTRACT",
+            "rule": "trades_complete > 0 implies len(complete_trade_ids) > 0",
+            "trades_complete": tc,
+            "complete_trade_ids_len": len(cids),
+            "fix": "Ensure evaluate_completeness(..., collect_complete_trade_ids=True) on all gate paths (SRE engine included).",
+        }
+        run_record["incident"] = inc_body
+        args.json_out.write_text(json.dumps(run_record, indent=2, default=str), encoding="utf-8")
+        args.incident_json.parent.mkdir(parents=True, exist_ok=True)
+        args.incident_json.write_text(json.dumps(inc_body, indent=2), encoding="utf-8")
+        args.md_out.write_text(
+            "# Forward truth contract — INCIDENT (enumeration)\n\n"
+            "`trades_complete > 0` but `complete_trade_ids` empty. See `incident` in JSON.\n",
+            encoding="utf-8",
+        )
+        args.incident_md.write_text(
+            "# INCIDENT — complete_trade_ids contract\n\n" + json.dumps(inc_body, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        _emit_learning_summary(root, args.json_out, 2, args.incident_json, int(args.window_hours))
+        return 2
+
     cert_ok = incomplete == 0
     run_record["forward_truth_contract"] = "CERT_OK" if cert_ok else "INCIDENT"
     run_record["trades_incomplete_count"] = incomplete
@@ -247,11 +299,15 @@ def main() -> int:
             )
         else:
             win_desc = f"{args.window_hours}h (open_ts_epoch = max(STRICT_EPOCH, now−window))"
+        ctn = len(gate.get("complete_trade_ids") or [])
         args.md_out.write_text(
             f"# Alpaca forward truth contract — CERT_OK\n\n"
             f"- **UTC:** {run_record['run_utc']}\n"
             f"- **Window:** {win_desc}\n"
+            f"- **window_start_epoch_arg:** {run_record.get('window_start_epoch_arg')}\n"
             f"- **trades_seen:** {gate.get('trades_seen')}\n"
+            f"- **trades_complete:** {gate.get('trades_complete')}\n"
+            f"- **complete_trade_ids_count:** {ctn}\n"
             f"- **trades_incomplete:** 0\n"
             f"- **forward_trades_incomplete:** {gate.get('forward_trades_incomplete')}\n"
             f"- **vacuous cohort:** {vac}\n"

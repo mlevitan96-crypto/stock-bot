@@ -6,7 +6,7 @@ Reads convergence state, Tier 2/3 packets (or board fallbacks), shadow compariso
 and SRE status; writes state/alpaca_promotion_gate_state.json with gate_ready and blockers.
 Advisory only; no auto-promotion. Human approval required for any promotion.
 
-Alpaca-native only. No Kraken references.
+Alpaca US equities only.
 
 Usage:
   python scripts/run_alpaca_promotion_gate.py [--base-dir PATH] [--force] [--dry-run]

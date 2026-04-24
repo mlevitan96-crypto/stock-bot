@@ -17,6 +17,8 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+RUN_LOG = (REPO / "logs" / "run.jsonl").resolve()
+
 try:
     from config.registry import LogFiles, Directories
     ATTR_PATH = (REPO / LogFiles.ATTRIBUTION).resolve()
@@ -80,7 +82,16 @@ def _load_unified_exits_5d() -> list[dict]:
                 if key in seen:
                     continue
                 seen.add(key)
-                rows.append({"ts": ts, "ts_str": ts_str, "pnl_usd": pnl_usd, "source": "exit_attribution"})
+                _tid = str(rec.get("trade_id") or "").strip()
+                rows.append(
+                    {
+                        "ts": ts,
+                        "ts_str": ts_str,
+                        "pnl_usd": pnl_usd,
+                        "source": "exit_attribution",
+                        "trade_id": _tid or None,
+                    }
+                )
         except Exception:
             pass
 
@@ -116,12 +127,54 @@ def _load_unified_exits_5d() -> list[dict]:
                     if key in seen:
                         continue
                     seen.add(key)
-                    rows.append({"ts": ts, "ts_str": ts_str, "pnl_usd": pnl_usd, "source": "attribution"})
+                    _tid2 = str(rec.get("trade_id") or rec.get("trade_key") or "").strip()
+                    rows.append(
+                        {
+                            "ts": ts,
+                            "ts_str": ts_str,
+                            "pnl_usd": pnl_usd,
+                            "source": "attribution",
+                            "trade_id": _tid2 or None,
+                        }
+                    )
         except Exception:
             pass
 
     rows.sort(key=lambda x: x["ts"].timestamp())
     return rows
+
+
+def _load_shadow_chop_by_trade_id() -> dict:
+    """
+    Map trade_id -> last seen shadow_chop_block on trade_intent (entered).
+    Used to compute hypothetical 5d PnL excluding chop-window entries.
+    """
+    out: dict = {}
+    if not RUN_LOG.is_file():
+        return out
+    try:
+        raw = RUN_LOG.read_text(encoding="utf-8", errors="replace").splitlines()[-200_000:]
+    except Exception:
+        return out
+    for line in raw:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            o = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if o.get("event_type") != "trade_intent":
+            continue
+        if str(o.get("decision_outcome", "")).lower() != "entered":
+            continue
+        tid = str(o.get("trade_id") or "").strip()
+        if not tid:
+            continue
+        v = o.get("shadow_chop_block")
+        if v is not None:
+            out[tid] = bool(v)
+    return out
 
 
 def _baseline_equity() -> float:
@@ -145,18 +198,29 @@ def main() -> int:
 
     exits = _load_unified_exits_5d()
     net_pnl = 0.0
+    chop_excluded = 0.0
+    chop_map = _load_shadow_chop_by_trade_id()
     for r in exits:
         p = r.get("pnl_usd")
         if p is not None and not (isinstance(p, float) and math.isnan(p)):
             net_pnl += float(p)
+        tid = r.get("trade_id")
+        if tid and bool(chop_map.get(str(tid))):
+            if p is not None and not (isinstance(p, float) and math.isnan(p)):
+                chop_excluded += float(p)
 
     baseline = _baseline_equity()
     equity = baseline + net_pnl
+    net_pnl_no_chop = net_pnl - chop_excluded
+    equity_shadow = baseline + net_pnl_no_chop
 
     point = {
         "ts": now.isoformat(),
         "equity": round(equity, 2),
         "pnl": round(net_pnl, 2),
+        "pnl_excluding_chop_shadow": round(net_pnl_no_chop, 2),
+        "equity_shadow": round(equity_shadow, 2),
+        "chop_excluded_pnl_5d": round(chop_excluded, 2),
         "source": "unified_exits",
         "window": "5d",
     }

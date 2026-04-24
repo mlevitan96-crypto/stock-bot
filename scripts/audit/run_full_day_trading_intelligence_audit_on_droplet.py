@@ -17,6 +17,8 @@ sys.path.insert(0, str(REPO))
 def main() -> int:
     ap = argparse.ArgumentParser(description="Run full day trading intelligence audit on droplet and fetch artifacts")
     ap.add_argument("--date", default=None, help="YYYY-MM-DD (default: today UTC)")
+    ap.add_argument("--require-counter-intel", action="store_true", help="Set REQUIRE_COUNTER_INTEL=true and run CI emit/merge")
+    ap.add_argument("--min-ci-events", type=int, default=None, help="Set MIN_CI_EVENTS (e.g. 1 for strict); default leaves script default")
     args = ap.parse_args()
 
     try:
@@ -33,9 +35,16 @@ def main() -> int:
     if rc_pull != 0:
         print("Warning: git pull had non-zero exit", rc_pull, file=sys.stderr)
 
-    # 1) Run full audit script (fails at first missing phase; we still fetch what exists)
-    date_arg = f"DATE={args.date}" if args.date else ""
-    cmd = f"{date_arg} bash scripts/audit/run_full_day_trading_intelligence_audit.sh"
+    # 1) Run full audit script (CSA + SRE + multi-persona; optional strict CI gate)
+    env_parts = []
+    if args.date:
+        env_parts.append(f"DATE={args.date}")
+    if args.require_counter_intel:
+        env_parts.append("REQUIRE_COUNTER_INTEL=true")
+    if args.min_ci_events is not None:
+        env_parts.append(f"MIN_CI_EVENTS={args.min_ci_events}")
+    prefix = " ".join(env_parts) + " " if env_parts else ""
+    cmd = f"{prefix}bash scripts/audit/run_full_day_trading_intelligence_audit.sh"
     out, err, rc = client._execute_with_cd(cmd, timeout=600)
     print("=== AUDIT OUTPUT ===")
     print(out or "")
@@ -50,12 +59,16 @@ def main() -> int:
         import datetime
         date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-    # 3) Fetch any artifacts that exist
+    # 3) Fetch any artifacts that exist (CSA + SRE + signals + ideas + verdict + board)
     artifacts = [
         ("reports/ledger", f"FULL_TRADE_LEDGER_{date_str}.json"),
         ("reports/audit", f"SRE_DAY_HEALTH_{date_str}.json"),
         ("reports/audit", f"CSA_DECISION_QUALITY_{date_str}.json"),
+        ("reports/experiments", f"SIGNAL_WEIGHT_SWEEPS_{date_str}.json"),
+        ("reports/experiments", f"SIGNAL_PROFITABILITY_{date_str}.json"),
+        ("reports/ideas", f"RAW_IDEA_POOL_{date_str}.json"),
         ("reports/ideas", f"CLUSTERED_IDEAS_{date_str}.json"),
+        ("reports/experiments", f"PERSONA_REVIEWS_{date_str}.json"),
         ("reports/experiments", f"IDEA_SCORECARD_{date_str}.json"),
         ("reports/audit", f"CSA_DAY_PROMOTION_VERDICT_{date_str}.json"),
         ("reports/board", f"DAY_TRADING_INTELLIGENCE_BOARD_PACKET_{date_str}.md"),

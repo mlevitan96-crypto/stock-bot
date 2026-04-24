@@ -57,7 +57,7 @@ def get_weight(component: str) -> float:
 **Cache**: Refreshes every 60 seconds, or immediately after learning  
 **Fallback**: Uses default weights if learning not available
 
-## Continuous Learning Wheel
+## Continuous Learning Loop
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -168,4 +168,4 @@ All future learning enhancements will automatically:
 ✅ **Continuous Loop**: Signal → Trade → Learn → Update → Trade  
 ✅ **No Manual Steps**: Everything happens automatically  
 
-**The bot is a continuous learning wheel that improves itself automatically.**
+**The bot is a continuous learning loop that improves itself automatically.**

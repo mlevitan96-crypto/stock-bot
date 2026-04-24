@@ -16,7 +16,8 @@ Restart=on-failure
 RestartSec=5
 
 # Safety: ensure a stuck process can be stopped
-TimeoutStopSec=20
+# Old long-running daemon can need >20s to exit its sleep loop; avoid SIGKILL noise.
+TimeoutStopSec=90
 KillSignal=SIGTERM
 
 [Install]
