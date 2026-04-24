@@ -85,7 +85,7 @@ def get_decay_exit_rate(symbol: str, base: Path | None = None) -> float | None:
 
 def get_survivorship_score(symbol: str, base: Path | None = None) -> float | None:
     """
-    Return survivorship score in [0, 1] for gating (e.g. wheel requires >= 0).
+    Return survivorship score in [0, 1] for gating (e.g. high-bar entries).
     Derived from win_rate and decay rate; None if no data.
     """
     root = _repo_root(base)

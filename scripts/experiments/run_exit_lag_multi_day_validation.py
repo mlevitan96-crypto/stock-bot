@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -256,10 +257,21 @@ def main() -> int:
         "best_cumulative_delta_usd": round(best_delta, 4) if best else None,
         "best_pct_days_improved": best_pct if best else None,
         "evidence_missing_if_continue": "More days and/or regime diversity; drawdown SLO; tail stress test." if verdict_key == "CONTINUE_SHADOW" else None,
+        "adversarial_review_path": "reports/experiments/EXIT_LAG_ADVERSARIAL_REVIEW.md",
+        "customer_advocate_note_path": "reports/experiments/EXIT_LAG_CUSTOMER_ADVOCATE_NOTE.md",
     }
     (audit_dir / "CSA_EXIT_LAG_MULTI_DAY_VERDICT.json").write_text(json.dumps(csa, indent=2), encoding="utf-8")
 
-    # Phase 6: Board packet
+    # Adversarial review and customer advocate (SRE/CSA: part of process; verdict references above paths)
+    for script in ["run_exit_lag_adversarial_review.py", "run_exit_lag_customer_advocate_note.py"]:
+        subprocess.run(
+            [sys.executable, f"scripts/experiments/{script}", "--base-dir", str(base)],
+            cwd=base,
+            capture_output=True,
+            timeout=30,
+        )
+
+    # Phase 6: Board packet (include adversarial + customer advocate)
     board_lines = [
         "# Exit-Lag Multi-Day Board Packet",
         "",
@@ -282,10 +294,18 @@ def main() -> int:
         "",
         guardrails or "N/A",
         "",
+        "## Adversarial review",
+        "",
+        "See `reports/experiments/EXIT_LAG_ADVERSARIAL_REVIEW.md`. Challenges: sample size, overfitting, regime bias, tail risk. Mitigations must be addressed before promotion.",
+        "",
+        "## Customer advocate",
+        "",
+        "See `reports/experiments/EXIT_LAG_CUSTOMER_ADVOCATE_NOTE.md`. Customer outcome (realized PnL) and whipsaw/tail risk must align before limited paper A/B.",
+        "",
     ]
     (board_dir / "EXIT_LAG_MULTI_DAY_BOARD_PACKET.md").write_text("\n".join(board_lines), encoding="utf-8")
 
-    print("Wrote EXIT_LAG_MULTI_DAY_RESULTS.json, REGIME_BREAKDOWN.md, ROBUSTNESS_SCORECARD.md, CSA_EXIT_LAG_MULTI_DAY_VERDICT.json, EXIT_LAG_MULTI_DAY_BOARD_PACKET.md")
+    print("Wrote EXIT_LAG_MULTI_DAY_RESULTS.json, REGIME_BREAKDOWN.md, ROBUSTNESS_SCORECARD.md, CSA_EXIT_LAG_MULTI_DAY_VERDICT.json, EXIT_LAG_ADVERSARIAL_REVIEW.md, EXIT_LAG_CUSTOMER_ADVOCATE_NOTE.md, EXIT_LAG_MULTI_DAY_BOARD_PACKET.md")
     return 0
 
 

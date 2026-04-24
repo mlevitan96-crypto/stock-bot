@@ -6,7 +6,7 @@ Reads 1d/3d/5d rolling windows, 5d rolling PnL state, trade visibility (since-ho
 fast-lane ledger, and daily pack; produces Tier 1 Board Review packet (MD + JSON).
 Updates state/alpaca_board_review_state.json (merge: adds tier1_* keys).
 
-Alpaca-native only. No Kraken references. No cron, no promotion logic, no heartbeat.
+Alpaca US equities only. No cron, no promotion logic, no heartbeat.
 Phase 2.
 
 Usage:
