@@ -6,6 +6,10 @@ finite PnL (realized_pnl_usd or pnl), or entry_uw is missing finite earnings_pro
 sentiment_score, the pipeline is considered degraded.
 
 Callers (e.g. scripts/telemetry_milestone_watcher.py) send Telegram with the canonical message.
+
+Independence from entry gates: this check does not use MIN_EXEC_SCORE or composite at entry.
+Lowering the expectancy score floor does not trip degradation by itself; alerts indicate
+missing exit PnL or incomplete entry_uw on recent closes.
 """
 from __future__ import annotations
 

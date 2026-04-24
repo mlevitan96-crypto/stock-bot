@@ -96,27 +96,34 @@ def step1_build_frozen_dataset(
     allow_fallback_join: bool = False,
     min_trades: int = MIN_TRADES_DEFAULT,
     min_final_exits: int = MIN_FINAL_EXITS_DEFAULT,
+    diagnostic: bool = False,
 ) -> tuple[int, Optional[str]]:
     """Extract last N trades; freeze CSV (with trade_key) + attribution jsonl; normalize trade_key; verify join coverage and sample size; write INPUT_FREEZE.md. Hard-fail if join coverage or sample size below threshold unless allow_missing_attribution."""
     if not exit_path.exists():
         return 0, None
     from src.telemetry.alpaca_trade_key import build_trade_key
     rows = []
+    count_blank = count_json_error = count_not_dict = count_no_exit_ts = 0
     with open(exit_path, "r", encoding="utf-8", errors="replace") as f:
         for idx, line in enumerate(f):
-            line = line.strip()
-            if not line:
+            line_stripped = line.strip()
+            if not line_stripped:
+                count_blank += 1
                 continue
             try:
-                rec = json.loads(line)
+                rec = json.loads(line_stripped)
             except json.JSONDecodeError:
+                count_json_error += 1
                 continue
             if not isinstance(rec, dict):
+                count_not_dict += 1
                 continue
             entry_ts = rec.get("entry_timestamp") or rec.get("ts") or ""
             exit_ts = rec.get("timestamp") or rec.get("exit_timestamp") or rec.get("ts") or ""
             if not exit_ts:
+                count_no_exit_ts += 1
                 continue
+            line = line_stripped
             symbol = (rec.get("symbol") or "?").strip().upper() or "?"
             entry_price = rec.get("entry_price")
             exit_price = rec.get("exit_price")
@@ -164,8 +171,13 @@ def step1_build_frozen_dataset(
                 "time_in_trade_minutes": time_in_trade,
             })
     # Take last max_trades (most recent)
+    rows_before_cap = len(rows)
     rows = rows[-max_trades:] if len(rows) > max_trades else rows
     n = len(rows)
+    if diagnostic:
+        total_lines = count_blank + count_json_error + count_not_dict + count_no_exit_ts + rows_before_cap
+        print(f"[diagnostic] exit_path={exit_path}", file=sys.stderr)
+        print(f"[diagnostic] lines_read={total_lines} blank={count_blank} json_error={count_json_error} not_dict={count_not_dict} no_exit_ts={count_no_exit_ts} rows_kept={rows_before_cap} rows_after_max_trades={n} drop_cap={max(0, rows_before_cap - max_trades)}", file=sys.stderr)
     if n == 0:
         return 0, None
     # Sample-size gate (DATA_READY: trades_total >= min_trades, final_exits_count >= min_final_exits)
@@ -1077,6 +1089,7 @@ def main() -> int:
     ap.add_argument("--no-telegram", action="store_true", help="Skip Telegram")
     ap.add_argument("--telegram-start", action="store_true", help="Send start Telegram only")
     ap.add_argument("--data-ready", action="store_true", help="After successful run, confirm DATA_READY and write final board + CSA + SRE + Telegram close-out")
+    ap.add_argument("--diagnostic", action="store_true", help="Step 1: log file paths, rows read/kept/dropped to stderr")
     args = ap.parse_args()
     ts = _ts()
     out_dir = args.out_dir or (REPORTS_DIR / f"alpaca_edge_2000_{ts}")
@@ -1097,6 +1110,7 @@ def main() -> int:
                 allow_fallback_join=args.allow_fallback_join,
                 min_trades=args.min_trades,
                 min_final_exits=args.min_final_exits,
+                diagnostic=args.diagnostic,
             )
         except ValueError as e:
             print(f"Step 1 failed: {e}", file=sys.stderr)

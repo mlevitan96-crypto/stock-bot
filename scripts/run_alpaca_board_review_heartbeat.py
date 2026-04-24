@@ -6,7 +6,7 @@ Reads alpaca_board_review_state.json and alpaca_convergence_state.json; writes
 state/alpaca_heartbeat_state.json with last_heartbeat_ts, tier timestamps, and stale flag.
 No decisions, no tuning, no promotion. Advisory only.
 
-Alpaca-native only. No Kraken references.
+Alpaca US equities only.
 
 Usage:
   python scripts/run_alpaca_board_review_heartbeat.py [--base-dir PATH] [--stale-hours 24] [--dry-run]

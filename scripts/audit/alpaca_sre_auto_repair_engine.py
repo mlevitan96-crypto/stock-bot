@@ -41,6 +41,7 @@ def _gate(root: Path, open_ts: float, forward_since: float, exit_ts_max: Optiona
         forward_since_epoch=forward_since,
         exit_ts_max_epoch=exit_ts_max,
         audit=True,
+        collect_complete_trade_ids=True,
     )
 
 

@@ -29,9 +29,11 @@ def ensure_dir(p: Path) -> None:
 
 
 # Remote paths relative to project_dir on droplet. "tail:N" = fetch last N lines only.
+# exit_decision_trace + exit_attribution are required for forensic/backfill scenario runs (see docs/TRADE_DATA_FOR_SCENARIOS.md).
 EVIDENCE_SPEC = [
-    # Critical: trades and exits (7d slice done by ledger script; here we pull raw for manifest)
-    ("logs/exit_attribution.jsonl", "tail:3000"),
+    # Critical: trades and exits (7d slice done by ledger script; here we pull raw for manifest + scenario runs)
+    ("logs/exit_attribution.jsonl", "tail:10000"),
+    ("reports/state/exit_decision_trace.jsonl", "tail:50000"),
     ("state/blocked_trades.jsonl", "tail:2000"),
     ("logs/score_snapshot.jsonl", "tail:2000"),
     ("logs/attribution.jsonl", "tail:1500"),
@@ -53,7 +55,6 @@ OPTIONAL_SPEC = [
     ("reports/audit/deploy_runtime_context_data.json", "full"),
     ("reports/board/COMPARATIVE_REVIEW_30D_vs_LAST387.json", "full"),
     ("state/direction_readiness.json", "full"),
-    ("logs/wheel_events.jsonl", "tail:200"),
     ("logs/options_events.jsonl", "tail:200"),
 ]
 

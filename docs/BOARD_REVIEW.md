@@ -64,7 +64,7 @@ The Board:
 
 The Board should explicitly consider: regime health (non-UNKNOWN, modifier-only), exit timing health (hold-time/churn), displacement/capacity health (blocked counts), and attribution vs exit alignment.
 
-**Dashboard:** For canonical tab layout (Positions, Closed Trades, Executive Summary, SRE, Wheel, Strategy Comparison, Advanced), Health/P&L placement, and scoring labels, see `docs/TRADING_DASHBOARD.md`.
+**Dashboard:** For canonical tab layout (Positions, Closed Trades, Executive Summary, SRE, Advanced), Health/P&L placement, and scoring labels, see `docs/TRADING_DASHBOARD.md`.
 
 ## Testing
 To test on today's outputs:

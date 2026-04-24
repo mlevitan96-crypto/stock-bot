@@ -1,0 +1,510 @@
+{
+  "summary": {
+    "blocked_rows_total": 8669,
+    "rows_full_horizon_coverage": 8653,
+    "coverage_pct": 99.8154,
+    "coverage_fail_reasons": {
+      "partial_horizon": 16
+    },
+    "missing_symbol_time_ranges_sample": [],
+    "bars_file_symbols": 53,
+    "notional_usd_for_qty": 500.0,
+    "formulas": {
+      "variant_a": "entry=open(first bar t>=block_ts), exit=close(first bar t>=block_ts+H); long PnL=(exit-entry)*qty short PnL=(entry-exit)*qty",
+      "variant_b": "entry=(high+low)/2 of entry bar, exit=close at horizon",
+      "variant_c": "entry open adjusted by adverse slippage 0.0005 on entry",
+      "fees": "none applied (blocked rows lack fee schedule); sensitivity: add per-share fee in follow-on",
+      "qty": "notional_usd/decision_price, min 0.0001 share-equivalent"
+    }
+  },
+  "per_row_variant_a_sample": [
+    {
+      "symbol": "XLE",
+      "block_reason": "displacement_blocked",
+      "block_ts": "2026-03-30T17:12:28.216143Z",
+      "side_raw": {
+        "side": "short",
+        "direction": "bearish"
+      },
+      "side_norm": "short",
+      "score": 3.879,
+      "decision_price": 62.5801,
+      "qty_notional_500": 7.98976,
+      "canonical_trade_id": "BLOCKED|XLE|b0664630-85e3-468c-90a7-ff3ddc73eb0e",
+      "coverage": true,
+      "pnl_variant_a_usd": {
+        "pnl_1m": 0.158996,
+        "pnl_5m": 1.038669,
+        "pnl_15m": 2.356979,
+        "pnl_30m": 0.910833,
+        "pnl_60m": 2.396928
+      },
+      "pnl_variant_b_usd": {
+        "pnl_1m": -0.042745,
+        "pnl_5m": 0.836927,
+        "pnl_15m": 2.155238,
+        "pnl_30m": 0.709091,
+        "pnl_60m": 2.195187
+      },
+      "pnl_variant_c_usd": {
+        "pnl_1m": -0.090884,
+        "pnl_5m": 0.788789,
+        "pnl_15m": 2.1071,
+        "pnl_30m": 0.660953,
+        "pnl_60m": 2.147048
+      },
+      "mfe_mae_usd_a": {
+        "mfe": {
+          "pnl_1m": 0.239693,
+          "pnl_5m": 1.038669,
+          "pnl_15m": 2.356979,
+          "pnl_30m": 2.356979,
+          "pnl_60m": 2.476826
+        },
+        "mae": {
+          "pnl_1m": 0.158996,
+          "pnl_5m": 0.079898,
+          "pnl_15m": 0.079898,
+          "pnl_30m": 0.079898,
+          "pnl_60m": 0.079898
+        }
+      },
+      "best_horizon": "pnl_60m",
+      "worst_horizon": "pnl_1m",
+      "winner_flags_a": {
+        "pnl_1m": true,
+        "pnl_5m": true,
+        "pnl_15m": true,
+        "pnl_30m": true,
+        "pnl_60m": true
+      }
+    },
+    {
+      "symbol": "META",
+      "block_reason": "displacement_blocked",
+      "block_ts": "2026-03-30T17:43:31.028312Z",
+      "side_raw": {
+        "side": "short",
+        "direction": "bearish"
+      },
+      "side_norm": "short",
+      "score": 4.3076,
+      "decision_price": 536.89,
+      "qty_notional_500": 0.931289,
+      "canonical_trade_id": null,
+      "coverage": true,
+      "pnl_variant_a_usd": {
+        "pnl_1m": -0.363203,
+        "pnl_5m": -0.232822,
+        "pnl_15m": -0.819535,
+        "pnl_30m": -0.977854,
+        "pnl_60m": -0.018626
+      },
+      "pnl_variant_b_usd": {
+        "pnl_1m": -0.125724,
+        "pnl_5m": 0.004656,
+        "pnl_15m": -0.582056,
+        "pnl_30m": -0.740375,
+        "pnl_60m": 0.218853
+      },
+      "pnl_variant_c_usd": {
+        "pnl_1m": -0.613235,
+        "pnl_5m": -0.482855,
+        "pnl_15m": -1.069567,
+        "pnl_30m": -1.227887,
+        "pnl_60m": -0.268658
+      },
+      "mfe_mae_usd_a": {
+        "mfe": {
+          "pnl_1m": -0.363203,
+          "pnl_5m": 0.027939,
+          "pnl_15m": 0.027939,
+          "pnl_30m": 0.027939,
+          "pnl_60m": 0.027939
+        },
+        "mae": {
+          "pnl_1m": -0.428393,
+          "pnl_5m": -0.428393,
+          "pnl_15m": -0.819535,
+          "pnl_30m": -1.285179,
+          "pnl_60m": -1.620444
+        }
+      },
+      "best_horizon": "pnl_60m",
+      "worst_horizon": "pnl_30m",
+      "winner_flags_a": {
+        "pnl_1m": false,
+        "pnl_5m": false,
+        "pnl_15m": false,
+        "pnl_30m": false,
+        "pnl_60m": false
+      }
+    },
+    {
+      "symbol": "WMT",
+      "block_reason": "displacement_blocked",
+      "block_ts": "2026-03-30T17:43:34.476974Z",
+      "side_raw": {
+        "side": "short",
+        "direction": "bearish"
+      },
+      "side_norm": "short",
+      "score": 3.7983000000000002,
+      "decision_price": 123.89,
+      "qty_notional_500": 4.035838,
+      "canonical_trade_id": null,
+      "coverage": true,
+      "pnl_variant_a_usd": {
+        "pnl_1m": -0.121075,
+        "pnl_5m": 0.403584,
+        "pnl_15m": 0.605376,
+        "pnl_30m": -0.565017,
+        "pnl_60m": -0.585197
+      },
+      "pnl_variant_b_usd": {
+        "pnl_1m": -0.302688,
+        "pnl_5m": 0.221971,
+        "pnl_15m": 0.423763,
+        "pnl_30m": -0.74663,
+        "pnl_60m": -0.766809
+      },
+      "pnl_variant_c_usd": {
+        "pnl_1m": -0.371055,
+        "pnl_5m": 0.153604,
+        "pnl_15m": 0.355396,
+        "pnl_30m": -0.814997,
+        "pnl_60m": -0.835176
+      },
+      "mfe_mae_usd_a": {
+        "mfe": {
+          "pnl_1m": 0.322867,
+          "pnl_5m": 0.524659,
+          "pnl_15m": 0.686093,
+          "pnl_30m": 1.049318,
+          "pnl_60m": 1.049318
+        },
+        "mae": {
+          "pnl_1m": -0.121075,
+          "pnl_5m": -0.121075,
+          "pnl_15m": -0.121075,
+          "pnl_30m": -0.565017,
+          "pnl_60m": -1.928324
+        }
+      },
+      "best_horizon": "pnl_15m",
+      "worst_horizon": "pnl_60m",
+      "winner_flags_a": {
+        "pnl_1m": false,
+        "pnl_5m": true,
+        "pnl_15m": true,
+        "pnl_30m": false,
+        "pnl_60m": false
+      }
+    },
+    {
+      "symbol": "XOM",
+      "block_reason": "displacement_blocked",
+      "block_ts": "2026-03-30T17:43:38.077471Z",
+      "side_raw": {
+        "side": "short",
+        "direction": "bearish"
+      },
+      "side_norm": "short",
+      "score": 3.7741,
+      "decision_price": 172.92,
+      "qty_notional_500": 2.891511,
+      "canonical_trade_id": null,
+      "coverage": true,
+      "pnl_variant_a_usd": {
+        "pnl_1m": -0.260236,
+        "pnl_5m": -0.404811,
+        "pnl_15m": 0.144576,
+        "pnl_30m": -0.404811,
+        "pnl_60m": 1.344552
+      },
+      "pnl_variant_b_usd": {
+        "pnl_1m": -0.404811,
+        "pnl_5m": -0.549387,
+        "pnl_15m": 0.0,
+        "pnl_30m": -0.549387,
+        "pnl_60m": 1.199977
+      },
+      "pnl_variant_c_usd": {
+        "pnl_1m": -0.510395,
+        "pnl_5m": -0.654971,
+        "pnl_15m": -0.105584,
+        "pnl_30m": -0.654971,
+        "pnl_60m": 1.094393
+      },
+      "mfe_mae_usd_a": {
+        "mfe": {
+          "pnl_1m": 0.231321,
+          "pnl_5m": 0.231321,
+          "pnl_15m": 0.231321,
+          "pnl_30m": 0.231321,
+          "pnl_60m": 1.53279
+        },
+        "mae": {
+          "pnl_1m": -0.260236,
+          "pnl_5m": -0.433727,
+          "pnl_15m": -0.534929,
+          "pnl_30m": -0.751793,
+          "pnl_60m": -0.751793
+        }
+      },
+      "best_horizon": "pnl_60m",
+      "worst_horizon": "pnl_5m",
+      "winner_flags_a": {
+        "pnl_1m": false,
+        "pnl_5m": false,
+        "pnl_15m": true,
+        "pnl_30m": false,
+        "pnl_60m": true
+      }
+    },
+    {
+      "symbol": "BLK",
+      "block_reason": "displacement_blocked",
+      "block_ts": "2026-03-30T17:43:41.143206Z",
+      "side_raw": {
+        "side": "short",
+        "direction": "bearish"
+      },
+      "side_norm": "short",
+      "score": 3.7708000000000004,
+      "decision_price": 939.35,
+      "qty_notional_500": 0.532283,
+      "canonical_trade_id": null,
+      "coverage": true,
+      "pnl_variant_a_usd": {
+        "pnl_1m": -0.369937,
+        "pnl_5m": 0.231543,
+        "pnl_15m": -0.165008,
+        "pnl_30m": 0.833023,
+        "pnl_60m": 1.612817
+      },
+      "pnl_variant_b_usd": {
+        "pnl_1m": -0.141055,
+        "pnl_5m": 0.460425,
+        "pnl_15m": 0.063874,
+        "pnl_30m": 1.061905,
+        "pnl_60m": 1.841699
+      },
+      "pnl_variant_c_usd": {
+        "pnl_1m": -0.620017,
+        "pnl_5m": -0.018537,
+        "pnl_15m": -0.415088,
+        "pnl_30m": 0.582943,
+        "pnl_60m": 1.362738
+      },
+      "mfe_mae_usd_a": {
+        "mfe": {
+          "pnl_1m": -0.345984,
+          "pnl_5m": 0.835684,
+          "pnl_15m": 0.835684,
+          "pnl_30m": 1.224251,
+          "pnl_60m": 2.448502
+        },
+        "mae": {
+          "pnl_1m": -0.369937,
+          "pnl_5m": -0.369937,
+          "pnl_15m": -0.479055,
+          "pnl_30m": -0.479055,
+          "pnl_60m": -0.479055
+        }
+      },
+      "best_horizon": "pnl_60m",
+      "worst_horizon": "pnl_1m",
+      "winner_flags_a": {
+        "pnl_1m": false,
+        "pnl_5m": true,
+        "pnl_15m": false,
+        "pnl_30m": true,
+        "pnl_60m": true
+      }
+    },
+    {
+      "symbol": "CVX",
+      "block_reason": "displacement_blocked",
+      "block_ts": "2026-03-30T17:43:43.772674Z",
+      "side_raw": {
+        "side": "short",
+        "direction": "bearish"
+      },
+      "side_norm": "short",
+      "score": 3.7664000000000004,
+      "decision_price": 212.25,
+      "qty_notional_500": 2.355713,
+      "canonical_trade_id": null,
+      "coverage": true,
+      "pnl_variant_a_usd": {
+        "pnl_1m": -0.294464,
+        "pnl_5m": -0.282686,
+        "pnl_15m": 0.070671,
+        "pnl_30m": 1.118963,
+        "pnl_60m": 1.908127
+      },
+      "pnl_variant_b_usd": {
+        "pnl_1m": -0.400471,
+        "pnl_5m": -0.388693,
+        "pnl_15m": -0.035336,
+        "pnl_30m": 1.012956,
+        "pnl_60m": 1.80212
+      },
+      "pnl_variant_c_usd": {
+        "pnl_1m": -0.544564,
+        "pnl_5m": -0.532786,
+        "pnl_15m": -0.179429,
+        "pnl_30m": 0.868863,
+        "pnl_60m": 1.658027
+      },
+      "mfe_mae_usd_a": {
+        "mfe": {
+          "pnl_1m": 0.129564,
+          "pnl_5m": 0.129564,
+          "pnl_15m": 0.129564,
+          "pnl_30m": 1.319199,
+          "pnl_60m": 2.273263
+        },
+        "mae": {
+          "pnl_1m": -0.294464,
+          "pnl_5m": -0.506478,
+          "pnl_15m": -0.506478,
+          "pnl_30m": -0.506478,
+          "pnl_60m": -0.506478
+        }
+      },
+      "best_horizon": "pnl_60m",
+      "worst_horizon": "pnl_1m",
+      "winner_flags_a": {
+        "pnl_1m": false,
+        "pnl_5m": false,
+        "pnl_15m": true,
+        "pnl_30m": true,
+        "pnl_60m": true
+      }
+    },
+    {
+      "symbol": "LOW",
+      "block_reason": "displacement_blocked",
+      "block_ts": "2026-03-30T17:43:46.562874Z",
+      "side_raw": {
+        "side": "short",
+        "direction": "bearish"
+      },
+      "side_norm": "short",
+      "score": 3.718,
+      "decision_price": 231.995,
+      "qty_notional_500": 2.155219,
+      "canonical_trade_id": null,
+      "coverage": true,
+      "pnl_variant_a_usd": {
+        "pnl_1m": -0.19397,
+        "pnl_5m": 0.280178,
+        "pnl_15m": -0.355611,
+        "pnl_30m": -1.293131,
+        "pnl_60m": -1.616414
+      },
+      "pnl_variant_b_usd": {
+        "pnl_1m": -0.117675,
+        "pnl_5m": 0.356473,
+        "pnl_15m": -0.279316,
+        "pnl_30m": -1.216837,
+        "pnl_60m": -1.540119
+      },
+      "pnl_variant_c_usd": {
+        "pnl_1m": -0.444029,
+        "pnl_5m": 0.030119,
+        "pnl_15m": -0.60567,
+        "pnl_30m": -1.543191,
+        "pnl_60m": -1.866473
+      },
+      "mfe_mae_usd_a": {
+        "mfe": {
+          "pnl_1m": -0.183194,
+          "pnl_5m": 0.409492,
+          "pnl_15m": 0.894416,
+          "pnl_30m": 0.894416,
+          "pnl_60m": 0.894416
+        },
+        "mae": {
+          "pnl_1m": -0.19397,
+          "pnl_5m": -0.19397,
+          "pnl_15m": -0.355611,
+          "pnl_30m": -1.293131,
+          "pnl_60m": -2.95265
+        }
+      },
+      "best_horizon": "pnl_5m",
+      "worst_horizon": "pnl_60m",
+      "winner_flags_a": {
+        "pnl_1m": false,
+        "pnl_5m": true,
+        "pnl_15m": false,
+        "pnl_30m": false,
+        "pnl_60m": false
+      }
+    },
+    {
+      "symbol": "BAC",
+      "block_reason": "displacement_blocked",
+      "block_ts": "2026-03-30T17:43:49.068712Z",
+      "side_raw": {
+        "side": "short",
+        "direction": "bearish"
+      },
+      "side_norm": "short",
+      "score": 3.7169000000000003,
+      "decision_price": 47.335,
+      "qty_notional_500": 10.563008,
+      "canonical_trade_id": null,
+      "coverage": true,
+      "pnl_variant_a_usd": {
+        "pnl_1m": -0.21126,
+        "pnl_5m": 0.21126,
+        "pnl_15m": 0.31689,
+        "pnl_30m": -0.950671,
+        "pnl_60m": 1.478821
+      },
+      "pnl_variant_b_usd": {
+        "pnl_1m": -0.158445,
+        "pnl_5m": 0.264075,
+        "pnl_15m": 0.369705,
+        "pnl_30m": -0.897856,
+        "pnl_60m": 1.531636
+      },
+      "pnl_variant_c_usd": {
+        "pnl_1m": -0.461287,
+        "pnl_5m": -0.038766,
+        "pnl_15m": 0.066864,
+        "pnl_30m": -1.200697,
+        "pnl_60m": 1.228795
+      },
+      "mfe_mae_usd_a": {
+        "mfe": {
+          "pnl_1m": -0.21126,
+          "pnl_5m": 0.475335,
+          "pnl_15m": 0.580965,
+          "pnl_30m": 0.580965,
+          "pnl_60m": 2.323862
+        },
+        "mae": {
+          "pnl_1m": -0.264075,
+          "pnl_5m": -0.264075,
+          "pnl_15m": -0.264075,
+          "pnl_30m": -0.950671,
+          "pnl_60m": -0.950671
+        }
+      },
+      "best_horizon": "pnl_60m",
+      "worst_horizon": "pnl_30m",
+      "winner_flags_a": {
+        "pnl_1m": false,
+        "pnl_5m": true,
+        "pnl_15m": true,
+        "pnl_30m": false,
+        "pnl_60m": true
+      }
+    }
+  ]
+}
