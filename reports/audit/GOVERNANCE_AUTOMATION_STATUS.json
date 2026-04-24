@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-24T09:03:39Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "fail",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "reports/board/ directory does not exist — expected by governance_contracts_present and required_artifacts checks"
+  ],
+  "slack_sent": false
+}
