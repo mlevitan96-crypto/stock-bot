@@ -104,7 +104,7 @@ class TradeGuard:
             return False, f"invalid_price_{intended_price}"
         
         # Calculate notional
-        notional = qty * intended_price
+        notional = abs(qty) * intended_price
         
         # Check 1: Max notional per order
         if notional > self.max_notional_per_order:
@@ -162,10 +162,16 @@ class TradeGuard:
             if symbol_exposure_pct > self.max_concentration_per_symbol_pct:
                 return False, f"symbol_concentration_exceeds_limit_{symbol_exposure_pct:.2%}_max_{self.max_concentration_per_symbol_pct:.2%}"
         
-        # Check 5: Buying power check (if available)
-        if account_buying_power > 0 and side == "buy":
-            if notional > account_buying_power:
-                return False, f"insufficient_buying_power_{notional:.2f}_available_{account_buying_power:.2f}"
+        # Check 5: Buying power check (fail closed; short entries include margin).
+        from src.core.broker_math import validate_buying_power
+
+        bp_ok, bp_reason = validate_buying_power(
+            notional=notional,
+            side=side,
+            buying_power=account_buying_power,
+        )
+        if not bp_ok:
+            return False, f"{bp_reason}_{notional:.2f}_available_{account_buying_power:.2f}"
         
         # Check 6: Price sanity (if last known price provided)
         last_known_price = order_context.get("last_known_price")
