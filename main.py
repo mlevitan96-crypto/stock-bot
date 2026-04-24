@@ -6479,7 +6479,6 @@ class AlpacaExecutor:
                     try:
                         from pathlib import Path
                         import json
-                        from datetime import datetime, timezone
                         log_file = Path("logs/price_exceeds_cap.jsonl")
                         log_file.parent.mkdir(exist_ok=True)
                         log_rec = {
@@ -6505,7 +6504,6 @@ class AlpacaExecutor:
                 try:
                     from pathlib import Path
                     import json
-                    from datetime import datetime, timezone
                     log_file = Path("logs/price_exceeds_cap.jsonl")
                     log_file.parent.mkdir(exist_ok=True)
                     log_rec = {
