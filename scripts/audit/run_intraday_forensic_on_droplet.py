@@ -56,8 +56,9 @@ def main() -> int:
     phase0_result = {}
     try:
         for line in (out0 or "").splitlines():
-            if line.strip().startswith("{"):
-                phase0_result = json.loads(line.strip())
+            s = line.strip()
+            if s.startswith("{"):
+                phase0_result = json.loads(s)
                 break
     except json.JSONDecodeError:
         pass

@@ -54,7 +54,7 @@
 
 | Angle | Source | Example values | Why it matters for profitability |
 |-------|--------|----------------|-----------------------------------|
-| **strategy** | `strategy_id`, `strategy`, `mode` | equity, wheel, unknown | Which strategy is making money. |
+| **strategy** | `strategy_id`, `strategy`, `mode` | equity, unknown | Which strategy is making money. |
 | **exit_reason** | `exit_reason`, `close_reason` | profit_target, time_exit, displacement, trailing_stop, signal_decay, session_end | Which exit type is most profitable. |
 | **exit_regime** | `exit_regime` | RISK_ON, NEUTRAL, RISK_OFF, BEAR | Market regime at exit. |
 | **entry_regime** | `entry_regime` | RISK_ON, NEUTRAL, RISK_OFF | Regime at entry. |

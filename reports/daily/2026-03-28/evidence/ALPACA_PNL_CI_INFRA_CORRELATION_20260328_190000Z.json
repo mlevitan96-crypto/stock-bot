@@ -1,0 +1,12 @@
+{
+  "analysis": "G",
+  "name": "ci_infra",
+  "cohort": "MARKET_SESSION_ET",
+  "n_trades": 2,
+  "blocked": false,
+  "blockers": [],
+  "profit_implication": "see slices",
+  "slices": {
+    "system_events": 0
+  }
+}

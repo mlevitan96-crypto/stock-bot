@@ -1,5 +1,17 @@
 # Deployment Instructions for Droplet
 
+## Immutable production (GitOps)
+
+**Production trees are immutable:** do not edit application source on the droplet. All changes ship from the workspace → GitHub `origin/main` → server.
+
+**Mandatory sync (bans soft `git pull` alone for code deploy):** every deploy must end with the checkout matching `origin/main`:
+
+```bash
+cd /root/stock-bot && git fetch origin && git reset --hard origin/main
+```
+
+Uncommitted server drift is **not** production truth; the next `reset --hard` **erases** it.
+
 ## ⚠️ CRITICAL: Run This on the Droplet
 
 **You must SSH into the droplet and run these commands to complete deployment.**
@@ -10,12 +22,12 @@
 
 ```bash
 cd ~/stock-bot
-git pull origin main
+git fetch origin && git reset --hard origin/main
 bash FORCE_DROPLET_DEPLOYMENT_AND_VERIFY.sh
 ```
 
 This single command will:
-1. Pull latest code
+1. Sync latest code to exactly `origin/main`
 2. Install all dependencies
 3. Verify all modules
 4. Run all tests
@@ -40,10 +52,10 @@ ssh your_user@your_droplet_ip
 cd ~/stock-bot
 ```
 
-### Step 3: Pull Latest Code
+### Step 3: Sync to origin/main (immutable)
 
 ```bash
-git pull origin main
+git fetch origin && git reset --hard origin/main
 ```
 
 ### Step 4: Run Deployment Script
