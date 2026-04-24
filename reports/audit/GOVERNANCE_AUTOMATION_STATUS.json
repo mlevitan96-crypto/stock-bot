@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-24T07:12:03Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory was missing at scan time (auto-created during this run)"
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ was absent; required for governance contract completeness"
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "Deprecated directory moltbot/ exists at repo root with active Python files: sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py"
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot/molt references found in code: moltbot/ directory (5 files), scripts/run_molt_workflow.py, scripts/run_molt_intelligence_expansion.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. Excluded: reports/audit, docs, reports/daily (documentation-only references)."
+    }
+  ],
+  "slack_sent": false
+}
