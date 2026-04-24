@@ -96,7 +96,7 @@ def main():
 
     baseline = defaultdict(lambda: {"pnl": 0.0, "exits": 0})
     for r in rows:
-        key = f"{norm(r.get('mode'), {'LIVE','PAPER','SHADOW'})}:{norm(r.get('strategy'), {'EQUITY','WHEEL'})}"
+        key = f"{norm(r.get('mode'), {'LIVE','PAPER','SHADOW'})}:{norm(r.get('strategy'), {'EQUITY'})}"
         pnl = float(r.get("pnl") or 0.0)
         baseline[key]["pnl"] += pnl
         baseline[key]["exits"] += 1
@@ -109,7 +109,7 @@ def main():
         scen_bucket = defaultdict(lambda: {"pnl": 0.0, "exits": 0, "rows_used": 0, "rows_skipped": 0})
         for r in rows:
             mode = norm(r.get("mode"), {"LIVE", "PAPER", "SHADOW"})
-            strat = norm(r.get("strategy"), {"EQUITY", "WHEEL"})
+            strat = norm(r.get("strategy"), {"EQUITY"})
             bucket = f"{mode}:{strat}"
 
             entry_ts = parse_ts(r.get("entry_ts") or r.get("entry_timestamp"))

@@ -1,0 +1,16 @@
+{
+  "hypothesis_id": "QUANT_EMU_001",
+  "action_type": "paper_extension",
+  "exact_change": "Keep `run_displacement_deepdive_addon.py` emulator grid in weekly audit bundle; compare p05 vs mean week-over-week.",
+  "scope_duration": "8 weeks; same k,m,N grid unless governance approves expansion.",
+  "success_metrics": [
+    "majority of grid cells remain mean_pnl_usd > 0",
+    "p05 does not worsen >25% vs baseline snapshot in DISPLACEMENT_EXIT_EMULATOR_RESULTS.json"
+  ],
+  "kill_criteria": [
+    "fewer than half of cells with mean_pnl_usd > 0 for two consecutive runs",
+    "best_cell mean_pnl_usd < 0"
+  ],
+  "rollback": "Remove addon from cron; no trading config touched.",
+  "owner_role": "QUANT"
+}

@@ -1,7 +1,7 @@
 {
   "roles": [
     {"name": "Equity Skeptic", "focus": "drawdown, churn, regime mismatch"},
-    {"name": "Wheel Advocate", "focus": "premium decay, assignment risk"},
+    {"name": "Income Strategist", "focus": "premium decay, assignment risk (review-only; no live options sleeve)"},
     {"name": "Risk Officer", "focus": "capital efficiency, tail risk"},
     {"name": "Promotion Judge", "focus": "promotion vs demotion decisions"},
     {"name": "Customer Advocate", "focus": "Why are we losing money? Challenge every assumption. Push back on conservative bias. Demand expectancy improvement. MUST explicitly disagree when results are poor."},

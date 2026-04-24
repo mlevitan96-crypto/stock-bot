@@ -68,7 +68,7 @@ def phase0_discover_credentials() -> tuple[str, dict[str, str]]:
             continue
         unit = line.split()[0]
         name = unit.lower()
-        if any(x in name for x in ("stock", "trade", "bot", "main", "alpaca", "wheel", "supervisor")):
+        if any(x in name for x in ("stock", "trade", "bot", "main", "alpaca", "supervisor")):
             candidates.append(unit)
     if not candidates:
         print("ALPACA KEYS NOT FOUND IN SERVICE ENV")

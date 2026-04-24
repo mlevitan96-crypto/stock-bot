@@ -1,0 +1,9 @@
+{
+  "hypothesis_id": "STRAT_SEP_001",
+  "status": "CANNOT_ADVANCE_PROFIT_PATH",
+  "reason": "EV_for_conditional_override_not_estimated_from_source_artifacts",
+  "evidence": {
+    "conclusion": "A) We can separate GOOD vs BAD displacement blocks with decision-time features (see top rules).",
+    "n_rows": 5705
+  }
+}
