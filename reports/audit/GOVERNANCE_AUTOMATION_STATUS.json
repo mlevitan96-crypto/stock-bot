@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-24T09:52:45Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "no_deprecated_dirs: FAIL — 'moltbot/' directory exists at repo root. This directory appears to contain Moltbot code (board.py, orchestrator.py, sentinel.py, etc.) which was expected to have been removed/deprecated.",
+    "no_clawdbot_moltbot: FAIL — 'moltbot/' directory exists with active Python code referencing Moltbot (moltbot/board.py, moltbot/orchestrator.py, moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/memory_evolution.py). No Clawdbot references found in code/config. reports/board/ was missing and has been created as empty.",
+    "repo_structure: PASS — All expected top-level directories present: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/. reports/audit/ exists. reports/board/ was created during this run.",
+    "config_drift: PASS — .cursor/deployment.json exists. .env.example present (no .env in repo, as expected).",
+    "governance_contracts_present: PASS — memory_bank/ contains key docs (report_output_contract.md, report_retention_policy.md, systemPatterns.md, TELEMETRY_CHANGELOG.md). .cursor/automations/ exists with README.md and governance/PR/security specs.",
+    "required_artifacts: PASS — Recent artifacts found in reports/ and artifacts/ directories within last 7 days (market_data, scenario_replay, daily review tools)."
+  ],
+  "slack_sent": false
+}
