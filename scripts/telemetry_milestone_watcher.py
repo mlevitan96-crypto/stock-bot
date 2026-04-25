@@ -18,7 +18,7 @@ recent exits lack PnL or `entry_uw` fields.
 
 SPI CSV columns are logged as a diagnostic only (no Telegram SPI gate).
 
-Default cutoff: telemetry `STRICT_EPOCH_START` (2026-04-07T17:01:00Z Harvester era). Optional
+Default cutoff: telemetry `STRICT_EPOCH_START` (2026-04-24T23:59:59Z V2 Vanguard era). Optional
 TELEMETRY_MILESTONE_SINCE_DATE=YYYY-MM-DD is interpreted as that day 00:00 UTC but never earlier
 than `STRICT_EPOCH_START` (no stale state override — avoids ghost milestone alerts).
 
@@ -61,7 +61,7 @@ except Exception:
 try:
     from telemetry.alpaca_strict_completeness_gate import STRICT_EPOCH_START
 except Exception:  # pragma: no cover
-    STRICT_EPOCH_START = 1776442912.699623  # keep in sync with telemetry/alpaca_strict_completeness_gate.py
+    STRICT_EPOCH_START = 1777075199.0  # keep in sync with telemetry/alpaca_strict_completeness_gate.py
 
 GEMINI_DIR = REPO / "reports" / "Gemini"
 ENTRIES_CSV = GEMINI_DIR / "entries_and_exits.csv"
