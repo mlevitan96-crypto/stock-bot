@@ -33,5 +33,6 @@
       "message": "Moltbot/Clawdbot references found in code/config (excluding reports/audit and docs): moltbot/ directory (6 Python files), scripts/sre/run_sre_anomaly_scan.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/automations/run_governance_integrity_once.py, alpaca_codebase_payload.txt"
     }
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1202"
 }
