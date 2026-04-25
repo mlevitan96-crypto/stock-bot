@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T21:04:35Z",
+  "branch": "main",
+  "anomalies_detected": false,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "reports/board/ was missing and created during this run to satisfy governance contract",
+    "moltbot/ directory exists as a documented learning framework (MEMORY_BANK §8); not a reintroduction — excluded from clawdbot/moltbot reintroduction scan per existing governance script logic",
+    "All 7 expected top-level dirs present: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/",
+    ".cursor/deployment.json present; .env.example present",
+    ".cursor/automations/ has README.md + 5 automation specs",
+    "memory_bank/ has 6 governance docs",
+    "No Clawdbot/Moltbot references in src/ or active script paths (scripts/sre/ check-name-only string excluded)"
+  ],
+  "slack_sent": false
+}
