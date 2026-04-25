@@ -16,5 +16,6 @@
     "governance_contracts_present: reports/board/ missing (required by governance contract). memory_bank/ present with 6 key docs. .cursor/automations/ present with README + specs. reports/audit/ present.",
     "no_clawdbot_moltbot: moltbot/ directory exists with active code files (board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py). scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, and scripts/sre/run_sre_anomaly_scan.py reference moltbot/clawdbot in code. Excluded: reports/audit docs and reports/daily evidence that document removal context."
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "unable_to_create — gh CLI is read-only in cloud agent environment; anomalies require manual issue creation or operator review"
 }
