@@ -20,5 +20,6 @@
     "no_clawdbot_moltbot: scripts/sre/run_sre_anomaly_scan.py references clawdbot/moltbot",
     "no_clawdbot_moltbot: scripts/automations/run_governance_integrity_once.py references clawdbot/moltbot (expected: governance script)"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1230"
 }
