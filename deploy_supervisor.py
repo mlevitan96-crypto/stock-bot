@@ -178,6 +178,14 @@ def create_directories():
             log(f"  Created/verified: {dir_path}/")
         except Exception as e:
             log(f"  ERROR creating {dir_path}: {e}")
+    # Evidence chain: shadow tape file must exist before trading-bot emits trade_intent (SRE/concordance).
+    try:
+        sp = Path("logs/shadow_executions.jsonl")
+        sp.parent.mkdir(parents=True, exist_ok=True)
+        sp.touch(exist_ok=True)
+        log(f"  Evidence chain: touched {sp}")
+    except Exception as e:
+        log(f"  WARNING: could not touch shadow_executions.jsonl: {e}")
 
 # =========================
 # HEALTH REGISTRY & AGGREGATION
