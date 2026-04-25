@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T19:10:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected at /workspace/reports/board/). Top-level board/ exists but governance spec requires reports/board/.",
+    "governance_contracts_present: reports/board/ missing; reports/audit/ present; memory_bank/ has key docs; .cursor/automations/ has README + specs.",
+    "no_clawdbot_moltbot: moltbot/ directory with active code files (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py) still present in repo. scripts/run_molt_workflow.py imports from moltbot. scripts/run_openclaw_molt_synthesis.py references moltbot. MEMORY_BANK_ALPACA.md documents moltbot/ as active component. CSA_VERDICT_clawdbot_removal.json (2026-03-05) had verdict HOLD; removal was proposed but not executed."
+  ],
+  "slack_sent": false
+}
