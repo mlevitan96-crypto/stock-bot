@@ -774,6 +774,12 @@ def strict_runlog_effective() -> bool:
 def _log_telemetry_chain_startup_banner() -> None:
     """One-shot startup proof for CSA/SRE: effective flags + absolute run.jsonl path (no secrets)."""
     try:
+        from telemetry.shadow_evaluator import ensure_shadow_executions_log_ready
+
+        ensure_shadow_executions_log_ready()
+    except Exception:
+        pass
+    try:
         run_abs = os.path.abspath(os.path.join(LOG_DIR, "run.jsonl"))
         log_system_event(
             "telemetry_chain",
