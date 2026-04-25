@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-24 (Side-aware parity architecture + Shadow Vanguard)
-# Last Updated: 2026-04-24 (Maintenance Log: V2 short AI quarantine active; split-brain challenger active in shadow)
+# Version: 2026-04-25 (Compliance Radar + Shadow Concordance + Displacement Lab)
+# Last Updated: 2026-04-25 (Maintenance Log: offline research/compliance tooling finalized; no live-router gates added)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -126,6 +126,33 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - **V2 Short AI quarantine:** The live V2 hard gate remains **quarantined for short/sell entries** until a promoted retrain proves profitable. Runtime reason code: **`v2_short_gate_quarantined_until_retrain`**. Long-side V2 behavior remains governed by `V2_LIVE_GATE_ENABLED` / `V2_LIVE_GATE_FAIL_OPEN`.
 - **Shadow Vanguard / split-brain challenger:** `scripts/quant/train_vanguard_v2_agent.py --train-challenger-split-brain` trains experimental long and short challenger models without overwriting primary V2 artifacts. Runtime shadow scoring in **`telemetry/shadow_evaluator.py`** loads **`models/vanguard_challenger_long.json`** and **`models/vanguard_challenger_short.json`** and appends only to **`logs/shadow_executions.jsonl`** when Challenger approves a candidate the primary bot ignored. Shadow executions include simulated entry, TP, SL, direction, proba, and threshold; they **must not** flow into `logs/exit_attribution.jsonl`, orders, or the primary DATA_READY loop.
 - **Operator workflow:** Monday review compares live closed trades in **`logs/exit_attribution.jsonl`** against shadow candidates in **`logs/shadow_executions.jsonl`**. Promotion requires positive out-of-sample shadow PF and board approval; shadow evidence is observational until promoted.
+
+### 1.0.4 Compliance Radar, Shadow Concordance, and Displacement Lab (2026-04-25)
+
+**Compliance Radar (read-only broker + ledger)** — **`scripts/run_alpaca_account_snapshot.py`**
+
+- **Purpose:** First-class **visibility** into broker compliance fields and a **wash-loss advisory** list without touching **`main.py`** or the order router (radar only until Q-Ops promotes hard gates).
+- **Broker pull (PDT / account truth):** Uses **`alpaca_trade_api.REST.get_account()`** with standard env keys (`ALPACA_KEY`/`ALPACA_SECRET`/`ALPACA_BASE_URL`, etc.). Persisted fields include at minimum **`pattern_day_trader`**, **`daytrade_count`** (when exposed by the SDK), **`equity`**, **`buying_power`**, **`multiplier`**, plus read-only status flags (`trading_blocked`, margin fields, …). Output: **`state/alpaca_account_snapshot.json`** (gitignored path on clones; always written on the droplet run).
+- **Wash Sale lookback rule (advisory):** Default **`--lookback-days 30`** (calendar days, UTC clock at run time). Scans **`logs/exit_attribution.jsonl`** for rows with exit time in \([now - lookback, now]\) and **strictly negative** realized PnL (`realized_pnl_usd` → `pnl` → `realized_pnl` fallback). Emits **`wash_risk_watchlist`**: per-symbol latest loss exit + **`loss_exit_count_in_window`**. This is **not** legal/tax classification of a wash sale; it flags **re-entry risk** the operator should eyeball before re-opening the same ticker.
+- **Human report:** **`reports/audit/alpaca_compliance_health_<UTC_ts>.md`** per run. **Activation:** Run the script manually or via **systemd timer/cron** (not wired by default in-repo).
+
+**Shadow Vanguard — Concordance Engine (offline Challenger grading)** — **`scripts/research/shadow_challenger_concordance.py`**
+
+- **Purpose:** Grade **Split-Brain Challenger** approvals **without capital**: compares shadow tape rows to forward market outcomes so promotion/kill decisions are evidence-led.
+- **Ingestion:** Reads **`logs/shadow_executions.jsonl`** (`SHADOW_EXECUTION` / `vanguard_challenger` rows). Joins to **`logs/run.jsonl`** **`trade_intent`** rows where **`decision_outcome=blocked`**, **`challenger_ai_approved=true`**, same **symbol** and **side bucket**, and **|shadow_ts − intent_ts| ≤ join window** (default **45s**).
+- **Pricing oracle:** **1Day** closes from **`data/research_bars.db`** (`timeframe='1Day'`) when present; else **Alpaca Data API** via **`scripts/analysis/research_fetch_alpaca_bars.py`** (unless **`--skip-api`**). Anchor = last daily bar with **`t ≤ shadow_ts`**; **T+1 / T+5** = next 1 and 5 daily closes. **Signed return** respects long vs short; **`entry_price_source`** on shadow rows documents broker vs fallback quote.
+- **Outputs:** **`reports/Gemini/shadow_concordance_<UTC_ts>.md`** + CSV. **No orders**, no **`main.py`**, no mutation of **`DATA_READY`** inputs beyond read-only file reads.
+
+**Displacement Counterfactual Lab (capacity cost)** — **`scripts/research/displacement_counterfactual_lab.py`**
+
+- **Purpose:** Quantify opportunity cost when **`logs/displacement.jsonl`** records **`msg=no_candidates_found`** (incumbents blocked by **`too_young`** / **`in_cooldown`**) while a **`max_positions_reached`** **`trade_intent`** exists for a challenger symbol.
+- **Join:** `no_candidates_found` does **not** log the challenger ticker; match to blocked **`trade_intent`** via **time window** (default **±180s**) and **|score − new_signal_score| ≤ eps** (default **0.05**).
+- **$swap\_edge$ (1d horizon, long–long proxy for threshold tuning):** Let \(R^{c}_{1d}\) be the **signed long** forward return from the candidate’s entry proxy to the **T+1** daily close, and \(R^{i}_{1d}\) the same for the **incumbent**, both anchored to the same event timestamp. Then  
+  \[
+  \mathrm{swap\_edge}_{1d} = R^{c}_{1d} - R^{i}_{1d}.
+  \]  
+  **Missed-profit row score** = \(\max(0, \mathrm{swap\_edge}_{1d})\) when the incumbent row’s **`fail_reason`** is **`too_young`** or **`in_cooldown`**. (5d analogue uses **T+5** closes.) **Not** a guarantee of displacement PnL — ignores sizing, shorts, fees, and exact fill timing.
+- **Outputs:** **`reports/Gemini/displacement_cost_<UTC_ts>.md`** + CSV. Read-only.
 
 ### 1.0.3 Paper ML gate — RTH EOD labels, UW×macro interaction matrix, shadow inference, ML milestones (2026-04-14)
 
