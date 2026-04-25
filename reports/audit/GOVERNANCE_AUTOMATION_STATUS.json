@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T14:10:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. Expected top-level directories src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/ all present. reports/audit/ exists. reports/board/ is MISSING.",
+    "governance_contracts_present: memory_bank/ has key docs (TELEMETRY_CHANGELOG.md, TELEMETRY_STANDARD.md, systemPatterns.md, etc.). .cursor/automations/ exists with README.md and specs. reports/audit/ exists. However, reports/board/ is MISSING — governance contract incomplete.",
+    "no_deprecated_dirs: moltbot/ directory exists at repo top-level with active code files (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). This is a deprecated component that should have been removed.",
+    "no_clawdbot_moltbot: Active moltbot code found outside reports/audit and docs: moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py (contains moltbot references). These are code/config files, not audit documentation of removal."
+  ],
+  "slack_sent": false
+}
