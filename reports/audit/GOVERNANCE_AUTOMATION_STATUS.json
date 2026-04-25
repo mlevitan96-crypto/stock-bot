@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T18:22:39Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected by governance spec)",
+    "governance_contracts_present: reports/board/ directory missing — required governance contract directory absent",
+    "no_clawdbot_moltbot: moltbot/ directory contains active code (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py)",
+    "no_clawdbot_moltbot: scripts with Clawdbot/Moltbot references found in code — scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py"
+  ],
+  "slack_sent": false,
+  "github_issue": "anomalies detected — no existing open issue found; agent lacks write access to create issues via gh CLI; manual review recommended"
+}
