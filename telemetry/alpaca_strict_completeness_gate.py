@@ -35,14 +35,13 @@ except Exception:  # pragma: no cover - optional during bootstrap
 
 # Forward-only strict learning era (UTC epoch). Used when ``open_ts_epoch`` is set: cohort
 # membership requires position **open** time parsed from ``trade_id`` (open_<SYM>_<ISO>) >= this floor.
-# Reset 2026-04-17: forensic anchor from ``scripts/_tmp_schema_audit.py`` on production logs —
-# max(first entry_snapshot with finite ``ofi_l1_roll_60s_sum``, first exit with ``fees_usd`` + dense
-# ``entry_uw``). Droplet proof 2026-04-17: OFI L1 became present on entries; exits already had fees/UW earlier.
-STRICT_EPOCH_START = 1776442912.699623  # 2026-04-17T16:21:52.699623Z (data-proof; see script)
+# Reset 2026-04-24: time-based weekend epoch reset after the Friday session. This preserves
+# historical JSONL while restarting strict learning/milestone cohorts from the new boundary.
+STRICT_EPOCH_START = 1777075199.0  # 2026-04-24T23:59:59Z (time-based V2 Vanguard epoch)
 
 # Trades opened on/after this UTC instant must have a LIVE `entry_decision_made` row (OK, non-synthetic).
 LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH = datetime(
-    2026, 4, 17, 16, 21, 52, 699623, tzinfo=timezone.utc
+    2026, 4, 24, 23, 59, 59, tzinfo=timezone.utc
 ).timestamp()
 
 AUTHORITATIVE_JOIN_KEY_RULE = (
