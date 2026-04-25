@@ -85,6 +85,100 @@ def _parse_open_epoch_from_trade_id(tid: Any) -> Optional[float]:
         return None
 
 
+# Blocked trade_intent paths often omit broker entry_price; shadow TP/SL still need a reference.
+_SHADOW_QUOTE_PRICE_KEYS = (
+    "last_price",
+    "last",
+    "close",
+    "vwap",
+    "price",
+    "current_price",
+    "mark",
+    "reference_price",
+    "mid",
+    "mid_price",
+    "latest_price",
+    "bar_close",
+)
+
+
+def _maybe_positive_price(v: Any) -> Optional[float]:
+    try:
+        if v is None:
+            return None
+        x = float(v)
+        if not math.isfinite(x) or x <= 0:
+            return None
+        return x
+    except (TypeError, ValueError):
+        return None
+
+
+def _mid_from_bid_ask(m: Dict[str, Any]) -> Optional[float]:
+    bid = _maybe_positive_price(m.get("bid"))
+    ask = _maybe_positive_price(m.get("ask"))
+    if bid is None or ask is None or ask < bid:
+        return None
+    mid = (bid + ask) / 2.0
+    return mid if mid > 0 and math.isfinite(mid) else None
+
+
+def _scan_mapping_for_price(m: Any) -> Tuple[Optional[float], str]:
+    """Return (price, sub_key) from one dict layer; sub_key names the winning field."""
+    if not isinstance(m, dict):
+        return None, ""
+    p = _maybe_positive_price(m.get("entry_price"))
+    if p is not None:
+        return p, "entry_price"
+    for k in _SHADOW_QUOTE_PRICE_KEYS:
+        p2 = _maybe_positive_price(m.get(k))
+        if p2 is not None:
+            return p2, k
+    mid = _mid_from_bid_ask(m)
+    if mid is not None:
+        return mid, "mid_bid_ask"
+    return None, ""
+
+
+def resolve_shadow_entry_price(
+    *,
+    row: Dict[str, float],
+    feature_snapshot: Any = None,
+    comps: Any = None,
+    cluster: Any = None,
+    source_event: Optional[Dict[str, Any]] = None,
+) -> Tuple[Optional[float], str]:
+    """
+    Resolve a positive finite reference price for shadow TP/SL simulation.
+
+    Order: flattened ML row → feature_snapshot → comps → cluster → trade_intent rec →
+    nested trade_intent.feature_snapshot. Aligns with blocked_counterfactuals intent_price keys.
+    """
+    pr, sub = _scan_mapping_for_price(row)
+    if pr is not None:
+        return pr, f"row:{sub}"
+
+    for label, m in (
+        ("feature_snapshot", feature_snapshot),
+        ("comps", comps),
+        ("cluster", cluster),
+    ):
+        pr2, sub2 = _scan_mapping_for_price(m)
+        if pr2 is not None:
+            return pr2, f"{label}:{sub2}"
+
+    if isinstance(source_event, dict):
+        pr3, sub3 = _scan_mapping_for_price(source_event)
+        if pr3 is not None:
+            return pr3, f"trade_intent:{sub3}"
+        fs = source_event.get("feature_snapshot")
+        pr4, sub4 = _scan_mapping_for_price(fs)
+        if pr4 is not None:
+            return pr4, f"trade_intent.feature_snapshot:{sub4}"
+
+    return None, "unresolved"
+
+
 def shadow_chop_block_now() -> bool:
     """True during 11:30–13:30 US/Eastern (inclusive, minute precision)."""
     if _ET is None:
@@ -268,6 +362,7 @@ def log_shadow_execution(
     threshold: float,
     entry_price: float,
     source_event: Dict[str, Any],
+    entry_price_source: Optional[str] = None,
 ) -> None:
     entry = float(entry_price)
     take_profit, stop_loss = _shadow_tp_sl(entry, side)
@@ -278,6 +373,7 @@ def log_shadow_execution(
         "symbol": str(symbol or "").upper().strip(),
         "side": str(side or "").strip().lower(),
         "entry_price": entry,
+        "entry_price_source": entry_price_source if entry_price_source is not None else "unspecified",
         "shadow_take_profit_price": round(float(take_profit), 6),
         "shadow_stop_loss_price": round(float(stop_loss), 6),
         "challenger_proba": float(proba),
@@ -287,6 +383,8 @@ def log_shadow_execution(
         "source": "shadow_evaluator",
     }
     _SHADOW_EXECUTIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not _SHADOW_EXECUTIONS_PATH.exists():
+        _SHADOW_EXECUTIONS_PATH.touch()
     with _SHADOW_EXECUTIONS_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(rec, default=str) + "\n")
 
@@ -537,15 +635,23 @@ def attach_shadow_telemetry(
                 rec["challenger_shadow_proba"] = float(proba_c)
                 rec["challenger_threshold"] = float(threshold_c)
                 if approved_c and str(rec.get("decision_outcome") or "").lower() != "entered":
-                    entry_price = row.get("entry_price")
-                    if entry_price is not None and math.isfinite(float(entry_price)) and float(entry_price) > 0:
+                    resolved, price_src = resolve_shadow_entry_price(
+                        row=row,
+                        feature_snapshot=feature_snapshot,
+                        comps=comps if isinstance(comps, dict) else {},
+                        cluster=cluster if isinstance(cluster, dict) else {},
+                        source_event=rec,
+                    )
+                    if resolved is not None and math.isfinite(float(resolved)) and float(resolved) > 0:
+                        rec["challenger_shadow_entry_price_source"] = price_src
                         log_shadow_execution(
                             symbol=symbol,
                             side=side,
                             proba=float(proba_c),
                             threshold=float(threshold_c),
-                            entry_price=float(entry_price),
+                            entry_price=float(resolved),
                             source_event=rec,
+                            entry_price_source=price_src,
                         )
             elif err_c:
                 rec["challenger_error"] = str(err_c)[:200]
