@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
 # Version: 2026-04-25 (LIVE / ACTIVE HUNTING — Shadow Vanguard loaded; Compliance baseline)
-# Last Updated: 2026-04-25 (Perimeter LIVE: `stock-bot.service` restarted 2026-04-25 UTC; Memory Bank status + Monday Concordance readiness)
+# Last Updated: 2026-04-25 (§1.0.4: portfolio elasticity, displacement fast-track, wash scheduling, slippage forensics)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -159,6 +159,16 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
   \]  
   **Missed-profit row score** = \(\max(0, \mathrm{swap\_edge}_{1d})\) when the incumbent row’s **`fail_reason`** is **`too_young`** or **`in_cooldown`**. (5d analogue uses **T+5** closes.) **Not** a guarantee of displacement PnL — ignores sizing, shorts, fees, and exact fill timing.
 - **Outputs:** **`reports/Gemini/displacement_cost_<UTC_ts>.md`** + CSV. Read-only.
+
+**Portfolio elasticity & displacement sync (Performance Mode — 2026-04-25)**
+
+- **Single displacement evaluator:** **`trading/displacement_policy.py`** `evaluate_displacement` is the canonical min-hold / delta / thesis gate. Callers (including **`main.py`** `find_displacement_candidate`) pass **`config_overrides`** so env-backed **`DISPLACEMENT_*`** and **`DISPLACEMENT_FASTTRACK_*`** stay aligned — no parallel legacy min-hold math in **`main.py`**.
+- **High-conviction fast-track (min-hold bypass):** When **`challenger_score ≥ DISPLACEMENT_FASTTRACK_MIN_CHALLENGER_SCORE`** (default **4.2**) **and** **`delta_score ≥ DISPLACEMENT_FASTTRACK_MIN_DELTA_SCORE`** (default **1.25**), the static **`DISPLACEMENT_MIN_HOLD_SECONDS`** gate is skipped (same emergency bypass family as weak incumbent / large loss). This is a **score-edge proxy** for positive expected rotation; tune thresholds using **`scripts/research/displacement_counterfactual_lab.py`** $swap\_edge$ statistics — do **not** treat defaults as guaranteed alpha.
+- **Projected alpha recapture (honest framing):** Recapture is **conditional on the blocked cohort** where the **only** failure mode was min-hold / cooldown while the lab shows **positive** $swap\_edge$ at 1d (see counterfactual lab). There is **no** repo-default USD forecast; after deploy, compare **`displacement_min_hold`** / blocked **`trade_intent`** rates and re-run the lab on fresh **`logs/displacement.jsonl`**. Expect **zero** recapture when challengers fail delta or thesis dominance.
+- **Regime-modulated slot cap:** **`trading/slot_elasticity.py`** `resolve_effective_max_slots` applies when **`SLOT_ELASTICITY_ENABLED`** (default on). Inputs: **`MAX_CONCURRENT_POSITIONS`** (base), posture snapshot from **`read_regime_posture_state`** / **`state/regime_posture_state.json`**, and ceilings **`SLOT_ELASTIC_CHOP_MAX`**, **`SLOT_ELASTIC_NEUTRAL_MAX`**, **`SLOT_ELASTIC_TREND_MAX`**, **`SLOT_ELASTIC_CRASH_MAX`**, plus **`SLOT_ELASTIC_LADDER_CONF`** vs **`regime_confidence`**. **Chop** → consolidate toward chop ceiling; **bull + long** or **bear + short** with confidence ≥ ladder → expand toward trend ceiling (still bounded by broker BP in **`main.py`**); **crash** → hard low ceiling. **`AlpacaExecutor`** uses the effective cap for **`can_open_new_position`**, displacement search, and max-position branches.
+- **Slippage vs signal deciles (offline):** **`scripts/research/slippage_signal_decile_forensics.py`** joins **`logs/entry_snapshots.jsonl`** (`order_id`, **`composite_score`**) to **`logs/exit_attribution.jsonl`** (`entry_order_id`, **`exit_slippage_bps`** / touch fallback). If decile 9 median slip materially exceeds the rest, consider **`ELITE_SCORE_LIMIT_PATIENCE_ENABLED`** + small **`ELITE_LIMIT_EXTRA_BPS`** (see **`main.py`** `Config` / `submit_entry`).
+- **Wash-risk re-entry scheduling (advisory):** **`telemetry/wash_reentry_policy.py`** `wash_reentry_action` reads **`state/alpaca_account_snapshot.json`** **`wash_risk_watchlist`**. When **`WASH_REENTRY_POLICY_ENABLED`**: same **America/New_York calendar day** as **`last_loss_exit_ts`** → **`defer_session`** (block that entry); otherwise on list → **`half_size`** (qty multiplier **0.5**). Not tax/legal wash classification — operator visibility only.
+- **Tests:** **`tests/test_displacement_fasttrack.py`**, **`tests/test_slot_elasticity.py`**, **`tests/test_wash_reentry_policy.py`**.
 
 **Evidence chain — runtime + labs (2026-04-25):** **`deploy_supervisor.create_directories()`** touches **`logs/shadow_executions.jsonl`** before any child service starts; **`telemetry/shadow_evaluator.ensure_shadow_executions_log_ready()`** also runs from **`main._log_telemetry_chain_startup_banner`** and inside **`attach_shadow_telemetry`**, so the shadow tape path is never “missing” on a fresh boot (empty tape ≠ missing file). Shadow entry pricing adds **nested** snapshot quote walk + optional **`broker_last_trade`** fallback; if still unresolved, **`CHALLENGER_SHADOW_LOG_UNPRICED`** (default **on**) logs **`SHADOW_EXECUTION`** with **`entry_price: null`** so Concordance can still join and proxy price from intent. **Tests:** **`tests/test_evidence_chain_telemetry.py`**.
 

@@ -465,6 +465,36 @@ class Config:
     DISPLACEMENT_REQUIRE_THESIS_DOMINANCE = get_env("DISPLACEMENT_REQUIRE_THESIS_DOMINANCE", "true").lower() == "true"
     DISPLACEMENT_THESIS_DOMINANCE_MODE = get_env("DISPLACEMENT_THESIS_DOMINANCE_MODE", "flow_or_regime", str)
     DISPLACEMENT_LOG_EVERY_DECISION = get_env("DISPLACEMENT_LOG_EVERY_DECISION", "true").lower() == "true"
+    DISPLACEMENT_FASTTRACK_MIN_CHALLENGER_SCORE = float(
+        get_env("DISPLACEMENT_FASTTRACK_MIN_CHALLENGER_SCORE", "4.2")
+    )
+    DISPLACEMENT_FASTTRACK_MIN_DELTA_SCORE = float(get_env("DISPLACEMENT_FASTTRACK_MIN_DELTA_SCORE", "1.25"))
+
+    # Regime-modulated slot elasticity (Performance Mode; regime is modifier only).
+    SLOT_ELASTICITY_ENABLED = get_env("SLOT_ELASTICITY_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+    SLOT_ELASTIC_CHOP_MAX = get_env("SLOT_ELASTIC_CHOP_MAX", 25, int)
+    SLOT_ELASTIC_NEUTRAL_MAX = get_env("SLOT_ELASTIC_NEUTRAL_MAX", 32, int)
+    SLOT_ELASTIC_TREND_MAX = get_env("SLOT_ELASTIC_TREND_MAX", 44, int)
+    SLOT_ELASTIC_CRASH_MAX = get_env("SLOT_ELASTIC_CRASH_MAX", 20, int)
+    SLOT_ELASTICITY_LADDER_CONF = float(get_env("SLOT_ELASTICITY_LADDER_CONF", "0.55"))
+
+    # Elite composite: extra passive limit offset (bps of ref) to preserve edge vs touch slippage.
+    ELITE_SCORE_LIMIT_PATIENCE_ENABLED = get_env("ELITE_SCORE_LIMIT_PATIENCE_ENABLED", "false").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    ELITE_SCORE_THRESHOLD = float(get_env("ELITE_SCORE_THRESHOLD", "4.5"))
+    ELITE_LIMIT_EXTRA_BPS = float(get_env("ELITE_LIMIT_EXTRA_BPS", "3.0"))
+
+    # Wash watchlist scheduling (see ``telemetry/wash_reentry_policy.py``).
+    WASH_REENTRY_POLICY_ENABLED = get_env("WASH_REENTRY_POLICY_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
     # Shadow experiment matrix (alpha discovery)
     SHADOW_EXPERIMENTS_ENABLED = get_env("SHADOW_EXPERIMENTS_ENABLED", "true").lower() == "true"
@@ -6320,6 +6350,36 @@ class AlpacaExecutor:
             log_event("submit_entry", "bad_ref_price", symbol=symbol, ref_price=ref_price)
             return None, None, "error", 0, "bad_ref_price"
 
+        if bool(getattr(Config, "WASH_REENTRY_POLICY_ENABLED", False)) and str(side or "").lower() in (
+            "buy",
+            "long",
+        ):
+            try:
+                from telemetry.wash_reentry_policy import wash_reentry_action
+
+                _act, _mult = wash_reentry_action(symbol)
+                if _act == "defer_session":
+                    log_event("submit_entry", "wash_reentry_deferred", symbol=symbol, action=_act)
+                    return None, None, "wash_reentry_same_day_defer", 0, "wash_reentry_same_day_defer"
+                if _act == "half_size" and float(_mult) < 1.0:
+                    _oq = qty
+                    try:
+                        if isinstance(qty, float):
+                            qty = max(0.001, float(qty) * float(_mult))
+                        else:
+                            qty = max(1, int(round(int(qty) * float(_mult))))
+                    except Exception:
+                        qty = _oq
+                    log_event(
+                        "submit_entry",
+                        "wash_reentry_half_size",
+                        symbol=symbol,
+                        prev_qty=_oq,
+                        new_qty=qty,
+                    )
+            except Exception as _w:
+                log_event("submit_entry", "wash_reentry_policy_error", symbol=symbol, error=str(_w)[:200])
+
         try:
             from src.offense.streak_breaker import entry_blocked_by_streak
 
@@ -6625,6 +6685,34 @@ class AlpacaExecutor:
         except Exception:
             pass
         limit_price = self.compute_entry_price(symbol, side)
+        try:
+            if (
+                bool(getattr(Config, "ELITE_SCORE_LIMIT_PATIENCE_ENABLED", False))
+                and float(entry_score or 0) >= float(getattr(Config, "ELITE_SCORE_THRESHOLD", 4.5))
+                and ref_price > 0
+            ):
+                extra_bps = float(getattr(Config, "ELITE_LIMIT_EXTRA_BPS", 3.0) or 0.0)
+                if extra_bps > 0 and limit_price is not None:
+                    try:
+                        lp0 = float(limit_price)
+                    except (TypeError, ValueError):
+                        lp0 = 0.0
+                    if lp0 > 0:
+                        adj = float(ref_price) * (extra_bps / 10000.0)
+                        if str(side or "").lower() in ("buy", "long"):
+                            lp1 = max(1e-4, lp0 - adj)
+                        else:
+                            lp1 = lp0 + adj
+                        limit_price = normalize_equity_limit_price(lp1)
+                        log_event(
+                            "submit_entry",
+                            "elite_limit_patience_applied",
+                            symbol=symbol,
+                            extra_bps=extra_bps,
+                            entry_score=float(entry_score),
+                        )
+        except Exception:
+            pass
 
         # AUDIT_MODE: Safety check - no live orders in audit mode
         audit_mode = os.getenv("AUDIT_MODE", "").strip().lower() in ("1", "true", "yes")
@@ -7334,6 +7422,24 @@ class AlpacaExecutor:
                 pass
             return None, None, "error", 0, str(e)
 
+    def _effective_max_concurrent_positions(self) -> int:
+        try:
+            from structural_intelligence.regime_posture_v2 import read_regime_posture_state
+            from trading.slot_elasticity import resolve_effective_max_slots
+
+            return resolve_effective_max_slots(
+                base_cap=int(Config.MAX_CONCURRENT_POSITIONS),
+                enabled=bool(getattr(Config, "SLOT_ELASTICITY_ENABLED", False)),
+                chop_max=int(getattr(Config, "SLOT_ELASTIC_CHOP_MAX", 25)),
+                neutral_max=int(getattr(Config, "SLOT_ELASTIC_NEUTRAL_MAX", 32)),
+                trend_max=int(getattr(Config, "SLOT_ELASTIC_TREND_MAX", 44)),
+                crash_max=int(getattr(Config, "SLOT_ELASTIC_CRASH_MAX", 20)),
+                ladder_conf=float(getattr(Config, "SLOT_ELASTICITY_LADDER_CONF", 0.55)),
+                regime_posture=read_regime_posture_state({}),
+            )
+        except Exception:
+            return int(Config.MAX_CONCURRENT_POSITIONS)
+
     def can_open_new_position(self) -> bool:
         # V4.0: Apply API resilience with exponential backoff
         from api_resilience import ExponentialBackoff
@@ -7344,7 +7450,7 @@ class AlpacaExecutor:
         
         try:
             positions = backoff(list_positions)()
-            return len(positions) < Config.MAX_CONCURRENT_POSITIONS
+            return len(positions) < self._effective_max_concurrent_positions()
         except Exception as e:
             log_event("api_resilience", "list_positions_failed", error=str(e))
             return False  # Fail closed - don't open new positions if we can't check
@@ -7411,7 +7517,7 @@ class AlpacaExecutor:
             
             # V5.0 ELITE TIER DISPLACEMENT (EOW Forensic Optimization): If new signal > 3.6 and capacity_limit hit
             # MANDATED: Displace any position with score < 3.0 OR P&L < -0.5%
-            if num_positions >= Config.MAX_CONCURRENT_POSITIONS and new_signal_score > 3.6:
+            if num_positions >= self._effective_max_concurrent_positions() and new_signal_score > 3.6:
                 # Find eligible positions for displacement (score < 3.0 OR P&L < -0.5%)
                 eligible_positions = []
                 
@@ -7497,7 +7603,7 @@ class AlpacaExecutor:
                     return worst_pos
             
             # V4.0 COMPETITIVE DISPLACEMENT: If new signal > 4.0 and portfolio full
-            if num_positions >= Config.MAX_CONCURRENT_POSITIONS and new_signal_score > 4.0:
+            if num_positions >= self._effective_max_concurrent_positions() and new_signal_score > 4.0:
                 # Find position with LOWEST current score
                 lowest_score_pos = None
                 lowest_score = float('inf')
@@ -7612,7 +7718,7 @@ class AlpacaExecutor:
                              positions_count=num_positions)
                     return lowest_score_pos
             
-            if num_positions < Config.MAX_CONCURRENT_POSITIONS:
+            if num_positions < self._effective_max_concurrent_positions():
                 return None  # Slots available, no displacement needed
         except Exception:
             return None
@@ -12264,6 +12370,12 @@ class StrategyEngine:
                             "DISPLACEMENT_MIN_HOLD_SECONDS": getattr(Config, "DISPLACEMENT_MIN_HOLD_SECONDS", 20 * 60),
                             "DISPLACEMENT_MIN_DELTA_SCORE": getattr(Config, "DISPLACEMENT_MIN_DELTA_SCORE", 0.75),
                             "DISPLACEMENT_REQUIRE_THESIS_DOMINANCE": getattr(Config, "DISPLACEMENT_REQUIRE_THESIS_DOMINANCE", True),
+                            "DISPLACEMENT_FASTTRACK_MIN_CHALLENGER_SCORE": getattr(
+                                Config, "DISPLACEMENT_FASTTRACK_MIN_CHALLENGER_SCORE", 4.2
+                            ),
+                            "DISPLACEMENT_FASTTRACK_MIN_DELTA_SCORE": getattr(
+                                Config, "DISPLACEMENT_FASTTRACK_MIN_DELTA_SCORE", 1.25
+                            ),
                         }
                         policy_allowed, policy_reason, policy_diag = evaluate_displacement(
                             current_position, challenger_candidate, context, config_overrides=config_overrides
@@ -12443,7 +12555,7 @@ class StrategyEngine:
                     except Exception as pos_count_err:
                         log_event("gate", "position_count_error", symbol=symbol, error=str(pos_count_err))
                         actual_positions = len(self.executor.opens)
-                    max_pos = Config.MAX_CONCURRENT_POSITIONS
+                    max_pos = self.executor._effective_max_concurrent_positions()
                     # Variant: allow burst capacity for highest-ranked candidate only (live_canary +10%, paper_aggressive +25%)
                     # Constraint override: uw_quality>=0.6 OR survivorship boost OR variant_id==live_canary -> burst capacity +1
                     allow_burst = False
