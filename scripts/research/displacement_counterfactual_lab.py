@@ -9,7 +9,9 @@ Quantifies opportunity cost when **capacity + displacement** finds **no eligible
 
 **Join (SRE contract):** ``no_candidates_found`` does **not** log the challenger ticker.
 We match each displacement row to the nearest ``trade_intent`` with
-``decision_outcome=blocked``, ``blocked_reason=max_positions_reached``, and
+``decision_outcome=blocked`` and **capacity semantics** (``blocked_reason`` / ``blocked_reason_code`` /
+``intelligence_trace.final_decision.primary_reason`` — includes ``max_positions_reached`` and trace ``capacity_full``),
+reading ``run.jsonl`` **plus** rotated ``run.jsonl.1…N``. Match on
 ``|score - new_signal_score|`` within ``--score-eps``, within ``--join-window-sec``.
 
 **Counterfactual:** For each ``position_details[]`` row with ``fail_reason`` in
@@ -41,6 +43,33 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 FAIL_RULES = frozenset({"too_young", "in_cooldown"})
+
+_RUN_JSONL_ROTATIONS = 36
+
+
+def _rotated_jsonl_paths(primary: Path) -> List[Path]:
+    """``run.jsonl``, ``run.jsonl.1``, … (existing files only)."""
+    seq = [primary] + [primary.with_name(f"{primary.name}.{i}") for i in range(1, _RUN_JSONL_ROTATIONS + 1)]
+    return [p for p in seq if p.is_file()]
+
+
+def _is_capacity_blocked_intent(r: Dict[str, Any]) -> bool:
+    """True when this ``trade_intent`` is a slot-full / capacity block (matches live vocabulary + trace)."""
+    if str(r.get("event_type") or "") != "trade_intent":
+        return False
+    if str(r.get("decision_outcome") or "").lower() != "blocked":
+        return False
+    br = str(r.get("blocked_reason") or "").lower()
+    brc = str(r.get("blocked_reason_code") or "").lower()
+    if br == "max_positions_reached" or "max_positions" in br or "capacity" in br or "position_limit" in br:
+        return True
+    if brc in ("capacity_full", "max_positions_reached"):
+        return True
+    fd = (r.get("intelligence_trace") or {}).get("final_decision") or {}
+    pr = str(fd.get("primary_reason") or "").lower()
+    if "max_position" in pr or pr == "max_positions_reached" or "capacity" in pr:
+        return True
+    return False
 
 
 def _parse_ts(s: Any) -> Optional[datetime]:
@@ -193,14 +222,10 @@ def _first_price_from_snapshot(fs: Any) -> Optional[float]:
 
 def _load_max_positions_blocked(run_path: Path) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
-    for r in _iter_jsonl(run_path):
-        if str(r.get("event_type") or "") != "trade_intent":
-            continue
-        if str(r.get("decision_outcome") or "").lower() != "blocked":
-            continue
-        br = str(r.get("blocked_reason") or "").lower()
-        if br == "max_positions_reached" or "max_positions" in br or "capacity" in br:
-            out.append(r)
+    for path in _rotated_jsonl_paths(run_path):
+        for r in _iter_jsonl(path):
+            if _is_capacity_blocked_intent(r):
+                out.append(r)
     return out
 
 

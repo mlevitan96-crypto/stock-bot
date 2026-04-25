@@ -40,6 +40,14 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+_RUN_JSONL_ROTATIONS = 36
+
+
+def _rotated_jsonl_paths(primary: Path) -> List[Path]:
+    """``run.jsonl``, ``run.jsonl.1``, … (existing files only; picks up SRE rotations)."""
+    seq = [primary] + [primary.with_name(f"{primary.name}.{i}") for i in range(1, _RUN_JSONL_ROTATIONS + 1)]
+    return [p for p in seq if p.is_file()]
+
 
 def _parse_ts(s: Any) -> Optional[datetime]:
     if s is None:
@@ -199,14 +207,15 @@ class ConcordanceStats:
 
 def _load_trade_intent_candidates(run_path: Path) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
-    for r in _iter_jsonl(run_path):
-        if str(r.get("event_type") or "") != "trade_intent":
-            continue
-        if str(r.get("decision_outcome") or "").lower() != "blocked":
-            continue
-        if not r.get("challenger_ai_approved"):
-            continue
-        out.append(r)
+    for path in _rotated_jsonl_paths(run_path):
+        for r in _iter_jsonl(path):
+            if str(r.get("event_type") or "") != "trade_intent":
+                continue
+            if str(r.get("decision_outcome") or "").lower() != "blocked":
+                continue
+            if not r.get("challenger_ai_approved"):
+                continue
+            out.append(r)
     return out
 
 
@@ -334,6 +343,19 @@ def main() -> int:
             entry = float(sh.get("entry_price") or 0)
         except (TypeError, ValueError):
             entry = 0.0
+        if entry <= 0 and intent:
+            try:
+                from telemetry.shadow_evaluator import _deep_scan_dicts_for_price, _scan_mapping_for_price
+
+                fs = intent.get("feature_snapshot")
+                if isinstance(fs, dict):
+                    ep, _sub = _scan_mapping_for_price(fs)
+                    if ep is None:
+                        ep, _sub = _deep_scan_dicts_for_price(fs, label="intent.feature_snapshot")
+                    if ep is not None and ep > 0:
+                        entry = float(ep)
+            except Exception:
+                pass
         sb = _side_bucket(sh.get("side"))
         ts_entry = _parse_ts(sh.get("ts"))
 

@@ -175,8 +175,62 @@ def resolve_shadow_entry_price(
         pr4, sub4 = _scan_mapping_for_price(fs)
         if pr4 is not None:
             return pr4, f"trade_intent.feature_snapshot:{sub4}"
+        pr5, sub5 = _deep_scan_dicts_for_price(fs, label="trade_intent.feature_snapshot_nested")
+        if pr5 is not None:
+            return pr5, sub5
+
+    if isinstance(feature_snapshot, dict):
+        pr6, sub6 = _deep_scan_dicts_for_price(feature_snapshot, label="feature_snapshot_nested")
+        if pr6 is not None:
+            return pr6, sub6
 
     return None, "unresolved"
+
+
+def _deep_scan_dicts_for_price(obj: Any, *, label: str, depth: int = 0, max_depth: int = 6) -> Tuple[Optional[float], str]:
+    """Walk nested dicts (common for market_context / bar blobs) for NBBO-style quote keys."""
+    if depth > max_depth or not isinstance(obj, dict):
+        return None, ""
+    pr, sub = _scan_mapping_for_price(obj)
+    if pr is not None:
+        return pr, f"{label}:{sub}" if sub else label
+    for _k, v in obj.items():
+        if isinstance(v, dict):
+            pr2, sub2 = _deep_scan_dicts_for_price(v, label=label, depth=depth + 1, max_depth=max_depth)
+            if pr2 is not None:
+                return pr2, sub2
+        elif isinstance(v, list) and v and isinstance(v[0], dict):
+            for item in v[:12]:
+                if isinstance(item, dict):
+                    pr3, sub3 = _deep_scan_dicts_for_price(item, label=label, depth=depth + 1, max_depth=max_depth)
+                    if pr3 is not None:
+                        return pr3, sub3
+    return None, ""
+
+
+def _broker_last_trade_price(engine: Any, symbol: str) -> Tuple[Optional[float], str]:
+    """Best-effort NBBO/last from live executor (one REST hop; failures are silent)."""
+    try:
+        ex = getattr(engine, "executor", None) or engine
+        fn = getattr(ex, "get_last_trade", None)
+        if not callable(fn):
+            return None, ""
+        px = float(fn(str(symbol or "").upper().strip()))
+        if math.isfinite(px) and px > 0:
+            return px, "broker_last_trade"
+    except Exception:
+        pass
+    return None, ""
+
+
+def ensure_shadow_executions_log_ready() -> None:
+    """Create ``logs/shadow_executions.jsonl`` so offline labs see a file (empty tape ≠ missing file)."""
+    try:
+        _SHADOW_EXECUTIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        if not _SHADOW_EXECUTIONS_PATH.exists():
+            _SHADOW_EXECUTIONS_PATH.touch()
+    except OSError:
+        pass
 
 
 def shadow_chop_block_now() -> bool:
@@ -360,28 +414,34 @@ def log_shadow_execution(
     side: str,
     proba: float,
     threshold: float,
-    entry_price: float,
+    entry_price: Optional[float],
     source_event: Dict[str, Any],
     entry_price_source: Optional[str] = None,
 ) -> None:
-    entry = float(entry_price)
-    take_profit, stop_loss = _shadow_tp_sl(entry, side)
-    rec = {
+    rec: Dict[str, Any] = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "event_type": "SHADOW_EXECUTION",
         "model": "vanguard_challenger",
         "symbol": str(symbol or "").upper().strip(),
         "side": str(side or "").strip().lower(),
-        "entry_price": entry,
-        "entry_price_source": entry_price_source if entry_price_source is not None else "unspecified",
-        "shadow_take_profit_price": round(float(take_profit), 6),
-        "shadow_stop_loss_price": round(float(stop_loss), 6),
         "challenger_proba": float(proba),
         "challenger_threshold": float(threshold),
         "primary_decision_outcome": source_event.get("decision_outcome"),
         "primary_blocked_reason": source_event.get("blocked_reason") or source_event.get("blocked_reason_code"),
         "source": "shadow_evaluator",
     }
+    if entry_price is not None and math.isfinite(float(entry_price)) and float(entry_price) > 0:
+        entry = float(entry_price)
+        take_profit, stop_loss = _shadow_tp_sl(entry, side)
+        rec["entry_price"] = entry
+        rec["entry_price_source"] = entry_price_source if entry_price_source is not None else "unspecified"
+        rec["shadow_take_profit_price"] = round(float(take_profit), 6)
+        rec["shadow_stop_loss_price"] = round(float(stop_loss), 6)
+    else:
+        rec["entry_price"] = None
+        rec["entry_price_source"] = entry_price_source or "unresolved"
+        rec["shadow_take_profit_price"] = None
+        rec["shadow_stop_loss_price"] = None
     _SHADOW_EXECUTIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not _SHADOW_EXECUTIONS_PATH.exists():
         _SHADOW_EXECUTIONS_PATH.touch()
@@ -566,6 +626,7 @@ def attach_shadow_telemetry(
     cluster: Any,
     engine: Any = None,
 ) -> None:
+    ensure_shadow_executions_log_ready()
     rec["shadow_chop_block"] = bool(shadow_chop_block_now())
     rec["ai_approved_v1"] = None
     rec["ai_approved_v2"] = None
@@ -642,6 +703,10 @@ def attach_shadow_telemetry(
                         cluster=cluster if isinstance(cluster, dict) else {},
                         source_event=rec,
                     )
+                    if (resolved is None or not math.isfinite(float(resolved)) or float(resolved) <= 0) and engine is not None:
+                        br_px, br_src = _broker_last_trade_price(engine, str(symbol))
+                        if br_px is not None:
+                            resolved, price_src = br_px, br_src
                     if resolved is not None and math.isfinite(float(resolved)) and float(resolved) > 0:
                         rec["challenger_shadow_entry_price_source"] = price_src
                         log_shadow_execution(
@@ -652,6 +717,23 @@ def attach_shadow_telemetry(
                             entry_price=float(resolved),
                             source_event=rec,
                             entry_price_source=price_src,
+                        )
+                    elif os.environ.get("CHALLENGER_SHADOW_LOG_UNPRICED", "1").strip().lower() in (
+                        "1",
+                        "true",
+                        "yes",
+                        "on",
+                    ):
+                        # Evidence chain: record challenger approval even when no reference price (labs join + optional bar proxy).
+                        rec["challenger_shadow_entry_price_source"] = "unresolved"
+                        log_shadow_execution(
+                            symbol=symbol,
+                            side=side,
+                            proba=float(proba_c),
+                            threshold=float(threshold_c),
+                            entry_price=None,
+                            source_event=rec,
+                            entry_price_source="unresolved",
                         )
             elif err_c:
                 rec["challenger_error"] = str(err_c)[:200]

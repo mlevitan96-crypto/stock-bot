@@ -145,20 +145,22 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 **Shadow Vanguard — Concordance Engine (offline Challenger grading)** — **`scripts/research/shadow_challenger_concordance.py`**
 
 - **Purpose:** Grade **Split-Brain Challenger** approvals **without capital**: compares shadow tape rows to forward market outcomes so promotion/kill decisions are evidence-led.
-- **Ingestion:** Reads **`logs/shadow_executions.jsonl`** (`SHADOW_EXECUTION` / `vanguard_challenger` rows). Joins to **`logs/run.jsonl`** **`trade_intent`** rows where **`decision_outcome=blocked`**, **`challenger_ai_approved=true`**, same **symbol** and **side bucket**, and **|shadow_ts − intent_ts| ≤ join window** (default **45s**).
+- **Ingestion:** Reads **`logs/shadow_executions.jsonl`** (`SHADOW_EXECUTION` / `vanguard_challenger` rows). Joins to **`trade_intent`** rows in **`logs/run.jsonl`** *and* rotated segments **`run.jsonl.1` … `run.jsonl.N`** (same **`STRICT_RUNLOG`** rotation as **`main.py`**) where **`decision_outcome=blocked`**, **`challenger_ai_approved=true`**, same **symbol** and **side bucket**, and **|shadow_ts − intent_ts| ≤ join window** (default **45s**). If the shadow row has **`entry_price: null`**, the lab may **proxy entry** from the joined intent’s **`feature_snapshot`** quote fields (nested scan).
 - **Pricing oracle:** **1Day** closes from **`data/research_bars.db`** (`timeframe='1Day'`) when present; else **Alpaca Data API** via **`scripts/analysis/research_fetch_alpaca_bars.py`** (unless **`--skip-api`**). Anchor = last daily bar with **`t ≤ shadow_ts`**; **T+1 / T+5** = next 1 and 5 daily closes. **Signed return** respects long vs short; **`entry_price_source`** on shadow rows documents broker vs fallback quote.
 - **Outputs:** **`reports/Gemini/shadow_concordance_<UTC_ts>.md`** + CSV. **No orders**, no **`main.py`**, no mutation of **`DATA_READY`** inputs beyond read-only file reads.
 
 **Displacement Counterfactual Lab (capacity cost)** — **`scripts/research/displacement_counterfactual_lab.py`**
 
 - **Purpose:** Quantify opportunity cost when **`logs/displacement.jsonl`** records **`msg=no_candidates_found`** (incumbents blocked by **`too_young`** / **`in_cooldown`**) while a **`max_positions_reached`** **`trade_intent`** exists for a challenger symbol.
-- **Join:** `no_candidates_found` does **not** log the challenger ticker; match to blocked **`trade_intent`** via **time window** (default **±180s**) and **|score − new_signal_score| ≤ eps** (default **0.05**).
+- **Join:** `no_candidates_found` does **not** log the challenger ticker; match to blocked **`trade_intent`** via **time window** (default **±180s**) and **|score − new_signal_score| ≤ eps** (default **0.05**). **Capacity match:** intent rows are loaded from **`run.jsonl` + `run.jsonl.1…N`**; a row counts as slot-full when **`blocked_reason`/`blocked_reason_code`/`intelligence_trace.final_decision.primary_reason`** align with **max positions / capacity** (includes trace-only **`capacity_full`**).
 - **$swap\_edge$ (1d horizon, long–long proxy for threshold tuning):** Let \(R^{c}_{1d}\) be the **signed long** forward return from the candidate’s entry proxy to the **T+1** daily close, and \(R^{i}_{1d}\) the same for the **incumbent**, both anchored to the same event timestamp. Then  
   \[
   \mathrm{swap\_edge}_{1d} = R^{c}_{1d} - R^{i}_{1d}.
   \]  
   **Missed-profit row score** = \(\max(0, \mathrm{swap\_edge}_{1d})\) when the incumbent row’s **`fail_reason`** is **`too_young`** or **`in_cooldown`**. (5d analogue uses **T+5** closes.) **Not** a guarantee of displacement PnL — ignores sizing, shorts, fees, and exact fill timing.
 - **Outputs:** **`reports/Gemini/displacement_cost_<UTC_ts>.md`** + CSV. Read-only.
+
+**Evidence chain — runtime + labs (2026-04-25):** **`telemetry/shadow_evaluator.attach_shadow_telemetry`** calls **`ensure_shadow_executions_log_ready()`** so **`logs/shadow_executions.jsonl`** always exists (empty tape ≠ missing file). Shadow entry pricing adds **nested** snapshot quote walk + optional **`broker_last_trade`** fallback; if still unresolved, **`CHALLENGER_SHADOW_LOG_UNPRICED`** (default **on**) logs **`SHADOW_EXECUTION`** with **`entry_price: null`** so Concordance can still join and proxy price from intent. **Tests:** **`tests/test_evidence_chain_telemetry.py`**.
 
 ### 1.0.3 Paper ML gate — RTH EOD labels, UW×macro interaction matrix, shadow inference, ML milestones (2026-04-14)
 
