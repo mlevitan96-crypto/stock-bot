@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T07:50:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory does not exist. Expected top-level structure includes reports/board/."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ directory missing. .cursor/automations/ exists with README + specs (pass). memory_bank/ has docs (pass). reports/audit/ exists (pass)."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "moltbot/ directory exists at repo root with active Python code (board.py, orchestrator.py, sentinel.py, memory_evolution.py, promotion_discipline.py, __init__.py). Per governance rules, moltbot should not be present in the codebase."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot/Clawdbot references found in code/config (excluding reports/audit and docs): moltbot/ directory (6 Python files), scripts/sre/run_sre_anomaly_scan.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/automations/run_governance_integrity_once.py, alpaca_codebase_payload.txt"
+    }
+  ],
+  "slack_sent": false
+}
