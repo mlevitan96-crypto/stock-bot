@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T18:43:27Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected by governance spec alongside reports/audit/)",
+    "governance_contracts_present: reports/board/ missing — governance contract requires both reports/audit/ and reports/board/",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active code (board.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, sentinel.py). scripts/run_molt_workflow.py imports from moltbot. scripts/run_openclaw_molt_synthesis.py references Clawdbot removal stub. These are code/config matches, not excluded docs."
+  ],
+  "slack_sent": false,
+  "github_issue": "anomalies detected but gh CLI is read-only in this environment; issue creation deferred"
+}
