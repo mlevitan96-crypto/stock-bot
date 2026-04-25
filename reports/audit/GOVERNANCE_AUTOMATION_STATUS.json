@@ -1,9 +1,7 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-03-08T08:52:44.275048+00:00",
-  "run_ts_utc": "2026-03-08T08:52:44.275083+00:00",
+  "run_ts_utc": "2026-04-25T22:54:57Z",
   "branch": "main",
-  "status": "anomalies",
   "anomalies_detected": true,
   "checks": {
     "repo_structure": "fail",
@@ -11,15 +9,12 @@
     "governance_contracts_present": "fail",
     "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
-    "no_clawdbot_moltbot": "pass"
+    "no_clawdbot_moltbot": "fail"
   },
   "details": [
-    "Missing expected top-level dirs: ['memory_bank']",
-    "Missing: memory_bank"
-  ],
-  "anomalies": [
-    "Missing expected top-level dirs: ['memory_bank']",
-    "Missing: memory_bank"
+    "repo_structure: memory_bank/ directory is missing (expected top-level directory)",
+    "governance_contracts_present: memory_bank/ directory is missing; other governance files present (.cursor/automations/ has README + specs, reports/audit/ and reports/board/ exist)",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active Python code (orchestrator.py, sentinel.py, board.py, memory_evolution.py, promotion_discipline.py). Scripts scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, and scripts/run_molt_intelligence_expansion.py reference Molt. These are code hits, not documentation-only references."
   ],
   "slack_sent": false
 }
