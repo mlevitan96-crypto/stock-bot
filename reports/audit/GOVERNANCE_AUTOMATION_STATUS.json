@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T16:32:07Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory missing (expected at reports/board/; found board/ at top-level instead)",
+    "governance_contracts_present: reports/board/ directory missing",
+    "no_deprecated_dirs: moltbot/ directory present at top-level with active Python modules (board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py)",
+    "no_clawdbot_moltbot: moltbot/ directory with code files: moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py",
+    "no_clawdbot_moltbot: scripts referencing moltbot: scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py",
+    "no_clawdbot_moltbot: scripts/sre/run_sre_anomaly_scan.py references clawdbot/moltbot",
+    "no_clawdbot_moltbot: scripts/automations/run_governance_integrity_once.py references clawdbot/moltbot (expected: governance script)"
+  ],
+  "slack_sent": false
+}
