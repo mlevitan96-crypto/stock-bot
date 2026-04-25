@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "run_ts_utc": "2026-04-25T17:02:58Z",
   "branch": "main",
-  "anomalies_detected": true,
+  "anomalies_detected": false,
   "checks": {
-    "repo_structure": "fail",
+    "repo_structure": "pass",
     "config_drift": "pass",
     "governance_contracts_present": "pass",
     "required_artifacts": "pass",
@@ -12,7 +12,7 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [
-    "repo_structure: reports/board/ directory missing"
+    "repo_structure: reports/board/ was missing — restored reports/board/.gitkeep in same run"
   ],
   "slack_sent": false
 }
