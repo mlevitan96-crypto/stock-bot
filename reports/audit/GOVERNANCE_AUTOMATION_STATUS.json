@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T08:33:10Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory does not exist. Expected per governance contract. All other top-level dirs (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) and reports/audit/ are present."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ missing. memory_bank/ has key docs (6 files). .cursor/automations/ exists with README.md and 5 automation specs. reports/audit/ exists with 19 entries."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "moltbot/ directory exists with 5 Python modules (board.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, sentinel.py) plus agents/ subdir. Scripts reference moltbot: scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. Config files in board/eod/out/ also reference clawdbot/moltbot. MEMORY_BANK_ALPACA.md still documents moltbot workflows. Excluded: reports/audit docs, reports/daily evidence, and docs/ files that document removal history."
+    }
+  ],
+  "slack_sent": false
+}
