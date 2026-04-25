@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T06:03:17Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory missing (expected under reports/)",
+    "governance_contracts_present: reports/board/ directory missing; all other governance contracts present (memory_bank/ populated, .cursor/automations/ with README and specs, reports/audit/ exists)",
+    "no_deprecated_dirs: moltbot/ directory still exists at repo root with active Python modules (board.py, orchestrator.py, sentinel.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/)",
+    "no_clawdbot_moltbot: Active code references found — moltbot/ directory contains live Python code; scripts/run_molt_workflow.py imports from moltbot; scripts/run_openclaw_molt_synthesis.py contains Clawdbot stub references. Excluded: reports/audit/*, docs/*, governance automation scripts (expected)"
+  ],
+  "slack_sent": false
+}
