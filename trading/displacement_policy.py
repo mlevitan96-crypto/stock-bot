@@ -127,12 +127,23 @@ def evaluate_displacement(
         diagnostics["reason"] = "displacement_disabled"
         return False, "displacement_disabled", diagnostics
 
+    # High-conviction fast-track: strong challenger + large score edge → skip static min-hold
+    # (proxy for positive expected rotation; offline swap_edge lab refines thresholds).
+    ft_min_score = float(overrides.get("DISPLACEMENT_FASTTRACK_MIN_CHALLENGER_SCORE", 4.2))
+    ft_min_delta = float(overrides.get("DISPLACEMENT_FASTTRACK_MIN_DELTA_SCORE", 1.25))
+    fast_track = bool(challenger_score >= ft_min_score and delta_score >= ft_min_delta)
+    diagnostics["displacement_fast_track"] = fast_track
+    if fast_track:
+        diagnostics["displacement_fast_track_rule"] = (
+            f"challenger_score>={ft_min_score} and delta_score>={ft_min_delta}"
+        )
+
     # Emergency bypass: elite-tier (score < 3 or pnl < -0.5%) — no min hold.
     emergency = (
         current_score < 3.0
         or (isinstance(current_position.get("pnl_pct"), (int, float)) and float(current_position["pnl_pct"]) < -0.005)
     )
-    if not emergency and age_seconds < min_hold:
+    if not emergency and not fast_track and age_seconds < min_hold:
         diagnostics["allowed"] = False
         diagnostics["reason"] = "displacement_min_hold"
         return False, "displacement_min_hold", diagnostics
