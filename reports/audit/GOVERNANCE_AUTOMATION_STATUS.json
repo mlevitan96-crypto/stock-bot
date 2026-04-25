@@ -17,5 +17,6 @@
     "no_deprecated_dirs: moltbot/ directory exists at repo root with active code files (board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py) — should be deprecated/removed per governance docs",
     "no_clawdbot_moltbot: Moltbot/Clawdbot references found in code/config (excluding docs/audit reports): moltbot/__init__.py, moltbot/board.py, moltbot/orchestrator.py, moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/memory_evolution.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py, alpaca_codebase_payload.txt"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1200"
 }
