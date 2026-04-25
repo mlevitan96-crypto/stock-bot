@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T19:05:23.161+00:00",
+  "branch": "main",
+  "anomalies_detected": false,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [],
+  "slack_sent": false
+}
