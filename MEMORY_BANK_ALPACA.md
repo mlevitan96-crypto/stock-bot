@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-25 (Compliance Radar + Shadow Concordance + Displacement Lab)
-# Last Updated: 2026-04-25 (Maintenance Log: offline research/compliance tooling finalized; no live-router gates added)
+# Version: 2026-04-25 (LIVE / ACTIVE HUNTING — Shadow Vanguard loaded; Compliance baseline)
+# Last Updated: 2026-04-25 (Perimeter LIVE: `stock-bot.service` restarted 2026-04-25 UTC; Memory Bank status + Monday Concordance readiness)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -100,6 +100,12 @@ This document defines:
 - how reports MUST be generated  
 
 Cursor MUST treat this document as the **authoritative rule set** for all actions.
+
+## Current epoch — operational status (authoritative)
+
+- **State (2026-04-25 UTC):** **LIVE / ACTIVE HUNTING** — Alpaca production **`stock-bot.service`** was restarted so the running process loads current **`main`** + **`telemetry/shadow_evaluator.py`** (Split-Brain Shadow Vanguard: challenger long/short models, **`logs/shadow_executions.jsonl`** telemetry only; no shadow rows in broker ledger). Harvester-era entry snapshots, strict epoch, and existing live gates (e.g. V2 profit agent, Alpha 10 env) remain as documented in §1.0 / §1.0.2–1.0.4.
+- **Compliance baseline:** Run **`PYTHONPATH=. python3 scripts/run_alpaca_account_snapshot.py --root /root/stock-bot`** after material deploys; week-open baseline documented **2026-04-25** on the droplet under **`state/alpaca_account_snapshot.json`** + **`reports/audit/alpaca_compliance_health_*.md`**.
+- **Shadow Concordance Engine:** **`scripts/research/shadow_challenger_concordance.py`** is **ready** for offline ingest (read-only: **`logs/shadow_executions.jsonl`**, **`logs/run.jsonl`**, bars). First **RTH**-meaningful grading window is **Monday 2026-04-27** U.S. session onward (tape + blocked **`trade_intent`** joins accumulate during session; operator runs the script post-session or on cadence per §1.0.4).
 
 ## 1.0 Alpaca V2 Harvester phase — hardened entry snapshots (current — 2026-04-08)
 
