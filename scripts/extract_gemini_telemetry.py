@@ -30,7 +30,7 @@ try:
 except Exception:  # pragma: no cover
     iter_harvester_era_exit_records_for_csv = None  # type: ignore
     _parse_exit_epoch = None  # type: ignore
-    STRICT_EPOCH_START = 1776442912.699623  # fallback; sync with alpaca_strict_completeness_gate
+    STRICT_EPOCH_START = 1777075199.0  # fallback; sync with alpaca_strict_completeness_gate
 
 # IPv4 quick redact (for any string fields we serialize)
 _IP_RE = re.compile(

@@ -2,8 +2,8 @@
 
 ## Extraction window
 
-- **Script window (UTC):** `2026-04-07T15:43:51.135429+00:00` → `2026-04-09T15:43:51.135429+00:00` (last 48 hours from run time)
-- **Run executed at (UTC):** `2026-04-09T15:43:51.331142+00:00`
+- **Script window (UTC):** `2026-04-23T00:13:08.858181+00:00` → `2026-04-25T00:13:08.858181+00:00` (last 48 hours from run time)
+- **Run executed at (UTC):** `2026-04-25T00:13:08.861280+00:00`
 - **Earliest event in extracted rows:** `(no rows)`
 - **Latest event in extracted rows:** `(no rows)`
 
