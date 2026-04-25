@@ -28,5 +28,7 @@
       "message": "moltbot/ directory still present with active code: moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py. Additionally, moltbot references found in: scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. board/eod/out/2026-02-12/cron_diagnosis.json and board/eod/out/2026-02-13/cron_diagnosis.json also reference moltbot."
     }
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "UNABLE_TO_CREATE — gh CLI is read-only in this environment. No existing open issue found with title '[Governance Integrity] Anomalies detected'. Manual issue creation required.",
+  "issue_body_draft": "## [Governance Integrity] Anomalies detected\n\n**Run:** 2026-04-25T06:51:52Z\n**Branch:** main\n\n### Failed Checks\n\n1. **repo_structure** (warn): `reports/board/` directory does not exist.\n2. **governance_contracts_present** (warn): `reports/board/` missing.\n3. **no_clawdbot_moltbot** (critical): `moltbot/` directory still present with active code (sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py). Moltbot references also found in scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py."
 }
