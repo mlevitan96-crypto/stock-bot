@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-25T06:51:52Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warn",
+      "message": "reports/board/ directory does not exist. All other expected top-level dirs present: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/. reports/audit/ exists."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warn",
+      "message": "reports/board/ missing. memory_bank/ has 6 docs. .cursor/automations/ exists with README and 6 spec files. reports/audit/ exists."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "critical",
+      "message": "moltbot/ directory still present with active code: moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py. Additionally, moltbot references found in: scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. board/eod/out/2026-02-12/cron_diagnosis.json and board/eod/out/2026-02-13/cron_diagnosis.json also reference moltbot."
+    }
+  ],
+  "slack_sent": false
+}
