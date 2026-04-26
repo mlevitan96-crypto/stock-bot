@@ -16,5 +16,6 @@
     "governance_contracts_present: reports/board/ missing — governance contract requires reports/audit/ and reports/board/ both present",
     "no_clawdbot_moltbot: moltbot/ directory exists with active Python code (board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py). Scripts referencing moltbot found: scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue_action": "anomalies detected — issue creation not available (gh CLI is read-only in automation environment)"
 }
