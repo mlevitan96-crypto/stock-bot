@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-26T17:10:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ was missing. Auto-remediated by restoring reports/board/.gitkeep. This is a recurring issue — reports/board/ keeps getting purged from main by other workflows."
+  ],
+  "auto_remediation": {
+    "applied": true,
+    "action": "Restored reports/board/.gitkeep",
+    "recurring": true,
+    "recommendation": "Protect reports/board/.gitkeep in purge/cleanup scripts to prevent recurring deletion."
+  },
+  "slack_sent": false
+}
