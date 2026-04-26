@@ -182,10 +182,11 @@ _ML_EPOCH_CACHE: dict[str, Any] = {"t": 0.0, "data": None}
 _ML_EPOCH_TTL_SEC = 45.0
 
 
-def _dash_cache_get(key: str, builder):
+def _dash_cache_get(key: str, builder, *, ttl_sec: Optional[float] = None):
     now = time.monotonic()
     ent = _dash_ttl_store.get(key)
-    if ent is not None and (now - ent[0]) < _DASH_TTL_SEC:
+    ttl = _DASH_TTL_SEC if ttl_sec is None else float(ttl_sec)
+    if ent is not None and (now - ent[0]) < ttl:
         return ent[1]
     val = builder()
     _dash_ttl_store[key] = (now, val)
@@ -5602,104 +5603,96 @@ def _merge_health_subsystem(health_dict):
 @app.route("/api/sre/health", methods=["GET"])
 def api_sre_health():
     """Get comprehensive SRE health data"""
-    try:
-        import requests
-        # Try to get from main bot API first
+    def _build() -> tuple[dict, int]:
         try:
-            resp = requests.get("http://localhost:8081/api/sre/health", timeout=2)
-            if resp.status_code == 200:
-                health_data = resp.json()
-                _merge_health_subsystem(health_data)
-                # Enhance with SRE metrics and RCA fixes
-                try:
-                    from sre_diagnostics import get_sre_metrics, SREDiagnostics
-                    metrics = get_sre_metrics()
-                    health_data["sre_metrics"] = metrics
-                    
-                    diag = SREDiagnostics()
-                    recent_fixes = diag.get_recent_fixes(limit=5)
-                    health_data["recent_rca_fixes"] = recent_fixes
-                except:
-                    pass
-                # Same dashboard-side watchdog as fallback path (8081 health may omit it).
-                if not health_data.get("stagnation_watchdog"):
+            import requests
+
+            # Try to get from main bot API first
+            try:
+                resp = requests.get("http://localhost:8081/api/sre/health", timeout=2)
+                if resp.status_code == 200:
+                    health_data = resp.json()
+                    _merge_health_subsystem(health_data)
+
+                    # Enhance with SRE metrics and RCA fixes
                     try:
-                        health_data["stagnation_watchdog"] = _calculate_stagnation_watchdog()
+                        from sre_diagnostics import get_sre_metrics, SREDiagnostics
+
+                        health_data["sre_metrics"] = get_sre_metrics()
+                        health_data["recent_rca_fixes"] = SREDiagnostics().get_recent_fixes(limit=5)
                     except Exception:
                         pass
-                return jsonify(health_data), 200
-        except:
-            pass
-        
-        # Fallback to local sre_monitoring
-        try:
+
+                    # Same dashboard-side watchdog as fallback path (8081 health may omit it).
+                    if not health_data.get("stagnation_watchdog"):
+                        try:
+                            health_data["stagnation_watchdog"] = _calculate_stagnation_watchdog()
+                        except Exception:
+                            pass
+                    return health_data, 200
+            except Exception:
+                pass
+
+            # Fallback to local sre_monitoring
             from sre_monitoring import get_sre_health
+
             health = get_sre_health()
-            
+
             # Add supervisor health (Risk #9 - Aggregated Health)
             supervisor_health = _get_supervisor_health()
             if supervisor_health:
                 health["supervisor_health"] = supervisor_health
                 # Override overall_health with supervisor's aggregated health if available
                 if supervisor_health.get("overall_status"):
-                    supervisor_status = supervisor_health["overall_status"].lower()
+                    supervisor_status = str(supervisor_health["overall_status"]).lower()
                     if supervisor_status == "failed":
                         health["overall_health"] = "critical"
                     elif supervisor_status == "degraded":
                         health["overall_health"] = "degraded"
-                    # OK maps to existing health
-            
+
             # Enhance with SRE metrics and RCA fixes
             try:
                 from sre_diagnostics import get_sre_metrics, SREDiagnostics
-                metrics = get_sre_metrics()
-                health["sre_metrics"] = metrics
-                
-                diag = SREDiagnostics()
-                recent_fixes = diag.get_recent_fixes(limit=5)
-                health["recent_rca_fixes"] = recent_fixes
-                
+
+                health["sre_metrics"] = get_sre_metrics()
+                health["recent_rca_fixes"] = SREDiagnostics().get_recent_fixes(limit=5)
+
                 # V3.0: Add Signal Funnel metrics and Stagnation Watchdog
                 try:
-                    funnel_data = _calculate_signal_funnel()
-                    health["signal_funnel"] = funnel_data
-                except:
+                    health["signal_funnel"] = _calculate_signal_funnel()
+                except Exception:
                     pass
-                
+
                 try:
-                    stagnation_data = _calculate_stagnation_watchdog()
-                    health["stagnation_watchdog"] = stagnation_data
+                    health["stagnation_watchdog"] = _calculate_stagnation_watchdog()
                 except Exception as e:
                     print(f"[Dashboard] Warning: Failed to calculate stagnation watchdog: {e}", flush=True)
-                    import traceback
-                    traceback.print_exc()
-                    # Still add a default structure so frontend doesn't break
                     health["stagnation_watchdog"] = {
                         "status": "OK",
                         "alerts_received": 0,
                         "trades_executed": 0,
-                        "stagnation_detected": False
+                        "stagnation_detected": False,
                     }
             except Exception as outer_e:
                 print(f"[Dashboard] Warning: Error in SRE health enhancement: {outer_e}", flush=True)
                 # Ensure stagnation watchdog is added even if other enhancements fail
                 try:
-                    stagnation_data = _calculate_stagnation_watchdog()
-                    health["stagnation_watchdog"] = stagnation_data
-                except:
+                    health["stagnation_watchdog"] = _calculate_stagnation_watchdog()
+                except Exception:
                     health["stagnation_watchdog"] = {
                         "status": "OK",
                         "alerts_received": 0,
                         "trades_executed": 0,
-                        "stagnation_detected": False
+                        "stagnation_detected": False,
                     }
-            
+
             _merge_health_subsystem(health)
-            return jsonify(health), 200
+            return health, 200
         except Exception as e:
-            return jsonify({"error": f"Failed to load SRE health: {str(e)}"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+            return {"error": f"Failed to load SRE health: {str(e)}"}, 500
+
+    payload, code = _dash_cache_get("sre_health_v2", _build, ttl_sec=15.0)
+    return jsonify(payload), code
 
 
 def _read_self_heal_events_fallback(
