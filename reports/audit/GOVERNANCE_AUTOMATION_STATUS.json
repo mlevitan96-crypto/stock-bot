@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-26T18:52:29Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected at /workspace/reports/board/)",
+    "governance_contracts_present: reports/board/ directory missing — required by governance contract",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active Python code (board.py, orchestrator.py, sentinel.py, memory_evolution.py, promotion_discipline.py, __init__.py)",
+    "no_clawdbot_moltbot: scripts/run_molt_workflow.py imports from moltbot package",
+    "no_clawdbot_moltbot: scripts/run_openclaw_molt_synthesis.py references Clawdbot (stub comments noting removal)"
+  ],
+  "slack_sent": false
+}
