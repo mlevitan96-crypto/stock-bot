@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-26T06:50:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "status": "fail",
+      "reason": "reports/board/ directory does not exist. All other expected top-level directories present: src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/, reports/audit/."
+    },
+    {
+      "check": "governance_contracts_present",
+      "status": "fail",
+      "reason": "reports/board/ missing. memory_bank/ present with key docs (systemPatterns.md, TELEMETRY_CHANGELOG.md, etc.). .cursor/automations/ present with README.md and spec files. reports/audit/ present."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "status": "fail",
+      "reason": "Deprecated moltbot/ directory exists at repo root with active Python files: board.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, sentinel.py, __init__.py, agents/."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "status": "fail",
+      "reason": "Clawdbot/Moltbot references found in code/config (excluding reports/audit and docs): moltbot/ directory (5 .py files), scripts/run_openclaw_molt_synthesis.py (3 refs), scripts/run_molt_workflow.py (1 ref), scripts/sre/run_sre_anomaly_scan.py (1 ref), scripts/automations/run_governance_integrity_once.py (7 refs, governance scanner)."
+    }
+  ],
+  "slack_sent": false
+}
