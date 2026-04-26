@@ -316,6 +316,9 @@
         .filter(function (p) {
           return p && typeof p.t === "number" && !Number.isNaN(p.t);
         })
+        .filter(function (p) {
+          return !isNYSECalendarWeekend(p.t * 1000);
+        })
         .slice()
         .sort(function (a, b) {
           return a.t - b.t;
@@ -441,6 +444,14 @@
     } catch (_) {}
   }
 
+  /** True when the instant falls on Saturday or Sunday in America/New_York (NYSE calendar weekend). */
+  function isNYSECalendarWeekend(tsMs) {
+    var wk = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" }).format(
+      new Date(tsMs)
+    );
+    return wk === "Sat" || wk === "Sun";
+  }
+
   /** True when timestamp falls on NYSE regular session (Mon–Fri, 09:30–16:00 America/New_York). */
   function isNYSERegularSession(tsMs) {
     var d = new Date(tsMs);
@@ -479,6 +490,26 @@
     }
     if (out.length === 0) return sortedAsc.slice();
     if (last && !isNYSERegularSession(last.t)) {
+      if (!out.length || out[out.length - 1].t !== last.t) out.push(last);
+    }
+    return out;
+  }
+
+  /**
+   * Drop Saturday/Sunday samples (America/New_York) so the X-axis does not span a 48h market-closed gap.
+   * Keeps the final sample even if it lands on a weekend (live broker poll / last close).
+   * @param {{ t: number, equity: number, src?: string }[]} sortedAsc
+   */
+  function filterEquitySeriesExcludeWeekends(sortedAsc) {
+    if (!sortedAsc || sortedAsc.length === 0) return [];
+    var last = sortedAsc[sortedAsc.length - 1];
+    var out = [];
+    for (var i = 0; i < sortedAsc.length; i++) {
+      var pt = sortedAsc[i];
+      if (!isNYSECalendarWeekend(pt.t)) out.push(pt);
+    }
+    if (out.length === 0) return sortedAsc.slice();
+    if (last && isNYSECalendarWeekend(last.t)) {
       if (!out.length || out[out.length - 1].t !== last.t) out.push(last);
     }
     return out;
@@ -704,7 +735,7 @@
     }
 
     var rthOn = equityChartRthOnlyEnabled();
-    var series = rthOn ? filterEquitySeriesRthStitch(rawSeries) : rawSeries;
+    var series = rthOn ? filterEquitySeriesRthStitch(rawSeries) : filterEquitySeriesExcludeWeekends(rawSeries);
     if (series.length === 0) series = rawSeries;
 
     var showRun = equityChartShowRunPnl();
