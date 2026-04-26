@@ -33,5 +33,6 @@
       "message": "Moltbot/Clawdbot references found in code/config: moltbot/ directory (6 modules), scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py. Excluded: reports/audit, reports/daily, docs, MEMORY_BANK_ALPACA.md (documentation/audit references only)."
     }
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "gh CLI is read-only; issue creation requires manual action or ManagePullRequest tool. Title: [Governance Integrity] Anomalies detected. 4 checks failed: repo_structure, governance_contracts_present, no_deprecated_dirs, no_clawdbot_moltbot."
 }
