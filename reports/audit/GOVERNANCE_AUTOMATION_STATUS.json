@@ -17,5 +17,6 @@
     "no_deprecated_dirs: moltbot/ directory still present in repo root with active code (board.py, orchestrator.py, sentinel.py, memory_evolution.py, promotion_discipline.py)",
     "no_clawdbot_moltbot: moltbot/ directory contains active Python code; scripts/run_molt_workflow.py imports from moltbot module — not a removal-documentation exclusion"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "Existing open issue #1324 matches — no new issue created (duplicate avoidance)"
 }
