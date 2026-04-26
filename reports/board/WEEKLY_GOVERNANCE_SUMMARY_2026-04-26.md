@@ -1,0 +1,97 @@
+# Weekly Governance Summary — 2026-04-26
+
+**Period:** 2026-04-19 → 2026-04-26 (Sunday to Sunday)
+
+---
+
+## Commits to main
+
+**Total: 73 commits** across the week.
+
+| Date | Count | Highlights |
+|------|-------|------------|
+| 2026-04-20 | 17 | Alpha 11 tiered sizing, apex slippage/gate audits, daily trade chart, systemd truth warehouse timer, schema audit helpers |
+| 2026-04-21 | 20 | ML deep correlation matrix, apex omni sweep (multiple fixes), strict completeness quarantine, UW dark pool/IV skew penalties, TNR regime math, dynamic ATR trailing stops, GUT confluence gate, hyper-confluence engine |
+| 2026-04-22 | 6 | SRE strict chain + truth warehouse dedupe, UI shadow ledger ghost line, RTH x-axis stitching, Telegram milestones, telemetry gut/fractal lift |
+| 2026-04-23 | 7 | V2 live gate deploy, V3 shadow models, SHAP omniscience vectors, ML cohort backfill archive, epoch reset script, PnL ledger seed fix |
+| 2026-04-24 | 5 | Vanguard side-aware parity, Shadow Vanguard deploy, paper notional raised to 100k, STRICT_EPOCH_START advance to Apr 24, submit_entry import fix |
+| 2026-04-25 | 12 | Portfolio elasticity + displacement fast-track, shadow concordance finalization, wash-risk watchlist, Alpaca account snapshot, shadow evaluator fallback, perimeter marked LIVE, dashboard weekend gap fix |
+
+**Key themes:** ML/quant research (apex sweep, SHAP, deep correlation), live-gate promotion (V2 Vanguard), shadow infrastructure (concordance, displacement lab), compliance tooling (wash scheduling, account radar), SRE hardening.
+
+## PRs merged
+
+No PRs were merged to `main` via GitHub pull requests during this period. All 73 commits were pushed directly to `main` (the last merged PR was #2 on 2026-02-28).
+
+> Manual check: Confirm via GitHub PR list filtered to merged in last 7 days.
+
+## CSA verdicts
+
+No `CSA_VERDICT_*.json` or `CSA_VERDICT_LATEST.json` files found in `reports/audit/`.
+
+CSA guardrails are referenced in the codebase (e.g., `466de0f3` Alpha 11 tiered sizing with CSA), but no standalone verdict artifact was persisted to the audit directory this week.
+
+## SRE anomalies
+
+No `SRE_STATUS.json` or equivalent status file found in `reports/audit/`.
+
+SRE-related commits this week:
+- `01cecf7a` — strict chain excludes epoch-bridge rows; unified entry proxy; truth warehouse index+exit dedupe
+- `3ed89bf8` — Telegram milestones 10/100/250; allowlist vanguard_comm_test
+- `a93601c8` — cache `/api/sre/health` for faster dashboard loads
+- `3aa96a62` — systemd timer for daily Alpaca truth warehouse mission
+
+No anomalies reported in audit artifacts.
+
+## Deploys
+
+Deploy-related commits this period:
+
+| Commit | Description |
+|--------|-------------|
+| `4bc97d12` | Deploy V2 live gate, V3 shadow models, offense gates, flattener AI columns, epoch reset script |
+| `7ed22372` | Vanguard: deploy side-aware parity and Shadow Vanguard |
+| `7b0afff6` | Add `droplet_remote_epoch_reset.sh` for post-pull log archive and service restart |
+| `dd5b50c3` | fix(supervisor): touch `shadow_executions.jsonl` before services start |
+| `83e00a1f` | mark alpaca perimeter as LIVE and active hunting |
+
+No `DEPLOYMENT_PROOF_*.json`, `DEPLOY_*.json`, or `B2_*` backup proof files were found in `reports/audit/` for this period.
+
+## Shadow / paper / live changes
+
+**Shadow:**
+- `2d02c454` — Shadow challenger concordance offline engine added
+- `5e79dd35` — Shadow evidence chain restored; displacement lab joins aligned
+- `2f2abd0d` — Shadow concordance finalized alongside displacement lab and account radar
+- `10737cae` — Shadow Ledger Ghost Line added to dashboard UI
+- `7ed22372` — Shadow Vanguard deployed with side-aware parity
+- `d9d98ab1` — ML cohort backfill archived (shadow, AI v1, regime_id) + `shadow_chop_block_at`
+- `3a56534f` — Shadow regime audit, ATR sweep helper, stagnant exit, EOD flatten
+
+**Paper:**
+- `4b84259d` — Paper max position notional raised to 100k (risk, trade guard, registry, Config)
+
+**Live:**
+- `4bc97d12` — V2 live gate deployed with V3 shadow models and offense gates
+- `83e00a1f` — Alpaca perimeter marked as LIVE and active hunting
+- `b63423d8` — `STRICT_EPOCH_START` advanced to April 24 for V2 Vanguard cohort
+- `c96b307e` — Fixed inner datetime imports that shadowed V2 live gate
+
+## Config changes
+
+Config files modified on `main` during this period:
+
+| File | Context |
+|------|---------|
+| `config/registry.py` | Updated alongside paper notional raise to 100k |
+| `config/strategy_governance.json` | Updated for quarantine/governance policy |
+| `config/strict_completeness_quarantine.json` | Updated for strict epoch quarantine defaults |
+| `config/ai_board_roles.json` | Modified (details in commit context) |
+| `models/vanguard_v2_profit_agent.json` | V2 Vanguard model parameters updated |
+| `models/vanguard_v2_profit_agent_threshold.json` | V2 threshold config updated |
+| `artifacts/strategy_pnl.json` | Strategy PnL artifact refreshed |
+| `data/uw_flow_cache.json` | UW flow cache updated |
+
+---
+
+*Generated by Cursor Automation (weekly_governance_summary) — 2026-04-26T07:01Z*
