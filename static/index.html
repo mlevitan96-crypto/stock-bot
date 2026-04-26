@@ -324,6 +324,7 @@
             Continuous curve from <code>state/continuous_pnl_ledger.jsonl</code> (survives epoch log truncates).
             Live = cumulative realized <code>pnl</code> per close. Shadow = same closes only where entry
             <code>trade_intent</code> had <code>ai_approved_v3_shadow: true</code>; otherwise 0 for that close.
+            Chart omits Saturday–Sunday (America/New_York) so the curve does not stretch across closed-market gaps.
           </p>
           <div class="chart-wrap" style="min-height:180px;height:clamp(180px,26vh,300px);">
             <canvas id="dualBarrelPnlChart" aria-label="Dual barrel cumulative PnL"></canvas>
@@ -335,7 +336,11 @@
             History merges <code>/metrics</code> + <code>/api/rolling_pnl_5d</code>; each poll appends live portfolio value.
             Governance baseline <span id="equityBaselineHint">$10,000.00</span> (display only). Y-axis uses the visible equity min/max (±0.1% padding), not this baseline.
             <span class="equity-chart-opts" style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;margin-top:0.35rem;">
-              <label class="muted" style="cursor:pointer;font-size:0.78rem;"><input type="checkbox" id="equityRthOnly" checked /> US RTH stitch (drop overnight/weekend samples)</label>
+              <label
+                class="muted"
+                style="cursor:pointer;font-size:0.78rem;"
+                title="RTH stitch removes overnight and weekend points. When unchecked, overnight is shown but Saturday–Sunday (America/New_York) is still omitted so charts do not span closed-market gaps."
+                ><input type="checkbox" id="equityRthOnly" checked /> US RTH stitch (drop overnight/weekend samples)</label>
               <label class="muted" style="cursor:pointer;font-size:0.78rem;"><input type="checkbox" id="equityShowRunPnl" checked /> Running P&amp;L vs baseline (right axis)</label>
               <label class="muted" style="cursor:pointer;font-size:0.78rem;"><input type="checkbox" id="equityShowShadow" checked /> Show shadow (no-chop) ledger</label>
             </span>
