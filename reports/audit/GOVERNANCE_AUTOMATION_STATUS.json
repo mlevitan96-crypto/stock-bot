@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-26T19:33:04Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "reports/board/ directory does not exist (expected by governance contract)",
+    "moltbot/ directory still exists at repo root with active Python modules (sentinel.py, orchestrator.py, board.py, memory_evolution.py, promotion_discipline.py)",
+    "Moltbot code found in: moltbot/*.py (5 files with references), scripts/run_molt_workflow.py (imports from moltbot), scripts/run_openclaw_molt_synthesis.py (3 mentions), alpaca_codebase_payload.txt (7 mentions)"
+  ],
+  "slack_sent": false
+}
