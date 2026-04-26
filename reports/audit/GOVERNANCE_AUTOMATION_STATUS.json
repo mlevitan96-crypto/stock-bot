@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-26T03:12:23Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. Expected top-level dirs (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) present. reports/audit/ present.",
+    "governance_contracts_present: reports/board/ missing (required by governance contract). memory_bank/ has key docs, .cursor/automations/ exists with README + specs, reports/audit/ exists.",
+    "no_deprecated_dirs: moltbot/ directory exists at repo root with active code (board.py, orchestrator.py, sentinel.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/).",
+    "no_clawdbot_moltbot: moltbot/ directory contains active Python code referencing Moltbot. scripts/run_molt_workflow.py imports from moltbot package. scripts/run_openclaw_molt_synthesis.py contains Clawdbot stub references. Excluded: reports/audit, docs, governance/SRE check scripts."
+  ],
+  "slack_sent": false
+}
