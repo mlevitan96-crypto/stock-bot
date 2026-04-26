@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-26T21:13:10Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing (expected by governance contract)",
+    "governance_contracts_present: reports/board/ directory is missing",
+    "no_clawdbot_moltbot: active moltbot import in scripts/run_molt_workflow.py — 'from moltbot import (...)'"
+  ],
+  "slack_sent": false
+}
