@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-26T02:50:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing (expected by governance spec; was purged in commit f12028c1 'Purge legacy reports')",
+    "governance_contracts_present: reports/board/ directory missing; reports/audit/ exists; memory_bank/ has key docs; .cursor/automations/ exists with README + specs"
+  ],
+  "slack_sent": false,
+  "notes": {
+    "moltbot_legacy": "moltbot/ directory exists as known legacy (not a reintroduction); excluded per established governance baseline in scripts/automations/run_governance_integrity_once.py",
+    "reports_board_history": "reports/board/ was removed in commit f12028c1 'Purge legacy reports' but is still expected by governance spec"
+  }
+}
