@@ -1,9 +1,7 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-04-27T03:33:45.843510+00:00",
   "run_ts_utc": "2026-04-27T03:33:45.843590+00:00",
   "branch": "main",
-  "status": "anomalies",
   "anomalies_detected": true,
   "checks": {
     "repo_structure": "pass",
@@ -14,12 +12,10 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
+    "Missing: reports/board — directory does not exist",
+    "required_artifacts: reports/board missing or not a directory"
   ],
-  "anomalies": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
-  ],
-  "slack_sent": false
+  "slack_sent": false,
+  "issue_opened": false,
+  "issue_note": "gh CLI is read-only; manual GitHub issue creation required for anomalies"
 }
