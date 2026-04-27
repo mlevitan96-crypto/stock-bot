@@ -6614,20 +6614,18 @@ class AlpacaExecutor:
                 return self.api.get_account()
             
             acct = backoff(get_account)()
-            # BULLETPROOF: Safe attribute access with defaults
-            dtbp = float(getattr(acct, "daytrading_buying_power", 0.0))
+            # Alpaca deprecates daytrading_buying_power (FINRA 4210 / intraday margin); use buying_power only.
             bp = float(getattr(acct, "buying_power", 0.0))
             
             # BULLETPROOF: Validate buying power is positive
             if bp <= 0:
-                log_event("submit_entry", "invalid_buying_power", symbol=symbol, bp=bp, dtbp=dtbp)
+                log_event("submit_entry", "invalid_buying_power", symbol=symbol, bp=bp)
                 return None, None, "invalid_buying_power", 0, "invalid_buying_power"
             
             from src.core.broker_math import required_buying_power
 
             notional = abs(float(qty)) * float(ref_price)
             required_margin = required_buying_power(notional, side)
-            # Use regular buying_power for paper trading (dtbp is unreliable in paper accounts)
             available_bp = bp
             
             # Enhanced validation using risk management module
@@ -6648,7 +6646,6 @@ class AlpacaExecutor:
                 log_event("submit_entry", "insufficient_buying_power",
                          symbol=symbol, side=side, qty=qty, notional=notional,
                          required_margin=round(required_margin, 2),
-                         available_dtbp=round(dtbp, 2),
                          available_bp=round(bp, 2))
                 return None, None, "insufficient_buying_power", 0, "insufficient_buying_power"
         except Exception as e:
@@ -17342,8 +17339,6 @@ def api_account():
             "short_market_value": _safe_float(getattr(account, "short_market_value", 0.0), 0.0),
             "initial_margin": _safe_float(getattr(account, "initial_margin", 0.0), 0.0),
             "maintenance_margin": _safe_float(getattr(account, "maintenance_margin", 0.0), 0.0),
-            "daytrade_count": int(getattr(account, "daytrade_count", 0)),
-            "pattern_day_trader": bool(getattr(account, "pattern_day_trader", False)),
             "trading_blocked": bool(getattr(account, "trading_blocked", False)),
             "account_blocked": bool(getattr(account, "account_blocked", False)),
             "status": str(getattr(account, "status", "unknown"))

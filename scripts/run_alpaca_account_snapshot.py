@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Alpaca account + PDT / wash-loss radar — read-only.
+Alpaca account + wash-loss radar — read-only.
 
 Pulls broker **account** state via ``alpaca_trade_api.REST.get_account()`` (no orders)
 and scans ``logs/exit_attribution.jsonl`` for **loss exits** in the last **30** calendar days
@@ -115,12 +115,9 @@ def _serialize_account(account: Any) -> Dict[str, Any]:
         "last_equity",
         "buying_power",
         "regt_buying_power",
-        "daytrading_buying_power",
         "non_marginable_buying_power",
         "cash",
         "portfolio_value",
-        "pattern_day_trader",
-        "daytrade_count",
         "multiplier",
         "shorting_enabled",
         "trading_blocked",
@@ -289,8 +286,6 @@ def main() -> int:
 
     out_json.write_text(json.dumps(payload, indent=2, sort_keys=False), encoding="utf-8")
 
-    pdt = (account_dict or {}).get("pattern_day_trader")
-    dtc = (account_dict or {}).get("daytrade_count")
     bp = (account_dict or {}).get("buying_power")
     eq = (account_dict or {}).get("equity")
     mult = (account_dict or {}).get("multiplier")
@@ -314,8 +309,6 @@ def main() -> int:
                 f"| Equity | **{eq}** |",
                 f"| Buying power | **{bp}** |",
                 f"| Multiplier | **{mult}** |",
-                f"| Pattern day trader | **{pdt}** |",
-                f"| Day trade count | **{dtc}** |",
                 "",
             ]
         )
