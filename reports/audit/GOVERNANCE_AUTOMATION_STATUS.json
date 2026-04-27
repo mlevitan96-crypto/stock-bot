@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-27T09:31:54Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected by governance contract)",
+    "governance_contracts_present: reports/board/ directory missing — required for board artifact storage",
+    "no_deprecated_dirs: moltbot/ directory exists at repo top-level — this directory was previously deprecated and should not be present",
+    "no_clawdbot_moltbot: moltbot code found in active source paths — moltbot/sentinel.py, moltbot/promotion_discipline.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/board.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py"
+  ],
+  "slack_sent": false
+}
