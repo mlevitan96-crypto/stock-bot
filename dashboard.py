@@ -4653,6 +4653,10 @@ def _api_positions_impl():
             "day_pnl": 0,
             "error": "Alpaca API not connected",
             "missed_alpha_usd": 0,
+            "account_equity": None,
+            "account_last_equity": None,
+            "account_buying_power": None,
+            "broker_currency": None,
         }
     positions = _alpaca_api.list_positions()
     account = _alpaca_api.get_account()
@@ -4849,7 +4853,7 @@ def _api_positions_impl():
     try:
         from shadow_tracker import get_shadow_tracker
         from signal_history_storage import get_signal_history
-        signal_history = get_signal_history(limit=500)
+        signal_history = get_signal_history(limit=120)
         capacity_blocked_signals = [
             s for s in signal_history
             if "capacity_limit" in s.get("decision", "").lower()
@@ -4905,6 +4909,11 @@ def _api_positions_impl():
         "unrealized_pnl": sum(p["unrealized_pnl"] for p in pos_list),
         "day_pnl": round(day_pnl, 2),
         "missed_alpha_usd": round(missed_alpha_usd, 2),
+        # Authoritative broker snapshot (same REST calls as Alpaca dashboard / portfolio_value).
+        "account_equity": float(getattr(account, "equity", 0) or 0),
+        "account_last_equity": float(getattr(account, "last_equity", 0) or 0),
+        "account_buying_power": float(getattr(account, "buying_power", 0) or 0),
+        "broker_currency": str(getattr(account, "currency", "USD") or "USD"),
     }
 
 
@@ -5346,7 +5355,7 @@ def api_stockbot_closed_trades():
     """
     try:
         base = _dash_cache_get("stockbot_closed_trades_v1", _stockbot_closed_trades_bundle)
-        limit = _dash_parse_limit(default=50, cap=500)
+        limit = _dash_parse_limit(default=50, cap=100)
         trades = base.get("closed_trades") or []
         if not isinstance(trades, list):
             trades = []
@@ -5386,6 +5395,11 @@ def api_stockbot_fast_lane_ledger():
     """Alpaca fast-lane 25-trade cycle ledger: PnL per cycle and cumulative. Shadow-only; no execution impact."""
     try:
         data = _load_fast_lane_ledger()
+        cyc = data.get("cycles") if isinstance(data, dict) else None
+        if isinstance(cyc, list) and len(cyc) > 50:
+            data = dict(data)
+            data["cycles"] = cyc[-50:]
+            data["cycles_total_before_cap"] = len(cyc)
         return jsonify(data), 200
     except Exception as e:
         return jsonify({"cycles": [], "total_trades": 0, "cumulative_pnl": 0.0, "error": str(e)}), 200
@@ -5400,7 +5414,7 @@ def api_closed_positions():
             data = json.loads(state_file.read_text())
             closed = data if isinstance(data, list) else data.get("positions", [])
 
-        limit = _dash_parse_limit(default=50, cap=500)
+        limit = _dash_parse_limit(default=50, cap=100)
         if isinstance(closed, list) and len(closed) > limit:
             closed = closed[-limit:]
         return jsonify({"closed_positions": closed, "limit_applied": limit})
@@ -5450,11 +5464,11 @@ def api_system_events():
     - symbol
     """
     try:
-        limit = 500
+        limit = 100
         try:
-            limit = min(500, max(1, int(request.args.get("limit", "500"))))
+            limit = min(300, max(1, int(request.args.get("limit", "100"))))
         except Exception:
-            limit = 500
+            limit = 100
         subsystem = request.args.get("subsystem") or None
         severity = request.args.get("severity") or None
         symbol = request.args.get("symbol") or None
@@ -5494,7 +5508,7 @@ def system_events_page():
   </style>
 </head>
 <body>
-  <h2>System Events (last 500)</h2>
+  <h2>System Events (last 100)</h2>
   <div class="row">
     <input id="subsystem" placeholder="subsystem (e.g. gate, exit, order)" />
     <select id="severity">
@@ -6642,7 +6656,14 @@ def api_executive_summary():
 def _rolling_pnl_5d_build():
     path = (_DASHBOARD_ROOT / "reports" / "state" / "rolling_pnl_5d.jsonl").resolve()
     if not path.exists():
-        return {"points": [], "window": "5d", "source": "unified_exits", "shadow_value": []}
+        return {
+            "points": [],
+            "points_total_before_cap": 0,
+            "window": "5d",
+            "source": "unified_exits",
+            "shadow_value": [],
+            "rolling_pnl_points_cap": 900,
+        }
     points = []
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
@@ -6652,6 +6673,10 @@ def _rolling_pnl_5d_build():
             points.append(json.loads(line))
         except Exception:
             continue
+    _ROLLING_PNL_MAX_POINTS = 900
+    _points_total = len(points) if isinstance(points, list) else 0
+    if isinstance(points, list) and len(points) > _ROLLING_PNL_MAX_POINTS:
+        points = points[-_ROLLING_PNL_MAX_POINTS:]
     shadow_value = [
         p.get("equity_shadow")
         for p in points
@@ -6661,9 +6686,11 @@ def _rolling_pnl_5d_build():
         shadow_value = [p.get("equity") for p in points if isinstance(p, dict)]
     return {
         "points": points,
+        "points_total_before_cap": _points_total,
         "window": "5d",
         "source": "unified_exits",
         "shadow_value": shadow_value,
+        "rolling_pnl_points_cap": _ROLLING_PNL_MAX_POINTS,
     }
 
 
@@ -6771,6 +6798,13 @@ def _metrics_payload():
         plist = pos.get("positions") or []
         out["open_position_count"] = len(plist) if isinstance(plist, list) else 0
         out["day_pnl_usd"] = pos.get("day_pnl")
+        # Same Alpaca REST snapshot as /open_positions (broker truth for KPI strip).
+        out["broker_equity_usd"] = pos.get("account_equity")
+        out["broker_last_equity_usd"] = pos.get("account_last_equity")
+        out["broker_portfolio_value_usd"] = pos.get("total_value")
+        out["broker_buying_power_usd"] = pos.get("account_buying_power")
+        out["broker_currency"] = pos.get("broker_currency")
+        out["broker_day_pnl_usd"] = pos.get("day_pnl")
     except Exception as e:
         out["positions_snapshot_error"] = str(e)
 
