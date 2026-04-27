@@ -16,5 +16,6 @@
     "governance_contracts_present: reports/board/ directory missing — required by governance contract. memory_bank/ has key docs, .cursor/automations/ exists with README and specs, reports/audit/ exists.",
     "no_clawdbot_moltbot: moltbot/ directory still present in codebase with active Python modules (board.py, memory_evolution.py, orchestrator.py, promotion_discipline.py, sentinel.py). Related scripts found: scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py. Governance automation self-references in .cursor/automations/ excluded from anomaly."
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "unable to create — gh CLI is read-only in automation environment; anomalies require manual issue triage"
 }
