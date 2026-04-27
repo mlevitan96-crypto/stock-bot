@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-27T08:52:14Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected at /workspace/reports/board/). Top-level board/ exists but is not under reports/.",
+    "governance_contracts_present: reports/board/ missing — governance contract for board reports subdirectory not satisfied.",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active code (sentinel.py, orchestrator.py, board.py, promotion_discipline.py, memory_evolution.py). scripts/run_molt_workflow.py imports from moltbot. scripts/run_openclaw_molt_synthesis.py references Clawdbot removal but still present as stub. These are code/config references outside of reports/audit or docs documentation exclusions."
+  ],
+  "slack_sent": false,
+  "github_issue": "Existing open issue #1373 covers these anomalies. gh CLI is read-only; no new issue created."
+}
