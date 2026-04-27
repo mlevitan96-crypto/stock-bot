@@ -3,6 +3,12 @@
 
   /** Command Center poll interval (ms); balance broker load vs chart freshness. */
   const POLL_MS = 30000;
+  /** Hard caps to keep Chrome responsive (Chart.js + DOM). */
+  const EQUITY_TRAIL_MAX = 1200;
+  const EQUITY_CHART_RENDER_MAX = 700;
+  const ROLLING_MERGE_MAX = 220;
+  const DAILY_LEDGER_ROWS_MAX = 90;
+  const TRADE_MODAL_JSON_MAX = 48000;
   const FETCH_OPTS = { credentials: "include", headers: { Accept: "application/json" } };
 
   const el = (id) => document.getElementById(id);
@@ -116,7 +122,8 @@
     const rows = series.slice().sort(function (a, b) {
       return String(b.date || "").localeCompare(String(a.date || ""));
     });
-    for (var i = 0; i < rows.length; i++) {
+    const cap = Math.min(DAILY_LEDGER_ROWS_MAX, rows.length);
+    for (var i = 0; i < cap; i++) {
       var r = rows[i];
       var tr = document.createElement("tr");
       tr.className = "data-row";
@@ -410,7 +417,7 @@
     equityTrail.sort(function (a, b) {
       return a.t - b.t;
     });
-    while (equityTrail.length > 4000) equityTrail.shift();
+    while (equityTrail.length > EQUITY_TRAIL_MAX) equityTrail.shift();
   }
 
   function appendLivePortfolioEquity(totalValue) {
@@ -420,7 +427,7 @@
     var last = equityTrail[equityTrail.length - 1];
     if (last && last.src === "live_poll" && t - last.t < 3500 && last.equity === y) return;
     equityTrail.push({ t: t, equity: y, src: "live_poll" });
-    while (equityTrail.length > 4000) equityTrail.shift();
+    while (equityTrail.length > EQUITY_TRAIL_MAX) equityTrail.shift();
   }
 
   async function refreshRollingPnl5d() {
@@ -429,6 +436,9 @@
       if (!r.ok || !r.data) return;
       var pts = r.data.points;
       if (!Array.isArray(pts)) return;
+      if (pts.length > ROLLING_MERGE_MAX) {
+        pts = pts.slice(-ROLLING_MERGE_MAX);
+      }
       var sv = r.data.shadow_value;
       if (Array.isArray(sv) && sv.length === pts.length) {
         for (var k = 0; k < pts.length; k++) {
@@ -587,7 +597,7 @@
 
   function persistTrailSession() {
     try {
-      var tail = equityTrail.slice(-800);
+      var tail = equityTrail.slice(-400);
       sessionStorage.setItem("equityTrailV1", JSON.stringify(tail));
     } catch (_) {}
   }
@@ -737,6 +747,9 @@
     var rthOn = equityChartRthOnlyEnabled();
     var series = rthOn ? filterEquitySeriesRthStitch(rawSeries) : filterEquitySeriesExcludeWeekends(rawSeries);
     if (series.length === 0) series = rawSeries;
+    if (series.length > EQUITY_CHART_RENDER_MAX) {
+      series = series.slice(-EQUITY_CHART_RENDER_MAX);
+    }
 
     var showRun = equityChartShowRunPnl();
     var baseline = Number(EQUITY_BASELINE_USD);
@@ -1026,7 +1039,8 @@
       tbody.appendChild(tr);
       return;
     }
-    for (let i = 0; i < rows.length; i++) {
+    const rowCap = Math.min(100, rows.length);
+    for (let i = 0; i < rowCap; i++) {
       const p = rows[i];
       const tr = document.createElement("tr");
       tr.className = "data-row";
@@ -1078,7 +1092,9 @@
     if (!backdrop || !pre) return;
     const sym = trade && trade.symbol ? String(trade.symbol) : "Trade";
     if (title) title.textContent = sym + " · payload";
-    pre.textContent = JSON.stringify(trade, null, 2);
+    var raw = JSON.stringify(trade, null, 2);
+    pre.textContent =
+      raw.length > TRADE_MODAL_JSON_MAX ? raw.slice(0, TRADE_MODAL_JSON_MAX) + "\n… (truncated for UI performance)" : raw;
     backdrop.hidden = false;
     backdrop.classList.add("open");
     document.body.style.overflow = "hidden";
@@ -1159,6 +1175,18 @@
         const v = m.data.day_pnl_usd;
         dp.className = pnlClass(v);
         dp.textContent = formatMoney(v);
+      }
+      const kbe = el("kpiBrokerEquity");
+      const kbp = el("kpiBrokerPortfolio");
+      if (kbe && m.data.broker_equity_usd != null && !Number.isNaN(Number(m.data.broker_equity_usd))) {
+        kbe.textContent = formatMoney(Number(m.data.broker_equity_usd));
+      } else if (kbe) {
+        kbe.textContent = "—";
+      }
+      if (kbp && m.data.broker_portfolio_value_usd != null && !Number.isNaN(Number(m.data.broker_portfolio_value_usd))) {
+        kbp.textContent = formatMoney(Number(m.data.broker_portfolio_value_usd));
+      } else if (kbp) {
+        kbp.textContent = "—";
       }
 
       var pts = m.data.rolling_pnl_last_points;
@@ -1299,18 +1327,31 @@
     }
   }
 
+  function scheduleNextCommandCenterPoll(delayMs) {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = setTimeout(runCommandCenterPollChain, delayMs);
+  }
+
+  function runCommandCenterPollChain() {
+    pollTimer = null;
+    const cc = el("panel-cc");
+    if (!cc || !cc.classList.contains("active")) {
+      scheduleNextCommandCenterPoll(POLL_MS);
+      return;
+    }
+    pollCommandCenter()
+      .catch(function () {
+        setConn(false, "Reconnecting…");
+      })
+      .finally(function () {
+        scheduleNextCommandCenterPoll(POLL_MS);
+      });
+  }
+
   function startPoll() {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(function () {
-      const cc = el("panel-cc");
-      if (cc && cc.classList.contains("active")) {
-        try {
-          void pollCommandCenter();
-        } catch (_) {
-          setConn(false, "Reconnecting…");
-        }
-      }
-    }, POLL_MS);
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+    runCommandCenterPollChain();
   }
 
   function activateTab(which) {
@@ -1378,6 +1419,5 @@
   })();
 
   hydrateTrailFromSession();
-  void pollCommandCenter();
   startPoll();
 })();
