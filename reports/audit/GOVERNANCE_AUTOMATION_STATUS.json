@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-27T19:10:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing (expected by governance contract)",
+    "governance_contracts_present: reports/board/ directory does not exist; memory_bank/ and .cursor/automations/ (with README + specs) are present",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active code (board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py); scripts/run_molt_workflow.py and scripts/run_openclaw_molt_synthesis.py reference moltbot; scripts/sre/run_sre_anomaly_scan.py also references moltbot — these are code/config hits, not documentation of removal"
+  ],
+  "slack_sent": false
+}
