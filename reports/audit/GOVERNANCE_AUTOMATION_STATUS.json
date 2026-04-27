@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-27T00:02:08Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "fail",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: missing subdirs: [\"reports/board\"]",
+    "governance_contracts_present: missing: [\"reports/board\"]",
+    "required_artifacts: reports/audit or reports/board missing"
+  ],
+  "slack_sent": false
+}
