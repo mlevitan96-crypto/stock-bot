@@ -41,5 +41,6 @@
       ]
     }
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1399"
 }
