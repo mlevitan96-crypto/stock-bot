@@ -88,7 +88,6 @@ def check_alpaca_connection():
         print(f"\n✓ Alpaca API Connected")
         print(f"  Account Status: {account.status}")
         print(f"  Trading Blocked: {account.trading_blocked}")
-        print(f"  Pattern Day Trader: {account.pattern_day_trader}")
         print(f"  Buying Power: ${float(account.buying_power):,.2f}")
         
         if account.trading_blocked:
