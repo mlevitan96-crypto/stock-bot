@@ -1,25 +1,19 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-04-27T21:41:40.095628+00:00",
-  "run_ts_utc": "2026-04-27T21:41:40.095684+00:00",
+  "timestamp": "2026-04-27T21:42:29.044120+00:00",
+  "run_ts_utc": "2026-04-27T21:42:29.044154+00:00",
   "branch": "main",
-  "status": "anomalies",
-  "anomalies_detected": true,
+  "status": "ok",
+  "anomalies_detected": false,
   "checks": {
     "repo_structure": "pass",
     "config_drift": "pass",
-    "governance_contracts_present": "fail",
-    "required_artifacts": "fail",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
     "no_deprecated_dirs": "pass",
     "no_clawdbot_moltbot": "pass"
   },
-  "details": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
-  ],
-  "anomalies": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
-  ],
+  "details": [],
+  "anomalies": [],
   "slack_sent": false
 }
