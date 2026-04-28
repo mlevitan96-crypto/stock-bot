@@ -67,17 +67,19 @@ def test_live_v2_vector_uses_side_normalized_features() -> None:
     assert np.asarray(x).reshape(-1).tolist() == pytest.approx([-2.0, 80.0, 11.0, 1.0])
 
 
-def test_live_v2_gate_quarantines_shorts_before_model_load(monkeypatch) -> None:
-    def fail_if_called(*_args, **_kwargs):
-        raise AssertionError("short quarantine must not load radioactive V2 model")
+def test_live_v2_gate_evaluates_shorts_same_path_as_long_when_model_missing(monkeypatch) -> None:
+    monkeypatch.setenv("V2_LIVE_GATE_FAIL_OPEN", "0")
 
-    monkeypatch.setattr(vanguard_ml_runtime, "_load_pair", fail_if_called)
+    def no_model(*_args, **_kwargs):
+        return None, {}, None
 
-    ok, proba, reason = vanguard_ml_runtime.evaluate_v2_live_gate(symbol="AAPL", side="sell", row={})
+    monkeypatch.setattr(vanguard_ml_runtime, "_load_pair", no_model)
 
-    assert ok is True
-    assert proba is None
-    assert reason == "v2_short_gate_quarantined_until_retrain"
+    ok_s, _p_s, reason_s = vanguard_ml_runtime.evaluate_v2_live_gate(symbol="AAPL", side="sell", row={})
+    ok_b, _p_b, reason_b = vanguard_ml_runtime.evaluate_v2_live_gate(symbol="AAPL", side="buy", row={})
+
+    assert ok_s is False and reason_s == "v2_agent_veto_no_model"
+    assert ok_b is False and reason_b == "v2_agent_veto_no_model"
 
 
 def test_flattener_rows_use_same_side_normalization(flattener_mod, tmp_path) -> None:
