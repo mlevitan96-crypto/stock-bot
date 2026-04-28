@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-04-23T17:32:02.815194+00:00",
-  "run_ts_utc": "2026-04-23T17:32:02.815243+00:00",
+  "timestamp": "2026-04-28T10:41:43.465749+00:00",
+  "run_ts_utc": "2026-04-28T10:41:43.465792+00:00",
   "branch": "main",
   "status": "anomalies",
   "anomalies_detected": true,
