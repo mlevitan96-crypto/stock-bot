@@ -21,5 +21,6 @@
     "Missing: reports/board",
     "reports/audit or reports/board missing or not directories"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "MANUAL_ACTION_REQUIRED: anomalies detected but gh CLI is read-only; issue '[Governance Integrity] Anomalies detected' should be opened with failed checks: governance_contracts_present (Missing: reports/board), required_artifacts (reports/board missing or not directories)"
 }
