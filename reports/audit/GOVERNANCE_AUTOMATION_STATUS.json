@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-28T14:44:21Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ was missing (created during this run to restore expected layout)",
+    "governance_contracts_present: reports/board/ did not exist prior to this run — governance contract incomplete",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active Python code (sentinel.py, orchestrator.py, board.py, memory_evolution.py, promotion_discipline.py); scripts/run_molt_workflow.py imports from moltbot; scripts/run_openclaw_molt_synthesis.py references Clawdbot removal. Note: existing governance script (scripts/automations/run_governance_integrity_once.py) explicitly excludes moltbot/ — this may be an accepted legacy state, but per spec any code/config reference is flagged."
+  ],
+  "slack_sent": false
+}
