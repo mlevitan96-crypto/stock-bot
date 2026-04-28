@@ -6409,8 +6409,7 @@ class AlpacaExecutor:
         except Exception as _gate_e:
             log_event("submit_entry", "offense_entry_gate_error", symbol=symbol, error=str(_gate_e))
 
-        # V2 live gate: hard block when model says probability below threshold.
-        # Shorts are explicitly quarantined in the runtime until the V2 model is retrained.
+        # V2 live gate: hard block when model says probability below threshold (long and short).
         if str(os.environ.get("V2_LIVE_GATE_ENABLED", "1")).strip().lower() in ("1", "true", "yes", "on"):
             try:
                 from telemetry.shadow_evaluator import build_vanguard_feature_map
@@ -6447,8 +6446,6 @@ class AlpacaExecutor:
                         reason=_rc_v2,
                     )
                     return None, None, str(_rc_v2 or "v2_agent_veto"), 0, str(_rc_v2 or "v2_agent_veto")
-                if _rc_v2 == "v2_short_gate_quarantined_until_retrain":
-                    log_event("submit_entry", "v2_short_gate_quarantined", symbol=symbol, side=side, reason=_rc_v2)
             except Exception as _v2e:
                 log_event("submit_entry", "v2_live_gate_error", symbol=symbol, error=str(_v2e))
                 if str(os.environ.get("V2_LIVE_GATE_FAIL_OPEN", "0")).strip().lower() not in (
