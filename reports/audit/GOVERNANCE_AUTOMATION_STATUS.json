@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-28T00:40:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected by governance contract)",
+    "governance_contracts_present: reports/board/ missing — governance contract requires both reports/audit/ and reports/board/",
+    "no_clawdbot_moltbot: moltbot/ directory contains active code files: sentinel.py, promotion_discipline.py, orchestrator.py, memory_evolution.py, board.py",
+    "no_clawdbot_moltbot: scripts/ contains moltbot-referencing files: scripts/sre/run_sre_anomaly_scan.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/automations/run_governance_integrity_once.py"
+  ],
+  "slack_sent": false
+}
