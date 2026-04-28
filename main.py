@@ -823,7 +823,7 @@ def _log_telemetry_chain_startup_banner() -> None:
         # SRE/journalctl proof line (systemd captures stdout).
         try:
             _a11_en = os.environ.get("ALPHA11_FLOW_GATE_ENABLED", "1").strip().lower() in ("1", "true", "yes", "on")
-            _a11_min = os.environ.get("ALPHA11_MIN_FLOW_STRENGTH", "0.985").strip()
+            _a11_min = os.environ.get("ALPHA11_MIN_FLOW_STRENGTH", "0.75").strip()
             print(
                 f"ALPHA11_FLOW_GATE initialized enabled={_a11_en} min_flow_strength={_a11_min}",
                 flush=True,
@@ -1865,7 +1865,7 @@ def log_order(event: dict):
         sym = ev.get("symbol")
         if sym and not ev.get("canonical_trade_id"):
             try:
-                from config.registry import StateFiles, load_metadata_with_lock
+                from config.registry import StateFiles
 
                 _mp = StateFiles.POSITION_METADATA
                 if _mp.exists():
@@ -1889,7 +1889,7 @@ def log_order(event: dict):
         # position open (entry_ts + side) when still missing (stale or pre-fill rows).
         if sym and not ev.get("canonical_trade_id"):
             try:
-                from config.registry import StateFiles, load_metadata_with_lock
+                from config.registry import StateFiles
                 from datetime import datetime as _dt_ord
                 from src.telemetry.alpaca_trade_key import build_trade_key, normalize_side as _ns_ord
 
@@ -1945,7 +1945,7 @@ def _trade_intent_uw_flow_snapshot(comps: Optional[dict], cluster: Optional[dict
     Persist Alpha 11 / UW flow telemetry on every trade_intent so audits never depend on
     secondary joins (Operation Apex — shadow expectancy hardening).
     """
-    out: Dict[str, Any] = {"alpha11_flow_strength": None, "alpha11_gate_floor_snapshot": 0.985}
+    out: Dict[str, Any] = {"alpha11_flow_strength": None, "alpha11_gate_floor_snapshot": 0.75}
     try:
         from src.alpha11_gate import _extract_flow_strength, _flow_strength_from_uw, _min_flow_strength
 
@@ -2318,7 +2318,7 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
             info = None
         if not isinstance(info, dict):
             try:
-                from config.registry import StateFiles, load_metadata_with_lock
+                from config.registry import StateFiles
 
                 mp = StateFiles.POSITION_METADATA
                 if mp.exists():
@@ -2333,7 +2333,7 @@ def _emit_close_or_flip_strict_truth_chain(executor: Any, symbol: str, *, close_
         # ``canonical_trade_id`` / clock (SRE: NVDA displacement_close strict join 2026-04-15).
         md_pos: Dict[str, Any] = {}
         try:
-            from config.registry import StateFiles, load_metadata_with_lock
+            from config.registry import StateFiles
 
             _mp0 = StateFiles.POSITION_METADATA
             if _mp0.exists():
@@ -3100,8 +3100,6 @@ def log_exit_attribution(
         except Exception:
             entry_order_id = None
     try:
-        from config.registry import load_metadata_with_lock
-
         if StateFiles.POSITION_METADATA.exists():
             _pmd_exit = load_metadata_with_lock(StateFiles.POSITION_METADATA)
             _sym_u = str(symbol).strip().upper()
@@ -13963,8 +13961,6 @@ class StrategyEngine:
                             pass
                     # Strict-gate parity: trade_intent(entered) uses same canonical_trade_id as position_metadata / orders.
                     try:
-                        from config.registry import load_metadata_with_lock
-
                         _ct_post = None
                         _row_ct = None
                         _mp_ct = StateFiles.POSITION_METADATA
