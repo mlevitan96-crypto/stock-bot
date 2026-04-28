@@ -20,5 +20,6 @@
     "no_clawdbot_moltbot: scripts/sre/run_sre_anomaly_scan.py references clawdbot/moltbot check logic",
     "no_clawdbot_moltbot: MEMORY_BANK_ALPACA.md documents moltbot as active workflow (not in excluded reports/audit or docs paths)"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "ANOMALIES_DETECTED — GitHub issue creation not available (gh CLI read-only in cloud agent). Manual issue recommended: title '[Governance Integrity] Anomalies detected', failed checks: repo_structure, governance_contracts_present, no_clawdbot_moltbot"
 }
