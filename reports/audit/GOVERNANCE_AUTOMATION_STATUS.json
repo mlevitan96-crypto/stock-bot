@@ -20,5 +20,6 @@
     "no_clawdbot_moltbot: scripts/run_molt_workflow.py references Moltbot/Clawdbot patterns",
     "no_clawdbot_moltbot: scripts/sre/run_sre_anomaly_scan.py references Moltbot/Clawdbot patterns"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "existing — issue #1486 already open with same anomalies (not duplicated)"
 }
