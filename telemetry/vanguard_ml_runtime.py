@@ -235,9 +235,6 @@ def evaluate_v2_live_gate(
     """
     import os
 
-    if str(side or "").strip().lower() in ("sell", "short"):
-        return True, None, "v2_short_gate_quarantined_until_retrain"
-
     thr = float(threshold) if threshold is not None else default_v2_threshold()
     bst, meta, err = _load_pair(_V2_MODEL, _V2_META, "v2")
     if bst is None or not isinstance(meta, dict) or not meta.get("feature_names"):
