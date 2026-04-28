@@ -15,5 +15,6 @@
     "repo_structure: reports/board/ directory does not exist. Expected top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) all present, and reports/audit/ exists, but reports/board/ is missing.",
     "governance_contracts_present: reports/board/ missing. memory_bank/ has key docs (6 files). .cursor/automations/ exists with README.md and 5 automation specs. reports/audit/ exists."
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1446"
 }
