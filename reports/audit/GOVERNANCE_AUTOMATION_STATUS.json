@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-28T09:24:01.000Z",
+  "branch": "cursor/governance-integrity-validation-d16e",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ was absent at scan time; created during this automation run as remediation."
+  ],
+  "slack_sent": false
+}
