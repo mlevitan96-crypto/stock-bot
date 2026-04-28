@@ -13,7 +13,7 @@ Adjusted notional is clamped to at least ``min_notional_usd`` (broker / policy f
 
 Configure:
   ALPHA11_FLOW_GATE_ENABLED          default 1  (set 0 to disable gate)
-  ALPHA11_MIN_FLOW_STRENGTH          default 0.90 (hard block below this)
+  ALPHA11_MIN_FLOW_STRENGTH          default 0.75 (hard block below this)
   ALPHA11_TIER1_FLOW_THRESHOLD       default 0.985 (full size at/above; missing → full)
   ALPHA11_TIER2_SIZING_MULTIPLIER    default 0.5
   ALPHA11_TIER_SIZING_ENABLED        default 1  (set 0 to skip multiplier; gate still applies)
@@ -32,13 +32,13 @@ def _truthy_env(name: str, default: str = "1") -> bool:
 
 def _min_flow_strength() -> float:
     """Hard block below this strength (when flow is present and finite)."""
-    raw = os.environ.get("ALPHA11_MIN_FLOW_STRENGTH", "0.90").strip()
+    raw = os.environ.get("ALPHA11_MIN_FLOW_STRENGTH", "0.75").strip()
     try:
         v = float(raw)
     except ValueError:
-        return 0.90
+        return 0.75
     if not math.isfinite(v):
-        return 0.90
+        return 0.75
     return v
 
 
