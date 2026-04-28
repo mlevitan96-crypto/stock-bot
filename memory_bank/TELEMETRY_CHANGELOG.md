@@ -4,12 +4,21 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 ---
 
+## 2026-04-28 — V2 live gate: bidirectional (short quarantine lifted)
+
+- **Removed:** Runtime short-circuit that returned legacy reason `v2_short_gate_quarantined_until_retrain` for `sell`/`short` in `telemetry/vanguard_ml_runtime.py` `evaluate_v2_live_gate` (deploy **3101570f** on `main`).
+- **Changed:** Live paper entries on **both** long (`buy`) and short (`sell`) sides now use the **same** V2 probability gate, threshold path, and fail-open behavior (`V2_LIVE_GATE_ENABLED`, `V2_LIVE_GATE_FAIL_OPEN`). `main.py` no longer logs `submit_entry` / `v2_short_gate_quarantined` for that reason.
+- **Unchanged:** Challenger / Shadow Vanguard lane remains telemetry-only (`logs/shadow_executions.jsonl`); broker preflight still requires `shortable` + `easy_to_borrow` unless `HTB_OVERRIDE`.
+- **Doc sync:** `MEMORY_BANK_ALPACA.md` §1.0.2 updated to canonical live reality.
+
+---
+
 ## 2026-04-24 — Alpaca side-aware parity + Shadow Vanguard
 
 - **Added:** Side-aware ML normalization contract in `src/core/ml_feature_normalization.py`; flattener and live V2 runtime both use `normalize_features_for_side()` so directional short examples invert identically across train and serve.
 - **Changed:** Broker/execution telemetry now carries strict side-aware semantics: short preflight requires `shortable` + `easy_to_borrow`, invalid buying power fails closed, and touch pricing uses Buy/Cover = Ask and Sell/Short = Bid for fallback/default crossing.
 - **Added:** Shadow Vanguard challenger lane in `telemetry/shadow_evaluator.py`; split-brain challenger artifacts live under `models/vanguard_challenger_*` and log ignored-primary approvals to isolated `logs/shadow_executions.jsonl`.
-- **Quarantine:** Live V2 short hard gate remains quarantined with reason `v2_short_gate_quarantined_until_retrain`; Challenger short scoring is telemetry-only and must not feed `exit_attribution.jsonl` or DATA_READY.
+- **Quarantine (superseded 2026-04-28):** Live V2 short hard gate was quarantined with reason `v2_short_gate_quarantined_until_retrain` until **3101570f**; see **2026-04-28** entry. Challenger short scoring remains telemetry-only and must not feed `exit_attribution.jsonl` or DATA_READY.
 - **Verification:** Phase tests cover position math, dynamic stops, broker reality, touch pricing, side-normalized features, and shadow execution isolation.
 
 ---
