@@ -730,7 +730,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 
 ### Invariants (non-negotiable)
 - **All UW HTTP calls must route through** `src/uw/uw_client.py` (rate-limited, cached, logged).
-- **All UW endpoints must be validated** against the official OpenAPI spec at `unusual_whales_api/api_spec.yaml`.
+- **All UW endpoints must be validated** against the official OpenAPI spec: prefer **`api_spec.yaml`** at the repo root (vendor `curl` target from `https://api.unusualwhales.com/api/openapi`); if absent, fall back to **`unusual_whales_api/api_spec.yaml`** (`src/uw/uw_spec_loader.resolved_uw_spec_path()`).
 - **Invalid UW endpoints must be blocked at runtime** by `uw_client` before any caching/rate limiting/network, and must log `uw_invalid_endpoint_attempt`.
 - **UW daily usage must be persisted** to `state/uw_usage_state.json` (self-healing; never crashes engine).
 - **UW response cache (v2 intelligence) lives under** `state/uw_cache/` (TTL enforced per endpoint policy).
@@ -742,7 +742,7 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Composite scoring is v2-only**; there is no composite version flag.
 
 ### UW endpoint validation (anti-404 contract) (2026-01-20)
-- **Official spec location**: `unusual_whales_api/api_spec.yaml` (downloaded from UW and committed).
+- **Official spec location**: `api_spec.yaml` at repo root (primary); synced copy under `unusual_whales_api/api_spec.yaml` when both are committed together. Refresh: `curl --ssl-no-revoke -sS -L https://api.unusualwhales.com/api/openapi -o api_spec.yaml` (Windows may need `--ssl-no-revoke`).
 - **Spec loader**: `src/uw/uw_spec_loader.py` (extracts OpenAPI `paths` without YAML dependencies).
 - **Static auditing**: `scripts/audit_uw_endpoints.py` (used by regression; fails if any UW endpoint used in code is not in spec).
 - **Runtime blocking**: `src/uw/uw_client.py` rejects invalid endpoints and logs `uw_invalid_endpoint_attempt`.
@@ -1295,7 +1295,7 @@ Cursor MUST NOT apply changes unless explicitly instructed.
 
 ### UW canonical rules
 - **Docs:** `docs/uw/README.md`, `docs/uw/ENDPOINT_POLICY.md` — canonical reference.
-- **No hallucinated endpoints:** all must exist in `unusual_whales_api/api_spec.yaml`; static audit `scripts/audit_uw_endpoints.py` fails CI if unknown endpoints referenced.
+- **No hallucinated endpoints:** all must exist in the resolved OpenAPI file (`api_spec.yaml` root first, else `unusual_whales_api/api_spec.yaml`); static audit `scripts/audit_uw_endpoints.py` fails CI if unknown endpoints referenced.
 - **Single-instance ingestion:** uw_flow_daemon only; file lock + systemd; scoring reads only from cached artifacts (uw_flow_cache, premarket_intel, postmarket_intel, uw_expanded_intel).
 
 ### Alpaca quantified governance (experiment pipeline)
