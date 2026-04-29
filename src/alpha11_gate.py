@@ -187,9 +187,9 @@ def _effective_flow_floor(regime_state: Optional[str]) -> float:
     r = str(regime_state or "TREND").strip().upper()
     if r == "CHOP":
         try:
-            add = float(os.environ.get("ALPHA11_CHOP_FLOOR_ADD", "0.08").strip())
+            add = float(os.environ.get("ALPHA11_CHOP_FLOOR_ADD", "0.00").strip())
         except ValueError:
-            add = 0.08
+            add = 0.00
         return float(min(0.999, base + max(0.0, add)))
     if r == "MACRO_DOWNTREND":
         try:
