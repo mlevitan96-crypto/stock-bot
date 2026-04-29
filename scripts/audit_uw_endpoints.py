@@ -6,8 +6,8 @@ Strategy:
 - Scan *tracked files* (`git ls-files`) to avoid untracked workspace noise.
 - Extract UW endpoint candidates from **Python code paths that actually call UW**
   (e.g., `uw_get(...)`, `uw_http_get(...)`, UW endpoint policy `path="..."`).
-- Validate each extracted endpoint against the official OpenAPI spec in
-  `unusual_whales_api/api_spec.yaml`.
+- Validate each extracted endpoint against the official OpenAPI spec
+  (`api_spec.yaml` at repo root if present, else `unusual_whales_api/api_spec.yaml`).
 
 Exit codes:
 - 0: OK
