@@ -4371,10 +4371,6 @@ class UWClient:
             data = data[0]
         return self._normalize_realized_vol(data if isinstance(data, dict) else {})
 
-    def get_historic_option_volume(self, ticker: str, date_str: str):
-        raw = self._get(f"/api/stock/{ticker}/historic-option-volume", params={"date": date_str})
-        return [self._normalize_historic_option(x) for x in raw.get("data", [])]
-
     def _normalize_flow_trade(self, t: dict) -> dict:
         # Determine direction: call buying or put selling = bullish, call selling or put buying = bearish
         option_type = t.get("type", "").lower()
@@ -4472,16 +4468,6 @@ class UWClient:
             "realized_vol_20d": float(d.get("rv_20d") or 0),
             "iv_atm": float(d.get("iv_atm") or 0),
             "timestamp": self._to_iso(d.get("timestamp"))
-        }
-
-    def _normalize_historic_option(self, x: dict) -> dict:
-        return {
-            "ticker": x.get("symbol") or x.get("ticker"),
-            "date": x.get("date"),
-            "volume": int(x.get("volume") or 0),
-            "premium": float(x.get("premium") or 0),
-            "call_volume": int(x.get("call_volume") or 0),
-            "put_volume": int(x.get("put_volume") or 0),
         }
 
     def _to_iso(self, ts):
