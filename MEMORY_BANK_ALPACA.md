@@ -804,6 +804,11 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
   - `premarket_intel_ready`
   - `postmarket_intel_ready`
 
+## Integration Seams & CI/CD (2026-04-29)
+
+- **Ghost Whale E2E** (`tests/test_e2e_ghost_whale.py`): synthetic UW WebSocket **`flow-alerts`**-shaped payloads run through **`src/uw/uw_flow_trade_normalize.normalize_ws_flow_alert_to_rest_trade`** → in-memory **`uw_flow_cache.json`**-compatible row (**`flow_trades`**, **`spot_gex`**, **`dark_pool`**, **`greeks`**, **`_last_update`**) → **`uw_enrichment_v2.enrich_signal`** → **`uw_composite_v2.compute_composite_score_v2`** → **`should_enter_v2`** (fixture lowers **`ENTRY_THRESHOLD_BASE`** only to assert the gate reads the composite dict end-to-end). ML seam: **`telemetry.ml_scoreflow_contract.normalize_composite_components_for_ml`** over **`composite["components"]`** asserts **every canonical scoreflow column maps to a finite float** (catches silent NaN / missing keys vs **`ML_CANONICAL_SCOREFLOW_COMPONENT_KEYS`**). Execution seam: **`unittest.mock.MagicMock.submit_order`** is invoked with a validated Alpaca-style **`limit`** order body (**`symbol`**, **`qty`**, **`side`**, **`type`**, **`time_in_force`**, **`limit_price`**, **`order_class`**). **Run:** `PYTHONPATH=. pytest tests/test_e2e_ghost_whale.py -q`.
+- **PR rule:** Any change to WS→REST normalization, daemon cache keys read by **`enrich_signal`**, composite **`components`** shape, or Alpaca entry order kwargs MUST update the Ghost Whale test in the same change.
+
 ## 7.9 INTELLIGENCE & PROFITABILITY LAYER (ATTRIBUTION + P&L + SECTOR/REGIME + UNIVERSE v2 + DASHBOARD + HEALTH) (2026-01-20)
 
 ### Invariants (non-negotiable)
