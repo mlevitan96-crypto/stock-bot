@@ -13484,6 +13484,7 @@ class StrategyEngine:
                     pass
 
                 # Alpha 11: ensemble funnel (dynamic UW floor vs composite_score + soft notional mult).
+                _a11_last = None
                 try:
                     from src.alpha11_gate import resolve_alpha11_entry_funnel
 
@@ -13510,6 +13511,7 @@ class StrategyEngine:
                         composite_meta=_cm_a11,
                         regime_state=_reg_pub,
                     )
+                    _a11_last = _a11
                     _a11_ok = bool(_a11.allowed)
                     _a11_reason = _a11.block_reason if not _a11_ok else None
                     _a11_fs = _a11.flow_strength
@@ -13610,6 +13612,68 @@ class StrategyEngine:
                             metadata={"reason": _a11_reason, "alpha11_flow_strength": _a11_fs},
                         )
                         continue
+                except Exception:
+                    pass
+
+                # Offense: conviction sleeve — scale qty on joint-tail (dynamic_pass + high composite).
+                try:
+                    import os as _os_conv
+
+                    _ar = locals().get("_a11_last")
+                    if _ar is not None and bool(getattr(_ar, "allowed", False)):
+                        _pol = str(getattr(_ar, "policy", "") or "")
+                        if _pol == "dynamic_pass":
+                            _tier1 = float(_os_conv.environ.get("OFFENSE_SCORE_TIER1", "5.0") or 5.0)
+                            _mult_raw = float(_os_conv.environ.get("OFFENSE_SIZE_MULT", "1.5") or 1.5)
+                            _omult = max(1.0, min(2.0, _mult_raw))
+                            if float(score) >= _tier1:
+                                _qty_pre_cs = int(qty)
+                                qty = max(1, int(round(float(qty) * _omult)))
+                                try:
+                                    from risk_management import get_risk_limits, validate_order_size
+
+                                    _lim_cs = get_risk_limits()
+                                    _max_d = float(_lim_cs.get("max_position_dollar") or 0.0)
+                                    _rp_cs = float(ref_price_check or 0.0)
+                                    if _rp_cs > 0.0 and _max_d > 0.0:
+                                        _cap_q = int(math.floor(_max_d / _rp_cs))
+                                        if _cap_q >= 1:
+                                            qty = min(int(qty), _cap_q)
+                                    try:
+                                        _acct_cs = self.executor.api.get_account()
+                                        _bp_cs = float(getattr(_acct_cs, "buying_power", 0.0) or 0.0)
+                                    except Exception:
+                                        _bp_cs = 0.0
+                                    if _rp_cs > 0.0:
+                                        while int(qty) > 1:
+                                            _ok_cs, _err_cs = validate_order_size(
+                                                symbol, int(qty), side, _rp_cs, _bp_cs
+                                            )
+                                            if _ok_cs:
+                                                break
+                                            qty = max(1, int(qty) - 1)
+                                except Exception:
+                                    pass
+                                if int(qty) != int(_qty_pre_cs):
+                                    try:
+                                        log_event(
+                                            "sizing",
+                                            "CONVICTION_SLEEVE_ACTIVATED",
+                                            symbol=symbol,
+                                            offense_size_mult=round(float(_omult), 4),
+                                            offense_score_tier1=round(float(_tier1), 4),
+                                            composite_score=float(score),
+                                            alpha11_policy=_pol,
+                                            qty_before=int(_qty_pre_cs),
+                                            qty_after=int(qty),
+                                        )
+                                    except Exception:
+                                        pass
+                                    print(
+                                        f"DEBUG {symbol}: CONVICTION_SLEEVE_ACTIVATED {_omult}x Multiplier "
+                                        f"(tier1>={_tier1}, score={float(score):.3f}, qty {int(_qty_pre_cs)}->{int(qty)})",
+                                        flush=True,
+                                    )
                 except Exception:
                     pass
 
