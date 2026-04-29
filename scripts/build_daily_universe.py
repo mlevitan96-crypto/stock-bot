@@ -141,10 +141,39 @@ def _score_symbol_v2(sym: str, risk_feats: Dict[str, Any], *, regime_label: str)
     return float(score), {"volatility": float(w_vol * vol_norm), "sector_alignment": float(w_sector * sector_align), "regime_alignment": float(w_regime * regime_align)}, {"sector": sector, "regime_label": r}
 
 
+def _tier_slices(symbols: List[Dict[str, Any]], *, sniper: int, radar: int) -> Tuple[List[str], List[str], List[str]]:
+    """
+    Split ranked symbols into Sniper (intraday + WS), Radar (slow REST discovery), Trail (remainder).
+
+    sniper + radar should be <= len(symbols) for a clean partition; if larger, radar absorbs slack.
+    """
+    ordered = [str(r.get("symbol") or "").upper() for r in symbols if isinstance(r, dict) and r.get("symbol")]
+    ordered = [s for s in ordered if s]
+    n = len(ordered)
+    s_end = max(0, min(sniper, n))
+    r_end = max(s_end, min(sniper + radar, n))
+    sniper_syms = ordered[:s_end]
+    radar_syms = ordered[s_end:r_end]
+    trail = ordered[r_end:]
+    return sniper_syms, radar_syms, trail
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--max", type=int, default=200, help="Target daily universe size (150–250 recommended)")
     ap.add_argument("--core", type=int, default=60, help="Target core universe size")
+    ap.add_argument(
+        "--sniper",
+        type=int,
+        default=int(os.getenv("DAILY_UNIVERSE_SNIPER_N", "40")),
+        help="Top-N names for intraday Sniper tier (WS flow + tight REST structural)",
+    )
+    ap.add_argument(
+        "--radar",
+        type=int,
+        default=int(os.getenv("DAILY_UNIVERSE_RADAR_N", "150")),
+        help="Next-N names for Radar tier (slow REST; momentum discovery, no WS)",
+    )
     ap.add_argument("--mock", action="store_true", help="Mock mode (no UW calls)")
     args = ap.parse_args()
 
@@ -169,9 +198,26 @@ def main() -> int:
     daily = scored[: max(1, int(args.max))]
     core = scored[: max(1, int(args.core))]
 
+    sniper_syms, radar_syms, trail_syms = _tier_slices(daily, sniper=int(args.sniper), radar=int(args.radar))
+    tiers_meta = {
+        "sniper_n": int(args.sniper),
+        "radar_n": int(args.radar),
+        "sniper": sniper_syms,
+        "radar": radar_syms,
+        "trail_count": len(trail_syms),
+    }
+
     now = datetime.now(timezone.utc).isoformat()
     mode = "mock" if bool(mock) else "real"
-    daily_out = {"_meta": {"ts": now, "version": DAILY_UNIVERSE_SCORING_V1.get("version"), "mode": mode}, "symbols": daily}
+    daily_out = {
+        "_meta": {
+            "ts": now,
+            "version": DAILY_UNIVERSE_SCORING_V1.get("version"),
+            "mode": mode,
+            "tiers": tiers_meta,
+        },
+        "symbols": daily,
+    }
     core_out = {"_meta": {"ts": now, "version": DAILY_UNIVERSE_SCORING_V1.get("version"), "mode": mode}, "symbols": core}
 
     _atomic_write(OUT_DAILY, daily_out)
@@ -198,7 +244,24 @@ def main() -> int:
         scored_v2.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
         daily_v2 = scored_v2[: max(1, int(args.max))]
         v2_ver = str((DAILY_UNIVERSE_SCORING_V2 or {}).get("version") or "")
-        daily_out_v2 = {"_meta": {"ts": now, "version": v2_ver, "mode": mode, "regime_label": str(regime_label)}, "symbols": daily_v2}
+        sniper_v2, radar_v2, trail_v2 = _tier_slices(daily_v2, sniper=int(args.sniper), radar=int(args.radar))
+        tiers_v2 = {
+            "sniper_n": int(args.sniper),
+            "radar_n": int(args.radar),
+            "sniper": sniper_v2,
+            "radar": radar_v2,
+            "trail_count": len(trail_v2),
+        }
+        daily_out_v2 = {
+            "_meta": {
+                "ts": now,
+                "version": v2_ver,
+                "mode": mode,
+                "regime_label": str(regime_label),
+                "tiers": tiers_v2,
+            },
+            "symbols": daily_v2,
+        }
         _atomic_write(OUT_DAILY_V2, daily_out_v2)
     except Exception:
         pass
@@ -211,6 +274,8 @@ def main() -> int:
             details={
                 "daily": len(daily),
                 "core": len(core),
+                "sniper": len(sniper_syms),
+                "radar": len(radar_syms),
                 "mode": mode,
                 "version": DAILY_UNIVERSE_SCORING_V1.get("version"),
                 "universe_scoring_v2_version": str((DAILY_UNIVERSE_SCORING_V2 or {}).get("version") or ""),
