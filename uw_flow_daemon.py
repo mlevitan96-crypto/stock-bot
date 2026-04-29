@@ -1291,7 +1291,12 @@ class UWFlowDaemon:
                 cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
                 row = cache.get(symbol, {}) if isinstance(cache, dict) else {}
                 trades = list(row.get("flow_trades") or [])
-                trades.append(dict(payload))
+                try:
+                    from src.uw.uw_flow_trade_normalize import normalize_ws_flow_alert_to_rest_trade
+
+                    trades.append(normalize_ws_flow_alert_to_rest_trade(symbol, dict(payload)))
+                except Exception:
+                    trades.append(dict(payload))
                 if len(trades) > cap:
                     trades = trades[-cap:]
                 flow_norm = self._normalize_flow_data(trades, symbol)
