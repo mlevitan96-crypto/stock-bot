@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-29T14:53:57Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "no_deprecated_dirs: moltbot/ directory still exists at repo root — previously flagged for removal",
+    "no_clawdbot_moltbot: moltbot/ directory contains active code files (sentinel.py, orchestrator.py, board.py, memory_evolution.py, promotion_discipline.py)",
+    "no_clawdbot_moltbot: scripts/run_molt_workflow.py imports from moltbot package (active code reference)",
+    "no_clawdbot_moltbot: scripts/run_openclaw_molt_synthesis.py references Clawdbot in stub comments (low severity — documenting removal)",
+    "repo_structure: reports/board/ was missing and has been created by this automation run"
+  ],
+  "slack_sent": false,
+  "github_issue": "anomalies_detected=true; gh CLI is read-only in this environment — issue creation deferred to operator or next writable run"
+}
