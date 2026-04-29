@@ -253,11 +253,28 @@ def _prune_minute_window(state: Dict[str, Any], *, now: float, window_sec: int =
 
 
 def _limits() -> Tuple[int, int, float]:
-    # Defaults per prompt (can be overridden via env)
+    # Defaults: 50k REST/day (Alpaca strike / Professional tier headroom). Override via UW_DAILY_LIMIT.
     per_min = int(os.getenv("UW_RATE_LIMIT_PER_MIN", "120") or "120")
-    per_day = int(os.getenv("UW_DAILY_LIMIT", "15000") or "15000")
+    per_day = int(os.getenv("UW_DAILY_LIMIT", "50000") or "50000")
     buf = float(os.getenv("UW_SAFETY_BUFFER", "0.95") or "0.95")
     return max(1, per_min), max(1, per_day), max(0.1, min(1.0, buf))
+
+
+def uw_daily_usage_ratio() -> Optional[float]:
+    """``calls_today / (UW_DAILY_LIMIT * UW_SAFETY_BUFFER)`` from local usage state, or ``None``."""
+    try:
+        st = _load_usage_state()
+        _, per_day, buf = _limits()
+        cap = max(1, int(float(per_day) * float(buf)))
+        return int(st.get("calls_today", 0) or 0) / float(cap)
+    except Exception:
+        return None
+
+
+def uw_effective_daily_cap() -> int:
+    """Integer ceiling on REST calls per UTC day after safety buffer (matches ``uw_http_get`` gate)."""
+    _, per_day, buf = _limits()
+    return max(1, int(float(per_day) * float(buf)))
 
 
 def _blocked(reason: str, *, endpoint: str, params: Optional[Dict[str, Any]] = None, wait_s: Optional[float] = None) -> Dict[str, Any]:
