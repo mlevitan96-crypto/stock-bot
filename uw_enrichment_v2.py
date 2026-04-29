@@ -530,6 +530,8 @@ def enrich_signal(symbol: str, uw_cache: Dict, market_regime: str) -> Dict:
     enriched_symbol["etf_flow"] = data.get("etf_flow", {})
     if isinstance(data.get("greek_exposure"), dict) and data.get("greek_exposure"):
         enriched_symbol["greek_exposure"] = data.get("greek_exposure")
+    if isinstance(data.get("spot_gex"), dict) and data.get("spot_gex"):
+        enriched_symbol["spot_gex"] = data.get("spot_gex")
 
     # STRUCTURAL UPGRADE (log-only): attach per-symbol volatility/beta features if available.
     # These fields are additive; composite v3 does not consume them yet.
