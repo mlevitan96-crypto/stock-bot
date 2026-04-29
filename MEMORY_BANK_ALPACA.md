@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-28 (LIVE — V2 bidirectional gate; Shadow Vanguard; Compliance baseline)
-# Last Updated: 2026-04-28 (§1.0.2: V2 short quarantine lifted; symmetric live ML gating)
+# Version: 2026-04-29 (LIVE — V2 bidirectional gate; Shadow Vanguard; Compliance baseline; 360° Profitability Board)
+# Last Updated: 2026-04-29 (§0.26: 360° Profitability Review Board persona + invocation hooks)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -72,6 +72,18 @@ Cursor MUST NOT:
 - **Compliance NO-GOs (authoritative detail in `.cursorrules`):** No new or modified discretionary **entry** logic in the **first or last 15 minutes** of regular U.S. equity session without documented **SIP (or equivalent) latency/staleness** checks and tests. No logic that can violate **PDT** or **Wash Sale** rules without explicit account/tax handling and operator acknowledgment.  
 - **Quant evidence:** Changes to **trailing stops** or **take-profit / profit-target** levels require prior **MFE/MAE** (or bar-backed excursion) analysis on the current cohort; cite the artifact (e.g. `scripts/_tmp_mfe_mae_analysis.py` output / `config/overlays/mfe_mae_exit_overlay.json`). Exit tuning detail remains under **alpaca-exit-tuning-skill**.  
 - **Cursor index:** `.cursor/ALPACA_GOVERNANCE_LAYER.md` lists agents, skills, commands, and governance violations.
+
+## 0.26 SOVEREIGN BOARD PERSONAS — 360° PROFITABILITY REVIEW BOARD (ADVISORY)
+
+**Effective:** 2026-04-29  
+
+- **Role:** Composite **profit-first** review persona (strategy, product, market, technology, architecture, code, data, infra, SRE, risk, governance lens, financial model, execution). **Canonical behavior spec:** `.cursor/personas/360_profitability_reviewer.md`.
+- **Invocation (operator → Cursor):**
+  - `Run the 360° Profitability Review.`
+  - `Invoke the Accenture/McKinsey persona.`
+  - `Do a full 360° profitability audit.`
+  - `Profit review board, evaluate this.`
+- **Hierarchy (non‑negotiable):** This board **frames and prioritizes by profitability** in analysis and recommendations but **does not override** **§0.25** / **`.cursorrules`**: decision order remains **Safety → Correctness → Profitability → Operability → Velocity**; **compliance NO-GOs** (e.g. session-edge discretionary entries without documented SIP latency/staleness checks and tests; PDT or wash-sale exposure without explicit handling and operator acknowledgment) remain **authoritative hard stops** regardless of profit narrative.
 
 ---
 
@@ -199,6 +211,7 @@ Cursor MUST treat this document as the **authoritative rule set** for all action
 - **Personas (roles, not separate processes):**
   - **Q-Ops Sovereign Board (primary):** Adversarial **NO-GO until proven** stance on material Alpaca changes; owns compliance/session-edge/SIP evidence and strict-ledger correctness.
   - **AI Board (Section 2 charter):** Advisory synthesis; **cannot** override Safety/Correctness or compliance NO-GOs.
+  - **360° Profitability Review Board:** Profit/ROI and unit-economics lens for architecture, config, and code reviews; **canonical spec** `.cursor/personas/360_profitability_reviewer.md`. **Advisory only** — **cannot** override Safety, Correctness, or **§0.25** compliance NO-GOs; summon via **§0.26** invocation phrases.
   - **Operator / CSA:** Execution of deploy, env, and acknowledged risk acceptance.
 - **Alpha 11 — Institutional Alpha (UW lane):** Phase label for **institutional telemetry** wired into entries/exits: persisted **`entry_uw` / `exit_uw`**, composite confirmation (incl. **flow**, **gamma/GEX regime**, **dark pool** where enabled), plus **`uw_flow_cache`** / **`uw_flow_daemon`** HTTP refresh paths. **Unusual Whales MCP** (when connected in Cursor — e.g. **Market Tide**, **Spot GEX**, **Dark Pool** tools) is the **board / research overlay** for macro and cross-sectional context; it does **not** replace droplet **`exit_attribution`** rows or strict gate membership.
 - **Cohort DNA audit (automated):** Run on the droplet with production logs — `PYTHONPATH=. python3 scripts/_tmp_alpha11_163_good_stuff_audit.py --root /root/stock-bot --out-json reports/alpha11_163_good_stuff_audit.json` — to summarize win/loss splits, **MFE%** cliffs from **`exit_quality_metrics`**, and attribution-family sums on the **strict-complete** set only.
