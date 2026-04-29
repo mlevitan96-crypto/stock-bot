@@ -3,7 +3,7 @@
 SRE: droplet .env — strip trailing whitespace (sed), strip outer quotes on values (Python),
 WebSocket smoke test, restart uw-flow-daemon + Telegram on SUCCESS.
 
-Requires droplet_config.json. Does not print raw API keys.
+Requires droplet_config.json (or set **DROPLET_HOST** / SSH env overrides). Does not print raw API keys.
 """
 
 from __future__ import annotations
@@ -97,6 +97,16 @@ def main() -> int:
         print("dequote script failed", r_py, file=sys.stderr)
         return 6
 
+    r_ws = c.execute_command(
+        "bash -lc \"if grep -qE '^UW_FLOW_WS_ENABLED=' .env 2>/dev/null; then "
+        "sed -i 's/^UW_FLOW_WS_ENABLED=.*/UW_FLOW_WS_ENABLED=1/' .env; "
+        "else printf '\\nUW_FLOW_WS_ENABLED=1\\n' >> .env; fi; "
+        "grep -E '^UW_FLOW_WS_ENABLED=' .env | head -1\"",
+        timeout=15,
+    )
+    print("--- UW_FLOW_WS_ENABLED ---")
+    print((r_ws.get("stdout") or "").strip())
+
     r_line = c.execute_command(r'grep -nE "^UW_API_KEY=" .env | head -1', timeout=15)
     raw_line = (r_line.get("stdout") or "").strip()
     uw_masked = _mask_uw_api_key_line(raw_line.split(":", 1)[-1] if ":" in raw_line else raw_line)
@@ -116,12 +126,6 @@ def main() -> int:
     print(f"exit_code={ec}")
 
     if "SUCCESS: JOIN OK" in smoke_out and ec == 0:
-        r_rst = c.execute_command(
-            "sudo systemctl restart uw-flow-daemon.service && sudo systemctl is-active uw-flow-daemon.service",
-            timeout=60,
-        )
-        print("--- uw-flow-daemon ---")
-        print((r_rst.get("stdout") or "").strip())
         tg = c.execute_command(
             r"""set -a && [ -f .env ] && . ./.env; set +a && printf '%s\n' '✅ PREDATOR DATA SPINE ONLINE: WebSocket Handshake Successful.' | ./venv/bin/python scripts/notify/send_telegram_message.py""",
             timeout=45,
@@ -131,10 +135,26 @@ def main() -> int:
         se = (tg.get("stderr") or "").strip()
         if se:
             print("stderr:", se[:300])
-        return 0
 
     print("--- MASKED UW_API_KEY= line (format check) ---")
     print(uw_masked)
+
+    r_dep = c.execute_command(
+        "git fetch -q origin && git pull -q origin main && "
+        "sudo systemctl restart uw-flow-daemon.service && sleep 2 && systemctl is-active uw-flow-daemon.service",
+        timeout=180,
+    )
+    print("--- DEPLOY (pull + uw-flow-daemon restart) ---")
+    print((r_dep.get("stdout") or "").strip())
+    if (r_dep.get("stderr") or "").strip():
+        print("stderr:", (r_dep.get("stderr") or "").strip()[:500], file=sys.stderr)
+
+    r_j = c.execute_command("journalctl -u uw-flow-daemon -n 35 --no-pager", timeout=20)
+    print("--- journalctl uw-flow-daemon (last 35) ---")
+    print((r_j.get("stdout") or "").strip())
+
+    if "SUCCESS: JOIN OK" in smoke_out and ec == 0:
+        return 0
     return ec if ec != 0 else 1
 
 
