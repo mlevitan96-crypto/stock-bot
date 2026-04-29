@@ -175,6 +175,22 @@ class PolicyStats:
         return (self.sum_r / self.n) if self.n else None
 
 
+def _percentile_linear(xs: List[float], pct: float) -> Optional[float]:
+    """Linear interpolation percentile in [0,100]."""
+    if not xs or not (0.0 <= pct <= 100.0):
+        return None
+    ys = sorted(float(x) for x in xs if math.isfinite(float(x)))
+    if not ys:
+        return None
+    if len(ys) == 1:
+        return float(ys[0])
+    k = (len(ys) - 1) * (pct / 100.0)
+    lo = int(math.floor(k))
+    hi = min(lo + 1, len(ys) - 1)
+    w = k - float(lo)
+    return float(ys[lo]) * (1.0 - w) + float(ys[hi]) * w
+
+
 def _eval_policy(
     rows: List[Dict[str, Any]],
     label: str,
@@ -284,12 +300,56 @@ def main() -> int:
         return z_score(s, sc_vals) + z_score(f, fl_vals) >= float(args.ensemble_z)
 
     h = max(1, int(args.horizon_minutes))
+
+    # Joint-tail / ensemble-z deciles for nightly OFFENSE_SCORE_TIER1 hints (cron scaffold).
+    auto_tune_hints: Dict[str, Any] = {"eligible": _ensemble_ok}
+    if _ensemble_ok:
+        z_rows: List[Dict[str, float]] = []
+        joints: List[float] = []
+        for r in cohort:
+            s = _score(r)
+            f = _flow(r)
+            if s is None or f is None:
+                continue
+            zs = z_score(s, sc_vals) + z_score(f, fl_vals)
+            if not (math.isfinite(zs) and math.isfinite(s) and math.isfinite(f)):
+                continue
+            z_rows.append({"z_sum": float(zs), "score": float(s), "flow": float(f)})
+            joints.append(float(s) * float(f))
+        z_list = [x["z_sum"] for x in z_rows]
+        if z_list:
+            p90z = _percentile_linear(z_list, 90.0)
+            p50z = _percentile_linear(z_list, 50.0)
+            p10z = _percentile_linear(z_list, 10.0)
+            top_tail_scores = [x["score"] for x in z_rows if p90z is not None and x["z_sum"] >= p90z]
+            med_top = _percentile_linear(top_tail_scores, 50.0) if top_tail_scores else None
+            j_p90 = _percentile_linear(joints, 90.0) if joints else None
+            suggested_tier = None
+            if med_top is not None and math.isfinite(med_top):
+                suggested_tier = max(4.0, round(float(med_top), 3))
+            auto_tune_hints.update(
+                {
+                    "ensemble_z_p10": p10z,
+                    "ensemble_z_p50": p50z,
+                    "ensemble_z_p90": p90z,
+                    "n_rows_with_score_and_flow": len(z_rows),
+                    "joint_score_times_flow_p90": j_p90,
+                    "score_median_in_top_ensemble_z_decile": med_top,
+                    "suggested_OFFENSE_SCORE_TIER1": suggested_tier,
+                    "suggested_OFFENSE_SIZE_MULT": 1.5,
+                    "hint": "Set OFFENSE_SCORE_TIER1 in systemd/.env to suggested value after human sanity check",
+                }
+            )
+        else:
+            auto_tune_hints["reason"] = "no_joint_z_rows"
+
     out = {
         "date_from": args.date_from,
         "date_to": args.date_to,
         "horizon_minutes": h,
         "cohort": "blocked_trade_intent" if blocked else "all_trade_intent",
         "cohort_rows": len(cohort),
+        "auto_tune_hints": auto_tune_hints,
         "policies": {
             "ai_only_gte": _eval_policy(cohort, f"ai_only_score>={args.ai_threshold}", ai_only, bl.load_bars, h),
             "flow_only_gte": _eval_policy(
