@@ -75,33 +75,35 @@ async def _run() -> int:
     hdr_dict = dict(hdr_list) if hdr_list else None
     kw = dict(close_timeout=20, open_timeout=20, ping_interval=None)
 
+    async def _recv_until_ack(ws: Any) -> int:
+        # Successful ``async with`` means the server returned HTTP 101 Switching Protocols.
+        await ws.send(json.dumps({"channel": "flow-alerts", "msg_type": "join"}))
+        deadline = time.monotonic() + 30.0
+        while time.monotonic() < deadline:
+            try:
+                raw = await asyncio.wait_for(ws.recv(), timeout=8.0)
+            except asyncio.TimeoutError:
+                continue
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8", errors="replace")
+            if not isinstance(raw, str):
+                continue
+            if _join_ack_from_message(raw):
+                print("SUCCESS: JOIN OK", flush=True)
+                return 0
+        print("FAIL: no subscription ack within timeout (upgrade succeeded)", flush=True)
+        return 3
+
     try:
         if hdr_dict:
             try:
-                ctx = websockets.connect(uri, additional_headers=hdr_dict, **kw)
+                async with websockets.connect(uri, additional_headers=hdr_dict, **kw) as ws:
+                    return await _recv_until_ack(ws)
             except TypeError:
-                ctx = websockets.connect(uri, extra_headers=hdr_dict, **kw)
-        else:
-            ctx = websockets.connect(uri, **kw)
-
-        async with ctx as ws:
-            # Successful ``async with`` means the server returned HTTP 101 Switching Protocols.
-            await ws.send(json.dumps({"channel": "flow-alerts", "msg_type": "join"}))
-            deadline = time.monotonic() + 30.0
-            while time.monotonic() < deadline:
-                try:
-                    raw = await asyncio.wait_for(ws.recv(), timeout=8.0)
-                except asyncio.TimeoutError:
-                    continue
-                if isinstance(raw, bytes):
-                    raw = raw.decode("utf-8", errors="replace")
-                if not isinstance(raw, str):
-                    continue
-                if _join_ack_from_message(raw):
-                    print("SUCCESS: JOIN OK", flush=True)
-                    return 0
-            print("FAIL: no subscription ack within timeout (upgrade succeeded)", flush=True)
-            return 3
+                async with websockets.connect(uri, extra_headers=hdr_dict, **kw) as ws:
+                    return await _recv_until_ack(ws)
+        async with websockets.connect(uri, **kw) as ws:
+            return await _recv_until_ack(ws)
 
     except Exception as ex:
         # websockets: InvalidStatusCode on failed upgrade (e.g. 401)
