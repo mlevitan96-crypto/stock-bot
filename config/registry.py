@@ -458,7 +458,7 @@ class DashboardAuthConfig:
 # - These limits are enforced by `src/uw/uw_client.py`
 # - Defaults can be overridden via env vars of the same names
 UW_RATE_LIMIT_PER_MIN = get_env("UW_RATE_LIMIT_PER_MIN", 120, int)
-UW_DAILY_LIMIT = get_env("UW_DAILY_LIMIT", 15000, int)
+UW_DAILY_LIMIT = get_env("UW_DAILY_LIMIT", 50000, int)
 UW_SAFETY_BUFFER = get_env("UW_SAFETY_BUFFER", 0.95, float)
 
 
