@@ -19,5 +19,6 @@
     "no_clawdbot_moltbot: scripts/run_openclaw_molt_synthesis.py references Clawdbot integration in docstring",
     "no_clawdbot_moltbot: scripts/sre/run_sre_anomaly_scan.py references clawdbot/moltbot patterns"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1499"
 }
