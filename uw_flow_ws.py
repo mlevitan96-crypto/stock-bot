@@ -33,11 +33,11 @@ def extract_flow_symbol(payload: Any) -> Optional[str]:
     if not isinstance(payload, dict):
         return None
     for k in (
+        "ticker",
         "symbol",
         "underlying",
         "underlying_symbol",
         "underlyingSymbol",
-        "ticker",
         "issue_symbol",
         "issue",
     ):
