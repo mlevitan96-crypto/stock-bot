@@ -13483,9 +13483,9 @@ class StrategyEngine:
                 except Exception:
                     pass
 
-                # Alpha 11: minimum entry UW flow_strength (Quant 163-cohort floor).
+                # Alpha 11: ensemble funnel (dynamic UW floor vs composite_score + soft notional mult).
                 try:
-                    from src.alpha11_gate import check_alpha11_flow_strength_gate
+                    from src.alpha11_gate import resolve_alpha11_entry_funnel
 
                     _cm_a11 = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else {}
                     _reg_ctx: dict = {}
@@ -13504,12 +13504,41 @@ class StrategyEngine:
                         _reg_pub = classify_from_market_context(_reg_ctx)
                     except Exception:
                         _reg_pub = None
-                    _a11_ok, _a11_reason, _a11_fs = check_alpha11_flow_strength_gate(
-                        symbol=symbol,
+                    _a11 = resolve_alpha11_entry_funnel(
+                        composite_score=float(score),
                         composite_result=composite_result if isinstance(composite_result, dict) else None,
                         composite_meta=_cm_a11,
                         regime_state=_reg_pub,
                     )
+                    _a11_ok = bool(_a11.allowed)
+                    _a11_reason = _a11.block_reason if not _a11_ok else None
+                    _a11_fs = _a11.flow_strength
+                    if _a11_ok and (_a11.notional_mult or 1.0) < 1.0 - 1e-9:
+                        try:
+                            _m11 = float(_a11.notional_mult)
+                            if math.isfinite(_m11) and _m11 > 0.0:
+                                qty = max(1, int(float(qty) * _m11))
+                                _rp2 = float(ref_price_check or 0.0)
+                                if _rp2 > 0.0:
+                                    _mn11 = float(getattr(Config, "MIN_NOTIONAL_USD", 1.0) or 1.0)
+                                    if float(qty) * _rp2 < _mn11:
+                                        import math as _math_a11
+
+                                        qty = max(qty, max(1, int(_math_a11.ceil(_mn11 / _rp2))))
+                        except Exception:
+                            pass
+                        try:
+                            log_event(
+                                "sizing",
+                                "alpha11_soft_notional_mult",
+                                symbol=symbol,
+                                alpha11_notional_mult=round(float(_a11.notional_mult), 4),
+                                alpha11_effective_floor=_a11.effective_floor,
+                                alpha11_policy=_a11.policy,
+                                qty=qty,
+                            )
+                        except Exception:
+                            pass
                     if not _a11_ok and _a11_reason:
                         print(
                             f"DEBUG {symbol}: BLOCKED - Alpha11 flow gate ({_a11_reason} flow_strength={_a11_fs})",
