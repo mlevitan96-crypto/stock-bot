@@ -328,6 +328,8 @@ def _parse_trade_ts(trade: Dict[str, Any]) -> Optional[int]:
 def _is_sweep_trade(trade: Dict[str, Any]) -> bool:
     """Heuristic sweep flag extraction across UW schemas."""
     try:
+        if trade.get("has_sweep") is True:
+            return True
         for k in ("sweep", "is_sweep", "isSweep", "is_sweep_trade"):
             v = trade.get(k)
             if v is True:
@@ -413,6 +415,21 @@ def _merge_uw_intel_record(partial: Any, fallback: Dict[str, Any]) -> Dict[str, 
             continue
         if isinstance(v, str) and not str(v).strip():
             continue
+        # Premarket rows often carry flow_strength=0.0 as a static placeholder. That must not
+        # overwrite uw_flow_cache-derived synthetic intel (Alpha11 reads flow_strength first;
+        # 0.0 is finite and trips catastrophic hard-block).
+        if k == "flow_strength":
+            try:
+                partial_fs = float(v)
+            except (TypeError, ValueError):
+                continue
+            if partial_fs == 0.0:
+                try:
+                    fb_fs = float(out.get("flow_strength", 0.0))
+                except (TypeError, ValueError):
+                    fb_fs = 0.0
+                if fb_fs > 0.0:
+                    continue
         out[k] = v
     return out
 
