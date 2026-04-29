@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-29 (LIVE — V2 bidirectional gate; Shadow Vanguard; Compliance baseline; 360° Profitability Board)
-# Last Updated: 2026-04-29 (§0.26: 360° Profitability Review Board persona + invocation hooks)
+# Version: 2026-04-29 (LIVE — V2 bidirectional gate; Shadow Vanguard; Compliance baseline; 360° Profitability Board; Predator UW ingest)
+# Last Updated: 2026-04-29 (§7.8: Predator Sniper/Radar + WebSocket flow-alerts + REST budget mode)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -754,6 +754,13 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **Pre-market pass**: `scripts/run_premarket_intel.py` → `state/premarket_intel.json`
 - **Post-market pass**: `scripts/run_postmarket_intel.py` → `state/postmarket_intel.json`
 - **Regression runner**: `scripts/run_regression_checks.py`
+
+### Predator universe + WebSocket flow + REST budget (2026-04-29)
+
+- **Names:** **Sniper** (~40) = intraday focus list; **Radar** (~150) = slow REST discovery tier. Tiers are written by `scripts/build_daily_universe.py` into `_meta.tiers` on `state/daily_universe.json` and `state/daily_universe_v2.json` (`sniper` / `radar` symbol lists). Env sizing: `DAILY_UNIVERSE_SNIPER_N`, `DAILY_UNIVERSE_RADAR_N`; CLI `--sniper` / `--radar`.
+- **Ingestion spine:** `uw_flow_daemon.py` is the single writer to `data/uw_flow_cache.json`. With **`UW_REST_BUDGET_MODE=1`**, the daemon loads tier lists from the daily universe files (else partitions `TICKERS`), uses **longer REST intervals** for structural endpoints, and optionally starts **`uw_flow_ws.py`** (async `websockets`) against **`wss://api.unusualwhales.com/socket`**, subscribing to **`flow-alerts`**, filtering to **Sniper** symbols only. **`UW_FLOW_WS_ENABLED=1`** (default when budget mode is on) enables WS; set **`0`** to force REST-only flow for Snipers.
+- **Schema parity (ML / composite):** WebSocket payloads are normalized **before append** via **`src/uw/uw_flow_trade_normalize.normalize_ws_flow_alert_to_rest_trade`** so each `flow_trades[]` element matches REST `flow-alerts` trade keys (`premium` / `total_premium`, `type` CALL/PUT from `option_chain`, `timestamp` from `executed_at`, sweep flags from `has_sweep`). **`uw_composite_v2._is_sweep_trade`** honors **`has_sweep`**. Downstream **`uw_composite_v2`**, **`telemetry/entry_snapshot_logger.py`** (components blob from pending snapshot, not raw `flow_trades`), and **`scripts/telemetry/alpaca_ml_flattener.py`** (UW via `entry_uw` / scoreflow) remain compatible with the same cache row shape.
+- **REST pacing:** **`UW_DAEMON_MIN_LOOP_SLEEP_SEC`** (default **600s** in budget mode), **`UW_RADAR_OPTION_FLOW_INTERVAL_SEC`**, **`UW_RADAR_REST_INTERVAL_MULT`**, optional **`UW_RADAR_ENABLE_GREEKS=1`** for deep Radar Greeks. **`UW_WS_FLOW_TRADES_CAP`** caps rolling WS tape length per symbol.
 
 ### Droplet execution + state sync (operational phase) (2026-01-20)
 
