@@ -69,15 +69,53 @@ def _mock_symbols() -> List[str]:
     return ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "TSLA", "AMD", "META", "AMZN", "COIN", "PLTR", "XLF", "XLE", "XLK"]
 
 
+# Liquid US names so Radar can reach ~100+ even when top-net-impact returns a short list.
+_RADAR_CANDIDATE_SEED: Tuple[str, ...] = (
+    "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "GOOG", "TSLA", "AVGO", "AMD", "NFLX", "COST", "PEP", "KO",
+    "WMT", "PG", "JNJ", "UNH", "LLY", "ABBV", "MRK", "PFE", "TMO", "ABT", "DHR", "BMY", "AMGN", "GILD", "CVX",
+    "XOM", "COP", "SLB", "OXY", "MPC", "PSX", "VLO", "JPM", "BAC", "WFC", "C", "GS", "MS", "BLK", "SCHW", "USB",
+    "PNC", "TFC", "BX", "KKR", "APO", "CAT", "DE", "HON", "UPS", "RTX", "LMT", "BA", "GE", "MMM", "ETN", "EMR",
+    "ITW", "PH", "ROK", "NOC", "GD", "DIS", "CMCSA", "CHTR", "PARA", "WBD", "NKE", "SBUX", "LOW", "HD", "TGT",
+    "MCD", "BKNG", "MAR", "HLT", "ABNB", "LULU", "DECK", "ORCL", "CRM", "NOW", "ADBE", "INTC", "QCOM", "TXN",
+    "MU", "LRCX", "AMAT", "KLAC", "SNPS", "CDNS", "MCHP", "ON", "SWKS", "PANW", "CRWD", "ZS", "NET", "DDOG",
+    "SNOW", "MDB", "PATH", "U", "RBLX", "COIN", "HOOD", "SOFI", "AFRM", "PYPL", "SQ", "SHOP", "ETSY", "MELI",
+    "SE", "BABA", "JD", "PDD", "NIO", "XPEV", "LI", "RIVN", "LCID", "F", "GM", "STLA", "TM", "HMC", "UBER",
+    "LYFT", "DASH", "GRAB", "SPOT", "PINS", "SNAP", "TWLO", "DOCU", "ZM", "TEAM", "OKTA", "WDAY", "VEEV", "ISRG",
+    "SYK", "BSX", "MDT", "ZBH", "EW", "HUM", "CI", "ELV", "CNC", "MOH", "CVS", "WBA", "REGN", "VRTX",
+    "BIIB", "ALNY", "MRNA", "BNTX", "EXAS", "DXCM", "IDXX", "IQV", "A", "MTD", "WAT", "KEYS", "FTNT", "ANET",
+)
+
+
+def _symbols_from_universe_file(path: Path) -> Set[str]:
+    if not path.is_file():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return set()
+    out: Set[str] = set()
+    for row in data.get("symbols") or []:
+        if isinstance(row, dict):
+            sym = row.get("symbol")
+            if sym:
+                out.add(str(sym).upper())
+    return out
+
+
 def _collect_candidates(mock: bool) -> Set[str]:
-    # Universe sources: UW summary endpoints + existing core tickers (if present)
+    # Universe sources: UW summary endpoints + seeds + prior universe files + env extras
     if mock:
         return set(_mock_symbols())
 
     cands: Set[str] = set()
     try:
-        # Use known market summary endpoints (policies define TTL/caps in the uw client)
-        top_net = uw_get("/api/market/top-net-impact", params={"limit": 80}, cache_policy={"ttl_seconds": 300, "endpoint_name": "top_net_impact", "max_calls_per_day": 2000})
+        lim = int(os.getenv("DAILY_UNIVERSE_TOP_NET_LIMIT", "200"))
+        lim = max(20, min(lim, 500))
+        top_net = uw_get(
+            "/api/market/top-net-impact",
+            params={"limit": lim},
+            cache_policy={"ttl_seconds": 300, "endpoint_name": "top_net_impact", "max_calls_per_day": 2000},
+        )
         for r in (top_net.get("data") or []):
             sym = r.get("symbol") or r.get("ticker")
             if sym:
@@ -86,8 +124,22 @@ def _collect_candidates(mock: bool) -> Set[str]:
         pass
 
     # Always include core ETFs
-    for s in ("SPY", "QQQ", "IWM", "DIA", "XLK", "XLF", "XLE", "XLV"):
+    for s in ("SPY", "QQQ", "IWM", "DIA", "XLK", "XLF", "XLE", "XLV", "XLI", "XLY", "XLP", "XLRE", "XLU", "XLB", "XLC"):
         cands.add(s)
+
+    for s in _RADAR_CANDIDATE_SEED:
+        cands.add(s)
+
+    extra = os.getenv("DAILY_UNIVERSE_EXTRA_CANDIDATES", "").strip()
+    if extra:
+        for part in extra.replace(";", ",").split(","):
+            p = part.strip().upper()
+            if p:
+                cands.add(p)
+
+    cands |= _symbols_from_universe_file(OUT_CORE)
+    cands |= _symbols_from_universe_file(OUT_DAILY)
+    cands |= _symbols_from_universe_file(OUT_DAILY_V2)
     return cands
 
 
