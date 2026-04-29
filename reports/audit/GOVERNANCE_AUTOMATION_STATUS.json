@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-29T05:13:42Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing (expected at reports/board/)",
+    "governance_contracts_present: reports/board/ directory is missing; all other governance contract paths present (memory_bank/ has 6 docs, .cursor/automations/ has README + 5 specs, reports/audit/ exists)"
+  ],
+  "slack_sent": false
+}
