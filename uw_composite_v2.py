@@ -392,6 +392,28 @@ def _extract_gamma_resistance_levels(greeks_data: Dict[str, Any]) -> List[float]
     uniq = sorted({round(x, 6) for x in levels if x > 0})
     return uniq[:20]
 
+
+def _gamma_strikes_from_spot_gex(spot: Any) -> List[float]:
+    """Strike-like levels from UW Professional ``spot-exposures`` payload (daemon cache key ``spot_gex``)."""
+    out: List[float] = []
+    if not isinstance(spot, dict):
+        return out
+    data = spot.get("data")
+    if not isinstance(data, list):
+        return out
+    for row in data[-300:]:
+        if not isinstance(row, dict):
+            continue
+        for k in ("strike", "strike_price", "Strike", "s", "k"):
+            if k not in row:
+                continue
+            lv = _to_num(row.get(k), 0.0)
+            if lv > 0 and math.isfinite(lv):
+                out.append(float(lv))
+            break
+    return out
+
+
 def _sign_from_sentiment(sent: str) -> int:
     if sent == "BULLISH": return +1
     if sent == "BEARISH": return -1
@@ -1039,7 +1061,9 @@ def _compute_composite_score_core(symbol: str, enriched_data: Dict, regime: str 
     
     # 16. Greeks/Gamma (squeeze detection)
     greeks_data = enriched_data.get("greeks", {}) or {}
-    gamma_resistance_levels = _extract_gamma_resistance_levels(greeks_data if isinstance(greeks_data, dict) else {})
+    _base_gamma_lv = _extract_gamma_resistance_levels(greeks_data if isinstance(greeks_data, dict) else {})
+    _spot_gamma_lv = _gamma_strikes_from_spot_gex(enriched_data.get("spot_gex"))
+    gamma_resistance_levels = sorted({round(x, 6) for x in (_base_gamma_lv + _spot_gamma_lv) if x > 0})[:25]
     gamma_exposure_net = 0.0
     gamma_squeeze_used = False
     # REAL SCORES: No placeholder. When greeks data missing use 0.0 (see SIGNAL_INTEGRITY_REAL_SCORES_PATH.md).
