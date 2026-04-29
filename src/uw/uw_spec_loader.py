@@ -5,7 +5,8 @@ UW OpenAPI Spec Loader (endpoint allow-list)
 
 Goal:
 - Provide a *single* authoritative list of UW endpoint paths from the official
-  OpenAPI spec checked into this repo at `unusual_whales_api/api_spec.yaml`.
+  OpenAPI spec. Prefer `api_spec.yaml` at the repo root (vendor download target);
+  fall back to `unusual_whales_api/api_spec.yaml` when the root file is absent.
 
 Design constraints:
 - Avoid YAML dependencies: we only need the `paths:` keys, so we parse that section
@@ -21,7 +22,21 @@ from typing import Iterable, Set
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC_PATH = ROOT / "unusual_whales_api" / "api_spec.yaml"
+
+
+def resolved_uw_spec_path() -> Path:
+    """OpenAPI file used for allow-listing (root spec wins if present)."""
+    primary = ROOT / "api_spec.yaml"
+    if primary.exists():
+        return primary
+    return ROOT / "unusual_whales_api" / "api_spec.yaml"
+
+
+def __getattr__(name: str):
+    # Back-compat for `from src.uw.uw_spec_loader import SPEC_PATH`
+    if name == "SPEC_PATH":
+        return resolved_uw_spec_path()
+    raise AttributeError(name)
 
 
 def _extract_paths_from_openapi_yaml(text: str) -> Set[str]:
@@ -74,9 +89,10 @@ def get_valid_uw_paths() -> set[str]:
     """
     Return the allow-list of valid UW endpoint paths (OpenAPI `paths` keys).
     """
-    if not SPEC_PATH.exists():
+    spec = resolved_uw_spec_path()
+    if not spec.exists():
         return set()
-    text = SPEC_PATH.read_text(encoding="utf-8", errors="replace")
+    text = spec.read_text(encoding="utf-8", errors="replace")
     return set(_extract_paths_from_openapi_yaml(text))
 
 
