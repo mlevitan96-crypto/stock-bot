@@ -7,9 +7,16 @@ This is the ONLY component that should make UW API calls.
 
 Uses SmartPoller to optimize API usage based on data freshness requirements.
 
-Board cadence (2026): intraday cycles sleep at least UW_DAEMON_MIN_LOOP_SLEEP_SEC (default 300s)
-to respect ~40k requests/day. Tier-1 static (insider, congress, slow FTD detail) is refreshed by
-scripts/run_premarket_intel.py (cron via scripts/install_premarket_cron_on_droplet.py).
+Board cadence (2026): intraday cycles sleep at least UW_DAEMON_MIN_LOOP_SLEEP_SEC (default 300s;
+600s when ``UW_REST_BUDGET_MODE=1``) to respect ~40k requests/day.
+
+**Sniper + WebSocket (``UW_REST_BUDGET_MODE=1``):** Load ``_meta.tiers`` from
+``state/daily_universe_v2.json`` (see ``scripts/build_daily_universe.py``). Sniper names ingest
+live ``flow-alerts`` over ``wss://api.unusualwhales.com/socket``; REST is pruned to structural
+fields with tiered cadence. Radar names use slow REST (flow + dark pool + calendar) only.
+
+Tier-1 static (insider, congress, slow FTD detail) is refreshed by ``scripts/run_premarket_intel.py``
+(cron via ``scripts/install_premarket_cron_on_droplet.py``).
 """
 
 import os
@@ -17,6 +24,7 @@ import sys
 import time
 import json
 import signal
+import threading
 import requests
 from pathlib import Path
 from datetime import datetime, timezone
@@ -209,6 +217,67 @@ load_dotenv()
 
 DATA_DIR = Directories.DATA
 CACHE_FILE = CacheFiles.UW_FLOW_CACHE
+
+
+def _load_sniper_radar_tiers() -> tuple:
+    """
+    Returns (sniper_set, radar_set, ordered_union_list).
+
+    Prefers ``state/daily_universe_v2.json`` (or v1) ``_meta.tiers`` written by
+    ``scripts/build_daily_universe.py``. If absent, partitions ``TICKERS`` env by
+    ``DAILY_UNIVERSE_SNIPER_N`` / ``DAILY_UNIVERSE_RADAR_N``.
+    """
+    from pathlib import Path
+
+    sniper: set = set()
+    radar: set = set()
+    for rel in ("state/daily_universe_v2.json", "state/daily_universe.json"):
+        p = Path(rel)
+        if not p.exists():
+            continue
+        try:
+            data = read_json(p, default={})
+        except Exception:
+            data = {}
+        if not isinstance(data, dict):
+            continue
+        meta = data.get("_meta")
+        tiers = meta.get("tiers") if isinstance(meta, dict) else None
+        if isinstance(tiers, dict):
+            for s in tiers.get("sniper") or []:
+                if isinstance(s, str) and s.strip():
+                    sniper.add(s.strip().upper())
+            for s in tiers.get("radar") or []:
+                if isinstance(s, str) and s.strip():
+                    radar.add(s.strip().upper())
+        if sniper or radar:
+            break
+
+    raw = os.getenv(
+        "TICKERS",
+        "AAPL,MSFT,GOOGL,AMZN,META,NVDA,TSLA,AMD,NFLX,INTC,"
+        "SPY,QQQ,IWM,DIA,XLF,XLE,XLK,XLV,XLI,XLP,"
+        "JPM,BAC,GS,MS,C,WFC,BLK,V,MA,"
+        "COIN,PLTR,SOFI,HOOD,RIVN,LCID,F,GM,NIO,"
+        "BA,CAT,XOM,CVX,COP,SLB,"
+        "JNJ,PFE,MRNA,UNH,WMT,TGT,COST,HD,LOW",
+    )
+    env_list = [t.strip().upper() for t in raw.split(",") if t.strip()]
+    try:
+        sn_n = max(1, int(os.getenv("DAILY_UNIVERSE_SNIPER_N", "40")))
+    except ValueError:
+        sn_n = 40
+    try:
+        rd_n = max(0, int(os.getenv("DAILY_UNIVERSE_RADAR_N", "150")))
+    except ValueError:
+        rd_n = 150
+
+    if not sniper and not radar:
+        sniper = set(env_list[:sn_n])
+        radar = set(env_list[sn_n : sn_n + rd_n])
+
+    merged = sorted(sniper | radar) if (sniper or radar) else env_list
+    return sniper, radar, merged
 
 # Enforce "poll once" safety invariant.
 if not _acquire_single_instance_lock():
@@ -670,8 +739,9 @@ class UWClient:
 class SmartPoller:
     """Intelligent polling manager to optimize API usage."""
     
-    def __init__(self):
+    def __init__(self, rest_budget_mode: bool = False):
         self.state_file = StateFiles.SMART_POLLER
+        self.rest_budget_mode = bool(rest_budget_mode)
         # OPTIMIZED: Maximize API usage while staying under 15,000/day limit
         # Market hours: 9:30 AM - 4:00 PM ET = 6.5 hours = 390 minutes
         # Target: Use ~14,000 calls (93% of limit) to leave buffer
@@ -701,22 +771,42 @@ class SmartPoller:
         # Board: 5-minute tiered intraday cadence + ~40k requests/day budget.
         # Full daemon loop additionally sleeps UW_DAEMON_MIN_LOOP_SLEEP_SEC (default 300s).
         # Tier-1 static (insider, congress, slow FTD) is refreshed by scripts/run_premarket_intel.py.
-        self.intervals = {
-            "option_flow": 300,        # 5 min: align with tiered loop
-            "dark_pool_levels": 300,   # 5 min
-            "greek_exposure": 300,     # 5 min passive ML harvest (also merged into greeks)
-            "greeks": 300,             # 5 min
-            "short_interest_float": 300,  # passive squeeze_score harvest (shorts interest-float)
-            "top_net_impact": 600,     # 10 min: Market-wide
-            "market_tide": 600,        # 10 min: Market-wide sentiment
-            "calendar": 604800,        # 7d baseline (dynamic override near events)
-            "oi_change": 300,          # 5 min
-            "etf_flow": 300,           # 5 min passive ML harvest
-            "iv_rank": 600,
-            "shorts_ftds": 86400,      # daily: FTD refreshed in premarket_intel job
-            "max_pain": 600,
-            "institutional_ownership": 86400,
-        }
+        if self.rest_budget_mode:
+            # Sniper (~40) structural REST + Radar (~150) slow discovery; live flow via WebSocket.
+            # Intervals tuned so ~6.5h RTH + off-hours institutional/calendar stay << 40k/day.
+            self.intervals = {
+                "option_flow": 3600,       # Radar-only REST path uses UW_RADAR_OPTION_FLOW_INTERVAL_SEC override
+                "dark_pool_levels": 900,   # Sniper ~15m; Radar multiplies via should_poll override
+                "greek_exposure": 1200,    # Spot GEX ~20m (sniper); skipped for radar unless UW_RADAR_ENABLE_GREEKS=1
+                "greeks": 1200,
+                "short_interest_float": 86400,
+                "top_net_impact": 600,
+                "market_tide": 600,
+                "calendar": 604800,
+                "oi_change": 3600,
+                "etf_flow": 3600,
+                "iv_rank": 3600,
+                "shorts_ftds": 86400,
+                "max_pain": 3600,
+                "institutional_ownership": 86400,
+            }
+        else:
+            self.intervals = {
+                "option_flow": 300,        # 5 min: align with tiered loop
+                "dark_pool_levels": 300,   # 5 min
+                "greek_exposure": 300,     # 5 min passive ML harvest (also merged into greeks)
+                "greeks": 300,             # 5 min
+                "short_interest_float": 300,  # passive squeeze_score harvest (shorts interest-float)
+                "top_net_impact": 600,     # 10 min: Market-wide
+                "market_tide": 600,        # 10 min: Market-wide sentiment
+                "calendar": 604800,        # 7d baseline (dynamic override near events)
+                "oi_change": 300,          # 5 min
+                "etf_flow": 300,           # 5 min passive ML harvest
+                "iv_rank": 600,
+                "shorts_ftds": 86400,      # daily: FTD refreshed in premarket_intel job
+                "max_pain": 600,
+                "institutional_ownership": 86400,
+            }
         # Endpoints that should NOT be slowed down 3x outside market hours.
         self._offhours_exempt = {"calendar", "institutional_ownership"}
         self.last_call = self._load_state()
@@ -858,17 +948,40 @@ class UWFlowDaemon:
     
     def __init__(self):
         self.client = UWClient()
-        self.poller = SmartPoller()
+        self._rest_budget_mode = str(os.getenv("UW_REST_BUDGET_MODE", "0")).strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+        self.sniper_syms, self.radar_syms, merged = _load_sniper_radar_tiers()
+        self.ticker_tier: Dict[str, str] = {}
+        for s in self.sniper_syms:
+            self.ticker_tier[s] = "sniper"
+        for s in self.radar_syms:
+            self.ticker_tier.setdefault(s, "radar")
+        self._ws_flow_enabled = bool(
+            self._rest_budget_mode
+            and self.sniper_syms
+            and str(os.getenv("UW_FLOW_WS_ENABLED", "1")).strip().lower() in ("1", "true", "yes", "on")
+        )
+        self._ws_thread = None
+        self._ws_stop: Optional[threading.Event] = None
+        self._cache_lock = threading.Lock()
+        self.poller = SmartPoller(rest_budget_mode=self._rest_budget_mode)
         self._rate_limited = False  # Track if we've hit rate limit
-        self.tickers = os.getenv("TICKERS", 
-            "AAPL,MSFT,GOOGL,AMZN,META,NVDA,TSLA,AMD,NFLX,INTC,"
-            "SPY,QQQ,IWM,DIA,XLF,XLE,XLK,XLV,XLI,XLP,"
-            "JPM,BAC,GS,MS,C,WFC,BLK,V,MA,"
-            "COIN,PLTR,SOFI,HOOD,RIVN,LCID,F,GM,NIO,"
-            "BA,CAT,XOM,CVX,COP,SLB,"
-            "JNJ,PFE,MRNA,UNH,WMT,TGT,COST,HD,LOW"
-        ).split(",")
-        self.tickers = [t.strip().upper() for t in self.tickers if t.strip()]
+        if self._rest_budget_mode and merged:
+            self.tickers = merged
+        else:
+            self.tickers = os.getenv("TICKERS", 
+                "AAPL,MSFT,GOOGL,AMZN,META,NVDA,TSLA,AMD,NFLX,INTC,"
+                "SPY,QQQ,IWM,DIA,XLF,XLE,XLK,XLV,XLI,XLP,"
+                "JPM,BAC,GS,MS,C,WFC,BLK,V,MA,"
+                "COIN,PLTR,SOFI,HOOD,RIVN,LCID,F,GM,NIO,"
+                "BA,CAT,XOM,CVX,COP,SLB,"
+                "JNJ,PFE,MRNA,UNH,WMT,TGT,COST,HD,LOW"
+            ).split(",")
+            self.tickers = [t.strip().upper() for t in self.tickers if t.strip()]
         self.running = True
         self._shutting_down = False  # Prevent reentrant signal handler calls
         self._loop_entered = False  # Track if main loop has been entered
@@ -930,6 +1043,12 @@ class UWFlowDaemon:
             return
         
         self._shutting_down = True
+        try:
+            ws_stop = getattr(self, "_ws_stop", None)
+            if ws_stop is not None:
+                ws_stop.set()
+        except Exception:
+            pass
         # Use os.write to avoid reentrant print/stderr issues
         try:
             import os
@@ -1093,7 +1212,12 @@ class UWFlowDaemon:
         }
     
     def _update_cache(self, ticker: str, data: Dict):
-        """Update cache for a ticker."""
+        """Update cache for a ticker (thread-safe for WebSocket + REST writers)."""
+        with self._cache_lock:
+            self._update_cache_nolock(ticker, data)
+
+    def _update_cache_nolock(self, ticker: str, data: Dict):
+        """Merge ``data`` into ``uw_flow_cache.json`` (caller must hold ``_cache_lock``)."""
         # #region agent log
         debug_log("uw_flow_daemon.py:_update_cache", "Cache update start", {
             "ticker": ticker,
@@ -1101,60 +1225,93 @@ class UWFlowDaemon:
             "has_data": bool(data)
         }, "H4")
         # #endregion
-        
+
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Load existing cache
+
         cache = {}
         if CACHE_FILE.exists():
             try:
                 cache = read_json(CACHE_FILE, default={})
             except Exception:
                 cache = {}
-        
-        # Update ticker data
+
         if ticker not in cache:
             cache[ticker] = {}
-        
-        # GRACEFUL DEGRADATION: Preserve existing flow_trades if new data is empty
-        # This allows trading bot to continue using stale data when API is rate limited
+
         existing_flow_trades = cache[ticker].get("flow_trades", [])
         new_flow_trades = data.get("flow_trades", [])
-        
-        # If new data is empty but we have existing trades < 2 hours old, preserve them
+
         if not new_flow_trades and existing_flow_trades:
             existing_last_update = cache[ticker].get("_last_update", 0)
             current_time = time.time()
             age_sec = current_time - existing_last_update if existing_last_update else float('inf')
-            
-            if age_sec < 2 * 3600:  # Less than 2 hours old
+
+            if age_sec < 2 * 3600:
                 print(f"[UW-DAEMON] Preserving existing flow_trades for {ticker} ({int(age_sec/60)} min old, {len(existing_flow_trades)} trades)", flush=True)
-                data["flow_trades"] = existing_flow_trades  # Preserve old trades
-                # Always derive conviction/sentiment from flow_trades when we have them (ensures a number is always written)
+                data["flow_trades"] = existing_flow_trades
                 norm = self._normalize_flow_data(existing_flow_trades, ticker)
                 if norm:
                     data["sentiment"] = norm.get("sentiment", "NEUTRAL")
                     data["conviction"] = norm.get("conviction", 0.0)
-        
+
         cache[ticker].update(data)
         cache[ticker]["_last_update"] = int(time.time())
-        
-        # Add metadata
+
         cache["_metadata"] = {
             "last_update": int(time.time()),
             "updated_by": "uw_flow_daemon",
-            "ticker_count": len([k for k in cache.keys() if not k.startswith("_")])
+            "ticker_count": len([k for k in cache.keys() if not k.startswith("_")]),
         }
-        
-        # Atomic write
+
         atomic_write_json(CACHE_FILE, cache)
-        # #region agent log
         debug_log("uw_flow_daemon.py:_update_cache", "Cache update complete", {
             "ticker": ticker,
             "cache_size": len(cache),
             "ticker_data_keys": list(cache.get(ticker, {}).keys())
         }, "H4")
-        # #endregion
+
+    def _radar_interval_override(self, base_endpoint_name: str, ticker: str) -> Optional[int]:
+        """Stretch REST cadence for Radar tier (Sniper uses base ``SmartPoller.intervals``)."""
+        if not self._rest_budget_mode:
+            return None
+        if self.ticker_tier.get(ticker) != "radar":
+            return None
+        base_iv = int(self.poller.intervals.get(base_endpoint_name, 300))
+        mult = float(os.getenv("UW_RADAR_REST_INTERVAL_MULT", "4") or 4)
+        return max(600, int(base_iv * mult))
+
+    def _ingest_ws_flow_alert(self, symbol: str, payload: Dict[str, Any]) -> None:
+        """Append one flow-alerts WS payload to the rolling tape for ``symbol``."""
+        try:
+            cap = int(os.getenv("UW_WS_FLOW_TRADES_CAP", "200") or 200)
+        except ValueError:
+            cap = 200
+        try:
+            with self._cache_lock:
+                cache = read_json(CACHE_FILE, default={}) if CACHE_FILE.exists() else {}
+                row = cache.get(symbol, {}) if isinstance(cache, dict) else {}
+                trades = list(row.get("flow_trades") or [])
+                trades.append(dict(payload))
+                if len(trades) > cap:
+                    trades = trades[-cap:]
+                flow_norm = self._normalize_flow_data(trades, symbol)
+                chunk: Dict[str, Any] = {"flow_trades": trades}
+                if flow_norm:
+                    chunk.update(
+                        {
+                            "sentiment": flow_norm.get("sentiment", "NEUTRAL"),
+                            "conviction": flow_norm.get("conviction", 0.0),
+                            "total_premium": flow_norm.get("total_premium", 0.0),
+                            "call_premium": flow_norm.get("call_premium", 0.0),
+                            "put_premium": flow_norm.get("put_premium", 0.0),
+                            "net_premium": flow_norm.get("net_premium", 0.0),
+                            "trade_count": flow_norm.get("trade_count", len(trades)),
+                            "flow": flow_norm,
+                        }
+                    )
+                self._update_cache_nolock(symbol, chunk)
+        except Exception as ex:
+            safe_print(f"[UW-DAEMON] WS ingest failed for {symbol}: {ex}", flush=True)
     
     def _poll_ticker(self, ticker: str):
         """Poll all endpoints for a ticker."""
@@ -1166,9 +1323,30 @@ class UWFlowDaemon:
                 # Don't make new API calls, but don't clear existing cache either
                 # Trading bot can use stale data if available
                 return
-            
-            # Poll option flow (per-ticker)
-            if self.poller.should_poll(f"option_flow:{ticker}"):
+
+            tier = self.ticker_tier.get(ticker, "radar" if self._rest_budget_mode else "legacy")
+            radar_light = (
+                self._rest_budget_mode
+                and tier == "radar"
+                and str(os.getenv("UW_RADAR_ENABLE_GREEKS", "0")).strip().lower() not in ("1", "true", "yes", "on")
+            )
+
+            # Poll option flow (per-ticker REST). Sniper live tape = WebSocket when enabled.
+            skip_rest_flow = bool(self._ws_flow_enabled and tier == "sniper")
+            flow_iv: Optional[int] = None
+            if tier == "radar" and self._rest_budget_mode:
+                try:
+                    flow_iv = int(os.getenv("UW_RADAR_OPTION_FLOW_INTERVAL_SEC", "3600") or 3600)
+                except ValueError:
+                    flow_iv = 3600
+
+            if (
+                not skip_rest_flow
+                and self.poller.should_poll(
+                    f"option_flow:{ticker}",
+                    interval_override_sec=flow_iv,
+                )
+            ):
                 flow_data = self.client.get_option_flow(ticker, limit=100)
                 
                 # Check if rate limited
@@ -1256,8 +1434,11 @@ class UWFlowDaemon:
                 else:
                     print(f"[UW-DAEMON] Cache for {ticker}: empty (no data available)", flush=True)
             
-            # Poll dark pool (per-ticker)
-            if self.poller.should_poll(f"dark_pool_levels:{ticker}"):
+            # Poll dark pool (per-ticker) — Sniper + Radar (Radar cadence stretched).
+            if self.poller.should_poll(
+                f"dark_pool_levels:{ticker}",
+                interval_override_sec=self._radar_interval_override("dark_pool_levels", ticker),
+            ):
                 dp_data = self.client.get_dark_pool_levels(ticker)
                 dp_normalized = self._normalize_dark_pool(dp_data)
                 # Always store dark_pool (even if empty) so we know it was polled
@@ -1274,8 +1455,11 @@ class UWFlowDaemon:
                 # Write dark_pool data (nested is fine - main.py reads it as cache_data.get("dark_pool", {}))
                 self._update_cache(ticker, {"dark_pool": dp_normalized})
             
-            # Poll greek_exposure (per-ticker; detailed exposure data)
-            if self.poller.should_poll(f"greek_exposure:{ticker}"):
+            # Poll greek_exposure (per-ticker; detailed exposure data) — Sniper + optional Radar deep REST.
+            if not radar_light and self.poller.should_poll(
+                f"greek_exposure:{ticker}",
+                interval_override_sec=self._radar_interval_override("greek_exposure", ticker),
+            ):
                 try:
                     print(f"[UW-DAEMON] Polling greek_exposure for {ticker}...", flush=True)
                     gex_data = self.client.get_greek_exposure(ticker)
@@ -1298,7 +1482,10 @@ class UWFlowDaemon:
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
             
             # Poll greeks (per-ticker; basic greeks data - separate endpoint)
-            if self.poller.should_poll(f"greeks:{ticker}"):
+            if not radar_light and self.poller.should_poll(
+                f"greeks:{ticker}",
+                interval_override_sec=self._radar_interval_override("greeks", ticker),
+            ):
                 try:
                     print(f"[UW-DAEMON] Polling greeks for {ticker}...", flush=True)
                     greeks_data = self.client.get_greeks(ticker)
@@ -1317,7 +1504,10 @@ class UWFlowDaemon:
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
             
             # Poll OI change (per-ticker)
-            if self.poller.should_poll(f"oi_change:{ticker}"):
+            if not radar_light and self.poller.should_poll(
+                f"oi_change:{ticker}",
+                interval_override_sec=self._radar_interval_override("oi_change", ticker),
+            ):
                 try:
                     print(f"[UW-DAEMON] Polling oi_change for {ticker}...", flush=True)
                     oi_data = self.client.get_oi_change(ticker)
@@ -1337,7 +1527,10 @@ class UWFlowDaemon:
                     self._update_cache(ticker, {"oi_change": {}})
             
             # Poll ETF flow (per-ticker)
-            if self.poller.should_poll(f"etf_flow:{ticker}"):
+            if not radar_light and self.poller.should_poll(
+                f"etf_flow:{ticker}",
+                interval_override_sec=self._radar_interval_override("etf_flow", ticker),
+            ):
                 try:
                     print(f"[UW-DAEMON] Polling etf_flow for {ticker}...", flush=True)
                     etf_data = self.client.get_etf_flow(ticker)
@@ -1357,7 +1550,10 @@ class UWFlowDaemon:
                     self._update_cache(ticker, {"etf_flow": {}})
             
             # Passive ML: short interest / float → squeeze_score-shaped blob (does not replace synthetic engine)
-            if self.poller.should_poll(f"short_interest_float:{ticker}"):
+            if not radar_light and self.poller.should_poll(
+                f"short_interest_float:{ticker}",
+                interval_override_sec=self._radar_interval_override("short_interest_float", ticker),
+            ):
                 try:
                     print(f"[UW-DAEMON] Polling short_interest_float for {ticker}...", flush=True)
                     raw_si = self.client.get_short_interest_float(ticker)
@@ -1372,7 +1568,10 @@ class UWFlowDaemon:
                     self._update_cache(ticker, {"squeeze_score": {}})
             
             # Poll IV rank (per-ticker)
-            if self.poller.should_poll(f"iv_rank:{ticker}"):
+            if not radar_light and self.poller.should_poll(
+                f"iv_rank:{ticker}",
+                interval_override_sec=self._radar_interval_override("iv_rank", ticker),
+            ):
                 try:
                     print(f"[UW-DAEMON] Polling iv_rank for {ticker}...", flush=True)
                     iv_data = self.client.get_iv_rank(ticker)
@@ -1392,7 +1591,10 @@ class UWFlowDaemon:
                     self._update_cache(ticker, {"iv_rank": {}})
             
             # Poll shorts/FTDs (per-ticker)
-            if self.poller.should_poll(f"shorts_ftds:{ticker}"):
+            if not radar_light and self.poller.should_poll(
+                f"shorts_ftds:{ticker}",
+                interval_override_sec=self._radar_interval_override("shorts_ftds", ticker),
+            ):
                 try:
                     print(f"[UW-DAEMON] Polling shorts_ftds for {ticker}...", flush=True)
                     raw_ftd = self.client.get_shorts_ftds(ticker)
@@ -1410,7 +1612,10 @@ class UWFlowDaemon:
                     self._update_cache(ticker, {"ftd_pressure": {}, "shorts_ftds": {}})
             
             # Poll max pain (per-ticker)
-            if self.poller.should_poll(f"max_pain:{ticker}"):
+            if not radar_light and self.poller.should_poll(
+                f"max_pain:{ticker}",
+                interval_override_sec=self._radar_interval_override("max_pain", ticker),
+            ):
                 try:
                     print(f"[UW-DAEMON] Polling max_pain for {ticker}...", flush=True)
                     max_pain_data = self.client.get_max_pain(ticker)
@@ -1931,7 +2136,28 @@ class UWFlowDaemon:
             
             safe_print("[UW-DAEMON] Starting UW Flow Daemon...")
             safe_print(f"[UW-DAEMON] Monitoring {len(self.tickers)} tickers")
+            safe_print(
+                f"[UW-DAEMON] REST budget mode={self._rest_budget_mode} sniper={len(self.sniper_syms)} "
+                f"radar={len(self.radar_syms)} ws_flow={self._ws_flow_enabled}",
+                flush=True,
+            )
             safe_print(f"[UW-DAEMON] Cache file: {CACHE_FILE}")
+
+            if self._ws_flow_enabled and self.client.api_key:
+                try:
+                    import uw_flow_ws
+
+                    self._ws_stop = threading.Event()
+                    self._ws_thread = uw_flow_ws.run_ws_loop_in_thread(
+                        str(self.client.api_key),
+                        set(self.sniper_syms),
+                        self._ingest_ws_flow_alert,
+                        self._ws_stop,
+                    )
+                    safe_print(f"[UW-DAEMON] WebSocket flow-alerts consumer started (n={len(self.sniper_syms)})", flush=True)
+                except Exception as ex:
+                    safe_print(f"[UW-DAEMON] WebSocket start failed — disabling WS: {ex}", flush=True)
+                    self._ws_flow_enabled = False
             
             # Force first poll of market-wide endpoints on startup
             first_poll = True
@@ -2106,8 +2332,9 @@ class UWFlowDaemon:
                         # #region agent log
                         debug_log("uw_flow_daemon.py:run", "Normal sleep", {"cycle": cycle}, "H2")
                         # #endregion
-                        # Board: minimum 5 minutes between full intraday cycles (40k RPD budget).
-                        _loop_sleep = int(os.getenv("UW_DAEMON_MIN_LOOP_SLEEP_SEC", "300") or 300)
+                        # Board: longer sleeps in REST budget mode (Sniper WS carries flow tape).
+                        _default_loop = 600 if self._rest_budget_mode else 300
+                        _loop_sleep = int(os.getenv("UW_DAEMON_MIN_LOOP_SLEEP_SEC", str(_default_loop)) or _default_loop)
                         time.sleep(max(300, _loop_sleep))
                 
                 except KeyboardInterrupt:
