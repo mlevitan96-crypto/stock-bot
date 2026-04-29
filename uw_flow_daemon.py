@@ -990,6 +990,7 @@ class UWFlowDaemon:
         self._cache_lock = threading.Lock()
         self.poller = SmartPoller(rest_budget_mode=self._rest_budget_mode)
         self._rate_limited = False  # Track if we've hit rate limit
+        self._rest_quota_tripped = False  # True when local usage >= 92% of effective daily REST cap
         if self._rest_budget_mode and merged:
             self.tickers = merged
         else:
@@ -1348,6 +1349,21 @@ class UWFlowDaemon:
                 # Don't make new API calls, but don't clear existing cache either
                 # Trading bot can use stale data if available
                 return
+
+            # REST quota circuit breaker (50k monthly plan × UW_SAFETY_BUFFER; local uw_usage_state mirror)
+            try:
+                from src.uw.uw_client import uw_daily_usage_ratio
+
+                _r = uw_daily_usage_ratio()
+                if _r is not None and _r >= 0.92:
+                    safe_print(
+                        "WARNING: REST Quota Circuit Breaker Tripped - Sweeps Aborted",
+                        flush=True,
+                    )
+                    self._rest_quota_tripped = True
+                    return
+            except Exception:
+                pass
 
             tier = self.ticker_tier.get(ticker, "radar" if self._rest_budget_mode else "legacy")
             radar_light = (
@@ -2262,6 +2278,7 @@ class UWFlowDaemon:
                 safe_print(f"[UW-DAEMON] Step 6: INSIDE while loop! Cycle will be {cycle + 1}")
                 try:
                     cycle += 1
+                    self._rest_quota_tripped = False
                     if cycle == 1:
                         safe_print(f"[UW-DAEMON] ✅ SUCCESS: Entered main loop! Cycle {cycle}")
                     elif cycle <= 3:
@@ -2347,6 +2364,8 @@ class UWFlowDaemon:
                         if not self.running:
                             break
                         self._poll_ticker(ticker)
+                        if getattr(self, "_rest_quota_tripped", False):
+                            break
                         time.sleep(max(0.05, _tick_sleep))
                     
                     # Clear first_poll flag after first cycle
