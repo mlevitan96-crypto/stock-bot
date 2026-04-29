@@ -17,10 +17,13 @@ def apply_paper_overrides() -> None:
     """
     For PAPER mode: increase max_positions and max_new_positions_per_cycle by 2.0x.
     Recalibrated for intelligence overhaul; allows displacement override for high-UW candidates.
-    Keeps risk discipline (MIN_NOTIONAL, correlation_concentration_risk_multiplier) unchanged.
+    Also sets ``MIN_NOTIONAL_USD=1`` on paper so tier-sized / fractional qty is not vetoed by
+    the legacy $100 Config floor (live keeps env or Config default).
     """
     if not is_paper_mode():
         return
+    # Paper: drastic min-notional unlock (operator override; live unchanged).
+    os.environ["MIN_NOTIONAL_USD"] = "1"
     base_max = int(os.environ.get("MAX_CONCURRENT_POSITIONS", 16))
     new_max = int(base_max * 2.0)
     os.environ["MAX_CONCURRENT_POSITIONS"] = str(new_max)

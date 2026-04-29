@@ -443,7 +443,10 @@ class Config:
         100000.0 if _cfg_paper else float(SIZE_BASE_USD),
         float,
     )
-    MIN_NOTIONAL_USD = float(get_env("MIN_NOTIONAL_USD", "100"))
+    # Paper default $1 so small qty * high-priced names clears floor; live default $100 unless env set.
+    MIN_NOTIONAL_USD = float(
+        get_env("MIN_NOTIONAL_USD", "1" if _cfg_paper else "100")
+    )
     DEFAULT_QTY = get_env("DEFAULT_QTY", 25, int)
     MAX_CONCURRENT_POSITIONS = get_env("MAX_CONCURRENT_POSITIONS", 16, int)  # Increased from 12 - was capacity constrained
     COOLDOWN_MINUTES_PER_TICKER = get_env("COOLDOWN_MINUTES_PER_TICKER", 15, int)
