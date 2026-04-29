@@ -8,7 +8,10 @@ This is the ONLY component that should make UW API calls.
 Uses SmartPoller to optimize API usage based on data freshness requirements.
 
 Board cadence (2026): intraday cycles sleep at least UW_DAEMON_MIN_LOOP_SLEEP_SEC (default 300s;
-600s when ``UW_REST_BUDGET_MODE=1``) to respect ~40k requests/day.
+600s when ``UW_REST_BUDGET_MODE=1``). Hard daily REST cap is enforced in ``src/uw/uw_client.py``
+(``UW_DAILY_LIMIT`` default **50_000** × ``UW_SAFETY_BUFFER``). When usage ratio exceeds ~80%,
+the daemon lengthens inter-cycle sleep (RTH-first cadence: market-sensitive polls already skip
+outside 9:30–16:00 ET via ``SmartPoller``).
 
 **Sniper + WebSocket (``UW_REST_BUDGET_MODE=1``):** Load ``_meta.tiers`` from
 ``state/daily_universe_v2.json`` (see ``scripts/build_daily_universe.py``). Sniper names ingest
@@ -576,6 +579,16 @@ class UWClient:
         if isinstance(data, list) and len(data) > 0:
             data = data[0]
         return data if isinstance(data, dict) else {}
+
+    def get_spot_exposures(self, ticker: str) -> Dict:
+        """Professional Spot GEX (gamma exposure per 1% move), OpenAPI ``/api/stock/{ticker}/spot-exposures``."""
+        raw = self._get(f"/api/stock/{ticker}/spot-exposures")
+        if isinstance(raw, dict) and raw.get("_rate_limited"):
+            return {}
+        data = raw.get("data", {})
+        if isinstance(data, list) and len(data) > 0:
+            return {"data": data, "_fetched_at": int(time.time())}
+        return data if isinstance(data, dict) else {}
     
     def get_greeks(self, ticker: str) -> Dict:
         """Get Greeks for a ticker (basic greeks data - different from greek_exposure)."""
@@ -742,7 +755,7 @@ class SmartPoller:
     def __init__(self, rest_budget_mode: bool = False):
         self.state_file = StateFiles.SMART_POLLER
         self.rest_budget_mode = bool(rest_budget_mode)
-        # OPTIMIZED: Maximize API usage while staying under 15,000/day limit
+        # OPTIMIZED: Maximize API usage while staying under UW_DAILY_LIMIT (default 50k/day via uw_client)
         # Market hours: 9:30 AM - 4:00 PM ET = 6.5 hours = 390 minutes
         # Target: Use ~14,000 calls (93% of limit) to leave buffer
         #
@@ -768,16 +781,21 @@ class SmartPoller:
         # - Market-sensitive endpoints are polled ONLY during market hours (9:30-16:00 ET)
         # - Slow endpoints keep cadence outside hours (insider/calendar/congress/institutional)
         #
-        # Board: 5-minute tiered intraday cadence + ~40k requests/day budget.
+        # Board: tiered intraday cadence under UW_DAILY_LIMIT (default 50k REST/day via uw_client).
         # Full daemon loop additionally sleeps UW_DAEMON_MIN_LOOP_SLEEP_SEC (default 300s).
         # Tier-1 static (insider, congress, slow FTD) is refreshed by scripts/run_premarket_intel.py.
         if self.rest_budget_mode:
             # Sniper (~40) structural REST + Radar (~150) slow discovery; live flow via WebSocket.
-            # Intervals tuned so ~6.5h RTH + off-hours institutional/calendar stay << 40k/day.
+            # Intervals tuned so ~6.5h RTH + off-hours stay under the hard daily cap.
+            try:
+                _spot_iv = max(600, int(os.getenv("UW_SPOT_GEX_POLL_INTERVAL_SEC", "1800") or 1800))
+            except ValueError:
+                _spot_iv = 1800
             self.intervals = {
                 "option_flow": 3600,       # Radar-only REST path uses UW_RADAR_OPTION_FLOW_INTERVAL_SEC override
                 "dark_pool_levels": 900,   # Sniper ~15m; Radar multiplies via should_poll override
                 "greek_exposure": 1200,    # Spot GEX ~20m (sniper); skipped for radar unless UW_RADAR_ENABLE_GREEKS=1
+                "spot_gex": _spot_iv,      # Spot GEX REST (Sniper-only poll in _poll_ticker)
                 "greeks": 1200,
                 "short_interest_float": 86400,
                 "top_net_impact": 600,
@@ -795,6 +813,7 @@ class SmartPoller:
                 "option_flow": 300,        # 5 min: align with tiered loop
                 "dark_pool_levels": 300,   # 5 min
                 "greek_exposure": 300,     # 5 min passive ML harvest (also merged into greeks)
+                "spot_gex": 3600,
                 "greeks": 300,             # 5 min
                 "short_interest_float": 300,  # passive squeeze_score harvest (shorts interest-float)
                 "top_net_impact": 600,     # 10 min: Market-wide
@@ -852,7 +871,7 @@ class SmartPoller:
 
         # HARD QUOTA GUARD:
         # Market-sensitive endpoints should not run outside market hours.
-        # This keeps daily volume predictable and under 15,000/day with large ticker sets.
+        # This keeps daily volume predictable and under the hard daily REST cap with large ticker sets.
         if (not self._is_market_hours()) and (base_endpoint not in self._offhours_exempt):
             market_sensitive = {
                 "option_flow",
@@ -867,6 +886,7 @@ class SmartPoller:
                 "iv_rank",
                 "shorts_ftds",
                 "max_pain",
+                "spot_gex",
             }
             if base_endpoint in market_sensitive:
                 return False
@@ -1344,6 +1364,12 @@ class UWFlowDaemon:
                     flow_iv = int(os.getenv("UW_RADAR_OPTION_FLOW_INTERVAL_SEC", "3600") or 3600)
                 except ValueError:
                     flow_iv = 3600
+            elif tier == "sniper" and self._rest_budget_mode and not self._ws_flow_enabled:
+                # WebSocket unavailable (401 / disabled): high-frequency REST for Sniper flow only.
+                try:
+                    flow_iv = max(60, int(os.getenv("UW_SNIPER_REST_FLOW_INTERVAL_SEC", "120") or 120))
+                except ValueError:
+                    flow_iv = 120
 
             if (
                 not skip_rest_flow
@@ -1485,6 +1511,23 @@ class UWFlowDaemon:
                     print(f"[UW-DAEMON] Error fetching greek_exposure for {ticker}: {e}", flush=True)
                     import traceback
                     print(f"[UW-DAEMON] Traceback: {traceback.format_exc()}", flush=True)
+
+            # Spot GEX (Professional): Sniper tier only — feeds gamma wall / composite resistance merge.
+            if (
+                tier == "sniper"
+                and str(os.getenv("UW_SPOT_GEX_POLL", "1")).strip().lower() in ("1", "true", "yes", "on")
+                and self.poller.should_poll(
+                    f"spot_gex:{ticker}",
+                    interval_override_sec=self._radar_interval_override("spot_gex", ticker),
+                )
+            ):
+                try:
+                    sg = self.client.get_spot_exposures(ticker)
+                    if sg:
+                        self._update_cache(ticker, {"spot_gex": sg})
+                        print(f"[UW-DAEMON] Updated spot_gex for {ticker}", flush=True)
+                except Exception as e:
+                    print(f"[UW-DAEMON] Error fetching spot_gex for {ticker}: {e}", flush=True)
             
             # Poll greeks (per-ticker; basic greeks data - separate endpoint)
             if not radar_light and self.poller.should_poll(
@@ -2147,6 +2190,16 @@ class UWFlowDaemon:
                 flush=True,
             )
             safe_print(f"[UW-DAEMON] Cache file: {CACHE_FILE}")
+            try:
+                from src.uw.uw_client import uw_effective_daily_cap
+
+                safe_print(
+                    f"[UW-DAEMON] Effective UW REST daily cap (local gate)={uw_effective_daily_cap()} "
+                    f"(UW_DAILY_LIMIT × UW_SAFETY_BUFFER)",
+                    flush=True,
+                )
+            except Exception:
+                pass
 
             if self._ws_flow_enabled and self.client.api_key:
                 try:
@@ -2340,6 +2393,21 @@ class UWFlowDaemon:
                         # Board: longer sleeps in REST budget mode (Sniper WS carries flow tape).
                         _default_loop = 600 if self._rest_budget_mode else 300
                         _loop_sleep = int(os.getenv("UW_DAEMON_MIN_LOOP_SLEEP_SEC", str(_default_loop)) or _default_loop)
+                        try:
+                            from src.uw.uw_client import uw_daily_usage_ratio
+
+                            ratio = uw_daily_usage_ratio()
+                            if ratio is not None and ratio >= 0.80:
+                                bump = 1.0 + min(2.25, max(0.0, (ratio - 0.80) / 0.20) * 2.25)
+                                _loop_sleep = int(max(300, _loop_sleep * bump))
+                                if cycle % 5 == 0:
+                                    safe_print(
+                                        f"[UW-DAEMON] Quota pressure sleep mult={bump:.2f} "
+                                        f"(local usage ~{ratio*100:.1f}% of effective daily cap) → sleep {_loop_sleep}s",
+                                        flush=True,
+                                    )
+                        except Exception:
+                            pass
                         time.sleep(max(300, _loop_sleep))
                 
                 except KeyboardInterrupt:
