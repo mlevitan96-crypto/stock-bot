@@ -7,9 +7,10 @@ Protocol (from UW OpenAPI / socket docs):
   Join: ``{"channel":"flow-alerts","msg_type":"join"}``
   Frames: JSON array ``[channel_name, payload]``
 
-**Auth (401 mitigation):** Some keys reject ``?token=`` on the WebSocket upgrade. Default
-``UW_WS_AUTH_MODE=bearer`` sends **only** ``Authorization: Bearer <UW_API_KEY>`` and a clean URL.
-Set ``UW_WS_AUTH_MODE=query`` for legacy URL token, or ``both`` to send both.
+**Auth (vendor):** Unusual Whales WebSocket upgrades expect the API token in the URL as
+``?token=<UW_API_KEY>``; ``Authorization: Bearer`` is not applied for this socket. Default
+``UW_WS_AUTH_MODE=query``. Set ``UW_WS_AUTH_MODE=bearer`` only for nonstandard testing, or
+``both`` to send query token plus Bearer.
 
 Requires: ``websockets`` (repo pins ``<11``; supports ``additional_headers`` on recent 10.x / 11+).
 """
@@ -35,7 +36,7 @@ def uw_ws_connect_config(api_token: str) -> Tuple[str, Optional[List[Tuple[str, 
 
     ``additional_headers`` is a list of (name, value) pairs for the HTTP upgrade request.
     """
-    mode = os.getenv("UW_WS_AUTH_MODE", "bearer").strip().lower()
+    mode = os.getenv("UW_WS_AUTH_MODE", "query").strip().lower()
     base = (os.getenv("UW_WS_BASE", _DEFAULT_WS_BASE) or _DEFAULT_WS_BASE).strip()
     if "token=" in base.lower():
         base = base.split("?")[0].rstrip("?&")
