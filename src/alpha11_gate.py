@@ -1,9 +1,13 @@
 """
 Alpha 11 flow-strength: hard block floor + tiered entry sizing (Operation Apex).
 
-**Gate:** Blocks when persisted UW ``flow_strength`` (or ``conviction``) is strictly
-below ``ALPHA11_MIN_FLOW_STRENGTH``. Missing / non-finite telemetry **allows** entry
-(fail-open) so partial UW payloads do not brick the book.
+**Gate (default — ensemble funnel):** Uses a **score-conditioned effective floor** so high
+``composite_score`` tolerates lower UW ``flow_strength`` (and vice versa). Below that floor,
+flow becomes a **notional multiplier** (soft penalty), not a series AND-veto, unless flow is
+below ``ALPHA11_ABSOLUTE_FLOW_FLOOR`` (catastrophic / garbage tape) or legacy
+``ALPHA11_FLOW_SERIES_VETO=1`` restores strict series blocking.
+
+Missing / non-finite telemetry **allows** entry (fail-open).
 
 **Sizing:** After the gate, notional may be scaled:
   - Tier 1: missing/invalid flow OR ``flow_strength >= ALPHA11_TIER1_FLOW_THRESHOLD`` → 1.0x
@@ -13,7 +17,14 @@ Adjusted notional is clamped to at least ``min_notional_usd`` (broker / policy f
 
 Configure:
   ALPHA11_FLOW_GATE_ENABLED          default 1  (set 0 to disable gate)
-  ALPHA11_MIN_FLOW_STRENGTH          default 0.75 (hard block below this)
+  ALPHA11_MIN_FLOW_STRENGTH          default 0.75 (regime base floor before dynamic relief)
+  ALPHA11_FLOW_SERIES_VETO           default 0  (set 1 for legacy hard veto vs regime floor only)
+  ALPHA11_DYNAMIC_FLOOR_ENABLED      default 1  (score lowers effective UW floor)
+  ALPHA11_DYNAMIC_SCORE_LO           default 3.0  (at/below: use full regime floor)
+  ALPHA11_DYNAMIC_SCORE_HI           default 6.5  (at/above: maximum floor relief applied)
+  ALPHA11_DYNAMIC_FLOOR_SPAN         default 0.20  (max reduction from regime floor at HI score)
+  ALPHA11_ABSOLUTE_FLOW_FLOOR        default 0.22  (below: hard block catastrophic_flow)
+  ALPHA11_SOFT_MULT_FLOOR            default 0.28  (notional mult uses fs/max(eff_floor, this))
   ALPHA11_TIER1_FLOW_THRESHOLD       default 0.985 (full size at/above; missing → full)
   ALPHA11_TIER2_SIZING_MULTIPLIER    default 0.5
   ALPHA11_TIER_SIZING_ENABLED        default 1  (set 0 to skip multiplier; gate still applies)
@@ -23,7 +34,7 @@ from __future__ import annotations
 
 import math
 import os
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any, Mapping, NamedTuple, Optional, Tuple
 
 
 def _truthy_env(name: str, default: str = "1") -> bool:
@@ -200,27 +211,176 @@ def _effective_flow_floor(regime_state: Optional[str]) -> float:
     return base
 
 
+class Alpha11FunnelResult(NamedTuple):
+    """Result of :func:`resolve_alpha11_entry_funnel`."""
+
+    allowed: bool
+    block_reason: Optional[str]
+    flow_strength: Optional[float]
+    effective_floor: float
+    notional_mult: float
+    policy: str
+
+
+def _float_env(name: str, default: float) -> float:
+    try:
+        v = float(os.environ.get(name, str(default)).strip())
+        return v if math.isfinite(v) else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _dynamic_effective_floor(composite_score: float, regime_floor: float) -> float:
+    """
+    Lower the required UW flow when composite_score is high (ensemble complement).
+    When disabled or score missing path not used, caller passes regime_floor unchanged.
+    """
+    if not _truthy_env("ALPHA11_DYNAMIC_FLOOR_ENABLED", "1"):
+        return float(regime_floor)
+    try:
+        s = float(composite_score)
+    except (TypeError, ValueError):
+        return float(regime_floor)
+    if not math.isfinite(s):
+        return float(regime_floor)
+    s_lo = _float_env("ALPHA11_DYNAMIC_SCORE_LO", 3.0)
+    s_hi = _float_env("ALPHA11_DYNAMIC_SCORE_HI", 6.5)
+    span = max(0.0, _float_env("ALPHA11_DYNAMIC_FLOOR_SPAN", 0.20))
+    if s_hi <= s_lo:
+        return float(regime_floor)
+    t = (s - s_lo) / (s_hi - s_lo)
+    if t < 0.0:
+        t = 0.0
+    elif t > 1.0:
+        t = 1.0
+    eff = float(regime_floor) - span * t
+    abs_cap = _float_env("ALPHA11_ABSOLUTE_FLOW_FLOOR", 0.22)
+    # Never relax below absolute tape floor (still above catastrophic hard block).
+    return float(max(abs_cap, eff))
+
+
+def _absolute_catastrophic_flow_floor() -> float:
+    """Below this (when finite flow present): hard block regardless of score."""
+    return max(0.0, min(0.5, _float_env("ALPHA11_ABSOLUTE_FLOW_FLOOR", 0.22) * 0.85))
+
+
+def resolve_alpha11_entry_funnel(
+    *,
+    composite_score: Optional[float],
+    composite_result: Optional[Mapping[str, Any]],
+    composite_meta: Optional[Mapping[str, Any]],
+    regime_state: Optional[str] = None,
+) -> Alpha11FunnelResult:
+    """
+    Ensemble Alpha11 policy.
+
+    - If ``composite_score`` is **None** (unit tests / legacy callers): strict regime-floor
+      series veto (same as historical ``check_alpha11_flow_strength_gate``).
+    - If ``composite_score`` is set (live ``main``): dynamic effective floor + soft notional
+      multiplier instead of vetoing strong AI + mediocre flow.
+
+    ``ALPHA11_FLOW_SERIES_VETO=1`` forces legacy hard veto vs regime floor even when score is set.
+    """
+    if not _truthy_env("ALPHA11_FLOW_GATE_ENABLED", "1"):
+        return Alpha11FunnelResult(True, None, None, _min_flow_strength(), 1.0, "gate_disabled")
+
+    fs = _extract_flow_strength(composite_result, composite_meta)
+    regime_floor = _effective_flow_floor(regime_state)
+
+    if fs is None:
+        return Alpha11FunnelResult(
+            True,
+            "alpha11_flow_skipped_missing_flow_strength",
+            None,
+            float(regime_floor),
+            1.0,
+            "missing_flow_fail_open",
+        )
+
+    cat = _absolute_catastrophic_flow_floor()
+    if math.isfinite(fs) and fs < cat:
+        return Alpha11FunnelResult(
+            False,
+            "alpha11_flow_strength_catastrophic",
+            float(fs),
+            float(regime_floor),
+            1.0,
+            "catastrophic_hard_block",
+        )
+
+    # Legacy series veto: tests omit composite_score; operators can set ALPHA11_FLOW_SERIES_VETO=1.
+    if composite_score is None or _truthy_env("ALPHA11_FLOW_SERIES_VETO", "0"):
+        if fs < regime_floor:
+            return Alpha11FunnelResult(
+                False,
+                "alpha11_flow_strength_below_gate",
+                float(fs),
+                float(regime_floor),
+                1.0,
+                "series_veto_legacy",
+            )
+        return Alpha11FunnelResult(True, None, float(fs), float(regime_floor), 1.0, "series_pass")
+
+    try:
+        sc = float(composite_score)
+    except (TypeError, ValueError):
+        sc = float("nan")
+    if not math.isfinite(sc):
+        if fs < regime_floor:
+            return Alpha11FunnelResult(
+                False,
+                "alpha11_flow_strength_below_gate",
+                float(fs),
+                float(regime_floor),
+                1.0,
+                "series_veto_bad_score",
+            )
+        return Alpha11FunnelResult(True, None, float(fs), float(regime_floor), 1.0, "series_pass_bad_score")
+
+    eff = _dynamic_effective_floor(sc, regime_floor)
+    if fs >= eff:
+        return Alpha11FunnelResult(True, None, float(fs), float(eff), 1.0, "dynamic_pass")
+
+    soft_den = max(
+        eff,
+        _float_env("ALPHA11_SOFT_MULT_FLOOR", 0.28),
+        1e-9,
+    )
+    mult = max(0.25, min(1.0, float(fs) / float(soft_den)))
+    return Alpha11FunnelResult(
+        True,
+        None,
+        float(fs),
+        float(eff),
+        float(mult),
+        "dynamic_soft_scale",
+    )
+
+
 def check_alpha11_flow_strength_gate(
     *,
     symbol: str,
     composite_result: Optional[Mapping[str, Any]],
     composite_meta: Optional[Mapping[str, Any]],
     regime_state: Optional[str] = None,
+    composite_score: Optional[float] = None,
 ) -> Tuple[bool, Optional[str], Optional[float]]:
     """
     Returns (allowed, block_reason_or_none, flow_strength_or_none).
 
-    Disabled → allow. Missing flow → allow with reason ``alpha11_flow_skipped``.
-    Below floor → block ``alpha11_flow_strength_below_gate``.
+    When ``composite_score`` is provided, delegates to :func:`resolve_alpha11_entry_funnel`
+    (dynamic floor + soft multiplier path). When omitted, uses strict legacy series gate
+    (unit-test compatible).
     """
-    if not _truthy_env("ALPHA11_FLOW_GATE_ENABLED", "1"):
-        return True, None, None
-
-    fs = _extract_flow_strength(composite_result, composite_meta)
-    if fs is None:
-        return True, "alpha11_flow_skipped_missing_flow_strength", None
-
-    floor = _effective_flow_floor(regime_state)
-    if fs < floor:
-        return False, "alpha11_flow_strength_below_gate", fs
-    return True, None, fs
+    _ = symbol
+    r = resolve_alpha11_entry_funnel(
+        composite_score=composite_score,
+        composite_result=composite_result,
+        composite_meta=composite_meta,
+        regime_state=regime_state,
+    )
+    if not r.allowed:
+        return False, r.block_reason, r.flow_strength
+    # Skipped / pass: preserve fail-open telemetry reason string when missing flow
+    br = r.block_reason if r.flow_strength is None else None
+    return True, br, r.flow_strength
