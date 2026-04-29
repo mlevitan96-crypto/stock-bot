@@ -278,7 +278,7 @@ def main() -> int:
         for rule in leaf["rules"]:
             print(f"    AND {rule}")
 
-    print("\n--- Kraken / crypto contrast (qualitative) ---")
+    print("\n--- Legacy venue contrast (qualitative; Alpaca-only engine) ---")
     print(
         "  Unlike a typical crypto book where edge often clusters on funding, liquidations, "
         "and wide-spread taker flow, this equities slice is scored with compact 2 bps friction "
