@@ -1,7 +1,9 @@
 {
   "schema_version": "1.0",
-  "run_ts_utc": "2026-03-08T04:42:29.757390Z",
+  "timestamp": "2026-04-29T11:37:40.447846+00:00",
+  "run_ts_utc": "2026-04-29T11:37:40.447920+00:00",
   "branch": "main",
+  "status": "anomalies",
   "anomalies_detected": true,
   "checks": {
     "repo_structure": "fail",
@@ -12,8 +14,12 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [
-    "repo_structure: Missing expected top-level directory: memory_bank/",
-    "governance_contracts_present: Missing governance contract directory: memory_bank/"
+    "Missing expected top-level dirs: ['memory_bank']",
+    "Missing: memory_bank"
+  ],
+  "anomalies": [
+    "Missing expected top-level dirs: ['memory_bank']",
+    "Missing: memory_bank"
   ],
   "slack_sent": false
 }
