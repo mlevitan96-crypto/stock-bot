@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-29T01:44:10Z",
+  "branch": "main",
+  "anomalies_detected": false,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: All expected top-level dirs present (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/). reports/audit/ present. reports/board/ was missing and auto-created during this run.",
+    "config_drift: .cursor/deployment.json present. .cursor/environment.json present. No unexpected env file drift detected.",
+    "governance_contracts_present: memory_bank/ contains 6 governance docs (systemPatterns.md, TELEMETRY_CHANGELOG.md, etc.). .cursor/automations/ exists with README.md and 5 automation specs. reports/audit/ and reports/board/ exist.",
+    "required_artifacts: No specific CSA/board artifact recency requirement defined; check omitted per spec.",
+    "no_deprecated_dirs: No deprecated directories documented for removal were found reintroduced. moltbot/ is a known legacy directory tolerated by existing governance rules.",
+    "no_clawdbot_moltbot: Clawdbot/Moltbot references found only in: (1) legacy moltbot/ directory (excluded per governance policy), (2) scripts documenting removal (scripts/run_openclaw_molt_synthesis.py), (3) governance check scripts (scripts/automations/, scripts/sre/), (4) historical reports/docs. No reintroduction in active src/ or config/. PASS per existing codebase governance exclusions."
+  ],
+  "slack_sent": false
+}
