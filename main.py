@@ -13848,6 +13848,32 @@ class StrategyEngine:
                 if res is None:
                     print(f"DEBUG {symbol}: submit_entry returned None - order submission failed (order_type={order_type}, entry_status={entry_status})", flush=True)
                     log_order({"symbol": symbol, "qty": qty, "side": side, "error": "submit_entry_failed", "order_type": order_type, "entry_status": entry_status})
+                    # Telemetry: submit_entry packs veto / block reason in entry_status (5th tuple slot);
+                    # e.g. v2_agent_veto, vpin_ofi_toxicity_veto from evaluate_v2_live_gate — was invisible in run.jsonl.
+                    try:
+                        _br_submit = str(entry_status or order_type or "submit_entry_failed").strip() or "submit_entry_failed"
+                        _emit_trade_intent_blocked_trace(
+                            symbol,
+                            direction,
+                            float(score),
+                            comps if isinstance(comps, dict) else {},
+                            c if isinstance(c, dict) else {},
+                            market_regime,
+                            self,
+                            blocked_reason=_br_submit,
+                            final_primary=_br_submit,
+                            failed_gate="submit_entry",
+                            failed_reason=str(entry_status or order_type or ""),
+                            prior_gates_pass=(
+                                "score_gate",
+                                "expectancy_gate",
+                                "capacity_gate",
+                                "risk_gate",
+                                "momentum_gate",
+                            ),
+                        )
+                    except Exception:
+                        pass
                     continue
 
                 print(f"DEBUG {symbol}: submit_entry returned - order_type={order_type}, entry_status={entry_status}, filled_qty={filled_qty}, fill_price={fill_price}", flush=True)
