@@ -1,9 +1,7 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-04-30T17:02:39.428102+00:00",
   "run_ts_utc": "2026-04-30T17:02:39.428144+00:00",
   "branch": "main",
-  "status": "anomalies",
   "anomalies_detected": true,
   "checks": {
     "repo_structure": "pass",
@@ -14,12 +12,9 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
+    "Missing: reports/board — directory was purged in commit f12028c1 and never re-created",
+    "required_artifacts check also fails because reports/board is not a directory"
   ],
-  "anomalies": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
-  ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "unable to create (gh CLI is read-only in this environment); anomalies documented here"
 }
