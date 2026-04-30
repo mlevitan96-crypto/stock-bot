@@ -1,6 +1,6 @@
 {
   "top_frac": 0.25,
-  "holdout_probability_threshold": 0.44502466917037964,
+  "holdout_probability_threshold": 0.3,
   "holdout_approved_n": 57,
   "holdout_total_n": 226,
   "holdout_win_rate_among_approved": 0.47368421052631576,
