@@ -4092,20 +4092,16 @@ def log_exit_attribution(
     except Exception:
         pass
 
-    # SHORT-TERM LEARNING: Immediate learning after trade close
-    # This enables fast adaptation to market changes
+    # SHORT-TERM LEARNING + XAI (why_explain must exist before learn_from_trade_close — NameError guard).
     try:
         from comprehensive_learning_orchestrator_v2 import learn_from_trade_close
-        
+
         comps = context.get("components", {})
         regime = context.get("market_regime", "unknown")
         sector = "unknown"  # Could extract from symbol if needed
-        
-        # Immediate learning from this trade
-        learn_from_trade_close(symbol, pnl_pct, comps, regime, sector)
-        
+        why_explain = str(close_reason or "")[:2000]
 
-        # XAI: Log explainable trade exit
+        # XAI: Log explainable trade exit (populate why_explain for learning categorizer)
         try:
             from xai.explainable_logger import get_explainable_logger
             explainable = get_explainable_logger()
@@ -4144,7 +4140,7 @@ def log_exit_attribution(
             except:
                 pass
             
-            why_sentence = explainable.log_trade_exit(
+            _wx = explainable.log_trade_exit(
                 symbol=symbol,
                 entry_price=entry_price,
                 exit_price=exit_price,
@@ -4152,11 +4148,16 @@ def log_exit_attribution(
                 hold_minutes=hold_minutes,
                 exit_reason=close_reason,
                 regime=regime_name,
-                gamma_walls=gamma_walls
+                gamma_walls=gamma_walls,
             )
-            log_event("xai", "trade_exit_logged", symbol=symbol, why=why_sentence)
+            if isinstance(_wx, str) and _wx.strip():
+                why_explain = _wx.strip()[:2000]
+            log_event("xai", "trade_exit_logged", symbol=symbol, why=why_explain)
         except Exception as e:
             log_event("xai", "trade_exit_log_failed", symbol=symbol, error=str(e))
+
+        learn_from_trade_close(symbol, pnl_pct, comps, regime, sector, why_explanation=why_explain)
+
         # Also feed to exit model for exit signal learning
         from adaptive_signal_optimizer import get_optimizer
         optimizer = get_optimizer()
