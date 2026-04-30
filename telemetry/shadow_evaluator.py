@@ -490,14 +490,27 @@ def _apply_scoreflow_row(
                 tot = float(ts)
             except (TypeError, ValueError):
                 pass
+        if tot is None or tot != tot:
+            vs = feature_snapshot.get("v2_score")
+            if vs is not None:
+                try:
+                    tot = float(vs)
+                except (TypeError, ValueError):
+                    tot = None
     if comp is None and isinstance(cluster, dict):
-        for path in (cluster.get("composite"), cluster.get("cluster")):
-            if not isinstance(path, dict):
-                continue
-            c2 = path.get("components")
-            if isinstance(c2, dict):
-                comp = c2
-                break
+        _cm_sf = cluster.get("composite_meta")
+        if isinstance(_cm_sf, dict):
+            c_meta = _cm_sf.get("components")
+            if isinstance(c_meta, dict) and c_meta:
+                comp = c_meta
+        if comp is None:
+            for path in (cluster.get("composite"), cluster.get("cluster")):
+                if not isinstance(path, dict):
+                    continue
+                c2 = path.get("components")
+                if isinstance(c2, dict):
+                    comp = c2
+                    break
     if normalize is None and amf and hasattr(amf, "normalize_composite_components_for_ml"):
         try:
             normalize = amf.normalize_composite_components_for_ml  # type: ignore[assignment]
