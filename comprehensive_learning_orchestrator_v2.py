@@ -1151,6 +1151,7 @@ def learn_from_trade_close(
     sector: str = "unknown",
     *,
     why_explanation: str = "",
+    **kwargs: Any,
 ):
     """
     SHORT-TERM LEARNING: Record trade for learning (but don't update weights immediately).
@@ -1161,7 +1162,15 @@ def learn_from_trade_close(
     - Weight adjustments only in daily batch (with MIN_SAMPLES guard)
     
     CRITICAL: Normalizes component names and ensures ALL SIGNAL_COMPONENTS are included.
+
+    Accepts legacy ``why_sentence=`` kwarg (same as ``why_explanation``) to avoid NameError
+    when older call sites mix exit XAI variable names.
     """
+    if kwargs:
+        _legacy = kwargs.pop("why_sentence", None)
+        if _legacy is not None and not str(why_explanation or "").strip():
+            why_explanation = str(_legacy)
+        kwargs.clear()
     optimizer = get_optimizer()
     if optimizer and components:
         # Normalize component names to match SIGNAL_COMPONENTS

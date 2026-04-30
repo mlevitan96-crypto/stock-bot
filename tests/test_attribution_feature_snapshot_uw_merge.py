@@ -89,6 +89,33 @@ def test_build_shared_feature_snapshot_includes_uw_proxies(monkeypatch):
     assert snap.get("symbol") == "AAPL"
 
 
+def test_learn_from_trade_close_accepts_why_sentence_legacy_kwarg(monkeypatch):
+    calls = []
+
+    def fake_record_trade(*a, **k):
+        calls.append("record")
+
+    class Opt:
+        def record_trade(self, *a, **k):
+            fake_record_trade(*a, **k)
+
+    def fake_get_optimizer():
+        return Opt()
+
+    monkeypatch.setattr("comprehensive_learning_orchestrator_v2.get_optimizer", fake_get_optimizer)
+    from comprehensive_learning_orchestrator_v2 import learn_from_trade_close
+
+    learn_from_trade_close(
+        "X",
+        1.0,
+        {"options_flow": 0.5},
+        "mixed",
+        "Technology",
+        why_sentence="Legacy exit explanation string.",
+    )
+    assert calls == ["record"]
+
+
 def test_learn_from_trade_close_accepts_why_explanation(monkeypatch):
     calls = []
 
