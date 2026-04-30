@@ -2119,6 +2119,50 @@ def _emit_trade_intent(
             "time_bucket_id": _tb,
             "canonical_trade_id": _ctid,
         }
+        if (decision_outcome or "").lower() == "blocked" and blocked_reason and "v2_agent" in str(blocked_reason):
+            try:
+                from pathlib import Path as _Path_v2
+
+                from telemetry.shadow_evaluator import build_vanguard_feature_map
+                from telemetry.vanguard_ml_runtime import (
+                    default_v2_threshold,
+                    predict_v2_probability,
+                    v2_row_quality_metrics,
+                )
+
+                _emap = build_vanguard_feature_map(
+                    symbol=symbol,
+                    side=side,
+                    now_utc=datetime.now(timezone.utc),
+                    feature_snapshot=snap if isinstance(snap, dict) else {},
+                    comps=comps if isinstance(comps, dict) else {},
+                    cluster=cluster if isinstance(cluster, dict) else {},
+                    trade_id=str(rec.get("trade_id") or "") or None,
+                )
+                _meta_v2 = json.loads(
+                    (_Path_v2(__file__).resolve().parent / "models" / "vanguard_v2_profit_agent_features.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+                _fo_v2 = list(_meta_v2.get("feature_names") or [])
+                _sc_v2 = [str(x) for x in (_meta_v2.get("symbol_classes") or [])]
+                _sdc_v2 = [str(x) for x in (_meta_v2.get("side_classes") or [])]
+                _pv2, _ = predict_v2_probability(_fo_v2, symbol, side, _sc_v2, _sdc_v2, _emap)
+                _qv2 = v2_row_quality_metrics(_emap)
+                rec["v2_live_gate_proba"] = float(_pv2) if _pv2 is not None else None
+                rec["v2_live_gate_threshold"] = float(default_v2_threshold())
+                rec["v2_row_quality_metrics"] = _qv2
+                rec["v2_row_nan_fraction"] = _qv2.get("v2_row_nan_fraction")
+                rec["v2_row_nan_count"] = _qv2.get("v2_row_nan_count")
+                rec["v2_ml_row"] = {}
+                for _k2, _v2 in _emap.items():
+                    try:
+                        _fv2 = float(_v2)
+                        rec["v2_ml_row"][_k2] = round(_fv2, 6) if math.isfinite(_fv2) else None
+                    except (TypeError, ValueError):
+                        rec["v2_ml_row"][_k2] = None
+            except Exception as _v2d_e:
+                rec["v2_live_gate_diag_error"] = str(_v2d_e)[:400]
         if (decision_outcome or "").lower() == "entered":
             rec["entry_intent_synthetic"] = False
             rec["entry_intent_source"] = "live_runtime"
