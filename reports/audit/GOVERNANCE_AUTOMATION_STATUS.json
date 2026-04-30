@@ -21,5 +21,6 @@
     "Missing: reports/board",
     "reports/audit or reports/board missing or not directories"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "anomalies_detected but gh CLI is read-only; issue creation deferred to operator or next write-capable run"
 }
