@@ -4,6 +4,14 @@ from __future__ import annotations
 from telemetry.attribution_feature_snapshot import build_shared_feature_snapshot, merge_uw_cache_into_enriched_signal
 
 
+def test_merge_maps_conviction_to_flow_when_flow_missing():
+    cache = {"QQQ": {"conviction": 0.41, "sentiment": "BULLISH"}}
+    en = {"symbol": "QQQ", "score": 3.0}
+    out = merge_uw_cache_into_enriched_signal(en, "QQQ", uw_cache=cache)
+    assert out.get("flow_strength") == 0.41
+    assert out.get("uw_flow_strength") == 0.41
+
+
 def test_merge_uw_cache_fills_sparse_enriched():
     cache = {
         "NVDA": {
