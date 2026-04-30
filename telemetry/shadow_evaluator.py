@@ -6,6 +6,9 @@ Attaches to trade_intent JSON in logs/run.jsonl:
   - ai_approved_v1: True/False/None (None = inference failed safely)
   - ai_approved_v2: True/False/None — same threshold as live V2 gate
   - ai_approved_v3_shadow: True/False/None — V3 Alpha Hunter (runner) shadow lane
+  - shadow_uw_density / shadow_uw_finite_count — UW signal fill rate on the ML row (parity with live cache+cluster bridge)
+
+Shadow V2/V3 boosters are loaded in ``telemetry.vanguard_ml_runtime`` (there is no separate ``models/shadow_vanguard_v2.py``).
 """
 from __future__ import annotations
 
@@ -469,6 +472,51 @@ def _merge_ml_blobs(cluster: Any, comps: Any, snap: Any, amf) -> Dict[str, Any]:
     return out
 
 
+_UW_DENSITY_KEY_HINTS: Tuple[str, ...] = (
+    "uw_",
+    "dark_pool",
+    "flow_strength",
+    "conviction",
+    "premium",
+    "skew",
+    "scoreflow",
+    "mlf_",
+    "sentiment",
+    "options_flow",
+    "unusual",
+    "cluster_count",
+    "flow_cluster",
+)
+
+
+def compute_shadow_uw_density_metrics(row: Dict[str, float]) -> Dict[str, Any]:
+    """
+    Fraction of UW-related flattened keys that are finite floats (0..1).
+    Used to prove shadow inference is not running on an all-NaN / sparse UW row.
+    """
+    if not row:
+        return {"shadow_uw_density": 0.0, "shadow_uw_finite_count": 0, "shadow_uw_key_matches": 0}
+    matched = 0
+    finite = 0
+    for k, v in row.items():
+        ks = str(k).lower()
+        if not any(h in ks for h in _UW_DENSITY_KEY_HINTS):
+            continue
+        matched += 1
+        try:
+            fv = float(v)
+            if math.isfinite(fv):
+                finite += 1
+        except (TypeError, ValueError):
+            pass
+    density = (float(finite) / float(matched)) if matched else 0.0
+    return {
+        "shadow_uw_density": round(min(1.0, max(0.0, density)), 6),
+        "shadow_uw_finite_count": int(finite),
+        "shadow_uw_key_matches": int(matched),
+    }
+
+
 def _apply_scoreflow_row(
     out: Dict[str, Any],
     feature_snapshot: Any,
@@ -560,10 +608,34 @@ def build_vanguard_feature_map(
     if amf is None:
         return {}
     fs = feature_snapshot if isinstance(feature_snapshot, dict) else {}
-    out: Dict[str, Any] = _merge_ml_blobs(cluster, comps, fs, amf)
+    fs_dense: Dict[str, Any] = dict(fs)
+    sym_u = str(symbol or "").upper().strip()
+    if sym_u:
+        fs_dense.setdefault("symbol", sym_u)
+        try:
+            from telemetry.attribution_feature_snapshot import (
+                merge_live_cluster_into_enriched_signal,
+                merge_uw_cache_into_enriched_signal,
+            )
+
+            fs_dense = merge_uw_cache_into_enriched_signal(fs_dense, sym_u)
+            _cm_dense = None
+            if isinstance(cluster, dict):
+                _nested_cm = cluster.get("composite_meta")
+                if isinstance(_nested_cm, dict):
+                    _cm_dense = _nested_cm
+            fs_dense = merge_live_cluster_into_enriched_signal(
+                fs_dense,
+                cluster=cluster if isinstance(cluster, dict) else None,
+                composite_meta=_cm_dense,
+            )
+        except Exception:
+            fs_dense = dict(fs)
+            fs_dense.setdefault("symbol", sym_u)
+    out: Dict[str, Any] = _merge_ml_blobs(cluster, comps, fs_dense, amf)
     _apply_scoreflow_row(
         out,
-        feature_snapshot,
+        fs_dense,
         cluster,
         comps,
         amf,
@@ -583,7 +655,7 @@ def build_vanguard_feature_map(
             out["strict_open_epoch_utc"] = float(STRICT_EPOCH_START)
         except Exception:
             out["strict_open_epoch_utc"] = float("nan")
-    for src in (comps, feature_snapshot, cluster if isinstance(cluster, dict) else {}):
+    for src in (comps, fs_dense, cluster if isinstance(cluster, dict) else {}):
         if isinstance(src, dict):
             for k in ("entry_price", "qty", "size"):
                 if k in src and src[k] is not None and k not in out:
@@ -674,6 +746,8 @@ def attach_shadow_telemetry(
         rec["ai_approved_v1_error"] = str(e)[:200]
         if "sys" in dir():
             print(f"[shadow_evaluator] feature_map_failed: {e}", file=sys.stderr)
+
+    rec.update(compute_shadow_uw_density_metrics(row))
 
     bst, meta, err = _load_booster_and_meta()
     if bst is None or not isinstance(meta, dict) or not meta.get("feature_names"):
