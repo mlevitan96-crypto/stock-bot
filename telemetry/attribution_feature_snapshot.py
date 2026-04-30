@@ -80,6 +80,12 @@ def merge_uw_cache_into_enriched_signal(
         _merge_key("realized_vol_5d", row.get("realized_vol_5d"))
         _merge_key("beta_vs_spy", row.get("beta_vs_spy"))
         _merge_key("trade_count", row.get("trade_count"))
+        # Resting UW rows often carry conviction but omit flow_strength (uw_enrichment parity).
+        if out.get("flow_strength") is None and out.get("uw_flow_strength") is None:
+            cv = row.get("conviction")
+            if cv is not None:
+                out["flow_strength"] = cv
+                out["uw_flow_strength"] = cv
     except Exception:
         return out
     return out
