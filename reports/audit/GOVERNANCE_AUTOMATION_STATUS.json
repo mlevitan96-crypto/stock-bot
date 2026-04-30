@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-30T22:40:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing (expected at reports/board/)",
+    "no_deprecated_dirs: moltbot/ directory still exists as a top-level directory — this is deprecated and should have been removed",
+    "no_clawdbot_moltbot: moltbot/ directory contains active moltbot code (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py); scripts/run_molt_workflow.py imports from moltbot package; scripts/run_openclaw_molt_synthesis.py references Clawdbot removal stubs"
+  ],
+  "slack_sent": false
+}
