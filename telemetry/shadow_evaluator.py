@@ -355,15 +355,19 @@ def _vector_for_model(
     symbol_classes: List[str],
     side_classes: List[str],
 ) -> "np.ndarray":
-    from src.core.ml_feature_normalization import normalize_features_for_side
+    from src.core.ml_feature_normalization import normalize_features_for_side, resolve_ml_feature_value
 
     normalized_row = normalize_features_for_side(row, side)
     vec: Dict[str, float] = {}
     for key in feature_order:
-        try:
-            vec[key] = float(normalized_row.get(key, float("nan")))
-        except (TypeError, ValueError):
+        raw = resolve_ml_feature_value(normalized_row, key)
+        if raw is None:
             vec[key] = float("nan")
+        else:
+            try:
+                vec[key] = float(raw)
+            except (TypeError, ValueError):
+                vec[key] = float("nan")
     vec["symbol_enc"] = _symbol_code(symbol, symbol_classes)
     vec["side_enc"] = _side_code(side, side_classes)
     if (not math.isfinite(float(vec.get("hour_of_day", float("nan"))))) and "hour_of_day" in feature_order:
@@ -678,6 +682,15 @@ def build_vanguard_feature_map(
                 out2[str(k)] = float(v)
             except (TypeError, ValueError):
                 out2[str(k)] = float("nan")
+        elif isinstance(v, str):
+            s = str(v).strip()
+            if not s:
+                out2[str(k)] = float("nan")
+            else:
+                try:
+                    out2[str(k)] = float(s)
+                except (TypeError, ValueError):
+                    out2[str(k)] = float("nan")
     return out2
 
 
