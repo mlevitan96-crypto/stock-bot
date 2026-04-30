@@ -1619,8 +1619,9 @@ def _synthetic_uw_intel_from_flow_row(row: Dict[str, Any]) -> Dict[str, Any]:
     dp_notional_total = _to_num(dp.get("total_notional", 0.0) or dp.get("total_premium", 0.0) or 0.0)
     dp_prem = dp_notional_1h if dp_notional_1h > 0 else dp_notional_total
     try:
-        scale = max(0.0, dp_prem)
-        dp_mag = 0.2 + 0.8 * min(1.0, scale / 50_000_000.0)
+        # Paper + mid-tier prints: 50M denominator crushed legitimate ~1–20M DP into ~0.2 flat bias.
+        scale = max(0.0, float(dp_prem))
+        dp_mag = 0.2 + 0.8 * min(1.0, scale / 12_000_000.0)
     except Exception:
         dp_mag = 0.2
     if dp_sent == "BULLISH":

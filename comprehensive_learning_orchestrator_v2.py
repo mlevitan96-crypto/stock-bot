@@ -1143,7 +1143,15 @@ def run_comprehensive_learning(process_all_historical: bool = False):
     
     return results
 
-def learn_from_trade_close(symbol: str, pnl_pct: float, components: Dict, regime: str = "neutral", sector: str = "unknown"):
+def learn_from_trade_close(
+    symbol: str,
+    pnl_pct: float,
+    components: Dict,
+    regime: str = "neutral",
+    sector: str = "unknown",
+    *,
+    why_explanation: str = "",
+):
     """
     SHORT-TERM LEARNING: Record trade for learning (but don't update weights immediately).
     
@@ -1186,17 +1194,18 @@ def learn_from_trade_close(symbol: str, pnl_pct: float, components: Dict, regime
         # Record even if P&L is 0 to track all components
         optimizer.record_trade(normalized_components, pnl_pct / 100.0, regime, sector)
         
-        # FULL LOOP VERIFICATION: Categorize success using explainable "Why"
-        if why_sentence:
+        # FULL LOOP VERIFICATION: Categorize success using explainable "Why" (or close_reason fallback).
+        _why = str(why_explanation or "").strip()
+        if _why:
             # Extract success categories from "Why" sentence
             success_category = "UNKNOWN"
-            if "Gamma Wall" in why_sentence or "gamma" in why_sentence.lower():
+            if "Gamma Wall" in _why or "gamma" in _why.lower():
                 success_category = "GAMMA_WALLS"
-            elif "Whale" in why_sentence or "whale" in why_sentence.lower():
+            elif "Whale" in _why or "whale" in _why.lower():
                 success_category = "WHALE_FLOW"
-            elif "regime" in why_sentence.lower() and "bullish" in why_sentence.lower():
+            elif "regime" in _why.lower() and "bullish" in _why.lower():
                 success_category = "REGIME_ALIGNMENT"
-            elif "FRED" in why_sentence or "Treasury" in why_sentence:
+            elif "FRED" in _why or "Treasury" in _why:
                 success_category = "MACRO_ALIGNMENT"
             else:
                 success_category = "SIGNAL_COMBINATION"
@@ -1212,7 +1221,7 @@ def learn_from_trade_close(symbol: str, pnl_pct: float, components: Dict, regime
                         "symbol": symbol,
                         "pnl_pct": pnl_pct,
                         "success_category": success_category,
-                        "why": why_sentence,
+                        "why": _why,
                         "timestamp": datetime.now(timezone.utc).isoformat()
                     }, f)
                     f.write("\n")
