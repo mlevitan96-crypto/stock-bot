@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-30T00:20:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory was missing (remediated: created by this automation run)",
+    "governance_contracts_present: reports/board/ directory was missing (required by governance contract; now created)"
+  ],
+  "slack_sent": false,
+  "remediation_applied": [
+    "Created reports/board/ directory"
+  ],
+  "notes": "All 7 expected top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) exist. reports/audit/ exists. .cursor/deployment.json present with expected schema. .cursor/automations/ has README.md plus 5 automation specs. memory_bank/ has 6 governance docs. moltbot/ directory is documented in MEMORY_BANK_ALPACA.md as legitimate learning workflow — not flagged as deprecated reintroduction. Clawdbot/Moltbot string matches found only in: (a) moltbot/ package itself (documented), (b) scripts referencing or importing moltbot workflow (documented), (c) reports/audit and docs documenting removal, (d) governance automation scripts referencing check names. No reintroduction of Clawdbot/Moltbot in active trading code or config."
+}
