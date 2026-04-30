@@ -1608,7 +1608,11 @@ def _synthetic_uw_intel_from_flow_row(row: Dict[str, Any]) -> Dict[str, Any]:
         row = {}
     tc = int(_to_num(row.get("trade_count", 0)) or 0)
     conv = _to_num(row.get("conviction", 0.0))
-    flow_strength = _clamp(conv, 0.0, 1.0) if tc > 0 else 0.0
+    # Alpha 11 reads ``flow_strength`` from merged intel; do **not** zero conviction when
+    # ``trade_count`` is 0 — resting UW feeds often omit prints while still carrying a
+    # numeric conviction score (otherwise we emit flow_strength=0.0 and trip the
+    # catastrophic hard-block in ``src/alpha11_gate.py`` despite healthy composite scores).
+    flow_strength = _clamp(conv, 0.0, 1.0) if (tc > 0 or conv > 0.0) else 0.0
     dp = row.get("dark_pool", {}) or {}
     dp_sent = str(dp.get("sentiment", "NEUTRAL") or "NEUTRAL").upper()
     dp_notional_1h = _to_num(dp.get("total_notional_1h", 0.0) or dp.get("notional_1h", 0.0) or 0.0)
