@@ -2078,6 +2078,33 @@ def _emit_trade_intent(
             cluster=cluster if isinstance(cluster, dict) else None,
             composite_meta=_cm_emit,
         )
+        # ML flattener + V2 gate expect ``entry_uw`` / ``direction_intel_embed`` / ``components`` on the snapshot
+        # dict (ML_BLOB_KEYS). Without this, trade_intent rows look dense in UW proxies but sparse in mlf_entry_uw_*.
+        if isinstance(snap, dict) and isinstance(cluster, dict):
+            _cm_sn = cluster.get("composite_meta") if isinstance(cluster.get("composite_meta"), dict) else {}
+            _v2uw_sn = _cm_sn.get("v2_uw_inputs") if isinstance(_cm_sn.get("v2_uw_inputs"), dict) else None
+            if not _v2uw_sn and isinstance(cluster.get("v2_uw_inputs"), dict):
+                _v2uw_sn = cluster.get("v2_uw_inputs")
+            if isinstance(_v2uw_sn, dict) and _v2uw_sn:
+                if not isinstance(snap.get("entry_uw"), dict) or not snap.get("entry_uw"):
+                    snap["entry_uw"] = dict(_v2uw_sn)
+            if isinstance(comps, dict) and comps:
+                if not isinstance(snap.get("components"), dict) or not snap.get("components"):
+                    snap["components"] = dict(comps)
+            _die_sn = cluster.get("direction_intel_embed") if isinstance(cluster.get("direction_intel_embed"), dict) else None
+            if not _die_sn and isinstance(_cm_sn.get("direction_intel_embed"), dict):
+                _die_sn = _cm_sn.get("direction_intel_embed")
+            if isinstance(_die_sn, dict) and _die_sn:
+                if not isinstance(snap.get("direction_intel_embed"), dict) or not snap.get("direction_intel_embed"):
+                    snap["direction_intel_embed"] = dict(_die_sn)
+            try:
+                _sc_sn = float(score)
+                if snap.get("composite_score") is None:
+                    snap["composite_score"] = _sc_sn
+                if snap.get("v2_score") is None:
+                    snap["v2_score"] = _sc_sn
+            except (TypeError, ValueError):
+                pass
         tags = derive_thesis_tags(snap)
         _ctid = None
         if (decision_outcome or "").lower() == "blocked":
