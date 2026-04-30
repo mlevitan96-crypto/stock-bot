@@ -31,11 +31,16 @@ def build_feature_snapshot(
     """
     mc = market_context or {}
     rs = regime_state or {}
+    _cs = enriched_signal.get("composite_score")
+    if _cs is None:
+        _cs = enriched_signal.get("score")
     snap: Dict[str, Any] = {
         "symbol": enriched_signal.get("symbol"),
         "ts": datetime.now(timezone.utc).isoformat(),
         "side_bias": None,
-        "v2_score": enriched_signal.get("composite_score") or enriched_signal.get("score"),
+        "v2_score": _cs,
+        # Scoreflow / Vanguard merge reads composite_score; keep aligned with v2_score.
+        "composite_score": _cs,
         "realized_vol_5d": None,
         "realized_vol_20d": enriched_signal.get("realized_vol_20d"),
         "beta_vs_spy": enriched_signal.get("beta_vs_spy"),
