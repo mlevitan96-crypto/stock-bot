@@ -112,13 +112,21 @@ def _vec_for_order(
     *,
     normalize_for_side: bool = True,
 ) -> "np.ndarray":
-    if normalize_for_side:
-        from src.core.ml_feature_normalization import normalize_features_for_side
+    from src.core.ml_feature_normalization import normalize_features_for_side, resolve_ml_feature_value
 
+    if normalize_for_side:
         row = normalize_features_for_side(row, side)  # type: ignore[assignment]
+
     vec: Dict[str, float] = {}
     for k in feature_order:
-        vec[k] = float(row.get(k, float("nan")))
+        raw = resolve_ml_feature_value(row, k)
+        if raw is None:
+            vec[k] = float("nan")
+        else:
+            try:
+                vec[k] = float(raw)
+            except (TypeError, ValueError):
+                vec[k] = float("nan")
     vec["symbol_enc"] = _symbol_code(symbol, symbol_classes)
     vec["side_enc"] = _side_code(side, side_classes)
     hraw = float(vec.get("hour_of_day", float("nan")))
@@ -134,6 +142,36 @@ def _vec_for_order(
         [float(vec.get(f, float("nan"))) for f in feature_order],
         dtype=np.float32,
     ).reshape(1, -1)
+
+
+def v2_row_quality_metrics(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Observability for feature malnourishment: NaN rate on the V2 feature order (excl. encodings filled at vec time).
+    """
+    bst, meta, err = _load_pair(_V2_MODEL, _V2_META, "v2")
+    if bst is None or err or not isinstance(meta, dict):
+        return {}
+    fo = [str(x) for x in (meta.get("feature_names") or []) if x not in ("symbol_enc", "side_enc")]
+    from src.core.ml_feature_normalization import resolve_ml_feature_value
+
+    nan_n = 0
+    for k in fo:
+        raw = resolve_ml_feature_value(row, k)
+        if raw is None:
+            nan_n += 1
+            continue
+        try:
+            fv = float(raw)
+        except (TypeError, ValueError):
+            nan_n += 1
+            continue
+        if not math.isfinite(fv):
+            nan_n += 1
+    denom = max(1, len(fo))
+    return {
+        "v2_row_nan_count": int(nan_n),
+        "v2_row_nan_fraction": round(float(nan_n) / float(denom), 4),
+    }
 
 
 def predict_v2_probability(
