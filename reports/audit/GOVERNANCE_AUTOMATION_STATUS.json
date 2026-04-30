@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-04-30T19:32:01Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. All other expected top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/, reports/audit/) are present.",
+    "governance_contracts_present: reports/board/ missing. memory_bank/ present with docs. .cursor/automations/ present with README.md and spec files. reports/audit/ present.",
+    "no_deprecated_dirs: moltbot/ directory exists at repo top level with active Python modules (board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py, __init__.py, agents/).",
+    "no_clawdbot_moltbot: References found in code/config outside docs/audit exclusions — moltbot/ directory (5 Python modules), scripts/run_openclaw_molt_synthesis.py (3 refs), scripts/run_molt_workflow.py (1 ref), scripts/sre/run_sre_anomaly_scan.py (1 ref). Governance-check files (.cursor/automations/*, scripts/automations/run_governance_integrity_once.py) excluded as they document/detect removal."
+  ],
+  "slack_sent": false
+}
