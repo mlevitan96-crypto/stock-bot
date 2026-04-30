@@ -6472,6 +6472,13 @@ class AlpacaExecutor:
                                 pass
                 _ok_v2, _p_v2, _rc_v2 = evaluate_v2_live_gate(symbol=symbol, side=side, row=_row_gate)
                 if not _ok_v2:
+                    _v2q: dict = {}
+                    try:
+                        from telemetry.vanguard_ml_runtime import v2_row_quality_metrics
+
+                        _v2q = v2_row_quality_metrics(_row_gate)
+                    except Exception:
+                        _v2q = {}
                     log_event(
                         "submit_entry",
                         "v2_agent_veto",
@@ -6479,6 +6486,7 @@ class AlpacaExecutor:
                         side=side,
                         v2_proba=_p_v2,
                         reason=_rc_v2,
+                        **_v2q,
                     )
                     return None, None, str(_rc_v2 or "v2_agent_veto"), 0, str(_rc_v2 or "v2_agent_veto")
             except Exception as _v2e:
