@@ -1,32 +1,19 @@
 {
   "schema_version": "1.0",
-  "run_ts_utc": "2026-04-22T05:00:00Z",
+  "run_ts_utc": "2026-04-30T15:12:25.092103+00:00",
   "branch": "main",
   "anomalies_detected": true,
   "checks": {
-    "repo_structure": "fail",
+    "repo_structure": "pass",
     "config_drift": "pass",
     "governance_contracts_present": "fail",
-    "required_artifacts": "pass",
+    "required_artifacts": "fail",
     "no_deprecated_dirs": "pass",
-    "no_clawdbot_moltbot": "fail"
+    "no_clawdbot_moltbot": "pass"
   },
   "details": [
-    {
-      "check": "repo_structure",
-      "severity": "warn",
-      "message": "reports/board/ directory is missing. Expected top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) all present, reports/audit/ exists, but reports/board/ does not exist."
-    },
-    {
-      "check": "governance_contracts_present",
-      "severity": "warn",
-      "message": "reports/board/ directory is missing. memory_bank/ has key docs, .cursor/automations/ exists with README and specs, reports/audit/ exists, but reports/board/ is absent."
-    },
-    {
-      "check": "no_clawdbot_moltbot",
-      "severity": "critical",
-      "message": "moltbot/ directory contains active code files: board.py, orchestrator.py, sentinel.py, memory_evolution.py, promotion_discipline.py. Additionally, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, and scripts/run_molt_intelligence_expansion.py reference Moltbot. These are code/config files, not documentation of removal."
-    }
+    "Missing: reports/board",
+    "reports/audit or reports/board missing or not directories"
   ],
   "slack_sent": false
 }
