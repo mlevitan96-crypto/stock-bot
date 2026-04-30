@@ -146,6 +146,22 @@ def _canonical_feature_name(name: str) -> str:
     return str(name or "").strip().lower()
 
 
+def resolve_ml_feature_value(row: Dict[str, Any], feature_name: str) -> Any:
+    """
+    Train-serve key alignment: ``feature_name`` matches ``models/*_features.json`` order.
+    If the flattened row used different casing for the same leaf, resolve case-insensitively.
+    """
+    if not isinstance(row, dict):
+        return None
+    if feature_name in row:
+        return row[feature_name]
+    fl = _canonical_feature_name(feature_name)
+    for kk, vv in row.items():
+        if _canonical_feature_name(str(kk)) == fl:
+            return vv
+    return None
+
+
 def is_directional_ml_feature(name: str) -> bool:
     return _canonical_feature_name(name) in DIRECTIONAL_FEATURE_NAMES
 
