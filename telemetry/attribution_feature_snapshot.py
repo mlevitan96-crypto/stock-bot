@@ -10,6 +10,81 @@ from telemetry.feature_snapshot import build_feature_snapshot
 from telemetry.attribution_emit_keys import uw_cache_probe
 
 
+def merge_uw_cache_into_enriched_signal(
+    enriched: Dict[str, Any],
+    symbol: str,
+    *,
+    uw_cache: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Hydrate sparse cluster/enriched dicts from ``data/uw_flow_cache.json`` so
+    ``build_feature_snapshot`` + V2 ML gate see the same UW fields as ``uw_composite_v2``.
+    Fills missing/None; for numeric keys, replaces bare 0.0 when cache has a non-zero value.
+    """
+    out = dict(enriched) if isinstance(enriched, dict) else {}
+    sym_u = str(symbol or "").strip().upper()
+    if not sym_u:
+        return out
+    try:
+        if uw_cache is None:
+            from config.registry import CacheFiles, read_json
+
+            uw_cache = read_json(CacheFiles.UW_FLOW_CACHE, default={}) or {}
+        if not isinstance(uw_cache, dict):
+            return out
+        row = uw_cache.get(sym_u) or uw_cache.get(symbol) or {}
+        if not isinstance(row, dict):
+            return out
+        dp = row.get("dark_pool") if isinstance(row.get("dark_pool"), dict) else {}
+
+        def _merge_key(tgt: str, val: Any) -> None:
+            if val is None:
+                return
+            if isinstance(val, str) and not str(val).strip():
+                return
+            cur = out.get(tgt)
+            if cur is None or cur == "":
+                out[tgt] = val
+                return
+            try:
+                if isinstance(cur, (int, float)) and float(cur) == 0.0 and isinstance(val, (int, float)) and float(val) != 0.0:
+                    out[tgt] = val
+            except (TypeError, ValueError):
+                pass
+
+        _merge_key("flow_strength", row.get("flow_strength"))
+        _merge_key("uw_flow_strength", row.get("uw_flow_strength") or row.get("flow_strength"))
+        _merge_key("flow_conviction", row.get("conviction") or row.get("flow_conviction"))
+        _merge_key("conviction", row.get("conviction"))
+        _merge_key("uw_flow_direction", row.get("flow_direction") or row.get("uw_flow_direction"))
+        _merge_key("flow_direction", row.get("flow_direction"))
+        _merge_key("sentiment", row.get("sentiment"))
+        _merge_key("dark_pool_bias", row.get("dark_pool_bias"))
+        _merge_key(
+            "dark_pool_activity",
+            row.get("dark_pool_activity") or row.get("dark_pool_print_count") or dp.get("print_count"),
+        )
+        _merge_key("dark_pool_print_count", row.get("dark_pool_print_count") or dp.get("print_count"))
+        dn = row.get("dark_pool_notional") or row.get("dark_pool_notional_total") or row.get("dark_pool_total_premium")
+        if dn is None and isinstance(dp, dict):
+            dn = dp.get("total_notional") or dp.get("total_premium") or dp.get("total_notional_1h")
+        _merge_key("dark_pool_notional", dn)
+        if isinstance(dp, dict):
+            _merge_key("dark_pool_total_premium", dp.get("total_premium"))
+        _merge_key("iv_skew", row.get("iv_skew") or row.get("options_skew"))
+        _merge_key("options_skew", row.get("options_skew"))
+        _merge_key("flow_reversal", row.get("flow_reversal"))
+        _merge_key("unusual_print_count", row.get("unusual_print_count"))
+        _merge_key("cluster_count", row.get("cluster_count") or row.get("flow_cluster_count"))
+        _merge_key("realized_vol_20d", row.get("realized_vol_20d"))
+        _merge_key("realized_vol_5d", row.get("realized_vol_5d"))
+        _merge_key("beta_vs_spy", row.get("beta_vs_spy"))
+        _merge_key("trade_count", row.get("trade_count"))
+    except Exception:
+        return out
+    return out
+
+
 def _coerce_float(x: Any) -> Optional[float]:
     try:
         if x is None:
@@ -42,7 +117,7 @@ def apply_uw_decomposition_fields(
 
     out["uw_flow_conviction_proxy"] = _coerce_float(g("flow_conviction", "uw_flow_conviction"))
     out["uw_dark_pool_notional_proxy"] = _coerce_float(
-        g("dark_pool_notional", "dp_notional", "dark_pool_total_premium")
+        g("dark_pool_notional", "dp_notional", "dark_pool_total_premium", "dark_pool_notional_total")
     )
     out["uw_dark_pool_print_count_proxy"] = g("dark_pool_print_count", "dp_print_count")
     out["uw_options_skew_proxy"] = _coerce_float(g("iv_skew", "options_skew"))
@@ -84,6 +159,13 @@ def build_shared_feature_snapshot(
     Single builder for entry / exit / blocked telemetry snapshots.
     snapshot_stage: 'entry' | 'exit' | 'blocked' (additive metadata only).
     """
+    enriched_signal = dict(enriched_signal or {})
+    _sym = enriched_signal.get("symbol")
+    if _sym:
+        try:
+            enriched_signal = merge_uw_cache_into_enriched_signal(enriched_signal, str(_sym))
+        except Exception:
+            pass
     snap = build_feature_snapshot(enriched_signal, market_context, regime_state)
     snap = apply_uw_decomposition_fields(snap, enriched_signal, comps_fallback=comps_fallback)
     snap["attribution_snapshot_stage"] = snapshot_stage
