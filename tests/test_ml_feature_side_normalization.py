@@ -20,6 +20,17 @@ def flattener_mod():
     return mod
 
 
+def test_resolve_ml_feature_value_case_insensitive() -> None:
+    from src.core.ml_feature_normalization import resolve_ml_feature_value
+
+    row = {"mlf_direction_intel_embed_intel_snapshot_entry_etf_flow_intel_IWM_flow": 0.42}
+    got = resolve_ml_feature_value(
+        row,
+        "mlf_direction_intel_embed_intel_snapshot_entry_etf_flow_intel_iwm_flow",
+    )
+    assert got == pytest.approx(0.42)
+
+
 def test_normalize_features_for_side_inverts_only_directional_features() -> None:
     from src.core.ml_feature_normalization import normalize_features_for_side
 
