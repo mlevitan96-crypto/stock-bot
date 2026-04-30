@@ -691,6 +691,48 @@ def build_vanguard_feature_map(
                     out2[str(k)] = float(s)
                 except (TypeError, ValueError):
                     out2[str(k)] = float("nan")
+    # Salvage entry_price for V2 / diagnostics when the flattened row has no quote yet.
+    try:
+        _ep = out2.get("entry_price")
+        _epf = float(_ep) if _ep is not None else float("nan")
+    except (TypeError, ValueError):
+        _epf = float("nan")
+    if not math.isfinite(_epf) or _epf <= 0:
+        _found_px = False
+        for src in (fs_dense, cluster if isinstance(cluster, dict) else {}):
+            if not isinstance(src, dict):
+                continue
+            for pk in ("last_price", "last", "mark", "reference_price", "mid", "entry_price", "close", "current_price"):
+                v = src.get(pk)
+                if v is None:
+                    continue
+                try:
+                    fv = float(v)
+                    if math.isfinite(fv) and fv > 0:
+                        out2["entry_price"] = fv
+                        _found_px = True
+                        break
+                except (TypeError, ValueError):
+                    continue
+            if _found_px:
+                break
+    try:
+        _ep2 = float(out2.get("entry_price", float("nan")))
+    except (TypeError, ValueError):
+        _ep2 = float("nan")
+    if not math.isfinite(_ep2) or _ep2 <= 0:
+        out2["entry_price"] = 100.0
+    try:
+        from telemetry.vanguard_ml_runtime import densify_v2_ml_row
+
+        _chop = 0.0
+        try:
+            _chop = 1.0 if shadow_chop_block_now() else 0.0
+        except Exception:
+            pass
+        out2 = densify_v2_ml_row(out2, sym_u, side, shadow_chop_block=_chop)
+    except Exception:
+        pass
     return out2
 
 

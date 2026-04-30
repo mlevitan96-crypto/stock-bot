@@ -102,6 +102,70 @@ def _load_pair(model_path: Path, meta_path: Path, key: str) -> Tuple[Optional[An
         return None, None, str(e)
 
 
+def densify_v2_ml_row(
+    row: Dict[str, float],
+    symbol: str,
+    side: str,
+    *,
+    shadow_chop_block: float = 0.0,
+) -> Dict[str, float]:
+    """
+    Fill manifest-aligned neutral numerics for V2 features that are absent or non-finite
+    after flattening (chiefly ``mlf_direction_intel_embed_*`` when no embed blob exists).
+
+    Training rows often carried NaN for missing leaves; XGBoost treats NaN vs 0.0 differently.
+    This path is **gate + telemetry density** alignment: neutral 0.0 for missing intel leaves,
+    explicit ``symbol_enc`` / ``side_enc``, and safe defaults for sparse bookkeeping columns.
+    """
+    out: Dict[str, float] = dict(row) if isinstance(row, dict) else {}
+    _, meta, err = _load_pair(_V2_MODEL, _V2_META, "v2")
+    if err or not isinstance(meta, dict):
+        return out
+    fo: List[str] = [str(x) for x in (meta.get("feature_names") or [])]
+    sc = [str(x) for x in (meta.get("symbol_classes") or [])]
+    sdc = [str(x) for x in (meta.get("side_classes") or [])]
+    from src.core.ml_feature_normalization import resolve_ml_feature_value
+
+    def _missing(k: str) -> bool:
+        raw = resolve_ml_feature_value(out, k)
+        if raw is None:
+            return True
+        try:
+            return not math.isfinite(float(raw))
+        except (TypeError, ValueError):
+            return True
+
+    for k in fo:
+        if not _missing(k):
+            continue
+        lk = k.lower()
+        if k == "symbol_enc":
+            out[k] = float(_symbol_code(symbol, sc))
+        elif k == "side_enc":
+            out[k] = float(_side_code(side, sdc))
+        elif lk.startswith("mlf_direction_intel_embed"):
+            out[k] = 0.0
+        elif k == "shadow_chop_block":
+            out[k] = float(shadow_chop_block)
+        elif lk.startswith("mlf_entry_uw_uw_intel") or k in ("mlf_entry_snapshot_match", "mlf_ml_feature_source"):
+            out[k] = 0.0
+        elif k == "mlf_entry_uw_sentiment":
+            out[k] = 0.0
+        elif k in (
+            "mlf_scoreflow_join_tier",
+            "mlf_scoreflow_lookback_sec_applied",
+            "mlf_scoreflow_total_score_imputed",
+            "regime_id",
+            "qty",
+        ):
+            out[k] = 0.0
+        elif k in ("uw_gamma_skew", "uw_tide_score"):
+            out[k] = 0.0
+        elif k == "_source_file":
+            out[k] = 0.0
+    return out
+
+
 def _vec_for_order(
     feature_order: List[str],
     row: Dict[str, float],
