@@ -6407,11 +6407,43 @@ class AlpacaExecutor:
                 _fs_g = ml_gate_feature_snapshot if isinstance(ml_gate_feature_snapshot, dict) else {}
                 _cl_g = ml_gate_cluster if isinstance(ml_gate_cluster, dict) else {}
                 _ec_g = entry_components if isinstance(entry_components, dict) else {}
+                # Train-serve bridge: ML_BLOB_KEYS expect top-level entry_uw / direction_intel_embed;
+                # composite pipeline stores UW under composite_meta.v2_uw_inputs. Scoreflow reads
+                # composite_score + nested components — mirror from cluster / entry_score when missing.
+                _fs_bridge = dict(_fs_g) if _fs_g else {}
+                _cm_br = _cl_g.get("composite_meta") if isinstance(_cl_g.get("composite_meta"), dict) else {}
+                _v2uw_br = _cm_br.get("v2_uw_inputs") if isinstance(_cm_br.get("v2_uw_inputs"), dict) else None
+                if not _v2uw_br and isinstance(_cl_g.get("v2_uw_inputs"), dict):
+                    _v2uw_br = _cl_g.get("v2_uw_inputs")
+                if isinstance(_v2uw_br, dict) and _v2uw_br:
+                    if not isinstance(_fs_bridge.get("entry_uw"), dict) or not _fs_bridge.get("entry_uw"):
+                        _fs_bridge["entry_uw"] = dict(_v2uw_br)
+                if isinstance(_ec_g, dict) and _ec_g:
+                    if not isinstance(_fs_bridge.get("components"), dict) or not _fs_bridge.get("components"):
+                        _fs_bridge["components"] = dict(_ec_g)
+                _die_br = _cl_g.get("direction_intel_embed") if isinstance(_cl_g.get("direction_intel_embed"), dict) else None
+                if not _die_br and isinstance(_cm_br.get("direction_intel_embed"), dict):
+                    _die_br = _cm_br.get("direction_intel_embed")
+                if isinstance(_die_br, dict) and _die_br:
+                    if not isinstance(_fs_bridge.get("direction_intel_embed"), dict) or not _fs_bridge.get(
+                        "direction_intel_embed"
+                    ):
+                        _fs_bridge["direction_intel_embed"] = dict(_die_br)
+                if entry_score is not None:
+                    try:
+                        _es_gate = float(entry_score)
+                        if _fs_bridge.get("composite_score") is None:
+                            _fs_bridge["composite_score"] = _es_gate
+                        if _fs_bridge.get("v2_score") is None:
+                            _fs_bridge["v2_score"] = _es_gate
+                    except (TypeError, ValueError):
+                        pass
+                _snap_for_gate = _fs_bridge if _fs_bridge else _ec_g
                 _row_gate = build_vanguard_feature_map(
                     symbol=symbol,
                     side=side,
                     now_utc=datetime.now(timezone.utc),
-                    feature_snapshot=_fs_g if _fs_g else _ec_g,
+                    feature_snapshot=_snap_for_gate,
                     comps=_ec_g,
                     cluster=_cl_g if _cl_g else _ec_g,
                     trade_id=str(ml_gate_trade_id) if ml_gate_trade_id else None,
@@ -13758,6 +13790,33 @@ class StrategyEngine:
                             snapshot_stage="entry",
                             comps_fallback=comps if isinstance(comps, dict) else None,
                         )
+                        if isinstance(snap_ml, dict):
+                            _cm_ml = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else {}
+                            _uw_ml = _cm_ml.get("v2_uw_inputs") if isinstance(_cm_ml.get("v2_uw_inputs"), dict) else None
+                            if not _uw_ml and isinstance(c.get("v2_uw_inputs"), dict):
+                                _uw_ml = c.get("v2_uw_inputs")
+                            if isinstance(_uw_ml, dict) and _uw_ml:
+                                if not isinstance(snap_ml.get("entry_uw"), dict) or not snap_ml.get("entry_uw"):
+                                    snap_ml["entry_uw"] = dict(_uw_ml)
+                            if isinstance(comps, dict) and comps:
+                                if not isinstance(snap_ml.get("components"), dict) or not snap_ml.get("components"):
+                                    snap_ml["components"] = dict(comps)
+                            _diml = c.get("direction_intel_embed") if isinstance(c.get("direction_intel_embed"), dict) else None
+                            if not _diml and isinstance(_cm_ml.get("direction_intel_embed"), dict):
+                                _diml = _cm_ml.get("direction_intel_embed")
+                            if isinstance(_diml, dict) and _diml:
+                                if not isinstance(snap_ml.get("direction_intel_embed"), dict) or not snap_ml.get(
+                                    "direction_intel_embed"
+                                ):
+                                    snap_ml["direction_intel_embed"] = dict(_diml)
+                            try:
+                                _sc_ml = float(score)
+                                if snap_ml.get("composite_score") is None:
+                                    snap_ml["composite_score"] = _sc_ml
+                                if snap_ml.get("v2_score") is None:
+                                    snap_ml["v2_score"] = _sc_ml
+                            except (TypeError, ValueError):
+                                pass
                     except Exception:
                         snap_ml = None
                     res, fill_price, order_type, filled_qty, entry_status = self.executor.submit_entry(
