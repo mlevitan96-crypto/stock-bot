@@ -3,6 +3,7 @@ Shared feature snapshot builder for entry / exit / blocked paths (additive field
 """
 from __future__ import annotations
 
+import math
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -91,6 +92,112 @@ def merge_uw_cache_into_enriched_signal(
     return out
 
 
+def merge_live_cluster_into_enriched_signal(
+    enriched: Dict[str, Any],
+    *,
+    cluster: Optional[Dict[str, Any]] = None,
+    composite_meta: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    After UW cache merge: if enriched still has None / 0 for flow or DP fields, overlay
+    values from ``composite_meta["v2_uw_inputs"]`` and the live ``cluster`` dict (score path).
+    Live cluster values **win** over cache when current is None, empty, or numeric zero.
+    """
+    out = dict(enriched) if isinstance(enriched, dict) else {}
+    cm = composite_meta if isinstance(composite_meta, dict) else None
+    if cm is None and isinstance(cluster, dict):
+        _nested = cluster.get("composite_meta")
+        cm = _nested if isinstance(_nested, dict) else None
+
+    v2uw: Dict[str, Any] = {}
+    if isinstance(cm, dict):
+        _u = cm.get("v2_uw_inputs")
+        if isinstance(_u, dict):
+            v2uw.update(_u)
+    if isinstance(cluster, dict):
+        _top = cluster.get("v2_uw_inputs")
+        if isinstance(_top, dict):
+            v2uw.update(_top)
+
+    def _live_scalar(k_out: str, val: Any) -> None:
+        if val is None:
+            return
+        if isinstance(val, str):
+            if k_out == "sentiment" and val.strip():
+                cur = out.get("sentiment")
+                if cur is None or (isinstance(cur, str) and not str(cur).strip()):
+                    out["sentiment"] = val
+            return
+        try:
+            fv = float(val)
+        except (TypeError, ValueError):
+            return
+        if not math.isfinite(fv):
+            return
+        cur = out.get(k_out)
+        if cur is None or cur == "":
+            out[k_out] = fv
+            return
+        try:
+            if float(cur) == 0.0 and fv != 0.0:
+                out[k_out] = fv
+        except (TypeError, ValueError):
+            out[k_out] = fv
+
+    for k_src, val in v2uw.items():
+        if k_src == "flow_strength":
+            _live_scalar("flow_strength", val)
+            _live_scalar("uw_flow_strength", val)
+        elif k_src == "darkpool_bias":
+            _live_scalar("dark_pool_bias", val)
+        elif k_src == "sentiment" and isinstance(val, str) and val.strip():
+            _live_scalar("sentiment", val)
+        elif k_src == "sentiment_score":
+            _live_scalar("sentiment_score", val)
+            _live_scalar("flow_conviction", val)
+        elif k_src in ("sector_alignment", "regime_alignment", "earnings_proximity"):
+            _live_scalar(k_src, val)
+        else:
+            _live_scalar(k_src, val)
+
+    if isinstance(cluster, dict):
+        for tk in (
+            "conviction",
+            "flow_strength",
+            "avg_premium",
+            "total_premium",
+            "premium",
+            "premium_usd",
+            "flow_cluster_count",
+            "cluster_count",
+            "dark_pool_bias",
+            "dark_pool_activity",
+            "iv_skew",
+            "options_skew",
+        ):
+            if tk in cluster:
+                if tk == "conviction":
+                    _live_scalar("conviction", cluster[tk])
+                    _live_scalar("flow_strength", cluster[tk])
+                    _live_scalar("uw_flow_strength", cluster[tk])
+                else:
+                    _live_scalar(tk, cluster[tk])
+        for pk, tgt in (
+            ("total_premium", "dark_pool_notional"),
+            ("avg_premium", "dark_pool_notional"),
+            ("premium_usd", "dark_pool_notional"),
+        ):
+            if tgt not in out or out.get(tgt) in (None, 0, 0.0):
+                v = cluster.get(pk)
+                if v is not None:
+                    _live_scalar(tgt, v)
+
+    if v2uw and (not isinstance(out.get("entry_uw"), dict) or not out.get("entry_uw")):
+        out["entry_uw"] = dict(v2uw)
+
+    return out
+
+
 def _coerce_float(x: Any) -> Optional[float]:
     try:
         if x is None:
@@ -160,16 +267,30 @@ def build_shared_feature_snapshot(
     *,
     snapshot_stage: str,
     comps_fallback: Optional[Dict[str, Any]] = None,
+    cluster: Optional[Dict[str, Any]] = None,
+    composite_meta: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Single builder for entry / exit / blocked telemetry snapshots.
     snapshot_stage: 'entry' | 'exit' | 'blocked' (additive metadata only).
+
+    When ``cluster`` / ``composite_meta`` are provided, live score-path UW fields overlay
+    the static cache merge (cluster wins on None / empty / numeric zero).
     """
     enriched_signal = dict(enriched_signal or {})
     _sym = enriched_signal.get("symbol")
     if _sym:
         try:
             enriched_signal = merge_uw_cache_into_enriched_signal(enriched_signal, str(_sym))
+        except Exception:
+            pass
+    if cluster is not None or composite_meta is not None:
+        try:
+            enriched_signal = merge_live_cluster_into_enriched_signal(
+                enriched_signal,
+                cluster=cluster,
+                composite_meta=composite_meta,
+            )
         except Exception:
             pass
     snap = build_feature_snapshot(enriched_signal, market_context, regime_state)
@@ -200,12 +321,17 @@ def build_exit_snapshot_from_metadata(
     comps = meta.get("components") if isinstance(meta.get("components"), dict) else {}
     mc = meta.get("entry_market_context") if isinstance(meta.get("entry_market_context"), dict) else {}
     rs = meta.get("entry_regime_posture") if isinstance(meta.get("entry_regime_posture"), dict) else {}
+    v2persist = meta.get("v2") if isinstance(meta.get("v2"), dict) else {}
+    _cm_ex = None
+    if isinstance(v2persist.get("v2_uw_inputs"), dict) and v2persist.get("v2_uw_inputs"):
+        _cm_ex = {"v2_uw_inputs": v2persist["v2_uw_inputs"]}
     snap = build_shared_feature_snapshot(
         enriched,
         mc,
         rs,
         snapshot_stage="exit",
         comps_fallback=comps,
+        composite_meta=_cm_ex,
     )
     tags = derive_thesis_tags(snap)
     return snap, tags
