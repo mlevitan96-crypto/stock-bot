@@ -350,8 +350,33 @@ except Exception:
 # GLOBAL STATE - Monitoring
 # =========================
 ZERO_ORDER_CYCLE_COUNT = 0
-# One-shot process pulse (Telegram "Vanguard Status: LOCKED") per engine invocation.
+# Vanguard LOCKED Telegram: each systemd/cron tick is often a fresh process, so an in-memory
+# one-shot still spams every minute. We persist last successful send date (UTC) under state/.
 _VANGUARD_LOCK_TELEGRAM_SENT = False
+_VANGUARD_LOCK_LAST_SENT_FILE = Path(__file__).resolve().parent / "state" / "vanguard_system_lock_last_sent_utc_date.txt"
+
+
+def _vanguard_lock_telegram_already_sent_today_utc() -> bool:
+    try:
+        p = _VANGUARD_LOCK_LAST_SENT_FILE
+        if not p.is_file():
+            return False
+        prev = p.read_text(encoding="utf-8", errors="replace").strip()
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        return prev == today
+    except Exception:
+        return False
+
+
+def _vanguard_lock_telegram_mark_sent_today_utc() -> None:
+    try:
+        _VANGUARD_LOCK_LAST_SENT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _VANGUARD_LOCK_LAST_SENT_FILE.write_text(
+            datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
 
 REQUIRED_HEARTBEAT_MODULES = [
     "alpha_forecaster_gate",
@@ -14862,18 +14887,21 @@ def run_once():
         
         audit_seg("run_once", "START")
 
-        # Vanguard pulse: one Telegram per process start (best-effort; respects governance quiet hours).
-        if not _VANGUARD_LOCK_TELEGRAM_SENT and getattr(Config, "VANGUARD_LOCK_TELEGRAM", True):
+        # Vanguard pulse: at most one successful Telegram per UTC day (fresh process each tick otherwise spams).
+        if getattr(Config, "VANGUARD_LOCK_TELEGRAM", True) and not _VANGUARD_LOCK_TELEGRAM_SENT:
             _VANGUARD_LOCK_TELEGRAM_SENT = True
-            try:
-                from scripts.alpaca_telegram import send_governance_telegram
+            if not _vanguard_lock_telegram_already_sent_today_utc():
+                try:
+                    from scripts.alpaca_telegram import send_governance_telegram
 
-                send_governance_telegram(
-                    "Vanguard Status: LOCKED — stock-bot run_once pulse armed (data pipes + decision loop).",
-                    script_name="vanguard_system_lock",
-                )
-            except Exception:
-                pass
+                    _ok = send_governance_telegram(
+                        "Vanguard Status: LOCKED — stock-bot run_once pulse armed (data pipes + decision loop).",
+                        script_name="vanguard_system_lock",
+                    )
+                    if _ok:
+                        _vanguard_lock_telegram_mark_sent_today_utc()
+                except Exception:
+                    pass
         
         # MONITORING GUARD 1: Check freeze state (governor_freezes.json only, no pre_market_freeze.flag)
         # NOTE: pre_market_freeze.flag mechanism removed - it was causing more problems than it solved
