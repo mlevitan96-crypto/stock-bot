@@ -4,6 +4,14 @@ Contract changes, new truth roots, and deprecations. See `TELEMETRY_STANDARD.md`
 
 ---
 
+## 2026-04-29 — Shadow ML row: UW cache + live cluster bridge + density fields
+
+- **Changed:** `telemetry/shadow_evaluator.py` `build_vanguard_feature_map` applies `merge_uw_cache_into_enriched_signal` and `merge_live_cluster_into_enriched_signal` to the feature snapshot dict before ML blob merge / scoreflow flatten (parity with live `build_shared_feature_snapshot`).
+- **Added:** `trade_intent` shadow fields `shadow_uw_density`, `shadow_uw_finite_count`, `shadow_uw_key_matches` (computed from the flattened row after feature map build).
+- **Verify:** `python -m pytest tests/test_shadow_uw_bridge.py -q`; post-deploy `rg shadow_uw_density logs/run.jsonl | tail`.
+
+---
+
 ## 2026-04-28 — V2 live gate: bidirectional (short quarantine lifted)
 
 - **Removed:** Runtime short-circuit that returned legacy reason `v2_short_gate_quarantined_until_retrain` for `sell`/`short` in `telemetry/vanguard_ml_runtime.py` `evaluate_v2_live_gate` (deploy **3101570f** on `main`).
