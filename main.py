@@ -1391,12 +1391,20 @@ def log_blocked_trade(symbol: str, reason: str, score: float, signals: dict = No
             _enr = {"symbol": symbol, "score": score, "composite_score": score}
             _enr.update(signals)
             _mc = market_context if isinstance(market_context, dict) else {}
+            _cm_blk = kw.get("composite_meta") if isinstance(kw.get("composite_meta"), dict) else None
+            _cl_blk = kw.get("cluster") if isinstance(kw.get("cluster"), dict) else None
+            if _cl_blk is None and isinstance(signals, dict) and (
+                isinstance(signals.get("composite_meta"), dict) or isinstance(signals.get("v2_uw_inputs"), dict)
+            ):
+                _cl_blk = signals
             _snap_blk = build_shared_feature_snapshot(
                 _enr,
                 _mc if isinstance(_mc, dict) else {},
                 {},
                 snapshot_stage="blocked",
                 comps_fallback=components if isinstance(components, dict) else None,
+                cluster=_cl_blk,
+                composite_meta=_cm_blk,
             )
             if _snap_blk:
                 record["feature_snapshot"] = _snap_blk
@@ -2060,12 +2068,15 @@ def _emit_trade_intent(
         mc = getattr(engine, "market_context_v2", None) or {}
         rs = getattr(engine, "regime_posture_v2", None) or {}
         _stage = "blocked" if (decision_outcome or "").lower() == "blocked" else "entry"
+        _cm_emit = cluster.get("composite_meta") if isinstance(cluster.get("composite_meta"), dict) else None
         snap = build_shared_feature_snapshot(
             enriched,
             mc if isinstance(mc, dict) else {},
             rs if isinstance(rs, dict) else {},
             snapshot_stage=_stage,
             comps_fallback=comps if isinstance(comps, dict) else None,
+            cluster=cluster if isinstance(cluster, dict) else None,
+            composite_meta=_cm_emit,
         )
         tags = derive_thesis_tags(snap)
         _ctid = None
@@ -13786,12 +13797,15 @@ class StrategyEngine:
                             enriched_ml.setdefault("direction", c.get("direction"))
                         mc_ml = getattr(self, "market_context_v2", None) or {}
                         rs_ml = getattr(self, "regime_posture_v2", None) or {}
+                        _cm_gate = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else None
                         snap_ml = build_shared_feature_snapshot(
                             enriched_ml,
                             mc_ml if isinstance(mc_ml, dict) else {},
                             rs_ml if isinstance(rs_ml, dict) else {},
                             snapshot_stage="entry",
                             comps_fallback=comps if isinstance(comps, dict) else None,
+                            cluster=c if isinstance(c, dict) else None,
+                            composite_meta=_cm_gate,
                         )
                         if isinstance(snap_ml, dict):
                             _cm_ml = c.get("composite_meta") if isinstance(c.get("composite_meta"), dict) else {}
