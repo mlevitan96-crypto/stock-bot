@@ -524,7 +524,6 @@ class Config:
     # Grand Unified Theory (GUT) confluence gate — see ``src/gut_confluence_gate.py``.
     # Default off; set GUT_GATE_ENABLED=1 and GUT_CONFLUENCE_MIN (or artifacts/ml/gut_threshold.json) on the droplet.
     GUT_GATE_ENABLED = get_env("GUT_GATE_ENABLED", "0").lower() in ("1", "true", "yes", "on")
-    GUT_TELEGRAM_ON_PASS = get_env("GUT_TELEGRAM_ON_PASS", "true").lower() in ("1", "true", "yes", "on")
     VANGUARD_LOCK_TELEGRAM = get_env("VANGUARD_LOCK_TELEGRAM", "true").lower() in ("1", "true", "yes", "on")
     
     # Institutional Remediation Phase 7: kill zombie trades quickly (120 minutes)
@@ -2274,14 +2273,17 @@ def _emit_trade_intent(
                     symbol=str(symbol).upper(),
                     canonical_trade_id=str(rec.get("canonical_trade_id") or "")[:200],
                 )
-                if getattr(Config, "GUT_TELEGRAM_ON_PASS", True) and rec.get("gut_confluence_score") is not None:
+                if rec.get("gut_confluence_score") is not None:
                     try:
-                        from scripts.alpaca_telegram import send_governance_telegram
-
                         _gs = float(rec["gut_confluence_score"])
-                        send_governance_telegram(
-                            f"God Tier GUT pass {str(symbol).upper()} side={side} confluence={_gs:.6g} composite={float(score):.3f}",
-                            script_name="gut_god_tier_entry",
+                        log_event(
+                            "telemetry",
+                            "gut_god_tier_pass",
+                            symbol=str(symbol).upper(),
+                            side=side,
+                            gut_confluence=_gs,
+                            composite=float(score),
+                            note="JSONL only; Telegram muted (upstream GUT pass alert fatigue)",
                         )
                     except Exception:
                         pass
