@@ -42,5 +42,6 @@
     "memory_bank/ contains key governance docs. .cursor/automations/ exists with README and specs.",
     "reports/audit/ exists with artifacts."
   ],
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1618",
   "slack_sent": false
 }
