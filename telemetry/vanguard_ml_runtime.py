@@ -163,6 +163,10 @@ def densify_v2_ml_row(
             out[k] = 0.0
         elif k == "_source_file":
             out[k] = 0.0
+        else:
+            # Any other manifest column still missing after flatten → neutral 0.0 so
+            # v2_row_quality_metrics (full feature order minus encodings) drops toward zero.
+            out[k] = 0.0
     return out
 
 
