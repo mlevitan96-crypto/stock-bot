@@ -1,7 +1,44 @@
 """UW cache merge into shared feature snapshot (telemetry / ML gate parity)."""
 from __future__ import annotations
 
-from telemetry.attribution_feature_snapshot import build_shared_feature_snapshot, merge_uw_cache_into_enriched_signal
+from telemetry.attribution_feature_snapshot import (
+    build_shared_feature_snapshot,
+    merge_live_cluster_into_enriched_signal,
+    merge_uw_cache_into_enriched_signal,
+)
+
+
+def test_merge_live_cluster_overlays_when_cache_sparse():
+    cache = {"ZZ": {"flow_strength": 0.0, "dark_pool": {}}}
+    en = {"symbol": "ZZ", "score": 5.0}
+    en = merge_uw_cache_into_enriched_signal(en, "ZZ", uw_cache=cache)
+    cluster = {
+        "composite_meta": {"v2_uw_inputs": {"flow_strength": 0.61, "darkpool_bias": 0.12}},
+        "conviction": 0.72,
+    }
+    out = merge_live_cluster_into_enriched_signal(en, cluster=cluster, composite_meta=None)
+    assert out.get("flow_strength") == 0.61
+    assert out.get("uw_flow_strength") == 0.61
+    assert out.get("dark_pool_bias") == 0.12
+
+
+def test_build_shared_feature_snapshot_prefers_cluster_over_zero_cache(monkeypatch):
+    def fake_read_json(path, default=None):
+        return {"AB": {"flow_strength": 0.0}}
+
+    import config.registry as _reg
+
+    monkeypatch.setattr(_reg, "read_json", fake_read_json)
+    cluster = {"composite_meta": {"v2_uw_inputs": {"flow_strength": 0.88}}}
+    snap = build_shared_feature_snapshot(
+        {"symbol": "AB", "score": 4.0},
+        {},
+        {},
+        snapshot_stage="entry",
+        cluster=cluster,
+        composite_meta=cluster["composite_meta"],
+    )
+    assert snap.get("uw_flow_strength") == 0.88
 
 
 def test_merge_maps_conviction_to_flow_when_flow_missing():
