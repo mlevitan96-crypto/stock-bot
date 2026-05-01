@@ -7,6 +7,7 @@ Attaches to trade_intent JSON in logs/run.jsonl:
   - ai_approved_v2: True/False/None — same threshold as live V2 gate
   - ai_approved_v3_shadow: True/False/None — V3 Alpha Hunter (runner) shadow lane
   - shadow_uw_density / shadow_uw_finite_count — UW signal fill rate on the ML row (parity with live cache+cluster bridge)
+  - shadow_uw_regime_matrix — daily regime dictionary (GEX / DP proximity / sweeps); **telemetry only**, never blocks live
 
 Shadow V2/V3 boosters are loaded in ``telemetry.vanguard_ml_runtime`` (there is no separate ``models/shadow_vanguard_v2.py``).
 """
@@ -828,6 +829,46 @@ def attach_shadow_telemetry(
         rec["ai_approved_v2_error"] = str(e)[:200]
         if "sys" in dir():
             print(f"[shadow_evaluator] v2/v3 shadow enrich failed: {e}", file=sys.stderr)
+
+    # UW symbiotic regime matrix (shadow dictionary only — must not affect broker submission).
+    if str(os.environ.get("SHADOW_UW_REGIME_MATRIX_ENABLED", "1")).strip().lower() in ("1", "true", "yes", "on"):
+        try:
+            from src.market_intelligence.uw_regime_matrix import get_uw_regime_matrix
+
+            _px_res, _px_src = resolve_shadow_entry_price(
+                row=row,
+                feature_snapshot=feature_snapshot,
+                comps=comps if isinstance(comps, dict) else {},
+                cluster=cluster if isinstance(cluster, dict) else {},
+                source_event=rec,
+            )
+            _px_use = 0.0
+            if _px_res is not None:
+                try:
+                    _px_f = float(_px_res)
+                    if math.isfinite(_px_f) and _px_f > 0.0:
+                        _px_use = _px_f
+                except (TypeError, ValueError):
+                    _px_use = 0.0
+            _strat = str(rec.get("intended_strategy") or "").strip()
+            if not _strat:
+                _tags = rec.get("thesis_tags")
+                if isinstance(_tags, list):
+                    _strat = ",".join(str(x) for x in _tags[:12])
+                elif isinstance(_tags, str):
+                    _strat = _tags
+            if not _strat:
+                _strat = "neutral_default"
+            _rm_out = get_uw_regime_matrix().evaluate_trade_conviction(
+                str(symbol or ""),
+                _strat,
+                float(_px_use),
+            )
+            if isinstance(_rm_out, dict):
+                rec["shadow_uw_regime_matrix"] = _rm_out
+                rec["shadow_uw_regime_entry_price_source"] = str(_px_src or "")[:120]
+        except Exception:
+            pass
 
     if os.environ.get("CHALLENGER_SHADOW_ENABLED", "1").strip().lower() in ("1", "true", "yes", "on"):
         try:
