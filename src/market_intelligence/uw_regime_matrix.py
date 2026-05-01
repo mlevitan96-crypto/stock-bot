@@ -2,15 +2,33 @@
 Daily regime dictionary (shadow-only): GEX profile, dark-pool reference levels, sweep activity.
 
 **Not used for live order gating.** Consume only from shadow telemetry paths.
+
+Live mode (``UW_REGIME_USE_LIVE_API=true``) hydrates from Unusual Whales REST via ``uw_get``;
+keys resolve from ``UW_API_KEY`` / ``APIConfig`` like the rest of the stack. Any timeout,
+429, 5xx, or parse failure falls back to **neutral / empty** matrices without raising.
 """
 from __future__ import annotations
 
+import logging
 import math
 import os
-from typing import Any, Dict, List, Optional
+import time
+import urllib.parse
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Tuple
+
+from config.registry import get_env_bool
+
+_log = logging.getLogger(__name__)
 
 # Proximity: price within this fractional band of a DP level counts as "support" (shadow flag only).
 _DEFAULT_DP_PROXIMITY_FRAC = 0.003  # 0.3%
+
+_UW_REGIME_POLICY = {
+    "ttl_seconds": 120,
+    "endpoint_name": "uw_regime_matrix",
+    "max_calls_per_day": 50000,
+}
 
 
 def _safe_upper_ticker(ticker: str) -> str:
@@ -22,10 +40,129 @@ def _is_momentum_strategy(intended_strategy: str) -> bool:
     return any(k in s for k in ("momentum", "trend", "breakout", "impulse"))
 
 
+def _parse_float(x: Any) -> Optional[float]:
+    try:
+        if x is None:
+            return None
+        v = float(str(x).replace(",", "").strip())
+        return v if math.isfinite(v) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _uw_get_regime(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Thin wrapper for tests; delegates to centralized UW client (retries + auth)."""
+    try:
+        from src.uw.uw_client import uw_get
+
+        out = uw_get(endpoint, params=params or {}, cache_policy=_UW_REGIME_POLICY)
+        return out if isinstance(out, dict) else {"data": []}
+    except Exception as exc:
+        _log.warning("uw_regime_matrix uw_get exception endpoint=%s err=%s", endpoint, exc)
+        return {"data": [], "_uw_api_failure": True, "_exception": str(exc)[:200]}
+
+
+def _uw_failure(resp: Dict[str, Any]) -> bool:
+    return bool(resp.get("_uw_api_failure") or resp.get("_blocked"))
+
+
+def _net_gamma_sign_from_greek_rows(rows: List[Dict[str, Any]]) -> str:
+    """Latest row by ``date``: net call_gamma + put_gamma → positive / negative / neutral."""
+    if not rows:
+        return "neutral"
+    best: Optional[Tuple[str, Dict[str, Any]]] = None
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        d = str(r.get("date") or "")
+        if best is None or d > best[0]:
+            best = (d, r)
+    if best is None:
+        return "neutral"
+    r = best[1]
+    cg = _parse_float(r.get("call_gamma"))
+    pg = _parse_float(r.get("put_gamma"))
+    if cg is None and pg is None:
+        return "neutral"
+    net = (cg or 0.0) + (pg or 0.0)
+    eps = 1e-6
+    if net > eps:
+        return "positive"
+    if net < -eps:
+        return "negative"
+    return "neutral"
+
+
+def _tickers_from_movers(resp: Dict[str, Any], *, cap: int) -> List[str]:
+    out: List[str] = []
+    if _uw_failure(resp):
+        return out
+    data = resp.get("data")
+    if not isinstance(data, dict):
+        return out
+    ma = data.get("most_active")
+    if not isinstance(ma, list):
+        return out
+    for item in ma:
+        if not isinstance(item, dict):
+            continue
+        t = _safe_upper_ticker(str(item.get("ticker") or item.get("symbol") or ""))
+        if t and t not in out:
+            out.append(t)
+        if len(out) >= cap:
+            break
+    return out
+
+
+def _fallback_tickers() -> List[str]:
+    raw = os.getenv("UW_REGIME_FALLBACK_TICKERS", "SPY,QQQ,AAPL,MSFT,NVDA").strip()
+    return [_safe_upper_ticker(x) for x in raw.split(",") if _safe_upper_ticker(x)][:50]
+
+
+def _aggregate_dark_pool_levels(
+    trades: List[Dict[str, Any]],
+    *,
+    max_levels: int = 3,
+    max_age_hours: int = 48,
+) -> Dict[str, List[float]]:
+    """Ticker → top ``max_levels`` prices by summed volume (recent window best-effort)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=max(1, int(max_age_hours)))
+    vol_by_ticker_price: Dict[str, Dict[float, float]] = {}
+    for tr in trades:
+        if not isinstance(tr, dict):
+            continue
+        sym = _safe_upper_ticker(str(tr.get("ticker") or ""))
+        if not sym:
+            continue
+        ts = tr.get("executed_at")
+        if ts:
+            try:
+                s = str(ts).replace("Z", "+00:00")
+                dt = datetime.fromisoformat(s)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                if dt < cutoff:
+                    continue
+            except Exception:
+                pass
+        px = _parse_float(tr.get("price"))
+        if px is None or px <= 0:
+            continue
+        vol = _parse_float(tr.get("volume")) or _parse_float(tr.get("size")) or 0.0
+        if vol < 0 or not math.isfinite(vol):
+            vol = 0.0
+        bucket = vol_by_ticker_price.setdefault(sym, {})
+        bucket[round(px, 4)] = bucket.get(round(px, 4), 0.0) + float(vol)
+    out: Dict[str, List[float]] = {}
+    for sym, px_vol in vol_by_ticker_price.items():
+        ranked = sorted(px_vol.items(), key=lambda kv: kv[1], reverse=True)
+        out[sym] = [float(p) for p, _ in ranked[:max_levels]]
+    return out
+
+
 class UWRegimeMatrix:
     """
-    In-memory regime snapshot. Production path would hydrate from UW/GEX feeds;
-    tests and shadow lane use ``_refresh_daily_regime_mock()`` until wired.
+    In-memory regime snapshot. Mock by default; live when ``UW_REGIME_USE_LIVE_API`` is true.
     """
 
     def __init__(self) -> None:
@@ -33,10 +170,26 @@ class UWRegimeMatrix:
         self.dark_pool_levels: Dict[str, List[float]] = {}
         self.recent_sweeps: Dict[str, bool] = {}
         self._source = "uninitialized"
-        self._refresh_daily_regime_mock()
+        self._last_live_error: Optional[str] = None
+        if get_env_bool("UW_REGIME_USE_LIVE_API", False):
+            try:
+                self._refresh_daily_regime_live()
+            except Exception as exc:
+                self._neutral_fallback(f"live_init_exception:{exc}")
+        else:
+            self._refresh_daily_regime_mock()
+
+    def _neutral_fallback(self, reason: str) -> None:
+        self.gex_profile = {}
+        self.dark_pool_levels = {}
+        self.recent_sweeps = {}
+        self._last_live_error = str(reason)[:400]
+        self._source = f"neutral_fallback:{reason[:120]}"
+        _log.warning("uw_regime_matrix neutral fallback: %s", self._last_live_error)
 
     def _refresh_daily_regime_mock(self) -> None:
         """Deterministic dummy regime rows for tests and shadow dry-runs."""
+        self._last_live_error = None
         self.gex_profile = {
             "AAPL": "negative",
             "MSFT": "positive",
@@ -55,6 +208,103 @@ class UWRegimeMatrix:
             "QQQ": True,
         }
         self._source = "mock_daily_refresh"
+
+    def _refresh_daily_regime_live(self) -> None:
+        """
+        Pull GEX (greek-exposure), dark pool prints (recent), and sweep flow-alerts from UW.
+        On any hard failure: neutral / empty dicts (no exception escapes).
+        """
+        self._last_live_error = None
+        gex: Dict[str, str] = {}
+        dp_levels: Dict[str, List[float]] = {}
+        sweeps: Dict[str, bool] = {}
+
+        cap = int(os.getenv("UW_REGIME_GEX_TICKER_CAP", "40") or "40")
+        cap = max(5, min(100, cap))
+        sleep_s = float(os.getenv("UW_REGIME_INTER_CALL_SLEEP_S", "0.18") or "0.18")
+        if not math.isfinite(sleep_s) or sleep_s < 0:
+            sleep_s = 0.18
+
+        movers = _uw_get_regime("/api/market/movers", None)
+        tickers = _tickers_from_movers(movers, cap=cap)
+        if not tickers:
+            tickers = _fallback_tickers()[:cap]
+
+        # --- Dark pool: single recent tape, aggregate top 3 prices per ticker by volume ---
+        dp_resp = _uw_get_regime("/api/darkpool/recent", {"limit": 200})
+        if not _uw_failure(dp_resp):
+            raw = dp_resp.get("data")
+            trades_list: List[Dict[str, Any]] = []
+            if isinstance(raw, list):
+                trades_list = [x for x in raw if isinstance(x, dict)]
+            elif isinstance(raw, dict):
+                trades_list = [raw]
+            try:
+                hours = int(os.getenv("UW_REGIME_DP_MAX_AGE_HOURS", "48") or "48")
+            except (TypeError, ValueError):
+                hours = 48
+            dp_levels = _aggregate_dark_pool_levels(trades_list, max_levels=3, max_age_hours=hours)
+        time.sleep(sleep_s)
+
+        # --- GEX + sweeps per ticker ---
+        min_prem = int(os.getenv("UW_REGIME_SWEEP_MIN_PREMIUM", "100000") or "100000")
+        for sym in tickers:
+            path = f"/api/stock/{urllib.parse.quote(sym)}/greek-exposure"
+            gresp = _uw_get_regime(path, None)
+            if not _uw_failure(gresp):
+                gd = gresp.get("data")
+                rows: List[Dict[str, Any]] = []
+                if isinstance(gd, list):
+                    rows = [x for x in gd if isinstance(x, dict)]
+                elif isinstance(gd, dict):
+                    rows = [gd]
+                sign = _net_gamma_sign_from_greek_rows(rows)
+                if sign != "neutral" or rows:
+                    gex[sym] = sign
+            time.sleep(sleep_s)
+
+            fresp = _uw_get_regime(
+                "/api/option-trades/flow-alerts",
+                {
+                    "ticker_symbol": sym,
+                    "min_premium": min_prem,
+                    "is_sweep": True,
+                    "is_ask_side": True,
+                    "is_otm": True,
+                    "limit": 50,
+                },
+            )
+            if not _uw_failure(fresp):
+                fd = fresp.get("data")
+                hits: List[Any] = []
+                if isinstance(fd, list):
+                    hits = fd
+                elif isinstance(fd, dict):
+                    inner = fd.get("data")
+                    if isinstance(inner, list):
+                        hits = inner
+                for h in hits:
+                    if isinstance(h, dict) and h.get("has_sweep") is True:
+                        tp = _parse_float(h.get("total_premium")) or 0.0
+                        if tp >= float(min_prem):
+                            sweeps[sym] = True
+                            break
+            time.sleep(sleep_s)
+
+        self.gex_profile = gex
+        self.dark_pool_levels = dp_levels
+        self.recent_sweeps = sweeps
+        self._source = "live_uw_daily_refresh"
+
+    def refresh(self) -> None:
+        """Reload regime (mock or live per ``UW_REGIME_USE_LIVE_API``)."""
+        if get_env_bool("UW_REGIME_USE_LIVE_API", False):
+            try:
+                self._refresh_daily_regime_live()
+            except Exception as exc:
+                self._neutral_fallback(f"refresh_live_exception:{exc}")
+        else:
+            self._refresh_daily_regime_mock()
 
     def evaluate_trade_conviction(
         self,
@@ -136,7 +386,7 @@ class UWRegimeMatrix:
         elif gex == "negative" and sweeps:
             conviction = "high_conviction_boost"
 
-        return {
+        out: Dict[str, Any] = {
             "regime_conviction": conviction,
             "dark_pool_support": dp_support,
             "gex_read": gex,
@@ -149,6 +399,9 @@ class UWRegimeMatrix:
             "current_price": round(float(px), 6) if px > 0.0 and math.isfinite(px) else None,
             "regime_matrix_source": self._source,
         }
+        if self._last_live_error:
+            out["regime_matrix_last_error"] = self._last_live_error[:200]
+        return out
 
 
 _MATRIX: Optional[UWRegimeMatrix] = None
