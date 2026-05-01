@@ -1,0 +1,12 @@
+{
+  "days_back": 365,
+  "end_date": "2026-05-01",
+  "generated_at_utc": "2026-05-01T00:06:31.361667+00:00",
+  "git_sha": "85fe9a3287f63f5afdca842e8c6272e3f0dba99a",
+  "meta": {
+    "after_small_mid": 0,
+    "dropped_bad_dates": 0
+  },
+  "parquet": "C:\\Dev\\stock-bot\\data\\research\\congress_filing_forward_matrix.parquet",
+  "row_count": 0
+}
