@@ -3,10 +3,14 @@ Two-loss streak breaker: after two consecutive losing closes, block new entries 
 
 State: ``state/offense_streak_state.json`` (recent realized PnL tail + optional block-until ISO).
 Must never raise in hot paths.
+
+**Offensive pivot (2026):** Shield is **disabled by default** (cross-asset throttling). Set
+``OFFENSE_STREAK_SHIELD_ENABLED=1`` to restore legacy behavior.
 """
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -71,6 +75,13 @@ def register_closed_trade_pnl(pnl_usd: Optional[Any]) -> None:
 
 def entry_blocked_by_streak() -> Tuple[bool, str]:
     """Return (blocked, reason_code) if new entries should be suppressed."""
+    if (os.environ.get("OFFENSE_STREAK_SHIELD_ENABLED") or "0").strip().lower() not in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return False, ""
     state = _load()
     until_raw = state.get("entry_block_until_utc")
     if not until_raw:
