@@ -9,7 +9,9 @@ from src.market_intelligence.uw_regime_matrix import UWRegimeMatrix, reset_uw_re
 
 
 @pytest.fixture(autouse=True)
-def _reset():
+def _reset(monkeypatch, tmp_path):
+    """Isolate from repo ``state/uw_regime_matrix.json`` so tests use deterministic mock."""
+    monkeypatch.setenv("UW_REGIME_MATRIX_STATE_PATH", str(tmp_path / "uw_regime_matrix_absent.json"))
     reset_uw_regime_matrix_for_tests()
     yield
     reset_uw_regime_matrix_for_tests()
