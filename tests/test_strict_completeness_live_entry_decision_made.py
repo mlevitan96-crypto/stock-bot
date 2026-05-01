@@ -110,7 +110,9 @@ class TestStrictCompletenessLiveEntryDecisionMade(unittest.TestCase):
     def test_post_epoch_blocked_without_entry_decision_made(self) -> None:
         from telemetry.alpaca_strict_completeness_gate import evaluate_completeness
 
-        entry_iso = "2026-04-20T15:00:00+00:00"
+        # Open must be on/after LIVE_ENTRY_INTENT_REQUIRED_SINCE_EPOCH (2026-04-24T23:59:59Z)
+        # or the gate does not apply and the cohort arms without entry_decision_made.
+        entry_iso = "2026-04-25T15:00:00+00:00"
         ct = build_trade_key("TEST", "LONG", entry_iso)
         tid = f"open_TEST_{entry_iso}"
         with tempfile.TemporaryDirectory() as td:
@@ -120,7 +122,7 @@ class TestStrictCompletenessLiveEntryDecisionMade(unittest.TestCase):
                 tid,
                 ct,
                 entry_timestamp=entry_iso,
-                exit_timestamp="2026-04-20T16:00:00+00:00",
+                exit_timestamp="2026-04-25T16:00:00+00:00",
             )
             logs = root / "logs"
             run_lines = [
