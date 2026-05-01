@@ -2238,6 +2238,24 @@ def _emit_trade_intent(
                                 pass
         except Exception:
             pass
+        try:
+            _pex_r = getattr(engine, "executor", None) or engine
+            _vm_r = getattr(_pex_r, "_v2_live_gate_intent_meta", None)
+            if isinstance(_vm_r, dict):
+                if _vm_r.get("v2_live_gate_threshold") is not None:
+                    try:
+                        rec["v2_live_gate_threshold"] = float(_vm_r["v2_live_gate_threshold"])
+                    except (TypeError, ValueError):
+                        pass
+                if _vm_r.get("v2_live_gate_base_threshold") is not None:
+                    try:
+                        rec["v2_live_gate_base_threshold"] = float(_vm_r["v2_live_gate_base_threshold"])
+                    except (TypeError, ValueError):
+                        pass
+                if _vm_r.get("regime_boost"):
+                    rec["regime_boost"] = str(_vm_r["regime_boost"])
+        except Exception:
+            pass
         if (decision_outcome or "").lower() in ("entered", "blocked") and not intelligence_trace:
             try:
                 log_system_event(
@@ -6411,6 +6429,7 @@ class AlpacaExecutor:
         Self-healing: All orders must pass trade_guard before submission.
         """
         self._pending_entry_snapshot = None
+        self._v2_live_gate_intent_meta = None
         # Logging upgrade: mandatory metadata integrity
         # We never enter a new position without a positive score (scoring exists to only enter when we have edge).
         # - entry_score must exist and be positive
@@ -6512,7 +6531,7 @@ class AlpacaExecutor:
         if str(os.environ.get("V2_LIVE_GATE_ENABLED", "1")).strip().lower() in ("1", "true", "yes", "on"):
             try:
                 from telemetry.shadow_evaluator import build_vanguard_feature_map
-                from telemetry.vanguard_ml_runtime import evaluate_v2_live_gate
+                from telemetry.vanguard_ml_runtime import default_v2_threshold, evaluate_v2_live_gate
 
                 _fs_g = ml_gate_feature_snapshot if isinstance(ml_gate_feature_snapshot, dict) else {}
                 _cl_g = ml_gate_cluster if isinstance(ml_gate_cluster, dict) else {}
@@ -6566,7 +6585,41 @@ class AlpacaExecutor:
                                 _row_gate[fk_g] = float(_pex_g[k_g])
                             except (TypeError, ValueError):
                                 pass
-                _ok_v2, _p_v2, _rc_v2 = evaluate_v2_live_gate(symbol=symbol, side=side, row=_row_gate)
+                _base_thr_v2 = float(default_v2_threshold())
+                _applied_thr_v2 = float(_base_thr_v2)
+                _regime_boost_v2 = None
+                _side_gate = str(side or "").strip().lower()
+                if _side_gate in ("buy", "long"):
+                    try:
+                        from src.market_intelligence.regime_watchlist import get_regime_watchlist
+
+                        if get_regime_watchlist().is_congressional_buy(str(symbol)):
+                            try:
+                                _disc_v2 = float(os.environ.get("CONGRESS_REGIME_THRESHOLD_DISCOUNT", "0.15") or "0.15")
+                            except (TypeError, ValueError):
+                                _disc_v2 = 0.15
+                            _disc_v2 = max(0.0, min(0.95, _disc_v2))
+                            _applied_thr_v2 = float(_base_thr_v2) * (1.0 - _disc_v2)
+                            _regime_boost_v2 = "congressional_buy"
+                            log_event(
+                                "submit_entry",
+                                "v2_live_gate_regime_discount",
+                                symbol=symbol,
+                                side=side,
+                                v2_live_gate_base_threshold=_base_thr_v2,
+                                v2_live_gate_threshold=_applied_thr_v2,
+                                regime_boost=_regime_boost_v2,
+                            )
+                    except Exception as _rw_e:
+                        log_event("submit_entry", "regime_watchlist_error", symbol=symbol, error=str(_rw_e)[:200])
+                self._v2_live_gate_intent_meta = {
+                    "v2_live_gate_base_threshold": float(_base_thr_v2),
+                    "v2_live_gate_threshold": float(_applied_thr_v2),
+                    "regime_boost": _regime_boost_v2,
+                }
+                _ok_v2, _p_v2, _rc_v2 = evaluate_v2_live_gate(
+                    symbol=symbol, side=side, row=_row_gate, threshold=float(_applied_thr_v2)
+                )
                 if not _ok_v2:
                     _v2q: dict = {}
                     try:
@@ -6582,6 +6635,9 @@ class AlpacaExecutor:
                         side=side,
                         v2_proba=_p_v2,
                         reason=_rc_v2,
+                        v2_live_gate_threshold=_applied_thr_v2,
+                        v2_live_gate_base_threshold=_base_thr_v2,
+                        regime_boost=_regime_boost_v2,
                         **_v2q,
                     )
                     return None, None, str(_rc_v2 or "v2_agent_veto"), 0, str(_rc_v2 or "v2_agent_veto")
