@@ -16,5 +16,6 @@
     "no_deprecated_dirs: moltbot/ directory exists at repo top-level. This is a deprecated directory that should have been removed.",
     "no_clawdbot_moltbot: Moltbot code found in active code/config files — moltbot/board.py, moltbot/sentinel.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/promotion_discipline.py, scripts/sre/run_sre_anomaly_scan.py, scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, scripts/automations/run_governance_integrity_once.py. Also referenced in board/eod JSON artifacts."
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1627"
 }
