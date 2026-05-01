@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-01T16:43:53Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warn",
+      "message": "reports/board/ directory does not exist. Expected by governance contract (reports/audit/ exists, reports/board/ missing)."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warn",
+      "message": "reports/board/ required by governance contract but missing. All other governance contract paths present: memory_bank/ (6 docs), .cursor/automations/ (README + 5 spec pairs), reports/audit/ (exists)."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot code directory moltbot/ exists with active Python modules: board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py. Scripts referencing Clawdbot/Moltbot: scripts/sre/run_sre_anomaly_scan.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/automations/run_governance_integrity_once.py. Note: MEMORY_BANK_ALPACA.md documents moltbot/ as a learning workflow component — these references may be intentional but trigger the no-reintroduction check per governance spec."
+    }
+  ],
+  "slack_sent": false,
+  "commit_sha": "6ff7977003a6e4fe32871e23b2794bb4ec5bcef9",
+  "automation_id": "governance-integrity-validation-cron"
+}
