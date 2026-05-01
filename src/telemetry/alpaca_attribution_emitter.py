@@ -319,3 +319,20 @@ def emit_exit_attribution(
         unified_rec = {"event_type": "alpaca_exit_attribution", **base}
         _append_jsonl(unified_p, unified_rec, symbol=str(symbol), purpose="alpaca_unified_exit")
         _maybe_diag_unified_exit_emit(str(trade_id), unified_p, True, "written")
+    if terminal_close:
+        try:
+            from src.telemetry.alpaca_exit_decision_made_emit import (
+                maybe_emit_exit_decision_made_and_track_milestones,
+            )
+
+            maybe_emit_exit_decision_made_and_track_milestones(
+                trade_id=str(trade_id),
+                symbol=str(symbol),
+                canonical_trade_id=str(canonical_trade_id or key),
+                trade_key=str(key),
+                entry_time_iso=entry_time_iso,
+                terminal_close=True,
+                feature_snapshot=dict(snap) if isinstance(snap, dict) else None,
+            )
+        except Exception:
+            pass
