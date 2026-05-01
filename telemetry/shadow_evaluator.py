@@ -7,7 +7,7 @@ Attaches to trade_intent JSON in logs/run.jsonl:
   - ai_approved_v2: True/False/None — same threshold as live V2 gate
   - ai_approved_v3_shadow: True/False/None — V3 Alpha Hunter (runner) shadow lane
   - shadow_uw_density / shadow_uw_finite_count — UW signal fill rate on the ML row (parity with live cache+cluster bridge)
-  - shadow_uw_regime_matrix — daily regime dictionary (GEX / DP proximity / sweeps); **telemetry only**, never blocks live
+  - shadow_uw_regime_matrix — regime dictionary (GEX / DP proximity / sweeps) from ``state/uw_regime_matrix.json`` via disk refresh; **telemetry only**, never blocks live; **no live UW REST** on attach (Memory Bank §7.8)
 
 Shadow V2/V3 boosters are loaded in ``telemetry.vanguard_ml_runtime`` (there is no separate ``models/shadow_vanguard_v2.py``).
 """
@@ -835,6 +835,8 @@ def attach_shadow_telemetry(
         try:
             from src.market_intelligence.uw_regime_matrix import get_uw_regime_matrix
 
+            _urm = get_uw_regime_matrix()
+            _urm.refresh_from_disk()
             _px_res, _px_src = resolve_shadow_entry_price(
                 row=row,
                 feature_snapshot=feature_snapshot,
@@ -859,7 +861,7 @@ def attach_shadow_telemetry(
                     _strat = _tags
             if not _strat:
                 _strat = "neutral_default"
-            _rm_out = get_uw_regime_matrix().evaluate_trade_conviction(
+            _rm_out = _urm.evaluate_trade_conviction(
                 str(symbol or ""),
                 _strat,
                 float(_px_use),
