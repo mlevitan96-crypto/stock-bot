@@ -617,8 +617,9 @@ class Config:
     SIZE_VOL_CAP = float(get_env("SIZE_VOL_CAP", "0.03"))
     
     # Profit-taking tiers
-    PROFIT_TARGETS = [float(x) for x in get_env("PROFIT_TARGETS", "0.02,0.05,0.10").split(",")]
-    SCALE_OUT_FRACTIONS = [float(x) for x in get_env("SCALE_OUT_FRACTIONS", "0.3,0.3,0.4").split(",")]
+    # Asymmetric profit ladder defaults: +0.4% / +0.7% rungs, 50% then 50% of *remaining* (~25% orig each), runner BE via profit_ladder_runner_be.
+    PROFIT_TARGETS = [float(x) for x in get_env("PROFIT_TARGETS", "0.004,0.007").split(",") if str(x).strip()]
+    SCALE_OUT_FRACTIONS = [float(x) for x in get_env("SCALE_OUT_FRACTIONS", "0.5,0.5").split(",") if str(x).strip()]
 
     # Feature-weight bandit components (V3: expanded with congress, shorts, institutional, etc.)
     SIGNAL_COMPONENTS = [
@@ -808,14 +809,14 @@ def _position_return_pct(entry: float, current: float, side: str) -> float:
     r = (current - entry) / entry
     return r if side == "buy" else -r
 
-def get_position_qty(api, symbol: str) -> int:
+def get_position_qty(api, symbol: str) -> float:
     try:
         for p in api.list_positions():
             if getattr(p, "symbol", "") == symbol:
-                return int(float(getattr(p, "qty", 0)))
+                return float(getattr(p, "qty", 0) or 0.0)
     except Exception:
         pass
-    return 0
+    return 0.0
 
 _TELEMETRY_EMIT_SUPPRESSED_LOGGED = False
 
@@ -5757,7 +5758,7 @@ class AlpacaExecutor:
         if not defer_reconcile:
             self._safe_reconcile()
     
-    def _submit_order_guarded(self, symbol: str, qty: int, side: str, order_type: str = "market",
+    def _submit_order_guarded(self, symbol: str, qty: Any, side: str, order_type: str = "market",
                               time_in_force: str = "day", limit_price: Optional[float] = None,
                               client_order_id: Optional[str] = None, caller: str = "unknown", **kwargs) -> Any:
         """
@@ -6445,9 +6446,43 @@ class AlpacaExecutor:
                       symbol=symbol, side=side, qty=qty, market_regime=market_regime, regime=regime)
             return None, None, "metadata_missing", 0, "missing_market_regime"
 
-        # Phase 2: prevent broker rejections for short entries (LCID-style)
-        # Only applies to entry path; exits may legitimately submit sell orders to close longs.
-        if side == "sell":
+        ref_price = self.get_last_trade(symbol)
+        if ref_price <= 0:
+            log_event("submit_entry", "bad_ref_price", symbol=symbol, ref_price=ref_price)
+            return None, None, "error", 0, "bad_ref_price"
+
+        # Inversion Engine (optional): high-conviction long + strongly negative paper-ML EOD proxy → short.
+        try:
+            from src.ml.alpaca_inversion_engine import try_invert_entry_side
+
+            _side_in, _inv_meta = try_invert_entry_side(
+                executor=self,
+                symbol=symbol,
+                side=str(side or "").strip().lower(),
+                qty=qty,
+                entry_score=float(entry_score),
+                entry_components=entry_components if isinstance(entry_components, dict) else {},
+                market_regime=str(effective_regime or ""),
+                ml_gate_feature_snapshot=ml_gate_feature_snapshot if isinstance(ml_gate_feature_snapshot, dict) else None,
+                ml_gate_cluster=ml_gate_cluster if isinstance(ml_gate_cluster, dict) else None,
+            )
+            side = _side_in
+            if isinstance(_inv_meta, dict) and _inv_meta:
+                try:
+                    log_event(
+                        "submit_entry",
+                        "alpaca_inversion_applied",
+                        symbol=symbol,
+                        ml_expected_eod_return=_inv_meta.get("ml_expected_eod_return"),
+                        entry_score=_inv_meta.get("entry_score"),
+                    )
+                except Exception:
+                    pass
+        except Exception as _inv_e:
+            log_event("submit_entry", "alpaca_inversion_error", symbol=symbol, error=str(_inv_e)[:200])
+
+        # Short entries (and long→short inversions): Alpaca asset / HTB gate.
+        if str(side or "").strip().lower() in ("sell", "short"):
             try:
                 from src.core.broker_math import validate_short_asset
 
@@ -6460,11 +6495,7 @@ class AlpacaExecutor:
             if not short_ok:
                 log_event("submit_entry", "short_asset_blocked", symbol=symbol, reason=short_reason)
                 return None, None, short_reason, 0, short_reason
-
-        ref_price = self.get_last_trade(symbol)
-        if ref_price <= 0:
-            log_event("submit_entry", "bad_ref_price", symbol=symbol, ref_price=ref_price)
-            return None, None, "error", 0, "bad_ref_price"
+            side = "sell"
 
         if bool(getattr(Config, "WASH_REENTRY_POLICY_ENABLED", False)) and str(side or "").lower() in (
             "buy",
@@ -8655,10 +8686,20 @@ class AlpacaExecutor:
 
     def _scale_out_partial(self, symbol: str, fraction: float, side: str):
         try:
-            current_qty = get_position_qty(self.api, symbol)
+            current_qty = float(get_position_qty(self.api, symbol))
             if abs(current_qty) <= 0 or fraction <= 0:
                 return False
-            close_qty = max(1, int(abs(current_qty) * fraction))
+            raw_close = abs(current_qty) * float(fraction)
+            if raw_close <= 0:
+                return False
+            # Fractional-friendly: Alpaca accepts decimal qty for US equities when asset is fractionable.
+            close_qty = round(raw_close, 6)
+            if close_qty < 1e-6:
+                return False
+            if close_qty < 1.0 and close_qty < abs(current_qty) * 0.999:
+                close_qty = max(close_qty, 0.0001)
+            if close_qty >= abs(current_qty):
+                close_qty = max(0.0001, abs(current_qty) * 0.999)
             exit_side = "sell" if side == "buy" else "buy"
             # Strict runlog: same truth-chain preflight as full closes (join keys before partial exit submit).
             try:
@@ -9171,6 +9212,13 @@ class AlpacaExecutor:
             except Exception as loop_err:
                 log_event("exit", "exception_in_eval", symbol=symbol, error=str(loop_err))
                 continue
+
+            try:
+                _mbe = all_metadata.get(symbol, {}) if isinstance(all_metadata.get(symbol), dict) else {}
+                if _mbe.get("profit_ladder_runner_be"):
+                    info["profit_ladder_runner_be"] = True
+            except Exception:
+                pass
             
             entry_price = info.get("entry_price", current_price) or current_price  # BULLETPROOF: Ensure non-zero
             high_water_price = info.get("high_water", current_price) or current_price  # BULLETPROOF: Ensure non-zero
@@ -10099,6 +10147,18 @@ class AlpacaExecutor:
                     trail_amount=abs(float(self.high_water[symbol]) * trailing_stop_pct),
                 )
 
+            # Asymmetric ladder runner: floor trail at entry (break-even) after second scale-out rung.
+            if info.get("profit_ladder_runner_be"):
+                try:
+                    _ep_be = float(info.get("entry_price") or entry_price or 0.0)
+                    if _ep_be > 0 and not (math.isnan(trail_stop) or math.isinf(trail_stop) or trail_stop <= 0):
+                        if position_side_for_math in ("buy", "long", "bull", "bullish"):
+                            trail_stop = max(float(trail_stop), _ep_be)
+                        else:
+                            trail_stop = min(float(trail_stop), _ep_be)
+                except Exception:
+                    pass
+
             # Offense: combine static percent trail with offense ATR chandelier (long: take looser stop = min prices).
             try:
                 if os.environ.get("OFFENSE_TRAIL_MERGE_WITH_STATIC", "1").strip().lower() in ("1", "true", "yes", "on"):
@@ -10280,10 +10340,24 @@ class AlpacaExecutor:
                 ]
                 log_event("exit", "profit_targets_reinitialized", symbol=symbol, ret_pct=round(ret_pct, 4))
             
-            for tgt in info.get("targets", []):
+            for _ti, tgt in enumerate(info.get("targets", [])):
                 if not tgt["hit"] and ret_pct >= tgt["pct"]:
+                    if float(tgt.get("fraction") or 0) <= 0:
+                        continue
                     if self._scale_out_partial(symbol, tgt["fraction"], info.get("side", "buy")):
                         tgt["hit"] = True
+                        if _ti >= 1:
+                            info["profit_ladder_runner_be"] = True
+                            try:
+                                _mdp = StateFiles.POSITION_METADATA
+                                _md = load_metadata_with_lock(_mdp)
+                                _row = dict(_md.get(symbol) or {})
+                                _row["profit_ladder_runner_be"] = True
+                                _row["updated_at"] = datetime.utcnow().isoformat()
+                                _md[symbol] = _row
+                                atomic_write_json(_mdp, _md)
+                            except Exception:
+                                pass
                         # V3.0: Persist updated targets to metadata
                         self._persist_position_metadata(symbol, info.get("ts", datetime.utcnow()), 
                                                         info.get("entry_price", 0.0), info.get("qty", 0),
