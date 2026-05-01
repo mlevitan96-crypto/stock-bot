@@ -11,8 +11,17 @@ def test_extract_flow_symbol_common_keys():
     assert extract_flow_symbol("not-a-dict") is None
 
 
-def test_uw_ws_connect_config_bearer_default(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_uw_ws_connect_config_default_is_query_vendor(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Vendor socket expects ``?token=``; default auth mode is query (see uw_flow_ws docstring)."""
     monkeypatch.delenv("UW_WS_AUTH_MODE", raising=False)
+    monkeypatch.delenv("UW_WS_BASE", raising=False)
+    uri, hdrs = uw_ws_connect_config("secret-token")
+    assert "token=" in uri
+    assert hdrs is None
+
+
+def test_uw_ws_connect_config_bearer_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("UW_WS_AUTH_MODE", "bearer")
     monkeypatch.delenv("UW_WS_BASE", raising=False)
     uri, hdrs = uw_ws_connect_config("secret-token")
     assert "token=" not in uri
