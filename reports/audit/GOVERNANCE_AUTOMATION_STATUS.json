@@ -18,5 +18,6 @@
     "no_clawdbot_moltbot: scripts/run_openclaw_molt_synthesis.py references Clawdbot (documented as removed but string present in code/config)"
   ],
   "slack_sent": false,
+  "github_issue": "required but gh CLI is read-only in this environment; anomaly issue creation deferred",
   "notes": "reports/board/ directory does not exist (only board/ at top-level). This is noted but not failed as prior runs may have established this structure."
 }
