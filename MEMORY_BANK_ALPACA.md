@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-29 (LIVE — V2 bidirectional gate; Shadow Vanguard; Compliance baseline; 360° Profitability Board; Predator UW ingest)
-# Last Updated: 2026-04-29 (§7.8: Predator Sniper/Radar + WebSocket flow-alerts + REST budget mode)
+# Version: 2026-04-30 (LIVE — V2 bidirectional gate; Shadow Vanguard; Compliance baseline; 360° Profitability Board; Predator UW ingest; UW regime matrix cache)
+# Last Updated: 2026-04-30 (§7.8.1: Symbiotic shadow layer — UW regime matrix file-backed; no live UW on shadow attach)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -765,6 +765,17 @@ composite_score = max(0.0, min(8.0, composite_score))  # Clamp to 0-8
 - **REST pacing:** **`UW_DAEMON_MIN_LOOP_SLEEP_SEC`** (default **600s** in budget mode), **`UW_RADAR_OPTION_FLOW_INTERVAL_SEC`**, **`UW_RADAR_REST_INTERVAL_MULT`**, optional **`UW_RADAR_ENABLE_GREEKS=1`** for deep Radar Greeks. **`UW_WS_FLOW_TRADES_CAP`** caps rolling WS tape length per symbol. If **`UW_FLOW_WS_ENABLED=0`** or WS is unauthorized, set **`UW_SNIPER_REST_FLOW_INTERVAL_SEC`** (default **120**) so Snipers still get **REST** `flow-alerts` at a bounded cadence.
 - **Spot GEX (Professional):** Daemon polls **`/api/stock/{ticker}/spot-exposures`** for **Sniper** tier only (interval key **`spot_gex`**; default **1800s** in budget mode, override **`UW_SPOT_GEX_POLL_INTERVAL_SEC`** min **600**). Cache key **`spot_gex`** is passed through **`uw_enrichment_v2.enrich_signal`**; **`uw_composite_v2`** merges strike-like rows into **`gamma_resistance_levels`** so **`should_enter_v2`**’s existing **gamma wall** gate and structural exits see **GEX-derived walls**. Disable with **`UW_SPOT_GEX_POLL=0`**.
 - **WebSocket auth (operational — vendor):** Unusual Whales **ignores `Authorization: Bearer` on the WebSocket upgrade**; the token **must** be passed as a query parameter: **`wss://api.unusualwhales.com/socket?token=<UW_API_KEY>`**. Set **`UW_WS_AUTH_MODE=query`** in `.env` (repo default in `uw_flow_ws.uw_ws_connect_config` is **`query`**). Use **`UW_WS_AUTH_MODE=both`** only if directed; **`bearer`** alone will **401** against UW’s socket. **`UW_FLOW_WS_ENABLED=1`** enables WS. Validate with **`scripts/debug/ws_smoke_test.py`** (expect **`SUCCESS: JOIN OK`**). UW still returns **HTTP 401** if the key lacks **WebSocket / `flow-alerts` entitlement**; the daemon **keeps running** and retries with backoff; REST + cache remain active. Healthy subscribe prints **`[UW-WS] flow-alerts join ok (server ack)`** after the server `status: ok` frame. Remediation: upgrade UW API plan or set **`UW_FLOW_WS_ENABLED=0`** until the key is entitled.
+
+### 7.8.1 Symbiotic shadow layer — Congressional watchlist + UW regime matrix (2026-04-30)
+
+- **Purpose:** Shadow-only telemetry enrichments that **must not** gate live orders or call UW REST from the scoring / shadow-evaluator hot path (aligns with **Shadow-only enforcement** above: composite scoring uses pre/post intel files; regime matrix adds a **separate** file-backed snapshot for GEX sign, aggregated dark-pool reference prices, and sweep flags per symbol).
+- **Congressional / regime watchlist:** `src/market_intelligence/regime_watchlist.py` — in-memory watchlist helpers used by shadow / analytics contexts (not a substitute for `state/premarket_intel.json` in v2 composite).
+- **UW regime matrix (file-backed):**
+  - **Runtime reader:** `src/market_intelligence/uw_regime_matrix.py` — class **`UWRegimeMatrix`** loads **`UW_REGIME_MATRIX_STATE_PATH`** (default **`state/uw_regime_matrix.json`**). **`get_uw_regime_matrix().refresh_from_disk()`** re-reads the file (used from **`telemetry/shadow_evaluator.py`** before **`evaluate_trade_conviction`** so each shadow row sees fresh disk state **without** `uw_get`).
+  - **Batch writer (REST allowed here only):** `fetch_uw_regime_live_snapshot()` in the same module — **call from jobs only**; **`scripts/run_uw_regime_matrix_refresh.py`** writes the JSON via **`save_uw_regime_matrix_state`**. Schedule **pre-market or off-cycle** (cron / systemd timer) to refresh the snapshot; optional future consolidation: invoke the same fetch from a dedicated step alongside **`scripts/run_premarket_intel.py`** if operators want a single schedule.
+  - **Smoke / schema check:** `scripts/smoke_uw_regime_matrix.py` — tiny ticker list, prints **`gex_profile`**, **`dark_pool_levels`**, **`recent_sweeps`** JSON to stdout (requires **`UW_API_KEY`**).
+- **Payload shape (written file):** top-level keys include **`written_at_utc`**, **`source`**, **`gex_profile`** (ticker → `positive` | `negative` | `neutral`), **`dark_pool_levels`** (ticker → list of prices), **`recent_sweeps`** (ticker → bool). Staleness is **operational**: the matrix reflects the last successful refresh timestamp, not “live at attach” unless the file was just updated.
+- **Env:** `UW_REGIME_MATRIX_STATE_PATH`, `UW_REGIME_GEX_TICKER_CAP`, `UW_REGIME_INTER_CALL_SLEEP_S`, `UW_REGIME_DP_MAX_AGE_HOURS`, `UW_REGIME_SWEEP_MIN_PREMIUM`, `SHADOW_UW_REGIME_MATRIX_ENABLED` (shadow attach toggle).
 
 ### Droplet execution + state sync (operational phase) (2026-01-20)
 

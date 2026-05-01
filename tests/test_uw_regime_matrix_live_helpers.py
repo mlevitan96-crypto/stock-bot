@@ -1,6 +1,7 @@
 """Helpers for UW regime matrix live parsing (no network)."""
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 import pytest
@@ -44,15 +45,34 @@ def test_dark_pool_aggregate_top_prices() -> None:
     assert agg.get("XX") == [20.0, 10.0]
 
 
-def test_refresh_live_empty_on_uw_failure(monkeypatch) -> None:
-    monkeypatch.setenv("UW_REGIME_USE_LIVE_API", "true")
-
+def test_fetch_live_snapshot_empty_on_uw_failure(monkeypatch) -> None:
     def _fail(*_a, **_k):
         return {"data": [], "_uw_api_failure": True}
 
     monkeypatch.setattr(urm, "_uw_get_regime", _fail)
+    snap = urm.fetch_uw_regime_live_snapshot(tickers=["SPY"])
+    assert snap["gex_profile"] == {}
+    assert snap["dark_pool_levels"] == {}
+    assert snap["recent_sweeps"] == {}
+
+
+def test_matrix_loads_cache_file(monkeypatch, tmp_path) -> None:
+    path = tmp_path / "uw_rm_cache.json"
+    path.write_text(
+        json.dumps(
+            {
+                "written_at_utc": "2026-01-01T12:00:00+00:00",
+                "source": "test",
+                "gex_profile": {"ZZZ": "positive"},
+                "dark_pool_levels": {"ZZZ": [100.0]},
+                "recent_sweeps": {"ZZZ": True},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("UW_REGIME_MATRIX_STATE_PATH", str(path))
+    urm.reset_uw_regime_matrix_for_tests()
     m = urm.UWRegimeMatrix()
-    assert m.gex_profile == {}
-    assert m.dark_pool_levels == {}
-    assert m.recent_sweeps == {}
-    assert m._source == "live_uw_daily_refresh"
+    assert m.gex_profile.get("ZZZ") == "positive"
+    assert m.dark_pool_levels.get("ZZZ") == [100.0]
+    assert m.recent_sweeps.get("ZZZ") is True
