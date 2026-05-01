@@ -393,9 +393,9 @@ def uw_http_get(
     url = endpoint if str(endpoint).startswith("http") else f"{base}{str(endpoint)}"
     headers = APIConfig.get_uw_headers()
 
-    # Cache lookup
+    # Cache lookup (skip when mock mode enforces limits — cache would bypass quota checks)
     key = _cache_key(endpoint, params, policy)
-    if policy.ttl_seconds > 0:
+    if policy.ttl_seconds > 0 and not (mock_mode and mock_enforce_limits):
         rec = _read_cache(key)
         if isinstance(rec, dict):
             try:
@@ -554,8 +554,14 @@ def uw_http_get(
     except Exception:
         pass
 
-    # Cache write (only on success and valid schema)
-    if policy.ttl_seconds > 0 and status == 200 and isinstance(data, dict) and error_type == "ok":
+    # Cache write (only on success and valid schema; skip under mock limit enforcement)
+    if (
+        policy.ttl_seconds > 0
+        and status == 200
+        and isinstance(data, dict)
+        and error_type == "ok"
+        and not (mock_mode and mock_enforce_limits)
+    ):
         try:
             _write_cache(
                 key,
