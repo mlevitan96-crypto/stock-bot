@@ -82,10 +82,11 @@ def get_epoch_start_ts() -> float:
 
 
 def anchor_new_epoch(*, epoch_label: str = "", epoch_start_ts: Optional[float] = None) -> Dict[str, Any]:
-    """Set a new era floor and reset milestone counters."""
+    """Set a new era floor and reset milestone counters. Preserves unknown keys already on disk (droplet legacy)."""
     ts = float(epoch_start_ts if epoch_start_ts is not None else time.time())
     with _lock:
         st = _default_state()
+        st.update(load_epoch_state())
         st["epoch_start_ts"] = ts
         st["epoch_label"] = str(epoch_label or "")[:200]
         st["post_epoch_terminal_exit_count"] = 0
