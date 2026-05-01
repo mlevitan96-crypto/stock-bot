@@ -1336,6 +1336,12 @@ class UWFlowDaemon:
                         }
                     )
                 self._update_cache_nolock(symbol, chunk)
+                try:
+                    from src.telemetry.tier1_wake_bridge import signal_tier1_wake
+
+                    signal_tier1_wake("uw_ws_flow_alert", symbol)
+                except Exception:
+                    pass
         except Exception as ex:
             safe_print(f"[UW-DAEMON] WS ingest failed for {symbol}: {ex}", flush=True)
     
