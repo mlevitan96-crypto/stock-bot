@@ -1,0 +1,12 @@
+{
+  "pdt_mode": "strict",
+  "min_equity_threshold": 25000,
+  "rolling_5d_day_trade_limit": 3,
+  "wash_sale_buffer_days": 31,
+  "vpin_ofi_gate": {
+    "enabled": true,
+    "failure_mode": "fail_open",
+    "toxic_spike_ratio_max": 5.0,
+    "abs_ofi_300_floor": 500.0
+  }
+}
