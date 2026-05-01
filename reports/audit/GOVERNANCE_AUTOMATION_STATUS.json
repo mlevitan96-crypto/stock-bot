@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-01T00:40:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory was missing (created during this governance run to restore contract compliance)",
+    "governance_contracts_present: reports/board/ was absent prior to this run; contract requires reports/audit/ AND reports/board/ to exist",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active Python code — board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/",
+    "no_clawdbot_moltbot: scripts/run_molt_workflow.py imports from moltbot package (line 16: from moltbot import ...)",
+    "no_clawdbot_moltbot: scripts/run_openclaw_molt_synthesis.py contains Clawdbot references (stub comments documenting removal, but code still present)",
+    "no_clawdbot_moltbot: alpaca_codebase_payload.txt documents moltbot modules as active components"
+  ],
+  "slack_sent": false
+}
