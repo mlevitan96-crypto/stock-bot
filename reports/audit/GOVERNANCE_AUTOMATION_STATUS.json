@@ -15,5 +15,6 @@
     "governance_contracts_present: reports/board directory is missing (board/ exists at top-level but reports/board/ does not)",
     "required_artifacts: reports/board missing or not a directory"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "#1632 (existing open issue covers same anomalies)"
 }
