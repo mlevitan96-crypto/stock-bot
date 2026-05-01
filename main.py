@@ -16785,6 +16785,8 @@ class Watchdog:
     def __init__(self):
         self.state = WorkerState()
         self._stop_evt = threading.Event()
+        # In-process Tier-1 wake (tests / future co-located WS). Cross-process uses state/tier1_wake.json.
+        self._tier1_wake_evt = threading.Event()
         self.thread = None
 
     def heartbeat(self, metrics=None):
@@ -16828,6 +16830,45 @@ class Watchdog:
             # CRITICAL: Log the error so we can see why it's failing
             print(f"ERROR: Failed to write heartbeat file to {heartbeat_path}: {e}", flush=True)
             log_event("heartbeat", "write_failed", error=str(e), path=str(heartbeat_path), traceback=traceback.format_exc())
+
+    def _wait_cycle_sleep(self, sleep_for: float) -> bool:
+        """
+        Sleep up to ``sleep_for`` seconds but wake early on stop, in-process Tier-1 wake,
+        or cross-process ``state/tier1_wake.json`` mtime bump (UW WS ingest in uw_flow_daemon).
+        Returns True if the worker should stop (stop_evt set).
+        """
+        try:
+            from src.telemetry.tier1_wake_bridge import tier1_wake_mtime, tier1_wake_poll_seconds
+        except Exception:
+            tier1_wake_mtime = lambda: 0.0  # type: ignore
+            tier1_wake_poll_seconds = lambda: 0.25  # type: ignore
+        deadline = time.time() + max(0.0, float(sleep_for))
+        try:
+            poll = float(tier1_wake_poll_seconds())
+        except Exception:
+            poll = 0.25
+        poll = max(0.05, min(2.0, poll))
+        last_mt = tier1_wake_mtime()
+        while time.time() < deadline:
+            if self._stop_evt.is_set():
+                return True
+            if self._tier1_wake_evt.is_set():
+                self._tier1_wake_evt.clear()
+                return False
+            try:
+                mt = tier1_wake_mtime()
+                if mt > last_mt + 1e-9:
+                    last_mt = mt
+                    return False
+            except Exception:
+                pass
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                break
+            chunk = min(poll, remaining)
+            if self._stop_evt.wait(timeout=chunk):
+                return True
+        return self._stop_evt.is_set()
 
     def _worker_loop(self):
         # CRITICAL FIX: Write to file immediately to verify loop is running
@@ -17136,8 +17177,13 @@ class Watchdog:
             target = Config.RUN_INTERVAL_SEC if self.state.fail_count == 0 else self.state.backoff_sec
             sleep_for = max(0.0, target - elapsed)
             print(f"DEBUG: Worker sleeping for {sleep_for:.1f}s (target={target:.1f}s, elapsed={elapsed:.1f}s)", flush=True)
-            self._stop_evt.wait(timeout=sleep_for)
-            print(f"DEBUG: Worker woke up, stop_evt.is_set()={self._stop_evt.is_set()}", flush=True)
+            stop_requested = self._wait_cycle_sleep(sleep_for)
+            print(
+                f"DEBUG: Worker woke up, stop_evt.is_set()={self._stop_evt.is_set()} tier1_stop={stop_requested}",
+                flush=True,
+            )
+            if stop_requested:
+                break
         
         self.state.running = False
         log_event("worker", "stopped_clean")
@@ -17164,6 +17210,10 @@ class Watchdog:
         if self.thread:
             log_event("watchdog", "clearing_dead_thread", old_thread_id=self.thread.ident if self.thread else None)
         self._stop_evt.clear()
+        try:
+            self._tier1_wake_evt.clear()
+        except Exception:
+            pass
         self.thread = threading.Thread(target=self._worker_loop, daemon=True, name="TradingWorker")
         
         # CRITICAL FIX: Log before starting thread
