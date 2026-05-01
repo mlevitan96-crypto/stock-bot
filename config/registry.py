@@ -211,6 +211,11 @@ class StateFiles:
     # Signal correlation analytics (read-only): top pairs and per-symbol concentration.
     SIGNAL_CORRELATION_CACHE = Directories.STATE / "signal_correlation_cache.json"
 
+    # Post-epoch ML era anchor + milestone tracker (see scripts/reset_epoch.py).
+    EPOCH_STATE = Directories.STATE / "epoch_state.json"
+    # Cross-process wake: uw_flow_daemon (WS) -> main Watchdog short-circuit sleep.
+    TIER1_WAKE_SIGNAL = Directories.STATE / "tier1_wake.json"
+
 
 class LogFiles:
     """All log files - single source of truth."""
