@@ -8,10 +8,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/root/stock-bot
-EnvironmentFile=-/root/stock-bot/.env
+WorkingDirectory=/root/stock-bot-v3
+EnvironmentFile=-/root/stock-bot-v3/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/root/stock-bot/venv/bin/python /root/stock-bot/uw_flow_daemon.py
+ExecStart=/root/stock-bot-v3/venv/bin/python /root/stock-bot-v3/uw_flow_daemon.py
 Restart=on-failure
 RestartSec=5
 
