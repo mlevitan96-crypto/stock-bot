@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-02T23:00:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing (expected: reports/audit/ and reports/board/ both exist)",
+    "governance_contracts_present: reports/board/ directory missing; all other governance contracts present (memory_bank/ has docs, .cursor/automations/ has README + specs, reports/audit/ exists)",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active Python code (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/); scripts/run_molt_workflow.py imports from moltbot module; scripts/run_openclaw_molt_synthesis.py references Clawdbot (documents removal but is a .py script). Excluded from flag: reports/audit/*, docs/*.md, MEMORY_BANK_ALPACA.md, and governance-checking scripts (run_governance_integrity_once.py, run_sre_anomaly_scan.py) which reference patterns for detection only."
+  ],
+  "slack_sent": false
+}
