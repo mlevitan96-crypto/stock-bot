@@ -580,6 +580,10 @@ def _config_snapshot_for_audit(config: dict) -> dict:
         "dte_min": csp.get("target_dte_min", 5),
         "dte_max": csp.get("target_dte_max", 10),
         "avoid_earnings_window_days": risk.get("avoid_earnings_window_days", 21),
+        "max_sector_notional_fraction": risk.get("max_sector_notional_fraction", 0.25),
+        "require_cash_secured": risk.get("require_cash_secured", True),
+        "allow_margin_account": risk.get("allow_margin_account", False),
+        "avoid_ex_dividend_days": risk.get("avoid_ex_dividend_days", 0),
     }
 
 
@@ -595,6 +599,7 @@ def _run_csp_phase(
     tickers_override: Optional[List[str]] = None,
     selected_meta_override: Optional[List[dict]] = None,
     all_candidates_override: Optional[List[dict]] = None,
+    account_fields: Optional[Dict[str, Any]] = None,
 ) -> Tuple[int, Optional[str], List[dict]]:
     """Sell cash-secured puts. Returns (count placed, first placed symbol or None, selected_meta for telemetry)."""
     from capital.strategy_allocator import can_allocate
@@ -608,6 +613,10 @@ def _run_csp_phase(
     min_iv = risk_cfg.get("min_iv_rank", 50)
     put_wall_min_oi = int(risk_cfg.get("put_wall_min_oi", 5000) or 5000)
     min_credit_usd = float(risk_cfg.get("min_credit_usd", 0) or 0)
+    max_sector_frac = float(risk_cfg.get("max_sector_notional_fraction", 0.25) or 0.25)
+    avoid_ex_div = int(risk_cfg.get("avoid_ex_dividend_days", 0) or 0)
+    require_cash_secured = bool(risk_cfg.get("require_cash_secured", True))
+    allow_margin_account = bool(risk_cfg.get("allow_margin_account", False))
     dte_min = csp_cfg.get("target_dte_min", 5)
     dte_max = csp_cfg.get("target_dte_max", 10)
     delta_min = csp_cfg.get("delta_min", -0.3)
@@ -673,6 +682,19 @@ def _run_csp_phase(
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="iv_rank")
             _emit_candidate_evaluated("skip", "iv_rank")
             continue
+        if avoid_ex_div > 0:
+            try:
+                from src.wheel_risk_gates import should_skip_dividend_ex_zone
+
+                if should_skip_dividend_ex_zone(t, avoid_ex_div):
+                    _wheel_system_event("wheel_csp_skipped", symbol=t, reason="dividend_ex_zone")
+                    _emit_candidate_evaluated("skip", "dividend_ex_zone")
+                    continue
+            except Exception as e:
+                log.warning("Wheel dividend gate failed for %s: %s", t, e)
+                _wheel_system_event("wheel_csp_skipped", symbol=t, reason="dividend_gate_error")
+                _emit_candidate_evaluated("skip", "dividend_gate_error")
+                continue
         sym_count = per_symbol_count.get(t, 0) + len(open_csps.get(t, []) or [])
         if sym_count >= max_per_symbol:
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="max_per_symbol")
@@ -764,6 +786,49 @@ def _run_csp_phase(
             _emit_candidate_evaluated("skip", "dust_floor_gate_error")
             continue
         notional = chosen["strike"] * 100
+        try:
+            from strategies.wheel_universe_selector import _get_sector
+            from src.wheel_risk_gates import sector_cap_allows_new_csp, strict_cash_secured_put_ok
+
+            ok_sec, sec_reason, by_sec = sector_cap_allows_new_csp(
+                open_csps, t, notional, account_equity, max_sector_frac, _get_sector
+            )
+            if not ok_sec:
+                _wheel_system_event(
+                    "wheel_csp_skipped",
+                    symbol=t,
+                    reason="sector_cap",
+                    sector_detail=sec_reason,
+                    sector_breakdown=by_sec,
+                )
+                _emit_candidate_evaluated("skip", "sector_cap", sector_detail=sec_reason)
+                continue
+            if account_fields and require_cash_secured:
+                cash = float(account_fields.get("cash") or 0)
+                mult = float(account_fields.get("multiplier") or 1)
+                ok_cash, cash_reason = strict_cash_secured_put_ok(
+                    cash=cash,
+                    multiplier=mult,
+                    csp_notional=notional,
+                    allow_margin_account=allow_margin_account,
+                )
+                if not ok_cash:
+                    _wheel_system_event(
+                        "wheel_csp_skipped",
+                        symbol=t,
+                        reason="cash_secured",
+                        cash_secured_detail=cash_reason,
+                        cash=cash,
+                        multiplier=mult,
+                        required_notional=notional,
+                    )
+                    _emit_candidate_evaluated("skip", "cash_secured", cash_secured_detail=cash_reason)
+                    continue
+        except Exception as e:
+            log.warning("Wheel sector/cash gate failed for %s: %s", t, e)
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="sector_cash_gate_error")
+            _emit_candidate_evaluated("skip", "sector_cash_gate_error")
+            continue
         allowed, alloc_details = can_allocate("wheel", notional, account_equity, state)
         _wheel_system_event(
             "wheel_capital_check",
@@ -1076,6 +1141,11 @@ def run(api, config: dict) -> dict:
         account = api.get_account()
         account_equity = float(getattr(account, "equity", 0) or 0)
         buying_power = float(getattr(account, "buying_power", 0) or 0)
+        account_fields = {
+            "cash": float(getattr(account, "cash", 0) or 0),
+            "multiplier": float(getattr(account, "multiplier", 1) or 1),
+            "buying_power": buying_power,
+        }
     except Exception as e:
         result["errors"].append(f"account_fetch: {e}")
         _wheel_system_event("wheel_run_failed", reason="account_fetch", error=str(e)[:200])
@@ -1123,6 +1193,7 @@ def run(api, config: dict) -> dict:
         tickers_override=tickers,
         selected_meta_override=selected_meta,
         all_candidates_override=all_candidates,
+        account_fields=account_fields,
     )
     result["csp_placed"] = csp_placed
     result["orders_placed"] += csp_placed
