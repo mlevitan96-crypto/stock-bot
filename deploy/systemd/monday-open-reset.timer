@@ -1,0 +1,13 @@
+[Unit]
+Description=Fire Monday open reset at 09:30 ET (13:30 / 14:30 UTC slots; script gates on ET)
+
+[Timer]
+# One slot covers EDT (09:30 ET = 13:30 UTC); one covers EST (09:30 ET = 14:30 UTC).
+OnCalendar=Mon *-*-* 13:30:05
+OnCalendar=Mon *-*-* 14:30:05
+AccuracySec=2s
+Persistent=true
+Unit=monday-open-reset.service
+
+[Install]
+WantedBy=timers.target
