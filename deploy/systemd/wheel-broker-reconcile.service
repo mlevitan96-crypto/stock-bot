@@ -1,0 +1,13 @@
+[Unit]
+Description=Wheel broker reconcile and wheel_dashboard_sink.json refresh
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/stock-bot
+EnvironmentFile=-/root/stock-bot/.env
+EnvironmentFile=-/root/.alpaca_env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /root/stock-bot/scripts/wheel_broker_reconcile.py
+StandardOutput=journal
+StandardError=journal
