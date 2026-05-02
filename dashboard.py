@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Position Dashboard - Fast Start Version
-Binds port 5000 immediately, then lazy-loads heavy dependencies.
+Binds port from ``PORT`` (default **5005** for sovereign V3), then lazy-loads heavy dependencies.
 
 IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK_ALPACA.md
 """
@@ -79,18 +79,18 @@ else:
 
     def _load_dotenv_if_available() -> None:
         """
-        Best-effort: load `/root/stock-bot/.env` so manual dashboard starts inherit secrets.
+        Best-effort: load ``<repo>/.env`` so manual dashboard starts inherit secrets.
 
         WHY:
         - MEMORY_BANK_ALPACA.md allows manual `nohup python3 dashboard.py ...` starts.
-        - The dashboard auth contract requires DASHBOARD_USER/PASS, which are stored in `/root/stock-bot/.env`.
+        - The dashboard auth contract requires DASHBOARD_USER/PASS in the repo ``.env``.
         """
         try:
             from dotenv import load_dotenv  # type: ignore
         except Exception:
             return
         try:
-            env_path = Path("/root/stock-bot/.env")
+            env_path = _DASHBOARD_ROOT / ".env"
             if env_path.exists():
                 load_dotenv(env_path, override=True)
         except Exception:
@@ -7526,7 +7526,7 @@ def api_telemetry_latest_health():
         return jsonify({"error": str(e), "as_of_ts": datetime.now(timezone.utc).isoformat()}), 500
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "5000"))
+    port = int(os.getenv("PORT", "5005"))
     print(f"[Dashboard] Starting on port {port}...", flush=True)
     print(f"[Dashboard] Instance: {os.getenv('INSTANCE', 'UNKNOWN')}", flush=True)
 

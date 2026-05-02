@@ -4,9 +4,9 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/root/stock-bot
-EnvironmentFile=-/root/stock-bot/.env
-ExecStart=/usr/bin/python3 /root/stock-bot/scripts/paper_exec_mode_worker.py --root /root/stock-bot --once
+WorkingDirectory=/root/stock-bot-v3
+EnvironmentFile=-/root/stock-bot-v3/.env
+ExecStart=/usr/bin/python3 /root/stock-bot-v3/scripts/paper_exec_mode_worker.py --root /root/stock-bot-v3 --once
 User=root
 
 [Install]
