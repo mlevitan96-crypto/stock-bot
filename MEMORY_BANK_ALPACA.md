@@ -329,7 +329,7 @@ The mission fills missing keys by merging **only unset** vars from, in order: re
 
 ## 2.2.1 STRATEGY ARCHITECTURE (UPDATED - 2026-04-08)
 - **equity (Alpaca V2 Harvester primary)** — UW-driven equity strategy. `strategies/equity_strategy.py`. Live/paper telemetry uses `strategy_id=equity` where recorded.
-- **wheel (optional, in repo)** — Options wheel path: `strategies/wheel_strategy.py`, universe YAML under `config/universe_wheel*.yaml`, toggles in `config/strategies.yaml`. **Harvester milestone and strict-era narratives default to equity paper**; wheel may be disabled or idle on a given host — confirm `strategies.yaml` and open positions, not this doc alone.
+- **wheel (optional, in repo)** — Options wheel path: `strategies/wheel_strategy.py` (CSP/CC orders + `state/wheel_state.json`), **`src/options_engine.py`** (S&P 100 hard gate, UW IV rank + earnings + oi-change put wall + dust-floor helper), **`src/wheel_manager.py`** (assignment reconciliation + `run_wheel` entry). Universe YAML under `config/universe_wheel*.yaml`, toggles in `config/strategies.yaml`. **Harvester milestone and strict-era narratives default to equity paper**; wheel may be disabled or idle on a given host — confirm `strategies.yaml` and open positions, not this doc alone. Wheel premium milestones: `scripts/wheel_premium_milestone_watcher.py`.
 - Single droplet, single Alpaca account class per deploy, single UW ingestion, single EOD review where applicable.
 - Config: `config/strategies.yaml` (primary). **Operational truth** = files in repo + **`config/registry.py`** + section **1.2** warehouse baseline.
 
