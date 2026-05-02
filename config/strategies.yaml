@@ -55,12 +55,21 @@ strategies:
       require_cash_secured: true
       # Paper only: set true if Alpaca paper account uses multiplier>1 and you accept relaxed CSP collateral check.
       allow_margin_account: false
+      # Skip CSP when daily RSI exceeds this (mean reversion: sell puts into support, not resistance). 0 disables.
+      max_rsi_for_csp_entry: 70
       # IV Rank from UW must be >= this (0–100 scale).
       min_iv_rank: 50
       # Minimum put OI at the “wall” strike (UW oi-change) for institutional floor gate.
       put_wall_min_oi: 5000
       # Minimum premium credit per contract (limit * 100). Set 0 on paper while quotes are stubbed.
       min_credit_usd: 0
+    velocity:
+      enabled: true
+      # Close short CSP when estimated premium captured >= this fraction of open credit.
+      quick_exit_premium_capture: 0.90
+      # Gamma shield: if hours to expiry <= this and capture >= gamma_shield_min_profit_capture, buy to close.
+      gamma_shield_hours_to_expiry: 48
+      gamma_shield_min_profit_capture: 0.80
 
 promotion:
   min_score_to_promote: 75
