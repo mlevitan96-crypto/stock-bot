@@ -4,7 +4,7 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/root/stock-bot
-ExecStart=/bin/bash /root/stock-bot/deploy/systemd/alpaca-forward-truth-contract-run.sh
+WorkingDirectory=/root/stock-bot-v3
+ExecStart=/bin/bash /root/stock-bot-v3/deploy/systemd/alpaca-forward-truth-contract-run.sh
 StandardOutput=journal
 StandardError=journal
