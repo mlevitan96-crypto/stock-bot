@@ -47,6 +47,14 @@ strategies:
       max_positions_per_symbol: 2
       # No CSP opens when next earnings within this many calendar days (UW earnings endpoint).
       avoid_earnings_window_days: 21
+      # Ex-dividend no-fly: skip CSP if ex-date within N calendar days (UW dividends; 0 disables).
+      avoid_ex_dividend_days: 3
+      # Max wheel CSP notional per sector as fraction of account equity (25% cap).
+      max_sector_notional_fraction: 0.25
+      # Require full cash collateral for each new CSP; block margin accounts unless allow_margin_account.
+      require_cash_secured: true
+      # Paper only: set true if Alpaca paper account uses multiplier>1 and you accept relaxed CSP collateral check.
+      allow_margin_account: false
       # IV Rank from UW must be >= this (0–100 scale).
       min_iv_rank: 50
       # Minimum put OI at the “wall” strike (UW oi-change) for institutional floor gate.
