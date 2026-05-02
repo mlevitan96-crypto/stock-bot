@@ -270,6 +270,20 @@ def select_wheel_candidates(
 
     # PATH B Step 2: Rank by UW intelligence first (primary driver)
     uw_ranked = _rank_by_uw_intelligence(candidate_tickers, config)
+    sitter_bonus_by_symbol: Dict[str, float] = {}
+    if uw_ranked and api is not None:
+        try:
+            from src.options_engine import is_sp100_wheel_eligible, sitter_iv_minus_rv_bonus
+
+            boosted: List[Tuple[str, float]] = []
+            for sym, sc in uw_ranked:
+                bonus = sitter_iv_minus_rv_bonus(sym) if is_sp100_wheel_eligible(sym) else 0.0
+                sitter_bonus_by_symbol[sym] = bonus
+                boosted.append((sym, float(sc) + bonus * 0.12))
+            boosted.sort(key=lambda x: -x[1])
+            uw_ranked = boosted
+        except Exception as e:
+            log.debug("sitter IV>RV rerank skipped: %s", e)
     if uw_ranked:
         ordered_symbols = [s for s, _ in uw_ranked]
     else:
@@ -337,6 +351,7 @@ def select_wheel_candidates(
             "symbol": symbol,
             "variant_id": "wheel_v2",
             "uw_composite_score": round(uw_score, 4) if uw_score is not None else None,
+            "sitter_iv_minus_rv_bonus": round(sitter_bonus_by_symbol.get(symbol, 0.0), 4) if sitter_bonus_by_symbol else None,
             "liquidity_score": round(liquidity_score, 4),
             "iv_score": round(iv_score, 4),
             "spread_score": round(spread_score, 4),
