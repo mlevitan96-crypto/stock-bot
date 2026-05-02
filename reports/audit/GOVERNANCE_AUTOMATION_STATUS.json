@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-02T10:00:00.215000+00:00",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "fail",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "Missing: reports/board (created by this run to restore governance contract compliance)"
+  ],
+  "slack_sent": false,
+  "github_issue": "anomalies_detected but gh CLI is read-only; issue not created programmatically"
+}
