@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-ROOT="${ALPACA_ROOT:-/root/stock-bot}"
+ROOT="${ALPACA_ROOT:-/root/stock-bot-v3}"
 cd "$ROOT"
 export PYTHONPATH="$ROOT"
 TS="$(date -u +%Y%m%d_%H%M%SZ)"

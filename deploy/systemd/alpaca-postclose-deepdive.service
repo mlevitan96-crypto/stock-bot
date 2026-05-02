@@ -6,12 +6,12 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=root
-WorkingDirectory=/root/stock-bot
-Environment=TRADING_BOT_ROOT=/root/stock-bot
-EnvironmentFile=-/root/stock-bot/.env
+WorkingDirectory=/root/stock-bot-v3
+Environment=TRADING_BOT_ROOT=/root/stock-bot-v3
+EnvironmentFile=-/root/stock-bot-v3/.env
 # After .env: post-close still writes reports; Telegram API blocked here (integrity allowlist only).
 Environment=TELEGRAM_GOVERNANCE_INTEGRITY_ONLY=1
-ExecStart=/root/stock-bot/venv/bin/python3 /root/stock-bot/scripts/alpaca_postclose_deepdive.py
+ExecStart=/root/stock-bot-v3/venv/bin/python3 /root/stock-bot-v3/scripts/alpaca_postclose_deepdive.py
 StandardOutput=journal
 StandardError=journal
 
