@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-02T12:12:59Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory missing from repository",
+    "governance_contracts_present: reports/board/ not present as writable target for automation outputs",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active code (moltbot/__init__.py, moltbot/board.py, etc.); scripts/run_molt_workflow.py imports from moltbot package"
+  ],
+  "slack_sent": false
+}
