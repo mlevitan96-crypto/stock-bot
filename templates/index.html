@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stock Bot · Command Desk</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            desk: { bg: '#070b12', panel: '#0f141f', line: '#1e293b', ink: '#e2e8f0', muted: '#94a3b8', accent: '#38bdf8', pos: '#4ade80', neg: '#f87171' }
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="h-full bg-desk-bg text-desk-ink antialiased">
+  <div class="min-h-full flex flex-col">
+    <header class="border-b border-desk-line bg-desk-panel/90 backdrop-blur sticky top-0 z-20">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-lg font-semibold tracking-tight text-white">Stock Bot <span class="text-desk-accent font-normal">Command Desk</span></h1>
+          <p class="text-xs text-desk-muted mt-0.5">V3 · sovereign bind · live broker JSON</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+          <span id="clock" class="text-desk-muted font-mono"></span>
+          <button type="button" id="btn-refresh" class="rounded-md bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 font-medium transition">Refresh</button>
+        </div>
+      </div>
+      <div id="quota-strip" class="border-t border-desk-line bg-black/30 text-xs text-desk-muted px-4 py-2 max-w-7xl mx-auto font-mono"></div>
+    </header>
+
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 py-6 space-y-8">
+      <section>
+        <div class="flex items-baseline justify-between gap-2 mb-3">
+          <h2 class="text-sm font-semibold uppercase tracking-widest text-desk-muted">Open positions</h2>
+          <span id="pos-meta" class="text-xs text-desk-muted"></span>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-desk-line bg-desk-panel shadow-xl">
+          <table class="min-w-full text-sm">
+            <thead class="bg-black/40 text-desk-muted text-left uppercase text-xs tracking-wide">
+              <tr>
+                <th class="px-3 py-2">Symbol</th>
+                <th class="px-3 py-2">Side</th>
+                <th class="px-3 py-2 text-right">Qty</th>
+                <th class="px-3 py-2 text-right">Mkt value</th>
+                <th class="px-3 py-2 text-right">Unrealized</th>
+                <th class="px-3 py-2 text-right">Avg entry</th>
+              </tr>
+            </thead>
+            <tbody id="pos-body" class="divide-y divide-desk-line"></tbody>
+          </table>
+        </div>
+        <p id="pos-err" class="text-xs text-desk-neg mt-2 hidden"></p>
+      </section>
+
+      <section>
+        <div class="flex items-baseline justify-between gap-2 mb-3">
+          <h2 class="text-sm font-semibold uppercase tracking-widest text-desk-muted">Wheel · PnL decomposition</h2>
+          <span id="wheel-meta" class="text-xs text-desk-muted"></span>
+        </div>
+        <p class="text-xs text-desk-muted mb-2 max-w-3xl">
+          <span class="text-desk-accent">Premium income</span> rolls up credited premium (realized estimate + open leg credit).
+          <span class="text-desk-accent">Underlying price action</span> is mark exposure: stock lots use <code class="text-desk-muted">(spot − basis) × shares</code>; option legs use a single-contract <code class="text-desk-muted">(spot − strike) × 100</code> proxy (not exchange MTM).
+        </p>
+        <div class="overflow-x-auto rounded-lg border border-desk-line bg-desk-panel shadow-xl">
+          <table class="min-w-full text-sm">
+            <thead class="bg-black/40 text-desk-muted text-left uppercase text-xs tracking-wide">
+              <tr>
+                <th class="px-3 py-2">Ticker</th>
+                <th class="px-3 py-2">Phase</th>
+                <th class="px-3 py-2 text-right">Strike / basis</th>
+                <th class="px-3 py-2 text-right">Days held</th>
+                <th class="px-3 py-2 text-right">DTE</th>
+                <th class="px-3 py-2 text-right">Premium income</th>
+                <th class="px-3 py-2 text-right">Underlying Δ (px)</th>
+              </tr>
+            </thead>
+            <tbody id="wheel-body" class="divide-y divide-desk-line"></tbody>
+          </table>
+        </div>
+        <p id="wheel-err" class="text-xs text-desk-neg mt-2 hidden"></p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+(function () {
+  const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+  function fmtMoney(v) {
+    if (v === null || v === undefined || v === '' || Number.isNaN(Number(v))) return '—';
+    return money.format(Number(v));
+  }
+  function phaseLabel(st) {
+    if (st === 'CSP') return 'CSP';
+    if (st === 'CC') return 'CC';
+    if (st === 'CC_STOCK') return 'Stock (post-CSP)';
+    return st || '—';
+  }
+  function setErr(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (msg) { el.textContent = msg; el.classList.remove('hidden'); }
+    else { el.textContent = ''; el.classList.add('hidden'); }
+  }
+  function tickClock() {
+    const el = document.getElementById('clock');
+    if (!el) return;
+    el.textContent = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  }
+  async function loadQuota() {
+    const box = document.getElementById('quota-strip');
+    if (!box) return;
+    try {
+      const r = await fetch('/api/stockbot/quota_status', { credentials: 'same-origin' });
+      if (!r.ok) { box.textContent = 'Quota: HTTP ' + r.status; return; }
+      const d = await r.json();
+      const pct = d.uw_daily_usage_pct != null ? d.uw_daily_usage_pct + '%' : '—';
+      box.textContent = 'UW today: ' + (d.uw_calls_today != null ? d.uw_calls_today : '—') + ' calls · usage ' + pct + ' of cap · ' + (d.generated_at_utc || '');
+    } catch (e) {
+      box.textContent = 'Quota: unavailable';
+    }
+  }
+  async function loadPositions() {
+    setErr('pos-err', '');
+    const body = document.getElementById('pos-body');
+    const meta = document.getElementById('pos-meta');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="6" class="px-3 py-6 text-center text-desk-muted">Loading…</td></tr>';
+    try {
+      const r = await fetch('/api/positions', { credentials: 'same-origin' });
+      if (!r.ok) {
+        setErr('pos-err', 'HTTP ' + r.status + ' — sign in with browser basic auth first.');
+        body.innerHTML = '';
+        return;
+      }
+      const d = await r.json();
+      const rows = Array.isArray(d.positions) ? d.positions : [];
+      if (meta) {
+        meta.textContent = (d.positions_total_before_limit || rows.length) + ' rows · day PnL ' + fmtMoney(d.day_pnl);
+      }
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="6" class="px-3 py-6 text-center text-desk-muted">No open positions</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(function (p) {
+        const sym = (p.symbol || p.asset_id || '—').toString();
+        const side = (p.side || '—').toString();
+        const qty = p.qty != null ? p.qty : p.quantity;
+        const mv = p.market_value != null ? p.market_value : p.marketValue;
+        const up = p.unrealized_pl != null ? p.unrealized_pl : p.unrealized_plpc != null ? null : p.unrealized_pl;
+        const unreal = p.unrealized_pnl != null ? p.unrealized_pnl : p.unrealized_pl != null ? p.unrealized_pl : p.unrealized_intraday_pl;
+        const avg = p.avg_entry_price != null ? p.avg_entry_price : p.avg_entry;
+        const uCls = Number(unreal) > 0 ? 'text-desk-pos' : Number(unreal) < 0 ? 'text-desk-neg' : 'text-desk-muted';
+        return '<tr class="hover:bg-white/5">' +
+          '<td class="px-3 py-2 font-mono font-medium text-white">' + sym + '</td>' +
+          '<td class="px-3 py-2 capitalize">' + side + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono">' + (qty != null ? qty : '—') + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono">' + fmtMoney(mv) + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono ' + uCls + '">' + fmtMoney(unreal) + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono">' + fmtMoney(avg) + '</td>' +
+          '</tr>';
+      }).join('');
+    } catch (e) {
+      setErr('pos-err', String(e && e.message ? e.message : e));
+      body.innerHTML = '';
+    }
+  }
+  async function loadWheel() {
+    setErr('wheel-err', '');
+    const body = document.getElementById('wheel-body');
+    const meta = document.getElementById('wheel-meta');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="7" class="px-3 py-6 text-center text-desk-muted">Loading…</td></tr>';
+    try {
+      const r = await fetch('/api/stockbot/wheel_hud', { credentials: 'same-origin' });
+      if (!r.ok) {
+        setErr('wheel-err', 'HTTP ' + r.status);
+        body.innerHTML = '';
+        return;
+      }
+      const d = await r.json();
+      const rows = Array.isArray(d.rows) ? d.rows : [];
+      if (meta) {
+        meta.textContent = (d.epoch_label || '—') + ' · updated ' + (d.updated_at_utc || '—');
+      }
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="7" class="px-3 py-6 text-center text-desk-muted">No wheel rows (run wheel reconcile / open wheel positions)</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(function (w) {
+        const prem = w.premium_income_usd != null ? w.premium_income_usd : ((Number(w.realized_premium_usd) || 0) + (Number(w.open_leg_credit_usd) || 0));
+        const und = w.underlying_price_action_usd;
+        const uCls = und == null ? 'text-desk-muted' : Number(und) > 0 ? 'text-desk-pos' : Number(und) < 0 ? 'text-desk-neg' : 'text-desk-muted';
+        return '<tr class="hover:bg-white/5">' +
+          '<td class="px-3 py-2 font-mono font-medium text-white">' + (w.ticker || '—') + '</td>' +
+          '<td class="px-3 py-2">' + phaseLabel(w.stage) + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono">' + (w.strike != null ? w.strike : '—') + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono">' + (w.days_held != null ? w.days_held : '—') + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono">' + (w.dte != null ? w.dte : '—') + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono text-desk-accent">' + fmtMoney(prem) + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono ' + uCls + '">' + (und == null ? '—' : fmtMoney(und)) + '</td>' +
+          '</tr>';
+      }).join('');
+    } catch (e) {
+      setErr('wheel-err', String(e && e.message ? e.message : e));
+      body.innerHTML = '';
+    }
+  }
+  async function refreshAll() {
+    await Promise.all([loadQuota(), loadPositions(), loadWheel()]);
+  }
+  document.getElementById('btn-refresh').addEventListener('click', refreshAll);
+  tickClock();
+  setInterval(tickClock, 1000);
+  refreshAll();
+  setInterval(refreshAll, 60000);
+})();
+  </script>
+</body>
+</html>
