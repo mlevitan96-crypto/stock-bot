@@ -4478,16 +4478,8 @@ def _render_initial_situation_html(data):
 
 @app.route("/")
 def index():
-    """Serve the SPA shell from disk (no Jinja / server-side HTML assembly)."""
-    static_dir = _DASHBOARD_ROOT / "static"
-    index_path = static_dir / "index.html"
-    if not index_path.is_file():
-        return Response(
-            "Dashboard UI missing: create static/index.html",
-            503,
-            mimetype="text/plain; charset=utf-8",
-        )
-    return send_from_directory(str(static_dir), "index.html", mimetype="text/html; charset=utf-8")
+    """Serve the canonical inline dashboard (Options Wheel, quota strip, embedded JS)."""
+    return Response(DASHBOARD_HTML, mimetype="text/html; charset=utf-8")
 
 
 def _health_payload():
