@@ -45,8 +45,14 @@ strategies:
       delta_max: 0.3
     risk:
       max_positions_per_symbol: 2
-      avoid_earnings_window_days: 3
-      min_iv_rank: 20
+      # No CSP opens when next earnings within this many calendar days (UW earnings endpoint).
+      avoid_earnings_window_days: 21
+      # IV Rank from UW must be >= this (0–100 scale).
+      min_iv_rank: 50
+      # Minimum put OI at the “wall” strike (UW oi-change) for institutional floor gate.
+      put_wall_min_oi: 5000
+      # Minimum premium credit per contract (limit * 100). Set 0 on paper while quotes are stubbed.
+      min_credit_usd: 0
 
 promotion:
   min_score_to_promote: 75
