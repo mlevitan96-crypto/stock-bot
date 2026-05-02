@@ -36,6 +36,7 @@ def _default_state() -> Dict[str, Any]:
         "post_epoch_terminal_exit_count": 0,
         "fired_milestones": [],
         "updated_at": "",
+        "wheel_realized_alpha_usd": 0.0,
     }
 
 
@@ -119,6 +120,21 @@ def increment_post_epoch_exit_and_check_milestone() -> Tuple[int, Optional[int]]
         st["fired_milestones"] = sorted(fired_set)
         save_epoch_state(st)
         return n, hit
+
+
+def bump_wheel_realized_alpha(delta_usd: float) -> None:
+    """Cumulative wheel alpha from velocity exits / optimizations (options_wheel_v1 era)."""
+    try:
+        d = float(delta_usd)
+    except (TypeError, ValueError):
+        return
+    if d <= 0:
+        return
+    with _lock:
+        st = load_epoch_state()
+        prev = float(st.get("wheel_realized_alpha_usd") or 0.0)
+        st["wheel_realized_alpha_usd"] = round(prev + d, 2)
+        save_epoch_state(st)
 
 
 def mark_milestone_fired_external(milestone: int) -> None:
