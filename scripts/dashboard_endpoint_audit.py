@@ -9,6 +9,7 @@ Writes: reports/DASHBOARD_ENDPOINT_AUDIT.md, reports/DASHBOARD_TELEMETRY_DIAGNOS
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -25,11 +26,10 @@ DATA_DIR = ROOT / "data"
 INVENTORY_PATH = DATA_DIR / "dashboard_panel_inventory.json"
 
 # Prefer localhost (dashboard on same host)
-BASE_URL = "http://127.0.0.1:5000"
+BASE_URL = os.environ.get("DASHBOARD_AUDIT_BASE_URL", "http://127.0.0.1:5005")
 
 
 def _get_auth() -> Optional[Tuple[str, str]]:
-    import os
     u = os.getenv("DASHBOARD_USER", "").strip()
     p = os.getenv("DASHBOARD_PASS", "").strip()
     return (u, p) if u and p else None
