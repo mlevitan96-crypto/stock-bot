@@ -1,0 +1,18 @@
+[Unit]
+Description=Monday 09:30 ET — Alpaca cancel-all + flatten (monday_open_reset.py)
+After=network-online.target
+# Prefer stock-bot stopped; operator enables timer only when intended.
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/stock-bot-v3
+EnvironmentFile=-/root/stock-bot-v3/.env
+EnvironmentFile=-/root/.alpaca_env
+Environment=PYTHONUNBUFFERED=1
+# Fires twice UTC (DST); script exits unless ET is Monday 09:30:05+.
+ExecStart=/usr/bin/python3 /root/stock-bot-v3/scripts/monday_open_reset.py
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,21 +1,21 @@
 # stock-bot-dashboard.service
-# Dashboard (Flask on port 5000). Restart after deploy to load new routes.
-# Install: sudo cp /root/stock-bot/deploy/stock-bot-dashboard.service /etc/systemd/system/
+# Dashboard (Flask sovereign V3 — port 5005). Restart after deploy to load new routes.
+# Install: sudo cp /root/stock-bot-v3/deploy/stock-bot-dashboard.service /etc/systemd/system/
 #         sudo systemctl daemon-reload && sudo systemctl enable stock-bot-dashboard && sudo systemctl start stock-bot-dashboard
 
 [Unit]
-Description=STOCK-BOT Dashboard (Flask :5000)
+Description=STOCK-BOT Dashboard (Flask :5005, V3)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/root/stock-bot
-EnvironmentFile=-/root/stock-bot/.env
+WorkingDirectory=/root/stock-bot-v3
+EnvironmentFile=-/root/stock-bot-v3/.env
 EnvironmentFile=-/root/.alpaca_env
 Environment=PYTHONUNBUFFERED=1
-Environment=PORT=5000
-ExecStart=/usr/bin/python3 /root/stock-bot/dashboard.py
+Environment=PORT=5005
+ExecStart=/usr/bin/python3 /root/stock-bot-v3/dashboard.py
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

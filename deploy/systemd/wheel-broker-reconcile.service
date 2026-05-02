@@ -4,10 +4,10 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/root/stock-bot
-EnvironmentFile=-/root/stock-bot/.env
+WorkingDirectory=/root/stock-bot-v3
+EnvironmentFile=-/root/stock-bot-v3/.env
 EnvironmentFile=-/root/.alpaca_env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/python3 /root/stock-bot/scripts/wheel_broker_reconcile.py
+ExecStart=/usr/bin/python3 /root/stock-bot-v3/scripts/wheel_broker_reconcile.py
 StandardOutput=journal
 StandardError=journal

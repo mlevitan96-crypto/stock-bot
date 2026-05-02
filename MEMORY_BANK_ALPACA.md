@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-04-30 (LIVE — V2 bidirectional gate; Shadow Vanguard; Compliance baseline; 360° Profitability Board; Predator UW ingest; UW regime matrix cache)
-# Last Updated: 2026-04-30 (§7.8.1: Symbiotic shadow layer — UW regime matrix file-backed; no live UW on shadow attach)
+# Version: 2026-05-02 (LIVE — V2 bidirectional gate; Shadow Vanguard; Compliance baseline; 360° Profitability Board; Predator UW ingest; UW regime matrix cache)
+# Last Updated: 2026-05-02 (§6.3.1 sovereign V3 root `/root/stock-bot-v3` + dashboard **:5005**; §6.3/§6.5/§6.6 legacy paths struck)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -1499,7 +1499,7 @@ Cursor MUST NOT:
 
 ---
 
-## 6.3 SSH CONFIG
+## 6.3 SSH CONFIG ~~[OUTDATED/STALE - DEPRECATED 2026-05-01]~~
 **DEPLOY_TARGET: 104.236.102.57 (stock-bot)**
 
 **VERIFIED (2026-01-12):** SSH deployment works via `droplet_client.py` with paramiko.
@@ -1547,12 +1547,36 @@ Ensure `~/.ssh/config` has a `Host alpaca` block that resolves to `104.236.102.5
 - **Forbidden IP:** `147.182.255.165` — never use for stock-bot. That IP is for a different bot.
 - **Canonical droplet (live verify 2026-03-28):** Prefer SSH alias **alpaca** (use_ssh_config true); else **`104.236.102.57`**. **Active clone:** **`/root/stock-bot`** only on that host. Alternate path names (`/root/stock-bot-current`, `/root/trading-bot-current`) appear in **diagnostic scripts** for portability — they were **absent** on the verified Alpaca droplet; see **§ Alpaca droplet — live operational canon** under Alpaca quantified governance.
 
+### Path audit — `/opt` vs `/root/stock-bot` (live verify 2026-05-02)
+- **`/opt/opa`:** **Not present** on **104.236.102.57**. Under **`/opt/`**, only **`digitalocean/`** (DigitalOcean agent) was observed — no OPA or alternate stock-bot tree hogging the operator URL.
+- **TCP :5000:** Owned by **`stock-bot-dashboard.service`**: **`/usr/bin/python3 /root/stock-bot/dashboard.py`** with **`WorkingDirectory=/root/stock-bot`**. This is the process users hit at **`http://104.236.102.57:5000/`**.
+- **Parallel supervisor child:** **`stock-bot.service`** → **`deploy_supervisor.py`** may still run **`/root/stock-bot/venv/bin/python -u dashboard.py`**, which on this audit bound **`:5001`** (same repo checkout). Treat **:5000** as the authoritative public surface; when debugging “stale UI”, always trace the **:5000** PID and **`cd /root/stock-bot && git rev-parse HEAD`**, not `/opt/*`.
+- **`droplet_config.json` `project_dir`:** Keep **`/root/stock-bot`** for this droplet. Do not pivot deployment docs to **`/opt/opa`** unless a deliberate migration creates that checkout and systemd units are rewired.
+
+---
+
+## §6.3.1 THE SOVEREIGN ROOT (V3)
+
+**Effective:** 2026-05-02 (replaces struck §6.3 / §6.5 / §6.6 path and port guidance for **new** operational work).
+
+- **Canonical Path:** **`/root/stock-bot-v3`**
+- **Canonical Dashboard Port:** **`5005`** — set `PORT=5005` in `stock-bot-dashboard.service`; `dashboard.py` defaults to **5005** when `PORT` is unset.
+- **Deployment rule:** Do **not** use **`/root/stock-bot`** or **port `5000`** for new runbooks, scripts, or operator URLs after cutover. Legacy content in struck sections below is **historical only**.
+- **Operator URL:** `http://104.236.102.57:5005/`
+- **Secrets:** Canonical production **`.env`** after cutover is **`/root/stock-bot-v3/.env`**. Copy from the prior root **once** during migration; never commit.
+- **Supervisor note:** `deploy_supervisor.py` binds the **venv** dashboard on the first free port in **5006–5009** so it does not collide with systemd on **5005**.
+- **Monday flatten:** `scripts/monday_open_reset.py` + `deploy/systemd/monday-open-reset.{service,timer}` — timer fires Mon **13:30:05** and **14:30:05 UTC**; the script runs `liquidate_all` only when America/New_York is **Monday 09:30:05+**. Install timer only when Q-Ops arms it; **stop `stock-bot.service` before flatten** to avoid races.
+
+**Cutover checklist (droplet):** `git clone` / `git fetch && reset --hard origin/main` into `/root/stock-bot-v3`, copy `.env` + `state/` + `venv/` (or rebuild venv), install systemd units from `deploy/*.service`, `daemon-reload`, `restart` `stock-bot` + `stock-bot-dashboard`, verify `curl` to **:5005**, then **archive** (do not blindly `rm -rf`) the old tree: `mv /root/stock-bot /root/archive/stock-bot-pre-v3-<DATE>`.
+
 ---
 
 ## 6.4 CREDENTIALS & ENVIRONMENT
 
+**Canonical env path (V3):** **`/root/stock-bot-v3/.env`** — see **§6.3.1**. The struck §6.3 text below still shows the old path for archive context only.
+
 ### Strict format (systemd / `EnvironmentFile`)
-**CRITICAL:** `systemd` **`EnvironmentFile`** entries must look exactly like **`KEY=VALUE`** lines in **`/root/stock-bot/.env`**:
+**CRITICAL:** `systemd` **`EnvironmentFile`** entries must look exactly like **`KEY=VALUE`** lines in **`/root/stock-bot-v3/.env`** (post-cutover):
 - **MUST NOT** use `export ` prefixes on lines systemd reads from the file.
 - **MUST NOT** add **trailing spaces** after the value or around `=`.
 - **MUST NOT** wrap values in **surrounding quotes** in the file (unless your tooling explicitly requires otherwise — the droplet canon is unquoted `KEY=value`).
@@ -1560,7 +1584,7 @@ Ensure `~/.ssh/config` has a `Host alpaca` block that resolves to `104.236.102.5
 Malformed or partial files cause **supervisor exit** and a **`stock-bot.service` restart / crash loop** (`journalctl` will show missing required keys).
 
 ### Required variables (partial `.env` = crash loop)
-**CRITICAL:** **`/root/stock-bot/.env`** must be **complete** for supervisor boot, dashboard auth, and governance — not Alpaca-only.
+**CRITICAL:** **`/root/stock-bot-v3/.env`** must be **complete** for supervisor boot, dashboard auth, and governance — not Alpaca-only.
 
 | Variable | Requirement |
 |----------|-------------|
@@ -1573,12 +1597,12 @@ Malformed or partial files cause **supervisor exit** and a **`stock-bot.service`
 
 ### Credentials location (canonical file)
 **CRITICAL:** Production secrets for **`stock-bot.service`** live in:
-- **`/root/stock-bot/.env`**
+- **`/root/stock-bot-v3/.env`**
 
 See **Telegram & cross-environment sync** under **Alpaca Telegram Governance** for **`/root/.alpaca_env`** and cron/manual runs — both locations must stay consistent when Telegram or Alpaca vars change.
 
 ### Credential Loading
-- The systemd service (`stock-bot.service`) automatically loads credentials via `EnvironmentFile=/root/stock-bot/.env`
+- The systemd service (`stock-bot.service`) automatically loads credentials via `EnvironmentFile=/root/stock-bot-v3/.env`
 - `deploy_supervisor.py` uses `load_dotenv()` to load `.env` file
 - All services inherit environment variables from the supervisor
 
@@ -1588,7 +1612,7 @@ See **Telegram & cross-environment sync** under **Alpaca Telegram Governance** f
 - Credentials are loaded automatically by systemd service
 
 ### SRE recovery playbook — memory scraping (April 2026)
-**When:** **`/root/stock-bot/.env`** was accidentally **truncated** or overwritten but long-lived daemons may still hold the old environment in RAM.
+**When:** **`/root/stock-bot-v3/.env`** was accidentally **truncated** or overwritten but long-lived daemons may still hold the old environment in RAM.
 
 **Principle:** **Do not assume secrets are gone** until you have checked **live process environments** on the droplet.
 
@@ -1596,13 +1620,13 @@ See **Telegram & cross-environment sync** under **Alpaca Telegram Governance** f
 ```bash
 grep -z -a 'UW_API_KEY' /proc/*/environ 2>/dev/null | tr '\0' '\n'
 ```
-Repeat with **`DASHBOARD_USER`**, **`DASHBOARD_PASS`**, or other key names. Prefer identifying the owning PID first (e.g. **`uw_flow_daemon.py`** often still has **`UW_API_KEY`** and dashboard vars), then merge **only** the missing lines into **`/root/stock-bot/.env`** with **`chmod 600`**. **Operational helper (optional, repo):** `scripts/_sre_recover_env_from_uw_flow.py` — reads **`uw_flow_daemon`** environ and appends missing keys.
+Repeat with **`DASHBOARD_USER`**, **`DASHBOARD_PASS`**, or other key names. Prefer identifying the owning PID first (e.g. **`uw_flow_daemon.py`** often still has **`UW_API_KEY`** and dashboard vars), then merge **only** the missing lines into **`/root/stock-bot-v3/.env`** with **`chmod 600`**. **Operational helper (optional, repo):** `scripts/_sre_recover_env_from_uw_flow.py` — reads **`uw_flow_daemon`** environ and appends missing keys.
 
 **After recovery:** `sudo systemctl restart stock-bot`, then run **`scripts/dashboard_verify_all_tabs.py`** with `.env` sourced.
 
 ---
 
-## 6.5 SYSTEMD SERVICE MANAGEMENT
+## 6.5 SYSTEMD SERVICE MANAGEMENT ~~[OUTDATED/STALE - DEPRECATED 2026-05-01]~~
 
 ### Service Details
 **NOTE (2026-03-28 live verify):** On the Alpaca droplet, **`trading-bot.service` is not installed** (`not-found`). Use **`stock-bot.service`**.
@@ -1651,6 +1675,7 @@ journalctl -u stock-bot -b          # Since boot
 - **Entry Point:** `deploy_supervisor.py` (started from `systemd_start.sh` under `stock-bot.service`)
 - **Supervisor typically manages child processes:** `dashboard.py`, `uw_flow_daemon.py` (UW API ingestion), `main.py` (core trading engine).
 - **Live droplet nuance (2026-03-28):** **`uw-flow-daemon.service`** also runs a dedicated venv `uw_flow_daemon.py`. **`stock-bot-dashboard.service`** runs **`dashboard.py`** with **system** Python and **owns TCP :5000**; the supervisor may still spawn a **second** `dashboard.py` under venv — see **Alpaca droplet — live operational canon** before assuming one dashboard process or one UW daemon instance.
+- **Port split (live verify 2026-05-02):** **`ss -lntp`** showed **:5000** = systemd **`python3 …/root/stock-bot/dashboard.py`** and **:5001** = supervisor **`venv/bin/python -u dashboard.py`**. Both use the **`/root/stock-bot`** tree; there is **no** `/opt/opa` listener. If `/etc/systemd/system/stock-bot-dashboard.service` on the host still contains a stale **`Environment=GIT_COMMIT=…`** line from an old manual edit, remove it on next deploy sync — runtime code is loaded from the checkout path, not from that string.
 
 ### Migration Notes
 The bot was migrated from manual supervisor execution to systemd management:
@@ -1726,7 +1751,7 @@ Ensure the Alpaca dashboard remains a truthful trust surface and cannot silently
 
 ---
 
-## 6.6 DASHBOARD DEPLOYMENT (VERIFIED 2026-01-12, UPDATED 2026-03-28)
+## 6.6 DASHBOARD DEPLOYMENT (VERIFIED 2026-01-12, UPDATED 2026-03-28) ~~[OUTDATED/STALE - DEPRECATED 2026-05-01]~~
 
 ### Dashboard URL and How It Runs
 - **Live URL:** http://104.236.102.57:5000/

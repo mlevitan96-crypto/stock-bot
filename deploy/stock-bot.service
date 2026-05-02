@@ -1,0 +1,23 @@
+# stock-bot.service — supervisor (deploy_supervisor) for sovereign V3 root.
+# Install: sudo cp /root/stock-bot-v3/deploy/stock-bot.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable stock-bot && sudo systemctl restart stock-bot
+
+[Unit]
+Description=STOCK-BOT Supervisor (deploy_supervisor, V3)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/stock-bot-v3
+EnvironmentFile=-/root/stock-bot-v3/.env
+EnvironmentFile=-/root/.alpaca_env
+Environment=STOCK_BOT_ROOT=/root/stock-bot-v3
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bin/bash /root/stock-bot-v3/systemd_start.sh
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target
