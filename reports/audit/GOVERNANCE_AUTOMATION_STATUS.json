@@ -16,5 +16,6 @@
     "governance_contracts_present: reports/board/ not present as writable target for automation outputs",
     "no_clawdbot_moltbot: moltbot/ directory exists with active code (moltbot/__init__.py, moltbot/board.py, etc.); scripts/run_molt_workflow.py imports from moltbot package"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue_note": "Anomalies detected but GitHub issue creation not available in this automation context (gh CLI is read-only). Manual issue creation or next CI run with write access should open issue."
 }
