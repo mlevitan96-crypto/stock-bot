@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-02T19:33:22Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ missing",
+    "governance_contracts: reports/board/ missing",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active code: ['promotion_discipline.py', 'memory_evolution.py', 'orchestrator.py', 'sentinel.py', 'board.py']",
+    "no_clawdbot_moltbot: scripts/run_molt_workflow.py imports from moltbot"
+  ],
+  "slack_sent": false
+}
