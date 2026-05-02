@@ -40,6 +40,7 @@ DEFAULT_DUST_MIN_CREDIT_USD = float(os.getenv("WHEEL_MIN_CREDIT_USD", "200") or 
 UW_WHEEL_CACHE_OI = UwCachePolicy(ttl_seconds=120, key_prefix="wheel_oi", endpoint_name="wheel_oi_change")
 UW_WHEEL_CACHE_IV = UwCachePolicy(ttl_seconds=300, key_prefix="wheel_iv", endpoint_name="wheel_iv_rank")
 UW_WHEEL_CACHE_EARN = UwCachePolicy(ttl_seconds=600, key_prefix="wheel_er", endpoint_name="wheel_earnings")
+UW_WHEEL_CACHE_VOL = UwCachePolicy(ttl_seconds=300, key_prefix="wheel_vol", endpoint_name="wheel_volatility_realized")
 
 
 def _uw_mock_soft() -> bool:
@@ -289,3 +290,115 @@ def circuit_breaker_illiquid_chain(open_interest: int, volume: int, min_oi: int,
 def circuit_breaker_pin_risk(dte: int, hours_to_close: float, max_dte_for_pin: int = 2) -> bool:
     """True => elevated pin risk (very short DTE into last hours) — skip opening new gamma-heavy legs."""
     return dte <= max_dte_for_pin and hours_to_close < 2.0
+
+
+def fetch_uw_iv_atm_and_rv20d(underlying: str) -> Tuple[Optional[float], Optional[float], str]:
+    """
+    Single UW call: implied (ATM) and realized (20d proxy) annualized vols as decimals (e.g. 0.32 = 32%).
+
+    Uses ``/api/stock/{ticker}/volatility/realized`` (see main._normalize_realized_vol).
+    """
+    sym = uw_ticker_for_rest(underlying)
+    if not sym:
+        return None, None, "bad_symbol"
+    if _uw_mock_soft():
+        return 0.35, 0.22, "uw_mock_soft"
+    status, body, _ = uw_http_get(f"/api/stock/{sym}/volatility/realized", cache_policy=UW_WHEEL_CACHE_VOL)
+    if status != 200 or not isinstance(body, dict) or body.get("_blocked"):
+        return None, None, "uw_blocked_or_http"
+    data = body.get("data")
+    row: Dict[str, Any] = {}
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        row = data[0]
+    elif isinstance(data, dict):
+        row = data
+    try:
+        iv = float(row.get("iv_atm") or row.get("ivAtm") or 0)
+    except (TypeError, ValueError):
+        iv = 0.0
+    try:
+        rv = float(row.get("rv_20d") or row.get("rv20d") or row.get("realized_vol_20d") or 0)
+    except (TypeError, ValueError):
+        rv = 0.0
+    if iv <= 0 and rv <= 0:
+        return None, None, "missing_iv_rv"
+    iv_f = iv if iv > 0 else None
+    rv_f = rv if rv > 0 else None
+    return iv_f, rv_f, "ok"
+
+
+def sitter_iv_minus_rv_bonus(underlying: str) -> float:
+    """
+    Non-negative score bump when IV (ATM) > RV (20d) — for wheel universe sitter ranking on SP100.
+
+    Returns ``max(0, iv - rv) * 100`` (typical scale 0–5) or 0.0 when data missing (no penalty).
+    """
+    iv, rv, ok = fetch_uw_iv_atm_and_rv20d(underlying)
+    if iv is None or rv is None or ok != "ok":
+        return 0.0
+    return max(0.0, (iv - rv)) * 100.0
+
+
+def compute_rsi_wilder(closes: List[float], period: int = 14) -> Optional[float]:
+    """Wilder RSI on closing prices; needs len >= period + 1."""
+    if len(closes) < period + 1:
+        return None
+    deltas = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+    if len(deltas) < period:
+        return None
+    gains = [max(d, 0.0) for d in deltas[:period]]
+    losses = [max(-d, 0.0) for d in deltas[:period]]
+    avg_gain = sum(gains) / period
+    avg_loss = sum(losses) / period
+    for i in range(period, len(deltas)):
+        g = max(deltas[i], 0.0)
+        l = max(-deltas[i], 0.0)
+        avg_gain = (avg_gain * (period - 1) + g) / period
+        avg_loss = (avg_loss * (period - 1) + l) / period
+    if avg_loss <= 1e-12:
+        return 100.0 if avg_gain > 0 else 50.0
+    rs = avg_gain / avg_loss
+    return 100.0 - (100.0 / (1.0 + rs))
+
+
+def rsi_from_alpaca_daily(api, underlying: str, period: int = 14) -> Tuple[Optional[float], str]:
+    """RSI(period) from last ~40 daily closes. Returns (rsi, reason)."""
+    sym = normalize_equity_symbol(underlying)
+    if not sym or api is None:
+        return None, "no_symbol_or_api"
+    try:
+        bars = api.get_bars(sym, "1Day", limit=min(period + 30, 60))
+        closes: List[float] = []
+        if hasattr(bars, "df") and bars.df is not None and not bars.df.empty:
+            df = bars.df
+            col = "close" if "close" in df.columns else "c"
+            if col in df.columns:
+                closes = [float(x) for x in df[col].tolist() if x is not None]
+        elif isinstance(bars, list) and bars:
+            for b in bars:
+                if isinstance(b, dict):
+                    v = b.get("c") or b.get("close")
+                    if v is not None:
+                        closes.append(float(v))
+        if len(closes) < period + 1:
+            return None, "insufficient_bars"
+        rsi = compute_rsi_wilder(closes, period=period)
+        return rsi, "ok" if rsi is not None else "rsi_undef"
+    except Exception as e:
+        return None, str(e)[:80]
+
+
+def should_veto_csp_rsi_overbought(api, underlying: str, max_rsi: float = 70.0) -> Tuple[bool, str]:
+    """
+    True => skip CSP (overextended / sell into resistance).
+
+    ``max_rsi`` <= 0 disables the gate (always allow).
+    """
+    if float(max_rsi or 0) <= 0:
+        return False, "disabled"
+    rsi, why = rsi_from_alpaca_daily(api, underlying)
+    if rsi is None:
+        return False, f"no_rsi:{why}"
+    if rsi > float(max_rsi):
+        return True, f"rsi_overbought:{rsi:.1f}>{max_rsi}"
+    return False, "ok"
