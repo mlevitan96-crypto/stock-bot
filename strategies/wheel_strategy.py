@@ -584,6 +584,7 @@ def _config_snapshot_for_audit(config: dict) -> dict:
         "require_cash_secured": risk.get("require_cash_secured", True),
         "allow_margin_account": risk.get("allow_margin_account", False),
         "avoid_ex_dividend_days": risk.get("avoid_ex_dividend_days", 0),
+        "max_rsi_for_csp_entry": risk.get("max_rsi_for_csp_entry", 70),
     }
 
 
@@ -617,6 +618,7 @@ def _run_csp_phase(
     avoid_ex_div = int(risk_cfg.get("avoid_ex_dividend_days", 0) or 0)
     require_cash_secured = bool(risk_cfg.get("require_cash_secured", True))
     allow_margin_account = bool(risk_cfg.get("allow_margin_account", False))
+    max_rsi_csp = float(risk_cfg.get("max_rsi_for_csp_entry", 70) or 70)
     dte_min = csp_cfg.get("target_dte_min", 5)
     dte_max = csp_cfg.get("target_dte_max", 10)
     delta_min = csp_cfg.get("delta_min", -0.3)
@@ -682,6 +684,17 @@ def _run_csp_phase(
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="iv_rank")
             _emit_candidate_evaluated("skip", "iv_rank")
             continue
+        if max_rsi_csp > 0:
+            try:
+                from src.options_engine import should_veto_csp_rsi_overbought
+
+                rsi_veto, rsi_detail = should_veto_csp_rsi_overbought(api, t, max_rsi_csp)
+                if rsi_veto:
+                    _wheel_system_event("wheel_csp_skipped", symbol=t, reason="rsi_overbought", rsi_detail=rsi_detail)
+                    _emit_candidate_evaluated("skip", "rsi_overbought", rsi_detail=rsi_detail)
+                    continue
+            except Exception as e:
+                log.warning("Wheel RSI gate failed for %s: %s", t, e)
         if avoid_ex_div > 0:
             try:
                 from src.wheel_risk_gates import should_skip_dividend_ex_zone

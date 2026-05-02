@@ -215,6 +215,20 @@ def run_wheel(api, config: Dict[str, Any]) -> Dict[str, Any]:
     try:
         st0 = _load_wheel_state()
         reconcile_assignments_from_broker(api, st0)
+        vel = (config or {}).get("velocity")
+        if not vel:
+            try:
+                from strategies.wheel_strategy import _load_strategies_config as _lsc
+
+                wheel_cfg = (_lsc().get("strategies") or {}).get("wheel", {})
+                vel = wheel_cfg.get("velocity") or {}
+            except Exception:
+                vel = {}
+        if vel:
+            from src.wheel_capital_velocity import apply_wheel_capital_velocity
+
+            st1 = _load_wheel_state()
+            apply_wheel_capital_velocity(api, st1, vel)
         drift = detect_wheel_broker_drift(api, _load_wheel_state())
         refresh_wheel_dashboard_sink(api, drift_alerts=drift)
     except Exception as e:
