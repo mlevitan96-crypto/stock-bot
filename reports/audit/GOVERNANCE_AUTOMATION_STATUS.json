@@ -16,5 +16,10 @@
     "no_deprecated_dirs: moltbot/ directory still present at repo root with active Python modules (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py)",
     "no_clawdbot_moltbot: moltbot/ directory contains active code (board.py, sentinel.py, orchestrator.py, etc.); scripts/run_molt_workflow.py and scripts/run_openclaw_molt_synthesis.py reference moltbot/clawdbot patterns; board/eod/out/ contains references in JSON files"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": {
+    "existing_open_issue": "#1682",
+    "update_attempted": true,
+    "update_result": "gh CLI is read-only; unable to comment. Issue #1682 already open with matching title."
+  }
 }
