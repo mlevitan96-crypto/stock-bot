@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-02T10:22:33Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot code directory and references found in code/config paths",
+      "evidence": [
+        "moltbot/ directory exists with 11 code files (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/)",
+        "scripts/sre/run_sre_anomaly_scan.py references moltbot/clawdbot",
+        "scripts/automations/run_governance_integrity_once.py references moltbot/clawdbot",
+        "scripts/run_openclaw_molt_synthesis.py references moltbot/clawdbot",
+        "scripts/run_molt_workflow.py references moltbot",
+        "board/eod/out/2026-02-12/eod_failure.json references moltbot",
+        "board/eod/out/2026-02-12/cron_diagnosis.json references moltbot",
+        "board/eod/out/2026-02-13/cron_diagnosis.json references moltbot"
+      ]
+    }
+  ],
+  "slack_sent": false
+}
