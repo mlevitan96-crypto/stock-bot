@@ -463,6 +463,7 @@ DASHBOARD_HTML = """
         <div class="tabs">
             <button class="tab active" data-tab="positions" onclick="switchTab('positions', event)">📊 Positions</button>
             <button class="tab" data-tab="closed_trades" onclick="switchTab('closed_trades', event)">📋 Closed Trades</button>
+            <button class="tab" data-tab="wheel_hud" onclick="switchTab('wheel_hud', event)">⚙️ Options Wheel</button>
             <button class="tab" data-tab="system_health" onclick="switchTab('system_health', event)">🩺 System Health</button>
             <button class="tab" data-tab="executive" onclick="switchTab('executive', event)">📈 Executive Summary</button>
             <button class="tab" data-tab="sre" onclick="switchTab('sre', event)">🔍 SRE Monitoring</button>
@@ -546,6 +547,12 @@ DASHBOARD_HTML = """
                 <div class="loading">Loading closed trades...</div>
             </div>
         </div>
+        <div id="wheel_hud-tab" class="tab-content">
+            <div id="tab-state-line-wheel_hud" class="tab-state-banner partial" style="display:block">PARTIAL: Open Options Wheel tab to load HUD.</div>
+            <div id="wheel_hud-content">
+                <div class="loading">Loading Options Wheel...</div>
+            </div>
+        </div>
         <div id="failure_points-tab" class="tab-content">
             <div id="tab-state-line-failure_points" class="tab-state-banner partial" style="display:block">PARTIAL: Open Trading Readiness (More) to load.</div>
             <div id="failure_points-content">
@@ -608,6 +615,7 @@ DASHBOARD_HTML = """
     else if(tabName==='learning_readiness'&&typeof loadLearningReadiness==='function')loadLearningReadiness();
     else if(tabName==='profitability_learning'&&typeof loadProfitabilityLearning==='function')loadProfitabilityLearning();
     else if(tabName==='fast_lane'&&typeof loadFastLanePnl==='function')loadFastLanePnl();
+    else if(tabName==='wheel_hud'&&typeof loadWheelHud==='function')loadWheelHud();
     else if(typeof updateDashboard==='function'&&tabName==='positions')updateDashboard();
     };
     function fmt(v){if(v==null||v===undefined)return '0.00';var n=Number(v);return isFinite(n)?n.toFixed(2):'0.00';}
@@ -646,6 +654,7 @@ DASHBOARD_HTML = """
     if(list.length){h+='<p><strong>Computed artifacts:</strong></p><ul>';for(var i=0;i<list.length;i++){var c=list[i];var name=typeof c==='string'?c:(c.name||c.id||'');if(name)h+='<li>'+name+'</li>';}h+='</ul>';}
     var _tl=tabStateFromApi(d.as_of_ts,168,'Telemetry index missing as_of_ts.');h+='</div>';el.innerHTML=h;el.dataset.loaded='1';if(typeof setTabStateLine==='function')setTabStateLine('telemetry',_tl.st,_tl.msg);}).catch(function(e){infoErr(el,'Telemetry index did not load: '+(e&&e.message?e.message:'network')+'.');if(typeof setTabStateLine==='function')setTabStateLine('telemetry','partial','Retry later.');});};
     window.loadProfitabilityLearning=function(){var el=document.getElementById('profitability_learning-content');if(!el)return;el.innerHTML='<div class="loading">Loading Profitability &amp; Learning...</div>';fetch('/api/profitability_learning',creds).then(function(r){if(!r.ok){infoErr(el,'HTTP '+r.status+': sign in to load cockpit.');if(typeof setTabStateLine==='function')setTabStateLine('profitability_learning','partial','Auth required.');return null;}return r.json();}).then(function(d){if(!el)return;if(!d){el.innerHTML='<div class="stat-card"><p>No cockpit file yet. Run <code>scripts/update_profitability_cockpit.py</code> on the droplet if you want this panel populated — not required for live trading.</p></div>';if(typeof setTabStateLine==='function')setTabStateLine('profitability_learning','partial','No cockpit artifact.');return;}var ts=d.trade_state||{};var total=ts.total_trade_events!=null?ts.total_trade_events:0;var until=total>0?100-(total%100):100;var v=d.csa_verdict||{};var h='<div class="stat-card"><h3>CSA &amp; Trade Count</h3><p style="font-size:0.85em;color:#64748b">Narrative cockpit — not a live certification gate.</p><p><strong>Last mission:</strong> '+(v.mission_id||'—')+'</p><p><strong>Verdict:</strong> '+(v.verdict||'—')+'</p><p><strong>Total trade events:</strong> '+total+'</p><p><strong>Trades until next CSA:</strong> '+until+'</p></div>';var md=String(d.cockpit_md||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');h+='<div class="stat-card"><h3>Profitability Cockpit</h3><pre style="white-space:pre-wrap;font-size:0.9em;">'+md+'</pre></div>';el.innerHTML=h;el.dataset.loaded='1';if(typeof setTabStateLine==='function')setTabStateLine('profitability_learning','ok','Cockpit loaded (informational).');}).catch(function(e){if(el)infoErr(el,'Profitability panel did not load: '+(e&&e.message?e.message:'network')+'.');if(typeof setTabStateLine==='function')setTabStateLine('profitability_learning','partial','Retry later.');});};
+    window.loadWheelHud=function(){var el=document.getElementById('wheel_hud-content');if(!el)return;el.innerHTML='<div class="loading">Loading Options Wheel...</div>';fetch('/api/stockbot/wheel_hud',creds).then(function(r){if(!r.ok){infoErr(el,'HTTP '+r.status+': sign in for wheel HUD.');if(typeof setTabStateLine==='function')setTabStateLine('wheel_hud','partial','Auth required.');return null;}return r.json();}).then(function(d){if(!el)return;var ep=(d&&d.epoch_label)?String(d.epoch_label):'—';var epts=d&&d.epoch_start_ts?String(d.epoch_start_ts):'—';var nav=d&&d.nav_usd!=null?Number(d.nav_usd):null;var cash=d&&d.cash!=null?Number(d.cash):null;var mult=d&&d.account_multiplier!=null?Number(d.account_multiplier):null;var upd=d&&d.updated_at_utc?String(d.updated_at_utc):'—';var rows=Array.isArray(d.rows)?d.rows:[];var alerts=Array.isArray(d.drift_alerts)?d.drift_alerts:[];function stLab(s){if(s==='CSP')return 'CSP';if(s==='CC')return 'CC';if(s==='CC_STOCK')return 'CC (shares)';return String(s||'—');}var h='<div class="stat-card" style="margin-bottom:12px;"><h3>Options Wheel HUD</h3><p><strong>Epoch:</strong> '+ep+' · <strong>Epoch start:</strong> '+epts+'</p><p><strong>NAV:</strong> '+(nav!=null&&isFinite(nav)?'$'+nav.toFixed(2):'—')+' · <strong>Cash:</strong> '+(cash!=null&&isFinite(cash)?'$'+cash.toFixed(2):'—')+' · <strong>Multiplier:</strong> '+(mult!=null&&isFinite(mult)?String(mult):'—')+'</p><p style="font-size:0.85em;color:#64748b">Sink updated: '+upd+' · Source: <code>state/wheel_dashboard_sink.json</code></p></div>';if(alerts.length){h+='<div class="stat-card" style="border:1px solid #fbbf24;background:#fffbeb"><h3 style="color:#92400e">Drift alerts</h3><pre style="white-space:pre-wrap;font-size:11px">'+JSON.stringify(alerts,null,2).substring(0,4000)+'</pre></div>';}if(!rows.length){h+='<div class="stat-card"><p>No wheel rows. Open CSP/CC legs live in <code>state/wheel_state.json</code>; full spots/NAV refresh via <code>scripts/wheel_broker_reconcile.py</code> (15m timer) or wheel run.</p></div>';el.innerHTML=h;if(typeof setTabStateLine==='function')setTabStateLine('wheel_hud','ok','No open wheel legs.');return;}h+='<div class="stat-card"><table style="width:100%;font-size:12px"><thead><tr><th>Ticker</th><th>Stage</th><th>Strike</th><th>Spot</th><th>Strike−Spot</th><th>DTE</th><th>Days held</th><th>Realized premium</th><th>Adj. basis</th></tr></thead><tbody>';for(var i=0;i<rows.length;i++){var r=rows[i];var spot=r.spot!=null?Number(r.spot):null;var svs=r.strike_vs_spot!=null?Number(r.strike_vs_spot):null;h+='<tr><td>'+(r.ticker||'—')+'</td><td>'+stLab(r.stage)+'</td><td>'+(r.strike!=null?Number(r.strike).toFixed(2):'—')+'</td><td>'+(spot!=null&&isFinite(spot)?spot.toFixed(2):'—')+'</td><td>'+(svs!=null&&isFinite(svs)?svs.toFixed(2):'—')+'</td><td>'+(r.dte!=null?r.dte:'—')+'</td><td>'+(r.days_held!=null?r.days_held:'—')+'</td><td>'+(r.realized_premium_usd!=null?'$'+Number(r.realized_premium_usd).toFixed(2):'—')+'</td><td>'+(r.adjusted_cost_basis!=null?Number(r.adjusted_cost_basis).toFixed(2):'—')+'</td></tr>';}h+='</tbody></table></div>';el.innerHTML=h;var _wh=tabStateFromApi(d.updated_at_utc,0.35,'Sink timestamp missing.');if(typeof setTabStateLine==='function')setTabStateLine('wheel_hud',_wh.st,_wh.msg);}).catch(function(e){infoErr(el,'Wheel HUD did not load: '+(e&&e.message?e.message:'network')+'.');if(typeof setTabStateLine==='function')setTabStateLine('wheel_hud','partial','Retry after sign in.');});};
     window.loadFastLanePnl=function(){var el=document.getElementById('fast_lane-content');if(!el)return;el.innerHTML='<div class="loading">Loading Alpaca Fast-Lane 25-Trade PnL...</div>';fetch('/api/stockbot/fast_lane_ledger',creds).then(function(r){if(!r.ok){infoErr(el,'HTTP '+r.status+': sign in for fast-lane ledger.');if(typeof setTabStateLine==='function')setTabStateLine('fast_lane','partial','Auth required.');return null;}return r.json();}).then(function(d){if(!el)return;var cycles=Array.isArray(d.cycles)?d.cycles:[];var totalTrades=d.total_trades!=null?d.total_trades:0;var cum=d.cumulative_pnl!=null?d.cumulative_pnl:0;var h='<div class="stat-card"><h3>Alpaca Fast-Lane (25-trade cycles)</h3><p><strong>Total trades:</strong> '+totalTrades+'</p><p><strong>Cumulative PnL:</strong> <span class="'+(cum>=0?'positive':'negative')+'">$'+Number(cum).toFixed(2)+'</span></p><p style="font-size:0.9em;color:#6b7280;">Shadow-only; no execution impact.</p></div>';if(cycles.length){var run=0;h+='<div class="stat-card"><h3>PnL per cycle (25 trades)</h3><table style="width:100%;font-size:12px;"><thead><tr><th>Cycle</th><th>PnL (USD)</th><th>Cumulative</th><th>Promoted</th><th>Completed</th></tr></thead><tbody>';for(var i=0;i<cycles.length;i++){var c=cycles[i];run+=Number(c.pnl_usd)||0;var pnlCls=(c.pnl_usd>=0?'positive':'negative');var promoted=(c.promoted_angle||c.best_candidate_id||'—');h+='<tr><td>'+(c.cycle_id||'—')+'</td><td class="'+pnlCls+'">$'+(Number(c.pnl_usd).toFixed(2))+'</td><td>$'+Number(run).toFixed(2)+'</td><td>'+promoted+'</td><td>'+(c.timestamp_completed||'—').toString().substring(0,19)+'</td></tr>';}h+='</tbody></table></div>';}else{h+='<div class="stat-card"><p>No cycles yet. Run <code>python scripts/run_fast_lane_shadow_cycle.py</code> (cron every 15 min on droplet).</p></div>';}if(d.error){h+='<div class="stat-card" style="border-color:#f59e0b;"><p>'+d.error+'</p></div>';}var _flTs=cycles.length?cycles[cycles.length-1].timestamp_completed:null;var _fl=tabStateFromApi(_flTs,168,'No cycle timestamps yet.');el.innerHTML=h;el.dataset.loaded='1';if(typeof setTabStateLine==='function')setTabStateLine('fast_lane',_fl.st,_fl.msg);}).catch(function(e){infoErr(el,'Fast-lane panel did not load: '+(e&&e.message?e.message:'network')+'.');if(typeof setTabStateLine==='function')setTabStateLine('fast_lane','partial','Retry later.');});};
     window.loadClosedTrades=function(){var el=document.getElementById('closed_trades-content');if(!el)return;el.innerHTML='<div class="loading">Loading closed trades...</div>';fetch('/api/stockbot/closed_trades',creds).then(function(r){if(!r.ok){infoErr(el,'HTTP '+r.status+': sign in to load closed trades.');if(typeof setTabStateLine==='function')setTabStateLine('closed_trades','partial','Auth required.');return null;}return r.json();}).then(function(d){if(!d)return;var filter=document.getElementById('closed_trades_filter');var raw=Array.isArray(d.closed_trades)?d.closed_trades:[];var strategyFilter=(filter&&filter.value)||'all';var list=raw;if(strategyFilter==='equity')list=raw.filter(function(t){return (t.strategy_id||'equity')==='equity';});var h='<div class="stat-card" style="margin-bottom:12px;"><label>Filter: </label><select id="closed_trades_filter" onchange="if(typeof loadClosedTrades===\'function\')loadClosedTrades();"><option value="all"'+(strategyFilter==='all'?' selected':'')+'>All trades</option><option value="equity"'+(strategyFilter==='equity'?' selected':'')+'>Equity only</option></select></div>';
     var asum=d.alpaca_strict_summary||null;var sumLine='';if(asum){sumLine='<p style="font-size:0.85em"><strong>Alpaca strict snapshot:</strong> '+(asum.LEARNING_STATUS||'—')+' · seen '+(asum.trades_seen!=null?asum.trades_seen:'—')+' · incomplete '+(asum.trades_incomplete!=null?asum.trades_incomplete:'—')+' · API ts '+(d.response_generated_at_utc||'—')+'</p>';}if(d.alpaca_strict_eval_error){sumLine+='<p style="color:#b45309;font-size:0.85em">Strict eval error: '+String(d.alpaca_strict_eval_error).substring(0,200)+'</p>';}
@@ -763,6 +772,8 @@ DASHBOARD_HTML = """
                 if (typeof loadProfitabilityLearning === 'function') loadProfitabilityLearning();
             } else if (tabName === 'fast_lane') {
                 if (typeof loadFastLanePnl === 'function') loadFastLanePnl();
+            } else if (tabName === 'wheel_hud') {
+                if (typeof loadWheelHud === 'function') loadWheelHud();
             } else if (tabName === 'positions') {
                 updateDashboard();
             }
@@ -5403,6 +5414,44 @@ def api_stockbot_fast_lane_ledger():
         return jsonify(data), 200
     except Exception as e:
         return jsonify({"cycles": [], "total_trades": 0, "cumulative_pnl": 0.0, "error": str(e)}), 200
+
+
+def _wheel_hud_bundle():
+    """Wheel HUD: prefer ``wheel_dashboard_sink.json``; fallback builds from ``wheel_state`` + epoch only."""
+    from config.registry import StateFiles, read_json
+
+    try:
+        p = StateFiles.WHEEL_DASHBOARD_SINK
+        if p.exists():
+            data = read_json(p, default={})
+            if isinstance(data, dict) and isinstance(data.get("rows"), list):
+                return data
+    except Exception:
+        pass
+    try:
+        from src.wheel_dashboard_sink import minimal_sink_from_files
+
+        return minimal_sink_from_files()
+    except Exception as e:
+        return {
+            "schema_version": 1,
+            "rows": [],
+            "drift_alerts": [],
+            "error": str(e),
+            "updated_at_utc": datetime.now(timezone.utc).isoformat(),
+        }
+
+
+@app.route("/api/stockbot/wheel_hud", methods=["GET"])
+def api_stockbot_wheel_hud():
+    """Options Wheel HUD (CSP/CC stages, premium roll-up, epoch). Cached a few seconds for polling."""
+    try:
+        data = _dash_cache_get("stockbot_wheel_hud_v1", _wheel_hud_bundle, ttl_sec=5.0)
+        if not isinstance(data, dict):
+            data = {"rows": [], "schema_version": 1}
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({"rows": [], "schema_version": 1, "error": str(e)}), 200
 
 
 @app.route("/api/closed_positions")
