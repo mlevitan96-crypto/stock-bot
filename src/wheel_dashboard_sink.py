@@ -42,6 +42,64 @@ def _days_held(opened_at: Optional[str]) -> Optional[int]:
     return max(0, int(delta.total_seconds() // 86400))
 
 
+def _estimate_put_delta_fast(strike: float, spot: float) -> float:
+    if spot <= 0:
+        return -0.25
+    m = strike / spot
+    if m >= 1.0:
+        return -0.5
+    if m >= 0.98:
+        return -0.35
+    if m >= 0.95:
+        return -0.25
+    return -0.15
+
+
+def _estimate_call_delta_fast(strike: float, spot: float) -> float:
+    if spot <= 0:
+        return 0.25
+    m = strike / spot
+    if m <= 1.0:
+        return 0.5
+    if m <= 1.02:
+        return 0.35
+    if m <= 1.05:
+        return 0.25
+    return 0.15
+
+
+def compute_portfolio_wheel_hud_metrics(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Proxy Greeks and premium velocity for HUD (not exchange Greeks).
+
+    Theta proxy: OTM decay heuristic from open credit / DTE. Delta: BSM-ish fast estimates × spot × 100.
+    """
+    theta_proxy = 0.0
+    delta_notional = 0.0
+    prem_per_day = 0.0
+    for r in rows:
+        spot = float(r.get("spot") or 0)
+        strike = float(r.get("strike") or 0)
+        dte = max(int(r.get("dte") or 1), 1)
+        dh = max(int(r.get("days_held") or 0), 0)
+        st = r.get("stage")
+        cred = float(r.get("open_leg_credit_usd") or 0)
+        if st == "CSP" and spot > 0:
+            dlt = _estimate_put_delta_fast(strike, spot)
+            delta_notional += dlt * spot * 100.0
+            if cred > 0:
+                theta_proxy += cred * 0.15 / float(dte)
+                prem_per_day += cred / float(max(dh, 1))
+        elif st == "CC" and spot > 0:
+            dlt = _estimate_call_delta_fast(strike, spot)
+            delta_notional += dlt * spot * 100.0
+    return {
+        "portfolio_theta_proxy_per_day_usd": round(theta_proxy, 2),
+        "portfolio_delta_notional_usd": round(delta_notional, 2),
+        "premium_per_day_usd": round(prem_per_day, 2),
+    }
+
+
 def _realized_premium_for_symbol(state: Dict[str, Any], underlying: str) -> float:
     total = 0.0
     u = underlying.upper()
@@ -89,6 +147,11 @@ def build_wheel_hud_rows(
             strike = float(leg.get("strike") or 0)
             spot = float(spots.get(u) or leg.get("spot_at_open") or 0)
             exp = leg.get("expiry") or leg.get("expiration_date")
+            oc = leg.get("open_credit")
+            try:
+                oc_f = float(oc) if oc is not None else 0.0
+            except (TypeError, ValueError):
+                oc_f = 0.0
             rows.append(
                 {
                     "ticker": u,
@@ -99,6 +162,7 @@ def build_wheel_hud_rows(
                     "dte": _dte_from_expiry(str(exp) if exp else None),
                     "days_held": _days_held(leg.get("opened_at")),
                     "realized_premium_usd": _realized_premium_for_symbol(state, u),
+                    "open_leg_credit_usd": round(oc_f, 2) if oc_f else None,
                     "adjusted_cost_basis": strike,
                     "option_symbol": leg.get("option_symbol") or leg.get("symbol"),
                     "opened_at": leg.get("opened_at"),
@@ -177,14 +241,17 @@ def minimal_sink_from_files(
     state = read_json(StateFiles.WHEEL_STATE, default={}) or {}
     epoch = read_json(StateFiles.EPOCH_STATE, default={}) or {}
     rows = build_wheel_hud_rows(state, spot_by_underlying=spot_by_underlying)
+    greeks = compute_portfolio_wheel_hud_metrics(rows)
     return {
         "updated_at_utc": datetime.now(timezone.utc).isoformat(),
         "epoch_label": epoch.get("epoch_label"),
         "epoch_start_ts": epoch.get("epoch_start_ts"),
+        "wheel_realized_alpha_usd": epoch.get("wheel_realized_alpha_usd"),
         "nav_usd": nav_usd,
         "cash": cash,
         "account_multiplier": multiplier,
         "rows": rows,
         "drift_alerts": drift_alerts or [],
-        "schema_version": 1,
+        "schema_version": 2,
+        **greeks,
     }

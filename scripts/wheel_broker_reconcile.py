@@ -62,6 +62,14 @@ def main() -> int:
 
     st = ws._load_wheel_state()
     reconcile_assignments_from_broker(api, st)
+    try:
+        vel = (ws._load_strategies_config().get("strategies") or {}).get("wheel", {}).get("velocity") or {}
+        if vel:
+            from src.wheel_capital_velocity import apply_wheel_capital_velocity
+
+            apply_wheel_capital_velocity(api, ws._load_wheel_state(), vel)
+    except Exception as e:
+        print(f"wheel_broker_reconcile: velocity skipped: {e}", flush=True)
     drift = detect_wheel_broker_drift(api, ws._load_wheel_state())
     refresh_wheel_dashboard_sink(api, drift_alerts=drift)
     print("wheel_broker_reconcile: ok", flush=True)
