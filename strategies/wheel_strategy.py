@@ -379,13 +379,25 @@ def _estimate_call_delta(strike: float, spot: float) -> float:
 
 
 def _check_earnings(underlying: str, window_days: int) -> bool:
-    """Skip if earnings within window. TODO: Integrate earnings calendar."""
-    return False
+    """True => skip CSP (earnings inside window). UW-backed; fail-closed when data missing."""
+    try:
+        from src.options_engine import should_skip_for_earnings
+
+        return should_skip_for_earnings(underlying, window_days)
+    except Exception as e:
+        log.warning("Wheel earnings gate failed for %s: %s", underlying, e)
+        return True
 
 
 def _check_iv_rank(underlying: str, min_iv_rank: float) -> bool:
-    """Skip if IV rank < min. TODO: Integrate IV data; stub returns True (pass)."""
-    return True
+    """True => IV rank OK (>= min). Fail-closed on UW errors."""
+    try:
+        from src.options_engine import iv_rank_at_least
+
+        return iv_rank_at_least(underlying, float(min_iv_rank))
+    except Exception as e:
+        log.warning("Wheel IV rank gate failed for %s: %s", underlying, e)
+        return False
 
 
 # -----------------------------------------------------------------------------
@@ -567,7 +579,7 @@ def _config_snapshot_for_audit(config: dict) -> dict:
         "delta_max": csp.get("delta_max", -0.2),
         "dte_min": csp.get("target_dte_min", 5),
         "dte_max": csp.get("target_dte_max", 10),
-        "avoid_earnings_window_days": risk.get("avoid_earnings_window_days", 3),
+        "avoid_earnings_window_days": risk.get("avoid_earnings_window_days", 21),
     }
 
 
@@ -592,8 +604,10 @@ def _run_csp_phase(
     max_pos = config.get("max_concurrent_positions") or config.get("max_positions", 5)
     per_position_frac_of_wheel = config.get("per_position_fraction_of_wheel_budget", 0.5)
     max_per_symbol = risk_cfg.get("max_positions_per_symbol", 2)
-    avoid_earnings = risk_cfg.get("avoid_earnings_window_days", 3)
-    min_iv = risk_cfg.get("min_iv_rank", 20)
+    avoid_earnings = risk_cfg.get("avoid_earnings_window_days", 21)
+    min_iv = risk_cfg.get("min_iv_rank", 50)
+    put_wall_min_oi = int(risk_cfg.get("put_wall_min_oi", 5000) or 5000)
+    min_credit_usd = float(risk_cfg.get("min_credit_usd", 0) or 0)
     dte_min = csp_cfg.get("target_dte_min", 5)
     dte_max = csp_cfg.get("target_dte_max", 10)
     delta_min = csp_cfg.get("delta_min", -0.3)
@@ -637,6 +651,18 @@ def _run_csp_phase(
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="max_positions_reached")
             _emit_candidate_evaluated("skip", "max_positions_reached")
             break
+        try:
+            from src.options_engine import is_sp100_wheel_eligible
+
+            if not is_sp100_wheel_eligible(t):
+                _wheel_system_event("wheel_csp_skipped", symbol=t, reason="not_sp100")
+                _emit_candidate_evaluated("skip", "not_sp100")
+                continue
+        except Exception as e:
+            log.warning("Wheel SP100 gate import failed: %s", e)
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="sp100_gate_error")
+            _emit_candidate_evaluated("skip", "sp100_gate_error")
+            continue
         if _check_earnings(t, avoid_earnings):
             log.info("Wheel CSP: skip %s (earnings window)", t)
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="earnings_window")
@@ -694,6 +720,49 @@ def _run_csp_phase(
         occ_symbol = chosen["symbol"]
         if not occ_symbol:
             continue
+        try:
+            from src.options_engine import institutional_put_floor_ok, premium_meets_min_credit
+
+            ok_wall, wall_snap = institutional_put_floor_ok(t, spot, chosen["strike"], min_wall_oi=put_wall_min_oi)
+            if not ok_wall:
+                _wheel_system_event(
+                    "wheel_csp_skipped",
+                    symbol=t,
+                    reason="put_wall",
+                    wall_strike=wall_snap.wall_strike,
+                    wall_oi=wall_snap.wall_oi,
+                    wall_reason=wall_snap.reason,
+                )
+                _emit_candidate_evaluated(
+                    "skip",
+                    "put_wall",
+                    spot_price=round(spot, 2),
+                    spot_source=spot_source,
+                    wall_strike=wall_snap.wall_strike,
+                    wall_oi=wall_snap.wall_oi,
+                )
+                continue
+        except Exception as e:
+            log.warning("Wheel put-wall gate failed for %s: %s", t, e)
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="put_wall_gate_error")
+            _emit_candidate_evaluated("skip", "put_wall_gate_error")
+            continue
+        limit_price = 0.05
+        try:
+            if not premium_meets_min_credit(limit_price, min_credit_usd):
+                _wheel_system_event(
+                    "wheel_csp_skipped",
+                    symbol=t,
+                    reason="dust_floor",
+                    min_credit_usd=min_credit_usd,
+                    limit_price=limit_price,
+                )
+                _emit_candidate_evaluated("skip", "dust_floor", min_credit_usd=min_credit_usd, limit_price=limit_price)
+                continue
+        except Exception as e:
+            log.warning("Wheel dust floor check failed for %s: %s", t, e)
+            _emit_candidate_evaluated("skip", "dust_floor_gate_error")
+            continue
         notional = chosen["strike"] * 100
         allowed, alloc_details = can_allocate("wheel", notional, account_equity, state)
         _wheel_system_event(
@@ -733,7 +802,6 @@ def _run_csp_phase(
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="existing_order")
             _emit_candidate_evaluated("skip", "existing_order", spot_price=round(spot, 2), spot_source=spot_source, required_notional=round(notional, 2))
             continue
-        limit_price = 0.05
         expiry_str = chosen["contract"].get("expiration_date")
         client_order_id = build_wheel_client_order_id(cycle_id, t, "CSP", expiry_str, chosen["strike"], 1)
         if idempotency_skip(state, client_order_id):
