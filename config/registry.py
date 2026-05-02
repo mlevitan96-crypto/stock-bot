@@ -205,6 +205,8 @@ class StateFiles:
 
     # Wheel strategy: assigned shares and open CSP/CC tracking.
     WHEEL_STATE = Directories.STATE / "wheel_state.json"
+    # Wheel HUD: written by scripts/wheel_broker_reconcile.py (15m) for dashboard low-latency reads.
+    WHEEL_DASHBOARD_SINK = Directories.STATE / "wheel_dashboard_sink.json"
 
     # Open-position signal propagation: last evaluated signal strength per symbol (dashboard + audit).
     SIGNAL_STRENGTH_CACHE = Directories.STATE / "signal_strength_cache.json"
