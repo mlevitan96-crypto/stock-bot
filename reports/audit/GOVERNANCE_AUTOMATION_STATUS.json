@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-02T22:02:36Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "Missing: reports/board/",
+    "reports/board/ missing (governance contracts)",
+    "Deprecated dirs still present: ['moltbot']",
+    "Clawdbot/Moltbot references in active code: ['./scripts/sre/run_sre_anomaly_scan.py', './scripts/automations/run_governance_integrity_once.py', './scripts/run_molt_workflow.py', './scripts/run_openclaw_molt_synthesis.py']"
+  ],
+  "slack_sent": false
+}
