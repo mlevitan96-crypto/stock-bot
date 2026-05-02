@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
 # Version: 2026-05-02 (LIVE — V2 bidirectional gate; Shadow Vanguard; Compliance baseline; 360° Profitability Board; Predator UW ingest; UW regime matrix cache)
-# Last Updated: 2026-05-02 (§6.3.1 sovereign V3 root `/root/stock-bot-v3` + dashboard **:5005**; §6.3/§6.5/§6.6 legacy paths struck)
+# Last Updated: 2026-05-02 (§6.3.1 UFW: **5005** ALLOW, **5000/5001** DENY; sovereign V3 root + HUD port)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -1563,6 +1563,7 @@ Ensure `~/.ssh/config` has a `Host alpaca` block that resolves to `104.236.102.5
 - **Canonical Dashboard Port:** **`5005`** — set `PORT=5005` in `stock-bot-dashboard.service`; `dashboard.py` defaults to **5005** when `PORT` is unset.
 - **Deployment rule:** Do **not** use **`/root/stock-bot`** or **port `5000`** for new runbooks, scripts, or operator URLs after cutover. Legacy content in struck sections below is **historical only**.
 - **Operator URL:** `http://104.236.102.57:5005/`
+- **Firewall hardening (UFW — COMPLETE, live verify 2026-05-02):** **`sudo ufw allow 5005/tcp`** (comment: stock-bot-dashboard-v3). Legacy inbound HUD noise closed: **`sudo ufw deny 5000/tcp`** and **`sudo ufw deny 5001/tcp`**; **`sudo ufw reload`**. **`ufw status verbose`** must show **`5005/tcp ALLOW IN Anywhere`** (and v6). **Port `5005` is the only authorized *external* entry for the stock-bot V3 dashboard HUD** (Basic Auth); other droplet listeners (e.g. **8081** trading/aux Flask if enabled in UFW) are **not** the HUD and must not be confused with the sovereign dashboard surface.
 - **Secrets:** Canonical production **`.env`** after cutover is **`/root/stock-bot-v3/.env`**. Copy from the prior root **once** during migration; never commit.
 - **Supervisor note:** `deploy_supervisor.py` binds the **venv** dashboard on the first free port in **5006–5009** so it does not collide with systemd on **5005**.
 - **Monday flatten:** `scripts/monday_open_reset.py` + `deploy/systemd/monday-open-reset.{service,timer}` — timer fires Mon **13:30:05** and **14:30:05 UTC**; the script runs `liquidate_all` only when America/New_York is **Monday 09:30:05+**. Install timer only when Q-Ops arms it; **stop `stock-bot.service` before flatten** to avoid races.
