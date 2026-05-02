@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-02T15:40:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. All other expected top-level dirs (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) and reports/audit/ are present.",
+    "governance_contracts_present: reports/board/ directory is missing. memory_bank/ has key docs (6 files). .cursor/automations/ exists with README + 5 spec pairs. reports/audit/ exists.",
+    "no_deprecated_dirs: moltbot/ directory still present at repo root with active Python modules (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, agents/).",
+    "no_clawdbot_moltbot: moltbot/ directory contains code referencing Moltbot (5 Python files). Additionally, scripts/run_molt_workflow.py and scripts/run_openclaw_molt_synthesis.py reference Moltbot in code. These are active code files, not audit/docs documenting removal."
+  ],
+  "slack_sent": false,
+  "github_issue_status": "existing open issue #1689 — unable to comment (read-only integration); anomalies unchanged from prior runs"
+}
