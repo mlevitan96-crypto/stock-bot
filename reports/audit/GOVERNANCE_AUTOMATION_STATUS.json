@@ -15,5 +15,6 @@
     "repo_structure: reports/board/ directory was missing (created during this run)",
     "no_clawdbot_moltbot: moltbot/ module exists as active code; scripts/run_molt_workflow.py imports from moltbot"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1686"
 }
