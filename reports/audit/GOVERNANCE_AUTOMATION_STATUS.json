@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T11:20:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist (expected at /workspace/reports/board/)",
+    "governance_contracts_present: reports/board/ missing — required governance contract directory absent",
+    "no_deprecated_dirs: /workspace/moltbot/ directory exists with 5 active Python files (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py) — deprecated moltbot code present in repo",
+    "no_clawdbot_moltbot: moltbot/ directory contains 5 Python source files with active moltbot code; scripts/run_openclaw_molt_synthesis.py and scripts/run_molt_workflow.py reference moltbot in code paths (excluded: reports/audit docs, reports/daily evidence, .cursor/automations governance check definitions, and docs/ references which document removal)"
+  ],
+  "slack_sent": false
+}
