@@ -21,5 +21,6 @@
     "no_clawdbot_moltbot: docs/ALPACA_GOVERNANCE_CONTEXT.md, docs/ALPACA_ROLLING_REVIEWS_AND_SHADOW_EXPERIMENTS.md, docs/ALPACA_DAILY_RUN_INTEGRITY_CONTRACT.md reference Moltbot (docs — lower severity)",
     "no_clawdbot_moltbot: MEMORY_BANK_ALPACA.md references moltbot/ paths as active components (sections 1297-1301)"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "REQUIRED — anomalies detected but GitHub issue creation unavailable in this automation environment (gh CLI is read-only). Operator should open issue titled '[Governance Integrity] Anomalies detected' with the details above."
 }
