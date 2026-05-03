@@ -72,3 +72,34 @@ def test_iv_rank_monkeypatch() -> None:
 def test_circuit_breaker_gap_down() -> None:
     assert oe.circuit_breaker_gap_down(60.0, 100.0, threshold=0.35) is True
     assert oe.circuit_breaker_gap_down(95.0, 100.0, threshold=0.35) is False
+
+
+def test_resolve_spot_wide_nbbo_uses_mid() -> None:
+    from strategies import wheel_strategy as ws
+
+    q = {"ask": 110.0, "bid": 100.0, "last_trade": None, "source_fields_present": []}
+    spot, src = ws.resolve_spot_from_market_data(q, None, wide_nbbo_frac=0.05)
+    assert src == "mid_nbbo_wide"
+    assert spot == pytest.approx(105.0)
+
+    q_tight = {"ask": 100.1, "bid": 100.0, "last_trade": None, "source_fields_present": []}
+    spot2, src2 = ws.resolve_spot_from_market_data(q_tight, None, wide_nbbo_frac=0.05)
+    assert src2 == "ask"
+    assert spot2 == pytest.approx(100.1)
+
+
+def test_resolve_option_short_sell_limit_uses_bid() -> None:
+    from strategies import wheel_strategy as ws
+
+    class _Q:
+        ap = 2.5
+        bp = 2.1
+
+    class _Api:
+        def get_quote(self, sym: str):
+            return _Q()
+
+    lim, src, err = ws.resolve_option_short_sell_limit_per_share(_Api(), "FAKE260320P00090000")
+    assert err == ""
+    assert src == "bid"
+    assert lim == pytest.approx(2.1)
