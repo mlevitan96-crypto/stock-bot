@@ -151,13 +151,32 @@ def _get_spread_pct(api, symbol: str) -> Optional[float]:
 
 
 def _check_earnings(symbol: str, window_days: int) -> bool:
-    """True if earnings within window (skip). Stub: always False."""
-    return False
+    """True => skip ticker (earnings too soon). Delegates to options_engine (UW); fail-closed on errors."""
+    try:
+        from src.options_engine import should_skip_for_earnings
+
+        return bool(should_skip_for_earnings(symbol, int(window_days or 0)))
+    except Exception as e:
+        log.debug("_check_earnings %s: %s", symbol, e)
+        return True
 
 
 def _get_iv_proxy(symbol: str) -> float:
-    """IV proxy. Stub: return 0.25 (assume adequate IV)."""
-    return 0.25
+    """
+    Annualized IV-style decimal for universe liquidity screen (e.g. 0.25 = 25% vol).
+    Uses UW ATM IV from options_engine; RV fallback; 0.0 when missing (fails min_iv_proxy gate).
+    """
+    try:
+        from src.options_engine import fetch_uw_iv_atm_and_rv20d
+
+        iv, rv, _why = fetch_uw_iv_atm_and_rv20d(symbol)
+        if iv is not None and iv > 0:
+            return float(iv)
+        if rv is not None and rv > 0:
+            return float(rv)
+    except Exception as e:
+        log.debug("_get_iv_proxy %s: %s", symbol, e)
+    return 0.0
 
 
 def _rank_by_uw_intelligence(tickers: List[str], config: dict) -> List[Tuple[str, float]]:
