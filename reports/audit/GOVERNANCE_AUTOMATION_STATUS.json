@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T18:22:38Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory did not exist at scan time. Created by this governance run as remediation."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "Deprecated directory moltbot/ exists at repo root with active Python modules: __init__.py, orchestrator.py, sentinel.py, board.py, memory_evolution.py, promotion_discipline.py, agents/."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "scripts/run_molt_workflow.py (line 16) imports from moltbot module: 'from moltbot import (run_learning_orchestrator, run_engineering_sentinel, ...)'. This is active code referencing a deprecated module."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "low",
+      "message": "scripts/run_openclaw_molt_synthesis.py references 'Clawdbot integration was removed' in docstrings/strings. Located in scripts/ (not docs/reports exclusion zone). Content documents removal rather than active usage."
+    }
+  ],
+  "slack_sent": false
+}
