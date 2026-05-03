@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T07:41:31Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing (expected by governance contract)",
+    "governance_contracts_present: reports/board/ directory is missing; all other governance contracts present (memory_bank/ has docs, .cursor/automations/ exists with README + specs, reports/audit/ exists)",
+    "no_deprecated_dirs: moltbot/ directory exists at repo top level — documented as deprecated/removed across multiple audit artifacts",
+    "no_clawdbot_moltbot: moltbot/ directory contains 5 active Python modules (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py)",
+    "no_clawdbot_moltbot: scripts/run_molt_workflow.py imports from moltbot package (active code reference)"
+  ],
+  "slack_sent": false
+}
