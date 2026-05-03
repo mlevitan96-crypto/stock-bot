@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T17:22:47.609347+00:00",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ missing",
+    "governance_contracts: reports/board/ missing",
+    "no_deprecated_dirs: moltbot/ directory still exists (should have been removed per governance)",
+    "no_clawdbot_moltbot: Found references in code/config files: ['./scripts/sre/run_sre_anomaly_scan.py', './scripts/run_openclaw_molt_synthesis.py', './scripts/automations/run_governance_integrity_once.py', './board/eod/out/2026-02-13/cron_diagnosis.json', './board/eod/out/2026-02-12/cron_diagnosis.json', './board/eod/out/2026-02-12/eod_failure.json', './alpaca_codebase_payload.txt', './moltbot/board.py', './moltbot/sentinel.py', './moltbot/orchestrator.py', './moltbot/memory_evolution.py', './moltbot/promotion_discipline.py', './scripts/run_molt_workflow.py']"
+  ],
+  "slack_sent": false
+}
