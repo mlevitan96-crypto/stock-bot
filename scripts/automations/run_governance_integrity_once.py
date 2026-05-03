@@ -62,39 +62,59 @@ def check_required_artifacts() -> tuple[str, list[str]]:
     return "fail", ["reports/audit or reports/board missing or not directories"]
 
 
+KNOWN_DEPRECATED_DIRS = {"moltbot"}
+
+
 def check_no_deprecated_dirs() -> tuple[str, list[str]]:
-    """No reintroduced deprecated roots; no strict list in repo, pass by default."""
+    """Flag known deprecated top-level directories that should have been removed."""
+    details = []
+    top = set(p.name for p in REPO_ROOT.iterdir() if p.is_dir())
+    present = KNOWN_DEPRECATED_DIRS & top
+    if present:
+        for d in sorted(present):
+            details.append(f"Deprecated directory still present: {d}/")
+        return "fail", details
     return "pass", []
 
 
 def check_no_clawdbot_moltbot() -> tuple[str, list[str]]:
-    """Grep for Clawdbot/Moltbot in active code paths only (reintroduction guard). Exclude reports, docs, legacy moltbot/, automation specs."""
+    """Search for Clawdbot/Moltbot references in code and config (reintroduction guard).
+
+    Excludes:
+      - reports/audit, reports/daily, docs/, MEMORY_BANK_ALPACA.md (document removal)
+      - .cursor/automations/ (governance specs that reference the check itself)
+      - scripts/automations/ (this governance script)
+      - .git/, node_modules/, __pycache__/
+
+    Includes moltbot/ as active code that should have been removed.
+    """
     details = []
-    # Only scan paths where reintroduction would be a problem; exclude historical/reporting/legacy
-    allowed_prefixes = ("src/", "scripts/")
     skip_prefixes = (
-        "scripts/automations/",
-        "scripts/run_molt",
         "reports/",
         "docs/",
         "memory_bank/",
-        "moltbot/",
-        "board/",
+        "board/eod/out/",
         ".cursor/automations/",
+        "scripts/automations/",
         ".git/",
         "node_modules/",
         "__pycache__/",
     )
+    skip_files = {"MEMORY_BANK_ALPACA.md", "alpaca_codebase_payload.txt"}
     for root, _dirs, files in os.walk(REPO_ROOT):
         rel_root = os.path.relpath(root, REPO_ROOT)
-        norm_root = rel_root.replace("\\", "/") + "/"
-        if not any(norm_root.startswith(p) for p in allowed_prefixes):
-            continue
+        norm_root = rel_root.replace("\\", "/")
+        if norm_root == ".":
+            norm_root = ""
+        else:
+            norm_root += "/"
         if any(norm_root.startswith(p) for p in skip_prefixes):
             continue
         if ".git" in root or "node_modules" in root or "__pycache__" in root:
             continue
         for f in files:
+            if f in skip_files:
+                continue
             if not (f.endswith(".py") or f.endswith(".json") or f.endswith(".yaml") or f.endswith(".yml") or f.endswith(".ts")):
                 continue
             path = os.path.normpath(os.path.join(rel_root, f)).replace("\\", "/")
@@ -106,10 +126,10 @@ def check_no_clawdbot_moltbot() -> tuple[str, list[str]]:
             except Exception:
                 continue
             for m in FORBIDDEN_PATTERNS.finditer(text):
-                line = text[max(0, m.start() - 80) : m.end() + 80]
-                if "removal" in line or "removed" in line or "no " in line.lower() or "without " in line.lower():
+                context = text[max(0, m.start() - 80) : m.end() + 80]
+                if "removal" in context or "removed" in context:
                     continue
-                if "no_clawdbot_moltbot" in line or "no_clawdbot" in line:
+                if "no_clawdbot_moltbot" in context or "no_clawdbot" in context:
                     continue
                 details.append(f"Reference in {path}: ...{m.group(0)}...")
                 break

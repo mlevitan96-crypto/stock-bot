@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "timestamp": "2026-05-03T23:07:09.802268+00:00",
+  "run_ts_utc": "2026-05-03T23:07:09.802298+00:00",
+  "branch": "main",
+  "status": "anomalies",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "fail",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "Missing: reports/board",
+    "reports/audit or reports/board missing or not directories",
+    "Deprecated directory still present: moltbot/",
+    "Reference in moltbot/promotion_discipline.py: ...moltbot...",
+    "Reference in moltbot/memory_evolution.py: ...moltbot...",
+    "Reference in moltbot/orchestrator.py: ...moltbot...",
+    "Reference in moltbot/sentinel.py: ...moltbot...",
+    "Reference in moltbot/board.py: ...moltbot...",
+    "Reference in scripts/run_molt_workflow.py: ...moltbot..."
+  ],
+  "anomalies": [
+    "Missing: reports/board",
+    "reports/audit or reports/board missing or not directories",
+    "Deprecated directory still present: moltbot/",
+    "Reference in moltbot/promotion_discipline.py: ...moltbot...",
+    "Reference in moltbot/memory_evolution.py: ...moltbot...",
+    "Reference in moltbot/orchestrator.py: ...moltbot...",
+    "Reference in moltbot/sentinel.py: ...moltbot...",
+    "Reference in moltbot/board.py: ...moltbot...",
+    "Reference in scripts/run_molt_workflow.py: ...moltbot..."
+  ],
+  "slack_sent": false
+}
