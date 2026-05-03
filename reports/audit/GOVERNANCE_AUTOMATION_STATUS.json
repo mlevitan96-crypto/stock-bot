@@ -28,5 +28,10 @@
       "message": "Clawdbot/Moltbot references found in active code and config (excluded reports/audit and docs). moltbot/ directory exists with 5 Python modules (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py). Scripts reference moltbot: scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py. MEMORY_BANK_ALPACA.md still documents moltbot as active learning workflow."
     }
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": {
+    "action": "existing_open",
+    "issue_number": 1716,
+    "note": "Multiple open issues already exist with identical findings. Most recent: #1716 (2026-05-03T03:15:30Z). No new issue created — anomalies unchanged."
+  }
 }
