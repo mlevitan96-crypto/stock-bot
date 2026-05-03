@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T04:33:03Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist",
+    "governance_contracts_present: reports/board/ directory missing (required by contract)",
+    "no_clawdbot_moltbot: moltbot/ directory exists as active Python package (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py); scripts/run_molt_workflow.py imports from moltbot"
+  ],
+  "slack_sent": false
+}
