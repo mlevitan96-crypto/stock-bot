@@ -482,28 +482,109 @@ def normalize_alpaca_quote(raw_quote: Any) -> Optional[Dict[str, Any]]:
     return out
 
 
+# NBBO wider than this fraction of mid: do not use ask alone for spot (moneyness skew); use mid instead.
+WHEEL_SPOT_WIDE_NBBO_FRAC = float(os.getenv("WHEEL_SPOT_WIDE_NBBO_FRAC", "0.05") or "0.05")
+
+
 def resolve_spot_from_market_data(
     normalized_quote: Optional[Dict[str, Any]],
     bar_close: Optional[float],
+    *,
+    wide_nbbo_frac: Optional[float] = None,
 ) -> Tuple[Optional[float], Optional[str]]:
     """
-    Single place where spot is resolved. Strict order: ask > bid > last_trade > bar_close.
-    Returns (spot_price, spot_source). spot_source is one of "ask"|"bid"|"last_trade"|"bar_close".
-    Returns (None, None) if no valid price.
+    Resolve underlying spot for wheel strike / delta heuristics.
+
+    When both bid and ask exist and (ask-bid)/mid > wide_nbbo_frac, returns **mid** (``mid_nbbo_wide``)
+    instead of ask so wide markets do not inflate spot. Otherwise: ask, bid, last_trade, bar_close.
     """
+    frac = float(wide_nbbo_frac if wide_nbbo_frac is not None else WHEEL_SPOT_WIDE_NBBO_FRAC)
     if normalized_quote:
         ask = normalized_quote.get("ask")
+        bid = normalized_quote.get("bid")
+        last_trade = normalized_quote.get("last_trade")
+        if (
+            ask is not None
+            and ask > 0
+            and bid is not None
+            and bid > 0
+        ):
+            mid = (ask + bid) / 2.0
+            if mid > 0 and (ask - bid) / mid > frac:
+                return (mid, "mid_nbbo_wide")
         if ask is not None and ask > 0:
             return (ask, "ask")
-        bid = normalized_quote.get("bid")
         if bid is not None and bid > 0:
             return (bid, "bid")
-        last_trade = normalized_quote.get("last_trade")
         if last_trade is not None and last_trade > 0:
             return (last_trade, "last_trade")
     if bar_close is not None and bar_close > 0:
         return (bar_close, "bar_close")
     return (None, None)
+
+
+def resolve_option_short_sell_limit_per_share(
+    api: Any,
+    occ_symbol: str,
+    *,
+    min_limit: float = 0.01,
+) -> Tuple[Optional[float], str, str]:
+    """
+    Discover limit price (per share) for sell-to-open option orders.
+
+    Anchors to **bid** when present (natural side for receiving premium on a sell).
+    Falls back to discounted last trade, then discounted ask. No broker submit here.
+
+    Returns (limit_or_none, price_source, fail_reason). fail_reason empty when limit is set.
+    """
+    try:
+        raw = api.get_quote(occ_symbol)
+    except Exception as e:
+        log.debug("option get_quote(%s): %s", occ_symbol, e)
+        return None, "", "quote_error"
+    n = normalize_alpaca_quote(raw)
+    if not n:
+        return None, "", "no_quote"
+    bid = n.get("bid")
+    ask = n.get("ask")
+    lt = n.get("last_trade")
+    if bid is not None and float(bid) > 0:
+        lim = max(float(min_limit), round(float(bid), 2))
+        return lim, "bid", ""
+    if lt is not None and float(lt) > 0:
+        lim = max(float(min_limit), round(float(lt) * 0.99, 2))
+        return lim, "last_trade_discount", ""
+    if ask is not None and float(ask) > 0:
+        lim = max(float(min_limit), round(float(ask) * 0.95, 2))
+        return lim, "ask_discount", ""
+    return None, "", "no_option_price"
+
+
+def _poll_wheel_order_status(
+    api: Any,
+    order_id: str,
+    *,
+    max_rounds: int = 5,
+    sleep_sec: float = 2.0,
+) -> Tuple[str, float, int]:
+    """Poll Alpaca order until terminal-ish state. Returns (status_lower, filled_avg_price, filled_qty)."""
+    last_st = "unknown"
+    last_fap = 0.0
+    last_fq = 0
+    for _ in range(max(1, int(max_rounds))):
+        time.sleep(float(sleep_sec))
+        try:
+            o = api.get_order(order_id)
+            last_st = str(getattr(o, "status", None) or (o.get("status") if isinstance(o, dict) else "") or "").lower()
+            last_fq = int(float(getattr(o, "filled_qty", 0) or (o.get("filled_qty", 0) if isinstance(o, dict) else 0) or 0))
+            last_fap = float(getattr(o, "filled_avg_price", 0) or (o.get("filled_avg_price", 0) if isinstance(o, dict) else 0) or 0)
+            if last_st == "filled" or last_fq >= 1:
+                return last_st, last_fap, last_fq
+            if last_st in ("canceled", "cancelled", "expired", "rejected", "done_for_day"):
+                return last_st, last_fap, last_fq
+        except Exception:
+            pass
+    return "timeout", last_fap, last_fq
 
 
 def _get_latest_bar_close(api: Any, symbol: str) -> Optional[float]:
@@ -782,7 +863,22 @@ def _run_csp_phase(
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="put_wall_gate_error")
             _emit_candidate_evaluated("skip", "put_wall_gate_error")
             continue
-        limit_price = 0.05
+        limit_price, opt_px_src, opt_px_fail = resolve_option_short_sell_limit_per_share(api, occ_symbol)
+        if limit_price is None or limit_price <= 0:
+            _wheel_system_event(
+                "wheel_csp_skipped",
+                symbol=t,
+                reason="no_option_quote",
+                option_symbol=occ_symbol,
+                option_price_fail=opt_px_fail,
+            )
+            _emit_candidate_evaluated(
+                "skip",
+                "no_option_quote",
+                option_symbol=occ_symbol,
+                option_price_fail=opt_px_fail,
+            )
+            continue
         try:
             if not premium_meets_min_credit(limit_price, min_credit_usd):
                 _wheel_system_event(
@@ -903,6 +999,7 @@ def _run_csp_phase(
             dte=chosen["dte"],
             delta=chosen["delta_est"],
             mid_or_limit_price=limit_price,
+            option_limit_price_source=opt_px_src,
             credit_expected=limit_price * 100.0,
             selection_reason="best_delta_dte",
             filter_summary="delta_dte_sort",
@@ -944,38 +1041,51 @@ def _run_csp_phase(
             strike=chosen["strike"],
             expiry=expiry_str,
             limit_price=limit_price,
+            option_limit_price_source=opt_px_src,
             qty=1,
             expected_credit=expected_credit,
             spot_at_submit=round(spot, 2),
         )
         premium_filled: Optional[float] = None
+        fill_st = "unknown"
+        filled_avg = 0.0
+        filled_qty = 0
         if order_id and hasattr(api, "get_order"):
-            for _ in range(5):
-                time.sleep(2)
-                try:
-                    o = api.get_order(order_id)
-                    status = getattr(o, "status", None) or (o.get("status") if isinstance(o, dict) else None)
-                    if str(status or "").lower() == "filled":
-                        filled_avg = float(getattr(o, "filled_avg_price", 0) or 0)
-                        if filled_avg > 0:
-                            premium_filled = filled_avg * 100.0
-                            if client_order_id and state.get("recent_orders") and client_order_id in state["recent_orders"]:
-                                state["recent_orders"][client_order_id]["status"] = "filled"
-                            _wheel_system_event(
-                                "wheel_order_filled",
-                                cycle_id=cycle_id,
-                                symbol=t,
-                                phase="CSP",
-                                order_id=str(order_id),
-                                client_order_id=client_order_id,
-                                premium=premium_filled,
-                                fill_price=filled_avg,
-                                filled_qty=1,
-                                credit_realized_est=premium_filled,
-                            )
-                        break
-                except Exception:
-                    pass
+            fill_st, filled_avg, filled_qty = _poll_wheel_order_status(api, str(order_id))
+            if fill_st == "filled" or filled_qty >= 1:
+                if filled_avg > 0 and filled_qty > 0:
+                    premium_filled = filled_avg * 100.0 * filled_qty
+                elif filled_avg > 0:
+                    premium_filled = filled_avg * 100.0
+                else:
+                    premium_filled = limit_price * 100.0 * max(1, int(filled_qty or 1))
+                if client_order_id and state.get("recent_orders") and client_order_id in state["recent_orders"]:
+                    state["recent_orders"][client_order_id]["status"] = "filled"
+                _wheel_system_event(
+                    "wheel_order_filled",
+                    cycle_id=cycle_id,
+                    symbol=t,
+                    phase="CSP",
+                    order_id=str(order_id),
+                    client_order_id=client_order_id,
+                    premium=premium_filled,
+                    fill_price=filled_avg,
+                    filled_qty=filled_qty,
+                    credit_realized_est=premium_filled,
+                )
+            else:
+                if client_order_id and state.get("recent_orders") and client_order_id in state["recent_orders"]:
+                    state["recent_orders"][client_order_id]["status"] = fill_st
+                _wheel_system_event(
+                    "wheel_order_not_filled",
+                    cycle_id=cycle_id,
+                    symbol=t,
+                    phase="CSP",
+                    order_id=str(order_id) if order_id else None,
+                    client_order_id=client_order_id,
+                    status=fill_st,
+                    filled_qty=filled_qty,
+                )
         _log_wheel_telemetry(
             symbol=t,
             side="sell",
@@ -987,16 +1097,20 @@ def _run_csp_phase(
             delta_at_entry=chosen["delta_est"],
             premium=premium_filled,
             order_id=str(order_id) if order_id else None,
-            qty=1,
+            qty=max(1, filled_qty) if filled_qty else 1,
         )
+        if fill_st != "filled" and filled_qty < 1:
+            _save_wheel_state(state, cycle_id=cycle_id)
+            continue
         opened_at_iso = datetime.now(timezone.utc).isoformat()
+        qty_open = max(1, int(filled_qty or 1))
         new_entry = {
             "symbol": occ_symbol,
             "option_symbol": occ_symbol,
             "underlying_symbol": t,
             "strike": chosen["strike"],
             "expiry": chosen["contract"].get("expiration_date"),
-            "qty": 1,
+            "qty": qty_open,
             "opened_at": opened_at_iso,
             "open_credit": premium_filled,
             "spot_at_open": round(spot, 2),
@@ -1080,6 +1194,16 @@ def _run_cc_phase(api, config: dict, account_equity: float, positions: list) -> 
         occ_symbol = chosen["symbol"]
         if not occ_symbol:
             continue
+        cc_limit, cc_px_src, cc_px_fail = resolve_option_short_sell_limit_per_share(api, occ_symbol)
+        if cc_limit is None or cc_limit <= 0:
+            _wheel_system_event(
+                "wheel_cc_skipped",
+                symbol=symbol,
+                reason="no_option_quote",
+                option_symbol=occ_symbol,
+                option_price_fail=cc_px_fail,
+            )
+            continue
         try:
             client_order_id = f"wheel-CC-{symbol}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
             order = api.submit_order(
@@ -1088,13 +1212,25 @@ def _run_cc_phase(api, config: dict, account_equity: float, positions: list) -> 
                 side="sell",
                 type="limit",
                 time_in_force="day",
-                limit_price=0.05,
+                limit_price=cc_limit,
                 client_order_id=client_order_id,
             )
         except Exception as e:
             log.warning("Wheel CC order failed for %s: %s", symbol, e)
             continue
         order_id = getattr(order, "id", None) or (order.get("id") if isinstance(order, dict) else None)
+        premium_cc: Optional[float] = None
+        fill_st_cc = "unknown"
+        fq_cc = 0
+        if order_id and hasattr(api, "get_order"):
+            fill_st_cc, fap_cc, fq_cc = _poll_wheel_order_status(api, str(order_id))
+            if fill_st_cc == "filled" or fq_cc >= 1:
+                if fap_cc > 0 and fq_cc > 0:
+                    premium_cc = fap_cc * 100.0 * fq_cc
+                elif fap_cc > 0:
+                    premium_cc = fap_cc * 100.0
+                else:
+                    premium_cc = cc_limit * 100.0 * max(1, fq_cc)
         _log_wheel_telemetry(
             symbol=symbol,
             side="sell",
@@ -1104,15 +1240,19 @@ def _run_cc_phase(api, config: dict, account_equity: float, positions: list) -> 
             expiry=chosen["contract"].get("expiration_date"),
             dte=chosen["dte"],
             delta_at_entry=chosen["delta_est"],
-            premium=None,
+            premium=premium_cc,
             order_id=str(order_id) if order_id else None,
-            qty=1,
+            qty=max(1, fq_cc) if fq_cc else 1,
         )
+        if fill_st_cc != "filled" and fq_cc < 1:
+            _save_wheel_state(state)
+            continue
         open_ccs.setdefault(symbol, []).append({
             "symbol": occ_symbol,
             "strike": chosen["strike"],
             "expiry": chosen["contract"].get("expiration_date"),
             "order_id": order_id,
+            "qty": max(1, int(fq_cc or 1)),
         })
         state["open_ccs"] = open_ccs
         _save_wheel_state(state)
