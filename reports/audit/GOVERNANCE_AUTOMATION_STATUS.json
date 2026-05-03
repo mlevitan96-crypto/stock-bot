@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T05:30:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "info",
+      "message": "reports/board/ was missing and auto-created during this run. All other expected top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/, reports/audit/) were present."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "moltbot/ directory exists at repo root with active Python code: board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/. This deprecated directory should have been removed per governance policy."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot code/config references found outside of reports/audit or removal-documentation: (1) moltbot/ directory with 5+ active Python modules, (2) scripts/run_molt_workflow.py imports from moltbot package, (3) scripts/run_openclaw_molt_synthesis.py references Clawdbot in operational comments. Governance policy requires these be fully removed from code/config."
+    }
+  ],
+  "slack_sent": false
+}
