@@ -29,9 +29,10 @@ strategies:
     universe_excluded_sectors:
       - Technology
       - Communication Services
-    # Per-position limits are a fraction of wheel budget (25% of account). Paper: enable trading for learning.
-    per_position_fraction_of_wheel_budget: 0.5   # allow up to 50% of wheel budget per CSP
-    max_concurrent_positions: 5                  # allow multiple CSPs at a time for more data
+    # Per-position limits are a fraction of wheel budget (25% of account). Lower fraction = less single-name lockup.
+    per_position_fraction_of_wheel_budget: 0.35  # max ~8.75% of account notional per CSP (0.35 * 25% slice)
+    # max_positions is used only when max_concurrent_positions is 0/false; keep both aligned (see wheel_strategy max_pos).
+    max_concurrent_positions: 12                 # was 5 and silently overrode max_positions; align with cap below
     max_positions: 12                            # cap open CSPs (room to learn and collect premiums)
     csp:
       target_dte_min: 5
@@ -57,9 +58,9 @@ strategies:
       allow_margin_account: false
       # Skip CSP when daily RSI exceeds this (mean reversion: sell puts into support, not resistance). 0 disables.
       max_rsi_for_csp_entry: 70
-      # IV Rank from UW must be >= this (0–100 scale).
+      # IV Rank from UW must be >= this (0-100 scale).
       min_iv_rank: 50
-      # Minimum put OI at the “wall” strike (UW oi-change) for institutional floor gate.
+      # Minimum put OI at the "wall" strike (UW oi-change) for institutional floor gate.
       put_wall_min_oi: 5000
       # Minimum premium credit per contract (limit * 100). Set 0 on paper while quotes are stubbed.
       min_credit_usd: 0
