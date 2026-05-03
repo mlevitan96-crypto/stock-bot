@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T21:44:54Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory missing (expected per governance contract)",
+    "governance_contracts_present: reports/board/ missing (expected per governance contract)",
+    "no_clawdbot_moltbot: moltbot/ directory exists with active code files: ['promotion_discipline.py', '__init__.py', 'memory_evolution.py', 'orchestrator.py', 'sentinel.py', 'board.py']. Note: MEMORY_BANK_ALPACA.md documents moltbot as an active workflow component (Learning Orchestrator, Engineering Sentinel, Multi-Agent Learning Board, Promotion Discipline, Memory Bank Evolution).",
+    "no_clawdbot_moltbot: Additional code/script references: ['scripts/run_molt_workflow.py (imports from moltbot)', 'scripts/run_openclaw_molt_synthesis.py (references Clawdbot removal in comments)', 'scripts/sre/run_sre_anomaly_scan.py (references clawdbot_moltbot check name)']"
+  ],
+  "slack_sent": false
+}
