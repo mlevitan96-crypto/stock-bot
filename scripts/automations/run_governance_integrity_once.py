@@ -63,7 +63,14 @@ def check_required_artifacts() -> tuple[str, list[str]]:
 
 
 def check_no_deprecated_dirs() -> tuple[str, list[str]]:
-    """No reintroduced deprecated roots; no strict list in repo, pass by default."""
+    """Detect deprecated top-level directories that should have been removed."""
+    details = []
+    deprecated = ["moltbot"]
+    for d in deprecated:
+        if (REPO_ROOT / d).is_dir():
+            details.append(f"Deprecated directory still present: {d}/")
+    if details:
+        return "fail", details
     return "pass", []
 
 
