@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T14:40:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory does not exist. Expected as a required top-level subdirectory under reports/."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ directory is missing, which is required for governance contract completeness."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Active moltbot code found: moltbot/ directory contains 5 Python modules (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py). scripts/run_molt_workflow.py imports from moltbot package. scripts/run_openclaw_molt_synthesis.py references Clawdbot. These are code/config references, not audit documentation."
+    }
+  ],
+  "slack_sent": false,
+  "github_issue_status": "existing_open_issue_1739_update_skipped_readonly_token",
+  "note": "Multiple open issues exist (#1730-#1739). GitHub token is read-only; could not comment or create issue."
+}
