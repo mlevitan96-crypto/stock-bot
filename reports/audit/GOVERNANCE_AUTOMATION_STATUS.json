@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T17:10:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "governance_contracts_present",
+      "severity": "warn",
+      "message": "reports/board/ directory does not exist. Expected by governance contract for board report output."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "error",
+      "message": "Deprecated directory moltbot/ exists at repo root with active Python source files: board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "error",
+      "message": "Moltbot code/config found outside reports/audit and docs exclusions. Active code: moltbot/ (6 source files), scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py."
+    }
+  ],
+  "slack_sent": false
+}
