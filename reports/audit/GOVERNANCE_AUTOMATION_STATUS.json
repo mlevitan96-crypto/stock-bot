@@ -16,5 +16,6 @@
     "governance_contracts_present: reports/board/ directory missing (required by contract)",
     "no_clawdbot_moltbot: moltbot/ directory exists as active Python package (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py); scripts/run_molt_workflow.py imports from moltbot"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "unable_to_create_gh_cli_readonly"
 }
