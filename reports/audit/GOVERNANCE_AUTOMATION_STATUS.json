@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T01:50:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "governance_contracts_present",
+      "status": "fail",
+      "reason": "reports/board/ directory does not exist (board artifacts are under board/eod/ instead of reports/board/)"
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "status": "fail",
+      "reason": "Moltbot code directory exists: moltbot/ (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py). References found in scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py, scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, MEMORY_BANK_ALPACA.md"
+    }
+  ],
+  "slack_sent": false
+}
