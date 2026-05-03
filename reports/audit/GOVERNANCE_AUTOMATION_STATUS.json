@@ -19,5 +19,6 @@
   "anomalies": [
     "Deprecated directory still present: moltbot/"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "issue_url": "https://github.com/mlevitan96-crypto/stock-bot/issues/1735"
 }
