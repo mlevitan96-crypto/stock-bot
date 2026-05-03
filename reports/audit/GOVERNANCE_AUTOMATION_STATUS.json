@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-03T18:51:54Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory is missing. Expected top-level subdirectories reports/audit/ and reports/board/ to both exist; only reports/audit/ is present."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ directory missing — governance contract requires both reports/audit/ and reports/board/ to exist."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "high",
+      "message": "Deprecated moltbot/ directory exists at repo root with active Python modules: board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, agents/. This directory should have been removed per governance policy."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot/clawdbot references found in code/config files (excluding audit/docs that document removal): moltbot/ directory (6 Python files), scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py, alpaca_codebase_payload.txt, board/eod/out/2026-02-12/cron_diagnosis.json, board/eod/out/2026-02-13/cron_diagnosis.json."
+    }
+  ],
+  "slack_sent": false
+}
