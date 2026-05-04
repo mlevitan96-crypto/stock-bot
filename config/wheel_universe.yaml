@@ -1,25 +1,83 @@
-# Wheel mid-cap universe ($10–$50 spot band target; liquidity-first names).
+# Wheel "Deep Bench" mid-cap universe ($10–$60 spot band target; liquidity-first).
 # Used when strategies.wheel.universe_source points here.
-# Sector caps + capital pre-filter still apply; see MEMORY_BANK_ALPACA.md (Wheel mid-cap pivot).
+# 25% sector notional cap (equity × max_sector_notional_fraction) remains the ultimate veto per sector bucket.
+# Capital pre-filter (max affordable share price) runs before heavy option/bars work — see MEMORY_BANK_ALPACA.md.
 
 universe:
   tickers:
-    - F
-    - PLTR
-    - BAC
-    - T
-    - PFE
-    - SOFI
-    - SNAP
+    # --- Airlines / transport ---
     - AAL
-    - CLF
-    - VALE
-    - UBS
-    - CCL
-    - NU
-    - KEY
-    - HBAN
-    - KMI
-    - FCX
-    - NCLH
+    - DAL
     - LUV
+    # --- Materials / metals ---
+    - AA
+    - CLF
+    - FCX
+    - IP
+    - MOS
+    - NUE
+    - VALE
+    - X
+    # --- Energy ---
+    - DVN
+    - HAL
+    - KMI
+    - MRO
+    - OKE
+    - SLB
+    - VLO
+    # --- Financials / fintech ---
+    - BAC
+    - C
+    - CFG
+    - COIN
+    - FHN
+    - HBAN
+    - HOOD
+    - KEY
+    - MS
+    - NU
+    - PYPL
+    - RF
+    - SOFI
+    - TFC
+    - UBS
+    - WFC
+    - WU
+    - ZION
+    # --- Healthcare ---
+    - BMY
+    - GILD
+    - PFE
+    - VTRS
+    # --- Consumer / retail / gaming (watch IV on meme-adjacent names) ---
+    - CAG
+    - CCL
+    - CHWY
+    - DKNG
+    - EBAY
+    - F
+    - GM
+    - GME
+    - JWN
+    - KMX
+    - KSS
+    - M
+    - NCLH
+    - PARA
+    # --- Tech / growth ---
+    - AFRM
+    - HPQ
+    - MU
+    - PLTR
+    - RBLX
+    - SNAP
+    - U
+    - WBD
+    # --- Telecom / staples ---
+    - CMCSA
+    - MO
+    - T
+    - VZ
+    # --- High-IV / discretionary (board-flagged: size small vs book) ---
+    - MPC
