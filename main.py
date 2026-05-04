@@ -14990,6 +14990,16 @@ def run_all_strategies():
             _errs = combined_metrics.setdefault("errors_this_cycle", [])
             if isinstance(_errs, list):
                 _errs.append(f"wheel:{e}")
+            try:
+                from src.critical_alert import send_critical_wheel_alert
+
+                send_critical_wheel_alert(
+                    "Wheel orchestrator exception",
+                    str(e)[:1800],
+                    dedupe_key="wheel_orchestrator_exception",
+                )
+            except Exception:
+                pass
     combined_metrics["orders"] = total_orders
     return combined_metrics
 
