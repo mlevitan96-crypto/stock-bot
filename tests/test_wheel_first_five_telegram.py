@@ -21,8 +21,9 @@ def test_format_message_roundtrip():
         iv_rank=62.5,
         underlying_mid=154.33,
         put_wall_strike=140.0,
+        premium_usd=250.0,
     )
-    assert "XOM" in s and "146" in s and "62.5" in s and "154.33" in s and "140.00" in s
+    assert "XOM" in s and "146" in s and "62.5" in s and "154.33" in s and "140.00" in s and "250.00" in s
 
 
 def test_maybe_send_increments_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -44,6 +45,7 @@ def test_maybe_send_increments_state(tmp_path: Path, monkeypatch: pytest.MonkeyP
             iv_rank=55.0,
             underlying_mid=12.0,
             put_wall_strike=9.0,
+            premium_usd=100.0,
         )
     assert len(sent) == 1
     data = json.loads(state_file.read_text(encoding="utf-8"))
@@ -60,5 +62,6 @@ def test_maybe_send_increments_state(tmp_path: Path, monkeypatch: pytest.MonkeyP
             iv_rank=55.0,
             underlying_mid=12.0,
             put_wall_strike=9.0,
+            premium_usd=100.0,
         )
     assert len(sent) == 1

@@ -174,6 +174,8 @@ def _wheel_state_defaults() -> Dict[str, Any]:
         "open_ccs": {},
         "last_cycle_id_processed": None,
         "recent_orders": {},
+        # Cumulative premium (CSP + CC fills) keyed by underlying; dashboard + audits read this.
+        "wheel_premium_by_ticker": {},
     }
 
 
@@ -262,6 +264,20 @@ def _heal_wheel_state_dict(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[s
 
     lcp = data.get("last_cycle_id_processed", default["last_cycle_id_processed"])
     out["last_cycle_id_processed"] = lcp if lcp is None or isinstance(lcp, str) else str(lcp)
+
+    wpb = data.get("wheel_premium_by_ticker")
+    if isinstance(wpb, dict):
+        fixed_w: Dict[str, float] = {}
+        for k, v in wpb.items():
+            try:
+                fixed_w[str(k).upper()] = float(v)
+            except (TypeError, ValueError):
+                repairs.append("wheel_premium_by_ticker_skip_bad")
+        out["wheel_premium_by_ticker"] = fixed_w
+    else:
+        if wpb is not None:
+            repairs.append("wheel_premium_by_ticker_reset")
+        out["wheel_premium_by_ticker"] = {}
 
     out.update(extras)
     return out, repairs
@@ -1025,6 +1041,7 @@ def _run_csp_phase(
     put_wall_min_oi = int(risk_cfg.get("put_wall_min_oi", 5000) or 5000)
     min_credit_usd = float(risk_cfg.get("min_credit_usd", 0) or 0)
     max_sector_frac = float(risk_cfg.get("max_sector_notional_fraction", 0.25) or 0.25)
+    max_abs_delta_csp = float(risk_cfg.get("csp_max_abs_estimated_delta", 0.5) or 0.5)
     avoid_ex_div = int(risk_cfg.get("avoid_ex_dividend_days", 0) or 0)
     require_cash_secured = bool(risk_cfg.get("require_cash_secured", True))
     allow_margin_account = bool(risk_cfg.get("allow_margin_account", False))
@@ -1162,6 +1179,21 @@ def _run_csp_phase(
             continue
         candidates.sort(key=lambda x: (abs(x["delta_est"] - (delta_min + delta_max) / 2), abs(x["dte"] - (dte_min + dte_max) / 2)))
         chosen = candidates[0]
+        if abs(float(chosen["delta_est"])) > max_abs_delta_csp + 1e-9:
+            _wheel_system_event(
+                "wheel_csp_skipped",
+                symbol=t,
+                reason="csp_delta_too_deep",
+                delta_est=chosen["delta_est"],
+                max_abs_delta_csp=max_abs_delta_csp,
+            )
+            _emit_candidate_evaluated(
+                "skip",
+                "csp_delta_too_deep",
+                delta_est=chosen["delta_est"],
+                max_abs_delta_csp=max_abs_delta_csp,
+            )
+            continue
         occ_symbol = chosen["symbol"]
         if not occ_symbol:
             continue
@@ -1373,6 +1405,7 @@ def _run_csp_phase(
                     iv_rank=iv_n,
                     underlying_mid=float(spot),
                     put_wall_strike=csp_put_wall_strike,
+                    premium_usd=float(limit_price) * 100.0,
                 )
             except Exception as fe:
                 log.debug("Wheel First-5 submit pager: %s", fe)
@@ -1479,6 +1512,17 @@ def _run_csp_phase(
         prev_summary = {"open_csps_count": sum(len(v) if isinstance(v, list) else 1 for v in open_csps.values())}
         open_csps.setdefault(t, []).append(new_entry)
         state["open_csps"] = open_csps
+        wpb = state.setdefault("wheel_premium_by_ticker", {})
+        uu = str(t).upper()
+        wpb[uu] = round(float(wpb.get(uu, 0) or 0) + float(premium_filled or 0), 2)
+        _wheel_system_event(
+            "wheel_premium_cumulative",
+            symbol=uu,
+            phase="CSP",
+            leg_premium_usd=round(float(premium_filled or 0), 2),
+            premium_cumulative_usd=wpb[uu],
+        )
+        log.info("Wheel premium cumulative %s=%.2f USD (CSP leg +%.2f)", uu, wpb[uu], float(premium_filled or 0))
         new_summary = {"open_csps_count": sum(len(v) if isinstance(v, list) else 1 for v in open_csps.values()), "added": t}
         _save_wheel_state(state, cycle_id=cycle_id, change_type="open_csp_added", symbol=t, previous_summary=prev_summary, new_summary=new_summary)
         placed += 1
@@ -1494,6 +1538,7 @@ def _run_cc_phase(
     account_equity: float,
     positions: list,
     *,
+    open_orders: Optional[List[Any]] = None,
     order_executor: Any = None,
 ) -> int:
     """Sell covered calls on wheel-assigned shares. Returns count of orders placed."""
@@ -1568,6 +1613,10 @@ def _run_cc_phase(
                 option_price_fail=cc_px_fail,
             )
             continue
+        existing_cc = [o for o in (open_orders or []) if getattr(o, "symbol", "") == occ_symbol]
+        if existing_cc:
+            _wheel_system_event("wheel_cc_skipped", symbol=symbol, reason="existing_order", option_symbol=occ_symbol)
+            continue
         try:
             client_order_id = f"wheel-CC-{symbol}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
             order = submit_wheel_broker_order(
@@ -1601,6 +1650,7 @@ def _run_cc_phase(
                     iv_rank=iv_n,
                     underlying_mid=float(spot),
                     put_wall_strike=None,
+                    premium_usd=float(cc_limit) * 100.0,
                 )
             except Exception as fe:
                 log.debug("Wheel First-5 submit pager CC: %s", fe)
@@ -1640,6 +1690,29 @@ def _run_cc_phase(
             "qty": max(1, int(fq_cc or 1)),
         })
         state["open_ccs"] = open_ccs
+        wpb = state.setdefault("wheel_premium_by_ticker", {})
+        uu = str(symbol).upper()
+        wpb[uu] = round(float(wpb.get(uu, 0) or 0) + float(premium_cc or 0), 2)
+        ch = list(state.get("cc_history") or [])
+        ch.append(
+            {
+                "underlying_symbol": uu,
+                "premium": float(premium_cc or 0),
+                "strike": float(chosen["strike"]),
+                "expiry": chosen["contract"].get("expiration_date"),
+                "opened_at": datetime.now(timezone.utc).isoformat(),
+                "order_id": order_id,
+            }
+        )
+        state["cc_history"] = ch
+        _wheel_system_event(
+            "wheel_premium_cumulative",
+            symbol=uu,
+            phase="CC",
+            leg_premium_usd=round(float(premium_cc or 0), 2),
+            premium_cumulative_usd=wpb[uu],
+        )
+        log.info("Wheel premium cumulative %s=%.2f USD (CC leg +%.2f)", uu, wpb[uu], float(premium_cc or 0))
         _save_wheel_state(state)
         placed += 1
     return placed
@@ -1750,7 +1823,14 @@ def run(api, config: dict, order_executor: Any = None) -> dict:
     if csp_placed == 0 and len(tickers) > 0:
         _wheel_system_event("wheel_alert_stuck", cycle_id=cycle_id, reason="no_submission_this_cycle", candidates_considered=len(tickers))
     _emit_wheel_candidate_ranked(tickers, selected_meta, first_placed_symbol, csp_placed, cycle_id=cycle_id)
-    cc_placed = _run_cc_phase(api, config, account_equity, positions, order_executor=order_executor)
+    cc_placed = _run_cc_phase(
+        api,
+        config,
+        account_equity,
+        positions,
+        open_orders=open_orders,
+        order_executor=order_executor,
+    )
     result["cc_placed"] = cc_placed
     result["orders_placed"] += cc_placed
     return result
