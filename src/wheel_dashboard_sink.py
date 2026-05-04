@@ -103,10 +103,16 @@ def compute_portfolio_wheel_hud_metrics(rows: List[Dict[str, Any]]) -> Dict[str,
 def _realized_premium_for_symbol(state: Dict[str, Any], underlying: str) -> float:
     total = 0.0
     u = underlying.upper()
+    wpb = state.get("wheel_premium_by_ticker") or {}
+    if isinstance(wpb, dict) and u in wpb:
+        try:
+            return round(float(wpb[u]), 2)
+        except (TypeError, ValueError):
+            pass
     for row in state.get("csp_history") or []:
         if not isinstance(row, dict):
             continue
-        if str(row.get("underlying_symbol") or "").upper() != u:
+        if str(row.get("underlying_symbol") or row.get("underlying") or "").upper() != u:
             continue
         for k in ("open_credit", "premium", "credit_realized_est"):
             v = row.get(k)

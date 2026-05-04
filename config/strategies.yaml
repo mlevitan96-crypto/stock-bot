@@ -20,17 +20,18 @@ strategies:
 
   wheel:
     enabled: true
-    universe_source: config/universe_wheel_expanded.yaml
+    # Mid-cap wheel universe ($10–$50 band); see config/wheel_universe.yaml
+    universe_source: config/wheel_universe.yaml
     universe_max_candidates: 10
-    universe_min_liquidity_volume: 3000000
+    universe_min_liquidity_volume: 1500000
     universe_min_open_interest: 5000
     universe_max_spread_pct: 0.005
     universe_min_iv_proxy: 0.15
-    universe_excluded_sectors:
-      - Technology
-      - Communication Services
-    # Per-position limits are a fraction of wheel budget (25% of account). Lower fraction = less single-name lockup.
-    per_position_fraction_of_wheel_budget: 0.35  # max ~8.75% of account notional per CSP (0.35 * 25% slice)
+    # Mid-cap pivot: do not blanket-exclude Technology / Comm Services (names like PLTR, T, SNAP).
+    # Sector concentration remains enforced via risk.max_sector_notional_fraction.
+    universe_excluded_sectors: []
+    # Per-position fraction of wheel slice (~25% of equity). ~0.52 supports ~$60/share CSP collateral headroom at ~$46k equity.
+    per_position_fraction_of_wheel_budget: 0.52
     # max_positions is used only when max_concurrent_positions is 0/false; keep both aligned (see wheel_strategy max_pos).
     max_concurrent_positions: 12                 # was 5 and silently overrode max_positions; align with cap below
     max_positions: 12                            # cap open CSPs (room to learn and collect premiums)
@@ -60,6 +61,8 @@ strategies:
       max_rsi_for_csp_entry: 70
       # IV Rank from UW must be >= this (0-100 scale).
       min_iv_rank: 50
+      # Reject CSP candidates whose estimated put delta is too deep ITM (|delta| > this). Default 0.50; CSP band is ~0.2–0.3.
+      csp_max_abs_estimated_delta: 0.5
       # Minimum put OI at the "wall" strike (UW oi-change) for institutional floor gate.
       put_wall_min_oi: 5000
       # Minimum premium credit per contract (limit * 100). Set 0 on paper while quotes are stubbed.
