@@ -96,7 +96,7 @@ def test_resolve_option_short_sell_limit_uses_bid() -> None:
         bp = 2.1
 
     class _Api:
-        def get_quote(self, sym: str):
+        def get_latest_quote(self, sym: str):
             return _Q()
 
     lim, src, err = ws.resolve_option_short_sell_limit_per_share(_Api(), "FAKE260320P00090000")
