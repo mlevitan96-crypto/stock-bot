@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-04T10:22:42Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "message": "Missing reports/board/"
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "message": "Deprecated directories present: ['moltbot']"
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "message": "Moltbot/Clawdbot code still present in: ['moltbot/board.py', 'moltbot/sentinel.py', 'moltbot/orchestrator.py', 'moltbot/memory_evolution.py', 'moltbot/promotion_discipline.py', 'moltbot/__init__.py', 'scripts/run_molt_workflow.py']"
+    }
+  ],
+  "slack_sent": false
+}
