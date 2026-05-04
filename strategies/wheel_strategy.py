@@ -1165,6 +1165,7 @@ def _run_csp_phase(
         occ_symbol = chosen["symbol"]
         if not occ_symbol:
             continue
+        csp_put_wall_strike: Optional[float] = None
         try:
             from src.options_engine import institutional_put_floor_ok, premium_meets_min_credit
 
@@ -1187,6 +1188,12 @@ def _run_csp_phase(
                     wall_oi=wall_snap.wall_oi,
                 )
                 continue
+            ws = getattr(wall_snap, "wall_strike", None)
+            if ws is not None:
+                try:
+                    csp_put_wall_strike = float(ws)
+                except (TypeError, ValueError):
+                    csp_put_wall_strike = None
         except Exception as e:
             log.warning("Wheel put-wall gate failed for %s: %s", t, e)
             _wheel_system_event("wheel_csp_skipped", symbol=t, reason="put_wall_gate_error")
@@ -1351,6 +1358,24 @@ def _run_csp_phase(
             _wheel_system_event("wheel_order_failed", symbol=t, phase="CSP", reason=str(e)[:200])
             continue
         order_id = getattr(order, "id", None) or (order.get("id") if isinstance(order, dict) else None)
+        if order_id:
+            try:
+                from src.options_engine import fetch_iv_rank
+                from src.wheel_first_five_telegram import maybe_telegram_wheel_first_five_submit
+
+                iv_n, _iv_why = fetch_iv_rank(t)
+                maybe_telegram_wheel_first_five_submit(
+                    phase="CSP",
+                    underlying=t,
+                    action="sell CSP (cash-secured put)",
+                    strike=float(chosen["strike"]),
+                    order_id=str(order_id),
+                    iv_rank=iv_n,
+                    underlying_mid=float(spot),
+                    put_wall_strike=csp_put_wall_strike,
+                )
+            except Exception as fe:
+                log.debug("Wheel First-5 submit pager: %s", fe)
         state.setdefault("recent_orders", {})[client_order_id] = {
             "cycle_id": cycle_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -1561,6 +1586,24 @@ def _run_cc_phase(
             log.warning("Wheel CC order failed for %s: %s", symbol, e)
             continue
         order_id = getattr(order, "id", None) or (order.get("id") if isinstance(order, dict) else None)
+        if order_id:
+            try:
+                from src.options_engine import fetch_iv_rank
+                from src.wheel_first_five_telegram import maybe_telegram_wheel_first_five_submit
+
+                iv_n, _iv_why = fetch_iv_rank(symbol)
+                maybe_telegram_wheel_first_five_submit(
+                    phase="CC",
+                    underlying=symbol,
+                    action="sell CC (covered call)",
+                    strike=float(chosen["strike"]),
+                    order_id=str(order_id),
+                    iv_rank=iv_n,
+                    underlying_mid=float(spot),
+                    put_wall_strike=None,
+                )
+            except Exception as fe:
+                log.debug("Wheel First-5 submit pager CC: %s", fe)
         premium_cc: Optional[float] = None
         fill_st_cc = "unknown"
         fq_cc = 0
