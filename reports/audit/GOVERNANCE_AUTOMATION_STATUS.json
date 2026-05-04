@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-04T16:55:42+00:00",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. All other required top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) and reports/audit/ are present.",
+    "governance_contracts_present: reports/board/ missing. memory_bank/ has 6 key docs, .cursor/automations/ exists with README + 5 specs, reports/audit/ exists."
+  ],
+  "slack_sent": false
+}
