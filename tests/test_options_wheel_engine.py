@@ -103,3 +103,79 @@ def test_resolve_option_short_sell_limit_uses_bid() -> None:
     assert err == ""
     assert src == "bid"
     assert lim == pytest.approx(2.1)
+
+
+def test_submit_wheel_broker_order_uses_guarded_executor_when_present() -> None:
+    from unittest.mock import MagicMock
+
+    from strategies import wheel_strategy as ws
+
+    api = MagicMock()
+    ex = MagicMock()
+    ex._submit_order_guarded.return_value = MagicMock(id="ord-guarded")
+    ws.submit_wheel_broker_order(
+        api,
+        ex,
+        symbol="SPY260101C00500000",
+        qty=1,
+        side="sell",
+        order_type="limit",
+        time_in_force="day",
+        limit_price=1.25,
+        client_order_id="wheel-test-cid",
+        caller="pytest_wheel",
+    )
+    ex._submit_order_guarded.assert_called_once()
+    kw = ex._submit_order_guarded.call_args.kwargs
+    assert kw["symbol"] == "SPY260101C00500000"
+    assert kw["qty"] == 1
+    assert kw["order_type"] == "limit"
+    assert kw["limit_price"] == 1.25
+    api.submit_order.assert_not_called()
+
+
+def test_submit_wheel_broker_order_falls_back_to_raw_api() -> None:
+    from unittest.mock import MagicMock
+
+    from strategies import wheel_strategy as ws
+
+    api = MagicMock()
+    api.submit_order.return_value = {"id": "raw-1"}
+    ws.submit_wheel_broker_order(
+        api,
+        None,
+        symbol="QQQ260101P00400000",
+        qty=1,
+        side="sell",
+        order_type="limit",
+        time_in_force="day",
+        limit_price=0.5,
+        client_order_id=None,
+        caller="pytest_wheel",
+    )
+    api.submit_order.assert_called_once()
+    call_kw = api.submit_order.call_args.kwargs
+    assert call_kw["type"] == "limit"
+    assert call_kw["symbol"] == "QQQ260101P00400000"
+
+
+def test_wheel_run_fails_closed_on_list_positions_error() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from strategies import wheel_strategy as ws
+
+    api = MagicMock()
+    api.get_account.return_value = MagicMock(
+        equity=100_000.0,
+        buying_power=100_000.0,
+        cash=50_000.0,
+        multiplier=1.0,
+    )
+    api.list_positions.side_effect = RuntimeError("broker unavailable")
+    cfg = {"csp": {}, "cc": {}, "risk": {}, "max_concurrent_positions": 5, "universe_max_candidates": True}
+
+    with patch.object(ws, "_select_wheel_tickers", return_value=([], [], [])):
+        r = ws.run(api, cfg)
+    assert r.get("csp_placed", 0) == 0
+    assert r.get("cc_placed", 0) == 0
+    assert any("list_positions" in str(e) for e in r.get("errors", []))

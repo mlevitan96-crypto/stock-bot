@@ -208,7 +208,7 @@ def refresh_wheel_dashboard_sink(api, drift_alerts: Optional[List[Dict[str, Any]
     write_wheel_dashboard_sink(payload)
 
 
-def run_wheel(api, config: Dict[str, Any]) -> Dict[str, Any]:
+def run_wheel(api, config: Dict[str, Any], order_executor: Any = None) -> Dict[str, Any]:
     """Run one wheel cycle (CSP then CC) after broker reconciliation."""
     from strategies.wheel_strategy import _load_wheel_state, run as wheel_run
 
@@ -228,12 +228,12 @@ def run_wheel(api, config: Dict[str, Any]) -> Dict[str, Any]:
             from src.wheel_capital_velocity import apply_wheel_capital_velocity
 
             st1 = _load_wheel_state()
-            apply_wheel_capital_velocity(api, st1, vel)
+            apply_wheel_capital_velocity(api, st1, vel, order_executor=order_executor)
         drift = detect_wheel_broker_drift(api, _load_wheel_state())
         refresh_wheel_dashboard_sink(api, drift_alerts=drift)
     except Exception as e:
         log.warning("run_wheel: reconcile/sink skipped: %s", e)
-    out = wheel_run(api, config)
+    out = wheel_run(api, config, order_executor=order_executor)
     try:
         drift = detect_wheel_broker_drift(api, _load_wheel_state())
         refresh_wheel_dashboard_sink(api, drift_alerts=drift)
