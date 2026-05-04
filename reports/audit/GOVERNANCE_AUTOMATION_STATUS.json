@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-04T17:20:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ was missing (created by this run to restore governance contract)",
+    "no_deprecated_dirs: moltbot/ directory exists at repo root with active code (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, agents/)",
+    "no_clawdbot_moltbot: Active moltbot code found in: moltbot/board.py, moltbot/sentinel.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/promotion_discipline.py, scripts/run_molt_workflow.py (imports from moltbot), scripts/run_openclaw_molt_synthesis.py, scripts/sre/run_sre_anomaly_scan.py"
+  ],
+  "slack_sent": false
+}
