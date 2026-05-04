@@ -16,5 +16,6 @@
     "no_deprecated_dirs: moltbot/ directory still exists at repo root (deprecated module not fully removed)",
     "no_clawdbot_moltbot: scripts/run_molt_workflow.py imports from moltbot package (from moltbot import ...); moltbot/ directory is a live Python package"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "unable to create — gh CLI is read-only in this environment; anomalies require manual issue creation or operator action"
 }
