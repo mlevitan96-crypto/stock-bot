@@ -73,16 +73,18 @@ def _format_message(
     iv_rank: Optional[float],
     underlying_mid: float,
     put_wall_strike: Optional[float],
+    premium_usd: Optional[float],
 ) -> str:
     iv_s = f"{iv_rank:.1f}" if iv_rank is not None else "n/a"
     mid_s = f"{underlying_mid:.2f}"
     wall_s = f"{put_wall_strike:.2f}" if put_wall_strike is not None else "n/a"
+    prem_s = f"{premium_usd:.2f}" if premium_usd is not None else "n/a"
     oid = order_id or "n/a"
     return (
         f"Wheel First-5 submit [{phase}]\n"
         f"Ticker: {underlying} | Action: {action} | Strike: {strike:g}\n"
         f"OrderId: {oid}\n"
-        f"Auth context — [IV Rank]={iv_s} | [Underlying mid]={mid_s} | [Put wall strike]={wall_s}"
+        f"Auth context — [IV Rank]={iv_s} | [Premium USD]={prem_s} | [Underlying mid]={mid_s} | [Put wall strike]={wall_s}"
     )
 
 
@@ -96,6 +98,7 @@ def maybe_telegram_wheel_first_five_submit(
     iv_rank: Optional[float],
     underlying_mid: float,
     put_wall_strike: Optional[float],
+    premium_usd: Optional[float] = None,
 ) -> None:
     """
     If ``order_id`` is set and fewer than five alerts have been sent, send Telegram
@@ -123,6 +126,7 @@ def maybe_telegram_wheel_first_five_submit(
         iv_rank=iv_rank,
         underlying_mid=float(underlying_mid),
         put_wall_strike=put_wall_strike,
+        premium_usd=premium_usd,
     )
     try:
         from scripts.alpaca_telegram import send_governance_telegram
