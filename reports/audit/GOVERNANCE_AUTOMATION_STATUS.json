@@ -15,5 +15,6 @@
     "reports/board/ directory was missing (created during this run)",
     "reports/board/ was absent from governance contract directories"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "anomalies_detected=true; gh CLI is read-only in this environment; issue creation deferred to operator review"
 }
