@@ -31,13 +31,13 @@ def _option_buy_limit_per_share(api, occ_symbol: str) -> Optional[float]:
     if not occ_symbol or not api:
         return None
     try:
-        q = api.get_quote(occ_symbol)
-        ask = getattr(q, "ap", None) or (q.get("ap") if isinstance(q, dict) else None)
-        last = getattr(q, "last_trade", None) or getattr(q, "lp", None)
-        if ask is None and isinstance(q, dict):
-            ask = q.get("ask_price") or q.get("ap")
-            last = q.get("last") or q.get("lp")
-        for v in (ask, last):
+        from strategies.wheel_strategy import fetch_alpaca_latest_quote, normalize_alpaca_quote
+
+        raw = fetch_alpaca_latest_quote(api, occ_symbol)
+        n = normalize_alpaca_quote(raw) or {}
+        ask = n.get("ask")
+        lt = n.get("last_trade")
+        for v in (ask, lt):
             if v is not None:
                 try:
                     x = float(v)
@@ -46,7 +46,7 @@ def _option_buy_limit_per_share(api, occ_symbol: str) -> Optional[float]:
                 except (TypeError, ValueError):
                     continue
     except Exception as e:
-        log.debug("quote for %s: %s", occ_symbol, e)
+        log.warning("Wheel velocity: pricing failed for %s: %s", occ_symbol, e)
     return None
 
 
