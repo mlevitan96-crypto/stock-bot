@@ -93,11 +93,13 @@ def apply_wheel_capital_velocity(
     api,
     state: Dict[str, Any],
     velocity_cfg: Dict[str, Any],
+    order_executor: Any = None,
 ) -> Dict[str, Any]:
     """
     Buy-to-close CSP legs when premium capture >= quick_exit threshold, or gamma shield triggers.
 
     Mutates ``state`` (``open_csps``, ``csp_history``) and persists via ``_save_wheel_state``.
+    When ``order_executor`` is set (AlpacaExecutor), buy-to-close uses ``_submit_order_guarded``.
     """
     import strategies.wheel_strategy as ws
 
@@ -164,14 +166,20 @@ def apply_wheel_capital_velocity(
                 continue
 
             try:
+                from strategies.wheel_strategy import submit_wheel_broker_order
+
                 limit_px = buy_px if buy_px is not None else 0.01
-                order = api.submit_order(
+                order = submit_wheel_broker_order(
+                    api,
+                    order_executor,
                     symbol=occ,
                     qty=1,
                     side="buy",
-                    type="limit",
+                    order_type="limit",
                     time_in_force="day",
                     limit_price=float(limit_px),
+                    client_order_id=None,
+                    caller="wheel_velocity_buy_close",
                 )
                 oid = getattr(order, "id", None) or (order.get("id") if isinstance(order, dict) else None)
             except Exception as e:
