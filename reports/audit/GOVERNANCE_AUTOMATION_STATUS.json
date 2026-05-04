@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-04T20:12:09Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing",
+    "no_deprecated_dirs: moltbot/ directory exists (deprecated, should have been removed)",
+    "no_deprecated_dirs: board/ directory exists (deprecated, should have been removed)",
+    "no_clawdbot_moltbot: moltbot/ directory contains 5 files with Moltbot references (moltbot/board.py, moltbot/sentinel.py, moltbot/orchestrator.py, moltbot/memory_evolution.py, moltbot/promotion_discipline.py)",
+    "no_clawdbot_moltbot: scripts/ contains 4 files with Clawdbot/Moltbot references (scripts/sre/run_sre_anomaly_scan.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/automations/run_governance_integrity_once.py)",
+    "no_clawdbot_moltbot: board/ contains 3 files with Clawdbot/Moltbot references (board/eod/out/2026-02-13/cron_diagnosis.json, board/eod/out/2026-02-12/cron_diagnosis.json, board/eod/out/2026-02-12/eod_failure.json)",
+    "no_clawdbot_moltbot: alpaca_codebase_payload.txt contains Clawdbot/Moltbot references"
+  ],
+  "slack_sent": false
+}
