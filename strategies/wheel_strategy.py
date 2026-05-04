@@ -405,9 +405,36 @@ def _check_iv_rank(underlying: str, min_iv_rank: float) -> bool:
 # -----------------------------------------------------------------------------
 
 
+def fetch_alpaca_latest_quote(api: Any, symbol: str) -> Optional[Any]:
+    """
+    Fetch a quote-like object from Alpaca ``REST`` (alpaca-trade-api v2).
+
+    Uses ``get_latest_quote`` when present (current SDK); falls back to legacy ``get_quote``.
+    Never raises; returns ``None`` if both fail or ``api``/``symbol`` is unusable.
+    """
+    if not api or not symbol:
+        return None
+    sym = str(symbol).strip()
+    if not sym:
+        return None
+    try:
+        fn = getattr(api, "get_latest_quote", None)
+        if callable(fn):
+            return fn(sym)
+    except Exception as e:
+        log.debug("get_latest_quote(%s): %s", sym, e)
+    try:
+        fn = getattr(api, "get_quote", None)
+        if callable(fn):
+            return fn(sym)
+    except Exception as e:
+        log.debug("get_quote(%s): %s", sym, e)
+    return None
+
+
 def normalize_alpaca_quote(raw_quote: Any) -> Optional[Dict[str, Any]]:
     """
-    Normalize raw api.get_quote() return into a canonical dict.
+    Normalize raw quote object (``get_latest_quote`` / legacy ``get_quote``) into a canonical dict.
     Never raises. Returns None only if raw_quote is None.
     """
     if raw_quote is None:
@@ -538,12 +565,16 @@ def resolve_option_short_sell_limit_per_share(
     Returns (limit_or_none, price_source, fail_reason). fail_reason empty when limit is set.
     """
     try:
-        raw = api.get_quote(occ_symbol)
+        raw = fetch_alpaca_latest_quote(api, occ_symbol)
     except Exception as e:
-        log.debug("option get_quote(%s): %s", occ_symbol, e)
+        log.warning("Wheel CSP: pricing failed for %s: %s", occ_symbol, e)
         return None, "", "quote_error"
+    if raw is None:
+        log.warning("Wheel CSP: pricing failed for %s (no quote from Alpaca)", occ_symbol)
+        return None, "", "no_quote"
     n = normalize_alpaca_quote(raw)
     if not n:
+        log.warning("Wheel CSP: pricing failed for %s (unparseable quote)", occ_symbol)
         return None, "", "no_quote"
     bid = n.get("bid")
     ask = n.get("ask")
@@ -616,9 +647,11 @@ def _resolve_spot(api: Any, symbol: str) -> Tuple[float, str]:
     """
     raw_quote = None
     try:
-        raw_quote = api.get_quote(symbol)
+        raw_quote = fetch_alpaca_latest_quote(api, symbol)
     except Exception as e:
-        log.debug("get_quote(%s) failed: %s", symbol, e)
+        log.warning("Wheel spot: pricing failed for %s: %s", symbol, e)
+    if raw_quote is None:
+        log.warning("Wheel spot: pricing unavailable for %s (no quote; bar fallback if any)", symbol)
     normalized = normalize_alpaca_quote(raw_quote)
     bar_close = _get_latest_bar_close(api, symbol)
     spot, source = resolve_spot_from_market_data(normalized, bar_close)
