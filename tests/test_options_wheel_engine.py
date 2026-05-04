@@ -14,6 +14,17 @@ def test_sp100_contains_aapl_and_brk_hyphen() -> None:
     assert not oe.is_sp100_wheel_eligible("XLF")
 
 
+def test_wheel_underlying_includes_macro_etfs_and_sector_xl() -> None:
+    assert oe.is_wheel_csp_underlying_eligible("AAPL")
+    assert oe.is_wheel_csp_underlying_eligible("SPY")
+    assert oe.is_wheel_csp_underlying_eligible("QQQ")
+    assert oe.is_wheel_csp_underlying_eligible("DIA")
+    assert oe.is_wheel_csp_underlying_eligible("IWM")
+    assert oe.is_wheel_csp_underlying_eligible("XLF")
+    assert oe.is_wheel_csp_underlying_eligible("XLE")
+    assert not oe.is_wheel_csp_underlying_eligible("ZZZZ")
+
+
 def test_occ_strike_price_put() -> None:
     assert oe.occ_strike_price("MSFT240315P00350000") == pytest.approx(350.0)
 
@@ -88,7 +99,7 @@ def test_resolve_spot_wide_nbbo_uses_mid() -> None:
     assert spot2 == pytest.approx(100.1)
 
 
-def test_resolve_option_short_sell_limit_uses_bid() -> None:
+def test_resolve_option_short_sell_limit_uses_bid(monkeypatch: pytest.MonkeyPatch) -> None:
     from strategies import wheel_strategy as ws
 
     class _Q:
@@ -96,9 +107,12 @@ def test_resolve_option_short_sell_limit_uses_bid() -> None:
         bp = 2.1
 
     class _Api:
-        def get_latest_quote(self, sym: str):
-            return _Q()
+        pass
 
+    def _fake_option_rest(_occ: str):
+        return _Q()
+
+    monkeypatch.setattr(ws, "_fetch_alpaca_option_quote_via_data_rest", _fake_option_rest)
     lim, src, err = ws.resolve_option_short_sell_limit_per_share(_Api(), "FAKE260320P00090000")
     assert err == ""
     assert src == "bid"
