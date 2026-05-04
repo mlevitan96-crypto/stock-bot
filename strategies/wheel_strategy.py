@@ -432,6 +432,45 @@ def fetch_alpaca_latest_quote(api: Any, symbol: str) -> Optional[Any]:
     return None
 
 
+def submit_wheel_broker_order(
+    api: Any,
+    order_executor: Any,
+    *,
+    symbol: str,
+    qty: int,
+    side: str,
+    order_type: str,
+    time_in_force: str,
+    limit_price: Optional[float],
+    client_order_id: Optional[str],
+    caller: str,
+) -> Any:
+    """
+    Submit a wheel options order via AlpacaExecutor._submit_order_guarded when ``order_executor`` is set
+    (audit guard, paper safety, submit_order_called telemetry). Otherwise raw ``api.submit_order``.
+    """
+    if order_executor is not None and hasattr(order_executor, "_submit_order_guarded"):
+        return order_executor._submit_order_guarded(
+            symbol=symbol,
+            qty=qty,
+            side=side,
+            order_type=order_type,
+            time_in_force=time_in_force,
+            limit_price=limit_price,
+            client_order_id=client_order_id,
+            caller=caller,
+        )
+    return api.submit_order(
+        symbol=symbol,
+        qty=qty,
+        side=side,
+        type=order_type,
+        time_in_force=time_in_force,
+        limit_price=limit_price,
+        client_order_id=client_order_id,
+    )
+
+
 def normalize_alpaca_quote(raw_quote: Any) -> Optional[Dict[str, Any]]:
     """
     Normalize raw quote object (``get_latest_quote`` / legacy ``get_quote``) into a canonical dict.
@@ -715,6 +754,7 @@ def _run_csp_phase(
     selected_meta_override: Optional[List[dict]] = None,
     all_candidates_override: Optional[List[dict]] = None,
     account_fields: Optional[Dict[str, Any]] = None,
+    order_executor: Any = None,
 ) -> Tuple[int, Optional[str], List[dict]]:
     """Sell cash-secured puts. Returns (count placed, first placed symbol or None, selected_meta for telemetry)."""
     from capital.strategy_allocator import can_allocate
@@ -1038,14 +1078,17 @@ def _run_csp_phase(
             filter_summary="delta_dte_sort",
         )
         try:
-            order = api.submit_order(
+            order = submit_wheel_broker_order(
+                api,
+                order_executor,
                 symbol=occ_symbol,
                 qty=1,
                 side="sell",
-                type="limit",
+                order_type="limit",
                 time_in_force="day",
                 limit_price=limit_price,
                 client_order_id=client_order_id,
+                caller="wheel_csp",
             )
         except Exception as e:
             log.warning("Wheel CSP order failed for %s: %s", t, e)
@@ -1164,7 +1207,14 @@ def _run_csp_phase(
     return placed, first_placed_symbol, selected_meta
 
 
-def _run_cc_phase(api, config: dict, account_equity: float, positions: list) -> int:
+def _run_cc_phase(
+    api,
+    config: dict,
+    account_equity: float,
+    positions: list,
+    *,
+    order_executor: Any = None,
+) -> int:
     """Sell covered calls on wheel-assigned shares. Returns count of orders placed."""
     cc_cfg = config.get("cc", {})
     state = _load_wheel_state()
@@ -1239,14 +1289,17 @@ def _run_cc_phase(api, config: dict, account_equity: float, positions: list) -> 
             continue
         try:
             client_order_id = f"wheel-CC-{symbol}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-            order = api.submit_order(
+            order = submit_wheel_broker_order(
+                api,
+                order_executor,
                 symbol=occ_symbol,
                 qty=1,
                 side="sell",
-                type="limit",
+                order_type="limit",
                 time_in_force="day",
                 limit_price=cc_limit,
                 client_order_id=client_order_id,
+                caller="wheel_cc",
             )
         except Exception as e:
             log.warning("Wheel CC order failed for %s: %s", symbol, e)
@@ -1293,10 +1346,12 @@ def _run_cc_phase(api, config: dict, account_equity: float, positions: list) -> 
     return placed
 
 
-def run(api, config: dict) -> dict:
+def run(api, config: dict, order_executor: Any = None) -> dict:
     """
     Run wheel strategy: CSP phase then CC phase.
     Regime is modifier-only; must never gate or block wheel entries.
+
+    :param order_executor: Optional ``AlpacaExecutor``; when set, CSP/CC use ``_submit_order_guarded``.
     """
     result = {"orders_placed": 0, "csp_placed": 0, "cc_placed": 0, "errors": []}
     cycle_id = str(uuid.uuid4())
@@ -1338,12 +1393,18 @@ def run(api, config: dict) -> dict:
         return result
     try:
         positions = api.list_positions() or []
-    except Exception:
-        positions = []
+    except Exception as e:
+        result["errors"].append(f"list_positions: {e}")
+        log.warning("Wheel: list_positions failed — aborting cycle (fail-closed): %s", e)
+        _wheel_system_event("wheel_run_failed", reason="list_positions", error=str(e)[:200], cycle_id=cycle_id)
+        return result
     try:
         open_orders = api.list_orders(status="open") if hasattr(api, "list_orders") else []
-    except Exception:
-        open_orders = []
+    except Exception as e:
+        result["errors"].append(f"list_orders: {e}")
+        log.warning("Wheel: list_orders failed — aborting cycle (fail-closed): %s", e)
+        _wheel_system_event("wheel_run_failed", reason="list_orders", error=str(e)[:200], cycle_id=cycle_id)
+        return result
     state = _load_wheel_state()
     try:
         from capital.strategy_allocator import can_allocate as _can_allocate
@@ -1380,13 +1441,14 @@ def run(api, config: dict) -> dict:
         selected_meta_override=selected_meta,
         all_candidates_override=all_candidates,
         account_fields=account_fields,
+        order_executor=order_executor,
     )
     result["csp_placed"] = csp_placed
     result["orders_placed"] += csp_placed
     if csp_placed == 0 and len(tickers) > 0:
         _wheel_system_event("wheel_alert_stuck", cycle_id=cycle_id, reason="no_submission_this_cycle", candidates_considered=len(tickers))
     _emit_wheel_candidate_ranked(tickers, selected_meta, first_placed_symbol, csp_placed, cycle_id=cycle_id)
-    cc_placed = _run_cc_phase(api, config, account_equity, positions)
+    cc_placed = _run_cc_phase(api, config, account_equity, positions, order_executor=order_executor)
     result["cc_placed"] = cc_placed
     result["orders_placed"] += cc_placed
     return result

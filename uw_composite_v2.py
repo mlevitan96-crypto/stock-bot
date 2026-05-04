@@ -18,6 +18,7 @@ V3 Features (retained):
 """
 
 import json
+import logging
 import os
 import time
 import math
@@ -25,6 +26,8 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
+
+_log_uw = logging.getLogger(__name__)
 
 MOTIF_STATE = Path("state/uw_motifs.json")
 THRESHOLD_STATE = Path("state/uw_thresholds_hierarchical.json")
@@ -78,6 +81,33 @@ except Exception:
         return None
 
 _adaptive_optimizer = None
+
+def _alpaca_equity_mid_best_effort(api: Any, symbol: str) -> Optional[float]:
+    """
+    Equity spot proxy from Alpaca REST using the same SDK-safe quote path as the wheel (no legacy ``get_quote``).
+    Returns mid when bid+ask valid, else last_trade from normalized quote. Never raises.
+    """
+    if api is None or not symbol:
+        return None
+    try:
+        from strategies.wheel_strategy import fetch_alpaca_latest_quote, normalize_alpaca_quote
+
+        raw = fetch_alpaca_latest_quote(api, str(symbol).strip())
+        n = normalize_alpaca_quote(raw) or {}
+        bid, ask = n.get("bid"), n.get("ask")
+        if bid is not None and ask is not None:
+            bf, af = float(bid), float(ask)
+            if bf > 0 and af > 0:
+                return (bf + af) / 2.0
+        lt = n.get("last_trade")
+        if lt is not None:
+            v = float(lt)
+            if v > 0:
+                return v
+    except Exception as e:
+        _log_uw.debug("uw_composite quote bridge failed for %s: %s", symbol, e)
+    return None
+
 
 def _log_gate_failure(symbol: str, gate_name: str, details: Dict):
     """
@@ -2463,19 +2493,25 @@ def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) 
             from main import compute_atr
             import pandas as pd
             
-            # Get current price
+            # Get current price (last trade first, then SDK-safe quote mid / last)
+            current_price = None
             try:
-                current_price = float(api.get_last_trade(symbol).price) if hasattr(api.get_last_trade(symbol), 'price') else None
-                if not current_price:
-                    last_trade = api.get_last_trade(symbol)
-                    current_price = float(last_trade) if isinstance(last_trade, (int, float)) else None
-            except:
-                # Fallback: try getting quote
+                lt_obj = api.get_last_trade(symbol)
+                if hasattr(lt_obj, "price"):
+                    pv = getattr(lt_obj, "price", None)
+                    if pv is not None:
+                        current_price = float(pv)
+            except Exception as e:
+                _log_uw.debug("uw_composite exhaustion last_trade for %s: %s", symbol, e)
+            if not current_price or current_price <= 0:
                 try:
-                    quote = api.get_quote(symbol)
-                    current_price = (float(quote.bid) + float(quote.ask)) / 2.0
-                except:
-                    current_price = None
+                    lt2 = api.get_last_trade(symbol)
+                    if isinstance(lt2, (int, float)):
+                        current_price = float(lt2)
+                except Exception as e:
+                    _log_uw.debug("uw_composite exhaustion last_trade_alt for %s: %s", symbol, e)
+            if not current_price or current_price <= 0:
+                current_price = _alpaca_equity_mid_best_effort(api, symbol)
             
             if current_price and current_price > 0:
                 # Compute ATR (14-period is standard, but we'll use what's available)
@@ -2507,29 +2543,27 @@ def should_enter_v2(composite: Dict, symbol: str, mode: str = "base", api=None) 
                                 })
                                 return False  # Block exhausted entry
                 except Exception as e:
-                    # If EMA calculation fails, fail open (allow trade)
-                    # Log error but don't block
-                    pass
+                    # If EMA calculation fails, fail open (allow trade) but log for SRE visibility.
+                    _log_uw.debug("uw_composite exhaustion EMA path failed for %s: %s", symbol, e)
         except Exception as e:
-            # If exhaustion check fails, fail open (allow trade)
-            # This ensures we don't block trades due to technical indicator errors
-            pass
+            _log_uw.debug("uw_composite exhaustion outer failed for %s: %s", symbol, e)
 
     # Phase 5: Gamma wall awareness — block trades into resistance walls
     try:
         levels = composite.get("gamma_resistance_levels") or []
         if api is not None and levels:
             # Reuse current price best-effort (as above); fall back to last trade.
+            current_price = None
             try:
-                current_price = float(api.get_last_trade(symbol).price) if hasattr(api.get_last_trade(symbol), 'price') else None
-            except Exception:
-                current_price = None
+                lt_obj = api.get_last_trade(symbol)
+                if hasattr(lt_obj, "price"):
+                    pv = getattr(lt_obj, "price", None)
+                    if pv is not None:
+                        current_price = float(pv)
+            except Exception as e:
+                _log_uw.debug("uw_composite gamma last_trade for %s: %s", symbol, e)
             if not current_price or current_price <= 0:
-                try:
-                    quote = api.get_quote(symbol)
-                    current_price = (float(quote.bid) + float(quote.ask)) / 2.0
-                except Exception:
-                    current_price = None
+                current_price = _alpaca_equity_mid_best_effort(api, symbol)
 
             if current_price and current_price > 0:
                 nearest = None
