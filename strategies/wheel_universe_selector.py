@@ -3,7 +3,9 @@ Wheel universe selector: rank by UW intelligence first, then apply liquidity/spr
 
 PATH B contract (UW-first):
 - Step 1: Rank universe by UW composite score (from uw_flow_cache + uw_composite_v2).
-- Step 2: Select top N candidates by UW rank.
+- Step 2: Capital-aware pre-filter — after ranking, drop symbols whose spot exceeds affordable
+  max share price (1 CSP contract = 100 × strike ≈ 100 × spot) using account equity, sector caps,
+  wheel budget, per-position limit, and strict cash when applicable. Runs before bars/OI/spread.
 - Step 3: Attach liquidity/OI/spread metrics for explainability; hard filters (spot/contract) run in wheel_strategy per-ticker.
 
 Rules:
@@ -18,7 +20,7 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 log = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -61,6 +63,146 @@ def _load_universe(config: dict) -> List[str]:
 
 def _get_sector(symbol: str) -> str:
     return SECTOR_MAP.get(symbol.upper(), "Unknown")
+
+
+def _sector_bucket_for_cap(symbol: str, sector: str) -> str:
+    """Match ``src.wheel_risk_gates._sector_key_for_cap`` so sector notionals align with CSP gates."""
+    s = (sector or "Unknown").strip() or "Unknown"
+    if s == "Unknown":
+        return f"Unknown.{(symbol or '').upper()}"
+    return s
+
+
+def _max_affordable_share_price(
+    symbol: str,
+    *,
+    account_equity: float,
+    max_sector_frac: float,
+    by_sec: Dict[str, float],
+    strategy_available: float,
+    per_position_limit: float,
+    cash: float,
+    multiplier: float,
+    require_cash_secured: bool,
+    allow_margin_account: bool,
+) -> float:
+    """
+    Conservative max underlying price for strike≈spot CSP: min(sector, wheel, per-position [, cash]).
+
+    Sector leg: ``(max_sector_frac * equity - current_sector_notional) / 100`` — room for one more
+    contract at ~100× spot collateral (``wheel_risk_gates.sector_cap_allows_new_csp`` contract).
+    """
+    sec = _get_sector(symbol)
+    sk = _sector_bucket_for_cap(symbol, sec)
+    cap_usd = max(0.0, float(max_sector_frac)) * max(0.0, float(account_equity))
+    sector_headroom = max(0.0, cap_usd - float(by_sec.get(sk, 0.0)))
+    max_sector_px = sector_headroom / 100.0
+
+    max_wheel_px = max(0.0, float(strategy_available)) / 100.0
+    max_per_pos_px = max(0.0, float(per_position_limit)) / 100.0
+    parts = [max_sector_px, max_wheel_px, max_per_pos_px]
+    if require_cash_secured and (allow_margin_account or float(multiplier) <= 1.0 + 1e-9):
+        cash_buffer = 0.99
+        parts.append(max(0.0, float(cash)) * cash_buffer / 100.0)
+    return min(parts) if parts else 0.0
+
+
+def _snapshot_account_capital(api: Any) -> Optional[Dict[str, float]]:
+    """Equity, cash, multiplier from ``get_account()``; None on failure (caller skips capital filter)."""
+    try:
+        acct = api.get_account()
+        equity = float(getattr(acct, "equity", None) or 0)
+        cash = float(getattr(acct, "cash", None) or 0)
+        mult = float(getattr(acct, "multiplier", None) or 1.0)
+        return {"equity": equity, "cash": cash, "multiplier": mult}
+    except Exception as e:
+        log.warning("Wheel universe capital snapshot get_account failed: %s", e)
+        return None
+
+
+def _get_spot_for_capital_filter(api: Any, symbol: str) -> Optional[float]:
+    """Single equity quote for upstream affordability; avoids options-chain / OI work when over cap."""
+    try:
+        from strategies.wheel_strategy import fetch_alpaca_latest_quote, normalize_alpaca_quote
+
+        raw = fetch_alpaca_latest_quote(api, symbol)
+        n = normalize_alpaca_quote(raw) or {}
+        ask = n.get("ask")
+        bid = n.get("bid")
+        if ask is None and bid is None:
+            return None
+        af, bf = float(ask or 0), float(bid or 0)
+        if af > 0 and bf > 0:
+            return (af + bf) / 2.0
+        return af or bf or None
+    except Exception as e:
+        log.debug("Capital filter spot for %s: %s", symbol, e)
+        return None
+
+
+def _build_capital_filter_inputs(
+    api: Any,
+    config: dict,
+    wheel_state: dict,
+    get_sector: Callable[[str], str],
+) -> Optional[Dict[str, Any]]:
+    snap = _snapshot_account_capital(api)
+    if not snap or snap["equity"] <= 0:
+        return None
+    risk = config.get("risk") or {}
+    max_sector_frac = float(risk.get("max_sector_notional_fraction", 0.25) or 0.25)
+    per_position_frac = float(config.get("per_position_fraction_of_wheel_budget", 0.5) or 0.5)
+    require_cash_secured = bool(risk.get("require_cash_secured", True))
+    allow_margin_account = bool(risk.get("allow_margin_account", False))
+
+    try:
+        from capital.strategy_allocator import can_allocate
+        from src.wheel_risk_gates import wheel_open_csp_notional_by_sector
+
+        open_csps = wheel_state.get("open_csps") or {}
+        by_sec = wheel_open_csp_notional_by_sector(open_csps, get_sector)
+        _, alloc = can_allocate("wheel", 0.0, float(snap["equity"]), wheel_state)
+        wheel_budget = float(alloc.get("strategy_budget") or 0)
+        strategy_available = float(alloc.get("strategy_available") or 0)
+        per_position_limit = wheel_budget * per_position_frac
+        return {
+            "account_equity": float(snap["equity"]),
+            "max_sector_frac": max_sector_frac,
+            "by_sec": by_sec,
+            "strategy_available": strategy_available,
+            "per_position_limit": per_position_limit,
+            "cash": float(snap["cash"]),
+            "multiplier": float(snap["multiplier"]),
+            "require_cash_secured": require_cash_secured,
+            "allow_margin_account": allow_margin_account,
+        }
+    except Exception as e:
+        log.warning("Wheel universe capital filter context build failed: %s", e)
+        return None
+
+
+def _filter_ordered_by_capital(
+    api: Any,
+    ordered_symbols: List[str],
+    capital_inputs: Dict[str, Any],
+) -> List[str]:
+    out: List[str] = []
+    for symbol in ordered_symbols:
+        max_px = _max_affordable_share_price(symbol, **capital_inputs)
+        spot = _get_spot_for_capital_filter(api, symbol)
+        if spot is None or spot <= 0:
+            out.append(symbol)
+            continue
+        if spot > max_px + 1e-6:
+            log.info(
+                "Wheel universe: capital pre-filter drop %s (spot=%.2f > max_affordable_share=%.2f; 1 contract ≈ 100× spot)",
+                symbol,
+                spot,
+                max_px,
+            )
+            continue
+        out.append(symbol)
+    return out
 
 
 def _get_avg_daily_volume(api, symbol: str, days: int = 20) -> float:
@@ -307,6 +449,12 @@ def select_wheel_candidates(
         ordered_symbols = [s for s, _ in uw_ranked]
     else:
         ordered_symbols = candidate_tickers
+
+    # Upstream capital filter: one equity quote per symbol; before bars / options OI / spread / IV work.
+    if api is not None and ordered_symbols:
+        cap_in = _build_capital_filter_inputs(api, config, wheel_state, _get_sector)
+        if cap_in is not None:
+            ordered_symbols = _filter_ordered_by_capital(api, ordered_symbols, cap_in)
 
     # UW quality floor and survivorship/decay filters (wheel_v2)
     uw_quality_min = _get("universe_uw_quality_min", 0.5)
