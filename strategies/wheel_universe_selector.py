@@ -292,11 +292,11 @@ def select_wheel_candidates(
     sitter_bonus_by_symbol: Dict[str, float] = {}
     if uw_ranked and api is not None:
         try:
-            from src.options_engine import is_sp100_wheel_eligible, sitter_iv_minus_rv_bonus
+            from src.options_engine import is_wheel_csp_underlying_eligible, sitter_iv_minus_rv_bonus
 
             boosted: List[Tuple[str, float]] = []
             for sym, sc in uw_ranked:
-                bonus = sitter_iv_minus_rv_bonus(sym) if is_sp100_wheel_eligible(sym) else 0.0
+                bonus = sitter_iv_minus_rv_bonus(sym) if is_wheel_csp_underlying_eligible(sym) else 0.0
                 sitter_bonus_by_symbol[sym] = bonus
                 boosted.append((sym, float(sc) + bonus * 0.12))
             boosted.sort(key=lambda x: -x[1])
