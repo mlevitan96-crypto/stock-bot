@@ -15,8 +15,8 @@ capital_allocation:
 
 strategies:
   equity:
-    enabled: true
-    # Existing equity config (no behavior change)
+    enabled: false
+    # Wheel-only mode: legacy equity run_once path disabled in main run_all_strategies.
 
   wheel:
     enabled: true
