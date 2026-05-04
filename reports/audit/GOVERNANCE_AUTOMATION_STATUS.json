@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-04T14:42:51Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "no_clawdbot_moltbot: FAIL — moltbot/ directory exists with active Python code (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py). scripts/run_molt_workflow.py and scripts/run_openclaw_molt_synthesis.py are present. alpaca_codebase_payload.txt contains moltbot/clawdbot references. These constitute code/config reintroduction per governance contract.",
+    "repo_structure: NOTE — reports/board/ was missing and has been created with .gitkeep to satisfy governance contract."
+  ],
+  "slack_sent": false
+}
