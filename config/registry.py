@@ -205,6 +205,8 @@ class StateFiles:
 
     # Wheel strategy: assigned shares and open CSP/CC tracking.
     WHEEL_STATE = Directories.STATE / "wheel_state.json"
+    # Wheel First-5 submit Telegram: persistent counter + dedupe order_ids (see src/wheel_first_five_telegram.py).
+    WHEEL_FIRST_FIVE_SUBMIT = Directories.STATE / "wheel_first_five_submit_state.json"
     # Wheel HUD: written by scripts/wheel_broker_reconcile.py (15m) for dashboard low-latency reads.
     WHEEL_DASHBOARD_SINK = Directories.STATE / "wheel_dashboard_sink.json"
 
