@@ -5698,8 +5698,15 @@ def _apply_alpha11_tiered_entry_notional(symbol: str, notional_target: float, cl
 # EXECUTION & POSITION MGMT (Alpaca API - PAPER/LIVE)
 # =========================
 class AlpacaExecutor:
-    def __init__(self, defer_reconcile=False):
-        self.api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL)
+    def __init__(self, defer_reconcile=False, external_api=None):
+        """
+        :param external_api: Optional pre-built ``tradeapi.REST`` (e.g. api_version='v2' for options).
+            When set, guarded submits use this client instead of creating a new REST instance.
+        """
+        if external_api is not None:
+            self.api = external_api
+        else:
+            self.api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL)
         # Import audit guard for order submission protection
         try:
             from src.audit_guard import assert_no_live_orders, should_use_dry_run, create_mock_order, is_audit_dry_run
@@ -14963,12 +14970,14 @@ def run_all_strategies():
         try:
             from src.wheel_manager import run_wheel
 
+            # Single v2 REST client: shared with AlpacaExecutor so wheel uses guarded submit + telemetry.
             api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL, api_version="v2")
+            executor = AlpacaExecutor(defer_reconcile=True, external_api=api)
             if strategy_context:
                 with strategy_context("wheel"):
-                    wm = run_wheel(api, wheel_cfg)
+                    wm = run_wheel(api, wheel_cfg, order_executor=executor)
             else:
-                wm = run_wheel(api, wheel_cfg)
+                wm = run_wheel(api, wheel_cfg, order_executor=executor)
             if isinstance(wm, dict):
                 wn = int(wm.get("orders_placed", 0) or 0)
                 total_orders += wn

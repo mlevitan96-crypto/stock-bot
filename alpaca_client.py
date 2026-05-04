@@ -411,12 +411,15 @@ class AlpacaClient:
             raise
     
     def get_quote(self, symbol: str) -> Any:
-        """Get quote with error handling (v2: get_latest_quote; legacy: get_quote)."""
+        """Get quote with error handling (v2: get_latest_quote; legacy: get_quote if present)."""
         try:
             fn = getattr(self.api, "get_latest_quote", None)
             if callable(fn):
                 return fn(symbol)
-            return self.api.get_quote(symbol)
+            legacy = getattr(self.api, "get_quote", None)
+            if callable(legacy):
+                return legacy(symbol)
+            raise AttributeError("REST client has neither get_latest_quote nor get_quote")
         except Exception as e:
             error_type, reason = self._classify_error(e)
             logger.error(f"get_quote failed: {reason}")
