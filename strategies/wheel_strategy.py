@@ -585,17 +585,93 @@ def _check_iv_rank(underlying: str, min_iv_rank: float) -> bool:
 # -----------------------------------------------------------------------------
 
 
+def _fetch_alpaca_option_quote_via_data_rest(occ_symbol: str) -> Optional[Any]:
+    """
+    OCC option NBBO from **Alpaca Market Data** ``GET /v1beta1/options/quotes/latest``.
+
+    Trading REST ``get_latest_quote(OCC)`` is for **equities**; OCC symbols do not resolve there,
+    which produced persistent ``no_quote`` for wheel CSP pricing. Data host defaults to
+    ``https://data.alpaca.markets`` (override with ``ALPACA_DATA_BASE_URL``).
+    """
+    from types import SimpleNamespace
+
+    import requests
+
+    occ = str(occ_symbol).strip().upper()
+    if not occ:
+        return None
+    base = (os.getenv("ALPACA_DATA_BASE_URL") or "https://data.alpaca.markets").rstrip("/")
+    key = os.getenv("ALPACA_KEY") or os.getenv("ALPACA_API_KEY") or os.getenv("APCA_API_KEY_ID") or ""
+    secret = os.getenv("ALPACA_SECRET") or os.getenv("ALPACA_API_SECRET_KEY") or os.getenv("ALPACA_API_SECRET") or ""
+    if not key or not secret:
+        log.debug("option Data API: missing APCA keys in environment")
+        return None
+    url = f"{base}/v1beta1/options/quotes/latest"
+    headers = {"APCA-API-KEY-ID": key.strip(), "APCA-API-SECRET-KEY": secret.strip()}
+    for feed in ("opra", "indicative"):
+        try:
+            r = requests.get(url, params={"symbols": occ, "feed": feed}, headers=headers, timeout=20)
+            if r.status_code != 200:
+                log.debug(
+                    "option quotes latest HTTP %s feed=%s occ=%s snippet=%s",
+                    r.status_code,
+                    feed,
+                    occ,
+                    (r.text or "")[:160],
+                )
+                continue
+            body = r.json() if r.text else {}
+            quotes = (body or {}).get("quotes") or {}
+            q = quotes.get(occ)
+            if not isinstance(q, dict):
+                continue
+            bp, ap = q.get("bp"), q.get("ap")
+            if bp is None and ap is None:
+                continue
+            return SimpleNamespace(
+                bp=bp,
+                ap=ap,
+                bid_price=bp,
+                ask_price=ap,
+                bidsize=q.get("bs"),
+                asksize=q.get("as"),
+            )
+        except Exception as e:
+            log.debug("option quotes latest error feed=%s occ=%s: %s", feed, occ, e)
+    return None
+
+
 def fetch_alpaca_latest_quote(api: Any, symbol: str) -> Optional[Any]:
     """
-    Fetch a quote-like object from Alpaca ``REST`` (alpaca-trade-api v2).
+    Fetch a quote-like object for **equities** (trading REST) or **options OCC** (Market Data API).
 
-    Uses ``get_latest_quote`` when present (current SDK); falls back to legacy ``get_quote``.
-    Never raises; returns ``None`` if both fail or ``api``/``symbol`` is unusable.
+    OCC symbols use ``GET /v1beta1/options/quotes/latest`` on ``data.alpaca.markets`` — not
+    ``get_latest_quote``, which targets stock symbols on the trading API.
     """
-    if not api or not symbol:
+    if not symbol:
         return None
     sym = str(symbol).strip()
     if not sym:
+        return None
+
+    try:
+        from src.options_engine import occ_strike_price
+
+        is_occ = occ_strike_price(sym) is not None
+    except Exception:
+        is_occ = False
+
+    if is_occ:
+        oq = _fetch_alpaca_option_quote_via_data_rest(sym)
+        if oq is not None:
+            return oq
+        log.warning(
+            "Wheel: option Data API returned no NBBO for %s (OPRA subscription or indicative feed; check keys and ALPACA_DATA_BASE_URL)",
+            sym,
+        )
+        return None
+
+    if not api:
         return None
     try:
         fn = getattr(api, "get_latest_quote", None)
@@ -997,11 +1073,11 @@ def _run_csp_phase(
             _emit_candidate_evaluated("skip", "max_positions_reached")
             break
         try:
-            from src.options_engine import is_sp100_wheel_eligible
+            from src.options_engine import is_wheel_csp_underlying_eligible
 
-            if not is_sp100_wheel_eligible(t):
-                _wheel_system_event("wheel_csp_skipped", symbol=t, reason="not_sp100")
-                _emit_candidate_evaluated("skip", "not_sp100")
+            if not is_wheel_csp_underlying_eligible(t):
+                _wheel_system_event("wheel_csp_skipped", symbol=t, reason="not_wheel_eligible")
+                _emit_candidate_evaluated("skip", "not_wheel_eligible")
                 continue
         except Exception as e:
             log.warning("Wheel SP100 gate import failed: %s", e)
