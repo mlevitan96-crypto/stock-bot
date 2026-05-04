@@ -88,6 +88,24 @@ def _wheel_system_event(event_type: str, symbol: Optional[str] = None, phase: Op
     except Exception as e:
         log.debug("Wheel system event write failed: %s", e)
 
+
+def _notify_wheel_critical_abort(reason: str, detail: str, cycle_id: Optional[str] = None) -> None:
+    """Telegram pager for fail-closed wheel cycle aborts (dedupe + cooldown in critical_alert)."""
+    try:
+        from src.critical_alert import send_critical_wheel_alert
+
+        body = (detail or "")[:1500]
+        if cycle_id:
+            body = f"cycle_id={cycle_id}\n{body}"
+        send_critical_wheel_alert(
+            f"Wheel cycle abort: {reason}",
+            body,
+            dedupe_key=f"wheel_abort:{reason}",
+        )
+    except Exception:
+        pass
+
+
 # Default liquidity filters
 MIN_OPEN_INTEREST = 10
 MIN_VOLUME = 1
@@ -147,9 +165,8 @@ def _select_wheel_tickers(api, config: dict) -> Tuple[List[str], List[dict], Lis
         return tickers, [], []
 
 
-def _load_wheel_state() -> dict:
-    """Load wheel position/assignment tracking."""
-    default = {
+def _wheel_state_defaults() -> Dict[str, Any]:
+    return {
         "assigned_shares": {},
         "csp_history": [],
         "cc_history": [],
@@ -158,16 +175,179 @@ def _load_wheel_state() -> dict:
         "last_cycle_id_processed": None,
         "recent_orders": {},
     }
+
+
+def _backup_wheel_state_raw(raw_text: str, reason: str) -> None:
+    """Write corrupt wheel_state.json body to a timestamped sibling file (never guess broker truth)."""
+    try:
+        WHEEL_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        ts = int(time.time())
+        bak = WHEEL_STATE_PATH.parent / f"wheel_state.corrupt.{ts}.json"
+        bak.write_text(raw_text, encoding="utf-8")
+        log.warning("wheel_state corrupt snapshot written: %s (%s)", bak, reason)
+    except Exception as e:
+        log.warning("wheel_state backup failed: %s", e)
+
+
+def _heal_wheel_state_dict(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+    """
+    Normalize wheel_state.json shape in-memory. Does not invent positions.
+
+    Returns (healed_state, repair_tags). Any non-dict leg entries are dropped (reconcile uses broker).
+    """
+    repairs: List[str] = []
+    default = _wheel_state_defaults()
+    out = default.copy()
+    known = set(default.keys())
+    extras = {k: v for k, v in data.items() if k not in known}
+
+    # assigned_shares: symbol -> list[dict]
+    ass = data.get("assigned_shares") or default["assigned_shares"]
+    if not isinstance(ass, dict):
+        repairs.append("assigned_shares_reset_dict")
+        out["assigned_shares"] = {}
+    else:
+        fixed_a: Dict[str, Any] = {}
+        for sym, lots in ass.items():
+            sk = str(sym).upper()
+            if isinstance(lots, list):
+                fl = [x for x in lots if isinstance(x, dict)]
+                if len(fl) != len(lots):
+                    repairs.append(f"assigned_pruned_{sk}")
+                fixed_a[sk] = fl
+            elif isinstance(lots, dict):
+                fixed_a[sk] = [lots]
+            else:
+                repairs.append(f"assigned_drop_{sk}")
+        out["assigned_shares"] = fixed_a
+
+    def _coerce_leg_map(raw: Any, label: str) -> Dict[str, List[dict]]:
+        if not isinstance(raw, dict):
+            repairs.append(f"{label}_reset_dict")
+            return {}
+        out_m: Dict[str, List[dict]] = {}
+        for sym, legs in raw.items():
+            sk = str(sym).upper()
+            if isinstance(legs, list):
+                fl = [x for x in legs if isinstance(x, dict)]
+                if len(fl) != len(legs):
+                    repairs.append(f"{label}_pruned_{sk}")
+                out_m[sk] = fl
+            elif isinstance(legs, dict):
+                out_m[sk] = [legs]
+            else:
+                repairs.append(f"{label}_drop_{sk}")
+        return out_m
+
+    out["open_csps"] = _coerce_leg_map(data.get("open_csps") or {}, "open_csps")
+    out["open_ccs"] = _coerce_leg_map(data.get("open_ccs") or {}, "open_ccs")
+
+    for hist_key in ("csp_history", "cc_history"):
+        h = data.get(hist_key) or default[hist_key]
+        if not isinstance(h, list):
+            repairs.append(f"{hist_key}_reset_list")
+            out[hist_key] = []
+        else:
+            hl = [x for x in h if isinstance(x, dict)]
+            if len(hl) != len(h):
+                repairs.append(f"{hist_key}_pruned")
+            out[hist_key] = hl
+
+    ro = data.get("recent_orders") or default["recent_orders"]
+    if not isinstance(ro, dict):
+        repairs.append("recent_orders_reset_dict")
+        out["recent_orders"] = {}
+    else:
+        out["recent_orders"] = {str(k): v for k, v in ro.items() if isinstance(v, dict)}
+
+    lcp = data.get("last_cycle_id_processed", default["last_cycle_id_processed"])
+    out["last_cycle_id_processed"] = lcp if lcp is None or isinstance(lcp, str) else str(lcp)
+
+    out.update(extras)
+    return out, repairs
+
+
+def _load_wheel_state() -> dict:
+    """
+    Load wheel position/assignment tracking with self-healing for malformed JSON or bad shapes.
+
+    - Unreadable JSON: backup raw body, replace file with safe defaults, emit events + optional pager.
+    - Bad shapes: heal + persist (broker reconciliation remains authoritative; we never invent legs).
+    """
+    default = _wheel_state_defaults()
     if not WHEEL_STATE_PATH.exists():
         return default.copy()
+
+    raw_text = ""
     try:
-        data = read_json(WHEEL_STATE_PATH, default=default)
-        for k in default:
-            if k not in data:
-                data[k] = default[k]
-        return data
-    except Exception:
+        raw_text = WHEEL_STATE_PATH.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        log.warning("wheel_state read failed: %s", e)
         return default.copy()
+
+    if not raw_text.strip():
+        return default.copy()
+
+    parsed: Any = None
+    try:
+        parsed = json.loads(raw_text)
+    except json.JSONDecodeError as e:
+        _backup_wheel_state_raw(raw_text, "json_decode")
+        try:
+            atomic_write_json(WHEEL_STATE_PATH, default.copy())
+        except Exception as werr:
+            log.warning("wheel_state reset write failed: %s", werr)
+        _wheel_system_event("wheel_state_recovered", reason="json_decode_error", detail=str(e)[:200])
+        try:
+            from src.critical_alert import send_critical_wheel_alert
+
+            send_critical_wheel_alert(
+                "wheel_state.json unreadable",
+                f"JSON decode error; file reset to safe defaults. Backup written under state/. Error: {e}"[:1800],
+                dedupe_key="wheel_state_json_decode",
+            )
+        except Exception:
+            pass
+        return default.copy()
+
+    if not isinstance(parsed, dict):
+        _backup_wheel_state_raw(raw_text, "non_dict_root")
+        try:
+            atomic_write_json(WHEEL_STATE_PATH, default.copy())
+        except Exception as werr:
+            log.warning("wheel_state reset write failed: %s", werr)
+        _wheel_system_event("wheel_state_recovered", reason="non_dict_root")
+        try:
+            from src.critical_alert import send_critical_wheel_alert
+
+            send_critical_wheel_alert(
+                "wheel_state.json invalid root",
+                "Root JSON value was not an object; reset to safe defaults. Backup under state/.",
+                dedupe_key="wheel_state_non_dict",
+            )
+        except Exception:
+            pass
+        return default.copy()
+
+    healed, repairs = _heal_wheel_state_dict(parsed)
+    if repairs:
+        try:
+            _backup_wheel_state_raw(raw_text, "pre_heal_shape")
+            atomic_write_json(WHEEL_STATE_PATH, healed)
+            _wheel_system_event("wheel_state_self_healed", repairs=repairs[:50])
+            try:
+                from src.critical_alert import send_critical_wheel_alert
+
+                send_critical_wheel_alert(
+                    "wheel_state.json self-healed",
+                    "Repairs: " + "; ".join(repairs[:40]),
+                    dedupe_key="wheel_state_shape_heal",
+                )
+            except Exception:
+                pass
+        except Exception as werr:
+            log.warning("wheel_state heal persist failed: %s", werr)
+    return healed
 
 
 def _prune_recent_orders(state: dict) -> None:
@@ -1390,6 +1570,7 @@ def run(api, config: dict, order_executor: Any = None) -> dict:
     except Exception as e:
         result["errors"].append(f"account_fetch: {e}")
         _wheel_system_event("wheel_run_failed", reason="account_fetch", error=str(e)[:200])
+        _notify_wheel_critical_abort("account_fetch", str(e), cycle_id=cycle_id)
         return result
     try:
         positions = api.list_positions() or []
@@ -1397,6 +1578,7 @@ def run(api, config: dict, order_executor: Any = None) -> dict:
         result["errors"].append(f"list_positions: {e}")
         log.warning("Wheel: list_positions failed — aborting cycle (fail-closed): %s", e)
         _wheel_system_event("wheel_run_failed", reason="list_positions", error=str(e)[:200], cycle_id=cycle_id)
+        _notify_wheel_critical_abort("list_positions", str(e), cycle_id=cycle_id)
         return result
     try:
         open_orders = api.list_orders(status="open") if hasattr(api, "list_orders") else []
@@ -1404,6 +1586,7 @@ def run(api, config: dict, order_executor: Any = None) -> dict:
         result["errors"].append(f"list_orders: {e}")
         log.warning("Wheel: list_orders failed — aborting cycle (fail-closed): %s", e)
         _wheel_system_event("wheel_run_failed", reason="list_orders", error=str(e)[:200], cycle_id=cycle_id)
+        _notify_wheel_critical_abort("list_orders", str(e), cycle_id=cycle_id)
         return result
     state = _load_wheel_state()
     try:
