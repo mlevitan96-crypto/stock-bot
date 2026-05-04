@@ -14921,7 +14921,8 @@ def audit_seg(name, phase, extra=None):
 # =========================
 def run_all_strategies():
     """
-    Run enabled strategies from config/strategies.yaml (equity cohort only).
+    Run enabled strategies from config/strategies.yaml (equity + optional wheel).
+    Wheel runs when ``strategies.wheel.enabled`` is true; ``wheel_run_started`` is emitted inside ``run_wheel`` / ``wheel_strategy.run``.
     Returns combined metrics for run.jsonl.
     """
     strategies_cfg = {}
@@ -14936,8 +14937,10 @@ def run_all_strategies():
     strat = strategies_cfg.get("strategies", {})
     equity_cfg = strat.get("equity", {})
     equity_enabled = equity_cfg.get("enabled", True)
+    wheel_cfg = strat.get("wheel", {}) or {}
+    wheel_enabled = bool(wheel_cfg.get("enabled", False))
     total_orders = 0
-    combined_metrics = {"clusters": 0, "orders": 0, "equity_orders": 0}
+    combined_metrics = {"clusters": 0, "orders": 0, "equity_orders": 0, "wheel_orders": 0, "wheel_csp_placed": 0, "wheel_cc_placed": 0}
     try:
         from strategies.context import strategy_context
     except ImportError:
@@ -14956,6 +14959,28 @@ def run_all_strategies():
                 combined_metrics.update(metrics)
         except Exception as e:
             log_event("strategies", "equity_run_failed", error=str(e))
+    if wheel_enabled:
+        try:
+            from src.wheel_manager import run_wheel
+
+            api = tradeapi.REST(Config.ALPACA_KEY, Config.ALPACA_SECRET, Config.ALPACA_BASE_URL, api_version="v2")
+            if strategy_context:
+                with strategy_context("wheel"):
+                    wm = run_wheel(api, wheel_cfg)
+            else:
+                wm = run_wheel(api, wheel_cfg)
+            if isinstance(wm, dict):
+                wn = int(wm.get("orders_placed", 0) or 0)
+                total_orders += wn
+                combined_metrics["wheel_orders"] = wn
+                combined_metrics["wheel_csp_placed"] = int(wm.get("csp_placed", 0) or 0)
+                combined_metrics["wheel_cc_placed"] = int(wm.get("cc_placed", 0) or 0)
+                combined_metrics["wheel_result"] = wm
+        except Exception as e:
+            log_event("strategies", "wheel_run_failed", error=str(e))
+            _errs = combined_metrics.setdefault("errors_this_cycle", [])
+            if isinstance(_errs, list):
+                _errs.append(f"wheel:{e}")
     combined_metrics["orders"] = total_orders
     return combined_metrics
 
