@@ -48,6 +48,8 @@ _INTEGRITY_ONLY_SCRIPT_NAMES = frozenset(
         # Total system lock / GUT (main.py one-shot pulse + per-entry God Tier pass)
         "vanguard_system_lock",
         "gut_god_tier_entry",
+        # Wheel fail-closed broker / state recovery (Board SRE pager)
+        "alpaca_wheel_critical",
     }
 )
 
