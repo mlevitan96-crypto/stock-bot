@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-04T18:02:07Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot directory and references found in code/config paths",
+      "locations": [
+        "moltbot/ (entire directory with board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py)",
+        "scripts/run_molt_workflow.py",
+        "scripts/run_openclaw_molt_synthesis.py",
+        "scripts/sre/run_sre_anomaly_scan.py (references moltbot)",
+        "scripts/automations/run_governance_integrity_once.py (references moltbot)"
+      ]
+    }
+  ],
+  "slack_sent": false
+}
