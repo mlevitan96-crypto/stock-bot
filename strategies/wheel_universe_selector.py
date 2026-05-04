@@ -35,6 +35,25 @@ SECTOR_MAP: Dict[str, str] = {
     "PG": "Consumer Staples", "KO": "Consumer Staples", "PEP": "Consumer Staples",
     "HD": "Consumer Discretionary", "MCD": "Consumer Discretionary", "WMT": "Consumer Staples",
     "ABBV": "Healthcare", "PFE": "Healthcare",
+    # Mid-cap wheel (wheel_universe.yaml)
+    "F": "Consumer Discretionary",
+    "PLTR": "Technology",
+    "BAC": "Financials",
+    "T": "Communication Services",
+    "SOFI": "Financials",
+    "SNAP": "Communication Services",
+    "AAL": "Industrials",
+    "CLF": "Materials",
+    "VALE": "Materials",
+    "UBS": "Financials",
+    "CCL": "Consumer Discretionary",
+    "NU": "Financials",
+    "KEY": "Financials",
+    "HBAN": "Financials",
+    "KMI": "Energy",
+    "FCX": "Materials",
+    "NCLH": "Consumer Discretionary",
+    "LUV": "Industrials",
 }
 
 DEFAULT_EXCLUDED_SECTORS = ["Technology", "Communication Services"]
@@ -395,7 +414,13 @@ def select_wheel_candidates(
     min_oi = _get("universe_min_open_interest", 5_000)
     max_spread = _get("universe_max_spread_pct", 0.005)
     min_iv = _get("universe_min_iv_proxy", 0.15)
-    excluded = _get("universe_excluded_sectors", DEFAULT_EXCLUDED_SECTORS) or DEFAULT_EXCLUDED_SECTORS
+    raw_ex = _get("universe_excluded_sectors", None)
+    if raw_ex is None:
+        excluded = list(DEFAULT_EXCLUDED_SECTORS)
+    elif isinstance(raw_ex, list):
+        excluded = list(raw_ex)
+    else:
+        excluded = list(DEFAULT_EXCLUDED_SECTORS)
     max_candidates = _get("universe_max_candidates", 10)
 
     tickers = _load_universe(config)
