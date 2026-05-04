@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-04T04:30:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "pass",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Moltbot directory and code references still present in repository",
+      "evidence": [
+        "moltbot/ directory exists with active Python modules: board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/",
+        "moltbot/board.py — contains moltbot references",
+        "moltbot/sentinel.py — contains moltbot references",
+        "moltbot/orchestrator.py — contains moltbot references",
+        "moltbot/memory_evolution.py — contains moltbot references",
+        "moltbot/promotion_discipline.py — contains moltbot references",
+        "scripts/sre/run_sre_anomaly_scan.py — references moltbot in code",
+        "scripts/run_openclaw_molt_synthesis.py — references moltbot in code",
+        "scripts/run_molt_workflow.py — references moltbot in code",
+        "scripts/automations/run_governance_integrity_once.py — references moltbot",
+        "board/eod/out/2026-02-13/cron_diagnosis.json — config/data reference",
+        "board/eod/out/2026-02-12/cron_diagnosis.json — config/data reference",
+        "board/eod/out/2026-02-12/eod_failure.json — config/data reference"
+      ]
+    }
+  ],
+  "slack_sent": false
+}
