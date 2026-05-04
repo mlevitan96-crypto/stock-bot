@@ -34,6 +34,19 @@ SP100_CONSTITUENTS: frozenset[str] = frozenset(
     """.split()
 )
 
+# Macro index / highly liquid ETFs allowed for wheel CSPs alongside S&P 100 (Board: align universe vs gate).
+WHEEL_MACRO_ETFS: frozenset[str] = frozenset(
+    _norm_sp100(x)
+    for x in """
+    SPY QQQ DIA IWM VOO IVV VTI SPLG SCHD VTV DVY VYM
+    """.split()
+)
+
+# Select Sector SPDRs + broad sector XL* names commonly screened with macro ETFs.
+WHEEL_SECTOR_XL_ETFS: frozenset[str] = frozenset(
+    _norm_sp100(x) for x in "XLB XLC XLE XLF XLI XLK XLP XLRE XLU XLV XLY".split()
+)
+
 DEFAULT_MIN_IV_RANK = 50.0
 DEFAULT_PUT_WALL_MIN_OI = int(os.getenv("WHEEL_PUT_WALL_MIN_OI", "5000") or "5000")
 DEFAULT_DUST_MIN_CREDIT_USD = float(os.getenv("WHEEL_MIN_CREDIT_USD", "200") or "200")
@@ -63,8 +76,22 @@ def uw_ticker_for_rest(sym: str) -> str:
 
 
 def is_sp100_wheel_eligible(underlying: str) -> bool:
-    """Hard asset gate: underlying must be an S&P 100 constituent (no env bypass)."""
+    """True if underlying is an S&P 100 constituent (narrow gate; see ``is_wheel_csp_underlying_eligible`` for wheel CSP)."""
     return _norm_sp100(underlying) in SP100_CONSTITUENTS
+
+
+def is_wheel_csp_underlying_eligible(underlying: str) -> bool:
+    """
+    Wheel CSP underlying gate: S&P 100 **or** approved macro / sector ETFs.
+
+    Aligns universe selector (which ranks SPY, DIA, sector XL*, etc.) with execution eligibility.
+    """
+    u = _norm_sp100(underlying)
+    if u in SP100_CONSTITUENTS:
+        return True
+    if u in WHEEL_MACRO_ETFS or u in WHEEL_SECTOR_XL_ETFS:
+        return True
+    return False
 
 
 def occ_strike_price(option_symbol: str) -> Optional[float]:
