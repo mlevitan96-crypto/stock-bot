@@ -1,0 +1,25 @@
+# Wheel mid-cap universe ($10–$50 spot band target; liquidity-first names).
+# Used when strategies.wheel.universe_source points here.
+# Sector caps + capital pre-filter still apply; see MEMORY_BANK_ALPACA.md (Wheel mid-cap pivot).
+
+universe:
+  tickers:
+    - F
+    - PLTR
+    - BAC
+    - T
+    - PFE
+    - SOFI
+    - SNAP
+    - AAL
+    - CLF
+    - VALE
+    - UBS
+    - CCL
+    - NU
+    - KEY
+    - HBAN
+    - KMI
+    - FCX
+    - NCLH
+    - LUV

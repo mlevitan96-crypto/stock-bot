@@ -82,7 +82,7 @@ def reconcile_assignments_from_broker(api, state: Optional[Dict[str, Any]] = Non
                     "from_csp": leg,
                 }
                 assigned.setdefault(uu, []).append(lot)
-                csp_history.append({**leg, "status": "assigned", "underlying": uu})
+                csp_history.append({**leg, "status": "assigned", "underlying": uu, "underlying_symbol": uu})
                 changed = True
                 ws._wheel_system_event(
                     "wheel_assignment_detected",
