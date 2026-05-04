@@ -411,8 +411,11 @@ class AlpacaClient:
             raise
     
     def get_quote(self, symbol: str) -> Any:
-        """Get quote with error handling."""
+        """Get quote with error handling (v2: get_latest_quote; legacy: get_quote)."""
         try:
+            fn = getattr(self.api, "get_latest_quote", None)
+            if callable(fn):
+                return fn(symbol)
             return self.api.get_quote(symbol)
         except Exception as e:
             error_type, reason = self._classify_error(e)
