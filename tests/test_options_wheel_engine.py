@@ -159,6 +159,22 @@ def test_submit_wheel_broker_order_falls_back_to_raw_api() -> None:
     assert call_kw["symbol"] == "QQQ260101P00400000"
 
 
+def test_heal_wheel_state_dict_prunes_bad_shapes() -> None:
+    from strategies import wheel_strategy as ws
+
+    bad = {
+        "open_csps": {"XLF": "not_a_list"},
+        "assigned_shares": "invalid",
+        "csp_history": [{"ok": True}, "skip", {"ok2": True}],
+        "recent_orders": [],
+    }
+    healed, repairs = ws._heal_wheel_state_dict(bad)
+    assert "XLF" not in healed["open_csps"] or healed["open_csps"].get("XLF") == []
+    assert healed["assigned_shares"] == {}
+    assert len(healed["csp_history"]) == 2
+    assert repairs
+
+
 def test_wheel_run_fails_closed_on_list_positions_error() -> None:
     from unittest.mock import MagicMock, patch
 
