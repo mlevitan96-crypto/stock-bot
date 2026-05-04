@@ -15,5 +15,6 @@
     "repo_structure: reports/board/ directory does not exist",
     "no_clawdbot_moltbot: moltbot/ directory exists at top-level with active Python modules (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py); scripts/run_molt_workflow.py imports from moltbot package"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1811"
 }
