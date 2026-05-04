@@ -50,6 +50,8 @@ _INTEGRITY_ONLY_SCRIPT_NAMES = frozenset(
         "gut_god_tier_entry",
         # Wheel fail-closed broker / state recovery (Board SRE pager)
         "alpaca_wheel_critical",
+        # Wheel First-5 submit integrity pager (live submit_order path; file-backed counter)
+        "wheel_first_five_submit",
     }
 )
 
