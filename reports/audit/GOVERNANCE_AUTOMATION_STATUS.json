@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-04T16:22:05Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "pass",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ was missing. Remediated by creating the directory during this run.",
+    "no_deprecated_dirs: moltbot/ directory still exists at repo root. This is a deprecated directory that should have been removed or archived.",
+    "no_clawdbot_moltbot: moltbot/ directory contains active Python modules (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py). scripts/run_molt_workflow.py imports directly from moltbot package. scripts/run_openclaw_molt_synthesis.py references Clawdbot removal in docstrings (documentation, low severity). Excluded from anomaly: reports/audit/*, docs/*, scripts/automations/run_governance_integrity_once.py (governance checker itself), scripts/sre/run_sre_anomaly_scan.py (check name reference only)."
+  ],
+  "slack_sent": false
+}
