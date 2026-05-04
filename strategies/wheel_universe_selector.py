@@ -129,24 +129,24 @@ def _get_option_open_interest(api, underlying: str) -> int:
 def _get_spread_pct(api, symbol: str) -> Optional[float]:
     """Bid-ask spread as fraction of mid. Returns None on failure."""
     try:
-        q = api.get_quote(symbol)
-        if hasattr(q, "ap") and hasattr(q, "bp"):
-            ask = float(q.ap or 0)
-            bid = float(q.bp or 0)
-        elif isinstance(q, dict):
-            ask = float(q.get("ap", q.get("ask_price", 0)) or 0)
-            bid = float(q.get("bp", q.get("bid_price", 0)) or 0)
-        else:
+        from strategies.wheel_strategy import fetch_alpaca_latest_quote, normalize_alpaca_quote
+
+        raw = fetch_alpaca_latest_quote(api, symbol)
+        n = normalize_alpaca_quote(raw) or {}
+        ask = n.get("ask")
+        bid = n.get("bid")
+        if ask is None or bid is None:
             return None
-        if ask <= 0 and bid <= 0:
+        ask_f, bid_f = float(ask), float(bid)
+        if ask_f <= 0 and bid_f <= 0:
             return None
-        mid = (ask + bid) / 2 if (ask > 0 and bid > 0) else (ask or bid)
+        mid = (ask_f + bid_f) / 2 if (ask_f > 0 and bid_f > 0) else (ask_f or bid_f)
         if mid <= 0:
             return None
-        spread = ask - bid
+        spread = ask_f - bid_f
         return spread / mid
     except Exception as e:
-        log.debug("get_quote for %s: %s", symbol, e)
+        log.debug("spread quote for %s: %s", symbol, e)
     return None
 
 

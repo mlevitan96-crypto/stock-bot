@@ -131,14 +131,17 @@ def main() -> int:
             sym0 = (contracts[0].get("symbol") or contracts[0].get("id") or "").strip()
             if sym0:
                 try:
-                    q = api.get_quote(sym0)
+                    from strategies.wheel_strategy import fetch_alpaca_latest_quote, normalize_alpaca_quote
+
+                    rq = fetch_alpaca_latest_quote(api, sym0)
+                    nq = normalize_alpaca_quote(rq) or {}
                     print(
-                        "api.get_quote(OCC_sample) bid/ap",
-                        getattr(q, "bp", None),
-                        getattr(q, "ap", None),
+                        "wheel fetch quote (OCC_sample) bid/ask",
+                        nq.get("bid"),
+                        nq.get("ask"),
                     )
                 except Exception as e:
-                    print("api.get_quote_sample_error", str(e)[:200])
+                    print("wheel_quote_sample_error", str(e)[:200])
     except Exception as e:
         print("tradeapi_import", str(e)[:200])
 
