@@ -1,0 +1,51 @@
+{
+  "date": "2026-05-01",
+  "forward_minutes": 60,
+  "full_blocked_cohort": {
+    "label": "all_blocked_today",
+    "n_intents": 779,
+    "n_graded": 766,
+    "skip_reasons": {
+      "partial_bars": 13
+    },
+    "win_rate": 0.4412532637075718,
+    "mean_signed_return_60m": -0.00013889033352911884,
+    "median_signed_return_60m": -0.00037677506528612463,
+    "wins": 338,
+    "losses": 418,
+    "flat": 10,
+    "sum_signed_return": -0.10638999548330504,
+    "min_ret": -0.010844561288202376,
+    "max_ret": 0.03445128907141239
+  },
+  "chop_marginal_alpha11_flow_band": {
+    "label": "chop_marginal_alpha11_0.75_to_0.83",
+    "n_intents": 0,
+    "n_graded": 0,
+    "skip_reasons": {},
+    "win_rate": null,
+    "mean_signed_return_60m": null,
+    "median_signed_return_60m": null,
+    "wins": 0,
+    "losses": 0,
+    "flat": 0,
+    "sum_signed_return": null
+  },
+  "chop_marginal_plus_feature_chop_label": {
+    "label": "chop_marginal_and_feature_regime_label_chop",
+    "n_intents": 0,
+    "n_graded": 0,
+    "skip_reasons": {},
+    "win_rate": null,
+    "mean_signed_return_60m": null,
+    "median_signed_return_60m": null,
+    "wins": 0,
+    "losses": 0,
+    "flat": 0,
+    "sum_signed_return": null
+  },
+  "interpretation": {
+    "chop_defense": "If mean_signed_return_60m for chop_marginal cohort is negative, the raised floor avoided hypothetical losses on average; positive means opportunity cost.",
+    "all_blocked": "Includes min_notional_floor and alpha11 <0.75; not CHOP-specific."
+  }
+}
