@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-05T15:10:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory is missing. Expected top-level dirs (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) all present. reports/audit/ exists. reports/board/ does not exist."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ directory is missing. memory_bank/ has docs (6 files). .cursor/automations/ exists with README.md and 5 spec files. reports/audit/ exists. reports/board/ is absent."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "moltbot/ directory exists at repo root with active Python modules: board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/. Additionally, moltbot/Moltbot references found in: scripts/sre/run_sre_anomaly_scan.py, scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/automations/run_governance_integrity_once.py. These should have been removed per governance policy."
+    }
+  ],
+  "slack_sent": false
+}
