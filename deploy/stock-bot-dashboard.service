@@ -1,5 +1,7 @@
 # stock-bot-dashboard.service
-# Dashboard (Flask sovereign V3 — port 5005). Restart after deploy to load new routes.
+# OPTIONAL standalone dashboard on 5005 (system python). Do NOT run alongside stock-bot.service:
+# deploy_supervisor starts the same Flask from the venv on 5005 — two processes will collide.
+# When using the supervisor stack: `sudo systemctl disable --now stock-bot-dashboard`.
 # Install: sudo cp /root/stock-bot-v3/deploy/stock-bot-dashboard.service /etc/systemd/system/
 #         sudo systemctl daemon-reload && sudo systemctl enable stock-bot-dashboard && sudo systemctl start stock-bot-dashboard
 

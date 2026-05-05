@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Deployment Supervisor V4 - Production-ready for Reserved VM deployments.
-Dashboard starts FIRST with ZERO delay to bind ``PORT`` (default 5005 under V3) immediately.
+Dashboard starts FIRST with ZERO delay to bind port **5005** immediately (matches firewall / Command Desk).
 
 IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK_ALPACA.md
 """
@@ -118,7 +118,7 @@ SERVICES = [
         "cmd": [PYTHON_EXEC, "-u", "dashboard.py"],
         "delay": 0,
         "critical": False,  # Dashboard failure should NOT kill trading bot
-        "port": 5006,
+        "port": 5005,
         "requires_secrets": False,  # Dashboard works without API keys
     },
     {
@@ -465,26 +465,8 @@ def start_service(service):
         if name == "trading-bot":
             env["API_PORT"] = "8081"
         elif name == "dashboard":
-            # Check if ports are in use and find an available one
-            import socket
-            # Avoid 5005 (systemd stock-bot-dashboard.service canonical V3 bind).
-            for port in [5006, 5007, 5008, 5009]:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(0.1)
-                result = sock.connect_ex(('127.0.0.1', port))
-                sock.close()
-                if result != 0:  # Port is free
-                    env["PORT"] = str(port)
-                    log(f"Dashboard will use port {port}")
-                    break
-            else:
-                log("WARNING: All ports 5006-5009 in use, attempting to free port 5008")
-                try:
-                    subprocess.run(["fuser", "-k", "5008/tcp"], stderr=subprocess.DEVNULL, timeout=2)
-                    time.sleep(1)
-                except Exception:
-                    pass
-                env["PORT"] = "5008"
+            env["PORT"] = "5005"
+            log("Dashboard will use port 5005 (fixed; disable stock-bot-dashboard.service if port busy)")
         
         proc = subprocess.Popen(
             cmd,
@@ -766,7 +748,7 @@ def main():
     
     dashboard_service = SERVICES[0]
     log("="*60)
-    log("STARTING DASHBOARD FIRST (supervisor child: first free 5006-5009; systemd uses 5005)")
+    log("STARTING DASHBOARD FIRST (supervisor child binds port 5005)")
     log("="*60)
     
     dashboard_ok = start_service(dashboard_service)
@@ -774,20 +756,18 @@ def main():
         log("WARNING: Dashboard failed to start, proceeding with Trading Bot...")
         log_event("DASHBOARD_START_FAILED")
     else:
-        log("Waiting for supervisor dashboard listener (5006-5009)...")
+        log("Waiting for supervisor dashboard listener (5005)...")
         ok = False
         deadline = time.time() + 90.0
         while time.time() < deadline and not ok:
-            for port in (5006, 5007, 5008, 5009):
-                if wait_for_port(port, timeout=1):
-                    ok = True
-                    log(f"Port {port} is READY (supervisor dashboard)")
-                    log_event("PORT_DASHBOARD_READY", port=port)
-                    break
+            if wait_for_port(5005, timeout=1):
+                ok = True
+                log("Port 5005 is READY (supervisor dashboard)")
+                log_event("PORT_DASHBOARD_READY", port=5005)
             if not ok:
                 time.sleep(0.5)
         if not ok:
-            log("WARNING: No supervisor dashboard port detected after 90s, proceeding anyway...")
+            log("WARNING: Dashboard port 5005 not detected after 90s, proceeding anyway...")
             log_event("PORT_DASHBOARD_TIMEOUT")
     
     # Brief pause to let health checks register, then start other services
