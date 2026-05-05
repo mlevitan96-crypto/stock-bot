@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-05T22:30:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory is missing. Expected top-level dirs (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) are present. reports/audit/ exists. reports/board/ does NOT exist (top-level board/ exists but reports/board/ is required by governance contract).",
+    "governance_contracts_present: reports/board/ directory missing. memory_bank/ has key docs (systemPatterns.md, TELEMETRY_CHANGELOG.md, etc.). .cursor/automations/ exists with README.md + specs. reports/audit/ exists. reports/board/ is absent.",
+    "no_clawdbot_moltbot: moltbot/ directory exists but is a documented legitimate in-repo artifact-only workflow per MEMORY_BANK_ALPACA.md (Learning Orchestrator, Engineering Sentinel, Multi-Agent Board, Promotion Discipline, Memory Evolution). No Clawdbot/Moltbot reintroduction detected in src/ or config/ paths. scripts/ references are governance checks or removal-documentation stubs."
+  ],
+  "slack_sent": false
+}
