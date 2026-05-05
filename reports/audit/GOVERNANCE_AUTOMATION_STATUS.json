@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-05T06:20:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. Expected top-level reports/audit/ (present) and reports/board/ (missing).",
+    "governance_contracts_present: reports/board/ missing — governance contract requires both reports/audit/ and reports/board/ to exist.",
+    "no_clawdbot_moltbot: moltbot/ directory exists at repo root with active Python code (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py). scripts/run_molt_workflow.py imports from moltbot package. These are code files, not audit/docs documenting removal."
+  ],
+  "slack_sent": false
+}
