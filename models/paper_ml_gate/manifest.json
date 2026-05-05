@@ -1,11 +1,11 @@
 {
   "kind": "paper_ml_gate_rf_eod_bundle_v1",
   "joblib": "models/paper_ml_gate/alpaca_eod_model.joblib",
-  "target": "target_ret_eod_rth",
+  "target": "realized_pnl_usd",
   "target_resolution_note": "column_present_in_csv",
-  "csv": "C:\\Dev\\stock-bot\\reports\\Gemini\\alpaca_ml_cohort_flat_UW_IX.csv",
-  "n_rows_fit": 469,
-  "n_features": 47,
+  "csv": "C:\\Dev\\stock-bot\\reports\\Gemini\\alpaca_ml_cohort_flat.csv",
+  "n_rows_fit": 549,
+  "n_features": 42,
   "random_state": 42,
   "feature_names": [
     "mlf_direction_intel_embed_intel_deltas_futures_direction_delta",
@@ -42,18 +42,13 @@
     "mlf_scoreflow_components_regime",
     "mlf_scoreflow_components_smile",
     "mlf_scoreflow_components_squeeze_score",
+    "mlf_scoreflow_components_toxicity_correlation_penalty",
     "mlf_scoreflow_components_toxicity_penalty",
     "mlf_scoreflow_lookback_sec_applied",
     "mlf_scoreflow_snapshot_age_sec",
     "mlf_scoreflow_total_score",
     "mlf_scoreflow_total_score_imputed",
     "uw_gamma_skew",
-    "uw_tide_score",
-    "mlx_uw_gamma_skew_x_mlf_scoreflow_total_score",
-    "mlx_uw_gamma_skew_x_vxx_vxz_ratio",
-    "mlx_uw_gamma_skew_x_futures_direction_delta",
-    "mlx_uw_tide_score_x_mlf_scoreflow_total_score",
-    "mlx_uw_tide_score_x_vxx_vxz_ratio",
-    "mlx_uw_tide_score_x_futures_direction_delta"
+    "uw_tide_score"
   ]
 }

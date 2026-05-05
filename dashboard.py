@@ -15,7 +15,7 @@ import secrets
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # Ensure repo root is on path and cwd so state/logs paths resolve (e.g. systemd may start with different cwd)
 _DASHBOARD_ROOT = Path(__file__).resolve().parent
@@ -1913,10 +1913,145 @@ def _render_initial_situation_html(data):
     return h
 
 
+def _wheel_ledger_safe_float(v: Any) -> Optional[float]:
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _wheel_ledger_fmt_day(ts: Any) -> str:
+    if ts is None:
+        return "—"
+    s = str(ts).strip()
+    if not s or s == "—":
+        return "—"
+    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+        return s[:10]
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d")
+    except ValueError:
+        return s[:16] if len(s) > 16 else s
+
+
+def _wheel_ledger_parse_ts(raw: Any) -> float:
+    if raw is None or raw == "—":
+        return 0.0
+    try:
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
+
+
+def _ledger_rows_from_wheel_state(state: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], float]:
+    """
+    Build closed-trade rows from ``csp_history`` in wheel_state.json.
+    CC closes / OTM expiry without reconciliation may not appear here.
+    """
+    hist = state.get("csp_history") if isinstance(state, dict) else None
+    if not isinstance(hist, list):
+        return [], 0.0
+
+    out: List[Dict[str, Any]] = []
+    total = 0.0
+
+    for raw in hist:
+        if not isinstance(raw, dict):
+            continue
+        sym = (
+            str(raw.get("underlying_symbol") or raw.get("underlying") or "").strip().upper()
+            or "—"
+        )
+        status = str(raw.get("status") or "").strip().lower()
+        opened = raw.get("opened_at") or raw.get("openedAt")
+        closed_raw = raw.get("closed_at") or raw.get("closedAt")
+
+        oc = _wheel_ledger_safe_float(raw.get("open_credit"))
+        cl = _wheel_ledger_safe_float(raw.get("close_limit"))
+        try:
+            qty = max(1, int(float(raw.get("qty") or 1)))
+        except (TypeError, ValueError):
+            qty = 1
+
+        exit_reason = status or "RECORDED"
+        exit_display = _wheel_ledger_fmt_day(closed_raw)
+        sort_ts = _wheel_ledger_parse_ts(closed_raw) or _wheel_ledger_parse_ts(opened)
+
+        if status == "assigned":
+            exit_reason = "ASSIGNED (CSP → stock)"
+            exit_display = "—"
+            pnl = oc
+        elif status.startswith("closed_"):
+            exit_reason = status.upper().replace("_", " ")
+            if oc is not None and cl is not None:
+                pnl = oc - (cl * 100.0 * qty)
+            else:
+                pnl = oc
+        else:
+            exit_reason = (status or "LEGACY / UNKNOWN").upper()
+            pnl = oc
+
+        pnl_fin: Optional[float]
+        if pnl is None:
+            pnl_fin = None
+        else:
+            pnl_fin = round(float(pnl), 2)
+            total += pnl_fin
+
+        row = {
+            "symbol": sym,
+            "side": "SHORT PUT (CSP)",
+            "entry_date": _wheel_ledger_fmt_day(opened),
+            "exit_date": exit_display,
+            "_sort_ts": sort_ts,
+            "realized_pnl_usd": pnl_fin,
+            "exit_reason": exit_reason,
+        }
+        out.append(row)
+
+    out.sort(key=lambda r: float(r.get("_sort_ts") or 0.0), reverse=True)
+    for r in out:
+        r.pop("_sort_ts", None)
+
+    return out, round(total, 2)
+
+
+def _wheel_closed_trades_payload() -> Dict[str, Any]:
+    from config.registry import StateFiles, read_json
+
+    state = read_json(StateFiles.WHEEL_STATE, default={})
+    rows, total = _ledger_rows_from_wheel_state(state if isinstance(state, dict) else {})
+    return {
+        "schema_version": 1,
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "total_realized_pnl_usd": total,
+        "rows": rows,
+        "note": "Sourced from state/wheel_state.json `csp_history` (buy-to-close exits + assignments). "
+        "OTM CSP expiry without a history row will not appear.",
+    }
+
+
 @app.route("/")
 def index():
     """Institutional V3 HUD — Tailwind shell in ``templates/index.html``."""
-    return render_template("index.html")
+    try:
+        cp = _wheel_closed_trades_payload()
+    except Exception:
+        cp = {
+            "rows": [],
+            "total_realized_pnl_usd": 0.0,
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "error": "wheel_closed_trades_bootstrap_failed",
+        }
+    return render_template(
+        "index.html",
+        wheel_closed_rows=cp.get("rows") or [],
+        wheel_closed_total_pnl=cp.get("total_realized_pnl_usd") or 0.0,
+        wheel_closed_generated=cp.get("generated_at_utc"),
+    )
 
 
 def _health_payload():
@@ -2927,6 +3062,30 @@ def api_stockbot_wheel_hud():
         return jsonify(data), 200
     except Exception as e:
         return jsonify({"rows": [], "schema_version": 1, "error": str(e)}), 200
+
+
+@app.route("/api/stockbot/wheel_closed_trades", methods=["GET"])
+def api_stockbot_wheel_closed_trades():
+    """Chronological wheel CSP closures from ``csp_history`` + aggregate realized PnL (dashboard ledger)."""
+    try:
+        payload = _dash_cache_get(
+            "stockbot_wheel_closed_trades_v1",
+            _wheel_closed_trades_payload,
+            ttl_sec=5.0,
+        )
+        if not isinstance(payload, dict):
+            payload = {"rows": [], "total_realized_pnl_usd": 0.0}
+        return jsonify(payload), 200
+    except Exception as e:
+        return jsonify(
+            {
+                "schema_version": 1,
+                "rows": [],
+                "total_realized_pnl_usd": 0.0,
+                "error": str(e),
+                "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            }
+        ), 200
 
 
 @app.route("/api/stockbot/quota_status", methods=["GET"])
