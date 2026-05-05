@@ -1,0 +1,260 @@
+
+================================================================================
+TRADE 1 (newest first): LOW
+================================================================================
+
+--- SUMMARY ---
+  Symbol: LOW  |  Entry: 2026-02-27T20:09:41.628781+00:00  |  Exit: 2026-02-27T20:10:10.078011+00:00
+  Entry price: 264.5  |  Exit price: 264.39  |  Qty: 1.0
+  P&L: -0.11000000000001364 USD  |  P&L %: -0.04158790170132841%  |  Hold: 0.47415383333333333 min
+  Close reason: signal_decay(0.80)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: 3.9791999999999996
+  Market regime at entry: mixed
+  Attribution components (per-signal contribution to entry score):
+    - flow: contribution_to_score=2.4
+    - dark_pool: contribution_to_score=0.171
+    - insider: contribution_to_score=0.082
+    - iv_skew: contribution_to_score=0.077
+    - smile: contribution_to_score=0.005
+    - whale: contribution_to_score=0.0
+    - event: contribution_to_score=0.223
+    - motif_bonus: contribution_to_score=0.0
+    - toxicity_penalty: contribution_to_score=-0.177
+    - regime: contribution_to_score=0.008
+    - congress: contribution_to_score=0.0
+    - shorts_squeeze: contribution_to_score=0.0
+    - institutional: contribution_to_score=0.0
+    - market_tide: contribution_to_score=0.0
+    - calendar: contribution_to_score=0.0
+    - greeks_gamma: contribution_to_score=0.053
+    - ftd_pressure: contribution_to_score=0.039
+    - iv_rank: contribution_to_score=0.02
+    - oi_change: contribution_to_score=0.046
+    - etf_flow: contribution_to_score=0.039
+    - squeeze_score: contribution_to_score=0.066
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+  This trade's entry_score 3.9791999999999996 was above threshold → position opened.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: mixed
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+
+================================================================================
+TRADE 2 (newest first): WMT
+================================================================================
+
+--- SUMMARY ---
+  Symbol: WMT  |  Entry: 2026-02-27T20:09:03.582537+00:00  |  Exit: 2026-02-27T20:10:04.350508+00:00
+  Entry price: 127.47  |  Exit price: 127.39  |  Qty: 3.0
+  P&L: -0.23999999999999488 USD  |  P&L %: -0.06275986506628876%  |  Hold: 1.0127995166666668 min
+  Close reason: signal_decay(0.73)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: 3.9995999999999996
+  Market regime at entry: mixed
+  Attribution components (per-signal contribution to entry score):
+    - flow: contribution_to_score=2.4
+    - dark_pool: contribution_to_score=0.171
+    - insider: contribution_to_score=0.082
+    - iv_skew: contribution_to_score=0.077
+    - smile: contribution_to_score=0.005
+    - whale: contribution_to_score=0.0
+    - event: contribution_to_score=0.223
+    - motif_bonus: contribution_to_score=0.0
+    - toxicity_penalty: contribution_to_score=-0.177
+    - regime: contribution_to_score=0.008
+    - congress: contribution_to_score=0.012
+    - shorts_squeeze: contribution_to_score=0.0
+    - institutional: contribution_to_score=0.0
+    - market_tide: contribution_to_score=0.0
+    - calendar: contribution_to_score=0.0
+    - greeks_gamma: contribution_to_score=0.053
+    - ftd_pressure: contribution_to_score=0.039
+    - iv_rank: contribution_to_score=0.066
+    - oi_change: contribution_to_score=0.046
+    - etf_flow: contribution_to_score=0.039
+    - squeeze_score: contribution_to_score=0.066
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+  This trade's entry_score 3.9995999999999996 was above threshold → position opened.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: mixed
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+
+================================================================================
+TRADE 3 (newest first): HOOD
+================================================================================
+
+--- SUMMARY ---
+  Symbol: HOOD  |  Entry: 2026-02-27T20:08:46.703311+00:00  |  Exit: 2026-02-27T20:09:58.149471+00:00
+  Entry price: 75.38  |  Exit price: 75.38  |  Qty: 6.0
+  P&L: 0.0 USD  |  P&L %: 0.0%  |  Hold: 1.1907693333333333 min
+  Close reason: signal_decay(0.80)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: 4.02
+  Market regime at entry: mixed
+  Attribution components (per-signal contribution to entry score):
+    - flow: contribution_to_score=1.743
+    - dark_pool: contribution_to_score=0.171
+    - insider: contribution_to_score=0.082
+    - iv_skew: contribution_to_score=0.042
+    - smile: contribution_to_score=0.005
+    - whale: contribution_to_score=0.0
+    - event: contribution_to_score=0.158
+    - motif_bonus: contribution_to_score=0.0
+    - toxicity_penalty: contribution_to_score=-0.007
+    - regime: contribution_to_score=0.008
+    - congress: contribution_to_score=0.0
+    - shorts_squeeze: contribution_to_score=0.0
+    - institutional: contribution_to_score=0.0
+    - market_tide: contribution_to_score=0.0
+    - calendar: contribution_to_score=0.0
+    - greeks_gamma: contribution_to_score=0.053
+    - ftd_pressure: contribution_to_score=0.039
+    - iv_rank: contribution_to_score=0.02
+    - oi_change: contribution_to_score=0.046
+    - etf_flow: contribution_to_score=0.039
+    - squeeze_score: contribution_to_score=0.066
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+  This trade's entry_score 4.02 was above threshold → position opened.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: mixed
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+
+================================================================================
+TRADE 4 (newest first): PFE
+================================================================================
+
+--- SUMMARY ---
+  Symbol: PFE  |  Entry: 2026-02-27T20:08:24.286724+00:00  |  Exit: 2026-02-27T20:09:55.656606+00:00
+  Entry price: 27.54  |  Exit price: 27.55  |  Qty: 18.0
+  P&L: 0.18000000000002814 USD  |  P&L %: 0.03631082062455179%  |  Hold: 1.5228313666666666 min
+  Close reason: signal_decay(0.74)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: 4.048799999999999
+  Market regime at entry: mixed
+  Attribution components (per-signal contribution to entry score):
+    - flow: contribution_to_score=2.4
+    - dark_pool: contribution_to_score=0.171
+    - insider: contribution_to_score=0.082
+    - iv_skew: contribution_to_score=0.077
+    - smile: contribution_to_score=0.005
+    - whale: contribution_to_score=0.0
+    - event: contribution_to_score=0.223
+    - motif_bonus: contribution_to_score=0.0
+    - toxicity_penalty: contribution_to_score=-0.177
+    - regime: contribution_to_score=0.008
+    - congress: contribution_to_score=0.012
+    - shorts_squeeze: contribution_to_score=0.0
+    - institutional: contribution_to_score=0.0
+    - market_tide: contribution_to_score=0.0
+    - calendar: contribution_to_score=0.0
+    - greeks_gamma: contribution_to_score=0.053
+    - ftd_pressure: contribution_to_score=0.039
+    - iv_rank: contribution_to_score=0.131
+    - oi_change: contribution_to_score=0.046
+    - etf_flow: contribution_to_score=0.039
+    - squeeze_score: contribution_to_score=0.066
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+  This trade's entry_score 4.048799999999999 was above threshold → position opened.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: mixed
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+
+================================================================================
+TRADE 5 (newest first): TGT
+================================================================================
+
+--- SUMMARY ---
+  Symbol: TGT  |  Entry: 2026-02-27T20:08:10.175257+00:00  |  Exit: 2026-02-27T20:08:48.396149+00:00
+  Entry price: 112.99  |  Exit price: 112.95  |  Qty: 1.0
+  P&L: -0.03999999999999204 USD  |  P&L %: -0.03540136295246663%  |  Hold: 0.6370148666666666 min
+  Close reason: signal_decay(0.78)  (code: other)
+
+--- ENTRY: SIGNALS CAPTURED AND SCORES ---
+  Entry composite score: 4.0548
+  Market regime at entry: mixed
+  Attribution components (per-signal contribution to entry score):
+    - flow: contribution_to_score=2.4
+    - dark_pool: contribution_to_score=0.171
+    - insider: contribution_to_score=0.082
+    - iv_skew: contribution_to_score=0.077
+    - smile: contribution_to_score=0.005
+    - whale: contribution_to_score=0.0
+    - event: contribution_to_score=0.223
+    - motif_bonus: contribution_to_score=0.0
+    - toxicity_penalty: contribution_to_score=-0.177
+    - regime: contribution_to_score=0.008
+    - congress: contribution_to_score=0.0
+    - shorts_squeeze: contribution_to_score=0.0
+    - institutional: contribution_to_score=0.0
+    - market_tide: contribution_to_score=0.0
+    - calendar: contribution_to_score=0.0
+    - greeks_gamma: contribution_to_score=0.053
+    - ftd_pressure: contribution_to_score=0.039
+    - iv_rank: contribution_to_score=0.02
+    - oi_change: contribution_to_score=0.046
+    - etf_flow: contribution_to_score=0.039
+    - squeeze_score: contribution_to_score=0.066
+
+--- ENTRY: HOW SIGNALS WERE LEVERAGED IN THE TRADING DECISION ---
+  The entry decision uses the composite entry score (above) and regime.
+  Each component's contribution_to_score is weighted and summed; the total
+  is compared to MIN_EXEC_SCORE / governance threshold to open the position.
+  This trade's entry_score 4.0548 was above threshold → position opened.
+
+--- EXIT: SIGNALS THAT DETERMINED WHEN TO EXIT ---
+  Exit composite score (v2): 0.0
+  Score deterioration (entry→exit): 0.0
+  Exit regime: mixed
+  Exit reason (primary): other
+  v2_exit_components (signals at exit that feed exit score):
+  (none)
+
+================================================================================
+END OF REPORT
+================================================================================
+
+Exit code: 0

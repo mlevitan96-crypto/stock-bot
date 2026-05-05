@@ -1,0 +1,8 @@
+# Local quarantined research stack (Alpha Arena, SHAP, paper ML gate export).
+# Python 3.10+ recommended. Create: python -m venv .venv-research && .venv-research/Scripts/pip install -r scripts/research/requirements-research.txt
+
+numpy>=1.23,<3
+scipy>=1.9,<2
+scikit-learn>=1.3,<2
+joblib>=1.3,<2
+shap>=0.44,<1
