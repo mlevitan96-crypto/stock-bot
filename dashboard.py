@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Position Dashboard - Fast Start Version
-Binds port from ``PORT`` (default **5005** for sovereign V3), then lazy-loads heavy dependencies.
+Binds port **5005** (sovereign Command Desk; firewall/DNS target). Ignores ``PORT`` env for bind selection, then lazy-loads heavy dependencies.
 
 IMPORTANT: For project context, common issues, and solutions, see MEMORY_BANK_ALPACA.md
 """
@@ -5134,8 +5134,9 @@ def api_telemetry_latest_health():
         return jsonify({"error": str(e), "as_of_ts": datetime.now(timezone.utc).isoformat()}), 500
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "5005"))
-    print(f"[Dashboard] Starting on port {port}...", flush=True)
+    # Fixed bind: external firewall allows 5005 only; do not drift to 5006+.
+    port = 5005
+    print(f"[Dashboard] Starting on port {port} (hardcoded)...", flush=True)
     print(f"[Dashboard] Instance: {os.getenv('INSTANCE', 'UNKNOWN')}", flush=True)
 
     # Fail fast if Flask isn't actually available.
