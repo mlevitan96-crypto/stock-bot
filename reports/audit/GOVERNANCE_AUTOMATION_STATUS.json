@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-05T18:42:44Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist. All other expected top-level directories (src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/) are present. reports/audit/ exists.",
+    "governance_contracts_present: memory_bank/ has key docs (systemPatterns.md, TELEMETRY_CHANGELOG.md, TELEMETRY_STANDARD.md, etc.). .cursor/automations/ exists with README.md and governance/security/PR spec files. reports/audit/ exists. reports/board/ is MISSING — governance contract incomplete."
+  ],
+  "slack_sent": false
+}
