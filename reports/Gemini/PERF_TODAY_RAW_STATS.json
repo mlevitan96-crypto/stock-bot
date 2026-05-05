@@ -1,0 +1,140 @@
+{
+  "date": "2026-05-01",
+  "stats": {
+    "date": "2026-05-01",
+    "total_trades": 343,
+    "net_pnl_usd": -48.8,
+    "net_pnl_pct": -4880.0,
+    "win_rate_pct": 35.28,
+    "avg_win_usd": 1.11,
+    "avg_loss_usd": -0.85,
+    "max_drawdown_usd": -65.3,
+    "exposure_by_symbol": {
+      "MRNA": 489.0,
+      "XLI": 90.0,
+      "JPM": 32.0,
+      "BLK": 69.0,
+      "IWM": 53.0,
+      "C": 322.0,
+      "NIO": 8566.0,
+      "F": 4158.0,
+      "CAT": 79.0,
+      "XOM": 118.0,
+      "XLF": 271.0,
+      "COP": 259.0,
+      "META": 56.0,
+      "V": 88.0,
+      "MA": 85.0,
+      "LOW": 95.0,
+      "NFLX": 484.0,
+      "XLP": 228.0,
+      "XLV": 89.0,
+      "XLE": 573.0,
+      "BA": 136.0,
+      "HD": 61.0,
+      "COST": 80.0,
+      "SPY": 40.0,
+      "PFE": 818.0,
+      "JNJ": 67.0,
+      "DIA": 67.0,
+      "CVX": 132.0,
+      "SLB": 452.0,
+      "QQQ": 37.0,
+      "TSLA": 50.0,
+      "LCID": 3898.0,
+      "MS": 83.0,
+      "WFC": 259.0,
+      "AMD": 63.0,
+      "NVDA": 244.0,
+      "AAPL": 105.0,
+      "RIVN": 1617.0,
+      "GOOGL": 90.0,
+      "AMZN": 53.0,
+      "GS": 64.0,
+      "BAC": 732.0,
+      "UNH": 46.0,
+      "XLK": 95.0,
+      "WMT": 251.0,
+      "TGT": 168.0,
+      "PLTR": 176.0,
+      "SOFI": 1400.0,
+      "INTC": 218.0,
+      "COIN": 132.0,
+      "HOOD": 346.0,
+      "MSFT": 40.0
+    },
+    "real_orders_count": 3954
+  },
+  "signals_summary": {
+    "trade_intent_count": 936,
+    "exit_intent_count": 388,
+    "entered": 157,
+    "blocked": 779,
+    "blocked_reasons": {
+      "offense_streak_two_losses_30m": 529,
+      "max_one_position_per_symbol": 147,
+      "offense_gate_blocked_rs_and_vwap": 59,
+      "v2_agent_veto": 9,
+      "displacement_failed": 11,
+      "portfolio_exposure_exceeds_limit_30.50%_max_30.00%": 1,
+      "portfolio_exposure_exceeds_limit_30.64%_max_30.00%": 1,
+      "portfolio_exposure_exceeds_limit_30.63%_max_30.00%": 1,
+      "portfolio_exposure_exceeds_limit_30.92%_max_30.00%": 1,
+      "portfolio_exposure_exceeds_limit_31.34%_max_30.00%": 1,
+      "portfolio_exposure_exceeds_limit_30.30%_max_30.00%": 1,
+      "portfolio_exposure_exceeds_limit_30.28%_max_30.00%": 1,
+      "cooldown_not_met_2.5_min_required_5_min": 1,
+      "cooldown_not_met_0.3_min_required_5_min": 1,
+      "cooldown_not_met_1.3_min_required_5_min": 1,
+      "cooldown_not_met_2.0_min_required_5_min": 1,
+      "portfolio_exposure_exceeds_limit_31.55%_max_30.00%": 1,
+      "market_closed": 12
+    },
+    "by_signal_family": {
+      "alpha_signals": {
+        "count": 936,
+        "entered": 157,
+        "blocked": 779,
+        "pnl_sum": -9.759999999999994
+      },
+      "flow_signals": {
+        "count": 936,
+        "entered": 157,
+        "blocked": 779,
+        "pnl_sum": -9.759999999999994
+      },
+      "regime_signals": {
+        "count": 936,
+        "entered": 157,
+        "blocked": 779,
+        "pnl_sum": -9.759999999999994
+      },
+      "volatility_signals": {
+        "count": 936,
+        "entered": 157,
+        "blocked": 779,
+        "pnl_sum": -9.759999999999994
+      },
+      "dark_pool_signals": {
+        "count": 936,
+        "entered": 157,
+        "blocked": 779,
+        "pnl_sum": -9.759999999999994
+      }
+    }
+  },
+  "gates_summary": {
+    "displacement_evaluated": 0,
+    "displacement_allowed": 0,
+    "displacement_blocked": 0,
+    "directional_gate_events": 0,
+    "directional_gate_blocked_approx": 0
+  },
+  "meta": {
+    "date": "2026-05-01",
+    "self_heal_count": 0,
+    "self_heal_events": [],
+    "telemetry_bundles": [],
+    "telemetry_computed_keys": []
+  }
+}

@@ -60,11 +60,11 @@ strategies:
       # Require full cash collateral for each new CSP; block margin accounts unless allow_margin_account.
       require_cash_secured: true
       # Paper only: set true if Alpaca paper account uses multiplier>1 and you accept relaxed CSP collateral check.
-      allow_margin_account: true
+      allow_margin_account: false
       # Skip CSP when daily RSI exceeds this (mean reversion: sell puts into support, not resistance). 0 disables.
       max_rsi_for_csp_entry: 70
       # IV Rank from UW must be >= this (0-100 scale).
-      min_iv_rank: 30
+      min_iv_rank: 50
       # Reject CSP candidates whose estimated put delta is too deep ITM (|delta| > this). Default 0.50; CSP band is ~0.2–0.3.
       csp_max_abs_estimated_delta: 0.5
       # Minimum put OI at the "wall" strike (UW oi-change) for institutional floor gate.

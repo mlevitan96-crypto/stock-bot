@@ -2,8 +2,8 @@
   "_meta": {
     "data_source": "local_no_ssh",
     "date": "2026-01-01",
-    "generated_at_utc": "2026-05-01T22:29:58.023136+00:00",
-    "git_head": "453b8952d9c4",
+    "generated_at_utc": "2026-01-24T02:44:23.807219+00:00",
+    "git_head": "717f97c8e4ed",
     "host": "Marks_AI_Beast",
     "platform": "Windows-11-10.0.26200-SP0"
   },
@@ -397,15 +397,14 @@
         "pid_ok": true,
         "poll_fresh": true,
         "status": "healthy",
-        "timestamp": "2026-05-01T22:29:57.246796+00:00"
+        "timestamp": "2026-01-24T02:44:22.829219+00:00"
       },
       "intel_health": {
         "check_count": 19,
         "status_counts": {
-          "ok": 18,
-          "stale": 1
+          "ok": 19
         },
-        "ts": "2026-05-01T22:29:57.132769+00:00"
+        "ts": "2026-01-24T02:44:22.695647+00:00"
       }
     },
     "long_short_analysis": {
@@ -449,29 +448,51 @@
       }
     },
     "pnl_windows": {
-      "as_of_ts": "2026-05-01T22:29:58.112088+00:00",
-      "per_symbol": [],
+      "as_of_ts": "2026-01-24T02:44:23.942257+00:00",
+      "per_symbol": [
+        {
+          "pnl_usd": 4500.0,
+          "symbol": "AAPL",
+          "trade_count": 1,
+          "win_rate": 1.0,
+          "window": "24h"
+        },
+        {
+          "pnl_usd": 22500.0,
+          "symbol": "AAPL",
+          "trade_count": 5,
+          "win_rate": 1.0,
+          "window": "48h"
+        },
+        {
+          "pnl_usd": 22500.0,
+          "symbol": "AAPL",
+          "trade_count": 5,
+          "win_rate": 1.0,
+          "window": "5d"
+        }
+      ],
       "windows": {
         "24h": {
-          "expectancy_usd": 0.0,
-          "insufficient_data": true,
-          "pnl_usd": 0.0,
-          "trade_count": 0,
-          "win_rate": 0.0
+          "expectancy_usd": 4500.0,
+          "insufficient_data": false,
+          "pnl_usd": 4500.0,
+          "trade_count": 1,
+          "win_rate": 1.0
         },
         "48h": {
-          "expectancy_usd": 0.0,
-          "insufficient_data": true,
-          "pnl_usd": 0.0,
-          "trade_count": 0,
-          "win_rate": 0.0
+          "expectancy_usd": 4500.0,
+          "insufficient_data": false,
+          "pnl_usd": 22500.0,
+          "trade_count": 5,
+          "win_rate": 1.0
         },
         "5d": {
-          "expectancy_usd": 0.0,
-          "insufficient_data": true,
-          "pnl_usd": 0.0,
-          "trade_count": 0,
-          "win_rate": 0.0
+          "expectancy_usd": 4500.0,
+          "insufficient_data": false,
+          "pnl_usd": 22500.0,
+          "trade_count": 5,
+          "win_rate": 1.0
         }
       }
     },
@@ -10832,39 +10853,39 @@
       "uw_feature_usage_counts": {}
     },
     "signal_performance": {
-      "as_of_ts": "2026-05-01T22:29:58.112108+00:00",
+      "as_of_ts": "2026-01-24T02:44:23.942278+00:00",
       "signals": []
     },
     "signal_weight_recommendations": {
-      "as_of_ts": "2026-05-01T22:29:58.112115+00:00",
+      "as_of_ts": "2026-01-24T02:44:23.942287+00:00",
       "recommendations": []
     }
   },
   "copied_files": [
     {
-      "bytes": 2453,
+      "bytes": 2079,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/daily_universe.json",
       "kind": "state",
       "note": "",
-      "sha256": "b5e08cb31eb0ec0ff6c3c3d3d4b03fc5e6addb24afac5dc462f252118c979943",
+      "sha256": "ea21cd07d13d8fc0612e1d8d38159cebab40b5fcc1f350ac4a462623991f4e9d",
       "source": "C:/Dev/stock-bot/state/daily_universe.json",
       "truncated": false
     },
     {
-      "bytes": 4582,
+      "bytes": 4208,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/daily_universe_v2.json",
       "kind": "state",
       "note": "",
-      "sha256": "1ad3203f3731491d664ff146d7f2a4dffe97bf43cee234fe0fe365051535fc54",
+      "sha256": "d1b1f36cc1a1a21613e30f0eac47d9bf349ac2a8fe3e06c248f71e339a6c9485",
       "source": "C:/Dev/stock-bot/state/daily_universe_v2.json",
       "truncated": false
     },
     {
-      "bytes": 5668,
+      "bytes": 2617,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/premarket_intel.json",
       "kind": "state",
       "note": "",
-      "sha256": "e8f91f9ee7914e7a73f46b351350faf223b4776bfc525246f2db481a1c34c2ec",
+      "sha256": "76db3aea435da06e33fd16d35648d465ee5fd37c317252271f4c214f9358ac8a",
       "source": "C:/Dev/stock-bot/state/premarket_intel.json",
       "truncated": false
     },
@@ -10873,7 +10894,7 @@
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/postmarket_intel.json",
       "kind": "state",
       "note": "",
-      "sha256": "4a4d4415b2110fc38c36a0f017ace347ec0a05947c39f96aa57776c0628a2d3a",
+      "sha256": "8e006a8cc5cc9f4a683548b206649ab4d1c02718ae2fdef54b70c759f4341999",
       "source": "C:/Dev/stock-bot/state/postmarket_intel.json",
       "truncated": false
     },
@@ -10882,7 +10903,7 @@
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/premarket_exit_intel.json",
       "kind": "state",
       "note": "",
-      "sha256": "914aed5f0b5ce10d8aa879faf2cbe9cd2b1b8ca74475f9258fe781887cf58e69",
+      "sha256": "fb7a536eca373a1d5dd0c751e03ee3a200acfbb1ad3a950f961ed66797f30580",
       "source": "C:/Dev/stock-bot/state/premarket_exit_intel.json",
       "truncated": false
     },
@@ -10891,7 +10912,7 @@
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/postmarket_exit_intel.json",
       "kind": "state",
       "note": "",
-      "sha256": "b56e289d7c923d6a482d1895e032e4fa9640769f4d8c576b029a1e979a71de60",
+      "sha256": "404eae407715be40401dca18b0792d5229fed985d436a5021cfb1a729d39267b",
       "source": "C:/Dev/stock-bot/state/postmarket_exit_intel.json",
       "truncated": false
     },
@@ -10900,16 +10921,16 @@
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/regime_state.json",
       "kind": "state",
       "note": "",
-      "sha256": "45d153a7517a608d24535f6a8a5ba49ef46effca22dd9b8fdd2de0d8b5ee8684",
+      "sha256": "731d7ca3f31e4490006f58510c66c21db3ae3d9fd57a70b3d18a192c2ee27cf0",
       "source": "C:/Dev/stock-bot/state/regime_state.json",
       "truncated": false
     },
     {
-      "bytes": 2999,
+      "bytes": 3024,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/intel_health_state.json",
       "kind": "state",
       "note": "",
-      "sha256": "6cc3d229bb411bad09d6dc9b01ce1438139fe0843577456d555a7e909b43e158",
+      "sha256": "d4511c523cd0c996144d4992a66c45bc675e435b8778f3ca35b7334ead6d7a21",
       "source": "C:/Dev/stock-bot/state/intel_health_state.json",
       "truncated": false
     },
@@ -10918,25 +10939,25 @@
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/uw_daemon_health_state.json",
       "kind": "state",
       "note": "",
-      "sha256": "59d3d52bab2c44aeeb30bac9dd2edfaf0de46164dad9ff6c49366d00a7ecc686",
+      "sha256": "fb2c82ed16b323d1334ced8af64b0bfddd32b4e032214887d8c1f56d86128ff6",
       "source": "C:/Dev/stock-bot/state/uw_daemon_health_state.json",
       "truncated": false
     },
     {
-      "bytes": 220,
+      "bytes": 123,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/uw_usage_state.json",
       "kind": "state",
       "note": "",
-      "sha256": "d6d1ebd4d448b40cd61aa7ef3ef4663aeb9bfb03b25de6119fe778283137a04e",
+      "sha256": "030119e66be758a47d2c456b2715cfa750c213452dd6f5c3a812b838496c10fa",
       "source": "C:/Dev/stock-bot/state/uw_usage_state.json",
       "truncated": false
     },
     {
-      "bytes": 361,
+      "bytes": 362,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/uw_intel_pnl_summary.json",
       "kind": "state",
       "note": "",
-      "sha256": "78312d1303fdbbd0fa0df9cd95419ed880053dc673730a4fdba9c2890dd9d5ad",
+      "sha256": "c65825b68b521b4aab1dcf95e1919b44f58f07fe1631fef378810c72ac6a2827",
       "source": "C:/Dev/stock-bot/state/uw_intel_pnl_summary.json",
       "truncated": false
     },
@@ -10945,7 +10966,7 @@
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/state/exit_intel_pnl_summary.json",
       "kind": "state",
       "note": "",
-      "sha256": "11e673a6c0f8d1417d789c7274ee94d452b587c6a574ef38adf3eabb4028c323",
+      "sha256": "ae6824d3c24e44ea61aa8950b6d986ff73e22c757975746400a4ef095a518124",
       "source": "C:/Dev/stock-bot/state/exit_intel_pnl_summary.json",
       "truncated": false
     },
@@ -10959,75 +10980,57 @@
       "truncated": false
     },
     {
-      "bytes": 0,
+      "bytes": 1441474,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/logs/attribution.jsonl",
       "kind": "logs",
-      "note": "",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "note": "tailed_last_lines=2000 original_bytes=1459321",
+      "sha256": "c116af54897bbf1fe43edd35c6b3504d2a2d5eb03e18599bbe974e16876e6ee3",
       "source": "C:/Dev/stock-bot/logs/attribution.jsonl",
-      "truncated": false
+      "truncated": true
     },
     {
-      "bytes": 0,
+      "bytes": 6740,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/logs/master_trade_log.jsonl",
       "kind": "logs",
       "note": "",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "82973fe7e326929dfdfc82b7de8aa255cbf356df70c68b7dc50b71294ac22288",
       "source": "C:/Dev/stock-bot/logs/master_trade_log.jsonl",
       "truncated": false
     },
     {
-      "bytes": 0,
+      "bytes": 37114,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/logs/exit_attribution.jsonl",
       "kind": "logs",
       "note": "",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "ace907a240d4bf6d25b0d965201876059ef99dfc0493cff46428b9c382589945",
       "source": "C:/Dev/stock-bot/logs/exit_attribution.jsonl",
       "truncated": false
     },
     {
-      "bytes": 2969,
+      "bytes": 40882,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/logs/uw_attribution.jsonl",
       "kind": "logs",
       "note": "",
-      "sha256": "7e37b6293674f454c0210f738050dca1143db6762f06126fb0546fc896a0f7a7",
+      "sha256": "039c6556822a28c10ce297409a60a05ad18ccd34dcb5fd71248a85ee2b424d3f",
       "source": "C:/Dev/stock-bot/logs/uw_attribution.jsonl",
       "truncated": false
     },
     {
-      "bytes": 177858,
+      "bytes": 145511,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/logs/system_events.jsonl",
       "kind": "logs",
       "note": "",
-      "sha256": "f8a80ce7c88dcb564491bd8d0a8188894b9f704cbaa3a7f2d1fd8b02eec95f7d",
+      "sha256": "f6839b4e7efba7f96c37dbf3bf7d9b3c99319aef782126e24b48bb54c97b24c2",
       "source": "C:/Dev/stock-bot/logs/system_events.jsonl",
       "truncated": false
     },
     {
-      "bytes": 0,
-      "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/logs/run.jsonl",
-      "kind": "logs",
-      "note": "",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "source": "C:/Dev/stock-bot/logs/run.jsonl",
-      "truncated": false
-    },
-    {
-      "bytes": 0,
+      "bytes": 873,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/logs/worker.jsonl",
       "kind": "logs",
       "note": "",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "2560b9bdbc994655751e6abc3c8cf8d4c1ee5eb03375b915d1104f009bcdc25a",
       "source": "C:/Dev/stock-bot/logs/worker.jsonl",
-      "truncated": false
-    },
-    {
-      "bytes": 0,
-      "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/logs/orders.jsonl",
-      "kind": "logs",
-      "note": "",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "source": "C:/Dev/stock-bot/logs/orders.jsonl",
       "truncated": false
     },
     {
@@ -11058,11 +11061,11 @@
       "truncated": false
     },
     {
-      "bytes": 2250,
+      "bytes": 2542,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/reports/INTEL_DASHBOARD_2026-01-01.md",
       "kind": "reports",
       "note": "",
-      "sha256": "ae50778f22a43608da7c4a62acc0715103510f0fef8e7feff2ec24c5527e68be",
+      "sha256": "ac6ca941f2b4ff3aaff78b32ce98adb86418027a6a69d994ab266257653ef79a",
       "source": "C:/Dev/stock-bot/reports/INTEL_DASHBOARD_2026-01-01.md",
       "truncated": false
     },
@@ -11139,11 +11142,11 @@
       "truncated": false
     },
     {
-      "bytes": 541,
+      "bytes": 960,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/computed/pnl_windows.json",
       "kind": "generated",
       "note": "",
-      "sha256": "44a0911464746fa3f2ed93fecf907334b084aa30349a42daee070dff513802a4",
+      "sha256": "f55855e56de8487fa5c039e2148c280cd14678546c44b0d001d32edfff1a6d87",
       "source": "",
       "truncated": false
     },
@@ -11152,7 +11155,7 @@
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/computed/signal_performance.json",
       "kind": "generated",
       "note": "",
-      "sha256": "b6643ca5fcb720b100aa27ec1436f01f515f54a5a37581c798366c463facdac6",
+      "sha256": "1b922764f34b593dce7b1481c937e9a594380b4c3475698a08b8de676ad8b6a0",
       "source": "",
       "truncated": false
     },
@@ -11161,16 +11164,16 @@
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/computed/signal_weight_recommendations.json",
       "kind": "generated",
       "note": "",
-      "sha256": "88feec3b417076026b168583d3ea95fd191f36ba1cba49ac019db8286151aaa8",
+      "sha256": "08ec503c8ac1af07d54be26ab544a73a784554edcdd976e594cdf4782b8e933e",
       "source": "",
       "truncated": false
     },
     {
-      "bytes": 15089,
+      "bytes": 34943,
       "dest": "C:/Dev/stock-bot/telemetry/2026-01-01/FULL_TELEMETRY_2026-01-01.md",
       "kind": "generated",
       "note": "",
-      "sha256": "ee6990c614b180a2155b38e797b124a92751e35a6255d0d732537416cddd314b",
+      "sha256": "afb87db21791c4cdcb78c69e06f74b0343430a43912e703cdc8be1431f951db0",
       "source": "",
       "truncated": false
     }
@@ -11178,12 +11181,14 @@
   "missing": {
     "logs": [
       "logs/live_trades.jsonl",
+      "logs/run.jsonl",
       "logs/run_once.jsonl",
       "logs/worker_error.jsonl",
       "logs/scoring_flow.jsonl",
       "logs/scoring_pipeline.jsonl",
       "logs/scoring.jsonl",
       "logs/gate.jsonl",
+      "logs/orders.jsonl",
       "logs/exit.jsonl"
     ],
     "reports": [
