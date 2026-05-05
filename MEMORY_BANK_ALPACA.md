@@ -1,7 +1,7 @@
 # MEMORY_BANK_ALPACA.md
 # Master Operating Manual for Cursor + Trading Bot
-# Version: 2026-05-04 (LIVE — V2 bidirectional gate; V3 wheel mid-cap universe + CSP/CC circularity + premium ledger + First-5 pager; MEMORY_BANK.md index; fail-closed wheel broker reads)
-# Last Updated: 2026-05-04 (wheel mid-cap pivot, assignment reconcile, cumulative premium; see **MEMORY_BANK.md** for short index)
+# Version: 2026-05-04 (LIVE — V2 bidirectional gate; V3 wheel mid-cap universe + YAML-backed CSP eligibility + Gate Inventory; CSP/CC circularity + premium ledger + First-5 pager; MEMORY_BANK.md index; fail-closed wheel broker reads)
+# Last Updated: 2026-05-04 (wheel Gate Inventory; CSP allowlist = active universe YAML; removed stealth UW/decay floors unless explicitly configured)
 
 ---
 # ⚠️ MEMORY BANK — DO NOT OVERWRITE ⚠️
@@ -99,6 +99,80 @@ Cursor MUST NOT:
 - continue after a failed step  
 - ignore verification failures  
 - assume success  
+
+---
+
+# 🛡️ THE GATE INVENTORY (EXECUTION BLOCKERS)
+
+**Effective:** 2026-05-04  
+**Purpose:** Single blueprint of **every condition that prevents a Wheel strategy order** (CSP open or CC open). If it can kill a trade, it is listed here.  
+**Code truth:** `config/strategies.yaml` → `strategies.wheel`, `strategies/wheel_universe_selector.py` (`select_wheel_candidates`), `strategies/wheel_strategy.py` (`_run_csp_phase`, `_run_cc_phase`), `capital/strategy_allocator.py` (`can_allocate`), `src/options_engine.py` (UW + option math helpers), `src/wheel_risk_gates.py`.
+
+## Wheel CSP — universe pipeline (`select_wheel_candidates`)
+
+Before `_run_csp_phase` runs per-symbol CSP logic, candidates come from the universe YAML referenced by `universe_source` (default chain: `strategies.yaml` → path → `universe.tickers`).
+
+| Blocker | Config keys / source | Mechanism |
+|--------|----------------------|-----------|
+| Sector exclusion | `universe_excluded_sectors` | Symbol’s sector (from `SECTOR_MAP` in `wheel_universe_selector`) must not be in this list. |
+| Earnings proximity | `risk.avoid_earnings_window_days` | UW `/earnings`; **fail-closed** skip if UW unusable and window > 0. |
+| Per-symbol wheel exposure | `risk.max_positions_per_symbol` + `state/wheel_state.json` | Skip if open CSP legs + assigned shares for symbol already at cap. |
+| **Capital pre-filter (max share price)** | `capital_allocation`, `risk.require_cash_secured`, `risk.allow_margin_account`, `per_position_fraction_of_wheel_budget`, `risk.max_sector_notional_fraction` | `_max_affordable_share_price`: drops symbol if **spot > affordable max** (CSP collateral ≈ 100× spot vs wheel budget slice). Runs **before** heavy OI/spread fetches. |
+| UW composite floor | `universe_uw_quality_min` | **Default `0` = off.** If &gt; 0, drops symbols with missing UW composite or score below threshold. |
+| Survivorship floor | `universe_survivorship_min` | **Default `0` = off.** If &gt; 0, drops symbols below survivorship score when data exists. |
+| Decay exit-rate ceiling | `universe_max_decay_exit_rate` | **Default `1.0` = off.** If &lt; 1, drops symbols whose decay exit rate exceeds max when data exists. |
+| Liquidity / IV proxy telemetry | `universe_min_liquidity_volume`, `universe_min_open_interest`, `universe_max_spread_pct`, `universe_min_iv_proxy` | Recorded per candidate (`pass_volume`, `pass_oi`, etc.). Top **`universe_max_candidates`** rows are returned **in rank order** regardless of `passed` flag — CSP phase may still veto downstream. |
+| UW ranking gaps | `uw_flow_cache` / `uw_composite_v2` | Symbols without UW cache sort last (`score ~ -1e9`); may fall out of top-N effectively. |
+
+## Wheel CSP — execution loop (`_run_csp_phase`)
+
+Evaluated **in order** for each ranked underlying (see `wheel_strategy.py`). Telemetry reasons map to `logs/system_events.jsonl` (`subsystem=wheel`, `event_type=wheel_csp_skipped`, …).
+
+| Blocker | Config / source | Notes |
+|--------|-----------------|------|
+| Global position cap | `max_concurrent_positions` / `max_positions` | Stops scanning when open CSP count reaches cap. |
+| **Underlying allowlist** | `universe_source` YAML vs `is_wheel_csp_underlying_eligible` | Symbol must appear under **`universe.tickers`** in the active YAML. **No parallel S&P 100 / ETF list.** |
+| Earnings window | `risk.avoid_earnings_window_days` | Repeated check at CSP time (UW). |
+| IV rank | `risk.min_iv_rank` | UW `/iv-rank`; missing/blocked counts as **fail** (no CSP). |
+| RSI overbought | `risk.max_rsi_for_csp_entry` | Alpaca daily bars; **`<= 0` disables.** RSI unavailable → **does not** veto. |
+| Dividend ex-date zone | `risk.avoid_ex_dividend_days` | UW-backed; **`0` disables.** |
+| Per-symbol CSP cap | `risk.max_positions_per_symbol` | Open CSP legs for symbol. |
+| Spot price | Alpaca quote path | `spot <= 0` → `no_spot`. |
+| Option chain / delta / DTE | `csp.target_dte_min/max`, `csp.delta_min/max` | No contracts in band → `no_contracts_in_range` (one widen attempt on DTE upper bound). |
+| Estimated delta too deep | `risk.csp_max_abs_estimated_delta` | Compares **estimated** put delta to cap. |
+| **Put wall (institutional floor)** | `risk.put_wall_min_oi` | UW `oi-change`; wall strike must be ≤ candidate strike and meet min OI. |
+| Option quote | Alpaca Data API / NBBO | Missing bid → `no_option_quote`. |
+| Minimum premium (dust) | `risk.min_credit_usd` | **`<= 0` disables** (`premium_meets_min_credit`). Repo default for paper is often `0`. |
+| Sector notional cap | `risk.max_sector_notional_fraction` | New CSP notional vs equity × fraction + open CSPs by sector bucket. |
+| Cash-secured collateral | `risk.require_cash_secured`, `risk.allow_margin_account`, account `cash` × `multiplier` | `strict_cash_secured_put_ok`. |
+| Strategy allocator | `capital_allocation.strategies.wheel` | `can_allocate("wheel", notional, …)` — wheel slice budget / used / available. |
+| Per-position notional cap | `per_position_fraction_of_wheel_budget` | Strike × 100 must be ≤ `wheel_budget × fraction`. |
+| Duplicate open order | `open_orders` | Same OCC symbol already has an open order. |
+| Idempotency | `wheel_state.json` `recent_orders` | Same deterministic `client_order_id` already submitted/filled. |
+| Broker submit / fill | Alpaca API | Exceptions → no new CSP; partial lifecycle logged (`wheel_order_failed`, `wheel_order_not_filled`). |
+
+## Wheel CC — covered calls (`_run_cc_phase`)
+
+| Blocker | Config / source | Notes |
+|--------|-----------------|------|
+| No assigned shares | `wheel_state.json` `assigned_shares` | Nothing to cover. |
+| Less than 100 shares | lot `qty` sum | Traditional 1-contract covering assumption. |
+| CC legs already open | `open_ccs` vs share count | Enough contracts already marked open. |
+| Spot | Alpaca | `spot <= 0` → skip silently. |
+| Call selection | `cc.target_dte_min/max`, `cc.delta_min/max`, cost basis | Strike below basis skipped; delta band filter. |
+| Option quote | Alpaca | `no_option_quote`. |
+| Existing order | `open_orders` | Same OCC symbol. |
+| Broker | Alpaca | Submit failures logged / skipped. |
+
+## Present but **not** wired into Wheel CSP (do not confuse with live gates)
+
+- **`src/options_engine.py`**: `circuit_breaker_gap_down`, `circuit_breaker_illiquid_chain`, `circuit_breaker_pin_risk` — utilities only unless another module calls them (Wheel does **not**).
+- **`DEFAULT_DUST_MIN_CREDIT_USD`** / env `WHEEL_MIN_CREDIT_USD` — defaults for helpers; **wheel uses `risk.min_credit_usd` from `strategies.yaml`.**
+- **Equities / Harvester path (`main.py`)** — separate entry gates (V2, Alpha10, displacement, etc.) **do not apply** to Wheel CSP/CC unless explicitly bridged (they are not here).
+
+## Maintenance rule
+
+Any new `continue` / skip / veto on the Wheel path **must** update this section in the same PR as the code change.
 
 ---
 
