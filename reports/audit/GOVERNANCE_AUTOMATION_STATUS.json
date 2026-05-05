@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-05T13:20:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warn",
+      "message": "Expected directory reports/board/ does not exist."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warn",
+      "message": "reports/board/ is missing; memory_bank/ and .cursor/automations/ (with README + specs) and reports/audit/ are present."
+    },
+    {
+      "check": "no_deprecated_dirs",
+      "severity": "error",
+      "message": "Deprecated moltbot/ directory still exists at top level with active Python modules: board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "error",
+      "message": "Moltbot code found in active code/config paths: moltbot/ directory (6 Python files), scripts/run_molt_workflow.py, scripts/run_openclaw_molt_synthesis.py. References in reports/audit, reports/daily, docs are documentation-only and excluded per policy."
+    }
+  ],
+  "slack_sent": false
+}
