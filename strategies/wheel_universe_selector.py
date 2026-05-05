@@ -508,11 +508,11 @@ def select_wheel_candidates(
     sitter_bonus_by_symbol: Dict[str, float] = {}
     if uw_ranked and api is not None:
         try:
-            from src.options_engine import is_wheel_csp_underlying_eligible, sitter_iv_minus_rv_bonus
+            from src.options_engine import sitter_iv_minus_rv_bonus
 
             boosted: List[Tuple[str, float]] = []
             for sym, sc in uw_ranked:
-                bonus = sitter_iv_minus_rv_bonus(sym) if is_wheel_csp_underlying_eligible(sym) else 0.0
+                bonus = sitter_iv_minus_rv_bonus(sym)
                 sitter_bonus_by_symbol[sym] = bonus
                 boosted.append((sym, float(sc) + bonus * 0.12))
             boosted.sort(key=lambda x: -x[1])
@@ -530,10 +530,10 @@ def select_wheel_candidates(
         if cap_in is not None:
             ordered_symbols = _filter_ordered_by_capital(api, ordered_symbols, cap_in)
 
-    # UW quality floor and survivorship/decay filters (wheel_v2)
-    uw_quality_min = _get("universe_uw_quality_min", 0.5)
-    survivorship_min = 0.0
-    decay_exit_rate_max = 0.80
+    # UW quality / survivorship / decay — defaults off; enable via strategies.yaml explicitly.
+    uw_quality_min = float(_get("universe_uw_quality_min", 0) or 0)
+    survivorship_min = float(_get("universe_survivorship_min", 0) or 0)
+    decay_exit_rate_max = float(_get("universe_max_decay_exit_rate", 1.0) or 1.0)
     wheel_candidates_log = REPO_ROOT / "logs" / "wheel_candidates.jsonl"
 
     def _get_decay_exit_rate(sym: str) -> Optional[float]:

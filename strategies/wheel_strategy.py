@@ -106,11 +106,6 @@ def _notify_wheel_critical_abort(reason: str, detail: str, cycle_id: Optional[st
         pass
 
 
-# Default liquidity filters
-MIN_OPEN_INTEREST = 10
-MIN_VOLUME = 1
-
-
 def _load_strategies_config() -> dict:
     """Load strategies.yaml."""
     path = Path("config") / "strategies.yaml"
@@ -1097,9 +1092,9 @@ def _run_csp_phase(
                 _emit_candidate_evaluated("skip", "not_wheel_eligible")
                 continue
         except Exception as e:
-            log.warning("Wheel SP100 gate import failed: %s", e)
-            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="sp100_gate_error")
-            _emit_candidate_evaluated("skip", "sp100_gate_error")
+            log.warning("Wheel underlying eligibility gate import failed: %s", e)
+            _wheel_system_event("wheel_csp_skipped", symbol=t, reason="wheel_eligibility_gate_error")
+            _emit_candidate_evaluated("skip", "wheel_eligibility_gate_error")
             continue
         if _check_earnings(t, avoid_earnings):
             log.info("Wheel CSP: skip %s (earnings window)", t)
