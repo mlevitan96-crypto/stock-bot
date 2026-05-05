@@ -27,6 +27,10 @@ strategies:
     universe_min_open_interest: 5000
     universe_max_spread_pct: 0.005
     universe_min_iv_proxy: 0.15
+    # Optional intelligence floors (0 / 1.0 = disabled). Former defaults silently dropped mid-caps.
+    universe_uw_quality_min: 0
+    universe_survivorship_min: 0
+    universe_max_decay_exit_rate: 1.0
     # Mid-cap pivot: do not blanket-exclude Technology / Comm Services (names like PLTR, T, SNAP).
     # Sector concentration remains enforced via risk.max_sector_notional_fraction.
     universe_excluded_sectors: []
