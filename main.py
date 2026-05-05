@@ -14,6 +14,7 @@ import sys
 import time
 import json
 import math
+import re
 import random
 import signal
 import threading
@@ -5694,6 +5695,31 @@ def _apply_alpha11_tiered_entry_notional(symbol: str, notional_target: float, cl
             return float(getattr(Config, "SIZE_BASE_USD", 500.0) or 500.0)
 
 
+# US OCC option symbol tail: YYMMDD + C|P + 8-digit strike (root letters prefix).
+# Wheel / options legs must never pass through equity evaluate_exits (fire_sale, signal_decay, stale_alpha).
+_OCC_OPTION_SYMBOL_TAIL = re.compile(r"\d{6}[CP]\d{8}$")
+
+
+def _equity_exit_skip_option_leg(symbol: str, position_obj: Any) -> bool:
+    """
+    Return True if this position must be ignored by AlpacaExecutor.evaluate_exits.
+
+    Options are managed exclusively by wheel_manager / wheel_capital_velocity and wheel reconcile paths.
+    """
+    sym = str(symbol or "").strip().upper()
+    if not sym:
+        return False
+    if _OCC_OPTION_SYMBOL_TAIL.search(sym):
+        return True
+    if position_obj is not None:
+        ac = getattr(position_obj, "asset_class", None)
+        if ac is None and isinstance(position_obj, dict):
+            ac = position_obj.get("asset_class")
+        if ac is not None and str(ac).strip().lower() in ("us_option", "option", "crypto_option"):
+            return True
+    return False
+
+
 # =========================
 # EXECUTION & POSITION MGMT (Alpaca API - PAPER/LIVE)
 # =========================
@@ -9178,6 +9204,9 @@ class AlpacaExecutor:
         
         # Now evaluate all positions
         for symbol, pos_data in positions_to_evaluate.items():
+            # Hard firewall: equity exit stack must not run on OCC options (wheel-only lifecycle).
+            if _equity_exit_skip_option_leg(symbol, positions_index.get(symbol)):
+                continue
             info = pos_data.get("info", {}) if isinstance(pos_data, dict) else {}
             if not isinstance(info, dict):
                 log_event(
