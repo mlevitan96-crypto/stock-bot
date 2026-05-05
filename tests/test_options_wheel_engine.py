@@ -14,14 +14,15 @@ def test_sp100_contains_aapl_and_brk_hyphen() -> None:
     assert not oe.is_sp100_wheel_eligible("XLF")
 
 
-def test_wheel_underlying_includes_macro_etfs_and_sector_xl() -> None:
-    assert oe.is_wheel_csp_underlying_eligible("AAPL")
-    assert oe.is_wheel_csp_underlying_eligible("SPY")
-    assert oe.is_wheel_csp_underlying_eligible("QQQ")
-    assert oe.is_wheel_csp_underlying_eligible("DIA")
-    assert oe.is_wheel_csp_underlying_eligible("IWM")
-    assert oe.is_wheel_csp_underlying_eligible("XLF")
-    assert oe.is_wheel_csp_underlying_eligible("XLE")
+def test_wheel_underlying_matches_active_universe_yaml() -> None:
+    """CSP allowlist is the wheel universe file from strategies.yaml (repo: mid-cap wheel_universe.yaml)."""
+    oe.clear_wheel_csp_eligibility_cache()
+    assert oe.is_wheel_csp_underlying_eligible("PLTR")
+    assert oe.is_wheel_csp_underlying_eligible("SOFI")
+    assert oe.is_wheel_csp_underlying_eligible("BAC")
+    # ETFs / names not listed in config/wheel_universe.yaml are not eligible under current prod config.
+    assert not oe.is_wheel_csp_underlying_eligible("SPY")
+    assert not oe.is_wheel_csp_underlying_eligible("AAPL")
     assert not oe.is_wheel_csp_underlying_eligible("ZZZZ")
 
 

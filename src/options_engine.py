@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Options wheel — UW + Alpaca decision helpers (institutional put wall, IV rank, earnings, SP100, dust floor).
+Options wheel — UW + Alpaca decision helpers (institutional put wall, IV rank, earnings, wheel universe YAML, dust floor).
 
 UW traffic uses ``src.uw.uw_client.uw_http_get`` (allow-listed endpoints, cache, quota).
 Fail-closed semantics when UW returns blocked/empty data for gates that require fresh intelligence.
@@ -12,10 +12,15 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from src.uw.oi_change_aggregate import _side_from_option_symbol
 from src.uw.uw_client import UwCachePolicy, uw_http_get
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+# (strategies.yaml mtime, universe yaml mtime, allowed symbols)
+_wheel_csp_allowed_cache: Optional[Tuple[float, float, frozenset[str]]] = None
 
 def _norm_sp100(sym: str) -> str:
     """Alpaca-style hyphen vs dot tickers (BRK.B / BRK-B) normalized to hyphen."""
@@ -32,19 +37,6 @@ SP100_CONSTITUENTS: frozenset[str] = frozenset(
     JPM KO LIN LLY LMT LOW LRCX MA MCD MDLZ MDT META MMM MO MRK MS MSFT MU NEE NFLX NKE NOW NVDA ORCL PEP PFE PG
     PLTR PM QCOM RTX SBUX SCHW SO SPG T TMO TMUS TSLA TXN UBER UNH UNP UPS USB V VZ WFC WMT XOM
     """.split()
-)
-
-# Macro index / highly liquid ETFs allowed for wheel CSPs alongside S&P 100 (Board: align universe vs gate).
-WHEEL_MACRO_ETFS: frozenset[str] = frozenset(
-    _norm_sp100(x)
-    for x in """
-    SPY QQQ DIA IWM VOO IVV VTI SPLG SCHD VTV DVY VYM
-    """.split()
-)
-
-# Select Sector SPDRs + broad sector XL* names commonly screened with macro ETFs.
-WHEEL_SECTOR_XL_ETFS: frozenset[str] = frozenset(
-    _norm_sp100(x) for x in "XLB XLC XLE XLF XLI XLK XLP XLRE XLU XLV XLY".split()
 )
 
 DEFAULT_MIN_IV_RANK = 50.0
@@ -76,22 +68,66 @@ def uw_ticker_for_rest(sym: str) -> str:
 
 
 def is_sp100_wheel_eligible(underlying: str) -> bool:
-    """True if underlying is an S&P 100 constituent (narrow gate; see ``is_wheel_csp_underlying_eligible`` for wheel CSP)."""
+    """True if underlying is an S&P 100 constituent (telemetry / legacy helpers only — not the CSP allowlist)."""
     return _norm_sp100(underlying) in SP100_CONSTITUENTS
+
+
+def clear_wheel_csp_eligibility_cache() -> None:
+    """Tests or hot-reload tooling may clear the cached universe parse."""
+    global _wheel_csp_allowed_cache
+    _wheel_csp_allowed_cache = None
+
+
+def _wheel_csp_allowed_symbols() -> frozenset[str]:
+    """
+    Symbols allowed for wheel CSP opens: normalized tickers listed under ``universe.tickers``
+    in the YAML path from ``config/strategies.yaml`` → ``strategies.wheel.universe_source``
+    (fallback ``universe_config``, default ``config/universe_wheel.yaml``).
+    """
+    global _wheel_csp_allowed_cache
+    strat_path = _REPO_ROOT / "config" / "strategies.yaml"
+    mt_s = strat_path.stat().st_mtime if strat_path.is_file() else 0.0
+    mt_u = 0.0
+    tickers_set: frozenset[str] = frozenset()
+    try:
+        import yaml
+
+        if strat_path.is_file():
+            with strat_path.open(encoding="utf-8") as f:
+                doc = yaml.safe_load(f) or {}
+            wheel = (doc.get("strategies") or {}).get("wheel") or {}
+            uc = wheel.get("universe_source") or wheel.get("universe_config") or "config/universe_wheel.yaml"
+            uni_path = Path(uc)
+            if not uni_path.is_absolute():
+                uni_path = _REPO_ROOT / uni_path
+            if uni_path.is_file():
+                mt_u = uni_path.stat().st_mtime
+                with uni_path.open(encoding="utf-8") as f:
+                    udoc = yaml.safe_load(f) or {}
+                raw = (udoc.get("universe") or {}).get("tickers") or []
+                tickers_set = frozenset(_norm_sp100(str(x)) for x in raw if x)
+    except Exception:
+        tickers_set = frozenset()
+
+    if (
+        _wheel_csp_allowed_cache is not None
+        and _wheel_csp_allowed_cache[0] == mt_s
+        and _wheel_csp_allowed_cache[1] == mt_u
+    ):
+        return _wheel_csp_allowed_cache[2]
+    _wheel_csp_allowed_cache = (mt_s, mt_u, tickers_set)
+    return tickers_set
 
 
 def is_wheel_csp_underlying_eligible(underlying: str) -> bool:
     """
-    Wheel CSP underlying gate: S&P 100 **or** approved macro / sector ETFs.
-
-    Aligns universe selector (which ranks SPY, DIA, sector XL*, etc.) with execution eligibility.
+    Wheel CSP underlying gate: symbol must be listed in the active wheel universe YAML
+    (via ``strategies.yaml`` → ``universe_source``). No separate S&P 100 / ETF allowlist.
     """
     u = _norm_sp100(underlying)
-    if u in SP100_CONSTITUENTS:
-        return True
-    if u in WHEEL_MACRO_ETFS or u in WHEEL_SECTOR_XL_ETFS:
-        return True
-    return False
+    if not u:
+        return False
+    return u in _wheel_csp_allowed_symbols()
 
 
 def occ_strike_price(option_symbol: str) -> Optional[float]:
@@ -356,7 +392,7 @@ def fetch_uw_iv_atm_and_rv20d(underlying: str) -> Tuple[Optional[float], Optiona
 
 def sitter_iv_minus_rv_bonus(underlying: str) -> float:
     """
-    Non-negative score bump when IV (ATM) > RV (20d) — for wheel universe sitter ranking on SP100.
+    Non-negative score bump when IV (ATM) > RV (20d) — wheel universe sitter rerank signal.
 
     Returns ``max(0, iv - rv) * 100`` (typical scale 0–5) or 0.0 when data missing (no penalty).
     """
