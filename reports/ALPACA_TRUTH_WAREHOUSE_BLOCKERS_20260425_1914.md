@@ -1,0 +1,20 @@
+# ALPACA_TRUTH_WAREHOUSE_BLOCKERS_20260425_1914
+
+## Fail-closed
+
+- GATE: No reliable execution surface (orders.jsonl and alpaca_unified_events missing/empty).
+- GATE: Zero exit_attribution rows in window — cannot certify execution/PnL joins.
+- GATE: No decision boundary telemetry (score_snapshot + run trade_intent empty in window).
+- FAIL blocked_boundary_coverage: 0.00% (need >= 50.0%) 
+
+## Gates
+
+- execution_join_coverage: 100.00% pass=True
+- fee_coverage: 100.00% pass=True
+- slippage_coverage: 100.00% pass=True
+- corporate_actions: 100.00% pass=True
+- signal_snapshot_exits: 100.00% pass=True
+- blocked_boundary_coverage: 0.00% pass=False
+- ci_reason_blocked: 100.00% pass=True
+- uw_snapshot_presence: 100.00% pass=True
+

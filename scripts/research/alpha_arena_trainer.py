@@ -252,73 +252,9 @@ def _drop_sparse_features(X: Any, feat_cols: List[str]) -> Tuple[Any, List[str]]
     return X[:, keep], cols
 
 
-def _write_alpha_arena_results_md(
-    path: Path,
-    *,
-    target_name: str,
-    resolution_note: str,
-    csv_path: Path,
-    n_rows_fit: int,
-    n_features: int,
-    roc_auc: Optional[float],
-    precision: Optional[float],
-    recall: Optional[float],
-    cls_note: str,
-    top10: List[Tuple[str, float, float]],
-    top_penalizing_feature: str,
-    penalizing_mean_shap: float,
-) -> None:
-    try:
-        csv_disp = str(csv_path.resolve().relative_to(REPO_ROOT)).replace("\\", "/")
-    except ValueError:
-        csv_disp = csv_path.as_posix()
-    lines = [
-        "# Alpha Arena — Local Research Run",
-        "",
-        f"- **CSV:** `{csv_disp}`",
-        f"- **Regression target (exported RF):** `{target_name}` — _{resolution_note}_",
-        f"- **Rows / features (after filters):** {n_rows_fit} / {n_features}",
-        "",
-        "## Classification head (win vs loss on realized PnL, 5-fold OOF)",
-        "",
-        "Separate **RandomForestClassifier** on the same `X`, label = (`realized_pnl_usd` > 0) on fit rows. "
-        "Metrics from out-of-fold `predict_proba` vs labels (not the exported regressor).",
-        "",
-        f"- **ROC AUC (mean OOF):** {roc_auc if roc_auc is not None else 'n/a'}",
-        f"- **Precision @0.5:** {precision if precision is not None else 'n/a'}",
-        f"- **Recall @0.5:** {recall if recall is not None else 'n/a'}",
-        f"- **Note:** {cls_note}",
-        "",
-        "## Top 10 features by mean |SHAP| (regressor on export target)",
-        "",
-        "| Rank | Feature | mean \\|SHAP\\| | mean signed SHAP |",
-        "| ---: | --- | ---: | ---: |",
-    ]
-    for i, (name, ma, ms) in enumerate(top10, start=1):
-        lines.append(f"| {i} | `{name}` | {ma:.6g} | {ms:.6g} |")
-    lines.extend(
-        [
-            "",
-            "## Commander: loss tilt (regressor SHAP sign)",
-            "",
-            f"- **#1 most penalizing feature (lowest mean signed SHAP on target `{target_name}`):** "
-            f"`{top_penalizing_feature}` (mean signed SHAP = **{penalizing_mean_shap:.6g}** — pushes predicted target **down** on average across this cohort).",
-            "",
-        ]
-    )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines), encoding="utf-8")
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description="Alpha arena: regress MFE-style target vs mlf_* features.")
     ap.add_argument("--csv", type=Path, default=REPO_ROOT / "reports" / "Gemini" / "alpaca_ml_cohort_flat.csv")
-    ap.add_argument(
-        "--data",
-        type=Path,
-        default=None,
-        help="Alias for --csv (Commander / Gemini flat path).",
-    )
     ap.add_argument("--target-col", type=str, default="exit_mfe_pct", help="Preferred target (CSV or derived).")
     ap.add_argument(
         "--no-mfe-proxy",
@@ -343,26 +279,11 @@ def main() -> int:
         action="store_true",
         help=(
             "Train RandomForestRegressor on all fit rows (same leakage/sparse pipeline as arena) and write "
-            "joblib + manifest + ALPHA_ARENA_RESULTS.md (see --paper-ml-gate-joblib / --results-md). "
+            "models/paper_ml_gate/alpaca_eod_model.joblib plus models/paper_ml_gate/manifest.json. "
             "Exits after export."
         ),
     )
-    ap.add_argument(
-        "--paper-ml-gate-joblib",
-        type=Path,
-        default=REPO_ROOT / "models" / "paper_ml_gate" / "alpaca_eod_model.joblib",
-        help="Output joblib path when using --export-paper-ml-gate.",
-    )
-    ap.add_argument(
-        "--results-md",
-        type=Path,
-        default=REPO_ROOT / "reports" / "Gemini" / "ALPHA_ARENA_RESULTS.md",
-        help="Markdown metrics + SHAP summary when using --export-paper-ml-gate.",
-    )
     args = ap.parse_args()
-
-    if args.data is not None:
-        args.csv = args.data
 
     csv_path = args.csv.resolve()
     if not csv_path.is_file():
@@ -389,7 +310,7 @@ def main() -> int:
     if len(feat_cols) < 4:
         raise SystemExit("Too few feature columns (need mlf_/uw_/mlx_* after leakage filters).")
 
-    X, y, keep_idx = _build_xy(rows, feat_cols, y_list)
+    X, y, _ = _build_xy(rows, feat_cols, y_list)
     X, feat_cols = _drop_sparse_features(X, feat_cols)
 
     if args.export_alpha10:
@@ -431,10 +352,6 @@ def main() -> int:
         except ImportError:
             print("Need joblib for --export-paper-ml-gate (install scikit-learn stack).", file=sys.stderr)
             return 1
-        from sklearn.ensemble import RandomForestClassifier  # noqa: WPS433
-        from sklearn.metrics import precision_score, recall_score, roc_auc_score  # noqa: WPS433
-        from sklearn.model_selection import StratifiedKFold, cross_val_predict  # noqa: WPS433
-
         medians = np.nanmedian(X.astype(np.float64), axis=0)
         rf = RandomForestRegressor(
             n_estimators=200,
@@ -444,9 +361,9 @@ def main() -> int:
             n_jobs=-1,
         )
         rf.fit(X, y)
-        joblib_path = args.paper_ml_gate_joblib.resolve()
-        joblib_path.parent.mkdir(parents=True, exist_ok=True)
-        gate_dir = joblib_path.parent
+        gate_dir = REPO_ROOT / "models" / "paper_ml_gate"
+        gate_dir.mkdir(parents=True, exist_ok=True)
+        joblib_path = gate_dir / "alpaca_eod_model.joblib"
         bundle = {
             "model": rf,
             "feature_names": list(feat_cols),
@@ -476,92 +393,6 @@ def main() -> int:
         print(f"n_feature_names={len(feat_cols)} (listed in manifest.json)")
         print(f"\nWrote paper ML gate bundle: {joblib_path}")
         print(f"Wrote manifest: {manifest_path}")
-
-        # --- Win/loss head on realized PnL (same rows) for ROC / precision / recall ---
-        y_pnl = np.array([float(rows[i].get("realized_pnl_usd") or 0.0) for i in keep_idx], dtype=np.float64)
-        y_win = (y_pnl > 0.0).astype(np.int32)
-        roc_auc: Optional[float] = None
-        precision: Optional[float] = None
-        recall: Optional[float] = None
-        cls_note = "ok"
-        pos_c = int(y_win.sum())
-        neg_c = int(len(y_win) - pos_c)
-        if pos_c in (0, len(y_win)):
-            cls_note = "single_class_realized_pnl_skip_metrics"
-        else:
-            n_splits = min(5, pos_c, neg_c)
-            if n_splits < 2:
-                cls_note = f"insufficient_class_balance_for_cv(pos={pos_c},neg={neg_c})"
-            else:
-                skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=args.random_state)
-                rfc = RandomForestClassifier(
-                    n_estimators=200,
-                    max_depth=12,
-                    min_samples_leaf=3,
-                    random_state=args.random_state,
-                    class_weight="balanced_subsample",
-                    n_jobs=-1,
-                )
-                try:
-                    proba = cross_val_predict(rfc, X, y_win, cv=skf, method="predict_proba", n_jobs=-1)[:, 1]
-                    roc_auc = float(roc_auc_score(y_win, proba))
-                    pred = (proba >= 0.5).astype(np.int32)
-                    precision = float(precision_score(y_win, pred, zero_division=0))
-                    recall = float(recall_score(y_win, pred, zero_division=0))
-                except Exception as exc:
-                    cls_note = f"classifier_cv_failed:{type(exc).__name__}"
-
-        # --- SHAP on exported regressor (signed tilt for “penalizing” feature) ---
-        top10: List[Tuple[str, float, float]] = []
-        top_penalizing_feature = ""
-        penalizing_mean_shap = 0.0
-        try:
-            import shap  # type: ignore  # noqa: WPS433
-
-            explainer = shap.TreeExplainer(rf)
-            sv = explainer.shap_values(X)
-            if isinstance(sv, list):
-                sv = sv[0]
-            mean_abs = np.mean(np.abs(sv), axis=0)
-            mean_signed = np.mean(sv, axis=0)
-            order_abs = np.argsort(-mean_abs)
-            for j in order_abs[:10]:
-                jj = int(j)
-                top10.append((feat_cols[jj], float(mean_abs[jj]), float(mean_signed[jj])))
-            pj = int(np.argmin(mean_signed))
-            top_penalizing_feature = feat_cols[pj]
-            penalizing_mean_shap = float(mean_signed[pj])
-        except Exception:
-            from sklearn.inspection import permutation_importance  # noqa: WPS433
-
-            r = permutation_importance(
-                rf, X, y, n_repeats=15, random_state=args.random_state, n_jobs=-1, scoring="r2"
-            )
-            order_abs = np.argsort(-r.importances_mean)
-            for j in order_abs[:10]:
-                jj = int(j)
-                top10.append((feat_cols[jj], float(r.importances_mean[jj]), float("nan")))
-            pj = int(order_abs[0])
-            top_penalizing_feature = feat_cols[pj]
-            penalizing_mean_shap = 0.0
-            cls_note = cls_note + "; shap_unavailable_used_permutation_top10_unsigned"
-
-        _write_alpha_arena_results_md(
-            args.results_md.resolve(),
-            target_name=target_name,
-            resolution_note=resolution_note,
-            csv_path=csv_path,
-            n_rows_fit=int(X.shape[0]),
-            n_features=int(X.shape[1]),
-            roc_auc=roc_auc,
-            precision=precision,
-            recall=recall,
-            cls_note=cls_note,
-            top10=top10,
-            top_penalizing_feature=top_penalizing_feature or "(none)",
-            penalizing_mean_shap=penalizing_mean_shap,
-        )
-        print(f"Wrote results markdown: {args.results_md.resolve()}")
         return 0
 
     kf = KFold(n_splits=min(args.cv, len(y)), shuffle=True, random_state=args.random_state)

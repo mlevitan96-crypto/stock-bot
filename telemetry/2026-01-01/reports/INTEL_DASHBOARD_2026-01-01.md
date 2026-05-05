@@ -15,8 +15,14 @@
 - Regime engine version: `2026-01-20_regime_v1`
 
 ## 4. UW Attribution Highlights (tail)
-- **SPY** dir=bullish uw_score_delta=0.0864
-- **SPY** dir=bullish uw_score_delta=0.0864
+- **AAPL** dir=bullish uw_score_delta=0.10152
+- **AAPL** dir=bullish uw_score_delta=0.1692
+- **AAPL** dir=bullish uw_score_delta=0.10152
+- **AAPL** dir=bullish uw_score_delta=0.1692
+- **AAPL** dir=bullish uw_score_delta=0.10152
+- **AAPL** dir=bullish uw_score_delta=0.1692
+- **AAPL** dir=bullish uw_score_delta=0.10152
+- **AAPL** dir=bullish uw_score_delta=0.1692
 - **AAPL** dir=bullish uw_score_delta=0.10152
 - **AAPL** dir=bullish uw_score_delta=0.1692
 
@@ -25,7 +31,7 @@
 - No per-feature P&L aggregates available yet.
 
 ## 6. Health & Self-Healing Status
-- Health: **NOT_OK**
+- Health: **OK**
 - Checks: **19**
   - freshness:daily_universe: ok
   - freshness:core_universe: ok
@@ -60,4 +66,4 @@
 ## 10. Post-Close Analysis Pack
 - Pack folder: `analysis_packs/2026-01-01/`
 - Master summary: `analysis_packs/2026-01-01/MASTER_SUMMARY_2026-01-01.md`
-- Critical flags: **['intel_health=not_ok']**
+- Critical flags: (none detected from current health state)

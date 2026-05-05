@@ -1,0 +1,311 @@
+{
+  "date": "2026-05-01",
+  "trade_intent_count": 936,
+  "exit_intent_count": 388,
+  "entered": 157,
+  "blocked": 779,
+  "blocked_reasons": {
+    "offense_streak_two_losses_30m": 529,
+    "max_one_position_per_symbol": 147,
+    "offense_gate_blocked_rs_and_vwap": 59,
+    "v2_agent_veto": 9,
+    "displacement_failed": 11,
+    "portfolio_exposure_exceeds_limit_30.50%_max_30.00%": 1,
+    "portfolio_exposure_exceeds_limit_30.64%_max_30.00%": 1,
+    "portfolio_exposure_exceeds_limit_30.63%_max_30.00%": 1,
+    "portfolio_exposure_exceeds_limit_30.92%_max_30.00%": 1,
+    "portfolio_exposure_exceeds_limit_31.34%_max_30.00%": 1,
+    "portfolio_exposure_exceeds_limit_30.30%_max_30.00%": 1,
+    "portfolio_exposure_exceeds_limit_30.28%_max_30.00%": 1,
+    "cooldown_not_met_2.5_min_required_5_min": 1,
+    "cooldown_not_met_0.3_min_required_5_min": 1,
+    "cooldown_not_met_1.3_min_required_5_min": 1,
+    "cooldown_not_met_2.0_min_required_5_min": 1,
+    "portfolio_exposure_exceeds_limit_31.55%_max_30.00%": 1,
+    "market_closed": 12
+  },
+  "by_signal_family": {
+    "alpha_signals": {
+      "count": 936,
+      "entered": 157,
+      "blocked": 779,
+      "pnl_sum": -9.759999999999994
+    },
+    "flow_signals": {
+      "count": 936,
+      "entered": 157,
+      "blocked": 779,
+      "pnl_sum": -9.759999999999994
+    },
+    "regime_signals": {
+      "count": 936,
+      "entered": 157,
+      "blocked": 779,
+      "pnl_sum": -9.759999999999994
+    },
+    "volatility_signals": {
+      "count": 936,
+      "entered": 157,
+      "blocked": 779,
+      "pnl_sum": -9.759999999999994
+    },
+    "dark_pool_signals": {
+      "count": 936,
+      "entered": 157,
+      "blocked": 779,
+      "pnl_sum": -9.759999999999994
+    }
+  },
+  "blocked_sample": [
+    {
+      "symbol": "DIA",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:14.031732+00:00"
+    },
+    {
+      "symbol": "GOOGL",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:20.566977+00:00"
+    },
+    {
+      "symbol": "IWM",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:24.836276+00:00"
+    },
+    {
+      "symbol": "WFC",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:26.205449+00:00"
+    },
+    {
+      "symbol": "AMZN",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:30.571022+00:00"
+    },
+    {
+      "symbol": "JPM",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:35.185965+00:00"
+    },
+    {
+      "symbol": "COP",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:36.953324+00:00"
+    },
+    {
+      "symbol": "MSFT",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:41.459877+00:00"
+    },
+    {
+      "symbol": "UNH",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:45.653414+00:00"
+    },
+    {
+      "symbol": "XLK",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:21:46.244766+00:00"
+    },
+    {
+      "symbol": "V",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:48.472232+00:00"
+    },
+    {
+      "symbol": "SLB",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:21:49.085099+00:00"
+    },
+    {
+      "symbol": "WMT",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:21:54.483443+00:00"
+    },
+    {
+      "symbol": "TGT",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:22:03.121376+00:00"
+    },
+    {
+      "symbol": "MA",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:22:10.209458+00:00"
+    },
+    {
+      "symbol": "XOM",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:22:10.843737+00:00"
+    },
+    {
+      "symbol": "BA",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:22:12.150591+00:00"
+    },
+    {
+      "symbol": "LOW",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:22:16.441787+00:00"
+    },
+    {
+      "symbol": "CVX",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:22:21.536659+00:00"
+    },
+    {
+      "symbol": "QQQ",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:22:25.209930+00:00"
+    },
+    {
+      "symbol": "XLF",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:22:25.820359+00:00"
+    },
+    {
+      "symbol": "XLP",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:22:26.427137+00:00"
+    },
+    {
+      "symbol": "XLV",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:22:30.078976+00:00"
+    },
+    {
+      "symbol": "XLI",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:22:30.807706+00:00"
+    },
+    {
+      "symbol": "XLE",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:22:34.138985+00:00"
+    },
+    {
+      "symbol": "CAT",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:22:36.002439+00:00"
+    },
+    {
+      "symbol": "TSLA",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:23:44.935704+00:00"
+    },
+    {
+      "symbol": "SOFI",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:23:54.273372+00:00"
+    },
+    {
+      "symbol": "HOOD",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:23:57.592581+00:00"
+    },
+    {
+      "symbol": "PLTR",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:23:59.883011+00:00"
+    },
+    {
+      "symbol": "COIN",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:07.059526+00:00"
+    },
+    {
+      "symbol": "NFLX",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:16.850573+00:00"
+    },
+    {
+      "symbol": "MRNA",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:20.704804+00:00"
+    },
+    {
+      "symbol": "LCID",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:24.893311+00:00"
+    },
+    {
+      "symbol": "NVDA",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:34.687865+00:00"
+    },
+    {
+      "symbol": "AMD",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:41.770901+00:00"
+    },
+    {
+      "symbol": "INTC",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:45.804262+00:00"
+    },
+    {
+      "symbol": "C",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:52.724934+00:00"
+    },
+    {
+      "symbol": "MS",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:55.283149+00:00"
+    },
+    {
+      "symbol": "RIVN",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:24:59.158799+00:00"
+    },
+    {
+      "symbol": "QQQ",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:25:00.347441+00:00"
+    },
+    {
+      "symbol": "GS",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:25:07.247887+00:00"
+    },
+    {
+      "symbol": "NIO",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:25:15.278030+00:00"
+    },
+    {
+      "symbol": "XLF",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:25:16.415941+00:00"
+    },
+    {
+      "symbol": "BLK",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:25:22.904635+00:00"
+    },
+    {
+      "symbol": "WFC",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:25:28.267246+00:00"
+    },
+    {
+      "symbol": "XLP",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:25:29.485678+00:00"
+    },
+    {
+      "symbol": "XLV",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:25:30.951198+00:00"
+    },
+    {
+      "symbol": "XLI",
+      "blocked_reason": "max_one_position_per_symbol",
+      "ts": "2026-05-01T18:25:31.778558+00:00"
+    },
+    {
+      "symbol": "XLE",
+      "blocked_reason": "offense_streak_two_losses_30m",
+      "ts": "2026-05-01T18:25:34.678282+00:00"
+    }
+  ]
+}
