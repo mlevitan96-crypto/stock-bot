@@ -15,5 +15,6 @@
     "repo_structure: reports/board/ directory does not exist (expected by governance contract)",
     "governance_contracts_present: reports/board/ missing — required governance output directory absent"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "unable to create — gh CLI is read-only in this environment; anomaly requires manual issue creation with title '[Governance Integrity] Anomalies detected'"
 }
