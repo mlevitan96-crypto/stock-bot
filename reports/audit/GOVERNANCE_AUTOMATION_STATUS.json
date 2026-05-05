@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-05T20:10:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "warning",
+      "message": "reports/board/ directory does not exist. Expected top-level directories src/, scripts/, reports/, memory_bank/, docs/, validation/, .cursor/ are present. reports/audit/ exists but reports/board/ is missing."
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "warning",
+      "message": "reports/board/ directory is missing. memory_bank/ has key docs (report_output_contract.md, report_retention_policy.md, systemPatterns.md, TELEMETRY_ADDING_CHECKLIST.md, TELEMETRY_CHANGELOG.md, TELEMETRY_STANDARD.md). .cursor/automations/ exists with README.md and governance/PR/security specs. reports/audit/ exists."
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "anomaly",
+      "message": "Active moltbot code found: moltbot/ directory contains board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py with moltbot references. scripts/run_molt_workflow.py imports from moltbot. scripts/run_openclaw_molt_synthesis.py references Clawdbot (stub noting removal). alpaca_codebase_payload.txt contains 7 references. Excluded: reports/audit/, docs/ documenting removal, governance check scripts (.cursor/automations/, scripts/automations/, scripts/sre/)."
+    }
+  ],
+  "slack_sent": false
+}
