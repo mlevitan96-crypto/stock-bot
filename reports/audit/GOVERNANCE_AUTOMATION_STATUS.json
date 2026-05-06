@@ -15,5 +15,6 @@
     "governance_contracts_present: Missing: reports/board",
     "required_artifacts: reports/audit or reports/board missing or not directories"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1908"
 }
