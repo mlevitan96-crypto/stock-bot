@@ -17,5 +17,6 @@
     "Deprecated directory moltbot/ still present with code files: board.py, orchestrator.py, sentinel.py, promotion_discipline.py, memory_evolution.py, __init__.py, agents/",
     "Moltbot code found in: moltbot/ directory (6 files + agents/ subdir), scripts/run_openclaw_molt_synthesis.py, scripts/run_molt_workflow.py, scripts/sre/run_sre_anomaly_scan.py, scripts/automations/run_governance_integrity_once.py"
   ],
-  "slack_sent": false
+  "slack_sent": false,
+  "github_issue": "https://github.com/mlevitan96-crypto/stock-bot/issues/1932"
 }
