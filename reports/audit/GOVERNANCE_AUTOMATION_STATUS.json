@@ -1,12 +1,10 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-04-23T20:44:02.950740+00:00",
-  "run_ts_utc": "2026-04-23T20:44:02.950779+00:00",
+  "run_ts_utc": "2026-05-06T08:30:00.644000+00:00",
   "branch": "main",
-  "status": "anomalies",
   "anomalies_detected": true,
   "checks": {
-    "repo_structure": "pass",
+    "repo_structure": "fail",
     "config_drift": "pass",
     "governance_contracts_present": "fail",
     "required_artifacts": "fail",
@@ -14,12 +12,9 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
-  ],
-  "anomalies": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
+    "repo_structure: reports/board/ directory does not exist",
+    "governance_contracts_present: Missing required path: reports/board/",
+    "required_artifacts: reports/board/ is missing or not a directory"
   ],
   "slack_sent": false
 }
