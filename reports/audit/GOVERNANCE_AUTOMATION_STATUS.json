@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-06T15:10:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "fail",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory does not exist",
+    "governance_contracts_present: reports/board/ directory missing (required governance contract path)",
+    "no_deprecated_dirs: moltbot/ directory exists at repo root with active code (board.py, sentinel.py, orchestrator.py, memory_evolution.py, promotion_discipline.py, __init__.py, agents/)",
+    "no_deprecated_dirs: board/ directory exists at repo root (board/eod/, board/stock_quant_officer_contract.md) — may be deprecated legacy path",
+    "no_clawdbot_moltbot: moltbot/ directory present with 6+ Python modules",
+    "no_clawdbot_moltbot: scripts/run_molt_workflow.py references moltbot",
+    "no_clawdbot_moltbot: scripts/run_openclaw_molt_synthesis.py references clawdbot/moltbot",
+    "no_clawdbot_moltbot: scripts/sre/run_sre_anomaly_scan.py references clawdbot/moltbot",
+    "no_clawdbot_moltbot: scripts/automations/run_governance_integrity_once.py references clawdbot/moltbot (7 occurrences — may be governance check code)",
+    "no_clawdbot_moltbot: alpaca_codebase_payload.txt documents moltbot components"
+  ],
+  "slack_sent": false
+}
