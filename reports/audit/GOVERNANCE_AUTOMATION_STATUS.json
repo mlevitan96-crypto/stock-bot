@@ -1,9 +1,7 @@
 {
   "schema_version": "1.0",
-  "timestamp": "2026-04-25T13:52:05.671699+00:00",
-  "run_ts_utc": "2026-04-25T13:52:05.671734+00:00",
+  "run_ts_utc": "2026-05-06T20:40:00Z",
   "branch": "main",
-  "status": "anomalies",
   "anomalies_detected": true,
   "checks": {
     "repo_structure": "pass",
@@ -14,12 +12,8 @@
     "no_clawdbot_moltbot": "pass"
   },
   "details": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
-  ],
-  "anomalies": [
-    "Missing: reports/board",
-    "reports/audit or reports/board missing or not directories"
+    "governance_contracts_present: Missing required directory reports/board",
+    "required_artifacts: reports/board directory missing or not a directory"
   ],
   "slack_sent": false
 }
