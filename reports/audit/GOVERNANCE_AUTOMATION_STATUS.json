@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-07T01:00:00.410000+00:00",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "fail",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "pass"
+  },
+  "details": [
+    "repo_structure: reports/board/ directory missing (expected at reports/board/)",
+    "governance_contracts_present: reports/board/ directory missing",
+    "required_artifacts: reports/board/ not found as a directory"
+  ],
+  "slack_sent": false
+}
