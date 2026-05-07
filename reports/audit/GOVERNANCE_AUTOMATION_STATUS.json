@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "run_ts_utc": "2026-05-07T01:30:00Z",
+  "branch": "main",
+  "anomalies_detected": true,
+  "checks": {
+    "repo_structure": "fail",
+    "config_drift": "pass",
+    "governance_contracts_present": "fail",
+    "required_artifacts": "pass",
+    "no_deprecated_dirs": "pass",
+    "no_clawdbot_moltbot": "fail"
+  },
+  "details": [
+    {
+      "check": "repo_structure",
+      "severity": "medium",
+      "message": "reports/board/ directory does not exist. Expected per governance spec: reports/audit/ and reports/board/ must both exist.",
+      "evidence": "ls /workspace/reports/board/ -> not found"
+    },
+    {
+      "check": "governance_contracts_present",
+      "severity": "medium",
+      "message": "reports/board/ missing. All other governance contract paths present: memory_bank/ (6 docs), .cursor/automations/ (README + 5 specs), reports/audit/ (exists).",
+      "evidence": "reports/board/ not found; memory_bank/ OK; .cursor/automations/ OK; reports/audit/ OK"
+    },
+    {
+      "check": "no_clawdbot_moltbot",
+      "severity": "high",
+      "message": "Clawdbot/Moltbot references found in active code paths (outside reports/audit and docs). moltbot/ directory contains 5 active .py modules. scripts/run_molt_workflow.py imports from moltbot. scripts/run_openclaw_molt_synthesis.py references Clawdbot (stub noting removal). Note: scripts/automations/run_governance_integrity_once.py and scripts/sre/run_sre_anomaly_scan.py reference terms for detection purposes (meta-references).",
+      "files": [
+        "moltbot/board.py",
+        "moltbot/sentinel.py",
+        "moltbot/orchestrator.py",
+        "moltbot/memory_evolution.py",
+        "moltbot/promotion_discipline.py",
+        "scripts/run_molt_workflow.py",
+        "scripts/run_openclaw_molt_synthesis.py"
+      ],
+      "meta_references": [
+        "scripts/automations/run_governance_integrity_once.py",
+        "scripts/sre/run_sre_anomaly_scan.py"
+      ],
+      "evidence": "rg '[Cc]lawdbot|CLAWDBOT_|[Mm]oltbot|MOLTBOT_' across repo, excluding reports/audit/ and docs/"
+    }
+  ],
+  "slack_sent": false
+}
